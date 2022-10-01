@@ -1,3 +1,5 @@
+@file:JsExport
+
 package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWindow
