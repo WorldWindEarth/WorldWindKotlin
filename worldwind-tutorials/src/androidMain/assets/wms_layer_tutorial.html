@@ -25,31 +25,47 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class WmsLayerFragment : BasicGlobeFragment() {
+class WmsLayerFragment : BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow (GLSurfaceView) object with a WMS Layer
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow(): WorldWindow {
-        // Let the super class (BasicGlobeFragment) do the creation
-        val wwd = super.createWorldWindow()
+    override fun createWorldWindow() = super.createWorldWindow().also { WmsLayerTutorial(it.engine, it.mainScope).start() }
+}
 
+class WmsLayerTutorial(private val engine: WorldWind, mainScope: CoroutineScope) : AbstractTutorial() {
+
+    private val wmsLayer by lazy {
         // Create a WMS layer factory.
-        val wmsLayerFactory = WmsLayerFactory(wwd.mainScope)
+        val wmsLayerFactory = WmsLayerFactory(mainScope)
 
         // Create an OGC Web Map Service (WMS) layer to display the
         // surface temperature layer from NASA's Near Earth Observations WMS.
-        val layer = wmsLayerFactory.createLayer(
+        wmsLayerFactory.createLayer(
             "https://neo.gsfc.nasa.gov/wms/wms", listOf("MOD_LSTD_CLIM_M"),
             { Logger.log(Logger.ERROR, "WMS layer creation failed", it) },
             { Logger.log(Logger.INFO, "WMS layer creation succeeded") }
         )
-
-        // Add the WMS layer to the WorldWindow.
-        wwd.engine.layers.addLayer(layer)
-        return wwd
     }
+
+    override fun start() {
+        super.start()
+        // Add WMS layer to the WorldWindow.
+        engine.layers.addLayer(wmsLayer)
+        engine.camera.apply {
+            position.altitude = engine.distanceToViewGlobeExtents * 1.1
+            heading = Angle.ZERO
+            tilt = Angle.ZERO
+            roll = Angle.ZERO
+        }
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(wmsLayer)
+    }
+
 }
     </textarea>
 </div>

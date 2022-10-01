@@ -1,46 +1,12 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Polygons Tutorial</title>
-    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
-    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
-    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
-    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
-    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
-</head>
-<body>
-<h1>Polygons Tutorial</h1>
-<p>
-    Demonstrates how to add Polygons to a RenderableLayer.
-</p>
-<p>
-    This example renders six different five-sided polygons on the globe.
-</p>
-<ul>
-    <li>The top-left polygon is above ground, using the default ABSOLUTE altitude mode and default attributes.</li>
-    <li>The top-right polygon is on the terrain surface, using a CLAMP_TO_GROUND altitude mode and setFollowTerrain(true).</li>
-    <li>The middle-left polygon is above ground, like the top-left, but with setExtrude(true).</li>
-    <li>The middle-right polygon is like the middle-left, but with custom attributes.</li>
-    <li>The bottom-left polygon contains an inner ring specified with addBoundary(List).</li>
-    <li>The bottom-right polygon is like the bottom-left, but with setExtrude(true) and custom attributes.</li>
-</ul>
-<h2>Example</h2>
-<h3>PolygonsFragment.kt</h3>
-<p>
-    The PolygonsFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
-    Here we create and add a RenderableLayer to the globe, and then define and add four Polygons to the layer.
-</p>
-<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
-    <textarea id="kotlin-code">
-class PolygonsFragment : BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a set of Polygon shapes
-     *
-     * @return The WorldWindow object containing the globe.
-     */
-    override fun createWorldWindow() = super.createWorldWindow().also { PolygonsTutorial(it.engine).start() }
-}
+package earth.worldwind.tutorials
+
+import earth.worldwind.WorldWind
+import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Position
+import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.render.Color
+import earth.worldwind.shape.Polygon
 
 class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
@@ -181,18 +147,3 @@ class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
     }
 
 }
-    </textarea>
-</div>
-
-<script type="text/javascript">
-      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
-        lineNumbers: true,
-        matchBrackets: true,
-        mode: "google-kotlin",
-        readOnly: true
-      });
-
-
-</script>
-</body>
-</html>

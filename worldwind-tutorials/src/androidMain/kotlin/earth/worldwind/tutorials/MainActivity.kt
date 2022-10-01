@@ -30,13 +30,13 @@ import kotlinx.coroutines.launch
 /**
  * This abstract Activity class implements a Navigation Drawer menu shared by all the WorldWind Example activities.
  */
-open class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
-    protected lateinit var drawerToggle: ActionBarDrawerToggle
-    protected lateinit var navigationView: NavigationView
-    protected var twoPaneView = false
-    protected var tutorialUrl: String? = null
-    protected val aboutBoxTitle = "WorldWind Tutorials" // TODO: use a string resource, e.g., app name
-    protected val aboutBoxText = "A collection of tutorials" // TODO: make this a string resource
+class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
+    private lateinit var drawerToggle: ActionBarDrawerToggle
+    private lateinit var navigationView: NavigationView
+    private var twoPaneView = false
+    private var tutorialUrl: String? = null
+    private val aboutBoxTitle = "WorldWind Tutorials" // TODO: use a string resource, e.g., app name
+    private val aboutBoxText = "A collection of tutorials" // TODO: make this a string resource
 
     /**
      * Returns a reference to the WorldWindow.
@@ -84,7 +84,7 @@ open class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSel
         }
     }
 
-    protected open fun onCreateDrawer() {
+    private fun onCreateDrawer() {
         // Add support for a Toolbar and set to act as the ActionBar
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -143,7 +143,7 @@ open class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSel
     /**
      * This method is invoked when the About button is selected in the Options menu.
      */
-    protected open fun showAboutBox() {
+    private fun showAboutBox() {
         val alertDialogBuilder = AlertDialog.Builder(this)
         alertDialogBuilder.setTitle(aboutBoxTitle)
         alertDialogBuilder
@@ -156,7 +156,7 @@ open class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSel
         alertDialog.show()
     }
 
-    protected open fun printMetrics() {
+    private fun printMetrics() {
         // Assemble the current WorldWind frame metrics.
         val fm = wwd?.engine?.frameMetrics as BasicFrameMetrics? ?: return
 
@@ -308,7 +308,7 @@ open class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSel
         return true
     }
 
-    protected open fun loadTutorial(globeFragment: Class<out Fragment>, url: String, titleId: Int) {
+    private fun loadTutorial(globeFragment: Class<out Fragment>, url: String, titleId: Int) {
         try {
             setTitle(titleId)
             val globe = globeFragment.newInstance()
@@ -336,7 +336,7 @@ open class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSel
     }
 
     companion object {
-        protected const val PRINT_METRICS_DELAY = 3000L
-        protected var selectedItemId = R.id.nav_basic_globe_activity
+        private const val PRINT_METRICS_DELAY = 3000L
+        private var selectedItemId = R.id.nav_basic_globe_activity
     }
 }

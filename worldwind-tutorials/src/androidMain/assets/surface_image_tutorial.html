@@ -30,38 +30,47 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class SurfaceImageFragment : BasicGlobeFragment() {
+class SurfaceImageFragment : BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow with an additional RenderableLayer containing two SurfaceImages.
      */
-    override fun createWorldWindow(): WorldWindow {
-        // Let the super class (BasicGlobeFragment) do the creation
-        val wwd = super.createWorldWindow()
-
-        // Add Surface Image Layer
-        wwd.engine.layers.addLayer(buildSurfaceImageLayer())
-
-        // Position the viewer so that the Surface Images are visible when the activity is created.
-        wwd.engine.camera.position.setDegrees(37.46543388598137, 14.97980511744455, 4.0e5)
-        return wwd
-    }
+    override fun createWorldWindow() = super.createWorldWindow().also { SurfaceImageTutorial(it.engine).start() }
 }
 
-fun buildSurfaceImageLayer(): RenderableLayer {
-    val layer = RenderableLayer("Surface Image")
+class SurfaceImageTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
-    // Configure a Surface Image to display an Android resource showing the WorldWindEarth logo.
-    var sector = Sector.fromDegrees(37.46, 15.5, 0.5, 0.6)
-    val surfaceImageResource = SurfaceImage(sector, ImageSource.fromResource(MR.images.worldwind_logo))
-    layer.addRenderable(surfaceImageResource)
+    private val layer = RenderableLayer("Surface image").apply {
+        // Configure a Surface Image to display an Android resource showing the WorldWindEarth logo.
+        addRenderable(
+            SurfaceImage(
+                Sector.fromDegrees(37.46, 15.5, 0.5, 0.6),
+                ImageSource.fromResource(MR.images.worldwind_logo)
+            )
+        )
 
-    // Configure a Surface Image to display a remote image showing Mount Etna erupting on July 13th, 2001.
-    sector = Sector.fromDegrees(37.46543388598137, 14.60128369746704, 0.45360804083528, 0.75704283995502)
-    val urlString = "https://worldwind.arc.nasa.gov/android/tutorials/data/etna.jpg"
-    val surfaceImageUrl = SurfaceImage(sector, ImageSource.fromUrlString(urlString))
-    layer.addRenderable(surfaceImageUrl)
+        // Configure a Surface Image to display a remote image showing Mount Etna erupting on July 13th, 2001.
+        addRenderable(
+            SurfaceImage(
+                Sector.fromDegrees(37.46543388598137, 14.60128369746704, 0.45360804083528, 0.75704283995502),
+                ImageSource.fromUrlString("https://worldwind.arc.nasa.gov/android/tutorials/data/etna.jpg")
+            )
+        )
+    }
 
-    return layer
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+        engine.camera.set(
+            Angle.fromDegrees(37.46543388598137), Angle.fromDegrees(14.97980511744455), 4.0e5,
+            AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
+    }
+
 }
     </textarea>
 </div>

@@ -4,7 +4,7 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.ogc.GpkgLayerFactory
 import earth.worldwind.util.Logger
 
-open class GeoPackageFragment: BasicGlobeFragment() {
+class GeoPackageFragment: BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow (GLSurfaceView) object with a GeoPackage Layer
      *

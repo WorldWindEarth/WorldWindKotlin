@@ -26,30 +26,46 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class WmtsLayerFragment : BasicGlobeFragment() {
+class WmtsLayerFragment : BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow (GLSurfaceView) object with a WMTS Layer
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow(): WorldWindow {
-        // Let the super class (BasicGlobeFragment) do the creation
-        val wwd = super.createWorldWindow()
+    override fun createWorldWindow() = super.createWorldWindow().also { WmtsLayerTutorial(it.engine, it.mainScope).start() }
+}
 
+class WmtsLayerTutorial(private val engine: WorldWind, mainScope: CoroutineScope) : AbstractTutorial() {
+
+    private val wmtsLayer by lazy {
         // Create a WMTS layer factory.
-        val wmtsLayerFactory = WmtsLayerFactory(wwd.mainScope)
+        val wmtsLayerFactory = WmtsLayerFactory(mainScope)
 
         // Create an OGC Web Map Tile Service (WMTS) layer to display Global Hillshade based on GMTED2010
-        val layer = wmtsLayerFactory.createLayer(
+        wmtsLayerFactory.createLayer(
             "https://tiles.geoservice.dlr.de/service/wmts", "hillshade",
             { Logger.log(Logger.ERROR, "WMTS layer creation failed", it) },
             { Logger.log(Logger.INFO, "WMTS layer creation succeeded") }
         )
-
-        // Add the finished WMTS layer to the WorldWindow.
-        wwd.engine.layers.addLayer(layer)
-        return wwd
     }
+
+    override fun start() {
+        super.start()
+        // Add WMTS layer to the WorldWindow.
+        engine.layers.addLayer(wmtsLayer)
+        engine.camera.apply {
+            position.altitude = engine.distanceToViewGlobeExtents * 1.1
+            heading = Angle.ZERO
+            tilt = Angle.ZERO
+            roll = Angle.ZERO
+        }
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(wmtsLayer)
+    }
+
 }
     </textarea>
 </div>

@@ -17,13 +17,13 @@ import earth.worldwind.navigator.NavigatorEvent
 import earth.worldwind.navigator.NavigatorListener
 import kotlin.math.sign
 
-open class NavigatorEventFragment : BasicGlobeFragment() {
+class NavigatorEventFragment : BasicGlobeFragment() {
     // UI elements
-    protected lateinit var latView: TextView
-    protected lateinit var lonView: TextView
-    protected lateinit var altView: TextView
-    protected lateinit var crosshairs: ImageView
-    protected lateinit var overlay: ViewGroup
+    private lateinit var latView: TextView
+    private lateinit var lonView: TextView
+    private lateinit var altView: TextView
+    private lateinit var crosshairs: ImageView
+    private lateinit var overlay: ViewGroup
     // Use pre-allocated lookAt state object to avoid per-event memory allocations
     private val lookAt = LookAt()
     // Track the navigation event time so the overlay refresh rate can be throttled
@@ -84,7 +84,7 @@ open class NavigatorEventFragment : BasicGlobeFragment() {
     /**
      * Makes the crosshairs visible.
      */
-    protected open fun showCrosshairs() {
+    private fun showCrosshairs() {
         if (animatorSet.isStarted) animatorSet.cancel()
         crosshairs.alpha = 1.0f
         crosshairsActive = true
@@ -93,7 +93,7 @@ open class NavigatorEventFragment : BasicGlobeFragment() {
     /**
      * Fades the crosshairs using animation.
      */
-    protected open fun fadeCrosshairs() {
+    private fun fadeCrosshairs() {
         if (crosshairsActive) {
             crosshairsActive = false
             if (!animatorSet.isStarted) animatorSet.start()
@@ -106,7 +106,7 @@ open class NavigatorEventFragment : BasicGlobeFragment() {
      * @param lookAt Where the camera is looking
      * @param camera Where the camera is positioned
      */
-    protected open fun updateOverlayContents(lookAt: LookAt, camera: Camera) {
+    private fun updateOverlayContents(lookAt: LookAt, camera: Camera) {
         latView.text = formatLatitude(lookAt.position.latitude.degrees)
         lonView.text = formatLongitude(lookAt.position.longitude.degrees)
         altView.text = formatAltitude(camera.position.altitude)
@@ -117,24 +117,24 @@ open class NavigatorEventFragment : BasicGlobeFragment() {
      *
      * @param eventAction The action associated with this navigator event
      */
-    protected open fun updateOverlayColor(eventAction: NavigatorAction) {
+    private fun updateOverlayColor(eventAction: NavigatorAction) {
         val color = if (eventAction == NavigatorAction.STOPPED) -0x5f000100 /*semi-transparent yellow*/ else Color.YELLOW
         latView.setTextColor(color)
         lonView.setTextColor(color)
         altView.setTextColor(color)
     }
 
-    protected open fun formatLatitude(latitude: Double): String {
+    private fun formatLatitude(latitude: Double): String {
         val sign = sign(latitude)
         return "%6.3f°%s".format(latitude * sign, if (sign >= 0.0) "N" else "S")
     }
 
-    protected open fun formatLongitude(longitude: Double): String {
+    private fun formatLongitude(longitude: Double): String {
         val sign = sign(longitude)
         return "%7.3f°%s".format(longitude * sign, if (sign >= 0.0) "E" else "W")
     }
 
-    protected open fun formatAltitude(altitude: Double): String {
+    private fun formatAltitude(altitude: Double): String {
         return "Eye: %,.0f %s".format(
             if (altitude < 100000) altitude else altitude / 1000,
             if (altitude < 100000) "m" else "km"

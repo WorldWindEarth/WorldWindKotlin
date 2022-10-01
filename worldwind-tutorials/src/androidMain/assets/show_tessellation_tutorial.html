@@ -26,17 +26,25 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class ShowTessellationFragment : BasicGlobeFragment() {
+class ShowTessellationFragment : BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow with a tessellation layer.
      */
-    override fun createWorldWindow(): WorldWindow {
-        // Let the super class (BasicGlobeFragment) do the creation
-        val wwd = super.createWorldWindow()
+    override fun createWorldWindow() = super.createWorldWindow().also { ShowTessellationTutorial(it.engine).start() }
+}
 
-        // Create a layer that displays the globe's tessellation geometry.
-        wwd.engine.layers.addLayer(ShowTessellationLayer())
-        return wwd
+class ShowTessellationTutorial(private val engine: WorldWind) : AbstractTutorial() {
+    // Create a layer that displays the globe's tessellation geometry.
+    private val layer = ShowTessellationLayer()
+
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
     }
 }
     </textarea>

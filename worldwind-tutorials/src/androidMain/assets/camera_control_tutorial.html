@@ -31,19 +31,16 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class CameraControlFragment: BasicGlobeFragment() {
+class CameraControlFragment: BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow object with a custom WorldWindowController.
      */
-    override fun createWorldWindow(): WorldWindow {
-        // Let the super class (BasicGlobeFragment) do the creation
-        val wwd = super.createWorldWindow()
-
+    override fun createWorldWindow() = super.createWorldWindow().apply {
         // Override the default "look at" gesture behavior with a camera centric gesture controller
-        wwd.controller = CameraController(wwd)
+        controller = CameraController(wwd)
 
         // Apply camera position above KOXR airport, Oxnard, CA
-        wwd.engine.camera.setDegrees(
+        engine.camera.setDegrees(
             latitudeDegrees = 34.2,
             longitudeDegrees = -119.2,
             altitudeMeters = 10000.0,
@@ -52,18 +49,17 @@ open class CameraControlFragment: BasicGlobeFragment() {
             tiltDegrees = 70.0,
             rollDegrees = 0.0
         )
-        return wwd
     }
 
     /**
      * A custom WorldWindController that uses gestures to control the camera directly via the setAsCamera interface
      * instead of the default setAsLookAt interface.
      */
-    private open class CameraController(wwd: WorldWindow): BasicWorldWindowController(wwd) {
-        protected var beginAltitude = 0.0
-        protected var beginHeading = ZERO
-        protected var beginTilt = ZERO
-        protected var beginRoll = ZERO
+    private class CameraController(wwd: WorldWindow): BasicWorldWindowController(wwd) {
+        private var beginAltitude = 0.0
+        private var beginHeading = ZERO
+        private var beginTilt = ZERO
+        private var beginRoll = ZERO
 
         override fun handlePan(recognizer: GestureRecognizer) {
             val state = recognizer.state
@@ -76,45 +72,44 @@ open class CameraControlFragment: BasicGlobeFragment() {
                     lastY = 0f
                 }
                 CHANGED -> {
-                    val camera = wwd.engine.camera
+                    wwd.engine.camera.run {
+                        // Get the camera's current position.
+                        var lat = position.latitude
+                        var lon = position.longitude
+                        val alt = position.altitude
 
-                    // Get the camera's current position.
-                    var lat = camera.position.latitude
-                    var lon = camera.position.longitude
-                    val alt = camera.position.altitude
+                        // Convert the translation from screen coordinates to degrees. Use the camera's range as a metric for
+                        // converting screen pixels to meters, and use the globe's radius for converting from meters to arc degrees.
+                        val metersPerPixel = wwd.engine.pixelSizeAtDistance(alt)
+                        val forwardMeters = (dy - lastY) * metersPerPixel
+                        val sideMeters = -(dx - lastX) * metersPerPixel
+                        lastX = dx
+                        lastY = dy
+                        val globeRadius = wwd.engine.globe.getRadiusAt(lat, lon)
+                        val forwardRadians = forwardMeters / globeRadius
+                        val sideRadians = sideMeters / globeRadius
 
-                    // Convert the translation from screen coordinates to degrees. Use the camera's range as a metric for
-                    // converting screen pixels to meters, and use the globe's radius for converting from meters to arc degrees.
-                    val metersPerPixel = wwd.engine.pixelSizeAtDistance(alt)
-                    val forwardMeters = (dy - lastY) * metersPerPixel
-                    val sideMeters = -(dx - lastX) * metersPerPixel
-                    lastX = dx
-                    lastY = dy
-                    val globeRadius = wwd.engine.globe.getRadiusAt(lat, lon)
-                    val forwardRadians = forwardMeters / globeRadius
-                    val sideRadians = sideMeters / globeRadius
+                        // Adjust the change in latitude and longitude based on the camera's heading.
+                        val sinHeading = sin(heading.radians)
+                        val cosHeading = cos(heading.radians)
+                        lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
+                        lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
 
-                    // Adjust the change in latitude and longitude based on the camera's heading.
-                    val heading = camera.heading
-                    val sinHeading = sin(heading.radians)
-                    val cosHeading = cos(heading.radians)
-                    lat = lat.addRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
-                    lon = lon.addRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
-
-                    // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
-                    // the camera to the appropriate spot on the other side of the pole.
-                    if (lat.degrees < -90 || lat.degrees > 90) {
-                        camera.position.latitude = lat.normalizeLatitude()
-                        camera.position.longitude = lon.addDegrees(180.0).normalizeLongitude()
-                    } else if (lon.degrees < -180 || lon.degrees > 180) {
-                        camera.position.latitude = lat
-                        camera.position.longitude = lon.normalizeLongitude()
-                    } else {
-                        camera.position.latitude = lat
-                        camera.position.longitude = lon
+                        // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
+                        // the camera to the appropriate spot on the other side of the pole.
+                        if (lat.degrees < -90 || lat.degrees > 90) {
+                            position.latitude = lat.normalizeLatitude()
+                            position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
+                        } else if (lon.degrees < -180 || lon.degrees > 180) {
+                            position.latitude = lat
+                            position.longitude = lon.normalizeLongitude()
+                        } else {
+                            position.latitude = lat
+                            position.longitude = lon
+                        }
+                        applyLimits(this)
+                        wwd.requestRedraw()
                     }
-                    applyLimits(camera)
-                    wwd.requestRedraw()
                 }
                 ENDED, CANCELLED -> gestureDidEnd()
                 else -> {}
@@ -129,10 +124,11 @@ open class CameraControlFragment: BasicGlobeFragment() {
                 CHANGED -> {
                     if (scale != 0f) {
                         // Apply the change in scale to the camera, relative to when the gesture began.
-                        val camera = wwd.engine.camera
-                        camera.position.altitude = beginAltitude / scale
-                        applyLimits(camera)
-                        wwd.requestRedraw()
+                        wwd.engine.camera.run {
+                            position.altitude = beginAltitude / scale
+                            applyLimits(this)
+                            wwd.requestRedraw()
+                        }
                     }
                 }
                 ENDED, CANCELLED -> gestureDidEnd()
@@ -149,13 +145,14 @@ open class CameraControlFragment: BasicGlobeFragment() {
                     lastRotation = 0f
                 }
                 CHANGED -> {
-                    // Apply the change in rotation to the camera, relative to the camera's current values.
-                    val rollDegrees = (lastRotation - rotation).toDouble()
-                    val camera = wwd.engine.camera
-                    camera.roll = camera.roll.subtractDegrees(rollDegrees).normalize360()
-                    lastRotation = rotation
-                    applyLimits(camera)
-                    wwd.requestRedraw()
+                    wwd.engine.camera.run {
+                        // Apply the change in rotation to the camera, relative to the camera's current values.
+                        val rollDegrees = (lastRotation - rotation).toDouble()
+                        roll = roll.minusDegrees(rollDegrees).normalize360()
+                        lastRotation = rotation
+                        applyLimits(this)
+                        wwd.requestRedraw()
+                    }
                 }
                 ENDED, CANCELLED -> gestureDidEnd()
                 else -> {}
@@ -172,14 +169,15 @@ open class CameraControlFragment: BasicGlobeFragment() {
                     lastRotation = 0f
                 }
                 CHANGED -> {
-                    // Apply the change in tilt to the camera, relative to when the gesture began.
-                    val headingDegrees = (180 * dx / wwd.width).toDouble()
-                    val tiltDegrees = (-180 * dy / wwd.height).toDouble()
-                    val camera = wwd.engine.camera
-                    camera.heading = beginHeading.subtractDegrees(headingDegrees).normalize360()
-                    camera.tilt = beginTilt.subtractDegrees(tiltDegrees)
-                    applyLimits(camera)
-                    wwd.requestRedraw()
+                    wwd.engine.camera.run {
+                        // Apply the change in tilt to the camera, relative to when the gesture began.
+                        val headingDegrees = (180 * dx / wwd.width).toDouble()
+                        val tiltDegrees = (-180 * dy / wwd.height).toDouble()
+                        heading = beginHeading.minusDegrees(headingDegrees).normalize360()
+                        tilt = beginTilt.minusDegrees(tiltDegrees)
+                        applyLimits(this)
+                        wwd.requestRedraw()
+                    }
                 }
                 ENDED, CANCELLED -> gestureDidEnd()
                 else -> {}
@@ -188,17 +186,18 @@ open class CameraControlFragment: BasicGlobeFragment() {
 
         override fun gestureDidBegin() {
             if (activeGestures++ == 0) {
-                val camera = wwd.engine.camera
-                beginAltitude = camera.position.altitude
-                beginHeading = camera.heading
-                beginTilt = camera.tilt
-                beginRoll = camera.roll
+                wwd.engine.camera.run {
+                    beginAltitude = position.altitude
+                    beginHeading = heading
+                    beginTilt = tilt
+                    beginRoll = roll
+                }
             }
         }
 
-        protected open fun applyLimits(camera: Camera) {
+        private fun applyLimits(camera: Camera) {
             val position = camera.position
-            val distanceToExtents = wwd.engine.distanceToViewGlobeExtents
+            val distanceToExtents = wwd.engine.distanceToViewGlobeExtents * 1.1
             val minAltitude = 100.0
             position.altitude = position.altitude.coerceIn(minAltitude, distanceToExtents)
 

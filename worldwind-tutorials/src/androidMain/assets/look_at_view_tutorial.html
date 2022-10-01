@@ -26,34 +26,40 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class LookAtViewFragment: BasicGlobeFragment() {
+class LookAtViewFragment: BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow with its camera configured to look at a given location from a given position.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { setLookAtView(wwd.engine) }
+    override fun createWorldWindow() = super.createWorldWindow().also { LookAtViewTutorial(it.engine).start() }
 }
 
-fun setLookAtView(engine: WorldWind) {
-    // Create a view of LAX airport as seen from an aircraft above Santa Monica, CA.
-    val aircraft = Position.fromDegrees(34.0158333, -118.4513056, 2500.0)
-    // Aircraft above Santa Monica airport, altitude in meters
-    val airport = Position.fromDegrees(33.9424368, -118.4081222, 38.7)
+class LookAtViewTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
-    // Compute heading and distance from aircraft to airport
-    val heading = aircraft.greatCircleAzimuth(airport)
-    val distanceRadians = aircraft.greatCircleDistance(airport)
-    val distance = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
+    override fun start() {
+        super.start()
+        setLookAtAction()
+    }
 
-    // Compute camera settings
-    val altitude = aircraft.altitude - airport.altitude
-    val range = sqrt(altitude * altitude + distance * distance)
-    val tilt = Angle.fromRadians(atan(distance / aircraft.altitude))
+    private fun setLookAtAction() {
+        // Create a view of LAX airport as seen from an aircraft above Santa Monica, CA.
+        val aircraft = Position.fromDegrees(34.0158333, -118.4513056, 2500.0)
+        // Aircraft above Santa Monica airport, altitude in meters
+        val airport = Position.fromDegrees(33.9424368, -118.4081222, 38.7)
 
-    // Apply new "look at" view
-    val lookAt = LookAt().set(
-        airport.latitude, airport.longitude, airport.altitude, AltitudeMode.ABSOLUTE, range, heading, tilt, roll = Angle.ZERO
-    )
-    engine.cameraFromLookAt(lookAt)
+        // Compute heading and distance from aircraft to airport
+        val heading = aircraft.greatCircleAzimuth(airport)
+        val distanceRadians = aircraft.greatCircleDistance(airport)
+        val distanceMeters = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
+
+        // Compute camera settings
+        val altitude = aircraft.altitude - airport.altitude
+        val range = sqrt(altitude * altitude + distanceMeters * distanceMeters)
+        val tilt = Angle.fromRadians(atan(distanceMeters / aircraft.altitude))
+
+        // Apply new "look at" view
+        engine.cameraFromLookAt(LookAt(airport, AltitudeMode.ABSOLUTE, range, heading, tilt, roll = Angle.ZERO))
+    }
+
 }
     </textarea>
 </div>

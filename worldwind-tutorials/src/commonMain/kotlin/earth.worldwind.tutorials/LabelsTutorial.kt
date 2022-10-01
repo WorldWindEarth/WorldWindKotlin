@@ -1,48 +1,16 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Placemarks Tutorial</title>
-    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
-    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
-    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
-    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
-    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
-</head>
-<body>
-<h1>Labels Tutorial</h1>
-<p>
-    Demonstrates how to display labels on a WorldWind globe.
-</p>
-<p>
-    This tutorial uses Labels to identify landmarks around Washington, D.C. Label shapes have a variety of configurable
-    properties, including:
-</p>
-<ul>
-    <li>Text Color</li>
-    <li>Text Size (in screen pixels)</li>
-    <li>Typeface</li>
-    <li>Text Outline</li>
-    <li>Rotation</li>
-    <li>Outline Color</li>
-    <li>Outline Size</li>
-</ul>
-<h2>Example</h2>
-<h3>LabelsFragment.kt</h3>
-<p>
-    The LabelsFragment class extends BasicGlobeFragment and overrides the createWorldWindow method. Here we configure
-    six Label shapes to identify landmarks around Washington, D.C.
-</p>
-<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
-    <textarea id="kotlin-code">
-class LabelsFragment : BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a set of label shapes
-     *
-     * @return The WorldWindow object containing the globe.
-     */
-    override fun createWorldWindow() = super.createWorldWindow().also { LabelsTutorial(it.engine).start() }
-}
+package earth.worldwind.tutorials
+
+import earth.worldwind.WorldWind
+import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Offset
+import earth.worldwind.geom.Position
+import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.render.Color
+import earth.worldwind.render.Font
+import earth.worldwind.render.FontWeight
+import earth.worldwind.shape.Label
+import earth.worldwind.shape.OrientationMode
 
 class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
 
@@ -109,19 +77,3 @@ class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
     }
 
 }
-    </textarea>
-</div>
-
-<script type="text/javascript">
-      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
-        lineNumbers: true,
-        matchBrackets: true,
-        mode: "google-kotlin",
-        readOnly: true
-      });
-
-
-
-</script>
-</body>
-</html>

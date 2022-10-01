@@ -32,67 +32,58 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class OmnidirectionalSightlineFragment: BasicGlobeFragment() {
+class OmnidirectionalSightlineFragment: BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow (GLSurfaceView) object with an OmnidirectionalSightline
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow(): WorldWindow {
-        // Let the super class (BasicGlobeFragment) do the creation
-        val wwd = super.createWorldWindow()
-
-        // Add omnidirectional sight line Layer
-        wwd.engine.layers.addLayer(buildSightLineLayer())
-
-        // Position the camera to look at the line of site terrain coverage
-        val lookAt = LookAt().setDegrees(
-            latitudeDegrees = 46.230,
-            longitudeDegrees = -122.190,
-            altitudeMeters = 500.0,
-            altitudeMode = AltitudeMode.ABSOLUTE,
-            rangeMeters = 1.5e4,
-            headingDegrees = 45.0,
-            tiltDegrees = 70.0,
-            rollDegrees = 0.0
-        )
-        wwd.engine.cameraFromLookAt(lookAt)
-        return wwd
-    }
+    override fun createWorldWindow() = super.createWorldWindow().also { SightlineTutorial(it.engine).start() }
 }
 
-/**
- * Create a layer with the example sightline
- */
-fun buildSightLineLayer(): RenderableLayer {
-    val layer = RenderableLayer("Sightline")
+class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
-    // Specify the sightline position, which is the origin of the line of sight calculation
-    val position = Position.fromDegrees(46.230, -122.190, 2500.0)
-    // Specify the range of the sightline (meters)
-    val range = 10000.0
-    // Create attributes for the visible terrain
-    val visibleAttributes = ShapeAttributes().apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
-    // Create attributes for the occluded terrain
-    val occludedAttributes = ShapeAttributes().apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
-    // Create the sightline
-    val sightline = OmnidirectionalSightline(position, range).apply {
-        // Set the attributes
-        attributes = visibleAttributes
-        occludeAttributes = occludedAttributes
+    private val layer = RenderableLayer("Sightline").apply {
+        // Specify the sightline position, which is the origin of the line of sight calculation
+        val position = Position.fromDegrees(46.230, -122.190, 2500.0)
+        // Create the sightline, specifying the range of the sightline (meters)
+        addRenderable(
+            OmnidirectionalSightline(position, 10000.0).apply {
+                // Create attributes for the visible terrain
+                attributes.apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
+                // Create attributes for the occluded terrain
+                occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
+            }
+        )
+        // Create a Placemark to visualize the position of the sightline
+        addRenderable(
+            Placemark(position).apply {
+                attributes.apply {
+                    imageSource = earth.worldwind.render.image.ImageSource.fromResource(MR.images.aircraft_fixwing)
+                    imageScale = 2.0
+                    isDrawLeader = true
+                }
+            }
+        )
     }
-    // Add sightline to a layer
-    layer.addRenderable(sightline)
-    // Create a Placemark to visualize the position of the sightline
-    val placemark = Placemark(position)
-    placemark.attributes.apply {
-        imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
-        imageScale = 2.0
-        isDrawLeader = true
-    }
-    layer.addRenderable(placemark)
 
-    return layer
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+        engine.cameraFromLookAt(
+            LookAt().setDegrees(
+                latitudeDegrees = 46.230, longitudeDegrees = -122.190, altitudeMeters = 500.0,
+                altitudeMode = AltitudeMode.ABSOLUTE, rangeMeters = 1.5e4,
+                headingDegrees = 45.0, tiltDegrees = 70.0, rollDegrees = 0.0
+            )
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
+    }
+
 }
     </textarea>
 </div>

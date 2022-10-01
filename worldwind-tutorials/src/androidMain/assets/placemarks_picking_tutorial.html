@@ -27,7 +27,7 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class PlacemarksPickingFragment: BasicGlobeFragment() {
+class PlacemarksPickingFragment: BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow (GLSurfaceView) object with a WMS Layer
      *
@@ -83,13 +83,13 @@ open class PlacemarksPickingFragment: BasicGlobeFragment() {
      * between pick events and globe navigation events.
      */
     open inner class PickNavigateController(wwd: WorldWindow) : BasicWorldWindowController(wwd) {
-        protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
-        protected var selectedObject: Any? = null // last "selected" object from single tap
+        private lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
+        private var selectedObject: Any? = null // last "selected" object from single tap
 
         /**
          * Assign a subclassed SimpleOnGestureListener to a GestureDetector to handle the "pick" events.
          */
-        protected open val pickGestureDetector = GestureDetector(requireContext().applicationContext, object : SimpleOnGestureListener() {
+        private val pickGestureDetector = GestureDetector(requireContext().applicationContext, object : SimpleOnGestureListener() {
             override fun onDown(event: MotionEvent): Boolean {
                 pick(event) // Pick the object(s) at the tap location
                 return false // By not consuming this event, we allow it to pass on to the navigation gesture handlers
@@ -115,7 +115,7 @@ open class PlacemarksPickingFragment: BasicGlobeFragment() {
 
             // If event was not consumed by the pick operation, pass it on the globe navigation handlers
             // The super class performs the pan, tilt, rotate and zoom
-            return if (!consumed) super.onTouchEvent(event) else consumed
+            return if (!consumed) super.onTouchEvent(event) else true
         }
 
         /**

@@ -62,7 +62,7 @@ open class BasicGlobeFragment: Fragment() {
     open fun createWorldWindow(): WorldWindow {
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
         wwd = WorldWindow(requireContext())
-        // Setup the WorldWindow's layers.
+        // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
@@ -70,7 +70,7 @@ open class BasicGlobeFragment: Fragment() {
             })
             addLayer(AtmosphereLayer())
         }
-        // Setup the WorldWindow's elevation coverages.
+        // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
             configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
         })
@@ -105,6 +105,11 @@ open class BasicGlobeFragment: Fragment() {
     override fun onPause() {
         super.onPause()
         wwd.onPause() // pauses the rendering thread
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        wwd.engine.renderResourceCache.trimStale()
     }
 }
     </textarea>

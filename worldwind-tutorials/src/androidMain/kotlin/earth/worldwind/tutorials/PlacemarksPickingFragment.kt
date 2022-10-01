@@ -20,7 +20,7 @@ import earth.worldwind.shape.PlacemarkAttributes
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
 
-open class PlacemarksPickingFragment: BasicGlobeFragment() {
+class PlacemarksPickingFragment: BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow (GLSurfaceView) object with a WMS Layer
      *
@@ -76,13 +76,13 @@ open class PlacemarksPickingFragment: BasicGlobeFragment() {
      * between pick events and globe navigation events.
      */
     open inner class PickNavigateController(wwd: WorldWindow) : BasicWorldWindowController(wwd) {
-        protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
-        protected var selectedObject: Any? = null // last "selected" object from single tap
+        private lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
+        private var selectedObject: Any? = null // last "selected" object from single tap
 
         /**
          * Assign a subclassed SimpleOnGestureListener to a GestureDetector to handle the "pick" events.
          */
-        protected open val pickGestureDetector = GestureDetector(requireContext().applicationContext, object : SimpleOnGestureListener() {
+        private val pickGestureDetector = GestureDetector(requireContext().applicationContext, object : SimpleOnGestureListener() {
             override fun onDown(event: MotionEvent): Boolean {
                 pick(event) // Pick the object(s) at the tap location
                 return false // By not consuming this event, we allow it to pass on to the navigation gesture handlers

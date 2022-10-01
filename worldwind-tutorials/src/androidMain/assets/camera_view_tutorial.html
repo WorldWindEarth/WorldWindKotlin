@@ -27,32 +27,38 @@
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-open class CameraViewFragment: BasicGlobeFragment() {
+class CameraViewFragment: BasicGlobeFragment() {
     /**
      * Creates a new WorldWindow with its camera positioned at a given location and configured to point in a given
      * direction.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { setCameraView(wwd.engine) }
+    override fun createWorldWindow() = super.createWorldWindow().also { CameraViewTutorial(wwd.engine).start() }
 }
 
-/**
- * Position WorldWind camera at a given location and configure it to point in a given direction.
- */
-fun setCameraView(engine: WorldWind) {
-    // Create a view of Point Mugu airport as seen from an aircraft above Oxnard, CA.
-    val aircraft = Position.fromDegrees(34.2, -119.2, 3000.0) // Above Oxnard CA, altitude in meters
-    val airport = Position.fromDegrees(34.1192744, -119.1195850, 4.0) // KNTD airport, Point Mugu CA, altitude MSL
+class CameraViewTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
-    // Compute heading and tilt angles from aircraft to airport
-    val heading = aircraft.greatCircleAzimuth(airport)
-    val distanceRadians = aircraft.greatCircleDistance(airport)
-    val distance = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
-    val tilt = Angle.fromRadians(atan(distance / aircraft.altitude))
+    override fun start() {
+        super.start()
+        setCameraAction()
+    }
 
-    // Apply the camera view
-    engine.camera.set(
-        aircraft.latitude, aircraft.longitude, aircraft.altitude, AltitudeMode.ABSOLUTE, heading, tilt, roll = Angle.ZERO
-    )
+    private fun setCameraAction() {
+        // Create a view of Point Mugu airport as seen from an aircraft above Oxnard, CA.
+        val aircraft = Position.fromDegrees(34.2, -119.2, 3000.0) // Above Oxnard CA, altitude in meters
+        val airport = Position.fromDegrees(34.1192744, -119.1195850, 4.0) // KNTD airport, Point Mugu CA, altitude MSL
+
+        // Compute heading and tilt angles from aircraft to airport
+        val heading = aircraft.greatCircleAzimuth(airport)
+        val distanceRadians = aircraft.greatCircleDistance(airport)
+        val distanceMeters = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
+        val tilt = Angle.fromRadians(atan(distanceMeters / aircraft.altitude))
+
+        // Apply the camera view
+        engine.camera.set(
+            aircraft.latitude, aircraft.longitude, aircraft.altitude, AltitudeMode.ABSOLUTE, heading, tilt, roll = Angle.ZERO
+        )
+    }
+
 }
     </textarea>
 </div>
