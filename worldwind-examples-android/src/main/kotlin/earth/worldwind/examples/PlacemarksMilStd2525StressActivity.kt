@@ -9,14 +9,14 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import armyc2.c2sd.renderer.utilities.MilStdAttributes
 import armyc2.c2sd.renderer.utilities.ModifiersUnits
-import earth.worldwind.examples.milstd2525.MilStd2525
-import earth.worldwind.examples.milstd2525.MilStd2525LevelOfDetailSelector
-import earth.worldwind.examples.milstd2525.MilStd2525Placemark
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.ShowTessellationLayer
+import earth.worldwind.shape.milstd2525.MilStd2525
+import earth.worldwind.shape.milstd2525.MilStd2525LevelOfDetailSelector
+import earth.worldwind.shape.milstd2525.MilStd2525Placemark
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
@@ -120,8 +120,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
             // Create a Renderable layer for the placemarks and add it to the WorldWindow
             val symbolLayer = RenderableLayer("MIL-STD-2525 Symbols")
             wwd.engine.layers.addLayer(symbolLayer)
-            MilStd2525LevelOfDetailSelector.setFarThreshold(1500000.0)
-            MilStd2525LevelOfDetailSelector.setNearThreshold(750000.0)
+            MilStd2525LevelOfDetailSelector.modifiersThreshold = 75e4
             val unitModifiers = SparseArray<String>()
             val renderAttributes = SparseArray<String>()
             renderAttributes.put(MilStdAttributes.KeepUnitRatio, "false")
@@ -140,7 +139,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
                                 unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
                                 unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
                                 symbolLayer.addRenderable(
-                                    MilStd2525Placemark(position, sidc, unitModifiers, renderAttributes)
+                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
                                 )
                                 numSymbolsCreated++
                             }
@@ -151,7 +150,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
                                     unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
                                     unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
                                     symbolLayer.addRenderable(
-                                        MilStd2525Placemark(position, sidc, unitModifiers, renderAttributes)
+                                        createPlacemark(position, sidc, unitModifiers, renderAttributes)
                                     )
                                     numSymbolsCreated++
                                 }
@@ -161,14 +160,14 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
                                 unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
                                 unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
                                 symbolLayer.addRenderable(
-                                    MilStd2525Placemark(position, sidc, unitModifiers, renderAttributes)
+                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
                                 )
                                 numSymbolsCreated++
                             }
                             "G" -> for (functionId in warfightingGroundFunctionIDs) {
                                 val sidc = codeScheme + standardId + battleDimension + status + functionId + sizeMobility + countryCode + orderOfBattle
                                 symbolLayer.addRenderable(
-                                    MilStd2525Placemark(randomPosition, sidc, unitModifiers, renderAttributes)
+                                    createPlacemark(randomPosition, sidc, unitModifiers, renderAttributes)
                                 )
                                 numSymbolsCreated++
                             }
@@ -178,7 +177,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
                                 unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
                                 unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
                                 symbolLayer.addRenderable(
-                                    MilStd2525Placemark(position, sidc, unitModifiers, renderAttributes)
+                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
                                 )
                                 numSymbolsCreated++
                             }
@@ -188,7 +187,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
                                 unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
                                 unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
                                 symbolLayer.addRenderable(
-                                    MilStd2525Placemark(position, sidc, unitModifiers, renderAttributes)
+                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
                                 )
                                 numSymbolsCreated++
                             }
@@ -198,7 +197,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
                                 unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
                                 unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
                                 symbolLayer.addRenderable(
-                                    MilStd2525Placemark(position, sidc, unitModifiers, renderAttributes)
+                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
                                 )
                                 numSymbolsCreated++
                             }
@@ -250,6 +249,13 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
                 abs(position.longitude.degrees),
                 if (position.longitude.degrees > 0) "E" else "W"
             )
+        }
+
+        protected open fun createPlacemark(
+            position: Position, sidc: String, unitModifiers: SparseArray<String>, renderAttributes: SparseArray<String>
+        ) = MilStd2525Placemark(sidc, position, unitModifiers, renderAttributes).apply {
+            eyeDistanceScalingThreshold = 15e5
+            isEyeDistanceScaling = true
         }
     }
 

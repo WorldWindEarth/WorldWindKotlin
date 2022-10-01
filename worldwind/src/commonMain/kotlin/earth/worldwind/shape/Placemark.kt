@@ -88,7 +88,7 @@ open class Placemark @JvmOverloads constructor(
     /**
      * Sets the eye altitude, in meters, above which this placemark's label is not displayed.
      */
-    var eyeDistanceScalingLabelThreshold = 1.5 * eyeDistanceScalingThreshold
+    var eyeDistanceScalingLabelThreshold = 1.5 * DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD
     /**
      * Indicates whether this placemark's leader, if any, is pickable.
      */
@@ -467,7 +467,7 @@ open class Placemark @JvmOverloads constructor(
          * If [Placemark.isEyeDistanceScaling] is true, this placemark's image, label and leader sizes are reduced as
          * the eye distance increases beyond this threshold.
          */
-        protected const val DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD = 1e6
+        protected const val DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD = 4e5
         protected const val DEFAULT_DEPTH_OFFSET = -0.03
         private val placePoint = Vec3()
         private val screenPlacePoint = Vec3()

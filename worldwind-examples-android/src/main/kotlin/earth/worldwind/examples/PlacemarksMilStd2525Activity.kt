@@ -6,14 +6,17 @@ import android.util.SparseArray
 import android.widget.FrameLayout
 import android.widget.TextView
 import armyc2.c2sd.renderer.utilities.ModifiersUnits
-import earth.worldwind.examples.milstd2525.MilStd2525
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Location
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.shape.Placemark
+import earth.worldwind.shape.milstd2525.MilStd2525
+import earth.worldwind.shape.milstd2525.MilStd2525Placemark
+import earth.worldwind.shape.milstd2525.MilStd2525TacticalGraphic
 
 open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
     protected lateinit var statusText: TextView
@@ -81,7 +84,7 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
             modifiers.put(ModifiersUnits.Q_DIRECTION_OF_MOVEMENT, "235")
             val drone = Placemark(
                 fromDegrees(32.4520, 63.44553, 3000.0),
-                MilStd2525.getPlacemarkAttributes("SFAPMFQM--GIUSA", modifiers, null)
+                MilStd2525Placemark.getPlacemarkAttributes("SFAPMFQM--GIUSA", modifiers)
             )
             drone.attributes.isDrawLeader = true
             symbolLayer.addRenderable(drone)
@@ -92,7 +95,7 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
             modifiers.put(ModifiersUnits.AJ_SPEED_LEADER, "0.1")
             val launcher = Placemark(
                 fromDegrees(32.4014, 63.3894, 0.0),
-                MilStd2525.getPlacemarkAttributes("SHGXUCFRMS----G", modifiers, null)
+                MilStd2525Placemark.getPlacemarkAttributes("SHGXUCFRMS----G", modifiers)
             )
             launcher.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
             symbolLayer.addRenderable(launcher)
@@ -106,10 +109,21 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
             modifiers.put(ModifiersUnits.W_DTG_1, "30140000ZSEP97") // Date/Time Group
             val machineGun = Placemark(
                 fromDegrees(32.3902, 63.4161, 0.0),
-                MilStd2525.getPlacemarkAttributes("SFGPEWRH--MTUSG", modifiers, null)
+                MilStd2525Placemark.getPlacemarkAttributes("SFGPEWRH--MTUSG", modifiers)
             )
             machineGun.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
             symbolLayer.addRenderable(machineGun)
+
+            // Add "MIL-STD-2525 Counterattack by fire"
+            val counterattack = MilStd2525TacticalGraphic(
+                "GHTPKF----****X", listOf(
+                    Location.fromDegrees(32.379, 63.457),
+                    Location.fromDegrees(32.348, 63.412),
+                    Location.fromDegrees(32.364, 63.375),
+                    Location.fromDegrees(32.396, 63.451),
+                )
+            )
+            symbolLayer.addRenderable(counterattack)
 
             // Signal a change in the WorldWind scene; requestRedraw() is callable from any thread.
             wwd.requestRedraw()

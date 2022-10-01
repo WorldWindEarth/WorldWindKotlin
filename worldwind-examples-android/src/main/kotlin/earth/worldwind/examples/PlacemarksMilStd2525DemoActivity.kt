@@ -9,14 +9,14 @@ import androidx.lifecycle.lifecycleScope
 import armyc2.c2sd.renderer.utilities.MilStdAttributes
 import armyc2.c2sd.renderer.utilities.ModifiersUnits
 import armyc2.c2sd.renderer.utilities.SymbolUtilities
-import earth.worldwind.examples.milstd2525.MilStd2525
-import earth.worldwind.examples.milstd2525.MilStd2525Placemark
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.shape.PathType
 import earth.worldwind.shape.Placemark
+import earth.worldwind.shape.milstd2525.MilStd2525
+import earth.worldwind.shape.milstd2525.MilStd2525Placemark
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.delay
@@ -73,7 +73,7 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
 
     override fun onDestroy() {
         // Release the cached MIL-STD-2525 PlacemarkAttributes
-        MilStd2525.clearSymbolCache()
+        MilStd2525Placemark.clearSymbolCache()
         super.onDestroy()
     }
 
@@ -249,41 +249,40 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
                     friends.contains(airport.country) -> {
                         when (airport.use) {
                             Airport.MILITARY, Airport.JOINT -> MilStd2525Placemark(
-                                airport.position, "SFGPIBA---H****",
+                                "SFGPIBA---H****", airport.position,
                                 unitModifiers, milStdAttributes
                             )
                             Airport.CIVILIAN, Airport.OTHER -> MilStd2525Placemark(
-                                airport.position, "SFGPIBA---H****",
+                                "SFGPIBA---H****", airport.position,
                                 unitModifiers, civilianColorAttributes
                             )
                             else -> MilStd2525Placemark(
-                                airport.position, "SUGPIBA---H****",
+                                "SUGPIBA---H****", airport.position,
                                 unitModifiers, milStdAttributes
                             )
                         }
                     }
                     neutrals.contains(airport.country) -> {
                         MilStd2525Placemark(
-                            airport.position, "SNGPIBA---H****",
+                            "SNGPIBA---H****", airport.position,
                             unitModifiers, milStdAttributes
                         )
                     }
                     hostiles.contains(airport.country) -> {
                         MilStd2525Placemark(
-                            airport.position, "SHGPIBA---H****",
+                            "SHGPIBA---H****", airport.position,
                             unitModifiers, milStdAttributes
                         )
                     }
                     else -> {
                         MilStd2525Placemark(
-                            airport.position, "SUGPIBA---H****",
+                            "SUGPIBA---H****", airport.position,
                             unitModifiers, milStdAttributes
                         )
                     }
                 }
 
                 // Eye scaling is essential for a reasonable display with a high density of airports
-                placemark.eyeDistanceScalingThreshold = 400000.0
                 placemark.isEyeDistanceScaling = true
                 placemark.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 airportLayer.addRenderable(placemark)
@@ -311,15 +310,15 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
                 val unitModifiers = SparseArray<String>()
                 unitModifiers.put(ModifiersUnits.H_ADDITIONAL_INFO_1, "ORIG: " + departure.name)
                 unitModifiers.put(ModifiersUnits.G_STAFF_COMMENTS, "DEST: " + arrival.name)
-                val placemark = MilStd2525Placemark(origin, symbolCode, unitModifiers, null)
-                placemark.eyeDistanceScalingThreshold = 400000.0
-                placemark.isEyeDistanceScaling = true
+                val placemark = MilStd2525Placemark(symbolCode, origin, unitModifiers, null).apply {
+                    isEyeDistanceScaling = true
 
-                // Store these flight path end points in the user properties for the computation of the flight path
-                // during the animation frame. The animation will move the aircraft along the great circle route
-                // between these two points.
-                placemark.putUserProperty("origin", origin)
-                placemark.putUserProperty("destination", destination)
+                    // Store these flight path end points in the user properties for the computation of the flight path
+                    // during the animation frame. The animation will move the aircraft along the great circle route
+                    // between these two points.
+                    putUserProperty("origin", origin)
+                    putUserProperty("destination", destination)
+                }
 
                 // Add the placemark to the layer that will render it.
                 aircraftLayer.addRenderable(placemark)

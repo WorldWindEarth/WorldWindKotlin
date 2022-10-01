@@ -3,4 +3,11 @@
     <dimen name="pan_interpret_distance">20dp</dimen>
     <dimen name="pinch_interpret_distance">20dp</dimen>
     <dimen name="tilt_interpret_distance">20dp</dimen>
+    <!-- Mil-Sym-2525 settings -->
+    <dimen name="default_pixel_size">36dp</dimen>
+    <dimen name="modifier_font_size">8sp</dimen>
+    <dimen name="mp_modifier_font_size">12sp</dimen>
+    <dimen name="text_outline_width">2dp</dimen>
+    <dimen name="symbol_outline_width">0dp</dimen>
+    <dimen name="graphics_outline_width">1dp</dimen>
 </resources>
