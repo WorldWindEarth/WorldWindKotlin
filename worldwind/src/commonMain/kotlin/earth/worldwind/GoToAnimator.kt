@@ -4,7 +4,9 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Vec3
-import kotlinx.browser.window
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.math.abs
@@ -17,14 +19,18 @@ import kotlin.math.roundToInt
  */
 open class GoToAnimator(
     /**
-     * The [WorldWindow] associated with this animator.
+     * The [WorldWind] engine associated with this animator.
      */
-    protected val wwd: WorldWindow
+    protected val engine: WorldWind,
+    /**
+     * Main scope to launch animation
+     */
+    protected val mainScope: CoroutineScope
 ) {
     /**
      * The frequency in milliseconds at which to animate the position change.
      */
-    var animationFrequency = 20
+    var animationFrequency = 20L
     /**
      * The animation's duration, in milliseconds. When the distance is short, less than twice the viewport
      * size, the travel time is reduced proportionally to the distance to travel. It therefore takes less
@@ -70,7 +76,7 @@ open class GoToAnimator(
 
         isCancelled = false // Reset the cancellation flag.
 
-        wwd.engine.cameraAsLookAt(lookAt)
+        engine.cameraAsLookAt(lookAt)
         // Capture the target position and determine its altitude.
         val targetPosition = Position(
             position.latitude, position.longitude, if(position is Position) position.altitude else lookAt.range
@@ -86,15 +92,15 @@ open class GoToAnimator(
 
         // Determine how high we need to go to give the user context. The max altitude computed is approximately
         // that needed to fit the start and end positions in the same viewport assuming a 45 degree field of view.
-        val pA = wwd.engine.globe.geographicToCartesian(startPosition.latitude, startPosition.longitude, 0.0, Vec3())
-        val pB = wwd.engine.globe.geographicToCartesian(targetPosition.latitude, targetPosition.longitude, 0.0, Vec3())
+        val pA = engine.globe.geographicToCartesian(startPosition.latitude, startPosition.longitude, 0.0, Vec3())
+        val pB = engine.globe.geographicToCartesian(targetPosition.latitude, targetPosition.longitude, 0.0, Vec3())
         maxAltitude = pA.distanceTo(pB)
 
         // Determine an approximate viewport size in radians in order to determine whether we actually change
         // the range as we pan to the new location. We don't want to change the range if the distance between
         // the start and target positions is small relative to the current viewport.
-        val viewportSize = wwd.engine.pixelSizeAtDistance(startPosition.altitude) *
-                wwd.canvas.clientWidth / wwd.engine.globe.equatorialRadius
+        val viewportSize = engine.pixelSizeAtDistance(startPosition.altitude) *
+                engine.viewport.width / engine.globe.equatorialRadius
 
         // Start and target positions are close, so don't back out.
         if (panDistance <= 2 * viewportSize) maxAltitude = startPosition.altitude
@@ -114,7 +120,7 @@ open class GoToAnimator(
         }
 
         // Determine which distance governs the animation duration.
-        val animationDistance = max(panDistance, rangeDistance / wwd.engine.globe.equatorialRadius)
+        val animationDistance = max(panDistance, rangeDistance / engine.globe.equatorialRadius)
         if (animationDistance == 0.0) return // current and target positions are the same
 
         if (animationDistance < 2 * viewportSize) {
@@ -136,19 +142,22 @@ open class GoToAnimator(
         setUpAnimationTimer()
     }
 
-    protected open fun setUpAnimationTimer(): Int = window.setTimeout(
-        { if (isCancelled || !update()) completionCallback?.invoke(this) else setUpAnimationTimer() },
-        animationFrequency
-    )
+    protected open fun setUpAnimationTimer() {
+        mainScope.launch {
+            delay(animationFrequency)
+            if (isCancelled || !update()) completionCallback?.invoke(this@GoToAnimator) else setUpAnimationTimer()
+        }
+    }
 
     /**
      * This is the timer callback function. It invokes the range animator and the pan animator.
      */
     protected open fun update(): Boolean {
         val currentPosition = Position(lookAt.position.latitude, lookAt.position.longitude, lookAt.range)
-        val continueAnimation = updateRange(currentPosition) || updateLocation(currentPosition)
-        wwd.requestRedraw()
-        return continueAnimation
+        val continueUpdateRange = updateRange(currentPosition)
+        val continueUpdateLocation = updateLocation(currentPosition)
+        WorldWind.requestRedraw()
+        return continueUpdateRange || continueUpdateLocation
     }
 
     /**
@@ -179,7 +188,7 @@ open class GoToAnimator(
             abs(lookAt.range - targetPosition.altitude) > 1
         }
 
-        wwd.engine.cameraFromLookAt(lookAt)
+        engine.cameraFromLookAt(lookAt)
 
         return continueAnimation
     }
@@ -201,10 +210,10 @@ open class GoToAnimator(
 
         lookAt.position.latitude = nextLocation.latitude
         lookAt.position.longitude = nextLocation.longitude
-        wwd.engine.cameraFromLookAt(lookAt)
+        engine.cameraFromLookAt(lookAt)
 
         // We're done if we're within a meter of the desired location.
-        if (nextDistance < 1 / wwd.engine.globe.equatorialRadius) locationReached = true
+        if (nextDistance < 1.0 / engine.globe.equatorialRadius) locationReached = true
 
         return !locationReached
     }

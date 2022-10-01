@@ -67,7 +67,7 @@ open class WorldWindow(
     /**
      * The [GoToAnimator] used by this WorldWindow to respond to its goTo method.
      */
-    var goToAnimator = GoToAnimator(this)
+    var goToAnimator = GoToAnimator(engine, mainScope)
     /**
      * Helper class to process Renderable selection and drag. Assign [SelectDragListener.callback] to handle events.
      */

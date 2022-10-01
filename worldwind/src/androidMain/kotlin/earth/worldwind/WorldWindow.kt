@@ -53,6 +53,10 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
      * Helper class to process WorldWindow navigation event callbacks
      */
     val navigatorEvents = NavigatorEventSupport(this)
+    /**
+     * The [GoToAnimator] used by this WorldWindow to respond to its goTo method.
+     */
+    var goToAnimator = GoToAnimator(engine, mainScope)
     protected val framePool = SynchronizedPool<Frame>()
     protected val frameQueue = ConcurrentLinkedQueue<Frame>()
     protected val pickQueue = ConcurrentLinkedQueue<Frame>()
