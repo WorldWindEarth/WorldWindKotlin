@@ -108,11 +108,11 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             CHANGED -> {
                 // Convert the translation from screen coordinates to arc degrees. Use the view's range as a
                 // metric for converting screen pixels to meters, and use the globe's radius for converting from meters
-                // to arc degrees.
+                // to arc degrees. Transform viewport pixel size to canvas client pixel size.
                 val globe = wwd.engine.globe
                 val globeRadius = max(globe.equatorialRadius, globe.polarRadius)
                 val distance = max(1.0, lookAt.range)
-                val metersPerPixel = wwd.engine.pixelSizeAtDistance(distance)
+                val metersPerPixel = wwd.engine.pixelSizeAtDistance(distance) * wwd.engine.densityFactor
                 val forwardMeters = (ty - lastPoint.y) * metersPerPixel
                 val sideMeters = -(tx - lastPoint.x) * metersPerPixel
                 val forwardRadians = forwardMeters / globeRadius

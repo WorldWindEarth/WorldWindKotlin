@@ -7,6 +7,7 @@ import earth.worldwind.gesture.GestureState.*
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Highlightable
 import earth.worldwind.shape.Placemark
+import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.EventListener
 import org.w3c.dom.events.MouseEvent
 
@@ -27,8 +28,23 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
     protected val newHighlighted = mutableSetOf<Highlightable>()
     protected var isDragArmed = false
 
-    protected val handlePick = EventListener {
-        val evt = it as MouseEvent
+    protected val handlePick = EventListener { event ->
+        // Determine pick point from event
+        var clientX = 0
+        var clientY = 0
+        when (event) {
+            is MouseEvent -> {
+                clientX = event.clientX
+                clientY = event.clientY
+            }
+            is TouchEvent -> {
+                event.changedTouches.item(0)?.let { touch ->
+                    clientX = touch.clientX
+                    clientY = touch.clientY
+                } ?: return@EventListener
+            }
+            else -> return@EventListener
+        }
 
         // Do not pick new items until drag in progress or listener is disabled
         if (isDragArmed || !isEnabled) return@EventListener
@@ -38,7 +54,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
         pickedRenderable = null
 
         // Get pick point in canvas coordinates
-        val pickPoint = wwd.canvasCoordinates(evt.clientX, evt.clientY)
+        val pickPoint = wwd.canvasCoordinates(clientX, clientY)
 
         // Pick objects in selected point
         val pickList = wwd.pick(pickPoint)
