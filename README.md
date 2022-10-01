@@ -45,7 +45,7 @@ Official WorldWind Android releases have the latest stable features, enhancement
 
 - [GitHub Releases](https://github.com/WorldWindEarth/WorldWindKotlin/releases/) documents official releases
 - [GitHub Milestones](https://github.com/WorldWindEarth/WorldWindKotlin/milestones) documents upcoming releases and the development roadmap
-- [Travis CI](https://travis-ci.com/WorldWindEarth/WorldWindKotlin) provides continuous integration and release automation
+- [GitHub Actions](https://github.com/WorldWindEarth/WorldWindKotlin/actions) provides continuous integration and release automation
 
 ## License
 
