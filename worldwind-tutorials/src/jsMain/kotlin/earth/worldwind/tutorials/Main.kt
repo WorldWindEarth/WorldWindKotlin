@@ -8,6 +8,7 @@ import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.google.GoogleLayer
+import earth.worldwind.layer.starfield.StarFieldLayer
 
 fun main() {
     // Register an event listener to be called when the page is loaded.
@@ -20,6 +21,7 @@ fun main() {
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE))
+            addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
         }
 

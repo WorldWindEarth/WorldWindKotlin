@@ -380,7 +380,7 @@ interface Kgl {
     fun compileShader(shader: KglShader)
     fun deleteShader(shader: KglShader)
 
-    fun getShaderParameter(shader: KglShader, pname: Int): Int
+    fun getShaderParameteri(shader: KglShader, pname: Int): Int
 
     fun getProgramInfoLog(program: KglProgram) : String
     fun getShaderInfoLog(shader: KglShader) : String
@@ -391,7 +391,7 @@ interface Kgl {
     fun useProgram(program: KglProgram)
     fun deleteProgram(program: KglProgram)
 
-    fun getProgramParameter(program: KglProgram, pname: Int): Int
+    fun getProgramParameteri(program: KglProgram, pname: Int): Int
 
     fun getUniformLocation(program: KglProgram, name: String): KglUniformLocation
     fun bindAttribLocation(program: KglProgram, index: Int, name: String)
@@ -402,7 +402,10 @@ interface Kgl {
     fun enableVertexAttribArray(location: Int)
     fun disableVertexAttribArray(location: Int)
 
-    fun getParameter(pname: Int): Int
+    fun getParameteri(pname: Int): Int
+    fun getParameterf(pname: Int): Float
+    fun getParameteriv(pname: Int): IntArray
+    fun getParameterfv(pname: Int): FloatArray
 
     fun createBuffer(): KglBuffer
     fun bindBuffer(target: Int, buffer: KglBuffer)

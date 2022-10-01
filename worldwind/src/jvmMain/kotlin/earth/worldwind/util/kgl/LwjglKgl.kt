@@ -6,11 +6,27 @@ import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
 class LwjglKgl : Kgl {
-    private val arr = IntArray(1)
+    private val arrI = IntArray(16)
+    private val arrF = FloatArray(16)
 
-    override fun getParameter(pname: Int): Int {
-        GL33.glGetIntegerv(pname, arr)
-        return arr[0]
+    override fun getParameteri(pname: Int): Int {
+        GL33.glGetIntegerv(pname, arrI)
+        return arrI[0]
+    }
+
+    override fun getParameterf(pname: Int): Float {
+        GL33.glGetFloatv(pname, arrF)
+        return arrF[0]
+    }
+
+    override fun getParameteriv(pname: Int): IntArray {
+        GL33.glGetIntegerv(pname, arrI)
+        return arrI
+    }
+
+    override fun getParameterfv(pname: Int): FloatArray {
+        GL33.glGetFloatv(pname, arrF)
+        return arrF
     }
 
     override fun createShader(type: Int) = KglShader(GL33.glCreateShader(type))
@@ -21,9 +37,9 @@ class LwjglKgl : Kgl {
 
     override fun deleteShader(shader: KglShader) = GL33.glDeleteShader(shader.id)
 
-    override fun getShaderParameter(shader: KglShader, pname: Int): Int {
-        GL33.glGetShaderiv(shader.id, pname, arr)
-        return arr[0]
+    override fun getShaderParameteri(shader: KglShader, pname: Int): Int {
+        GL33.glGetShaderiv(shader.id, pname, arrI)
+        return arrI[0]
     }
 
     override fun getProgramInfoLog(program: KglProgram): String = GL33.glGetProgramInfoLog(program.id)
@@ -40,9 +56,9 @@ class LwjglKgl : Kgl {
 
     override fun useProgram(program: KglProgram) = GL33.glUseProgram(program.id)
 
-    override fun getProgramParameter(program: KglProgram, pname: Int): Int {
-        GL33.glGetProgramiv(program.id, pname, arr)
-        return arr[0]
+    override fun getProgramParameteri(program: KglProgram, pname: Int): Int {
+        GL33.glGetProgramiv(program.id, pname, arrI)
+        return arrI[0]
     }
 
     override fun getUniformLocation(program: KglProgram, name: String) =

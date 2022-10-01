@@ -152,7 +152,7 @@ open class WorldWind @JvmOverloads constructor(
         dc.contextLost()
 
         // Set the WorldWindow's depth bits.
-        depthBits = dc.gl.getParameter(GL_DEPTH_BITS)
+        depthBits = dc.gl.getParameteri(GL_DEPTH_BITS)
     }
 
     /**

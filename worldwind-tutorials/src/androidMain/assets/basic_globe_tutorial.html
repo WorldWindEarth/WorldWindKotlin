@@ -34,6 +34,7 @@ wwd.engine.layers.apply {
     addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
         configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
     })
+    addLayer(StarFieldLayer())
     addLayer(AtmosphereLayer())
 }
 // Setting up the WorldWindow's elevation coverages.

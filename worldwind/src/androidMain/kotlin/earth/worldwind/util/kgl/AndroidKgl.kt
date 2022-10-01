@@ -6,11 +6,27 @@ import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
 class AndroidKgl : Kgl {
-    private val arr = IntArray(1)
+    private val arrI = IntArray(16)
+    private val arrF = FloatArray(16)
 
-    override fun getParameter(pname: Int): Int {
-        GLES20.glGetIntegerv(pname, arr, 0)
-        return arr[0]
+    override fun getParameteri(pname: Int): Int {
+        GLES20.glGetIntegerv(pname, arrI, 0)
+        return arrI[0]
+    }
+
+    override fun getParameterf(pname: Int): Float {
+        GLES20.glGetFloatv(pname, arrF, 0)
+        return arrF[0]
+    }
+
+    override fun getParameteriv(pname: Int): IntArray {
+        GLES20.glGetIntegerv(pname, arrI, 0)
+        return arrI
+    }
+
+    override fun getParameterfv(pname: Int): FloatArray {
+        GLES20.glGetFloatv(pname, arrF, 0)
+        return arrF
     }
 
     override fun createShader(type: Int): KglShader = KglShader(GLES20.glCreateShader(type))
@@ -21,9 +37,9 @@ class AndroidKgl : Kgl {
 
     override fun deleteShader(shader: KglShader) = GLES20.glDeleteShader(shader.id)
 
-    override fun getShaderParameter(shader: KglShader, pname: Int): Int {
-        GLES20.glGetShaderiv(shader.id, pname, arr, 0)
-        return arr[0]
+    override fun getShaderParameteri(shader: KglShader, pname: Int): Int {
+        GLES20.glGetShaderiv(shader.id, pname, arrI, 0)
+        return arrI[0]
     }
 
     override fun getProgramInfoLog(program: KglProgram): String = GLES20.glGetProgramInfoLog(program.id)
@@ -40,9 +56,9 @@ class AndroidKgl : Kgl {
 
     override fun useProgram(program: KglProgram) = GLES20.glUseProgram(program.id)
 
-    override fun getProgramParameter(program: KglProgram, pname: Int): Int {
-        GLES20.glGetProgramiv(program.id, pname, arr, 0)
-        return arr[0]
+    override fun getProgramParameteri(program: KglProgram, pname: Int): Int {
+        GLES20.glGetProgramiv(program.id, pname, arrI, 0)
+        return arrI[0]
     }
 
     override fun getUniformLocation(program: KglProgram, name: String): KglUniformLocation =
@@ -52,8 +68,8 @@ class AndroidKgl : Kgl {
         GLES20.glBindAttribLocation(program.id, index, name)
 
     override fun createBuffer(): KglBuffer {
-        GLES20.glGenBuffers(1, arr, 0)
-        return KglBuffer(arr[0])
+        GLES20.glGenBuffers(1, arrI, 0)
+        return KglBuffer(arrI[0])
     }
 
     override fun bindBuffer(target: Int, buffer: KglBuffer) = GLES20.glBindBuffer(target, buffer.id)
@@ -65,8 +81,8 @@ class AndroidKgl : Kgl {
         GLES20.glBufferData(target, size, FloatBuffer.wrap(sourceData, offset, size / 4), usage)
 
     override fun deleteBuffer(buffer: KglBuffer) {
-        arr[0] = buffer.id
-        GLES20.glDeleteBuffers(1, arr, 0)
+        arrI[0] = buffer.id
+        GLES20.glDeleteBuffers(1, arrI, 0)
     }
 
     override fun vertexAttribPointer(
@@ -146,13 +162,13 @@ class AndroidKgl : Kgl {
     override fun clearColor(r: Float, g: Float, b: Float, a: Float) = GLES20.glClearColor(r, g, b, a)
 
     override fun createTexture(): KglTexture {
-        GLES20.glGenTextures(1, arr, 0)
-        return KglTexture(arr[0])
+        GLES20.glGenTextures(1, arrI, 0)
+        return KglTexture(arrI[0])
     }
 
     override fun deleteTexture(texture: KglTexture) {
-        arr[0] = texture.id
-        GLES20.glDeleteTextures(1, arr, 0)
+        arrI[0] = texture.id
+        GLES20.glDeleteTextures(1, arrI, 0)
     }
 
     override fun texImage2D(
@@ -178,13 +194,13 @@ class AndroidKgl : Kgl {
     override fun bindFramebuffer(target: Int, framebuffer: KglFramebuffer) = GLES20.glBindFramebuffer(target, framebuffer.id)
 
     override fun createFramebuffer(): KglFramebuffer {
-        GLES20.glGenFramebuffers(1, arr, 0)
-        return KglFramebuffer(arr[0])
+        GLES20.glGenFramebuffers(1, arrI, 0)
+        return KglFramebuffer(arrI[0])
     }
 
     override fun deleteFramebuffer(framebuffer: KglFramebuffer) {
-        arr[0] = framebuffer.id
-        GLES20.glDeleteFramebuffers(1, arr, 0)
+        arrI[0] = framebuffer.id
+        GLES20.glDeleteFramebuffers(1, arrI, 0)
     }
 
     override fun checkFramebufferStatus(target: Int) = GLES20.glCheckFramebufferStatus(target)

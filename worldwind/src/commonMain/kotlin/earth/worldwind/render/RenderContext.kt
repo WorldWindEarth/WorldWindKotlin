@@ -294,16 +294,16 @@ open class RenderContext {
 
     // TODO redesign ShaderProgram to operate as a resource accessible from DrawContext
     // TODO created automatically on OpenGL thread, unless the caller wants to explicitly create a program
-    inline fun <reified T: AbstractShaderProgram> getShaderProgram(builder: () -> T): T? {
+    inline fun <reified T: AbstractShaderProgram> getShaderProgram(builder: () -> T): T {
         val key = T::class
-        return renderResourceCache?.run{ get(key) ?: builder().also { put(key, it, it.programLength) } } as T?
+        return renderResourceCache?.run{ get(key) ?: builder().also { put(key, it, it.programLength) } } as T
     }
 
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions?, retrieve: Boolean = true) =
         renderResourceCache?.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
 
     inline fun <reified T: AbstractBufferObject> getBufferObject(key: Any, builder: () -> T) =
-        renderResourceCache?.run{ get(key) ?: builder().also { put(key, it, it.byteCount) } } as T?
+        renderResourceCache?.run{ get(key) ?: builder().also { put(key, it, it.byteCount) } } as T
 
     fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache?.run {
         scratchTextCacheKey.text = text

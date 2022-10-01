@@ -11,14 +11,19 @@ import earth.worldwind.render.buffer.ShortBufferObject
 import earth.worldwind.render.image.ImageConfig
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource.Companion.fromResource
+import earth.worldwind.util.SunPosition
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
+import kotlinx.datetime.Instant
 
 open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     override var isPickEnabled = false
     var nightImageSource = fromResource(MR.images.dnb_land_ocean_ice_2012)
     var nightImageOptions = ImageOptions(ImageConfig.RGB_565)
-    var lightLocation: Location? = null
+    /**
+     * Display light location on a specified time point. If null, then light is located at camera position.
+     */
+    var time : Instant? = null
     protected val activeLightDirection = Vec3()
     private val fullSphereSector = Sector().setFullSphere()
 
@@ -41,15 +46,17 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     protected open fun determineLightDirection(rc: RenderContext) {
         // TODO Make light/sun direction an optional property of the WorldWindow and attach it to the RenderContext each frame
         // TODO RenderContext property defaults to the eye lat/lon like we have below
-        val lightLocation = lightLocation
-        if (lightLocation != null) rc.globe!!.geographicToCartesianNormal(
-            lightLocation.latitude, lightLocation.longitude, activeLightDirection
-        ) else rc.globe!!.geographicToCartesianNormal(
+        time?.let {
+            val lightLocation = SunPosition.getAsGeographicLocation(it)
+            rc.globe!!.geographicToCartesianNormal(
+                lightLocation.latitude, lightLocation.longitude, activeLightDirection
+            )
+        } ?: rc.globe!!.geographicToCartesianNormal(
             rc.camera!!.position.latitude, rc.camera!!.position.longitude, activeLightDirection
         )
     }
 
-    protected fun renderSky(rc: RenderContext) {
+    protected open fun renderSky(rc: RenderContext) {
         val pool = rc.getDrawablePool<DrawableSkyAtmosphere>()
         val drawable = DrawableSkyAtmosphere.obtain(pool)
         val size = 128
@@ -71,12 +78,12 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe!!.equatorialRadius
 
-        // Use this layer's night image when the light location is different than the eye location.
-        drawable.nightTexture = lightLocation?.run{ rc.getTexture(nightImageSource, nightImageOptions) }
+        // Use this layer's night image when the light location is different from the eye location.
+        drawable.nightTexture = time?.run{ rc.getTexture(nightImageSource, nightImageOptions) }
         rc.offerSurfaceDrawable(drawable, Double.POSITIVE_INFINITY)
     }
 
-    protected fun assembleVertexPoints(rc: RenderContext, numLat: Int, numLon: Int, altitude: Float): FloatBufferObject {
+    protected open fun assembleVertexPoints(rc: RenderContext, numLat: Int, numLon: Int, altitude: Float): FloatBufferObject {
         val count = numLat * numLon
         val altitudes = FloatArray(count)
         altitudes.fill(altitude)
@@ -90,7 +97,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     // TODO move this into a basic tessellator implementation in WorldWind
     // TODO tessellator and atmosphere needs the TriStripIndices - could we add these to BasicGlobe (needs to be on a static context)
     // TODO may need to switch the tessellation method anyway - geographic grid may produce artifacts at the poles
-    protected fun assembleTriStripElements(numLat: Int, numLon: Int): ShortBufferObject {
+    protected open fun assembleTriStripElements(numLat: Int, numLon: Int): ShortBufferObject {
         // Allocate a buffer to hold the indices.
         val count = ((numLat - 1) * numLon + (numLat - 2)) * 2
         val elements = ShortArray(count)

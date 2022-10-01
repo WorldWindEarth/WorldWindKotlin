@@ -34,7 +34,13 @@ actual data class KglFramebuffer(val obj: WebGLFramebuffer? = null) {
 
 class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
-    override fun getParameter(pname: Int): Int = gl.getParameter(pname) as Int
+    override fun getParameteri(pname: Int): Int = gl.getParameter(pname) as Int
+
+    override fun getParameterf(pname: Int): Float = gl.getParameter(pname) as Float
+
+    override fun getParameteriv(pname: Int): IntArray = gl.getParameter(pname) as IntArray
+
+    override fun getParameterfv(pname: Int): FloatArray = gl.getParameter(pname) as FloatArray
 
     override fun createShader(type: Int) = KglShader(gl.createShader(type))
 
@@ -44,7 +50,7 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override fun deleteShader(shader: KglShader) = gl.deleteShader(shader.obj)
 
-    override fun getShaderParameter(shader: KglShader, pname: Int): Int {
+    override fun getShaderParameteri(shader: KglShader, pname: Int): Int {
         val value = gl.getShaderParameter(shader.obj, pname)
         return if (value is Boolean) { if (value) GL_TRUE else GL_FALSE } else value as Int
     }
@@ -63,7 +69,7 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override fun useProgram(program: KglProgram) = gl.useProgram(program.obj)
 
-    override fun getProgramParameter(program: KglProgram, pname: Int): Int {
+    override fun getProgramParameteri(program: KglProgram, pname: Int): Int {
         val value = gl.getProgramParameter(program.obj, pname)
         return if (value is Boolean) { if (value) GL_TRUE else GL_FALSE } else value as Int
     }

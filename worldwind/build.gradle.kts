@@ -39,6 +39,7 @@ kotlin {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.github.pdvrieze.xmlutil:serialization:0.84.2")
                 implementation("com.eygraber:uri-kmp:0.0.9")

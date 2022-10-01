@@ -67,7 +67,7 @@ abstract class AbstractShaderProgram: RenderResource {
         val vs = dc.gl.createShader(GL_VERTEX_SHADER)
         dc.gl.shaderSource(vs, programSources[VERTEX_SHADER])
         dc.gl.compileShader(vs)
-        if (dc.gl.getShaderParameter(vs, GL_COMPILE_STATUS) != GL_TRUE) {
+        if (dc.gl.getShaderParameteri(vs, GL_COMPILE_STATUS) != GL_TRUE) {
             val msg = dc.gl.getShaderInfoLog(vs)
             dc.gl.deleteShader(vs)
             logMessage(
@@ -79,7 +79,7 @@ abstract class AbstractShaderProgram: RenderResource {
         dc.gl.shaderSource(fs, programSources[FRAGMENT_SHADER])
         dc.gl.compileShader(fs)
 
-        if (dc.gl.getShaderParameter(vs, GL_COMPILE_STATUS) != GL_TRUE) {
+        if (dc.gl.getShaderParameteri(vs, GL_COMPILE_STATUS) != GL_TRUE) {
             val msg = dc.gl.getShaderInfoLog(fs)
             dc.gl.deleteShader(vs)
             dc.gl.deleteShader(fs)
@@ -95,7 +95,7 @@ abstract class AbstractShaderProgram: RenderResource {
         dc.gl.linkProgram(program)
         dc.gl.deleteShader(vs)
         dc.gl.deleteShader(fs)
-        if (dc.gl.getProgramParameter(program, GL_LINK_STATUS) != GL_TRUE) {
+        if (dc.gl.getProgramParameteri(program, GL_LINK_STATUS) != GL_TRUE) {
             val msg = dc.gl.getProgramInfoLog(program)
             dc.gl.deleteProgram(program)
             logMessage(ERROR, "ShaderProgram", "buildProgram", "Error linking GL program \n$msg")

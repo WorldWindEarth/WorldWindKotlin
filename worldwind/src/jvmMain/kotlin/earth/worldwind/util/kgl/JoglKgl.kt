@@ -7,41 +7,57 @@ import java.nio.IntBuffer
 import java.nio.ShortBuffer
 
 class JoglKgl(private val gl: GL3ES3) : Kgl {
-    private val arr = IntArray(1)
+    private val arrI = IntArray(16)
+    private val arrF = FloatArray(16)
 
-    override fun getParameter(pname: Int): Int {
-        gl.glGetIntegerv(pname, arr, 0)
-        return arr[0]
+    override fun getParameteri(pname: Int): Int {
+        gl.glGetIntegerv(pname, arrI, 0)
+        return arrI[0]
+    }
+
+    override fun getParameterf(pname: Int): Float {
+        gl.glGetFloatv(pname, arrF, 0)
+        return arrF[0]
+    }
+
+    override fun getParameteriv(pname: Int): IntArray {
+        gl.glGetIntegerv(pname, arrI, 0)
+        return arrI
+    }
+
+    override fun getParameterfv(pname: Int): FloatArray {
+        gl.glGetFloatv(pname, arrF, 0)
+        return arrF
     }
 
     override fun createShader(type: Int) = KglShader(gl.glCreateShader(type))
 
     override fun shaderSource(shader: KglShader, source: String) {
-        arr[0] = source.length
-        gl.glShaderSource(shader.id, 1, arrayOf(source), IntBuffer.wrap(arr))
+        arrI[0] = source.length
+        gl.glShaderSource(shader.id, 1, arrayOf(source), IntBuffer.wrap(arrI))
     }
 
     override fun compileShader(shader: KglShader) = gl.glCompileShader(shader.id)
 
     override fun deleteShader(shader: KglShader) = gl.glDeleteShader(shader.id)
 
-    override fun getShaderParameter(shader: KglShader, pname: Int): Int {
-        gl.glGetShaderiv(shader.id, pname, arr, 0)
-        return arr[0]
+    override fun getShaderParameteri(shader: KglShader, pname: Int): Int {
+        gl.glGetShaderiv(shader.id, pname, arrI, 0)
+        return arrI[0]
     }
 
     override fun getProgramInfoLog(program: KglProgram): String {
         val bufSize = 1024
         val buffer = ByteArray(bufSize)
-        gl.glGetProgramInfoLog(program.id, bufSize, arr, 0, buffer, 0)
-        return buffer.decodeToString(0, arr[0])
+        gl.glGetProgramInfoLog(program.id, bufSize, arrI, 0, buffer, 0)
+        return buffer.decodeToString(0, arrI[0])
     }
 
     override fun getShaderInfoLog(shader: KglShader): String {
         val bufSize = 1024
         val buffer = ByteArray(bufSize)
-        gl.glGetShaderInfoLog(shader.id, bufSize, arr, 0, buffer, 0)
-        return buffer.decodeToString(0, arr[0])
+        gl.glGetShaderInfoLog(shader.id, bufSize, arrI, 0, buffer, 0)
+        return buffer.decodeToString(0, arrI[0])
     }
 
     override fun createProgram() = KglProgram(gl.glCreateProgram())
@@ -54,9 +70,9 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun useProgram(program: KglProgram) = gl.glUseProgram(program.id)
 
-    override fun getProgramParameter(program: KglProgram, pname: Int): Int {
-        gl.glGetProgramiv(program.id, pname, arr, 0)
-        return arr[0]
+    override fun getProgramParameteri(program: KglProgram, pname: Int): Int {
+        gl.glGetProgramiv(program.id, pname, arrI, 0)
+        return arrI[0]
     }
 
     override fun getUniformLocation(program: KglProgram, name: String) =
@@ -66,8 +82,8 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
         gl.glBindAttribLocation(program.id, index, name)
 
     override fun createBuffer(): KglBuffer {
-        gl.glGenBuffers(1, arr, 0)
-        return KglBuffer(arr[0])
+        gl.glGenBuffers(1, arrI, 0)
+        return KglBuffer(arrI[0])
     }
 
     override fun bindBuffer(target: Int, buffer: KglBuffer) = gl.glBindBuffer(target, buffer.id)
@@ -79,8 +95,8 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
         gl.glBufferData(target, size.toLong(), FloatBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
 
     override fun deleteBuffer(buffer: KglBuffer) {
-        arr[0] = buffer.id
-        gl.glDeleteBuffers(1, arr, 0)
+        arrI[0] = buffer.id
+        gl.glDeleteBuffers(1, arrI, 0)
     }
 
     override fun vertexAttribPointer(
@@ -148,13 +164,13 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun clearColor(r: Float, g: Float, b: Float, a: Float) = gl.glClearColor(r, g, b, a)
 
     override fun createTexture(): KglTexture {
-        gl.glGenTextures(1, arr, 0)
-        return KglTexture(arr[0])
+        gl.glGenTextures(1, arrI, 0)
+        return KglTexture(arrI[0])
     }
 
     override fun deleteTexture(texture: KglTexture) {
-        arr[0] = texture.id
-        gl.glDeleteTextures(1, arr, 0)
+        arrI[0] = texture.id
+        gl.glDeleteTextures(1, arrI, 0)
     }
 
     override fun texImage2D(
@@ -180,13 +196,13 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun bindFramebuffer(target: Int, framebuffer: KglFramebuffer) = gl.glBindFramebuffer(target, framebuffer.id)
 
     override fun createFramebuffer(): KglFramebuffer {
-        gl.glGenFramebuffers(1, arr, 0)
-        return KglFramebuffer(arr[0])
+        gl.glGenFramebuffers(1, arrI, 0)
+        return KglFramebuffer(arrI[0])
     }
 
     override fun deleteFramebuffer(framebuffer: KglFramebuffer) {
-        arr[0] = framebuffer.id
-        gl.glDeleteFramebuffers(1, arr, 0)
+        arrI[0] = framebuffer.id
+        gl.glDeleteFramebuffers(1, arrI, 0)
     }
 
     override fun checkFramebufferStatus(target: Int) = gl.glCheckFramebufferStatus(target)

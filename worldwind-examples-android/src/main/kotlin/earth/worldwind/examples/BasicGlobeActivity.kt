@@ -7,6 +7,7 @@ import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.google.GoogleLayer
+import earth.worldwind.layer.starfield.StarFieldLayer
 import java.io.File
 
 /**
@@ -48,6 +49,7 @@ The globe uses the default navigation gestures:
             addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
                 configureCache(File(cacheDir, "cache.gpkg").absolutePath, "GSat")
             })
+            addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
         }
 
