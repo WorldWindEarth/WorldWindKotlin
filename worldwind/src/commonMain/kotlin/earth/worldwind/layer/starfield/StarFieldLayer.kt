@@ -5,6 +5,7 @@ import earth.worldwind.MR
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.DrawableGroup
+import earth.worldwind.draw.DrawableLambda
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
@@ -16,13 +17,15 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SunPosition
-import earth.worldwind.util.kgl.*
+import earth.worldwind.util.kgl.GL_ALIASED_POINT_SIZE_RANGE
+import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
+import earth.worldwind.util.kgl.GL_FLOAT
+import earth.worldwind.util.kgl.GL_POINTS
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import worldwind.draw.DrawableLambda
 
 /**
  * Constructs a layer showing stars and the Sun around the Earth.

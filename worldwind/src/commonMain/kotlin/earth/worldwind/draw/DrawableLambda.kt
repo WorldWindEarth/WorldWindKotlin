@@ -1,4 +1,4 @@
-package worldwind.draw
+package earth.worldwind.draw
 
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
