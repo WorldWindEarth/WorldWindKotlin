@@ -18,13 +18,11 @@ geographic data and representing a range of geometric objects.
 Grab latest release build via Gradle:
 ```groovy
 repositories {
-    maven {
-        url 'https://jitpack.io'
-    }
+    mavenCentral()
 }
 
 dependencies {
-    implementation 'com.github.WorldWindEarth:WorldWindKotlin:master-SNAPSHOT'
+    implementation 'earth.worldwind:worldwind:1.0.0'
 }
 ```
 
@@ -33,13 +31,11 @@ dependencies {
 Get development build snapshots with the latest features and bug fixes:
 ```groovy
 repositories {
-    maven {
-        url 'https://jitpack.io'
-    }
+    maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
 }
 
 dependencies {
-    implementation 'com.github.WorldWindEarth:WorldWindKotlin:develop-SNAPSHOT'
+    implementation 'earth.worldwind:worldwind:+'
 }
 ```
 
