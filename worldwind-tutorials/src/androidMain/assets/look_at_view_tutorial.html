@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Look At View Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Look At View Tutorial</h1>
+<p>
+    Demonstrates how to use LookAt to view a position. This example also shows how to compute great circle distance and
+    azimuth between two positions.
+</p>
+<p>
+    This example simulates a view from an aircraft above Santa Monica, CA looking at the LAX airport.
+</p>
+<h2>Example</h2>
+<h3>LookAtViewFragment.kt</h3>
+<p>
+    The LookAtViewFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we position the camera at an aircraft's location and point the camera at a nearby airport.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class LookAtViewFragment: BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow with its camera configured to look at a given location from a given position.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also { setLookAtView(wwd.engine) }
+}
+
+fun setLookAtView(engine: WorldWind) {
+    // Create a view of LAX airport as seen from an aircraft above Santa Monica, CA.
+    val aircraft = Position.fromDegrees(34.0158333, -118.4513056, 2500.0)
+    // Aircraft above Santa Monica airport, altitude in meters
+    val airport = Position.fromDegrees(33.9424368, -118.4081222, 38.7)
+
+    // Compute heading and distance from aircraft to airport
+    val heading = aircraft.greatCircleAzimuth(airport)
+    val distanceRadians = aircraft.greatCircleDistance(airport)
+    val distance = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
+
+    // Compute camera settings
+    val altitude = aircraft.altitude - airport.altitude
+    val range = sqrt(altitude * altitude + distance * distance)
+    val tilt = Angle.fromRadians(atan(distance / aircraft.altitude))
+
+    // Apply new "look at" view
+    val lookAt = LookAt().set(
+        airport.latitude, airport.longitude, airport.altitude, AltitudeMode.ABSOLUTE, range, heading, tilt, roll = Angle.ZERO
+    )
+    engine.cameraFromLookAt(lookAt)
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

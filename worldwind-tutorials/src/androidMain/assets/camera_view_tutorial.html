@@ -1,0 +1,73 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Camera View Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Camera View Tutorial</h1>
+<p>
+    Demonstrates how to use a Camera to view a position. It shows how to configure the WorldWindow's camera to point a
+    particular direction from a specific position. This example also shows how to compute great circle distance and
+    azimuth between two positions.
+</p>
+<p>
+    This example simulates a view from an aircraft above Oxnard, CA looking at the Point Mugu Naval Air Station.
+</p>
+<h2>Example</h2>
+<h3>CameraViewFragment.kt</h3>
+<p>
+    The CameraViewFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we position the camera at an aircraft's location and point the camera at a nearby airport.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class CameraViewFragment: BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow with its camera positioned at a given location and configured to point in a given
+     * direction.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also { setCameraView(wwd.engine) }
+}
+
+/**
+ * Position WorldWind camera at a given location and configure it to point in a given direction.
+ */
+fun setCameraView(engine: WorldWind) {
+    // Create a view of Point Mugu airport as seen from an aircraft above Oxnard, CA.
+    val aircraft = Position.fromDegrees(34.2, -119.2, 3000.0) // Above Oxnard CA, altitude in meters
+    val airport = Position.fromDegrees(34.1192744, -119.1195850, 4.0) // KNTD airport, Point Mugu CA, altitude MSL
+
+    // Compute heading and tilt angles from aircraft to airport
+    val heading = aircraft.greatCircleAzimuth(airport)
+    val distanceRadians = aircraft.greatCircleDistance(airport)
+    val distance = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
+    val tilt = Angle.fromRadians(atan(distance / aircraft.altitude))
+
+    // Apply the camera view
+    engine.camera.set(
+        aircraft.latitude, aircraft.longitude, aircraft.altitude, AltitudeMode.ABSOLUTE, heading, tilt, roll = Angle.ZERO
+    )
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+
+
+</script>
+</body>
+</html>

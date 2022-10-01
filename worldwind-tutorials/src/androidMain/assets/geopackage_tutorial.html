@@ -1,0 +1,79 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WMS Layer Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>GeoPackage Tutorial</h1>
+<p>
+    Demonstrates how to display an OGC GeoPackage layer.</p>
+<p>
+    This tutorial displays a GeoPackage database containing high resolution monochromatic imagery of Naval Air Station
+    Oceana in Virginia Beach, VA.</p>
+
+<h2>Example</h2>
+<h3>GeoPackageFragment.kt</h3>
+<p>
+    The GeoPackageFragment class extends BasicGlobeFragment and overrides the createWorldWindow method. Here we use
+    WorldWind's LayerFactory to display the contents of a local OGC GeoPackage database. LayerFactory asynchronously
+    reads the GeoPackage contents to configure a WorldWind layer, then notifies the application when it's done.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class GeoPackageFragment: BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a GeoPackage Layer
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Unpack the tutorial GeoPackage asset to the Android application cache. GeoPackage relies on the Android
+        // SQLite library which operates only on files in the local Android filesystem.
+        val geoPackageFile = TutorialUtil.unpackAsset(requireContext(), "geopackage_tutorial.gpkg")!!
+
+        // Create a GeoPackage layer factory.
+        val gpkgLayerFactory = GpkgLayerFactory(wwd.mainScope)
+
+        // Create an OGC GeoPackage layer to display a high resolution monochromatic image of Naval Air Station
+        // Oceana in Virginia Beach, VA.
+        val layer = gpkgLayerFactory.createLayer(
+            geoPackageFile.path,
+            { Logger.log(Logger.ERROR, "GeoPackage layer creation failed", it) },
+            { Logger.log(Logger.INFO, "GeoPackage layer creation succeeded") }
+        )
+
+        // Add the finished GeoPackage layer to the WorldWindow.
+        wwd.engine.layers.addLayer(layer)
+
+        // Place the viewer directly over the GeoPackage image.
+        wwd.engine.camera.position.setDegrees(
+            36.8139677556754, -76.03260320181614, 10e3
+        )
+        return wwd
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+
+</script>
+</body>
+</html>

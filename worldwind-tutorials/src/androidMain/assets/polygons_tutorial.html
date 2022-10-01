@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Polygons Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Polygons Tutorial</h1>
+<p>
+    Demonstrates how to add Polygons to a RenderableLayer.
+</p>
+<p>
+    This example renders six different five-sided polygons on the globe.
+</p>
+<ul>
+    <li>The top-left polygon is above ground, using the default ABSOLUTE altitude mode and default attributes.</li>
+    <li>The top-right polygon is on the terrain surface, using a CLAMP_TO_GROUND altitude mode and setFollowTerrain(true).</li>
+    <li>The middle-left polygon is above ground, like the top-left, but with setExtrude(true).</li>
+    <li>The middle-right polygon is like the middle-left, but with custom attributes.</li>
+    <li>The bottom-left polygon contains an inner ring specified with addBoundary(List).</li>
+    <li>The bottom-right polygon is like the bottom-left, but with setExtrude(true) and custom attributes.</li>
+</ul>
+<h2>Example</h2>
+<h3>PolygonsFragment.kt</h3>
+<p>
+    The PolygonsFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we create and add a RenderableLayer to the globe, and then define and add four Polygons to the layer.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class PolygonsFragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a set of Polygon shapes
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Add Polygons examples Layer
+        wwd.engine.layers.addLayer(buildPolygonsLayer())
+
+        // Set Camera position to suitable location
+        wwd.engine.camera.position.apply {
+            latitude = fromDegrees(30.0)
+            longitude = fromDegrees(-115.0)
+        }
+        return wwd
+    }
+}
+
+/**
+ * Create a layer to display the tutorial polygons.
+ */
+fun buildPolygonsLayer(): RenderableLayer {
+    val layer = RenderableLayer("Polygons")
+
+    // Create a basic polygon with the default attributes, the default altitude mode (ABSOLUTE),
+    // and the default path type (GREAT_CIRCLE).
+    var positions = listOf(
+        Position.fromDegrees(40.0, -135.0, 5.0e5),
+        Position.fromDegrees(45.0, -140.0, 7.0e5),
+        Position.fromDegrees(50.0, -130.0, 9.0e5),
+        Position.fromDegrees(45.0, -120.0, 7.0e5),
+        Position.fromDegrees(40.0, -125.0, 5.0e5)
+    )
+    var poly = Polygon(positions)
+    layer.addRenderable(poly)
+
+    // Create a terrain following polygon with the default attributes, and the default path type (GREAT_CIRCLE).
+    positions = listOf(
+        Position.fromDegrees(40.0, -105.0, 0.0),
+        Position.fromDegrees(45.0, -110.0, 0.0),
+        Position.fromDegrees(50.0, -100.0, 0.0),
+        Position.fromDegrees(45.0, -90.0, 0.0),
+        Position.fromDegrees(40.0, -95.0, 0.0)
+    )
+    poly = Polygon(positions)
+    poly.altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the polygon vertices to the ground
+    poly.followTerrain = true // follow the ground between polygon vertices
+    layer.addRenderable(poly)
+
+    // Create an extruded polygon with the default attributes, the default altitude mode (ABSOLUTE),
+    // and the default path type (GREAT_CIRCLE).
+    positions = listOf(
+        Position.fromDegrees(20.0, -135.0, 5.0e5),
+        Position.fromDegrees(25.0, -140.0, 7.0e5),
+        Position.fromDegrees(30.0, -130.0, 9.0e5),
+        Position.fromDegrees(25.0, -120.0, 7.0e5),
+        Position.fromDegrees(20.0, -125.0, 5.0e5)
+    )
+    poly = Polygon(positions)
+    poly.isExtrude = true // extrude the polygon from the ground to each polygon position's altitude
+    layer.addRenderable(poly)
+
+    // Create an extruded polygon with custom attributes that display the extruded vertical lines,
+    // make the extruded interior 50% transparent, and increase the polygon line with.
+    positions = listOf(
+        Position.fromDegrees(20.0, -105.0, 5.0e5),
+        Position.fromDegrees(25.0, -110.0, 7.0e5),
+        Position.fromDegrees(30.0, -100.0, 9.0e5),
+        Position.fromDegrees(25.0, -90.0, 7.0e5),
+        Position.fromDegrees(20.0, -95.0, 5.0e5)
+    )
+    val attrs = ShapeAttributes()
+    attrs.isDrawVerticals = true // display the extruded verticals
+    attrs.interiorColor = Color(1f, 1f, 1f, 0.5f) // 50% transparent white
+    attrs.outlineWidth = 3f
+    poly = Polygon(positions, attrs)
+    poly.isExtrude = true // extrude the polygon from the ground to each polygon position's altitude
+    layer.addRenderable(poly)
+
+    // Create a polygon with an inner hole by specifying multiple polygon boundaries
+    poly = Polygon()
+    poly.addBoundary(
+        listOf(
+            Position.fromDegrees(0.0, -135.0, 5.0e5),
+            Position.fromDegrees(5.0, -140.0, 7.0e5),
+            Position.fromDegrees(10.0, -130.0, 9.0e5),
+            Position.fromDegrees(5.0, -120.0, 7.0e5),
+            Position.fromDegrees(0.0, -125.0, 5.0e5)
+        )
+    )
+    poly.addBoundary(
+        listOf(
+            Position.fromDegrees(2.5, -130.0, 6.0e5),
+            Position.fromDegrees(5.0, -135.0, 7.0e5),
+            Position.fromDegrees(7.5, -130.0, 8.0e5),
+            Position.fromDegrees(5.0, -125.0, 7.0e5)
+        )
+    )
+    layer.addRenderable(poly)
+
+    // Create an extruded polygon with an inner hole and custom attributes that display the extruded vertical lines,
+    // make the extruded interior 50% transparent, and increase the polygon line with.
+    poly = Polygon(emptyList(), attrs)
+    poly.addBoundary(
+        listOf(
+            Position.fromDegrees(0.0, -105.0, 5.0e5),
+            Position.fromDegrees(5.0, -110.0, 7.0e5),
+            Position.fromDegrees(10.0, -100.0, 9.0e5),
+            Position.fromDegrees(5.0, -90.0, 7.0e5),
+            Position.fromDegrees(0.0, -95.0, 5.0e5)
+        )
+    )
+    poly.addBoundary(
+        listOf(
+            Position.fromDegrees(2.5, -100.0, 6.0e5),
+            Position.fromDegrees(5.0, -105.0, 7.0e5),
+            Position.fromDegrees(7.5, -100.0, 8.0e5),
+            Position.fromDegrees(5.0, -95.0, 7.0e5)
+        )
+    )
+    poly.isExtrude = true // extrude the polygon from the ground to each polygon position's altitude
+    layer.addRenderable(poly)
+
+    return layer
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

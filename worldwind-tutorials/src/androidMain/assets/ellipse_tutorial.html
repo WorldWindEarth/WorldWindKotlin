@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Paths Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Ellipse Tutorial</h1>
+<p>
+    Demonstrates how to add an Ellipse to a RenderableLayer.
+</p>
+<p>
+    This example renders six different ellipses on the globe.
+</p>
+<ul>
+    <li>The Northwestern ellipse demonstrates the default styling and configuration.</li>
+    <li>The Northeastern ellipse uses custom attributes.</li>
+    <li>The Western ellipse has a 45 degree heading.</li>
+    <li>The Eastern ellipse displays a circle.</li>
+    <li>The Southwestern ellipse is at an altitude of 200km.</li>
+    <li>The Southeastern ellipse is at an altitude of 200km, extrude, and custom attributes.</li>
+</ul>
+<h2>Example</h2>
+<h3>EllipseFragment.kt</h3>
+<p>
+    The EllipseFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we create and add a RenderableLayer to the globe, and then define and add ellipses to the layer.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class EllipseFragment: BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a set of Ellipse shapes
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Add Ellipse examples Layer
+        wwd.engine.layers.addLayer(buildEllipsesLayer())
+
+        // Set Camera position to suitable location
+        wwd.engine.camera.position.apply {
+            latitude = fromDegrees(30.0)
+            longitude = fromDegrees(-110.0)
+        }
+
+        return wwd
+    }
+}
+
+/**
+ * Create a layer in which to display the ellipse shapes.
+ */
+fun buildEllipsesLayer(): RenderableLayer {
+    val layer = RenderableLayer("Ellipses")
+
+    // Create a surface ellipse with the default attributes, a 500km major-radius and a 300km minor-radius. Surface
+    // ellipses are configured with a CLAMP_TO_GROUND altitudeMode and followTerrain set to true.
+    var ellipse = Ellipse(Position.fromDegrees(45.0, -120.0, 0.0), 500000.0, 300000.0)
+    ellipse.altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the ellipse's center position to the terrain surface
+    ellipse.isFollowTerrain = true // cause the ellipse geometry to follow the terrain surface
+    layer.addRenderable(ellipse)
+
+    // Create a surface ellipse with with custom attributes that make the interior 50% transparent and increase the
+    // outline width.
+    var attrs = ShapeAttributes()
+    attrs.interiorColor = Color(1f, 1f, 1f, 0.5f) // 50% transparent white
+    attrs.outlineWidth = 3f
+    ellipse = Ellipse(Position.fromDegrees(45.0, -100.0, 0.0), 500000.0, 300000.0, attrs)
+    ellipse.altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the ellipse's center position to the terrain surface
+    ellipse.isFollowTerrain = true // cause the ellipse geometry to follow the terrain surface
+    layer.addRenderable(ellipse)
+
+    // Create a surface ellipse with a heading of 45 degrees, causing the semi-major axis to point Northeast and the
+    // semi-minor axis to point Southeast.
+    ellipse = Ellipse(Position.fromDegrees(35.0, -120.0, 0.0), 500000.0, 300000.0)
+    ellipse.altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the ellipse's center position to the terrain surface
+    ellipse.isFollowTerrain = true // cause the ellipse geometry to follow the terrain surface
+    ellipse.heading = Angle.fromDegrees(45.0)
+    layer.addRenderable(ellipse)
+
+    // Create a surface circle with the default attributes and 400km radius.
+    ellipse = Ellipse(Position.fromDegrees(35.0, -100.0, 0.0), 400000.0, 400000.0)
+    ellipse.altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the ellipse's center position to the terrain surface
+    ellipse.isFollowTerrain = true // cause the ellipse geometry to follow the terrain surface
+    layer.addRenderable(ellipse)
+
+    // Create an ellipse with the default attributes, an altitude of 200 km, and a 500km major-radius and a 300km
+    // minor-radius.
+    ellipse = Ellipse(Position.fromDegrees(25.0, -120.0, 200e3), 500000.0, 300000.0)
+    layer.addRenderable(ellipse)
+
+    // Create an ellipse with custom attributes that make the interior 50% transparent and an extruded outline with
+    // vertical lines
+    attrs = ShapeAttributes()
+    attrs.interiorColor = Color(1f, 1f, 1f, 0.5f) // 50% transparent white
+    attrs.isDrawVerticals = true
+    ellipse = Ellipse(Position.fromDegrees(25.0, -100.0, 200e3), 500000.0, 300000.0, attrs)
+    ellipse.isExtrude = true
+    layer.addRenderable(ellipse)
+
+    return layer
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+
+
+
+</script>
+</body>
+</html>

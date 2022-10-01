@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">WorldWind Examples</string>
+
+    <string name="action_about">About</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <string name="title_basic_globe">Basic Globe</string>
+    <string name="title_basic_performance_benchmark">Basic Performance Benchmark</string>
+    <string name="title_basic_stress_test">Basic Stress Test</string>
+    <string name="title_day_night_cycle">Day and Night Cycle</string>
+    <string name="title_general_globe">General Purpose Globe</string>
+    <string name="title_mgrs_graticule">MGRS graticule Demonstration</string>
+    <string name="title_multi_globe">Multi-Globe Demonstration</string>
+    <string name="title_movable_line_of_sight">Movable Line of Sight</string>
+    <string name="title_paths_example">Paths Example</string>
+    <string name="title_paths_and_polygons">Paths, Polygons &amp; Labels Demonstration</string>
+    <string name="title_placemarks_demo">Placemarks Demonstration</string>
+    <string name="title_placemarks_milstd2525">MIL-STD-2525 Placemarks</string>
+    <string name="title_placemarks_milstd2525_demo">MIL-STD-2525 Demonstration</string>
+    <string name="title_placemarks_milstd2525_stress_test">MIL-STD-2525 Stress Test</string>
+    <string name="title_placemarks_select_drag">Placemark Select and Drag</string>
+    <string name="title_placemarks_stress_test">Placemarks Stress Test</string>
+    <string name="title_texture_stress_test">Texture Stress Test</string>
+
+    <string name="spacer" />
+
+</resources>

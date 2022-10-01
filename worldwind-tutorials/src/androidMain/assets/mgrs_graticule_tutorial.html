@@ -1,0 +1,56 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Show Tessellation Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>MGRS Graticule Tutorial</h1>
+<p>
+    Demonstrates the MGRS Graticule capability.
+</p>
+<p>
+    This example adds a layer to the basic globe that shows the MGRS Graticule.
+</p>
+
+<h2>Example</h2>
+<h3>MGRSGraticuleFragment.kt</h3>
+<p>
+    The MGRSGraticuleFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we simply add an additional MGRSGraticuleLayer to the globe.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class MGRSGraticuleFragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow with a MGRS Graticule layer.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Create a layer that displays the globe's tessellation geometry.
+        wwd.engine.layers.addLayer(MGRSGraticuleLayer())
+        return wwd
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WMS Layer Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>WCS Elevation Coverage Tutorial</h1>
+<p>
+    Demonstrates how to add a OGC Web Coverage Service (WCS) elevation coverage.</p>
+<p>
+    This tutorial demonstrates how to add USGS NED elevation data from a WCS.</p>
+
+<h2>Example</h2>
+<h3>WcsElevationFragment.kt</h3>
+<p>
+    The WcsElevationFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method. Here we
+    use the Wcs100ElevationCoverage class to load USGS NED elevation data. Once the coverage is added to the elevation
+    model, the Wcs100ElevationCoverage class will request elevation data via the WCS version 1.0.0 specification and
+    WorldWind will generate terrain. A similar connection to a WCS supporting version 2.0.1 is available in the
+    Wcs201ElevationCoverage class.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class WcsElevationFragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a WCS Elevation Coverage
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Create an elevation coverage from a version 1.0.0 WCS
+        val coverage = buildWCSElevationCoverage()
+
+        // Remove any existing coverages from the Globe
+        wwd.engine.globe.elevationModel.clearCoverages()
+
+        // Add the coverage to the Globe's elevation model
+        wwd.engine.globe.elevationModel.addCoverage(coverage)
+
+        // Position the camera to look at Mt. Rainier
+        positionView(wwd)
+        return wwd
+    }
+
+    protected open fun positionView(wwd: WorldWindow) {
+        val mtRainier = fromDegrees(46.852886, -121.760374, 4392.0)
+        val eye = fromDegrees(46.912, -121.527, 2000.0)
+
+        // Compute heading and distance from peak to eye
+        val heading = eye.greatCircleAzimuth(mtRainier)
+        val distanceRadians = mtRainier.greatCircleDistance(eye)
+        val distance = distanceRadians * wwd.engine.globe.getRadiusAt(mtRainier.latitude, mtRainier.longitude)
+
+        // Compute camera settings
+        val tilt = fromRadians(atan(distance / eye.altitude))
+
+        // Apply the new view
+        wwd.engine.camera.set(
+            eye.latitude, eye.longitude, eye.altitude, AltitudeMode.ABSOLUTE, heading, tilt, roll = ZERO
+        )
+    }
+}
+
+fun buildWCSElevationCoverage(): ElevationCoverage {
+    // Specify the bounding sector - provided by the WCS
+    val coverageSector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0)
+    // Specify the number of levels to match data resolution
+    val numberOfLevels = 12
+    // Specify the version 1.0.0 WCS address
+    val serviceAddress = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer"
+    // Specify the coverage name
+    val coverage = "DEP3Elevation"
+    // Specify the image format
+    val imageFormat = "geotiff"
+    // Create an elevation coverage from a version 1.0.0 WCS
+    return Wcs100ElevationCoverage(coverageSector, numberOfLevels, serviceAddress, coverage, imageFormat)
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+</script>
+</body>
+</html>

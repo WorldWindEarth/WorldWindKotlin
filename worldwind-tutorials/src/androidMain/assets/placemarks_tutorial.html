@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Placemarks Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Placemarks Tutorial</h1>
+<p>
+    Demonstrates how to add Placemarks to a RenderableLayer.
+</p>
+<p>
+    This example renders four different placemarks with one above ground.
+</p>
+<h2>Example</h2>
+<h3>PlacemarksFragment.kt</h3>
+<p>
+    The PlacemarksFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we create and add a RenderableLayer with four Placemarks to the globe.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class PlacemarksFragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow with a RenderableLayer populated with four Placemarks.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Add Placemarks examples Layer
+        wwd.engine.layers.addLayer(buildPlacemarksLayer())
+
+        // And finally, for this demo, position the viewer to look at the airport placemark
+        // from a tilted perspective when this Android activity is created.
+        val lookAt = LookAt(
+            position = fromDegrees(34.200, -119.208, 0.0),
+            altitudeMode = AltitudeMode.ABSOLUTE,
+            range = 1e5,
+            heading = ZERO,
+            tilt = fromDegrees(80.0),
+            roll = ZERO
+        )
+        wwd.engine.cameraFromLookAt(lookAt)
+        return wwd
+    }
+}
+
+/**
+ * Create a RenderableLayer for placemarks
+ */
+fun buildPlacemarksLayer(): RenderableLayer {
+    val layer = RenderableLayer("Placemarks")
+
+    // Create a simple placemark at downtown Ventura, CA. This placemark is a 20x20 cyan square centered on the
+    // geographic position. This placemark demonstrates the creation with a convenient factory method.
+    val ventura = Placemark.createWithColorAndSize(
+        Position.fromDegrees(34.281, -119.293, 0.0),
+        Color(0f, 1f, 1f, 1f), 20
+    )
+    layer.addRenderable(ventura)
+
+    // Create an image-based placemark of an aircraft above the ground with a leader-line to the surface.
+    // This placemark demonstrates creation via a constructor and a convenient PlacemarkAttributes factory method.
+    // The image is scaled to 1.5 times its original size.
+    var attributes = PlacemarkAttributes.createWithImageAndLeader(ImageSource.fromResource(MR.images.aircraft_fixwing)).apply {
+        imageScale = 1.5
+    }
+    val airplane = Placemark(
+        Position.fromDegrees(34.260, -119.2, 5000.0), attributes
+    )
+    layer.addRenderable(airplane)
+
+    // Create an image-based placemark with a label at Oxnard Airport, CA. This placemark demonstrates creation
+    // with a constructor and a convenient PlacemarkAttributes factory method. The image is scaled to 2x
+    // its original size, with the bottom center of the image anchored at the geographic position.
+    attributes = PlacemarkAttributes.createWithImage(ImageSource.fromResource(MR.images.airport_terminal)).apply {
+        imageOffset = Offset.bottomCenter()
+        imageScale = 2.0
+    }
+    val airport = Placemark(
+        Position.fromDegrees(34.200, -119.208, 0.0), attributes, "Oxnard Airport"
+    )
+    layer.addRenderable(airport)
+
+    // Create an image-based placemark from a bitmap. This placemark demonstrates creation with a
+    // constructor and a convenient PlacemarkAttributes factory method. First, a 64x64 bitmap is loaded,
+    // and then it is passed into the placemark attributes. The bottom center of the image anchored
+    // at the geographic position.
+    attributes = PlacemarkAttributes.createWithImage(ImageSource.fromResource(MR.images.ehipcc)).apply {
+        imageOffset = Offset.bottomCenter()
+    }
+    val wildfire = Placemark(Position.fromDegrees(34.300, -119.25, 0.0), attributes)
+    layer.addRenderable(wildfire)
+
+    return layer
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

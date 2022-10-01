@@ -1,0 +1,205 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Placemarks Picking Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Placemarks Picking Tutorial</h1>
+<p>
+    Demonstrates how to pick and highlight Placemarks.
+</p>
+<p>
+    Tapping a placemark will toggle its highlighted state.
+</p>
+
+<h2>Example</h2>
+<h3>PlacemarksPickingFragment.kt</h3>
+<p>
+    The PlacemarksPickingFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we create and add a RenderableLayer with four Placemarks to the globe. We also override the default
+    WorldWindowController with a PickNavigateController inner class to respond to touch events on the Placemarks.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class PlacemarksPickingFragment: BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a WMS Layer
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Override the WorldWindow's built-in navigation behavior by adding picking support.
+        wwd.controller = PickNavigateController(wwd)
+
+        // Add a layer for placemarks to the WorldWindow
+        val layer = RenderableLayer("Placemarks")
+        wwd.engine.layers.addLayer(layer)
+
+        // Create a few placemarks with highlight attributes and add them to the layer
+        layer.addRenderable(
+            createAirportPlacemark(
+                fromDegrees(34.2000, -119.2070, 0.0), "Oxnard Airport"
+            )
+        )
+        layer.addRenderable(
+            createAirportPlacemark(
+                fromDegrees(34.2138, -119.0944, 0.0), "Camarillo Airport"
+            )
+        )
+        layer.addRenderable(
+            createAirportPlacemark(
+                fromDegrees(34.1193, -119.1196, 0.0), "Pt Mugu Naval Air Station"
+            )
+        )
+        layer.addRenderable(createAircraftPlacemark(fromDegrees(34.15, -119.15, 2000.0)))
+
+        // Position the viewer to look near the airports
+        val lookAt = LookAt().setDegrees(
+            latitudeDegrees = 34.15,
+            longitudeDegrees = -119.15,
+            altitudeMeters = 0.0,
+            altitudeMode = AltitudeMode.ABSOLUTE,
+            rangeMeters = 2e4,
+            headingDegrees = 0.0,
+            tiltDegrees = 45.0,
+            rollDegrees = 0.0
+        )
+        wwd.engine.cameraFromLookAt(lookAt)
+        return wwd
+    }
+
+    /**
+     * This inner class is a custom WorldWindController that handles both picking and navigation via a combination of
+     * the native WorldWind navigation gestures and Android gestures. This class' onTouchEvent method arbitrates
+     * between pick events and globe navigation events.
+     */
+    open inner class PickNavigateController(wwd: WorldWindow) : BasicWorldWindowController(wwd) {
+        protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
+        protected var selectedObject: Any? = null // last "selected" object from single tap
+
+        /**
+         * Assign a subclassed SimpleOnGestureListener to a GestureDetector to handle the "pick" events.
+         */
+        protected open val pickGestureDetector = GestureDetector(requireContext().applicationContext, object : SimpleOnGestureListener() {
+            override fun onDown(event: MotionEvent): Boolean {
+                pick(event) // Pick the object(s) at the tap location
+                return false // By not consuming this event, we allow it to pass on to the navigation gesture handlers
+            }
+
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                toggleSelection() // Highlight the picked object
+
+                // By not consuming this event, we allow the "up" event to pass on to the navigation gestures,
+                // which is required for proper zoom gestures.  Consuming this event will cause the first zoom
+                // gesture to be ignored.  As an alternative, you can implement onSingleTapConfirmed and consume
+                // event as you would expect, with the trade-off being a slight delay tap response.
+                return false
+            }
+        })
+
+        /**
+         * Delegates events to the pick handler or the native WorldWind navigation handlers.
+         */
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            // Allow pick listener to process the event first.
+            val consumed = pickGestureDetector.onTouchEvent(event)
+
+            // If event was not consumed by the pick operation, pass it on the globe navigation handlers
+            // The super class performs the pan, tilt, rotate and zoom
+            return if (!consumed) super.onTouchEvent(event) else consumed
+        }
+
+        /**
+         * Performs a pick at the tap location.
+         */
+        fun pick(event: MotionEvent) { pickRequest = wwd.pickAsync(event.x, event.y) }
+
+        /**
+         * Toggles the selected state of a picked object.
+         */
+        fun toggleSelection() {
+            wwd.mainScope.launch {
+                // Get the top-most object for our new picked object
+                val pickedObject = pickRequest.await().topPickedObject?.userObject
+
+                // Display the highlight or normal attributes to indicate the
+                // selected or unselected state respectively.
+                if (pickedObject is Highlightable) {
+                    val oldSelectedObject = selectedObject
+
+                    // Determine if we've picked a "new" object so we know to deselect the previous selection
+                    val isNewSelection = pickedObject !== oldSelectedObject
+
+                    // Only one object can be selected at time, deselect any previously selected object
+                    if (isNewSelection && oldSelectedObject is Highlightable) oldSelectedObject.isHighlighted = false
+
+                    // Show the selection by showing its highlight attributes
+                    pickedObject.isHighlighted = isNewSelection
+                    wwd.requestRedraw()
+
+                    // Track the selected object
+                    selectedObject = if (isNewSelection) pickedObject else null
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val NORMAL_IMAGE_SCALE = 3.0
+        private const val HIGHLIGHTED_IMAGE_SCALE = 4.0
+
+        /**
+         * Helper method to create aircraft placemarks.
+         */
+        private fun createAircraftPlacemark(position: Position): Placemark {
+            val placemark = createWithImage(position, fromResource(MR.images.aircraft_fighter))
+            placemark.attributes.imageOffset = bottomCenter()
+            placemark.attributes.imageScale = NORMAL_IMAGE_SCALE
+            placemark.attributes.isDrawLeader = true
+            val highlightedAttributes = PlacemarkAttributes(placemark.attributes)
+            highlightedAttributes.imageScale = HIGHLIGHTED_IMAGE_SCALE
+            placemark.highlightAttributes = highlightedAttributes
+            placemark.altitudeMode = AltitudeMode.ABSOLUTE
+            return placemark
+        }
+
+        /**
+         * Helper method to create airport placemarks.
+         */
+        private fun createAirportPlacemark(position: Position, airportName: String): Placemark {
+            val placemark = createWithImage(position, fromResource(MR.images.airport_terminal))
+            placemark.attributes.imageOffset = bottomCenter()
+            placemark.attributes.imageScale = NORMAL_IMAGE_SCALE
+            val highlightedAttributes = PlacemarkAttributes(placemark.attributes)
+            highlightedAttributes.imageScale = HIGHLIGHTED_IMAGE_SCALE
+            placemark.highlightAttributes = highlightedAttributes
+            placemark.displayName = airportName
+            placemark.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            return placemark
+        }
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

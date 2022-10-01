@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">WorldWind Tutorials</string>
+
+    <string name="action_about">About</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <string name="title_basic_globe">Basic Globe</string>
+    <string name="title_camera_controls">Camera Controls</string>
+    <string name="title_camera_view">Camera View</string>
+    <string name="title_ellipses">Ellipses</string>
+    <string name="title_geopackage">GeoPackage</string>
+    <string name="title_labels">Labels</string>
+    <string name="title_look_at_view">Look At View</string>
+    <string name="title_navigator_event">Navigator Events</string>
+    <string name="title_omni_sightline">Line Of Sight</string>
+    <string name="title_paths">Paths</string>
+    <string name="title_placemarks">Placemarks</string>
+    <string name="title_placemarks_picking">Placemark Picking</string>
+    <string name="title_polygons">Polygons</string>
+    <string name="title_shapes_dash_and_fill">Shapes Dash and Fill</string>
+    <string name="title_show_tessellation">Show Tessellation</string>
+    <string name="title_mgrs_graticule">MGRS Graticule</string>
+    <string name="title_surface_image">Surface Image</string>
+    <string name="title_wms_layer">WMS Layer</string>
+    <string name="title_wmts_layer">WMTS Layer</string>
+    <string name="title_wcs_elevation_coverage">WCS Elevation Coverage</string>
+
+    <string name="spacer" />
+
+</resources>

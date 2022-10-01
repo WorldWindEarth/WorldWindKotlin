@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WMS Layer Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>WMTS Layer Tutorial</h1>
+<p>
+    Demonstrates how to display an OGC Web Map Tile Service (WMTS) layer.</p>
+<p>
+    This example adds a hillshade WMTS layer to the basic globe example.</p>
+
+<h2>Example</h2>
+<h3>WmtsLayerFragment.kt</h3>
+<p>
+    The WmtsLayerFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method. Here we use
+    WorldWind's LayerFactory to display the contents of a remote OGC Web Map Tile Service (WMTS). LayerFactory
+    asynchronously
+    negotiates with the WMTS endpoint to configure a WorldWind layer, then notifies the application when it's done.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class WmtsLayerFragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a WMTS Layer
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow(): WorldWindow {
+        // Let the super class (BasicGlobeFragment) do the creation
+        val wwd = super.createWorldWindow()
+
+        // Create a WMTS layer factory.
+        val wmtsLayerFactory = WmtsLayerFactory(wwd.mainScope)
+
+        // Create an OGC Web Map Tile Service (WMTS) layer to display Global Hillshade based on GMTED2010
+        val layer = wmtsLayerFactory.createLayer(
+            "https://tiles.geoservice.dlr.de/service/wmts", "hillshade",
+            { Logger.log(Logger.ERROR, "WMTS layer creation failed", it) },
+            { Logger.log(Logger.INFO, "WMTS layer creation succeeded") }
+        )
+
+        // Add the finished WMTS layer to the WorldWindow.
+        wwd.engine.layers.addLayer(layer)
+        return wwd
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+
+
+</script>
+</body>
+</html>
