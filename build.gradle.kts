@@ -17,7 +17,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.0.1"
+    version = "1.1-SNAPSHOT"
 
     extra.apply {
         set("minSdk", 26) // java.time requires Oreo. Use "isCoreLibraryDesugaringEnabled = true" to lower API to KitKat
