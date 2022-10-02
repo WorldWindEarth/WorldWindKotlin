@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache @JvmOverloads constructor(
-    protected val mainScope: CoroutineScope, protected val context: Context, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
+    actual val mainScope: CoroutineScope, val context: Context, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
 ): LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     companion object {
         protected const val STALE_AGE = 300L

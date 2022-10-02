@@ -6,8 +6,10 @@ import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.AbsentResourceList
 import earth.worldwind.util.LruMemoryCache
+import kotlinx.coroutines.CoroutineScope
 
 expect class RenderResourceCache: LruMemoryCache<Any, RenderResource> {
+    val mainScope: CoroutineScope
     val absentResourceList: AbsentResourceList<Int>
     fun incAge()
     fun releaseEvictedResources(dc: DrawContext)

@@ -20,7 +20,7 @@ import org.w3c.dom.url.URL
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache(
-    protected val mainScope: CoroutineScope, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
+    actual val mainScope: CoroutineScope, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
 ) : LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     companion object {
         fun recommendedCapacity(): Long = (window.navigator.asDynamic().deviceMemory as? Number)

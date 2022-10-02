@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache @JvmOverloads constructor(
-    protected val mainScope: CoroutineScope, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
+    actual val mainScope: CoroutineScope, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
 ) : LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     override var age = 0L // Manually incrementable cache age
     /**
