@@ -20,8 +20,8 @@ fun main() {
         val select = document.getElementById("Tutorials") as HTMLSelectElement
         val actionsContainer = document.getElementById("Actions") as HTMLDivElement
         val tutorials = mapOf (
-            "Basic globe" to BasicTutorial(),
-            "Set camera view" to CameraViewTutorial(wwd.engine ),
+            "Basic globe" to BasicTutorial(wwd.engine),
+            "Set camera view" to CameraViewTutorial(wwd.engine),
             "Set Look At" to LookAtViewTutorial(wwd.engine),
             "Placemarks" to PlacemarksTutorial(wwd.engine),
             "Paths" to PathsTutorial(wwd.engine),
