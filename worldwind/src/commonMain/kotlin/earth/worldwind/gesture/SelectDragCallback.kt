@@ -12,14 +12,14 @@ interface SelectDragCallback {
      *
      * @param position picked terrain position
      */
-    fun onTerrainPicked(position: Position)
+    fun onTerrainPicked(position: Position) {}
 
     /**
      * Terrain context at some position was requested.
      *
      * @param position picked terrain position
      */
-    fun onTerrainContext(position: Position)
+    fun onTerrainContext(position: Position) {}
 
     /**
      * Check if renderable is pick-able.
@@ -27,7 +27,7 @@ interface SelectDragCallback {
      * @param renderable some renderable intended to be picked
      * @return renderable is pick-able
      */
-    fun canPickRenderable(renderable: Renderable): Boolean
+    fun canPickRenderable(renderable: Renderable) = false
 
     /**
      * Some renderable was picked.
@@ -35,7 +35,7 @@ interface SelectDragCallback {
      * @param renderable picked renderable
      * @param position picked terrain or renderable center position
      */
-    fun onRenderablePicked(renderable: Renderable, position: Position)
+    fun onRenderablePicked(renderable: Renderable, position: Position) {}
 
     /**
      * Some renderables context was requested.
@@ -43,7 +43,7 @@ interface SelectDragCallback {
      * @param renderable picked renderable
      * @param position picked terrain or renderable center position
      */
-    fun onRenderableContext(renderable: Renderable, position: Position)
+    fun onRenderableContext(renderable: Renderable, position: Position) {}
 
     /**
      * Check if picked renderable is movable.
@@ -51,7 +51,7 @@ interface SelectDragCallback {
      * @param renderable picked renderable
      * @return picked renderable is movable
      */
-    fun canMoveRenderable(renderable: Renderable): Boolean
+    fun canMoveRenderable(renderable: Renderable) = false
 
     /**
      * Renderable was moved from ane position to another.
@@ -60,7 +60,7 @@ interface SelectDragCallback {
      * @param fromPosition previous position
      * @param toPosition current position
      */
-    fun onRenderableMoved(renderable: Renderable, fromPosition: Position, toPosition: Position)
+    fun onRenderableMoved(renderable: Renderable, fromPosition: Position, toPosition: Position) {}
 
     /**
      * Renderable movement was finished
@@ -68,7 +68,7 @@ interface SelectDragCallback {
      * @param renderable renderable which was moved
      * @param position last position during movement
      */
-    fun onRenderableMovingFinished(renderable: Renderable, position: Position)
+    fun onRenderableMovingFinished(renderable: Renderable, position: Position) {}
 
     /**
      * Renderable was double-tapped or double-clicked
@@ -76,5 +76,5 @@ interface SelectDragCallback {
      * @param renderable renderable which was double-tapped or double-clicked
      * @param position picked terrain or renderable center position
      */
-    fun onRenderableDoubleTap(renderable: Renderable, position: Position)
+    fun onRenderableDoubleTap(renderable: Renderable, position: Position) {}
 }

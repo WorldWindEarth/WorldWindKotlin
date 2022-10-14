@@ -5,7 +5,10 @@ import android.view.MotionEvent
 import android.view.ViewConfiguration
 import earth.worldwind.PickedObjectList
 import earth.worldwind.WorldWindow
+import earth.worldwind.geom.Position
+import earth.worldwind.geom.Vec2
 import earth.worldwind.render.Renderable
+import earth.worldwind.shape.Movable
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -16,8 +19,9 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
     protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
     protected var isDraggingArmed = false
     var isDragging = false
-        private set
+        protected set
     var callback: SelectDragCallback? = null
+    private val dragRefPt = Vec2()
 
     override fun onDown(event: MotionEvent): Boolean {
         pick(event)
@@ -44,25 +48,23 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         val callback = callback ?: return false
         wwd.mainScope.launch {
             val pickList = pickRequest.await()
-            val fromPosition = pickList.terrainPickedObject?.terrainPosition
             val renderable = pickList.topPickedObject?.userObject
-            if (isDraggingArmed && fromPosition != null && renderable is Renderable) {
+            val toPosition = if (renderable is Movable) renderable.referencePosition
+            else pickList.terrainPickedObject?.terrainPosition
+            if (isDraggingArmed && toPosition != null && renderable is Renderable) {
                 // Signal that dragging is in progress
                 isDragging = true
 
-                // Backup original altitude
-                val altitude = fromPosition.altitude
-                // First we compute the screen coordinates of the position's "ground" point.  We'll apply the
+                // First we compute the screen coordinates of the position's "ground" point. We'll apply the
                 // screen X and Y drag distances to this point, from which we'll compute a new position,
                 // wherein we restore the original position's altitude.
-                val toPosition = wwd.engine.pickTerrainPosition(moveEvent.x.toDouble(), moveEvent.y.toDouble())
-                if (toPosition != null) {
+                val fromPosition = Position(toPosition)
+                if (wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
+                    && wwd.engine.screenPointToGroundPosition(dragRefPt.x - distanceX, dragRefPt.y - distanceY, toPosition)) {
                     // Restore original altitude
-                    toPosition.altitude = altitude
-                    // Callback event
+                    toPosition.altitude = fromPosition.altitude
+                    // Notify callback
                     callback.onRenderableMoved(renderable, fromPosition, toPosition)
-                    // Remember new position
-                    fromPosition.copy(toPosition)
                     // Reflect the change in position on the globe.
                     wwd.requestRedraw()
                 } else {
@@ -102,7 +104,6 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
     fun cancelDragging() {
         isDragging = false
         isDraggingArmed = false
-        // Callback event
         val callback = callback ?: return
         wwd.mainScope.launch {
             val pickList = pickRequest.await()
