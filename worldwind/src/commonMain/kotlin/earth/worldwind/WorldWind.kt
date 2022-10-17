@@ -70,6 +70,10 @@ open class WorldWind @JvmOverloads constructor(
      */
     val viewport = Viewport()
     /**
+     * Keep pixel scale when changing the height of viewport by adapting field of view
+     */
+    var isKeepScale = true
+    /**
      * Scale of logical pixel size to hardware display pixel size. Used to adopt general level of details to screen density.
      */
     var densityFactor = 1f
@@ -165,8 +169,8 @@ open class WorldWind @JvmOverloads constructor(
     open fun setupViewport(width: Int, height: Int) {
         dc.gl.viewport(0, 0, width, height)
 
-        // Keep map scale by adopting field of view on view port resize
-        if (viewport.height != 0) {
+        // Keep pixel scale by adapting field of view on view port resize
+        if (isKeepScale && viewport.height != 0) {
             try {
                 camera.fieldOfView *= height / viewport.height.toDouble()
             } catch (ignore: IllegalArgumentException) {
