@@ -14,6 +14,11 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 open class BasicWorldWindowController(final override val wwd: WorldWindow): WorldWindowController, GestureListener {
+    var zoomFactor = 1.5f
+        set(value) {
+            require(value > 0f) { "Invalid zoom factor" }
+            field = value
+        }
     protected var lastX = 0f
     protected var lastY = 0f
     protected var lastRotation = 0f
@@ -30,10 +35,6 @@ open class BasicWorldWindowController(final override val wwd: WorldWindow): Worl
     )
     protected val selectDragListener = SelectDragListener(wwd)
     protected open val selectDragDetector = GestureDetector(wwd.context, selectDragListener)
-
-    companion object {
-        private const val ZOOM_FACTOR = 1.5f
-    }
 
     init {
         panRecognizer.addListener(this)
@@ -53,27 +54,25 @@ open class BasicWorldWindowController(final override val wwd: WorldWindow): Worl
         mouseTiltRecognizer.interpretDistance = wwd.context.resources.getDimension(R.dimen.tilt_interpret_distance)
     }
 
-    open fun resetOrientation(headingOnly: Boolean) {
+    open fun resetOrientation(heading: Boolean = true, tilt: Boolean = true, roll: Boolean = true) {
         gestureDidBegin()
-        lookAt.heading = ZERO
-        if (!headingOnly) {
-            lookAt.tilt = ZERO
-            lookAt.roll = ZERO
-        }
+        if (heading) lookAt.heading = ZERO
+        if (tilt) lookAt.tilt = ZERO
+        if (roll) lookAt.roll = ZERO
         applyChanges()
         gestureDidEnd()
     }
 
     open fun zoomIn() {
         gestureDidBegin()
-        lookAt.range = lookAt.range / ZOOM_FACTOR
+        lookAt.range = lookAt.range / zoomFactor
         applyChanges()
         gestureDidEnd()
     }
 
     open fun zoomOut() {
         gestureDidBegin()
-        lookAt.range = lookAt.range * ZOOM_FACTOR
+        lookAt.range = lookAt.range * zoomFactor
         applyChanges()
         gestureDidEnd()
     }
