@@ -1,5 +1,6 @@
 package earth.worldwind.shape
 
+import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.globe.Globe
 
@@ -13,6 +14,11 @@ interface Movable {
      * @return the object's reference position, or null if no reference position is available.
      */
     val referencePosition: Position?
+
+    /**
+     * [AltitudeMode] used by movable object
+     */
+    var altitudeMode: AltitudeMode
 
     /**
      * Move the shape over the globe's surface while maintaining its original azimuth, its orientation relative to

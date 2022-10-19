@@ -296,12 +296,13 @@ open class WorldWind @JvmOverloads constructor(
      *
      * @param x the screen point's X coordinate
      * @param y the screen point's Y coordinate
+     * @param result a pre-allocated [Position] in which to store the computed geographic position
      *
      * @return a terrain [Position] at the screen point or null, if the screen point is not on the terrain
      */
-    open fun pickTerrainPosition(x: Double, y: Double) =
+    open fun pickTerrainPosition(x: Double, y: Double, result: Position = Position()) =
         if (rayThroughScreenPoint(x, y, scratchRay) && tessellator.lastTerrain.intersect(scratchRay, scratchPoint))
-            globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, Position()) else null
+            globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, result) else null
 
     /**
      * Transforms a Cartesian coordinate point to viewport coordinates.

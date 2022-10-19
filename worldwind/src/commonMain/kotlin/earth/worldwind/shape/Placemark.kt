@@ -53,7 +53,7 @@ open class Placemark @JvmOverloads constructor(
     /**
      * The placemark's altitude mode. See [AltitudeMode]
      */
-    var altitudeMode = AltitudeMode.ABSOLUTE
+    override var altitudeMode = AltitudeMode.ABSOLUTE
     /**
      * The attributes to use when the placemark is highlighted.
      */

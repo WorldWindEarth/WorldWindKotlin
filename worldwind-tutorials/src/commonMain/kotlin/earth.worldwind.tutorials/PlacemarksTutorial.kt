@@ -16,7 +16,9 @@ class PlacemarksTutorial(private val engine: WorldWind) : AbstractTutorial() {
         addRenderable(
             Placemark.createWithColorAndSize(
                 Position.fromDegrees(34.281, -119.293, 0.0), Color(0f, 1f, 1f, 1f), 20
-            )
+            ).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            }
         )
 
         // Create an image-based placemark of an aircraft above the ground with a leader-line to the surface.
@@ -35,6 +37,7 @@ class PlacemarksTutorial(private val engine: WorldWind) : AbstractTutorial() {
         // its original size, with the bottom center of the image anchored at the geographic position.
         addRenderable(
             Placemark(Position.fromDegrees(34.200, -119.208, 0.0)).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 attributes = PlacemarkAttributes.createWithImage(ImageSource.fromResource(MR.images.airport_terminal)).apply {
                     imageOffset = Offset.bottomCenter()
                     imageScale = 2.0
@@ -49,6 +52,7 @@ class PlacemarksTutorial(private val engine: WorldWind) : AbstractTutorial() {
         // at the geographic position.
         addRenderable(
             Placemark(Position.fromDegrees(34.300, -119.25, 0.0)).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 attributes = PlacemarkAttributes.createWithImage(ImageSource.fromResource(MR.images.ehipcc)).apply {
                     imageOffset = Offset.bottomCenter()
                 }

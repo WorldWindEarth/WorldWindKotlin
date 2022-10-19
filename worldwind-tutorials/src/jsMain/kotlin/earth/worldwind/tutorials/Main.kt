@@ -3,11 +3,14 @@
 package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWindow
+import earth.worldwind.gesture.SelectDragCallback
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.google.GoogleLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
+import earth.worldwind.render.Renderable
+import earth.worldwind.shape.Movable
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.w3c.dom.*
@@ -51,6 +54,12 @@ fun main() {
 
         // Add elevation coverage source
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage())
+
+        // Allow pick and move any movable object
+        wwd.selectDragListener.callback = object : SelectDragCallback {
+            override fun canPickRenderable(renderable: Renderable) = renderable is Movable
+            override fun canMoveRenderable(renderable: Renderable) = renderable is Movable
+        }
 
         fun callAction(actionName: String) { currentTutorial?.let { tutorials[it]?.runAction(actionName) } }
 

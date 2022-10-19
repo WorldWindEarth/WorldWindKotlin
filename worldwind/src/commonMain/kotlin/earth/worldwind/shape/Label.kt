@@ -41,7 +41,7 @@ open class Label @JvmOverloads constructor(
     /**
      * The label's altitude mode. See [AltitudeMode]
      */
-    var altitudeMode = AltitudeMode.ABSOLUTE
+    override var altitudeMode = AltitudeMode.ABSOLUTE
     /**
      * Indicates the rotation applied to this label. The rotation represents clockwise clockwise degrees relative to
      * this label's labelRotationMode.

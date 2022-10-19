@@ -5,6 +5,7 @@ import android.view.MotionEvent
 import android.view.ViewConfiguration
 import earth.worldwind.PickedObjectList
 import earth.worldwind.WorldWindow
+import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Vec2
 import earth.worldwind.render.Renderable
@@ -20,6 +21,10 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
     protected var isDraggingArmed = false
     var isDragging = false
         protected set
+    /**
+     * Enable/disable dragging of flying objects using their terrain projection position
+     */
+    var isDragTerrainPosition = false
     var callback: SelectDragCallback? = null
     private val dragRefPt = Vec2()
 
@@ -46,6 +51,8 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
 
     override fun onScroll(downEvent: MotionEvent, moveEvent: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
         val callback = callback ?: return false
+        val x = moveEvent.x.toDouble()
+        val y = moveEvent.y.toDouble()
         wwd.mainScope.launch {
             val pickList = pickRequest.await()
             val renderable = pickList.topPickedObject?.userObject
@@ -59,7 +66,9 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
                 // screen X and Y drag distances to this point, from which we'll compute a new position,
                 // wherein we restore the original position's altitude.
                 val fromPosition = Position(toPosition)
-                if (wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
+                val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
+                if (clapToGround && wwd.engine.pickTerrainPosition(x, y, toPosition) != null
+                    || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
                     && wwd.engine.screenPointToGroundPosition(dragRefPt.x - distanceX, dragRefPt.y - distanceY, toPosition)) {
                     // Restore original altitude
                     toPosition.altitude = fromPosition.altitude

@@ -76,7 +76,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
     /**
      * The sightline's altitude mode. See [AltitudeMode]
      */
-    var altitudeMode = AltitudeMode.ABSOLUTE
+    override var altitudeMode = AltitudeMode.ABSOLUTE
     /**
      * Determines whether the normal or highlighted attributes should be used for visible features.
      */

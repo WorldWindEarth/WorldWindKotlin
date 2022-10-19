@@ -18,13 +18,16 @@ class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
         // Create a basic label with the default attributes, including the default text color (white), the default text
         // size (24 pixels), the system default font, and the default alignment (bottom center).
         addRenderable(
-            Label(Position.fromDegrees(38.8977, -77.0365, 0.0), "The White House")
+            Label(Position.fromDegrees(38.8977, -77.0365, 0.0), "The White House").apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            }
         )
 
         // Create a label with a black text color, the default text size, the system default font, the default
         // alignment, and a thick white text outline.
         addRenderable(
             Label(Position.fromDegrees(38.881389, -77.036944, 0.0), "Thomas Jefferson Memorial").apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 attributes.apply {
                     textColor = Color(0f, 0f, 0f, 1f) // black text via r,g,b,a
                     outlineColor = Color(1f, 1f, 1f, 1f) // white outline via r,g,b,a
@@ -36,6 +39,7 @@ class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
         // Create a right-aligned label using a bottom-right offset.
         addRenderable(
             Label(Position.fromDegrees(38.8893, -77.050111, 0.0), "Lincoln Memorial").apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 attributes.apply { textOffset = Offset.bottomRight() }
             }
         )
@@ -43,6 +47,7 @@ class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
         // Create a left-aligned label using a bottom-left offset.
         addRenderable(
             Label(Position.fromDegrees(38.889803, -77.009114, 0.0), "United States Capitol").apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 attributes.apply { textOffset = Offset.bottomLeft() }
             }
         )
@@ -50,6 +55,7 @@ class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
         // Create a label with a 48 pixel text size and a bold font.
         addRenderable(
             Label(Position.fromDegrees(38.907192, -77.036871, 0.0), "Washington").apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 attributes.apply { font = Font("arial", FontWeight.BOLD, 28) }
             }
         )
@@ -57,6 +63,7 @@ class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
         // Create a label with its orientation fixed relative to the globe.
         addRenderable(
             Label(Position.fromDegrees(38.89, -77.023611, 0.0), "National Mall").apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 rotationMode = OrientationMode.RELATIVE_TO_GLOBE
             }
         )

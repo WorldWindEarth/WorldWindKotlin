@@ -2,11 +2,13 @@ package earth.worldwind.gesture
 
 import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.WorldWindow
+import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.Vec2
 import earth.worldwind.gesture.GestureState.*
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Highlightable
-import earth.worldwind.shape.Placemark
+import earth.worldwind.shape.Movable
 import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.EventListener
 import org.w3c.dom.events.MouseEvent
@@ -18,6 +20,10 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
      */
     var isEnabled = true
     /**
+     * Enable/disable dragging of flying objects using their terrain projection position
+     */
+    var isDragTerrainPosition = false
+    /**
      * Main interface representing all interaction callbacks
      */
     var callback: SelectDragCallback? = null
@@ -27,6 +33,8 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
     protected val oldHighlighted = mutableSetOf<Highlightable>()
     protected val newHighlighted = mutableSetOf<Highlightable>()
     protected var isDragArmed = false
+    private val dragRefPt = Vec2()
+    private val lastTranslation = Vec2()
 
     protected val handlePick = EventListener { event ->
         // Determine pick point from event
@@ -52,6 +60,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
         // Reset previous pick result
         pickedPosition = null
         pickedRenderable = null
+        lastTranslation.set(0.0, 0.0)
 
         // Get pick point in canvas coordinates
         val pickPoint = wwd.canvasCoordinates(clientX, clientY)
@@ -100,9 +109,10 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
         // Get top picked renderable to use it in listener callbacks
         val topPickedObject = pickList.topPickedObject?.userObject
         if (topPickedObject is Renderable) pickedRenderable = topPickedObject
+        if (topPickedObject is Movable) pickedPosition = topPickedObject.referencePosition
 
         // Resolve conflict between item movement and globe rotation
-        if (topPickedObject is Placemark && callback?.canMoveRenderable(topPickedObject) == true) {
+        if (topPickedObject is Renderable && callback?.canMoveRenderable(topPickedObject) == true) {
             val controller = wwd.controller
             if (controller is BasicWorldWindowController) {
                 controller.primaryDragRecognizer.state = FAILED
@@ -141,23 +151,28 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
             BEGAN, CHANGED -> {
                 isDragArmed = true
                 val callback = callback
-                val fromPosition = pickedPosition
+                val toPosition = pickedPosition
                 val renderable = pickedRenderable
-                if (fromPosition != null && renderable != null && callback != null) {
-                    val movePoint = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
-                    // Backup original altitude
-                    val altitude = fromPosition.altitude
-                    // First we compute the screen coordinates of the position's "ground" point.  We'll apply the
+                if (toPosition != null && renderable != null && callback != null) {
+                    // First we compute the screen coordinates of the position's "ground" point. We'll apply the
                     // screen X and Y drag distances to this point, from which we'll compute a new position,
                     // wherein we restore the original position's altitude.
-                    val toPosition = wwd.engine.pickTerrainPosition(movePoint.x, movePoint.y)
-                    if (toPosition != null) {
+                    val fromPosition = Position(toPosition)
+                    val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
+                    val movePoint = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
+                    if (clapToGround && wwd.engine.pickTerrainPosition(movePoint.x, movePoint.y, toPosition) != null
+                        || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
+                        && wwd.engine.screenPointToGroundPosition(
+                            dragRefPt.x + recognizer.translationX - lastTranslation.x,
+                            dragRefPt.y + recognizer.translationY - lastTranslation.y,
+                            toPosition
+                        )) {
+                        // Backup last translation
+                        lastTranslation.set(recognizer.translationX, recognizer.translationY)
                         // Restore original altitude
-                        toPosition.altitude = altitude
-                        // Callback event
+                        toPosition.altitude = fromPosition.altitude
+                        // Notify callback
                         callback.onRenderableMoved(renderable, fromPosition, toPosition)
-                        // Remember new position
-                        pickedPosition = toPosition
                         // Reflect the change in position on the globe.
                         wwd.requestRedraw()
                     } else {
