@@ -7,11 +7,11 @@ import earth.worldwind.geom.Matrix4
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.milliseconds
 
 open class NavigatorEventSupport(protected var wwd: WorldWindow) {
+    var stoppedEventDelay = 250.milliseconds
     protected val listeners = mutableListOf<NavigatorListener>()
-    protected var stoppedEventDelay = 250L
     protected var lastModelview: Matrix4? = null
     protected var lastTouchEvent: MotionEvent? = null
     protected var stopTouchEvent: MotionEvent? = null
@@ -30,8 +30,6 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
     fun addNavigatorListener(listener: NavigatorListener) { listeners.add(listener) }
 
     fun removeNavigatorListener(listener: NavigatorListener) { listeners.remove(listener) }
-
-    fun setNavigatorStoppedDelay(delay: Long, unit: TimeUnit) { stoppedEventDelay = unit.toMillis(delay) }
 
     open fun onTouchEvent(event: MotionEvent) {
         if (listeners.isEmpty()) return  // no listeners to notify; ignore the event
