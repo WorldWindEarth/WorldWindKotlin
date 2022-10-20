@@ -207,12 +207,14 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
      * Layers (including the contents of layers) are reflected on screen sometime after calling this method. May be
      * called from any thread.
      */
-    fun requestRedraw() = mainScope.launch(Dispatchers.Main.immediate) {
-        // Suppress duplicate redraw requests, request that occur while the WorldWindow is paused, and requests that
-        // occur before we have an Android surface to draw to.
-        if (!isWaitingForRedraw && !engine.viewport.isEmpty) {
-            Choreographer.getInstance().postFrameCallback(this@WorldWindow)
-            isWaitingForRedraw = true
+    fun requestRedraw() {
+        mainScope.launch(Dispatchers.Main.immediate) {
+            // Suppress duplicate redraw requests, request that occur while the WorldWindow is paused, and requests that
+            // occur before we have an Android surface to draw to.
+            if (!isWaitingForRedraw && !engine.viewport.isEmpty) {
+                Choreographer.getInstance().postFrameCallback(this@WorldWindow)
+                isWaitingForRedraw = true
+            }
         }
     }
 
