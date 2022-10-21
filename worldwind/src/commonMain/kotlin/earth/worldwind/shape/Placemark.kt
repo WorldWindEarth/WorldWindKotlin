@@ -459,7 +459,7 @@ open class Placemark @JvmOverloads constructor(
      * @return True if leader-line directive is enabled and there are valid leader-line attributes.
      */
     protected open fun mustDrawLeader(rc: RenderContext) =
-        activeAttributes.isDrawLeader && (isEnableLeaderPicking || !rc.isPickMode)
+        activeAttributes.isDrawLeader && (isEnableLeaderPicking || !rc.isPickMode) && altitudeMode != AltitudeMode.CLAMP_TO_GROUND
 
     companion object {
         /**

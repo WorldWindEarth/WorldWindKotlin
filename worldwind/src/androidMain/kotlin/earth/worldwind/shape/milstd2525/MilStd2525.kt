@@ -1,13 +1,10 @@
 package earth.worldwind.shape.milstd2525
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import android.util.SparseArray
 import armyc2.c2sd.renderer.MilStdIconRenderer
 import armyc2.c2sd.renderer.utilities.*
-import earth.worldwind.MR
 import earth.worldwind.R
 
 /**
@@ -19,12 +16,6 @@ actual object MilStd2525 {
      * The actual rendering engine for the MIL-STD-2525 graphics.
      */
     private val renderer = MilStdIconRenderer.getInstance()
-
-    /**
-     * The image to use when the renderer cannot render an image.
-     */
-    lateinit var defaultImage: Bitmap
-        private set
     actual var outlineWidth = 0f
         private set
     var pixelSize = 0f
@@ -63,7 +54,6 @@ actual object MilStd2525 {
 
         // Tell the renderer where the cache folder is located which is needed to process the embedded xml files.
         renderer.init(context, context.cacheDir.absolutePath)
-        defaultImage = BitmapFactory.decodeResource(context.resources, MR.images.default_image.drawableResId)
         outlineWidth = context.resources.getDimension(R.dimen.graphics_outline_width)
         pixelSize = context.resources.getDimension(R.dimen.default_pixel_size)
         isInitialized = true

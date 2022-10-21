@@ -71,12 +71,6 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
         }
     }
 
-    override fun onDestroy() {
-        // Release the cached MIL-STD-2525 PlacemarkAttributes
-        MilStd2525Placemark.clearSymbolCache()
-        super.onDestroy()
-    }
-
     /**
      * Initiates the aircraft animation.
      */
