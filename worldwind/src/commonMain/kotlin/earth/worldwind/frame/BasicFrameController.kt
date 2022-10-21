@@ -92,14 +92,14 @@ open class BasicFrameController: FrameController {
             // object ID, in which case no objects have been drawn at the pick point.
             val topObjectId = uniqueColorToIdentifier(pickColor)
             if (topObjectId != 0) {
-                val terrainObject = pickedObjects.terrainPickedObject
                 val topObject = pickedObjects.pickedObjectWithId(topObjectId)
                 if (topObject != null) {
-                    topObject.markOnTop()
                     if (!topObject.isTerrain) objectFound = true // Non-terrain object found in pick point
-                    // Remove picked objects except top and terrain in case of object found or point only mode
-                    // Using clearPickedObjects and two offerPickedObject is faster than keepTopAndTerrainObjects at the end
                     if (pickPointOnly || objectFound) {
+                        topObject.markOnTop()
+                        // Remove picked objects except top and terrain in case of object found or point only mode
+                        // Using clearPickedObjects and two offerPickedObject is faster than keepTopAndTerrainObjects
+                        val terrainObject = pickedObjects.terrainPickedObject
                         pickedObjects.clearPickedObjects()
                         pickedObjects.offerPickedObject(topObject)
                         // handles null objects and duplicate objects
@@ -117,7 +117,7 @@ open class BasicFrameController: FrameController {
                 val topObjectId = uniqueColorToIdentifier(pickColor)
                 if (topObjectId != 0) {
                     val topObject = pickedObjects.pickedObjectWithId(topObjectId)
-                    if (topObject != null && !topObject.isTerrain) topObject.markOnTop()
+                    if (topObject?.isTerrain == false) topObject.markOnTop()
                 }
             }
 

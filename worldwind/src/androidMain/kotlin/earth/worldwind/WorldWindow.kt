@@ -139,7 +139,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
                 val py = pickViewport.y + pickViewport.height / 2.0
                 if(viewport.contains(px.roundToInt(), py.roundToInt())) {
                     val pickRay = Line()
-                    if (engine.rayThroughScreenPoint(px, py, pickRay)) {
+                    if (engine.rayThroughScreenPoint(px, viewport.height - py, pickRay)) {
                         frame.pickPoint = Vec2(px, py)
                         frame.pickRay = pickRay
                     }
