@@ -13,12 +13,13 @@ import earth.worldwind.gesture.GestureState.*
 import kotlin.math.cos
 import kotlin.math.sin
 
-open class BasicWorldWindowController(final override val wwd: WorldWindow): WorldWindowController, GestureListener {
+open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, GestureListener {
     var zoomFactor = 1.5f
         set(value) {
             require(value > 0f) { "Invalid zoom factor" }
             field = value
         }
+    protected open val wwd = wwd
     protected var lastX = 0f
     protected var lastY = 0f
     protected var lastRotation = 0f
@@ -77,7 +78,7 @@ open class BasicWorldWindowController(final override val wwd: WorldWindow): Worl
         gestureDidEnd()
     }
 
-    fun setSelectDragCallback(callback: SelectDragCallback) { selectDragListener.callback = callback }
+    override fun setSelectDragCallback(callback: SelectDragCallback) { selectDragListener.callback = callback }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         var handled = false

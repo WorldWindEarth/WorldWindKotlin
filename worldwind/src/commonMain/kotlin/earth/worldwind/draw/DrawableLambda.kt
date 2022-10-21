@@ -1,8 +1,5 @@
 package earth.worldwind.draw
 
-import earth.worldwind.draw.DrawContext
-import earth.worldwind.draw.Drawable
-
 open class DrawableLambda(protected val lambda: (dc: DrawContext) -> Unit): Drawable {
     override fun recycle() { }
     /**

@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Offset.Companion.bottomCenter
@@ -56,7 +55,7 @@ open class PlacemarksSelectDragActivity: GeneralGlobeActivity() {
         for (i in automotiveTypes.indices) automotiveIconMap[automotiveTypes[i]] = automotiveIcons[i]
 
         // Add dragging callback
-        (wwd.controller as BasicWorldWindowController).setSelectDragCallback(object : SelectDragCallback {
+        wwd.controller.setSelectDragCallback(object : SelectDragCallback {
             override fun canPickRenderable(renderable: Renderable) = true //renderable.hasUserProperty(SELECTABLE)
             override fun canMoveRenderable(renderable: Renderable) = renderable === selectedObject && renderable.hasUserProperty(MOVABLE)
             override fun onRenderablePicked(renderable: Renderable, position: Position) = toggleSelection(renderable)

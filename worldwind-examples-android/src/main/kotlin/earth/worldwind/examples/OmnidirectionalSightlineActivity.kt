@@ -1,7 +1,6 @@
 package earth.worldwind.examples
 
 import android.os.Bundle
-import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.fromDegrees
@@ -67,7 +66,7 @@ open class OmnidirectionalSightlineActivity: BasicGlobeActivity() {
         )
 
         // Add dragging callback
-        (wwd.controller as BasicWorldWindowController).setSelectDragCallback(object : SelectDragCallback {
+        wwd.controller.setSelectDragCallback(object : SelectDragCallback {
             override fun canMoveRenderable(renderable: Renderable) = renderable === sightlinePlacemark
             override fun onRenderableMoved(renderable: Renderable, fromPosition: Position, toPosition: Position) {
                 sightline.position = toPosition

@@ -1,7 +1,6 @@
 package earth.worldwind.layer.atmosphere
 
 import earth.worldwind.MR
-import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.AbstractLayer

@@ -1,9 +1,7 @@
 package earth.worldwind.examples
 
 import android.os.Bundle
-import android.view.MotionEvent
 import androidx.lifecycle.lifecycleScope
-import earth.worldwind.WorldWindow
 import earth.worldwind.WorldWindowController
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.POS90
@@ -32,9 +30,6 @@ import java.io.IOException
 import java.io.InputStreamReader
 
 open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
-    open class NoOpWorldWindowController(override val wwd: WorldWindow): WorldWindowController {
-        override fun onTouchEvent(event: MotionEvent) = false
-    }
 
     private val beginCamera = Camera()
     private val endCamera = Camera()
@@ -62,7 +57,7 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
         aboutBoxText = "Executes a basic performance benchmark, logging the accumulated frame statistics."
 
         // Suppress the WorldWindow's built-in navigation behavior.
-        wwd.controller = NoOpWorldWindowController(wwd)
+        wwd.controller = object : WorldWindowController {}
 
         // Add a layer containing a large number of placemarks.
         wwd.engine.layers.addLayer(createPlacemarksLayer())
