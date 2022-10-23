@@ -1,6 +1,6 @@
 package earth.worldwind.layer.graticule
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.coords.Hemisphere
@@ -75,7 +75,7 @@ class UTMSquareZone(
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
             gridElements!!.add(
-                GridElement(lineSector, polyline, TYPE_LINE_WEST, fromDegrees(SWEasting))
+                GridElement(lineSector, polyline, TYPE_LINE_WEST, SWEasting.degrees)
             )
         }
 
@@ -92,7 +92,7 @@ class UTMSquareZone(
             val p2 = positions[1]
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_EAST, fromDegrees(SWEasting + size)))
+            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_EAST, (SWEasting + size).degrees))
         }
 
         // bottom segment
@@ -108,7 +108,7 @@ class UTMSquareZone(
             val p2 = positions[1]
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_SOUTH, fromDegrees(SWNorthing)))
+            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_SOUTH, SWNorthing.degrees))
         }
 
         // top segment
@@ -124,7 +124,7 @@ class UTMSquareZone(
             val p2 = positions[1]
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH, fromDegrees(SWNorthing + size)))
+            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH, (SWNorthing + size).degrees))
         }
 
         // Label

@@ -6,6 +6,7 @@ import earth.worldwind.frame.Frame
 import earth.worldwind.frame.FrameController
 import earth.worldwind.frame.FrameMetrics
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.globe.Globe
 import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.globe.terrain.BasicTessellator
@@ -286,7 +287,7 @@ open class WorldWind @JvmOverloads constructor(
                 // Calculate tilt angle between new camera point and look at point
                 scratchPoint.subtract(scratchRay.origin).normalize()
                 val dot = scratchRay.direction.dot(scratchPoint)
-                if (dot >= -1 && dot <= 1) camera.tilt = Angle.fromRadians(acos(dot))
+                if (dot >= -1 && dot <= 1) camera.tilt = acos(dot).radians
             }
         }
     }

@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
@@ -39,7 +40,7 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
             Ellipse(Position.fromDegrees(35.0, -120.0, 0.0), 500000.0, 300000.0).apply {
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the ellipse's center position to the terrain surface
                 isFollowTerrain = true // cause the ellipse geometry to follow the terrain surface
-                heading = Angle.fromDegrees(45.0)
+                heading = 45.0.degrees
             }
         )
 
@@ -74,7 +75,7 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
         super.start()
         engine.layers.addLayer(layer)
         engine.camera.set(
-            Angle.fromDegrees(30.0), Angle.fromDegrees(-110.0), engine.distanceToViewGlobeExtents * 1.1,
+            30.0.degrees, (-110.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
     }

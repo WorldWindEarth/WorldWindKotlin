@@ -1,7 +1,7 @@
 package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
-import earth.worldwind.geom.Angle.Companion.fromRadians
+import earth.worldwind.geom.Angle.Companion.radians
 import kotlin.jvm.JvmStatic
 
 /**
@@ -62,7 +62,7 @@ class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, p
             val converter = MGRSCoordConverter()
             val err = converter.convertMGRSToGeodetic(str)
             require(err == MGRSCoordConverter.NO_ERROR) { "MGRS Conversion Error" }
-            return MGRSCoord(fromRadians(converter.latitude), fromRadians(converter.longitude), str)
+            return MGRSCoord(converter.latitude.radians, converter.longitude.radians, str)
         }
     }
 

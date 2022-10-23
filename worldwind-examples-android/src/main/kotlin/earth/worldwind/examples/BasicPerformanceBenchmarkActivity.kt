@@ -6,7 +6,7 @@ import earth.worldwind.WorldWindowController
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.interpolateAngle180
 import earth.worldwind.geom.Angle.Companion.interpolateAngle360
 import earth.worldwind.geom.Camera
@@ -88,7 +88,7 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                 var azimuth = arc.greatCircleAzimuth(gsfc)
                 endCamera.set(
                     arc.latitude, arc.longitude, 10e3, AltitudeMode.ABSOLUTE,
-                    azimuth, fromDegrees(70.0), ZERO
+                    azimuth, 70.0.degrees, ZERO
                 )
                 delay(500)
                 animateCamera(50)
@@ -104,7 +104,7 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                 animateCamera(100)
                 endCamera.set(
                     gsfc.latitude, gsfc.longitude, 10e3, AltitudeMode.ABSOLUTE,
-                    azimuth, fromDegrees(70.0), ZERO
+                    azimuth, 70.0.degrees, ZERO
                 )
                 animateCamera(100)
 
@@ -122,12 +122,12 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                 delay(500)
                 endCamera.set(
                     midLoc.latitude, midLoc.longitude, 1000e3, AltitudeMode.ABSOLUTE,
-                    azimuth, fromDegrees(60.0), ZERO
+                    azimuth, 60.0.degrees, ZERO
                 )
                 animateCamera(100)
                 endCamera.set(
                     esrin.latitude, esrin.longitude, 100e3, AltitudeMode.ABSOLUTE,
-                    azimuth, fromDegrees(30.0), ZERO
+                    azimuth, 30.0.degrees, ZERO
                 )
                 animateCamera(100)
 

@@ -1,7 +1,7 @@
 package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
-import earth.worldwind.geom.Angle.Companion.fromRadians
+import earth.worldwind.geom.Angle.Companion.radians
 import kotlin.jvm.JvmStatic
 
 /**
@@ -46,7 +46,7 @@ class UPSCoord private constructor(
             val err = converter.convertUPSToGeodetic(hemisphere, easting, northing)
             require(err == UTMCoordConverter.NO_ERROR) { "UTM Conversion Error" }
             return UPSCoord(
-                fromRadians(converter.latitude), fromRadians(converter.longitude), hemisphere, easting, northing
+                converter.latitude.radians, converter.longitude.radians, hemisphere, easting, northing
             )
         }
     }

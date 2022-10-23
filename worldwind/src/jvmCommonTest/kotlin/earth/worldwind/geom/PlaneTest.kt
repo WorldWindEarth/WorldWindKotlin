@@ -1,6 +1,6 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.test.*
@@ -172,7 +172,7 @@ class PlaneTest {
     fun testTransformByMatrix() {
         val p = Plane(0.0, 0.0, -1.0, 10.0)
         // An arbitrary transformation matrix. Note that planes are transformed by the inverse transpose 4x4 matrix.
-        val theta = fromDegrees(30.0)
+        val theta = 30.0.degrees
         val c = cos(theta.radians)
         val s = sin(theta.radians)
         val x = 0.0

@@ -1,6 +1,8 @@
 package earth.worldwind.util
 
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Location
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -35,8 +37,8 @@ object SunPosition {
         val eclipticLongitude = meanLongitude + 1.915 * sin(meanAnomaly) + 0.02 * sin(2 * meanAnomaly)
         val eclipticLongitudeRad = Angle.toRadians(eclipticLongitude)
         val obliquityOfTheEcliptic = Angle.toRadians(23.439 - 0.0000004 * numDays)
-        val declination = Angle.fromRadians(asin(sin(obliquityOfTheEcliptic) * sin(eclipticLongitudeRad)))
-        var rightAscension = Angle.fromRadians(atan(cos(obliquityOfTheEcliptic) * tan(eclipticLongitudeRad)))
+        val declination = asin(sin(obliquityOfTheEcliptic) * sin(eclipticLongitudeRad)).radians
+        var rightAscension = atan(cos(obliquityOfTheEcliptic) * tan(eclipticLongitudeRad)).radians
         if (eclipticLongitude >= 90 && eclipticLongitude < 270) rightAscension += Angle.POS180
         return CelestialLocation(declination, rightAscension.normalize360())
     }
@@ -60,7 +62,7 @@ object SunPosition {
         //Greenwich Hour Angle
         val GHA = Angle.normalizeAngle360(GMST - celestialLocation.rightAscension.degrees)
 
-        val longitude = Angle.fromDegrees(-GHA).normalizeLongitude()
+        val longitude = (-GHA).degrees.normalizeLongitude()
 
         return Location(celestialLocation.declination, longitude)
     }

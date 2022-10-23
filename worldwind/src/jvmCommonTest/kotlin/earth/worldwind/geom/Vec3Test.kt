@@ -1,6 +1,6 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.pow
@@ -290,7 +290,7 @@ class Vec3Test {
 
     @Test
     fun testMultiplyByMatrix() {
-        val theta = fromDegrees(30.0)
+        val theta = 30.0.degrees
         val x = 2.0
         val y = 3.0
         val z = 0.0

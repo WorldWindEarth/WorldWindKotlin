@@ -3,7 +3,7 @@ package earth.worldwind.examples
 import android.os.Bundle
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
@@ -76,7 +76,7 @@ open class OmnidirectionalSightlineActivity: BasicGlobeActivity() {
         // And finally, for this demo, position the viewer to look at the sightline position
         val lookAt = LookAt(
             position = pos, altitudeMode = AltitudeMode.ABSOLUTE, range = 2e4,
-            heading = ZERO, tilt = fromDegrees(45.0), roll = ZERO
+            heading = ZERO, tilt = 45.0.degrees, roll = ZERO
         )
         wwd.engine.cameraFromLookAt(lookAt)
     }

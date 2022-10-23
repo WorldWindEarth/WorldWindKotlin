@@ -3,7 +3,7 @@ package earth.worldwind.examples
 import android.os.Bundle
 import android.view.Choreographer
 import android.view.Choreographer.FrameCallback
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.util.SunPosition
@@ -41,7 +41,7 @@ open class DayNightCycleActivity : BasicGlobeActivity(), FrameCallback {
 
         // Initialize the Camera so that the sun is behind the viewer.
         wwd.engine.camera.position.apply {
-            latitude = fromDegrees(20.0)
+            latitude = 20.0.degrees
             longitude = SunPosition.getAsGeographicLocation(time).longitude
         }
 

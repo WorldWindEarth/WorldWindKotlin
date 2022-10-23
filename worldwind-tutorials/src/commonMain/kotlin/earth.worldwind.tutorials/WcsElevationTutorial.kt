@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.Wcs100ElevationCoverage
@@ -50,7 +51,7 @@ class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
         val distance = distanceRadians * engine.globe.getRadiusAt(mtRainier.latitude, mtRainier.longitude)
 
         // Compute camera settings
-        val tilt = Angle.fromRadians(atan(distance / eye.altitude))
+        val tilt = atan(distance / eye.altitude).radians
 
         // Apply the new view
         engine.camera.set(

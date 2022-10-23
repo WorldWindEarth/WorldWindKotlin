@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import kotlin.math.atan
@@ -29,7 +30,7 @@ class LookAtViewTutorial(private val engine: WorldWind) : AbstractTutorial() {
         // Compute camera settings
         val altitude = aircraft.altitude - airport.altitude
         val range = sqrt(altitude * altitude + distanceMeters * distanceMeters)
-        val tilt = Angle.fromRadians(atan(distanceMeters / aircraft.altitude))
+        val tilt = atan(distanceMeters / aircraft.altitude).radians
 
         // Apply new "look at" view
         engine.cameraFromLookAt(LookAt(airport, AltitudeMode.ABSOLUTE, range, heading, tilt, roll = Angle.ZERO))

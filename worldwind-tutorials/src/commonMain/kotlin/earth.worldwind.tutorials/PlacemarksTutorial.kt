@@ -2,6 +2,7 @@ package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.render.image.ImageSource
@@ -67,7 +68,7 @@ class PlacemarksTutorial(private val engine: WorldWind) : AbstractTutorial() {
             LookAt(
                 position = Position.fromDegrees(34.200, -119.208, 0.0),
                 altitudeMode = AltitudeMode.ABSOLUTE, range = 1e5,
-                heading = Angle.ZERO, tilt = Angle.fromDegrees(80.0), roll = Angle.ZERO
+                heading = Angle.ZERO, tilt = 80.0.degrees, roll = Angle.ZERO
             )
         )
     }

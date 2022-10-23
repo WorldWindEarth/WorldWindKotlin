@@ -1,6 +1,6 @@
 package earth.worldwind.geom.coords
 
-import earth.worldwind.geom.Angle.Companion.fromRadians
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.util.format.format
 import kotlin.math.PI
 import kotlin.math.floor
@@ -368,14 +368,14 @@ internal class MGRSCoordConverter {
         if (errorCode == NO_ERROR) {
             errorCode = if (latitude < MIN_UTM_LAT || latitude > MAX_UTM_LAT) {
                 try {
-                    val ups = UPSCoord.fromLatLon(fromRadians(latitude), fromRadians(longitude))
+                    val ups = UPSCoord.fromLatLon(latitude.radians, longitude.radians)
                     errorCode or convertUPSToMGRS(ups.hemisphere, ups.easting, ups.northing, precision)
                 } catch (e: Exception) {
                     UPS_ERROR
                 }
             } else {
                 try {
-                    val utm = UTMCoord.fromLatLon(fromRadians(latitude), fromRadians(longitude))
+                    val utm = UTMCoord.fromLatLon(latitude.radians, longitude.radians)
                     errorCode or convertUTMToMGRS(utm.zone, latitude, utm.easting, utm.northing, precision)
                 } catch (e: Exception) {
                     UTM_ERROR

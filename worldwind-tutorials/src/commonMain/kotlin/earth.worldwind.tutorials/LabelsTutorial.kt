@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
@@ -73,7 +74,7 @@ class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
         super.start()
         engine.layers.addLayer(layer)
         engine.camera.set(
-            Angle.fromDegrees(38.89), Angle.fromDegrees(-77.023611), 10e3,
+            38.89.degrees, (-77.023611).degrees, 10e3,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
     }

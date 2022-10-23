@@ -1,7 +1,7 @@
 package earth.worldwind.layer.mercator
 
 import android.graphics.Bitmap
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.layer.mercator.MercatorSector.Companion.gudermannianInverse
 import earth.worldwind.util.Level
 
@@ -27,7 +27,7 @@ actual open class MercatorImageTile actual constructor(
         for (y in 0 until resource.height) {
             val sy = 1.0 - y / (resource.height - 1.0)
             val lat = sy * sector.deltaLatitude.degrees + sector.minLatitude.degrees
-            val dy = (1.0 - (gudermannianInverse(fromDegrees(lat)) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
+            val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
             val iy = (dy * (resource.height - 1)).toInt()
             for (x in 0 until resource.width) result[x + y * resource.width] = pixels[x + iy * resource.width]
         }

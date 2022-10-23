@@ -3,7 +3,7 @@ package earth.worldwind.examples
 import android.os.Bundle
 import android.view.Choreographer
 import android.view.Choreographer.FrameCallback
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.layer.ShowTessellationLayer
 
 open class BasicStressTestActivity: GeneralGlobeActivity(), FrameCallback {
@@ -21,8 +21,8 @@ open class BasicStressTestActivity: GeneralGlobeActivity(), FrameCallback {
         // Initialize the Camera so that it's looking in the direction of movement and the horizon is visible.
         wwd.engine.camera.apply {
             position.altitude = 1e3 // 1 km
-            heading = fromDegrees(90.0) // looking east
-            tilt = fromDegrees(75.0) // looking at the horizon
+            heading = 90.0.degrees // looking east
+            tilt = 75.0.degrees // looking at the horizon
         }
     }
 

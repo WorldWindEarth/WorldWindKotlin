@@ -1,6 +1,6 @@
 package earth.worldwind.layer.graticule
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.coords.Hemisphere
@@ -83,7 +83,7 @@ internal class UTMSquareGrid(
                 val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
                 val lineSector = boundingSector(p1, p2)
                 gridElements!!.add(
-                    GridElement(lineSector, polyline, TYPE_LINE_EASTING, fromDegrees(easting))
+                    GridElement(lineSector, polyline, TYPE_LINE_EASTING, easting.degrees)
                 )
             }
         }
@@ -104,7 +104,7 @@ internal class UTMSquareGrid(
                 p2 = positions[1]
                 val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
                 val lineSector = boundingSector(p1, p2)
-                gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_NORTHING, fromDegrees(northing)))
+                gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_NORTHING, northing.degrees))
             }
         }
     }

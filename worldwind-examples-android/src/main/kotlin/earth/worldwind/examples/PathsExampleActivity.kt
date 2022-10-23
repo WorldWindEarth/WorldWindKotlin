@@ -35,7 +35,7 @@ open class PathsExampleActivity: GeneralGlobeActivity() {
 
         // Set the camera to look at the area where the symbols will be displayed.
         val lookAt = LookAt().set(
-            latitude = 47.448982.degrees, longitude = -122.309311.degrees, altitude = 0.0,
+            latitude = 47.448982.degrees, longitude = (-122.309311).degrees, altitude = 0.0,
             altitudeMode = AltitudeMode.ABSOLUTE, range = wwd.engine.distanceToViewGlobeExtents / 4,
             heading = 0.0.degrees, tilt = 60.0.degrees, roll = 0.0.degrees
         )
