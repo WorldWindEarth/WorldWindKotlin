@@ -38,8 +38,8 @@ class GlobeTest {
         private fun computeRadiusOfEllipsoid(geographicLat: Angle): Double {
             // From Radius of the Earth - Radii Used in Geodesy
             // J. Clynch, Naval Post Graduate School, 2002
-            val sinLatSquared = sin(geographicLat.radians).pow(2.0)
-            val cosLatSquared = cos(geographicLat.radians).pow(2.0)
+            val sinLatSquared = sin(geographicLat.inRadians).pow(2.0)
+            val cosLatSquared = cos(geographicLat.inRadians).pow(2.0)
             val eSquared = OFFICIAL_WGS84_EC2
             var radius = OFFICIAL_WGS84_SEMI_MAJOR_AXIS * sqrt((1 - eSquared).pow(2.0) * sinLatSquared + cosLatSquared)
             radius /= sqrt(1 - eSquared * sinLatSquared)

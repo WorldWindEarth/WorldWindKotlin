@@ -245,9 +245,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
      */
     private fun needsToUpdate(rc: RenderContext): Boolean {
         if (lastVerticalExaggeration != rc.verticalExaggeration) return true
-        if (abs(lastCameraHeading - rc.camera!!.heading.degrees) > 1) return true
-        if (abs(lastCameraTilt - rc.camera!!.tilt.degrees) > 1) return true
-        if (abs(lastFOV - rc.camera!!.fieldOfView.degrees) > 1) return true
+        if (abs(lastCameraHeading - rc.camera!!.heading.inDegrees) > 1) return true
+        if (abs(lastCameraTilt - rc.camera!!.tilt.inDegrees) > 1) return true
+        if (abs(lastFOV - rc.camera!!.fieldOfView.inDegrees) > 1) return true
         return rc.cameraPoint.distanceTo(lastCameraPoint) > computeAltitudeAboveGround(rc) / 100
 
         // We must test the globe and its projection to see if either changed. We can't simply use the globe state
@@ -260,9 +260,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     protected open fun clear(rc: RenderContext) {
         removeAllRenderables()
         lastCameraPoint.copy(rc.cameraPoint)
-        lastFOV = rc.camera!!.fieldOfView.degrees
-        lastCameraHeading = rc.camera!!.heading.degrees
-        lastCameraTilt = rc.camera!!.tilt.degrees
+        lastFOV = rc.camera!!.fieldOfView.inDegrees
+        lastCameraHeading = rc.camera!!.heading.inDegrees
+        lastCameraTilt = rc.camera!!.tilt.inDegrees
         lastVerticalExaggeration = rc.verticalExaggeration
 //        lastGlobe = rc.globe
 //        if (rc.is2DGlobe) lastProjection = (rc.globe as Globe2D).projection
@@ -297,8 +297,8 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
                 getLookAtLongitude(rc).minusDegrees(labelOffsetDegrees)
             )
             labelPos.setDegrees(
-                normalizeLatitude(labelPos.latitude.degrees).coerceIn(-70.0, 70.0),
-                normalizeLongitude(labelPos.longitude.degrees)
+                normalizeLatitude(labelPos.latitude.inDegrees).coerceIn(-70.0, 70.0),
+                normalizeLongitude(labelPos.longitude.inDegrees)
             )
             labelPos
         } else rc.camera!!.position
@@ -372,24 +372,24 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
             for (i in 1..2) {
                 // there may be two intersections
                 var intersection: Location? = null
-                if (outPoint.longitude.degrees > sector.maxLongitude.degrees
-                    || sector.maxLongitude.degrees == 180.0 && outPoint.longitude.degrees < 0.0) {
+                if (outPoint.longitude.inDegrees > sector.maxLongitude.inDegrees
+                    || sector.maxLongitude.inDegrees == 180.0 && outPoint.longitude.inDegrees < 0.0) {
                     // intersect with east meridian
                     intersection = greatCircleIntersectionAtLongitude(
                         inPoint, outPoint, sector.maxLongitude
                     )
-                } else if (outPoint.longitude.degrees < sector.minLongitude.degrees
-                    || sector.minLongitude.degrees == -180.0 && outPoint.longitude.degrees > 0.0) {
+                } else if (outPoint.longitude.inDegrees < sector.minLongitude.inDegrees
+                    || sector.minLongitude.inDegrees == -180.0 && outPoint.longitude.inDegrees > 0.0) {
                     // intersect with west meridian
                     intersection = greatCircleIntersectionAtLongitude(
                         inPoint, outPoint, sector.minLongitude
                     )
-                } else if (outPoint.latitude.degrees > sector.maxLatitude.degrees) {
+                } else if (outPoint.latitude.inDegrees > sector.maxLatitude.inDegrees) {
                     // intersect with top parallel
                     intersection = greatCircleIntersectionAtLatitude(
                         inPoint, outPoint, sector.maxLatitude
                     )
-                } else if (outPoint.latitude.degrees < sector.minLatitude.degrees) {
+                } else if (outPoint.latitude.inDegrees < sector.minLatitude.inDegrees) {
                     // intersect with bottom parallel
                     intersection = greatCircleIntersectionAtLatitude(
                         inPoint, outPoint, sector.minLatitude
@@ -426,7 +426,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
             var a = p1
             var b = p2
             var midPoint = greatCircleMidPoint(a, b)
-            while (getDeltaLongitude(midPoint, longitude).radians > precision && count <= 20) {
+            while (getDeltaLongitude(midPoint, longitude).inRadians > precision && count <= 20) {
                 count++
                 if (getDeltaLongitude(a, longitude) < getDeltaLongitude(b, longitude)) b = midPoint else a = midPoint
                 midPoint = greatCircleMidPoint(a, b)
@@ -449,15 +449,15 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
      */
     private fun greatCircleIntersectionAtLatitude(p1: Location, p2: Location, latitude: Angle): Location? {
         var pos: Location? = null
-        if (sign(p1.latitude.degrees - latitude.degrees) != sign(p2.latitude.degrees - latitude.degrees)) {
+        if (sign(p1.latitude.inDegrees - latitude.inDegrees) != sign(p2.latitude.inDegrees - latitude.inDegrees)) {
             var count = 0
             val precision = 1.0 / 6378137.0 // 1m angle in radians
             var a = p1
             var b = p2
             var midPoint = greatCircleMidPoint(a, b)
-            while (abs(midPoint.latitude.radians - latitude.radians) > precision && count <= 20) {
+            while (abs(midPoint.latitude.inRadians - latitude.inRadians) > precision && count <= 20) {
                 count++
-                if (sign(a.latitude.degrees - latitude.degrees) != sign(midPoint.latitude.degrees - latitude.degrees))
+                if (sign(a.latitude.inDegrees - latitude.inDegrees) != sign(midPoint.latitude.inDegrees - latitude.inDegrees))
                     b = midPoint else a = midPoint
                 midPoint = greatCircleMidPoint(a, b)
             }
@@ -475,7 +475,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     }
 
     private fun getDeltaLongitude(p1: Location, longitude: Angle): Angle {
-        val deltaLon = abs(p1.longitude.degrees - longitude.degrees)
+        val deltaLon = abs(p1.longitude.inDegrees - longitude.inDegrees)
         return (if (deltaLon < 180) deltaLon else 360 - deltaLon).degrees
     }
 

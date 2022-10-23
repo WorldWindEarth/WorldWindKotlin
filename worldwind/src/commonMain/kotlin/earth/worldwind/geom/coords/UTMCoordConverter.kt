@@ -146,8 +146,8 @@ internal class UTMCoordConverter {
                     originLatitude.radians, centralMeridian.radians,
                     falseEasting, falseNorthing, scale
                 )
-                latitude = tm.latitude.radians
-                longitude = tm.longitude.radians
+                latitude = tm.latitude.inRadians
+                longitude = tm.longitude.inRadians
                 /* Latitude out of range */
                 if (latitude < MIN_LAT || latitude > MAX_LAT) errorCode = errorCode or NORTHING_ERROR
             } catch (e: Exception) {

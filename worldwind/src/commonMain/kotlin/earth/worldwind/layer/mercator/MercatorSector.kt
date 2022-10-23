@@ -32,7 +32,7 @@ open class MercatorSector(
         )
 
         @JvmStatic
-        fun gudermannianInverse(latitude: Angle) = ln(tan(PI / 4.0 + latitude.radians / 2.0)) / PI
+        fun gudermannianInverse(latitude: Angle) = ln(tan(PI / 4.0 + latitude.inRadians / 2.0)) / PI
 
         @JvmStatic
         fun gudermannian(percent: Double) = fromRadians(atan(sinh(percent * PI)))

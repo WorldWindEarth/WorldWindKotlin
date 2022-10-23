@@ -54,7 +54,7 @@ open class TextureStressTestActivity : BasicGlobeActivity() {
         wwd.requestRedraw()
 
         // Advance to the next surface image's location.
-        if (sector.maxLongitude.degrees < firstSector.minLongitude.degrees + firstSector.deltaLongitude.degrees * 20)
+        if (sector.maxLongitude.inDegrees < firstSector.minLongitude.inDegrees + firstSector.deltaLongitude.inDegrees * 20)
             sector.set(
                 sector.minLatitude, sector.minLongitude + sector.deltaLongitude.plusDegrees(0.1),
                 sector.deltaLatitude, sector.deltaLongitude

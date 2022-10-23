@@ -73,17 +73,17 @@ class CameraControlFragment: BasicGlobeFragment() {
                         val sideRadians = sideMeters / globeRadius
 
                         // Adjust the change in latitude and longitude based on the camera's heading.
-                        val sinHeading = sin(heading.radians)
-                        val cosHeading = cos(heading.radians)
+                        val sinHeading = sin(heading.inRadians)
+                        val cosHeading = cos(heading.inRadians)
                         lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
                         lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
 
                         // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
                         // the camera to the appropriate spot on the other side of the pole.
-                        if (lat.degrees < -90 || lat.degrees > 90) {
+                        if (lat.inDegrees < -90 || lat.inDegrees > 90) {
                             position.latitude = lat.normalizeLatitude()
                             position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
-                        } else if (lon.degrees < -180 || lon.degrees > 180) {
+                        } else if (lon.inDegrees < -180 || lon.inDegrees > 180) {
                             position.latitude = lat
                             position.longitude = lon.normalizeLongitude()
                         } else {
@@ -197,7 +197,7 @@ class CameraControlFragment: BasicGlobeFragment() {
             val r = wwd.engine.globe.getRadiusAt(position.latitude, position.longitude)
             val maxTilt = Math.toDegrees(asin(r / (r + position.altitude)))
             val minTilt = 0.0
-            camera.tilt = camera.tilt.degrees.coerceIn(minTilt, maxTilt).degrees
+            camera.tilt = camera.tilt.inDegrees.coerceIn(minTilt, maxTilt).degrees
         }
 
         companion object {

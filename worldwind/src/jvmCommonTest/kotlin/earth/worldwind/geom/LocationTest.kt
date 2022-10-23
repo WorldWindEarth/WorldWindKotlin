@@ -30,8 +30,8 @@ class LocationTest {
     fun testConstructor_Default() {
         val location = Location()
         assertNotNull(location)
-        assertEquals(0.0, location.latitude.degrees, 0.0, "latitude")
-        assertEquals(0.0, location.longitude.degrees, 0.0, "longitude")
+        assertEquals(0.0, location.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(0.0, location.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -41,8 +41,8 @@ class LocationTest {
     fun testConstructor_Degrees() {
         val location = fromDegrees(LAT, LON)
         assertNotNull(location)
-        assertEquals(LAT, location.latitude.degrees, 0.0, "latitude")
-        assertEquals(LON, location.longitude.degrees, 0.0, "longitude")
+        assertEquals(LAT, location.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(LON, location.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -53,8 +53,8 @@ class LocationTest {
         val oxr = fromDegrees(LAT, LON)
         val copy = Location(oxr)
         assertNotNull(oxr)
-        assertEquals(LAT, copy.latitude.degrees, 0.0, "latitude")
-        assertEquals(LON, copy.longitude.degrees, 0.0, "longitude")
+        assertEquals(LAT, copy.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(LON, copy.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -63,8 +63,8 @@ class LocationTest {
     @Test
     fun testFromDegrees() {
         val location = fromDegrees(LAT, LON)
-        assertEquals(LAT, location.latitude.degrees, Double.MIN_VALUE, "latitude")
-        assertEquals(LON, location.longitude.degrees, Double.MIN_VALUE, "longitude")
+        assertEquals(LAT, location.latitude.inDegrees, Double.MIN_VALUE, "latitude")
+        assertEquals(LON, location.longitude.inDegrees, Double.MIN_VALUE, "longitude")
     }
 
     /**
@@ -73,8 +73,8 @@ class LocationTest {
     @Test
     fun testFromRadians() {
         val location = fromRadians(toRadians(LAT), toRadians(LON))
-        assertEquals(LAT, location.latitude.degrees, location.latitude.degrees.ulp, "latitude")
-        assertEquals(LON, location.longitude.degrees, location.longitude.degrees.ulp, "longitude")
+        assertEquals(LAT, location.latitude.inDegrees, location.latitude.inDegrees.ulp, "latitude")
+        assertEquals(LON, location.longitude.inDegrees, location.longitude.inDegrees.ulp, "longitude")
     }
 
     /**
@@ -86,8 +86,8 @@ class LocationTest {
         val b = fromDegrees(LAT, LON)
 
         // Assert that each member is checked for equality
-        assertEquals(b.latitude.degrees, a.latitude.degrees, 0.0, "equality: latitude")
-        assertEquals(b.longitude.degrees, a.longitude.degrees, 0.0, "equality: longitude")
+        assertEquals(b.latitude.inDegrees, a.latitude.inDegrees, 0.0, "equality: latitude")
+        assertEquals(b.longitude.inDegrees, a.longitude.inDegrees, 0.0, "equality: longitude")
         assertEquals(a, a, "equality") // equality with self
         assertEquals(a, b, "equality")
     }
@@ -249,8 +249,8 @@ class LocationTest {
     fun testSet_WithDoubles() {
         val location = Location()
         location.set(fromDegrees(LAT), fromDegrees(LON))
-        assertEquals(LAT, location.latitude.degrees, 0.0, "latitude")
-        assertEquals(LON, location.longitude.degrees, 0.0, "longitude")
+        assertEquals(LAT, location.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(LON, location.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -261,8 +261,8 @@ class LocationTest {
         val oxr = fromDegrees(LAT, LON)
         val location = Location()
         location.copy(oxr)
-        assertEquals(oxr.latitude.degrees, location.latitude.degrees, 0.0, "latitude")
-        assertEquals(oxr.longitude.degrees, location.longitude.degrees, 0.0, "longitude")
+        assertEquals(oxr.latitude.inDegrees, location.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(oxr.longitude.inDegrees, location.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -280,8 +280,8 @@ class LocationTest {
         val distanceToResult = lax.greatCircleDistance(result)
         val test = lax.greatCircleLocation(azimuthToJfk, distanceToResult, Location())
         assertEquals(distanceToJfk * amount, distanceToResult, TOLERANCE, "interpolated distance")
-        assertEquals(test.latitude.degrees, result.latitude.degrees, 0.0, "latitude")
-        assertEquals(test.longitude.degrees, result.longitude.degrees, 0.0, "longitude")
+        assertEquals(test.latitude.inDegrees, result.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(test.longitude.inDegrees, result.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -299,8 +299,8 @@ class LocationTest {
         val distanceToResult = lax.rhumbDistance(result)
         val test = lax.rhumbLocation(azimuthToJfk, distanceToResult, Location())
         assertEquals(distanceToJfk * amount, distanceToResult, TOLERANCE, "interpolated distance")
-        assertEquals(test.latitude.degrees, result.latitude.degrees, 0.0, "latitude")
-        assertEquals(test.longitude.degrees, result.longitude.degrees, 0.0, "longitude")
+        assertEquals(test.latitude.inDegrees, result.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(test.longitude.inDegrees, result.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -319,8 +319,8 @@ class LocationTest {
         val test = lax.linearLocation(azimuthToOxr, distanceToResult, Location())
         assertEquals(distanceToOxr * amount, distanceToResult, TOLERANCE, "interpolated distance")
         // Math.ulp delta was added due to migration to Java 11, which uses IEEE-floats instead of x87 FPU
-        assertEquals(test.latitude.degrees, result.latitude.degrees, test.latitude.degrees.ulp, "latitude")
-        assertEquals(test.longitude.degrees, result.longitude.degrees, test.longitude.degrees.ulp, "longitude")
+        assertEquals(test.latitude.inDegrees, result.latitude.inDegrees, test.latitude.inDegrees.ulp, "latitude")
+        assertEquals(test.longitude.inDegrees, result.longitude.inDegrees, test.longitude.inDegrees.ulp, "longitude")
     }
 
     /**
@@ -343,7 +343,7 @@ class LocationTest {
         val origin = Location()
         val northPole = fromDegrees(90.0, 0.0)
         val azimuth = origin.greatCircleAzimuth(northPole).normalize360()
-        assertEquals(0.0, azimuth.degrees, TOLERANCE, "north to pole")
+        assertEquals(0.0, azimuth.inDegrees, TOLERANCE, "north to pole")
     }
 
     /**
@@ -354,7 +354,7 @@ class LocationTest {
         val origin = Location()
         val southPole = fromDegrees(-90.0, 0.0)
         val azimuth = origin.greatCircleAzimuth(southPole).normalize360()
-        assertEquals(180.0, azimuth.degrees, TOLERANCE, "south to pole")
+        assertEquals(180.0, azimuth.inDegrees, TOLERANCE, "south to pole")
     }
 
     /**
@@ -365,7 +365,7 @@ class LocationTest {
         val origin = Location()
         val east = fromDegrees(0.0, 180.0)
         val azimuth = origin.greatCircleAzimuth(east).normalize360()
-        assertEquals(90.0, azimuth.degrees, TOLERANCE, "east to dateline")
+        assertEquals(90.0, azimuth.inDegrees, TOLERANCE, "east to dateline")
     }
 
     /**
@@ -376,7 +376,7 @@ class LocationTest {
         val origin = Location()
         val west = fromDegrees(0.0, -180.0)
         val azimuth = origin.greatCircleAzimuth(west).normalize360()
-        assertEquals(270.0, azimuth.degrees, TOLERANCE, "west to dateline")
+        assertEquals(270.0, azimuth.inDegrees, TOLERANCE, "west to dateline")
     }
 
     /**
@@ -461,7 +461,7 @@ class LocationTest {
         val origin = Location()
         val result = Location()
         origin.greatCircleLocation(ZERO, toRadians(90.0), result)
-        assertEquals(90.0, result.latitude.degrees, Double.MIN_VALUE, "north pole latitude")
+        assertEquals(90.0, result.latitude.inDegrees, Double.MIN_VALUE, "north pole latitude")
     }
 
     @Test
@@ -470,7 +470,7 @@ class LocationTest {
         val origin = Location()
         val result = Location()
         origin.greatCircleLocation(POS180, toRadians(90.0), result)
-        assertEquals(-90.0, result.latitude.degrees, Double.MIN_VALUE, "south pole latitude")
+        assertEquals(-90.0, result.latitude.inDegrees, Double.MIN_VALUE, "south pole latitude")
     }
 
     /**
@@ -486,7 +486,7 @@ class LocationTest {
         val jfk = fromRadians(0.709185, -1.287762)
         val courseRadians = 1.384464
         val azimuth = lax.rhumbAzimuth(jfk)
-        assertEquals(courseRadians, azimuth.radians, 1e-6, "lax to jfk")
+        assertEquals(courseRadians, azimuth.inRadians, 1e-6, "lax to jfk")
     }
 
     /**
@@ -499,8 +499,8 @@ class LocationTest {
         val west = fromDegrees(0.0, -1.0)
         val azimuthEast = origin.rhumbAzimuth(east)
         val azimuthWest = origin.rhumbAzimuth(west)
-        assertEquals(90.0, azimuthEast.degrees, 0.0, "expecting 90")
-        assertEquals(-90.0, azimuthWest.degrees, 0.0, "expecting -90")
+        assertEquals(90.0, azimuthEast.inDegrees, 0.0, "expecting 90")
+        assertEquals(-90.0, azimuthWest.inDegrees, 0.0, "expecting -90")
     }
 
     /**
@@ -513,8 +513,8 @@ class LocationTest {
         val south = fromDegrees(-1.0, 0.0)
         val azimuthNorth = begin.rhumbAzimuth(north)
         val azimuthSouth = begin.rhumbAzimuth(south)
-        assertEquals(0.0, azimuthNorth.degrees, 0.0, "expecting 0")
-        assertEquals(180.0, azimuthSouth.degrees, 0.0, "expecting 180")
+        assertEquals(0.0, azimuthNorth.inDegrees, 0.0, "expecting 0")
+        assertEquals(180.0, azimuthSouth.inDegrees, 0.0, "expecting 180")
     }
 
     /**
@@ -527,8 +527,8 @@ class LocationTest {
         val end = fromDegrees(0.0, 0.0)
         val azimuthNorth = southPole.rhumbAzimuth(end)
         val azimuthSouth = northPole.rhumbAzimuth(end)
-        assertEquals(0.0, azimuthNorth.degrees, 0.0, "expecting 0")
-        assertEquals(180.0, azimuthSouth.degrees, 0.0, "expecting 180")
+        assertEquals(0.0, azimuthNorth.inDegrees, 0.0, "expecting 0")
+        assertEquals(180.0, azimuthSouth.inDegrees, 0.0, "expecting 180")
     }
 
     /**
@@ -541,7 +541,7 @@ class LocationTest {
         val azimuth = begin.rhumbAzimuth(end)
 
         // Expecting an east course from +165 to -165
-        assertEquals(-90.0, azimuth.degrees, 0.0, "expecting -90")
+        assertEquals(-90.0, azimuth.inDegrees, 0.0, "expecting -90")
     }
 
     /**
@@ -552,7 +552,7 @@ class LocationTest {
         val begin = fromDegrees(LAT, LON)
         val end = fromDegrees(LAT, LON)
         val azimuth = begin.rhumbAzimuth(end)
-        assertEquals(0.0, azimuth.degrees, 0.0, "expecting zero")
+        assertEquals(0.0, azimuth.inDegrees, 0.0, "expecting zero")
     }
 
     /**
@@ -610,8 +610,8 @@ class LocationTest {
         val course = 79.32398087460811.degrees
         val location = Location()
         lax.rhumbLocation(course, distanceFromLaxToJfk, location)
-        assertEquals(jfk.latitude.degrees, location.latitude.degrees, TOLERANCE, "jfk latitude")
-        assertEquals(jfk.longitude.degrees, location.longitude.degrees, TOLERANCE, "jfk longitude")
+        assertEquals(jfk.latitude.inDegrees, location.latitude.inDegrees, TOLERANCE, "jfk latitude")
+        assertEquals(jfk.longitude.inDegrees, location.longitude.inDegrees, TOLERANCE, "jfk longitude")
     }
 
     /**
@@ -623,7 +623,7 @@ class LocationTest {
         val begin = fromDegrees(0.0, 0.0)
         val end = fromDegrees(1.0, sqrt(3.0))
         val azimuth = begin.linearAzimuth(end)
-        assertEquals(60.0, azimuth.degrees, TOLERANCE, "linear azimuth")
+        assertEquals(60.0, azimuth.inDegrees, TOLERANCE, "linear azimuth")
     }
 
     /**
@@ -635,7 +635,7 @@ class LocationTest {
         val begin = fromDegrees(0.0, 179.5)
         val end = fromDegrees(sqrt(3.0), -179.5)
         val azimuth = begin.linearAzimuth(end)
-        assertEquals(30.0, azimuth.degrees, TOLERANCE, "linear azimuth")
+        assertEquals(30.0, azimuth.inDegrees, TOLERANCE, "linear azimuth")
     }
 
     @Test
@@ -651,14 +651,14 @@ class LocationTest {
     fun testLinearLocation() {
         // Create a 30-60-90 right triangle with a ratio of 1:2:sqrt(3)
         val begin = fromDegrees(LAT, LON)
-        val height = begin.latitude.degrees + 1.0
-        val base = begin.longitude.degrees + sqrt(3.0)
+        val height = begin.latitude.inDegrees + 1.0
+        val base = begin.longitude.inDegrees + sqrt(3.0)
         val distance = toRadians(2.0)
         val azimuth = 60.0.degrees
         val end = Location()
         begin.linearLocation(azimuth, distance, end)
-        assertEquals(base, end.longitude.degrees, TOLERANCE, "longitude")
-        assertEquals(height, end.latitude.degrees, TOLERANCE, "latitude")
+        assertEquals(base, end.longitude.inDegrees, TOLERANCE, "longitude")
+        assertEquals(height, end.latitude.inDegrees, TOLERANCE, "latitude")
     }
 
     // ---------------------------------------------------
@@ -789,7 +789,7 @@ class LocationTest {
         val end = begin.rhumbLocation(azimuth, distance, Location())
 
         // delta longitude
-        val result = end.longitude.degrees - begin.longitude.degrees
+        val result = end.longitude.inDegrees - begin.longitude.inDegrees
         val expected = 4.86029305637848
         assertEquals(expected, result, 1e-15, "Delta Longitude")
     }

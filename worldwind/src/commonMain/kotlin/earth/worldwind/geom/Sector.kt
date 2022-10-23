@@ -349,10 +349,10 @@ open class Sector(
             logMessage(ERROR, "Sector", "union", "invalidStride")
         }
         val empty = isEmpty
-        var minLat = if (empty) Double.MAX_VALUE else minLatitude.degrees
-        var maxLat = if (empty) -Double.MAX_VALUE else maxLatitude.degrees
-        var minLon = if (empty) Double.MAX_VALUE else minLongitude.degrees
-        var maxLon = if (empty) -Double.MAX_VALUE else maxLongitude.degrees
+        var minLat = if (empty) Double.MAX_VALUE else minLatitude.inDegrees
+        var maxLat = if (empty) -Double.MAX_VALUE else maxLatitude.inDegrees
+        var minLon = if (empty) Double.MAX_VALUE else minLongitude.inDegrees
+        var maxLon = if (empty) -Double.MAX_VALUE else maxLongitude.inDegrees
         for (idx in 0 until count step stride) {
             val lon = array[idx].toDouble()
             val lat = array[idx + 1].toDouble()

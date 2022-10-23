@@ -383,7 +383,7 @@ open class Ellipse @JvmOverloads constructor(
 
         // Use the ellipse's center position as the local origin for vertex positions.
         if (isSurfaceShape) {
-            vertexOrigin.set(center.longitude.degrees, center.latitude.degrees, center.altitude)
+            vertexOrigin.set(center.longitude.inDegrees, center.latitude.inDegrees, center.altitude)
         } else {
             rc.geographicToCartesian(
                 center.latitude, center.longitude, center.altitude, altitudeMode, scratchPoint
@@ -469,8 +469,8 @@ open class Ellipse @JvmOverloads constructor(
         else texCoord1d += point.distanceTo(prevPoint)
         prevPoint.copy(point)
         if (isSurfaceShape) {
-            vertexArray[vertexIndex++] = (longitude.degrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.degrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             // reserved for future texture coordinate use
             vertexArray[vertexIndex++] = texCoord2d.x.toFloat()

@@ -313,10 +313,10 @@ class WmsTileFactoryTest {
         val tileHeight = 5
         val tileWidth = 4
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
 
         // Provide the method a service address without a query delimiter
         val wmsFactory = WmsTileFactory(COMMON_SERVICE_ADDRESS, COMMON_WMS_VERSION, COMMON_LAYER_NAMES, null)
@@ -334,10 +334,10 @@ class WmsTileFactoryTest {
         val tileHeight = 5
         val tileWidth = 4
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
 
         // Provide the method a service address with a query delimiter appended
         val wmsFactory = WmsTileFactory(
@@ -357,10 +357,10 @@ class WmsTileFactoryTest {
         val tileHeight = 5
         val tileWidth = 4
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
 
         // Provide the method a service address with a query delimiter and existing parameters
         val wmsFactory = WmsTileFactory(
@@ -380,10 +380,10 @@ class WmsTileFactoryTest {
         val tileHeight = 5
         val tileWidth = 4
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
 
         // Provide the method a service address with a query delimiter and existing parameters
         val wmsFactory = WmsTileFactory(
@@ -409,10 +409,10 @@ class WmsTileFactoryTest {
     fun testUrlForTile_Parameters_Wms130_EPSG4326() {
         // Create mocked supporting objects
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
         val layerConfig = WmsLayerConfig(COMMON_SERVICE_ADDRESS, COMMON_LAYER_NAMES)
         val standardWmsMapFactory = WmsTileFactory(layerConfig)
         standardWmsMapFactory.serviceAddress = COMMON_SERVICE_ADDRESS
@@ -438,10 +438,10 @@ class WmsTileFactoryTest {
     fun testUrlForTile_Parameters_Wms130_CRS84() {
         // Create mocked supporting objects
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
         val layerConfig = WmsLayerConfig(COMMON_SERVICE_ADDRESS, COMMON_LAYER_NAMES)
         val standardWmsMapFactory = WmsTileFactory(layerConfig)
         standardWmsMapFactory.serviceAddress = COMMON_SERVICE_ADDRESS
@@ -467,10 +467,10 @@ class WmsTileFactoryTest {
     fun testUrlForTile_Parameters_WmsNot130() {
         // Create mocked supporting objects
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
         val layerConfig = WmsLayerConfig(COMMON_SERVICE_ADDRESS, COMMON_LAYER_NAMES)
         val standardWmsMapFactory = WmsTileFactory(layerConfig)
         standardWmsMapFactory.serviceAddress = COMMON_SERVICE_ADDRESS
@@ -495,10 +495,10 @@ class WmsTileFactoryTest {
     fun testUrlForTile_Parameters_OptionalStyles() {
         // Create mocked supporting objects
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
         val layerConfig = WmsLayerConfig(COMMON_SERVICE_ADDRESS, COMMON_LAYER_NAMES)
         val standardWmsMapFactory = WmsTileFactory(layerConfig)
         standardWmsMapFactory.styleNames = "notionalstyle1,notionalstyle2"
@@ -522,10 +522,10 @@ class WmsTileFactoryTest {
     fun testUrlForTile_Parameters_OptionalImageFormat() {
         // Create mocked supporting objects
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
         val layerConfig = WmsLayerConfig(COMMON_SERVICE_ADDRESS, COMMON_LAYER_NAMES)
         val standardWmsMapFactory = WmsTileFactory(layerConfig)
         standardWmsMapFactory.imageFormat = "type/name" //notional MIME type
@@ -549,10 +549,10 @@ class WmsTileFactoryTest {
     fun testUrlForTile_Parameters_OptionalTime() {
         // Create mocked supporting objects
         val sector = mockk<Sector>(relaxed = true)
-        every { sector.minLatitude.degrees } returns NOTIONAL_MIN_LAT
-        every { sector.maxLatitude.degrees } returns NOTIONAL_MAX_LAT
-        every { sector.minLongitude.degrees } returns NOTIONAL_MIN_LON
-        every { sector.maxLongitude.degrees } returns NOTIONAL_MAX_LON
+        every { sector.minLatitude.inDegrees } returns NOTIONAL_MIN_LAT
+        every { sector.maxLatitude.inDegrees } returns NOTIONAL_MAX_LAT
+        every { sector.minLongitude.inDegrees } returns NOTIONAL_MIN_LON
+        every { sector.maxLongitude.inDegrees } returns NOTIONAL_MAX_LON
         val layerConfig = WmsLayerConfig(COMMON_SERVICE_ADDRESS, COMMON_LAYER_NAMES)
         val standardWmsMapFactory = WmsTileFactory(layerConfig)
 

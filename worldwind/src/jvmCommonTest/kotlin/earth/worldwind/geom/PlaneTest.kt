@@ -173,8 +173,8 @@ class PlaneTest {
         val p = Plane(0.0, 0.0, -1.0, 10.0)
         // An arbitrary transformation matrix. Note that planes are transformed by the inverse transpose 4x4 matrix.
         val theta = 30.0.degrees
-        val c = cos(theta.radians)
-        val s = sin(theta.radians)
+        val c = cos(theta.inRadians)
+        val s = sin(theta.inRadians)
         val x = 0.0
         val y = 0.0
         val z = 3.0

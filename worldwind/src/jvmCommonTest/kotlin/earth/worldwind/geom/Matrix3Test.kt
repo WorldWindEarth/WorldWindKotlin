@@ -139,8 +139,8 @@ class Matrix3Test {
         val m1 = Matrix3(11.0, 12.0, 13.0, 21.0, 22.0, 23.0, 31.0, 32.0, 33.0)
         val m2 = Matrix3(11.0, 12.0, 13.0, 21.0, 22.0, 23.0, 31.0, 32.0, 33.0) // identical
         val theta = 30.0.degrees // rotation angle
-        val c = cos(theta.radians)
-        val s = sin(theta.radians)
+        val c = cos(theta.inRadians)
+        val s = sin(theta.inRadians)
         val m3 = m1.setRotation(theta)
 
         // Test for Euler rotation matrix
@@ -218,8 +218,8 @@ class Matrix3Test {
     fun testSetToRotation() {
         val m1 = Matrix3(11.0, 12.0, 13.0, 21.0, 22.0, 23.0, 31.0, 32.0, 33.0)
         val theta = 30.0.degrees // rotation angle
-        val c = cos(theta.radians)
-        val s = sin(theta.radians)
+        val c = cos(theta.inRadians)
+        val s = sin(theta.inRadians)
         val m2 = m1.setToRotation(theta)
 
         // Test for Euler (pronounced "oiler") rotation matrix
@@ -344,8 +344,8 @@ class Matrix3Test {
     fun testMultiplyByRotation() {
         val m1 = Matrix3() // identity matrix
         val theta = 30.0.degrees // rotation angle
-        val c = cos(theta.radians)
-        val s = sin(theta.radians)
+        val c = cos(theta.inRadians)
+        val s = sin(theta.inRadians)
         val m2 = m1.multiplyByRotation(theta)
 
         // Test for Euler rotation matrix

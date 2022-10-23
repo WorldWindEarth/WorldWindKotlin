@@ -60,7 +60,7 @@ open class Globe(
         // observing that the length of the ellipsoidal point at the specified latitude and longitude indicates the
         // radius at that location. The formula for the length of the ellipsoidal point was then converted into the
         // simplified form below.
-        val sinLat = sin(latitude.radians)
+        val sinLat = sin(latitude.inRadians)
         val ec2 = ellipsoid.eccentricitySquared
         val rpm = ellipsoid.semiMajorAxis / sqrt(1 - ec2 * sinLat * sinLat)
         return rpm * sqrt(1 + (ec2 * ec2 - 2 * ec2) * sinLat * sinLat)

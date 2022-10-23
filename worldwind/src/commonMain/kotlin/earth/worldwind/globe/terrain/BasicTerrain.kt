@@ -63,8 +63,8 @@ open class BasicTerrain: Terrain {
                 // fractional component (sf, tf) and integral component (si, ti).
                 val tileWidth = tile.level.tileWidth
                 val tileHeight = tile.level.tileHeight
-                val s = (longitude.degrees - sector.minLongitude.degrees) / sector.deltaLongitude.degrees * (tileWidth - 1)
-                val t = (latitude.degrees - sector.minLatitude.degrees) / sector.deltaLatitude.degrees * (tileHeight - 1)
+                val s = (longitude.inDegrees - sector.minLongitude.inDegrees) / sector.deltaLongitude.inDegrees * (tileWidth - 1)
+                val t = (latitude.inDegrees - sector.minLatitude.inDegrees) / sector.deltaLatitude.inDegrees * (tileHeight - 1)
                 val sf = if (s < tileWidth - 1) fract(s) else 1.0
                 val tf = if (t < tileHeight - 1) fract(t) else 1.0
                 val si = if (s < tileWidth - 1) (s + 1).toInt() else tileWidth - 1

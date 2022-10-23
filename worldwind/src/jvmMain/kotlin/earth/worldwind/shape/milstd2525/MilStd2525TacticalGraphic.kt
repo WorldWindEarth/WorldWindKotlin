@@ -23,7 +23,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
 
     override fun transformLocations(locations: List<Location>) {
         if (this::controlPoints.isInitialized) controlPoints.clear() else controlPoints = ArrayList()
-        for (location in locations) controlPoints.add(Point2D.Double(location.longitude.degrees, location.latitude.degrees))
+        for (location in locations) controlPoints.add(Point2D.Double(location.longitude.inDegrees, location.latitude.inDegrees))
         var left = controlPoints[0].x
         var top = controlPoints[0].y
         var right = controlPoints[0].x

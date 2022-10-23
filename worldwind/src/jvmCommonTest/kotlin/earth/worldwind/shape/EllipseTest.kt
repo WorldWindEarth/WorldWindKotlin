@@ -140,7 +140,7 @@ class EllipseTest {
         val heading = 64.3.degrees
         ellipse.heading = heading
         val actualHeading = ellipse.heading
-        assertEquals(heading.degrees, actualHeading.degrees, 1e-9, "heading getter")
+        assertEquals(heading.inDegrees, actualHeading.inDegrees, 1e-9, "heading getter")
     }
 
     @Test
@@ -151,7 +151,7 @@ class EllipseTest {
         val ellipse = Ellipse(position, majorRadius, minorRadius)
         val heading = 64.2.degrees
         ellipse.heading = heading
-        assertEquals(heading.degrees, ellipse.heading.degrees, 1e-9, "heading setter")
+        assertEquals(heading.inDegrees, ellipse.heading.inDegrees, 1e-9, "heading setter")
     }
 
     @Test

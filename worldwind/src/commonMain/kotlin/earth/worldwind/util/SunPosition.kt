@@ -60,7 +60,7 @@ object SunPosition {
         val GMST = Angle.normalizeAngle360(280.46061837 + 360.98564736629 * numDays)
 
         //Greenwich Hour Angle
-        val GHA = Angle.normalizeAngle360(GMST - celestialLocation.rightAscension.degrees)
+        val GHA = Angle.normalizeAngle360(GMST - celestialLocation.rightAscension.inDegrees)
 
         val longitude = (-GHA).degrees.normalizeLongitude()
 

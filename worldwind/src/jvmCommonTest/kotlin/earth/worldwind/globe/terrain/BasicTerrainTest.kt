@@ -25,10 +25,10 @@ class BasicTerrainTest {
         private const val TOLERANCE = 0.0015 // Cartesian XYZ components must be within 1.5 millimeters
 
         private fun officialWgs84Ecef(latitude: Angle, longitude: Angle, altitude: Double): Vec3 {
-            val cosLat = cos(latitude.radians)
-            val sinLat = sin(latitude.radians)
-            val cosLon = cos(longitude.radians)
-            val sinLon = sin(longitude.radians)
+            val cosLat = cos(latitude.inRadians)
+            val sinLat = sin(latitude.inRadians)
+            val cosLon = cos(longitude.inRadians)
+            val sinLon = sin(longitude.inRadians)
             val normal = OFFICIAL_WGS84_SEMI_MAJOR_AXIS / sqrt(1.0 - OFFICIAL_WGS84_EC2 * sinLat * sinLat)
             val x = (normal + altitude) * cosLat * cosLon
             val y = (normal + altitude) * cosLat * sinLon

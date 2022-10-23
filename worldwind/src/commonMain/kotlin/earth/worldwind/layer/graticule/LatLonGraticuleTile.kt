@@ -25,7 +25,7 @@ internal class LatLonGraticuleTile(
     override fun selectRenderables(rc: RenderContext) {
         super.selectRenderables(rc)
         val labelOffset = layer.computeLabelOffset(rc)
-        var graticuleType = layer.getTypeFor(sector.deltaLatitude.degrees)
+        var graticuleType = layer.getTypeFor(sector.deltaLatitude.inDegrees)
         if (level == 0) {
             for (ge in gridElements!!) {
                 if (ge.isInView(rc)) {
@@ -34,7 +34,7 @@ internal class LatLonGraticuleTile(
                         layer.addRenderable(ge.renderable, graticuleType)
                         val labelType = if (ge.type == TYPE_LINE_SOUTH || ge.type == TYPE_LINE_NORTH)
                             TYPE_LATITUDE_LABEL else TYPE_LONGITUDE_LABEL
-                        layer.addLabel(ge.value, labelType, graticuleType, sector.deltaLatitude.degrees, labelOffset)
+                        layer.addLabel(ge.value, labelType, graticuleType, sector.deltaLatitude.inDegrees, labelOffset)
                     }
                 }
             }
@@ -42,13 +42,13 @@ internal class LatLonGraticuleTile(
         }
 
         // Select tile grid elements
-        val resolution = sector.deltaLatitude.degrees / divisions
+        val resolution = sector.deltaLatitude.inDegrees / divisions
         graticuleType = layer.getTypeFor(resolution)
         for (ge in gridElements!!) {
             if (ge.isInView(rc)) {
                 if (ge.type == TYPE_LINE) {
                     layer.addRenderable(ge.renderable, graticuleType)
-                    val labelType = if (ge.sector.deltaLatitude.degrees < 1E-14) TYPE_LATITUDE_LABEL else TYPE_LONGITUDE_LABEL
+                    val labelType = if (ge.sector.deltaLatitude.inDegrees < 1E-14) TYPE_LATITUDE_LABEL else TYPE_LONGITUDE_LABEL
                     layer.addLabel(ge.value, labelType, graticuleType, resolution, labelOffset)
                 }
             }
@@ -79,11 +79,11 @@ internal class LatLonGraticuleTile(
 
     override fun createRenderables() {
         super.createRenderables()
-        val step = sector.deltaLatitude.degrees / divisions
+        val step = sector.deltaLatitude.inDegrees / divisions
 
         // Generate meridians with labels
         var lon = sector.minLongitude.plusDegrees(if (level == 0) 0.0 else step)
-        while (lon.degrees < sector.maxLongitude.degrees - step / 2) {
+        while (lon.inDegrees < sector.maxLongitude.inDegrees - step / 2) {
             // Meridian
             val positions = listOf(
                 Position(sector.minLatitude, lon, 0.0), Position(sector.maxLatitude, lon, 0.0)
@@ -99,7 +99,7 @@ internal class LatLonGraticuleTile(
 
         // Generate parallels
         var lat = sector.minLatitude.plusDegrees(if (level == 0) 0.0 else step)
-        while (lat.degrees < sector.maxLatitude.degrees - step / 2) {
+        while (lat.inDegrees < sector.maxLatitude.inDegrees - step / 2) {
             val positions = listOf(
                 Position(lat, sector.minLongitude, 0.0), Position(lat, sector.maxLongitude, 0.0)
             )

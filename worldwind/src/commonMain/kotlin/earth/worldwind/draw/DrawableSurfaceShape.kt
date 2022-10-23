@@ -104,13 +104,13 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             textureMvpMatrix.setToIdentity()
             textureMvpMatrix.multiplyByTranslation(-1.0, -1.0, 0.0)
             textureMvpMatrix.multiplyByScale(
-                2.0 / terrainSector.deltaLongitude.degrees,
-                2.0 / terrainSector.deltaLatitude.degrees,
+                2.0 / terrainSector.deltaLongitude.inDegrees,
+                2.0 / terrainSector.deltaLatitude.inDegrees,
                 0.0
             )
             textureMvpMatrix.multiplyByTranslation(
-                -terrainSector.minLongitude.degrees,
-                -terrainSector.minLatitude.degrees,
+                -terrainSector.minLongitude.inDegrees,
+                -terrainSector.minLatitude.inDegrees,
                 0.0
             )
             for (idx in 0 until scratchList.size) {

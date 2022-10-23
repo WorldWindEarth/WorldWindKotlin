@@ -32,8 +32,8 @@ open class Wcs201TileFactory(
             .appendQueryParameter("REQUEST", "GetCoverage")
             .appendQueryParameter("COVERAGEID", coverageId)
             .appendQueryParameter("FORMAT", imageFormat)
-            .appendQueryParameter("SUBSET", sector.run { "Lat(${minLatitude.degrees},${maxLatitude.degrees})" })
-            .appendQueryParameter("SUBSET", sector.run { "Long(${minLongitude.degrees},${maxLongitude.degrees})" })
+            .appendQueryParameter("SUBSET", sector.run { "Lat(${minLatitude.inDegrees},${maxLatitude.inDegrees})" })
+            .appendQueryParameter("SUBSET", sector.run { "Long(${minLongitude.inDegrees},${maxLongitude.inDegrees})" })
             .appendQueryParameter("SCALESIZE", tileMatrix.run {
                 "http://www.opengis.net/def/axis/OGC/1/i($tileWidth),http://www.opengis.net/def/axis/OGC/1/j($tileHeight)"
             })

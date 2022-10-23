@@ -119,8 +119,8 @@ open class Matrix3 private constructor(
      * @return this matrix with its rotation components set to the specified values and all other components unmodified
      */
     fun setRotation(angle: Angle) = apply {
-        val c = cos(angle.radians)
-        val s = sin(angle.radians)
+        val c = cos(angle.inRadians)
+        val s = sin(angle.inRadians)
         m[0] = c
         m[1] = -s
         m[3] = s
@@ -178,8 +178,8 @@ open class Matrix3 private constructor(
      * an identity matrix
      */
     fun setToRotation(angle: Angle) = apply {
-        val c = cos(angle.radians)
-        val s = sin(angle.radians)
+        val c = cos(angle.inRadians)
+        val s = sin(angle.inRadians)
         m[0] = c
         m[1] = -s
         m[2] = 0.0
@@ -250,14 +250,14 @@ open class Matrix3 private constructor(
      * @return this matrix set to values described above
      */
     fun setToTileTransform(src: Sector, dst: Sector) = apply {
-        val srcDeltaLat = src.deltaLatitude.degrees
-        val srcDeltaLon = src.deltaLongitude.degrees
-        val dstDeltaLat = dst.deltaLatitude.degrees
-        val dstDeltaLon = dst.deltaLongitude.degrees
+        val srcDeltaLat = src.deltaLatitude.inDegrees
+        val srcDeltaLon = src.deltaLongitude.inDegrees
+        val dstDeltaLat = dst.deltaLatitude.inDegrees
+        val dstDeltaLon = dst.deltaLongitude.inDegrees
         val xs = srcDeltaLon / dstDeltaLon
         val ys = srcDeltaLat / dstDeltaLat
-        val xt = (src.minLongitude.degrees - dst.minLongitude.degrees) / dstDeltaLon
-        val yt = (src.minLatitude.degrees - dst.minLatitude.degrees) / dstDeltaLat
+        val xt = (src.minLongitude.inDegrees - dst.minLongitude.inDegrees) / dstDeltaLon
+        val yt = (src.minLatitude.inDegrees - dst.minLatitude.inDegrees) / dstDeltaLat
         m[0] = xs
         m[1] = 0.0
         m[2] = xt
@@ -312,8 +312,8 @@ open class Matrix3 private constructor(
      * @return this matrix multiplied by the rotation matrix implied by the specified values
      */
     fun multiplyByRotation(angle: Angle) = apply {
-        val c = cos(angle.radians)
-        val s = sin(angle.radians)
+        val c = cos(angle.inRadians)
+        val s = sin(angle.inRadians)
         multiplyByMatrix(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0)
     }
 
@@ -364,14 +364,14 @@ open class Matrix3 private constructor(
      * @return this matrix multiplied by the transform matrix implied by values described above
      */
     fun multiplyByTileTransform(src: Sector, dst: Sector) = apply {
-        val srcDeltaLat = src.deltaLatitude.degrees
-        val srcDeltaLon = src.deltaLongitude.degrees
-        val dstDeltaLat = dst.deltaLatitude.degrees
-        val dstDeltaLon = dst.deltaLongitude.degrees
+        val srcDeltaLat = src.deltaLatitude.inDegrees
+        val srcDeltaLon = src.deltaLongitude.inDegrees
+        val dstDeltaLat = dst.deltaLatitude.inDegrees
+        val dstDeltaLon = dst.deltaLongitude.inDegrees
         val xs = srcDeltaLon / dstDeltaLon
         val ys = srcDeltaLat / dstDeltaLat
-        val xt = (src.minLongitude.degrees - dst.minLongitude.degrees) / dstDeltaLon
-        val yt = (src.minLatitude.degrees - dst.minLatitude.degrees) / dstDeltaLat
+        val xt = (src.minLongitude.inDegrees - dst.minLongitude.inDegrees) / dstDeltaLon
+        val yt = (src.minLatitude.inDegrees - dst.minLatitude.inDegrees) / dstDeltaLat
 
         m[2] += m[0] * xt + m[1] * yt
         m[5] += m[3] * xt + m[4] * yt

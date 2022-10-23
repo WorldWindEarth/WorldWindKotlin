@@ -297,8 +297,8 @@ class Vec3Test {
         // Rotate and translate a unit vector
         val m = Matrix4().multiplyByRotation(0.0, 0.0, 1.0, theta).setTranslation(x, y, z)
         val u = Vec3(1.0, 0.0, 0.0).multiplyByMatrix(m)
-        assertEquals(theta.radians, acos(u.x - x), 1e-10, "acos u.x")
-        assertEquals(theta.radians, asin(u.y - y), 1e-10, "asin u.y")
+        assertEquals(theta.inRadians, acos(u.x - x), 1e-10, "acos u.x")
+        assertEquals(theta.inRadians, asin(u.y - y), 1e-10, "asin u.y")
     }
 
     /**

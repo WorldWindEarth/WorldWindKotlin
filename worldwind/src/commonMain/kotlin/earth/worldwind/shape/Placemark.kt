@@ -193,7 +193,7 @@ open class Placemark @JvmOverloads constructor(
 
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0
-        val absTilt = abs(rc.camera!!.tilt.degrees)
+        val absTilt = abs(rc.camera!!.tilt.inDegrees)
         if (cameraDistance < rc.horizonDistance && absTilt <= 90) {
             depthOffset = (1 - absTilt / 90) * DEFAULT_DEPTH_OFFSET
         }

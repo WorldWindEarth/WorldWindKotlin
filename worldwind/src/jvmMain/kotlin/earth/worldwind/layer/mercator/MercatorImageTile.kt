@@ -25,7 +25,7 @@ actual open class MercatorImageTile actual constructor(
         val maxy = sector.maxLatPercent
         for (y in 0 until resource.height) {
             val sy = 1.0 - y / (resource.height - 1.0)
-            val lat = sy * sector.deltaLatitude.degrees + sector.minLatitude.degrees
+            val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
             val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
             val iy = (dy * (resource.height - 1)).toInt()
             for (x in 0 until resource.width) result.setRGB(x, y, resource.getRGB(x, iy))

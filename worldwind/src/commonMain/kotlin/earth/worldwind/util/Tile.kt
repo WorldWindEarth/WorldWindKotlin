@@ -50,7 +50,7 @@ open class Tile protected constructor(
      * cos(lat)`, leaving the globe-dependant variable `R` to be incorporated by the globe attached to
      * the RenderContext.
      */
-    protected val texelSizeFactor = level.tileDelta.longitude.radians / level.tileWidth * cos(sector.centroidLatitude.radians)
+    protected val texelSizeFactor = level.tileDelta.longitude.inRadians / level.tileWidth * cos(sector.centroidLatitude.inRadians)
     /**
      * The tile's Cartesian bounding box.
      */
@@ -195,7 +195,7 @@ open class Tile protected constructor(
         // determine the nearest latitude
         val nearestLat = rc.camera!!.position.latitude.coerceIn(sector.minLatitude, sector.maxLatitude)
         // determine the nearest longitude and account for the antimeridian discontinuity
-        val lonDifference = rc.camera!!.position.longitude.degrees - sector.centroidLongitude.degrees
+        val lonDifference = rc.camera!!.position.longitude.inDegrees - sector.centroidLongitude.inDegrees
         val nearestLon = when {
             lonDifference < -180.0 -> sector.maxLongitude
             lonDifference > 180.0 -> sector.minLongitude
@@ -218,9 +218,9 @@ open class Tile protected constructor(
          */
         @JvmStatic
         fun computeRow(tileDelta: Angle, latitude: Angle, origin: Angle): Int {
-            var row = floor((latitude.degrees - origin.degrees) / tileDelta.degrees).toInt()
+            var row = floor((latitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees).toInt()
             // if latitude is at the end of the grid, subtract 1 from the computed row to return the last row
-            if (latitude.degrees - origin.degrees == 180.0) row -= 1
+            if (latitude.inDegrees - origin.inDegrees == 180.0) row -= 1
             return row
         }
 
@@ -235,9 +235,9 @@ open class Tile protected constructor(
          */
         @JvmStatic
         fun computeColumn(tileDelta: Angle, longitude: Angle, origin: Angle): Int {
-            var col = floor((longitude.degrees - origin.degrees) / tileDelta.degrees).toInt()
+            var col = floor((longitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees).toInt()
             // if longitude is at the end of the grid, subtract 1 from the computed column to return the last column
-            if (longitude.degrees - origin.degrees == 360.0) col -= 1
+            if (longitude.inDegrees - origin.inDegrees == 360.0) col -= 1
             return col
         }
 
@@ -252,9 +252,9 @@ open class Tile protected constructor(
          */
         @JvmStatic
         fun computeLastRow(tileDelta: Angle, maxLatitude: Angle, origin: Angle): Int {
-            var row = ceil((maxLatitude.degrees - origin.degrees) / tileDelta.degrees - 1).toInt()
+            var row = ceil((maxLatitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees - 1).toInt()
             // if max latitude is in the first row, set the max row to 0
-            if (maxLatitude.degrees - origin.degrees < tileDelta.degrees) row = 0
+            if (maxLatitude.inDegrees - origin.inDegrees < tileDelta.inDegrees) row = 0
             return row
         }
 
@@ -269,9 +269,9 @@ open class Tile protected constructor(
          */
         @JvmStatic
         fun computeLastColumn(tileDelta: Angle, maxLongitude: Angle, origin: Angle): Int {
-            var col = ceil((maxLongitude.degrees - origin.degrees) / tileDelta.degrees - 1).toInt()
+            var col = ceil((maxLongitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees - 1).toInt()
             // if max longitude is in the first column, set the max column to 0
-            if (maxLongitude.degrees - origin.degrees < tileDelta.degrees) col = 0
+            if (maxLongitude.inDegrees - origin.inDegrees < tileDelta.inDegrees) col = 0
             return col
         }
 
@@ -293,8 +293,8 @@ open class Tile protected constructor(
             val lastRow = computeLastRow(tileDelta.latitude, sector.maxLatitude, tileOrigin.latitude)
             val firstCol = computeColumn(tileDelta.longitude, sector.minLongitude, tileOrigin.longitude)
             val lastCol = computeLastColumn(tileDelta.longitude, sector.maxLongitude, tileOrigin.longitude)
-            val firstRowLat = tileOrigin.latitude.plusDegrees(firstRow * tileDelta.latitude.degrees)
-            val firstColLon = tileOrigin.longitude.plusDegrees(firstCol * tileDelta.longitude.degrees)
+            val firstRowLat = tileOrigin.latitude.plusDegrees(firstRow * tileDelta.latitude.inDegrees)
+            val firstColLon = tileOrigin.longitude.plusDegrees(firstCol * tileDelta.longitude.inDegrees)
             var minLat = firstRowLat
             for (row in firstRow..lastRow) {
                 val maxLat = minLat + tileDelta.latitude

@@ -244,10 +244,10 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
          */
         protected open fun getLocation(position: Position): String {
             return "%02.5f%s%03.5f%s".format(
-                abs(position.latitude.degrees),
-                if (position.latitude.degrees > 0) "N" else "S",
-                abs(position.longitude.degrees),
-                if (position.longitude.degrees > 0) "E" else "W"
+                abs(position.latitude.inDegrees),
+                if (position.latitude.inDegrees > 0) "N" else "S",
+                abs(position.longitude.inDegrees),
+                if (position.longitude.inDegrees > 0) "E" else "W"
             )
         }
 

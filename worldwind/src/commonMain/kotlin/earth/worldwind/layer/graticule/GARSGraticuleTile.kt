@@ -52,15 +52,15 @@ internal class GARSGraticuleTile(
         private val LEVEL_2_LABELS = arrayOf(arrayOf("3", "4"), arrayOf("1", "2"))
 
         private fun makeLabelLevel1(sector: Sector): String {
-            val iLat = ((90 + sector.centroidLatitude.degrees) * 60 / 30).toInt()
-            val iLon = ((180 + sector.centroidLongitude.degrees) * 60 / 30).toInt()
+            val iLat = ((90 + sector.centroidLatitude.inDegrees) * 60 / 30).toInt()
+            val iLon = ((180 + sector.centroidLongitude.inDegrees) * 60 / 30).toInt()
             return LON_LABELS[iLon] + LAT_LABELS[iLat]
         }
 
         private fun makeLabelLevel2(sector: Sector): String {
-            val minutesLat = ((90 + sector.minLatitude.degrees) * 60).toInt()
+            val minutesLat = ((90 + sector.minLatitude.inDegrees) * 60).toInt()
             val j = minutesLat % 30 / 15
-            val minutesLon = ((180 + sector.minLongitude.degrees) * 60).toInt()
+            val minutesLon = ((180 + sector.minLongitude.inDegrees) * 60).toInt()
             val i = minutesLon % 30 / 15
             return LEVEL_2_LABELS[j][i]
         }
@@ -74,7 +74,7 @@ internal class GARSGraticuleTile(
 
     override fun selectRenderables(rc: RenderContext) {
         super.selectRenderables(rc)
-        var graticuleType = layer.getTypeFor(sector.deltaLatitude.degrees)
+        var graticuleType = layer.getTypeFor(sector.deltaLatitude.inDegrees)
         if (level == 0 && rc.camera!!.position.altitude > THRESHOLDS[0]) {
             val labelOffset = layer.computeLabelOffset(rc)
             for (ge in gridElements!!) {
@@ -85,7 +85,7 @@ internal class GARSGraticuleTile(
                         val labelType = if (ge.type == TYPE_LINE_SOUTH || ge.type == TYPE_LINE_NORTH)
                             TYPE_LATITUDE_LABEL else TYPE_LONGITUDE_LABEL
                         layer.addLabel(
-                            ge.value, labelType, graticuleType, sector.deltaLatitude.degrees, labelOffset
+                            ge.value, labelType, graticuleType, sector.deltaLatitude.inDegrees, labelOffset
                         )
                     }
                 }
@@ -96,7 +96,7 @@ internal class GARSGraticuleTile(
         // Select tile grid elements
         val eyeDistance = rc.camera!!.position.altitude
         if (level == 0 && eyeDistance <= THRESHOLDS[0] || level == 1 && eyeDistance <= THRESHOLDS[1] || level == 2) {
-            val resolution = sector.deltaLatitude.degrees / divisions
+            val resolution = sector.deltaLatitude.inDegrees / divisions
             graticuleType = layer.getTypeFor(resolution)
             for (ge in gridElements!!) if (ge.isInView(rc)) layer.addRenderable(ge.renderable, graticuleType)
         }
@@ -128,11 +128,11 @@ internal class GARSGraticuleTile(
 
     override fun createRenderables() {
         super.createRenderables()
-        val step = sector.deltaLatitude.degrees / divisions
+        val step = sector.deltaLatitude.inDegrees / divisions
 
         // Generate meridians with labels
         var lon = sector.minLongitude.plusDegrees(if (level == 0) 0.0 else step)
-        while (lon.degrees < sector.maxLongitude.degrees - step / 2) {
+        while (lon.inDegrees < sector.maxLongitude.inDegrees - step / 2) {
             // Meridian
             val positions = listOf(
                 Position(sector.minLatitude, lon, 0.0), Position(sector.maxLatitude, lon, 0.0)
@@ -148,7 +148,7 @@ internal class GARSGraticuleTile(
 
         // Generate parallels
         var lat = sector.minLatitude.plusDegrees(if (level == 0) 0.0 else step)
-        while (lat.degrees < sector.maxLatitude.degrees - step / 2) {
+        while (lat.inDegrees < sector.maxLatitude.inDegrees - step / 2) {
             val positions = listOf(
                 Position(lat, sector.minLongitude, 0.0), Position(lat, sector.maxLongitude, 0.0)
             )
@@ -170,7 +170,7 @@ internal class GARSGraticuleTile(
             val sector = Sector(POS90, POS90, sector.minLongitude, sector.maxLongitude)
             gridElements!!.add(GridElement(sector, line, TYPE_LINE_NORTH, POS90))
         }
-        var resolution = sector.deltaLatitude.degrees / divisions
+        var resolution = sector.deltaLatitude.inDegrees / divisions
         when (level) {
             0 -> {
                 val sectors = subdivide(20)

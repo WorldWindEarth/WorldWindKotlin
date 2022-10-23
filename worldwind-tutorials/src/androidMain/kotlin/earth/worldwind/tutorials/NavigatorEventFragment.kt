@@ -107,8 +107,8 @@ class NavigatorEventFragment : BasicGlobeFragment() {
      * @param camera Where the camera is positioned
      */
     private fun updateOverlayContents(lookAt: LookAt, camera: Camera) {
-        latView.text = formatLatitude(lookAt.position.latitude.degrees)
-        lonView.text = formatLongitude(lookAt.position.longitude.degrees)
+        latView.text = formatLatitude(lookAt.position.latitude.inDegrees)
+        lonView.text = formatLongitude(lookAt.position.longitude.inDegrees)
         altView.text = formatAltitude(camera.position.altitude)
     }
 

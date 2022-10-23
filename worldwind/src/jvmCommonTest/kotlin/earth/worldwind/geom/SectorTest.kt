@@ -30,24 +30,24 @@ class SectorTest {
 //        assertTrue(sector.maxLongitude.degrees.isNaN(), "NaN maxLongitude")
 //        assertTrue(sector.deltaLatitude.degrees.isNaN(), "NaN deltaLatitude")
 //        assertTrue(sector.deltaLongitude.degrees.isNaN(), "NaN deltaLongitude")
-        assertEquals(0.0, sector.minLatitude.degrees, 0.0, "Zero minLatitude")
-        assertEquals(0.0, sector.minLongitude.degrees, 0.0, "Zero minLongitude")
-        assertEquals(0.0, sector.maxLatitude.degrees, 0.0, "Zero maxLatitude")
-        assertEquals(0.0, sector.maxLongitude.degrees, 0.0, "Zero maxLongitude")
-        assertEquals(0.0, sector.deltaLatitude.degrees, 0.0, "Zero deltaLatitude")
-        assertEquals(0.0, sector.deltaLongitude.degrees, 0.0, "Zero deltaLongitude")
+        assertEquals(0.0, sector.minLatitude.inDegrees, 0.0, "Zero minLatitude")
+        assertEquals(0.0, sector.minLongitude.inDegrees, 0.0, "Zero minLongitude")
+        assertEquals(0.0, sector.maxLatitude.inDegrees, 0.0, "Zero maxLatitude")
+        assertEquals(0.0, sector.maxLongitude.inDegrees, 0.0, "Zero maxLongitude")
+        assertEquals(0.0, sector.deltaLatitude.inDegrees, 0.0, "Zero deltaLatitude")
+        assertEquals(0.0, sector.deltaLongitude.inDegrees, 0.0, "Zero deltaLongitude")
     }
 
     @Test
     fun testConstructor_Typical() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
         assertNotNull(sector)
-        assertEquals(LAT, sector.minLatitude.degrees, 0.0, "minLatitude")
-        assertEquals(LON, sector.minLongitude.degrees, 0.0, "minLongitude")
-        assertEquals(LAT + DLAT, sector.maxLatitude.degrees, 0.0, "maxLatitude")
-        assertEquals(LON + DLON, sector.maxLongitude.degrees, 0.0, "maxLongitude")
-        assertEquals(DLAT, sector.deltaLatitude.degrees, 0.0, "deltaLatitude")
-        assertEquals(DLON, sector.deltaLongitude.degrees, 0.0, "deltaLongitude")
+        assertEquals(LAT, sector.minLatitude.inDegrees, 0.0, "minLatitude")
+        assertEquals(LON, sector.minLongitude.inDegrees, 0.0, "minLongitude")
+        assertEquals(LAT + DLAT, sector.maxLatitude.inDegrees, 0.0, "maxLatitude")
+        assertEquals(LON + DLON, sector.maxLongitude.inDegrees, 0.0, "maxLongitude")
+        assertEquals(DLAT, sector.deltaLatitude.inDegrees, 0.0, "deltaLatitude")
+        assertEquals(DLON, sector.deltaLongitude.inDegrees, 0.0, "deltaLongitude")
     }
 
     @Test
@@ -62,36 +62,36 @@ class SectorTest {
     fun testFromDegrees() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
         assertNotNull(sector)
-        assertEquals(LAT, sector.minLatitude.degrees, 0.0, "minLatitude")
-        assertEquals(LON, sector.minLongitude.degrees, 0.0, "minLongitude")
-        assertEquals(LAT + DLAT, sector.maxLatitude.degrees, 0.0, "maxLatitude")
-        assertEquals(LON + DLON, sector.maxLongitude.degrees, 0.0, "maxLongitude")
-        assertEquals(DLAT, sector.deltaLatitude.degrees, 0.0, "deltaLatitude")
-        assertEquals(DLON, sector.deltaLongitude.degrees, 0.0, "deltaLongitude")
+        assertEquals(LAT, sector.minLatitude.inDegrees, 0.0, "minLatitude")
+        assertEquals(LON, sector.minLongitude.inDegrees, 0.0, "minLongitude")
+        assertEquals(LAT + DLAT, sector.maxLatitude.inDegrees, 0.0, "maxLatitude")
+        assertEquals(LON + DLON, sector.maxLongitude.inDegrees, 0.0, "maxLongitude")
+        assertEquals(DLAT, sector.deltaLatitude.inDegrees, 0.0, "deltaLatitude")
+        assertEquals(DLON, sector.deltaLongitude.inDegrees, 0.0, "deltaLongitude")
     }
 
     @Test
     fun testFromRadians() {
         val sector = fromRadians(toRadians(LAT), toRadians(LON), toRadians(DLAT), toRadians(DLON))
         assertNotNull(sector)
-        assertEquals(LAT, sector.minLatitude.degrees, TOLERANCE, "minLatitude")
-        assertEquals(LON, sector.minLongitude.degrees, TOLERANCE, "minLongitude")
-        assertEquals(LAT + DLAT, sector.maxLatitude.degrees, TOLERANCE, "maxLatitude")
-        assertEquals(LON + DLON, sector.maxLongitude.degrees, TOLERANCE, "maxLongitude")
-        assertEquals(DLAT, sector.deltaLatitude.degrees, TOLERANCE, "deltaLatitude")
-        assertEquals(DLON, sector.deltaLongitude.degrees, TOLERANCE, "deltaLongitude")
+        assertEquals(LAT, sector.minLatitude.inDegrees, TOLERANCE, "minLatitude")
+        assertEquals(LON, sector.minLongitude.inDegrees, TOLERANCE, "minLongitude")
+        assertEquals(LAT + DLAT, sector.maxLatitude.inDegrees, TOLERANCE, "maxLatitude")
+        assertEquals(LON + DLON, sector.maxLongitude.inDegrees, TOLERANCE, "maxLongitude")
+        assertEquals(DLAT, sector.deltaLatitude.inDegrees, TOLERANCE, "deltaLatitude")
+        assertEquals(DLON, sector.deltaLongitude.inDegrees, TOLERANCE, "deltaLongitude")
     }
 
     @Test
     fun testEquals() {
         val sector1 = fromDegrees(LAT, LON, DLAT, DLON)
         val sector2 = fromDegrees(LAT, LON, DLAT, DLON)
-        assertEquals(sector2.minLatitude.degrees, sector1.minLatitude.degrees, 0.0, "minLatitude")
-        assertEquals(sector2.minLongitude.degrees, sector1.minLongitude.degrees, 0.0, "minLongitude")
-        assertEquals(sector2.maxLatitude.degrees, sector1.maxLatitude.degrees, 0.0, "maxLatitude")
-        assertEquals(sector2.maxLongitude.degrees, sector1.maxLongitude.degrees, 0.0, "maxLongitude")
-        assertEquals(sector2.deltaLatitude.degrees, sector1.deltaLatitude.degrees, 0.0, "deltaLatitude")
-        assertEquals(sector2.deltaLongitude.degrees, sector1.deltaLongitude.degrees, 0.0, "deltaLongitude")
+        assertEquals(sector2.minLatitude.inDegrees, sector1.minLatitude.inDegrees, 0.0, "minLatitude")
+        assertEquals(sector2.minLongitude.inDegrees, sector1.minLongitude.inDegrees, 0.0, "minLongitude")
+        assertEquals(sector2.maxLatitude.inDegrees, sector1.maxLatitude.inDegrees, 0.0, "maxLatitude")
+        assertEquals(sector2.maxLongitude.inDegrees, sector1.maxLongitude.inDegrees, 0.0, "maxLongitude")
+        assertEquals(sector2.deltaLatitude.inDegrees, sector1.deltaLatitude.inDegrees, 0.0, "deltaLatitude")
+        assertEquals(sector2.deltaLongitude.inDegrees, sector1.deltaLongitude.inDegrees, 0.0, "deltaLongitude")
         assertEquals(sector1, sector1)
         assertEquals(sector1, sector2)
     }
@@ -145,44 +145,44 @@ class SectorTest {
     @Test
     fun testMinLatitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
-        assertEquals(LAT, sector.minLatitude.degrees, 0.0, "minLatitude")
+        assertEquals(LAT, sector.minLatitude.inDegrees, 0.0, "minLatitude")
     }
 
     @Test
     fun testMaxLatitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
-        assertEquals(LAT + DLAT, sector.maxLatitude.degrees, 0.0, "maxLatitude")
+        assertEquals(LAT + DLAT, sector.maxLatitude.inDegrees, 0.0, "maxLatitude")
     }
 
     @Test
     fun testMinLongitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
-        assertEquals(LON, sector.minLongitude.degrees, 0.0, "minLongitude")
+        assertEquals(LON, sector.minLongitude.inDegrees, 0.0, "minLongitude")
     }
 
     @Test
     fun testMaxLongitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
-        assertEquals(LON + DLON, sector.maxLongitude.degrees, 0.0, "maxLongitude")
+        assertEquals(LON + DLON, sector.maxLongitude.inDegrees, 0.0, "maxLongitude")
     }
 
     @Test
     fun testDeltaLatitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
-        assertEquals(DLAT, sector.deltaLatitude.degrees, 0.0, "deltaLatitude")
+        assertEquals(DLAT, sector.deltaLatitude.inDegrees, 0.0, "deltaLatitude")
     }
 
     @Test
     fun testDeltaLongitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
-        assertEquals(DLON, sector.deltaLongitude.degrees, 0.0, "deltaLongitude")
+        assertEquals(DLON, sector.deltaLongitude.inDegrees, 0.0, "deltaLongitude")
     }
 
     @Test
     fun testCentroidLatitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
         val latitude = sector.centroidLatitude
-        assertEquals(LAT + DLAT * 0.5, latitude.degrees, TOLERANCE, "centroid latitude")
+        assertEquals(LAT + DLAT * 0.5, latitude.inDegrees, TOLERANCE, "centroid latitude")
     }
 
     @Test
@@ -190,14 +190,14 @@ class SectorTest {
         val sector = fromDegrees(LAT, LON, 0.0, DLON)
         val latitude = sector.centroidLatitude
 //        assertTrue("NaN centroid latitude", latitude.degrees.isNaN())
-        assertEquals(LAT, latitude.degrees, 0.0, "Zero centroid latitude")
+        assertEquals(LAT, latitude.inDegrees, 0.0, "Zero centroid latitude")
     }
 
     @Test
     fun testCentroidLongitude() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
         val longitude = sector.centroidLongitude
-        assertEquals(LON + DLON * 0.5, longitude.degrees, TOLERANCE, "centroid longitude")
+        assertEquals(LON + DLON * 0.5, longitude.inDegrees, TOLERANCE, "centroid longitude")
     }
 
     @Test
@@ -205,15 +205,15 @@ class SectorTest {
         val sector = fromDegrees(LAT, LON, DLAT, 0.0)
         val longitude = sector.centroidLongitude
 //        assertTrue("NaN centroid longitude", longitude.degrees.isNaN())
-        assertEquals(LON, longitude.degrees, 0.0, "Zero centroid longitude")
+        assertEquals(LON, longitude.inDegrees, 0.0, "Zero centroid longitude")
     }
 
     @Test
     fun testCentroid() {
         val sector = fromDegrees(LAT, LON, DLAT, DLON)
         val centroid = sector.centroid(Location())
-        assertEquals(LAT + DLAT * 0.5, centroid.latitude.degrees, TOLERANCE, "centroid longitude")
-        assertEquals(LON + DLON * 0.5, centroid.longitude.degrees, TOLERANCE, "centroid longitude")
+        assertEquals(LAT + DLAT * 0.5, centroid.latitude.inDegrees, TOLERANCE, "centroid longitude")
+        assertEquals(LON + DLON * 0.5, centroid.longitude.inDegrees, TOLERANCE, "centroid longitude")
     }
 
     @Test
@@ -221,17 +221,17 @@ class SectorTest {
         val sector = fromDegrees(LAT, LON, DLAT, 0.0)
         val centroid = sector.centroid(Location())
 //        assertTrue("NaN centroid longitude", centroid.longitude.degrees.isNaN())
-        assertEquals(LON, centroid.longitude.degrees, 0.0, "Zero centroid longitude")
+        assertEquals(LON, centroid.longitude.inDegrees, 0.0, "Zero centroid longitude")
     }
 
     @Test
     fun testSet_Doubles() {
         val a = Sector()
         val b = a.set(LAT.degrees, LON.degrees, DLAT.degrees, DLON.degrees)
-        assertEquals(LAT, a.minLatitude.degrees, 0.0, "minLatitude")
-        assertEquals(LON, a.minLongitude.degrees, 0.0, "minLongitude")
-        assertEquals(DLAT, a.deltaLatitude.degrees, 0.0, "deltaLatitude")
-        assertEquals(DLON, a.deltaLongitude.degrees, 0.0, "deltaLongitude")
+        assertEquals(LAT, a.minLatitude.inDegrees, 0.0, "minLatitude")
+        assertEquals(LON, a.minLongitude.inDegrees, 0.0, "minLongitude")
+        assertEquals(DLAT, a.deltaLatitude.inDegrees, 0.0, "deltaLatitude")
+        assertEquals(DLON, a.deltaLongitude.inDegrees, 0.0, "deltaLongitude")
         assertSame(a, b)
     }
 
@@ -239,10 +239,10 @@ class SectorTest {
     fun testSet() {
         val a = Sector()
         val b = a.copy(fromDegrees(LAT, LON, DLAT, DLON))
-        assertEquals(LAT, a.minLatitude.degrees, 0.0, "minLatitude")
-        assertEquals(LON, a.minLongitude.degrees, 0.0, "minLongitude")
-        assertEquals(DLAT, a.deltaLatitude.degrees, 0.0, "deltaLatitude")
-        assertEquals(DLON, a.deltaLongitude.degrees, 0.0, "deltaLongitude")
+        assertEquals(LAT, a.minLatitude.inDegrees, 0.0, "minLatitude")
+        assertEquals(LON, a.minLongitude.inDegrees, 0.0, "minLongitude")
+        assertEquals(DLAT, a.deltaLatitude.inDegrees, 0.0, "deltaLatitude")
+        assertEquals(DLON, a.deltaLongitude.inDegrees, 0.0, "deltaLongitude")
         assertSame(a, b)
     }
 
@@ -257,12 +257,12 @@ class SectorTest {
     fun testSetFullSphere() {
         val a = fromDegrees(LAT, LON, DLAT, DLON)
         a.setFullSphere()
-        assertEquals(-90.0, a.minLatitude.degrees, 0.0, "minLatitude")
-        assertEquals(90.0, a.maxLatitude.degrees, 0.0, "maxLatitude")
-        assertEquals(-180.0, a.minLongitude.degrees, 0.0, "minLongitude")
-        assertEquals(180.0, a.maxLongitude.degrees, 0.0, "maxLongitude")
-        assertEquals(180.0, a.deltaLatitude.degrees, 0.0, "deltaLatitude")
-        assertEquals(360.0, a.deltaLongitude.degrees, 0.0, "deltaLongitude")
+        assertEquals(-90.0, a.minLatitude.inDegrees, 0.0, "minLatitude")
+        assertEquals(90.0, a.maxLatitude.inDegrees, 0.0, "maxLatitude")
+        assertEquals(-180.0, a.minLongitude.inDegrees, 0.0, "minLongitude")
+        assertEquals(180.0, a.maxLongitude.inDegrees, 0.0, "maxLongitude")
+        assertEquals(180.0, a.deltaLatitude.inDegrees, 0.0, "deltaLatitude")
+        assertEquals(360.0, a.deltaLongitude.inDegrees, 0.0, "deltaLongitude")
     }
 
     @Test
@@ -439,10 +439,10 @@ class SectorTest {
 //        assertTrue(a.isEmpty) // Sector with specified lat and lon in not considered empty enymore
         a.union(latLax, lonLax)
         assertFalse(a.isEmpty)
-        assertEquals(latLax.degrees, a.minLatitude.degrees, 0.0, "min lat")
-        assertEquals(lonOxr.degrees, a.minLongitude.degrees, 0.0, "min lon")
-        assertEquals(latOxr.degrees, a.maxLatitude.degrees, 0.0, "max lat")
-        assertEquals(lonLax.degrees, a.maxLongitude.degrees, 0.0, "max lon")
+        assertEquals(latLax.inDegrees, a.minLatitude.inDegrees, 0.0, "min lat")
+        assertEquals(lonOxr.inDegrees, a.minLongitude.inDegrees, 0.0, "min lon")
+        assertEquals(latOxr.inDegrees, a.maxLatitude.inDegrees, 0.0, "max lat")
+        assertEquals(lonLax.inDegrees, a.maxLongitude.inDegrees, 0.0, "max lon")
         assertSame(a, b)
     }
 
@@ -457,10 +457,10 @@ class SectorTest {
         val b = a.union(array, array.size, 2 /*stride*/)
         assertFalse(a.isEmpty)
         // Delta 1e-5 is required due to double to float conversion
-        assertEquals(33.94 /*LAX lat*/, a.minLatitude.degrees, 1e-5, "min lat")
-        assertEquals(-119.2 /*OXR lon*/, a.minLongitude.degrees, 1e-5, "min lon")
-        assertEquals(34.2 /*OXR lat*/, a.maxLatitude.degrees, 1e-5, "max lat")
-        assertEquals(-118.4 /*LAX lon*/, a.maxLongitude.degrees, 1e-5, "max lon")
+        assertEquals(33.94 /*LAX lat*/, a.minLatitude.inDegrees, 1e-5, "min lat")
+        assertEquals(-119.2 /*OXR lon*/, a.minLongitude.inDegrees, 1e-5, "min lon")
+        assertEquals(34.2 /*OXR lat*/, a.maxLatitude.inDegrees, 1e-5, "max lat")
+        assertEquals(-118.4 /*LAX lon*/, a.maxLongitude.inDegrees, 1e-5, "max lon")
         assertSame(a, b)
     }
 
@@ -469,10 +469,10 @@ class SectorTest {
         val a = fromDegrees(-30.0, -100.0, 1.0, 1.0)
         val b = a.union(fromDegrees(40.0, 110.0, 1.0, 1.0))
         assertFalse(a.isEmpty)
-        assertEquals(-30.0, a.minLatitude.degrees, 0.0, "min lat")
-        assertEquals(-100.0, a.minLongitude.degrees, 0.0, "min lon")
-        assertEquals(41.0, a.maxLatitude.degrees, 0.0, "max lat")
-        assertEquals(111.0, a.maxLongitude.degrees, 0.0, "max lon")
+        assertEquals(-30.0, a.minLatitude.inDegrees, 0.0, "min lat")
+        assertEquals(-100.0, a.minLongitude.inDegrees, 0.0, "min lon")
+        assertEquals(41.0, a.maxLatitude.inDegrees, 0.0, "max lat")
+        assertEquals(111.0, a.maxLongitude.inDegrees, 0.0, "max lon")
         assertSame(a, b)
     }
 }

@@ -24,7 +24,7 @@ class UPSCoord private constructor(
         @JvmStatic
         fun fromLatLon(latitude: Angle, longitude: Angle): UPSCoord {
             val converter = UPSCoordConverter()
-            val err = converter.convertGeodeticToUPS(latitude.radians, longitude.radians)
+            val err = converter.convertGeodeticToUPS(latitude.inRadians, longitude.inRadians)
             require(err == UPSCoordConverter.NO_ERROR) { "UPS Conversion Error" }
             return UPSCoord(latitude, longitude, converter.hemisphere, converter.easting, converter.northing)
         }

@@ -20,7 +20,7 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
             if (ge.isInView(rc)) {
                 if (ge.renderable is Label) {
                     val gt = ge.renderable
-                    if (labelPos.latitude.degrees < 72 || !"*32*34*36*".contains("*" + gt.text + "*")) {
+                    if (labelPos.latitude.inDegrees < 72 || !"*32*34*36*".contains("*" + gt.text + "*")) {
                         // Adjust label position according to eye position
                         var pos = gt.position
                         if (ge.type == TYPE_LATITUDE_LABEL) pos = Position(pos.latitude, labelPos.longitude, pos.altitude)

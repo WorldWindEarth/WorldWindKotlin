@@ -113,7 +113,7 @@ open class RenderContext {
     fun pixelSizeAtDistance(distance: Double): Double {
         if (pixelSizeFactor == 0.0) { // cache the scaling factor used to convert distances to pixel sizes
             val fov = camera!!.fieldOfView
-            val tanFov2 = tan(fov.radians * 0.5)
+            val tanFov2 = tan(fov.inRadians * 0.5)
             pixelSizeFactor = 2 * tanFov2 / viewport.height
         }
         return distance * pixelSizeFactor

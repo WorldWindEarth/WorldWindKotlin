@@ -153,14 +153,14 @@ internal class MGRSCoordConverter {
         if (mgrs.zone != 0) {
             val utm = convertMGRSToUTM(MGRSString)
             if (utm != null) {
-                latitude = utm.latitude.radians
-                longitude = utm.longitude.radians
+                latitude = utm.latitude.inRadians
+                longitude = utm.longitude.inRadians
             } else errorCode = UTM_ERROR
         } else {
             val ups = convertMGRSToUPS(MGRSString)
             if (ups != null) {
-                latitude = ups.latitude.radians
-                longitude = ups.longitude.radians
+                latitude = ups.latitude.inRadians
+                longitude = ups.longitude.inRadians
             } else errorCode = UPS_ERROR
         }
         return errorCode
@@ -329,7 +329,7 @@ internal class MGRSCoordConverter {
                         val northing = gridNorthing + mgrs.northing
                         try {
                             utm = UTMCoord.fromUTM(mgrs.zone, hemisphere, easting, northing)
-                            latitude = utm.latitude.radians
+                            latitude = utm.latitude.inRadians
                             val divisor = 10.0.pow(mgrs.precision)
                             errorCode = getLatitudeRange(mgrs.latitudeBand)
                             if (errorCode == NO_ERROR) {

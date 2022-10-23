@@ -43,16 +43,16 @@ abstract class UTMSquareSector(
         if (!locationsCrossDateLine(corners)) return corners
 
         var lonSign = 0.0
-        for (corner in corners) if (abs(corner.longitude.degrees) != 180.0) lonSign = sign(corner.longitude.degrees)
+        for (corner in corners) if (abs(corner.longitude.inDegrees) != 180.0) lonSign = sign(corner.longitude.inDegrees)
         if (lonSign == 0.0) return corners
 
-        if (abs(sw.longitude.degrees) == 180.0 && sign(sw.longitude.degrees) != lonSign)
+        if (abs(sw.longitude.inDegrees) == 180.0 && sign(sw.longitude.inDegrees) != lonSign)
             sw = Position(sw.latitude, -sw.longitude, sw.altitude)
-        if (abs(se.longitude.degrees) == 180.0 && sign(se.longitude.degrees) != lonSign)
+        if (abs(se.longitude.inDegrees) == 180.0 && sign(se.longitude.inDegrees) != lonSign)
             se = Position(se.latitude, -se.longitude, se.altitude)
-        if (abs(nw.longitude.degrees) == 180.0 && sign(nw.longitude.degrees) != lonSign)
+        if (abs(nw.longitude.inDegrees) == 180.0 && sign(nw.longitude.inDegrees) != lonSign)
             nw = Position(nw.latitude, -nw.longitude, nw.altitude)
-        if (abs(ne.longitude.degrees) == 180.0 && sign(ne.longitude.degrees) != lonSign)
+        if (abs(ne.longitude.inDegrees) == 180.0 && sign(ne.longitude.inDegrees) != lonSign)
             ne = Position(ne.latitude, -ne.longitude, ne.altitude)
 
         return listOf(sw, se, nw, ne)
@@ -64,8 +64,8 @@ abstract class UTMSquareSector(
             if (pos != null) {
                 // A segment cross the line if end pos have different longitude signs
                 // and are more than 180 degrees longitude apart
-                if (sign(pos.longitude.degrees) != sign(posNext.longitude.degrees)) {
-                    val delta = abs(pos.longitude.degrees - posNext.longitude.degrees)
+                if (sign(pos.longitude.inDegrees) != sign(posNext.longitude.inDegrees)) {
+                    val delta = abs(pos.longitude.inDegrees - posNext.longitude.inDegrees)
                     if (delta > 180 && delta < 360) return true
                 }
             }

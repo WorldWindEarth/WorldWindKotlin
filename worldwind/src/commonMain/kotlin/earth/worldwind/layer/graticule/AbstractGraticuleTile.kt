@@ -19,7 +19,7 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, val
     open fun getSizeInPixels(rc: RenderContext): Double {
         val centerPoint = layer.getSurfacePoint(rc, sector.centroidLatitude, sector.centroidLongitude)
         val distance = rc.cameraPoint.distanceTo(centerPoint)
-        val tileSizeMeter = sector.deltaLatitude.radians * rc.globe!!.equatorialRadius
+        val tileSizeMeter = sector.deltaLatitude.inRadians * rc.globe!!.equatorialRadius
         return tileSizeMeter / rc.pixelSizeAtDistance(distance) / rc.densityFactor
     }
 
@@ -37,14 +37,14 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, val
     }
 
     fun subdivide(div: Int): List<Sector> {
-        val dLat = sector.deltaLatitude.degrees / div
-        val dLon = sector.deltaLongitude.degrees / div
+        val dLat = sector.deltaLatitude.inDegrees / div
+        val dLon = sector.deltaLongitude.inDegrees / div
         val sectors = mutableListOf<Sector>()
         for (row in 0 until div) {
             for (col in 0 until div) {
                 sectors += fromDegrees(
-                    sector.minLatitude.degrees + dLat * row,
-                    sector.minLongitude.degrees + dLon * col, dLat, dLon
+                    sector.minLatitude.inDegrees + dLat * row,
+                    sector.minLongitude.inDegrees + dLon * col, dLat, dLon
                 )
             }
         }

@@ -25,8 +25,8 @@ class PositionTest {
     fun testConstructor_Default() {
         val position = Position()
         assertNotNull(position)
-        assertEquals(0.0, position.latitude.degrees, 0.0, "latitude")
-        assertEquals(0.0, position.longitude.degrees, 0.0, "longitude")
+        assertEquals(0.0, position.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(0.0, position.longitude.inDegrees, 0.0, "longitude")
         assertEquals(0.0, position.altitude, 0.0, "altitude")
     }
 
@@ -37,8 +37,8 @@ class PositionTest {
     fun testConstructor_Degrees() {
         val oxr = fromDegrees(LAT, LON, ELEV)
         assertNotNull(oxr)
-        assertEquals(LAT, oxr.latitude.degrees, 0.0, "latitude")
-        assertEquals(LON, oxr.longitude.degrees, 0.0, "longitude")
+        assertEquals(LAT, oxr.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(LON, oxr.longitude.inDegrees, 0.0, "longitude")
         assertEquals(ELEV, oxr.altitude, 0.0, "altitude")
     }
 
@@ -50,8 +50,8 @@ class PositionTest {
         val oxr = fromDegrees(LAT, LON, ELEV)
         val copy = Position(oxr)
         assertNotNull(oxr)
-        assertEquals(LAT, copy.latitude.degrees, 0.0, "latitude")
-        assertEquals(LON, copy.longitude.degrees, 0.0, "longitude")
+        assertEquals(LAT, copy.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(LON, copy.longitude.inDegrees, 0.0, "longitude")
         assertEquals(ELEV, copy.altitude, 0.0, "altitude")
     }
 
@@ -63,8 +63,8 @@ class PositionTest {
     fun testFromDegrees() {
         val oxr = fromDegrees(LAT, LON, ELEV)
         assertNotNull(oxr)
-        assertEquals(LAT, oxr.latitude.degrees, 0.0, "latitude")
-        assertEquals(LON, oxr.longitude.degrees, 0.0, "longitude")
+        assertEquals(LAT, oxr.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(LON, oxr.longitude.inDegrees, 0.0, "longitude")
         assertEquals(ELEV, oxr.altitude, 0.0, "altitude")
     }
 
@@ -75,8 +75,8 @@ class PositionTest {
     fun testFromRadians() {
         val oxr = fromRadians(toRadians(LAT), toRadians(LON), ELEV)
         assertNotNull(oxr)
-        assertEquals(LAT, oxr.latitude.degrees, TOLERANCE, "latitude")
-        assertEquals(LON, oxr.longitude.degrees, TOLERANCE, "longitude")
+        assertEquals(LAT, oxr.latitude.inDegrees, TOLERANCE, "latitude")
+        assertEquals(LON, oxr.longitude.inDegrees, TOLERANCE, "longitude")
         assertEquals(ELEV, oxr.altitude, 0.0, "altitude")
     }
 
@@ -89,8 +89,8 @@ class PositionTest {
         val b = fromDegrees(LAT, LON, ELEV)
 
         // Assert that each member is checked for equality
-        assertEquals(b.latitude.degrees, a.latitude.degrees, 0.0, "equality: latitude")
-        assertEquals(b.longitude.degrees, a.longitude.degrees, 0.0, "equality: longitude")
+        assertEquals(b.latitude.inDegrees, a.latitude.inDegrees, 0.0, "equality: latitude")
+        assertEquals(b.longitude.inDegrees, a.longitude.inDegrees, 0.0, "equality: longitude")
         assertEquals(b.altitude, a.altitude, 0.0, "equality: altitude")
         assertEquals(a, b, "equality")
     }
@@ -142,8 +142,8 @@ class PositionTest {
         val oxr = fromDegrees(LAT, LON, ELEV)
         val other = Position()
         other.copy(oxr)
-        assertEquals(oxr.latitude.degrees, other.latitude.degrees, 0.0, "latitude")
-        assertEquals(oxr.longitude.degrees, other.longitude.degrees, 0.0, "longitude")
+        assertEquals(oxr.latitude.inDegrees, other.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(oxr.longitude.inDegrees, other.longitude.inDegrees, 0.0, "longitude")
         assertEquals(oxr.altitude, other.altitude, 0.0, "altitude")
     }
 
@@ -154,8 +154,8 @@ class PositionTest {
     fun testSet_WithDoubles() {
         val pos = Position()
         pos.set(LAT.degrees, LON.degrees, ELEV)
-        assertEquals(LAT, pos.latitude.degrees, 0.0, "latitude")
-        assertEquals(LON, pos.longitude.degrees, 0.0, "longitude")
+        assertEquals(LAT, pos.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(LON, pos.longitude.inDegrees, 0.0, "longitude")
         assertEquals(ELEV, pos.altitude, 0.0, "altitude")
     }
 
@@ -174,8 +174,8 @@ class PositionTest {
         val distanceToResult = lax.greatCircleDistance(result)
         val test = lax.greatCircleLocation(azimuthToOxr, distanceToResult, Location())
         assertEquals(distanceToOxr * amount, distanceToResult, TOLERANCE, "interpolated distance")
-        assertEquals(test.latitude.degrees, result.latitude.degrees, 0.0, "latitude")
-        assertEquals(test.longitude.degrees, result.longitude.degrees, 0.0, "longitude")
+        assertEquals(test.latitude.inDegrees, result.latitude.inDegrees, 0.0, "latitude")
+        assertEquals(test.longitude.inDegrees, result.longitude.inDegrees, 0.0, "longitude")
     }
 
     /**
@@ -193,8 +193,8 @@ class PositionTest {
         val distanceToResult = lax.rhumbDistance(result)
         val test = lax.rhumbLocation(azimuthToOxr, distanceToResult, Location())
         assertEquals(distanceToOxr * amount, distanceToResult, TOLERANCE, "interpolated distance")
-        assertEquals(test.latitude.degrees, result.latitude.degrees, TOLERANCE, "latitude")
-        assertEquals(test.longitude.degrees, result.longitude.degrees, TOLERANCE, "longitude")
+        assertEquals(test.latitude.inDegrees, result.latitude.inDegrees, TOLERANCE, "latitude")
+        assertEquals(test.longitude.inDegrees, result.longitude.inDegrees, TOLERANCE, "longitude")
     }
 
     /**
@@ -212,7 +212,7 @@ class PositionTest {
         val distanceToResult = lax.linearDistance(result)
         val test = lax.linearLocation(azimuthToOxr, distanceToResult, Location())
         assertEquals(distanceToOxr * amount, distanceToResult, TOLERANCE, "interpolated distance")
-        assertEquals(test.latitude.degrees, result.latitude.degrees, TOLERANCE, "latitude")
-        assertEquals(test.longitude.degrees, result.longitude.degrees, TOLERANCE, "longitude")
+        assertEquals(test.latitude.inDegrees, result.latitude.inDegrees, TOLERANCE, "latitude")
+        assertEquals(test.longitude.inDegrees, result.longitude.inDegrees, TOLERANCE, "longitude")
     }
 }

@@ -35,7 +35,7 @@ class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, p
         @JvmStatic
         fun fromLatLon(latitude: Angle, longitude: Angle, precision: Int): MGRSCoord {
             val converter = MGRSCoordConverter()
-            val err = converter.convertGeodeticToMGRS(latitude.radians, longitude.radians, precision)
+            val err = converter.convertGeodeticToMGRS(latitude.inRadians, longitude.inRadians, precision)
             require(err == MGRSCoordConverter.NO_ERROR) { "MGRS Conversion Error" }
             return MGRSCoord(latitude, longitude, converter.mgrsString)
         }

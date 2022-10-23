@@ -24,7 +24,7 @@ class UTMCoord private constructor(
         @JvmStatic
         fun fromLatLon(latitude: Angle, longitude: Angle): UTMCoord {
             val converter = UTMCoordConverter()
-            val err = converter.convertGeodeticToUTM(latitude.radians, longitude.radians)
+            val err = converter.convertGeodeticToUTM(latitude.inRadians, longitude.inRadians)
             require(err == UTMCoordConverter.NO_ERROR) { "UTM Conversion Error" }
             return UTMCoord(
                 latitude, longitude, converter.zone, converter.hemisphere, converter.easting, converter.northing

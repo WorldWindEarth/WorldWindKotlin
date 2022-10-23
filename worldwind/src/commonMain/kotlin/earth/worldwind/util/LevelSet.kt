@@ -144,7 +144,7 @@ open class LevelSet {
         }
         if (levels.isEmpty()) return null // this level set is empty
         val degreesPerPixel = toDegrees(radiansPerPixel)
-        val firstLevelDegreesPerPixel = firstLevelDelta.latitude.degrees / tileHeight
+        val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
         val level = ln(firstLevelDegreesPerPixel / degreesPerPixel) / ln(2.0) // fractional level address
         val levelNumber = level.roundToInt() // nearest neighbor level
         return when {
