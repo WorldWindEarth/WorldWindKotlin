@@ -7,6 +7,7 @@ import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.PickedObjectList
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Offset.Companion.bottomCenter
 import earth.worldwind.geom.Position
@@ -56,15 +57,15 @@ class PlacemarksPickingFragment: BasicGlobeFragment() {
         layer.addRenderable(createAircraftPlacemark(fromDegrees(34.15, -119.15, 2000.0)))
 
         // Position the viewer to look near the airports
-        val lookAt = LookAt().setDegrees(
-            latitudeDegrees = 34.15,
-            longitudeDegrees = -119.15,
-            altitudeMeters = 0.0,
+        val lookAt = LookAt().set(
+            latitude = 34.15.degrees,
+            longitude = (-119.15).degrees,
+            altitude = 0.0,
             altitudeMode = AltitudeMode.ABSOLUTE,
-            rangeMeters = 2e4,
-            headingDegrees = 0.0,
-            tiltDegrees = 45.0,
-            rollDegrees = 0.0
+            range = 2e4,
+            heading = 0.0.degrees,
+            tilt = 45.0.degrees,
+            roll = 0.0.degrees
         )
         wwd.engine.cameraFromLookAt(lookAt)
         return wwd

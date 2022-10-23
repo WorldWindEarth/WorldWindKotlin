@@ -12,7 +12,7 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
     companion object {
         /**
          * Create a set of Transverse Mercator coordinates from a pair of latitude and longitude,
-         * for the given `Globe` and projection parameters.
+         * for the given [Globe] and projection parameters.
          *
          * @param latitude the latitude.
          * @param longitude the longitude.
@@ -23,7 +23,7 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
          * @param falseEasting easting value at the center of the projection in meters.
          * @param falseNorthing northing value at the center of the projection in meters.
          * @param scale scaling factor.
-         * @return the corresponding `TMCoord`.
+         * @return the corresponding [TMCoord].
          * or the conversion to TM coordinates fails. If the globe is null conversion will default
          * to using WGS84.
          */
@@ -48,17 +48,17 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
         }
 
         /**
-         * Create a set of Transverse Mercator coordinates for the given `Globe`,
+         * Create a set of Transverse Mercator coordinates for the given [Globe],
          * easting, northing and projection parameters.
          *
          * @param easting the easting distance value in meters.
          * @param northing the northing distance value in meters.
-         * @param originLatitude the origin latitude `double`.
-         * @param centralMeridian the central meridian longitude `double`.
+         * @param originLatitude the origin latitude [Angle].
+         * @param centralMeridian the central meridian longitude [Angle].
          * @param falseEasting easting value at the center of the projection in meters.
          * @param falseNorthing northing value at the center of the projection in meters.
          * @param scale scaling factor.
-         * @return the corresponding `TMCoord`.
+         * @return the corresponding [TMCoord].
          * @throws IllegalArgumentException if the conversion to geodetic coordinates fails.
          * If the globe is null conversion will default to using WGS84.
          */

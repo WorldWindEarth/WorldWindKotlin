@@ -5,11 +5,10 @@ import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
-import kotlin.jvm.JvmOverloads
 
-class GridElement @JvmOverloads constructor(
-    val sector: Sector, val renderable: Renderable, val type: String, val value: Angle = ZERO
-) {
+class GridElement(val sector: Sector, val renderable: Renderable, val type: String, val value: Angle) {
+    constructor(sector: Sector, renderable: Renderable, type: String): this(sector, renderable, type, ZERO)
+
     fun isInView(rc: RenderContext) = sector.intersectsOrNextTo(rc.terrain!!.sector)
 
     companion object {

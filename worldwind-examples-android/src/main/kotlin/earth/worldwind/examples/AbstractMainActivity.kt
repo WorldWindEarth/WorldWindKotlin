@@ -20,6 +20,7 @@ import com.google.android.material.navigation.NavigationView
 import earth.worldwind.WorldWindow
 import earth.worldwind.frame.BasicFrameMetrics
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.cancelChildren
@@ -161,9 +162,9 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
             || heading == Float.MAX_VALUE || tilt == Float.MAX_VALUE || roll == Float.MAX_VALUE) return
 
         // Restore the camera state.
-        wwd.engine.camera.setDegrees(
-            lat.toDouble(), lon.toDouble(), alt.toDouble(), AltitudeMode.values()[altMode],
-            heading.toDouble(), tilt.toDouble(), roll.toDouble(), fov.toDouble()
+        wwd.engine.camera.set(
+            lat.toDouble().degrees, lon.toDouble().degrees, alt.toDouble(), AltitudeMode.values()[altMode],
+            heading.toDouble().degrees, tilt.toDouble().degrees, roll.toDouble().degrees, fov.toDouble().degrees
         )
     }
 

@@ -2,7 +2,6 @@ package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.fromRadians
-import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 
 /**
@@ -12,18 +11,29 @@ import kotlin.jvm.JvmStatic
 class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, private val MGRSString: String) {
     companion object {
         /**
-         * Create a MGRS coordinate from a pair of latitude and longitude `double`
+         * Create a MGRS coordinate from a pair of latitude and longitude [Angle]
+         * with the maximum precision of five digits (one meter).
+         *
+         * @param latitude the latitude [Angle].
+         * @param longitude the longitude [Angle].
+         * @return the corresponding [MGRSCoord].
+         * @throws IllegalArgumentException if the conversion to MGRS coordinates fails.
+         */
+        @JvmStatic
+        fun fromLatLon(latitude: Angle, longitude: Angle) = fromLatLon(latitude, longitude, 5)
+
+        /**
+         * Create a MGRS coordinate from a pair of latitude and longitude [Angle]
          * with the given precision or number of digits (1 to 5).
          *
-         * @param latitude the latitude.
-         * @param longitude the longitude.
+         * @param latitude the latitude [Angle].
+         * @param longitude the longitude [Angle].
          * @param precision the number of digits used for easting and northing (1 to 5).
-         * @return the corresponding `MGRSCoord`.
-         * or the conversion to MGRS coordinates fails.
+         * @return the corresponding [MGRSCoord].
+         * @throws IllegalArgumentException if the conversion to MGRS coordinates fails.
          */
-        @JvmOverloads
         @JvmStatic
-        fun fromLatLon(latitude: Angle, longitude: Angle, precision: Int = 5): MGRSCoord {
+        fun fromLatLon(latitude: Angle, longitude: Angle, precision: Int): MGRSCoord {
             val converter = MGRSCoordConverter()
             val err = converter.convertGeodeticToMGRS(latitude.radians, longitude.radians, precision)
             require(err == MGRSCoordConverter.NO_ERROR) { "MGRS Conversion Error" }
@@ -33,9 +43,7 @@ class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, p
         /**
          * Create a MGRS coordinate from a standard MGRS coordinate text string.
          *
-         *
          * The string will be converted to uppercase and stripped of all spaces before being evaluated.
-         *
          *
          * Valid examples:<br>
          * 32TLP5626635418<br>
@@ -43,9 +51,9 @@ class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, p
          * 11S KU 528 111<br>
          *
          * @param MGRSString the MGRS coordinate text string.
-         * @return the corresponding `MGRSCoord`.
-         * @throws IllegalArgumentException if the `MGRSString` is empty,
-         * the `globe` is null, or the conversion to geodetic coordinates fails (invalid coordinate string).
+         * @return the corresponding [MGRSCoord].
+         * @throws IllegalArgumentException if the [MGRSString] is empty,
+         * the [Globe] is null, or the conversion to geodetic coordinates fails (invalid coordinate string).
          */
         @JvmStatic
         fun fromString(MGRSString: String): MGRSCoord {

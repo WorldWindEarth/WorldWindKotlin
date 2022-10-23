@@ -3,14 +3,16 @@ package earth.worldwind.geom
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.format.format
+import kotlin.jvm.JvmInline
 import kotlin.jvm.JvmStatic
 import kotlin.math.*
 
-open class Angle protected constructor(
+@JvmInline
+value class Angle private constructor(
     /**
      * Size of this angle in degrees.
      */
-    val degrees: Double,
+    val degrees: Double
 ): Comparable<Angle> {
     /**
      * Size of this angle in radians. This may be useful for functions, which
@@ -25,8 +27,6 @@ open class Angle protected constructor(
      * Indicates whether this angle is within the normal range of longitude, [-180, 180].
      */
     val isValidLongitude get() = isValidLongitude(degrees)
-
-    constructor(angle: Angle): this(angle.degrees)
 
     companion object {
         /** Represents an angle of zero degrees  */
@@ -55,6 +55,16 @@ open class Angle protected constructor(
          * Conversion factor for radians to degrees.
          */
         private const val RADIANS_TO_DEGREES = 180.0 / PI
+
+        /**
+         * Returns an Angle equal to this Double number in degrees.
+         */
+        inline val Double.degrees get() = fromDegrees(this)
+
+        /**
+         * Returns an Angle equal to this Double number in radians.
+         */
+        inline val Double.radians get() = fromRadians(this)
 
         /**
          * Convert radians to degrees
@@ -603,14 +613,6 @@ open class Angle protected constructor(
      * @return -1 if this angle is smaller, 0 if both are equal and +1 if this angle is larger.
      */
     override operator fun compareTo(other: Angle) = degrees.compareTo(other.degrees)
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Angle) return false
-        return degrees == other.degrees
-    }
-
-    override fun hashCode() = degrees.hashCode()
 
     override fun toString() = "$degrees°"
 }

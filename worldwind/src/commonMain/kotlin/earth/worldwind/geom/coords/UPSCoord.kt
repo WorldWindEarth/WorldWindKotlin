@@ -17,7 +17,7 @@ class UPSCoord private constructor(
          * @param latitude  the latitude.
          * @param longitude the longitude.
          *
-         * @return the corresponding `UPSCoord`.
+         * @return the corresponding [UPSCoord].
          *
          * @throws IllegalArgumentException if the conversion to UPS coordinates fails.
          */
@@ -30,13 +30,13 @@ class UPSCoord private constructor(
         }
 
         /**
-         * Create a set of UPS coordinates for the given `Globe`.
+         * Create a set of UPS coordinates for the given [Globe].
          *
          * @param hemisphere the hemisphere, either [Hemisphere.N] of [Hemisphere.S].
          * @param easting    the easting distance in meters
          * @param northing   the northing distance in meters.
          *
-         * @return the corresponding `UPSCoord`.
+         * @return the corresponding [UPSCoord].
          *
          * @throws IllegalArgumentException if the conversion to UPS coordinates fails.
          */

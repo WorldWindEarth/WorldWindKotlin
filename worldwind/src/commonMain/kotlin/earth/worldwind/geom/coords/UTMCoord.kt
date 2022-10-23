@@ -17,7 +17,7 @@ class UTMCoord private constructor(
          * @param latitude  the latitude.
          * @param longitude the longitude.
          *
-         * @return the corresponding `UTMCoord`.
+         * @return the corresponding [UTMCoord].
          *
          * @throws IllegalArgumentException if the conversion to UTM coordinates fails.
          */
@@ -32,14 +32,14 @@ class UTMCoord private constructor(
         }
 
         /**
-         * Create a set of UTM coordinates for the given `Globe`.
+         * Create a set of UTM coordinates for the given [Globe].
          *
          * @param zone       the UTM zone - 1 to 60.
          * @param hemisphere the hemisphere, either [Hemisphere.N] of [Hemisphere.S].
          * @param easting    the easting distance in meters
          * @param northing   the northing distance in meters.
          *
-         * @return the corresponding `UTMCoord`.
+         * @return the corresponding [UTMCoord].
          *
          * @throws IllegalArgumentException if the conversion to UTM coordinates fails.
          */

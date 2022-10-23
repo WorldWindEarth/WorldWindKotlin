@@ -172,7 +172,7 @@ internal class MGRSCoordConverter {
      *
      * @param MGRSString the MGRS coordinate string
      *
-     * @return the corresponding `MGRSComponents` or `null`.
+     * @return the corresponding [MGRSComponents] or null.
      */
     private fun breakMGRSString(MGRSString: String): MGRSComponents? {
         var str = MGRSString
@@ -294,7 +294,7 @@ internal class MGRSCoordConverter {
      *
      * @param MGRSString the MGRS coordinate string
      *
-     * @return the corresponding `UTMComponents` or `null`.
+     * @return the corresponding [UTMCoord] or null.
      */
     private fun convertMGRSToUTM(MGRSString: String): UTMCoord? {
         var errorCode = NO_ERROR

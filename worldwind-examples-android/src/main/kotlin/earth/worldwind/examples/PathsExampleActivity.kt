@@ -3,7 +3,7 @@ package earth.worldwind.examples
 import android.os.Bundle
 import androidx.lifecycle.lifecycleScope
 import earth.worldwind.geom.AltitudeMode
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
@@ -34,10 +34,10 @@ open class PathsExampleActivity: GeneralGlobeActivity() {
         wwd.engine.layers.addLayer(flightPathLayer)
 
         // Set the camera to look at the area where the symbols will be displayed.
-        val lookAt = LookAt().setDegrees(
-            latitudeDegrees = 47.448982, longitudeDegrees = -122.309311, altitudeMeters = 0.0,
-            altitudeMode = AltitudeMode.ABSOLUTE, rangeMeters = wwd.engine.distanceToViewGlobeExtents / 4,
-            headingDegrees = 0.0, tiltDegrees = 60.0, rollDegrees = 0.0
+        val lookAt = LookAt().set(
+            latitude = 47.448982.degrees, longitude = -122.309311.degrees, altitude = 0.0,
+            altitudeMode = AltitudeMode.ABSOLUTE, range = wwd.engine.distanceToViewGlobeExtents / 4,
+            heading = 0.0.degrees, tilt = 60.0.degrees, roll = 0.0.degrees
         )
         wwd.engine.cameraFromLookAt(lookAt)
     }
@@ -112,8 +112,8 @@ open class PathsExampleActivity: GeneralGlobeActivity() {
                 } else {
                     // Read the remaining lines
                     val apt = Airport()
-                    apt.pos.latitude = fromDegrees(fields[lat].toDouble())
-                    apt.pos.longitude = fromDegrees(fields[lon].toDouble())
+                    apt.pos.latitude = fields[lat].toDouble().degrees
+                    apt.pos.longitude = fields[lon].toDouble().degrees
                     apt.pos.altitude = fields[alt].toDouble()
                     apt.iko = fields[iko]
                     apt.na3 = fields[na3]

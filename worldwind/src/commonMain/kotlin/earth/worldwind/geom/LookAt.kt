@@ -1,8 +1,6 @@
 package earth.worldwind.geom
 
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.fromDegrees
-import earth.worldwind.geom.Angle.Companion.fromRadians
 
 open class LookAt(
     val position: Position, var altitudeMode: AltitudeMode, var range: Double, var heading: Angle, var tilt: Angle, var roll: Angle,
@@ -35,22 +33,6 @@ open class LookAt(
         this.tilt = tilt
         this.roll = roll
     }
-
-    fun setDegrees(
-        latitudeDegrees: Double, longitudeDegrees: Double, altitudeMeters: Double, altitudeMode: AltitudeMode,
-        rangeMeters: Double, headingDegrees: Double, tiltDegrees: Double, rollDegrees: Double
-    ) = set(
-        fromDegrees(latitudeDegrees), fromDegrees(longitudeDegrees), altitudeMeters, altitudeMode, rangeMeters,
-        fromDegrees(headingDegrees), fromDegrees(tiltDegrees), fromDegrees(rollDegrees)
-    )
-
-    fun setRadians(
-        latitudeRadians: Double, longitudeRadians: Double, altitudeMeters: Double, altitudeMode: AltitudeMode,
-        rangeMeters: Double, headingRadians: Double, tiltRadians: Double, rollRadians: Double
-    ) = set(
-        fromRadians(latitudeRadians), fromRadians(longitudeRadians), altitudeMeters, altitudeMode, rangeMeters,
-        fromRadians(headingRadians), fromRadians(tiltRadians), fromRadians(rollRadians)
-    )
 
     fun copy(lookAt: LookAt) = set(
         lookAt.position.latitude, lookAt.position.longitude, lookAt.position.altitude,

@@ -2,6 +2,7 @@ package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
@@ -39,10 +40,10 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
         super.start()
         engine.layers.addLayer(layer)
         engine.cameraFromLookAt(
-            LookAt().setDegrees(
-                latitudeDegrees = 46.230, longitudeDegrees = -122.190, altitudeMeters = 500.0,
-                altitudeMode = AltitudeMode.ABSOLUTE, rangeMeters = 1.5e4,
-                headingDegrees = 45.0, tiltDegrees = 70.0, rollDegrees = 0.0
+            LookAt().set(
+                latitude = 46.230.degrees, longitude = (-122.190).degrees, altitude = 500.0,
+                altitudeMode = AltitudeMode.ABSOLUTE, range = 1.5e4,
+                heading = 45.0.degrees, tilt = 70.0.degrees, roll = 0.0.degrees
             )
         )
     }

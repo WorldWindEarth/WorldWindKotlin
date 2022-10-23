@@ -4,7 +4,7 @@ import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Camera
 import earth.worldwind.gesture.GestureRecognizer
 import earth.worldwind.gesture.GestureState.*
@@ -23,14 +23,14 @@ class CameraControlFragment: BasicGlobeFragment() {
         controller = CameraController(wwd)
 
         // Apply camera position above KOXR airport, Oxnard, CA
-        engine.camera.setDegrees(
-            latitudeDegrees = 34.2,
-            longitudeDegrees = -119.2,
-            altitudeMeters = 10000.0,
+        engine.camera.set(
+            latitude = 34.2.degrees,
+            longitude = (-119.2).degrees,
+            altitude = 10000.0,
             altitudeMode = AltitudeMode.ABSOLUTE,
-            headingDegrees = 90.0,
-            tiltDegrees = 70.0,
-            rollDegrees = 0.0
+            heading = 90.0.degrees,
+            tilt = 70.0.degrees,
+            roll = 0.0.degrees
         )
     }
 
@@ -197,7 +197,7 @@ class CameraControlFragment: BasicGlobeFragment() {
             val r = wwd.engine.globe.getRadiusAt(position.latitude, position.longitude)
             val maxTilt = Math.toDegrees(asin(r / (r + position.altitude)))
             val minTilt = 0.0
-            camera.tilt = fromDegrees(camera.tilt.degrees.coerceIn(minTilt, maxTilt))
+            camera.tilt = camera.tilt.degrees.coerceIn(minTilt, maxTilt).degrees
         }
 
         companion object {
