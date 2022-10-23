@@ -2,7 +2,7 @@ package earth.worldwind.geom
 
 import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.fromRadians
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.math.*
@@ -1198,7 +1198,7 @@ open class Matrix4 private constructor(
         val sr = sin(roll.radians)
         val ch = cr * m[0] - sr * m[4]
         val sh = sr * m[5] - cr * m[1]
-        return fromRadians(atan2(sh, ch))
+        return atan2(sh, ch).radians
     }
 
     /**
@@ -1211,7 +1211,7 @@ open class Matrix4 private constructor(
     fun extractTilt(): Angle {
         val ct = m[10]
         val st = sqrt(m[2] * m[2] + m[6] * m[6])
-        return fromRadians(atan2(st, ct))
+        return atan2(st, ct).radians
     }
 
     /**

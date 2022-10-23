@@ -1,6 +1,6 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.test.*
@@ -271,11 +271,11 @@ class Matrix4Test {
         // used to validate the values in the matrix.
         // Cumulatively, we'll end up rotating the
         // unit vector -90deg cw around z.
-        m1.setRotation(1.0, 0.0, 0.0, fromDegrees(30.0)) // rotate 30deg ccw around x
+        m1.setRotation(1.0, 0.0, 0.0, 30.0.degrees) // rotate 30deg ccw around x
         u.multiplyByMatrix(m1)
-        m1.setRotation(0.0, 1.0, 0.0, fromDegrees(90.0)) // rotate 90deg ccw around y
+        m1.setRotation(0.0, 1.0, 0.0, 90.0.degrees) // rotate 90deg ccw around y
         u.multiplyByMatrix(m1)
-        m1.setRotation(0.0, 0.0, 1.0, fromDegrees(-60.0)) // rotate -60deg cw around z
+        m1.setRotation(0.0, 0.0, 1.0, (-60.0).degrees) // rotate -60deg cw around z
         u.multiplyByMatrix(m1)
 
         // We should have a unit vector on the x axis
@@ -383,9 +383,9 @@ class Matrix4Test {
         val mx = Matrix4()
         val my = Matrix4()
         val mz = Matrix4()
-        mx.setToRotation(1.0, 0.0, 0.0, fromDegrees(30.0)) // rotate ccw around x
-        my.setToRotation(0.0, 1.0, 0.0, fromDegrees(90.0)) // rotate ccw around y
-        mz.setToRotation(0.0, 0.0, 1.0, fromDegrees(-60.0)) // rotate cw around z
+        mx.setToRotation(1.0, 0.0, 0.0, 30.0.degrees) // rotate ccw around x
+        my.setToRotation(0.0, 1.0, 0.0, 90.0.degrees) // rotate ccw around y
+        mz.setToRotation(0.0, 0.0, 1.0, (-60.0).degrees) // rotate cw around z
 
         // Rotate a unit vector from 0,1,0 to 1,0,0
         val u = Vec3(0.0, 1.0, 0.0)
@@ -525,14 +525,14 @@ class Matrix4Test {
         // Rotate a unit vectors
         val r = Vec3(0.0, 0.0, 1.0)
         val m = Matrix4()
-        m.multiplyByRotation(1.0, 0.0, 0.0, fromDegrees(30.0)) // rotate ccw around x
-        m.multiplyByRotation(0.0, 1.0, 0.0, fromDegrees(90.0)) // rotate ccw around y
-        m.multiplyByRotation(0.0, 0.0, 1.0, fromDegrees(-60.0)) // rotate cw around z
+        m.multiplyByRotation(1.0, 0.0, 0.0, 30.0.degrees) // rotate ccw around x
+        m.multiplyByRotation(0.0, 1.0, 0.0, 90.0.degrees) // rotate ccw around y
+        m.multiplyByRotation(0.0, 0.0, 1.0, (-60.0).degrees) // rotate cw around z
         r.multiplyByMatrix(m)
         assertEquals(1.0, r.x, TOLERANCE, "u.x")
         assertEquals(0.0, r.y, TOLERANCE, "u.y")
         assertEquals(0.0, r.z, TOLERANCE, "u.z")
-        val theta = fromDegrees(30.0) // rotation angle
+        val theta = 30.0.degrees // rotation angle
         val c = cos(theta.radians)
         val s = sin(theta.radians)
         val m1 = Matrix4().multiplyByRotation(1.0, 0.0, 0.0, theta)

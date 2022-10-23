@@ -1,6 +1,6 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Sector.Companion.fromDegrees
@@ -227,7 +227,7 @@ class SectorTest {
     @Test
     fun testSet_Doubles() {
         val a = Sector()
-        val b = a.set(fromDegrees(LAT), fromDegrees(LON), fromDegrees(DLAT), fromDegrees(DLON))
+        val b = a.set(LAT.degrees, LON.degrees, DLAT.degrees, DLON.degrees)
         assertEquals(LAT, a.minLatitude.degrees, 0.0, "minLatitude")
         assertEquals(LON, a.minLongitude.degrees, 0.0, "minLongitude")
         assertEquals(DLAT, a.deltaLatitude.degrees, 0.0, "deltaLatitude")
@@ -430,10 +430,10 @@ class SectorTest {
 
     @Test
     fun testUnion() {
-        val latOxr = fromDegrees(34.2)
-        val lonOxr = fromDegrees(-119.2)
-        val latLax = fromDegrees(33.94)
-        val lonLax = fromDegrees(-118.4)
+        val latOxr = 34.2.degrees
+        val lonOxr = (-119.2).degrees
+        val latLax = 33.94.degrees
+        val lonLax = (-118.4).degrees
         val a = Sector()
         val b = a.union(latOxr, lonOxr)
 //        assertTrue(a.isEmpty) // Sector with specified lat and lon in not considered empty enymore

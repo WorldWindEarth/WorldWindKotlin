@@ -1,6 +1,6 @@
 package earth.worldwind.geom.coords
 
-import earth.worldwind.geom.Angle.Companion.fromRadians
+import earth.worldwind.geom.Angle.Companion.radians
 import kotlin.math.PI
 
 /*
@@ -100,8 +100,8 @@ internal class UTMCoordConverter {
                 } else hemisphere = Hemisphere.N
                 try {
                     val tm = TMCoord.fromLatLon(
-                        fromRadians(latitude), fromRadians(lon), a, f, fromRadians(originLatitude),
-                        fromRadians(centralMeridian), falseEasting, falseNorthing, scale
+                        latitude.radians, lon.radians, a, f, originLatitude.radians,
+                        centralMeridian.radians, falseEasting, falseNorthing, scale
                     )
                     easting = tm.easting
                     northing = tm.northing
@@ -143,7 +143,7 @@ internal class UTMCoordConverter {
             try {
                 val tm = TMCoord.fromTM(
                     easting, northing,
-                    fromRadians(originLatitude), fromRadians(centralMeridian),
+                    originLatitude.radians, centralMeridian.radians,
                     falseEasting, falseNorthing, scale
                 )
                 latitude = tm.latitude.radians

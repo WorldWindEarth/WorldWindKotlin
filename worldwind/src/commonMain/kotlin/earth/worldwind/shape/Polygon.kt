@@ -5,7 +5,7 @@ import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.buffer.ShortBufferObject
@@ -437,7 +437,7 @@ open class Polygon @JvmOverloads constructor(
 
     protected open fun tessCombine(rc: RenderContext, coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>) {
         ensureVertexArrayCapacity() // Increment array size to fit combined vertexes
-        outData[0] = addVertex(rc, fromDegrees(coords[1]) /*lat*/, fromDegrees(coords[0]) /*lon*/, coords[2] /*alt*/, VERTEX_COMBINED /*type*/)
+        outData[0] = addVertex(rc, coords[1].degrees /*lat*/, coords[0].degrees /*lon*/, coords[2] /*alt*/, VERTEX_COMBINED /*type*/)
     }
 
     protected open fun tessVertex(rc: RenderContext, vertexData: Any) {

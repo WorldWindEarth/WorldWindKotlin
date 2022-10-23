@@ -1,6 +1,6 @@
 package earth.worldwind.shape
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.render.Color
 import earth.worldwind.util.Logger
@@ -137,7 +137,7 @@ class EllipseTest {
         val majorRadius = 1000.0
         val minorRadius = 500.0
         val ellipse = Ellipse(position, majorRadius, minorRadius)
-        val heading = fromDegrees(64.3)
+        val heading = 64.3.degrees
         ellipse.heading = heading
         val actualHeading = ellipse.heading
         assertEquals(heading.degrees, actualHeading.degrees, 1e-9, "heading getter")
@@ -149,7 +149,7 @@ class EllipseTest {
         val majorRadius = 1000.0
         val minorRadius = 500.0
         val ellipse = Ellipse(position, majorRadius, minorRadius)
-        val heading = fromDegrees(64.2)
+        val heading = 64.2.degrees
         ellipse.heading = heading
         assertEquals(heading.degrees, ellipse.heading.degrees, 1e-9, "heading setter")
     }

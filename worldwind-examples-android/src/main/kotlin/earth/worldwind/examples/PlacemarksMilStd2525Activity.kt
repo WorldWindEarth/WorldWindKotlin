@@ -8,7 +8,7 @@ import android.widget.TextView
 import armyc2.c2sd.renderer.utilities.ModifiersUnits
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position.Companion.fromDegrees
@@ -39,7 +39,7 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
             altitudeMode = AltitudeMode.ABSOLUTE,
             range = 2e4,
             heading = ZERO,
-            tilt = fromDegrees(60.0),
+            tilt = 60.0.degrees,
             roll = ZERO
         )
         wwd.engine.cameraFromLookAt(lookAt)

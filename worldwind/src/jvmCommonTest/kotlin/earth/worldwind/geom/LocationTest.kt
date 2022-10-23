@@ -3,7 +3,7 @@ package earth.worldwind.geom
 import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Location.Companion.fromDegrees
@@ -607,7 +607,7 @@ class LocationTest {
         val lax = fromRadians(0.592539, -2.066470)
         val jfk = fromRadians(0.709185, -1.287762)
         val distanceFromLaxToJfk = 0.6296498957149533
-        val course = fromDegrees(79.32398087460811)
+        val course = 79.32398087460811.degrees
         val location = Location()
         lax.rhumbLocation(course, distanceFromLaxToJfk, location)
         assertEquals(jfk.latitude.degrees, location.latitude.degrees, TOLERANCE, "jfk latitude")
@@ -654,7 +654,7 @@ class LocationTest {
         val height = begin.latitude.degrees + 1.0
         val base = begin.longitude.degrees + sqrt(3.0)
         val distance = toRadians(2.0)
-        val azimuth = fromDegrees(60.0)
+        val azimuth = 60.0.degrees
         val end = Location()
         begin.linearLocation(azimuth, distance, end)
         assertEquals(base, end.longitude.degrees, TOLERANCE, "longitude")

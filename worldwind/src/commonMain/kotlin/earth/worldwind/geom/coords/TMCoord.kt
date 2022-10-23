@@ -1,7 +1,7 @@
 package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
-import earth.worldwind.geom.Angle.Companion.fromRadians
+import earth.worldwind.geom.Angle.Companion.radians
 import kotlin.jvm.JvmStatic
 
 /**
@@ -75,7 +75,7 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
             )
             if (err == TMCoordConverter.NO_ERROR) err = converter.convertTransverseMercatorToGeodetic(easting, northing)
             require(err == TMCoordConverter.NO_ERROR || err == TMCoordConverter.LON_WARNING) { "TM Conversion Error" }
-            return TMCoord(fromRadians(converter.latitude), fromRadians(converter.longitude), easting, northing)
+            return TMCoord(converter.latitude.radians, converter.longitude.radians, easting, northing)
         }
     }
 }

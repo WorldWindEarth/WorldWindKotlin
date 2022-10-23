@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Position
 import kotlin.math.atan
 
@@ -22,7 +23,7 @@ class CameraViewTutorial(private val engine: WorldWind) : AbstractTutorial() {
         val heading = aircraft.greatCircleAzimuth(airport)
         val distanceRadians = aircraft.greatCircleDistance(airport)
         val distanceMeters = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
-        val tilt = Angle.fromRadians(atan(distanceMeters / aircraft.altitude))
+        val tilt = atan(distanceMeters / aircraft.altitude).radians
 
         // Apply the camera view
         engine.camera.set(

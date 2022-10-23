@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.image.ImageSource
@@ -32,7 +33,7 @@ class SurfaceImageTutorial(private val engine: WorldWind) : AbstractTutorial() {
         super.start()
         engine.layers.addLayer(layer)
         engine.camera.set(
-            Angle.fromDegrees(37.46543388598137), Angle.fromDegrees(14.97980511744455), 4.0e5,
+            37.46543388598137.degrees, 14.97980511744455.degrees, 4.0e5,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
     }

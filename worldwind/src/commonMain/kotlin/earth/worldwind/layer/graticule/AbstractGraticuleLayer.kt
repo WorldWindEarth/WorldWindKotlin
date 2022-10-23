@@ -1,7 +1,7 @@
 package earth.worldwind.layer.graticule
 
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.normalizeLatitude
 import earth.worldwind.geom.Angle.Companion.normalizeLongitude
 import earth.worldwind.geom.Angle.Companion.toDegrees
@@ -476,7 +476,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
 
     private fun getDeltaLongitude(p1: Location, longitude: Angle): Angle {
         val deltaLon = abs(p1.longitude.degrees - longitude.degrees)
-        return fromDegrees(if (deltaLon < 180) deltaLon else 360 - deltaLon)
+        return (if (deltaLon < 180) deltaLon else 360 - deltaLon).degrees
     }
 
     private fun calculateLookAtProperties(rc: RenderContext) {

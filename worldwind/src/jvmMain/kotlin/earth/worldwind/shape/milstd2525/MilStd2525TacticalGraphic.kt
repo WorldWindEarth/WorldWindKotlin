@@ -2,7 +2,11 @@ package earth.worldwind.shape.milstd2525
 
 import ArmyC2.C2SD.Rendering.MultiPointRenderer
 import ArmyC2.C2SD.Utilities.*
-import earth.worldwind.geom.*
+import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.Location
+import earth.worldwind.geom.Position
+import earth.worldwind.geom.Sector
 import earth.worldwind.render.Color
 import earth.worldwind.render.Font
 import earth.worldwind.render.Renderable
@@ -125,7 +129,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     Position.fromDegrees(point.y, point.x, 0.0), shape.modifierString, textAttributes
                 ).apply {
                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                    rotation = Angle.fromDegrees(shape.modifierStringAngle)
+                    rotation = shape.modifierStringAngle.degrees
                     rotationMode = OrientationMode.RELATIVE_TO_GLOBE
 //                    highlightAttributes = TextAttributes(textAttributes).apply {
 //                        textColor = Color(java.awt.Color.WHITE.rgb)

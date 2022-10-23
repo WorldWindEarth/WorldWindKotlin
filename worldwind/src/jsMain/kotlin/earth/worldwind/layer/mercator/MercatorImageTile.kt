@@ -1,6 +1,6 @@
 package earth.worldwind.layer.mercator
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.layer.mercator.MercatorSector.Companion.gudermannianInverse
 import earth.worldwind.util.Level
 import kotlinx.browser.document
@@ -54,7 +54,7 @@ actual open class MercatorImageTile actual constructor(
         for (y in 0 until height) {
             val sy = 1.0 - y / (height - 1.0)
             val lat = sy * sector.deltaLatitude.degrees + sector.minLatitude.degrees
-            val dy = (1.0 - (gudermannianInverse(fromDegrees(lat)) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
+            val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
             val srcRow = floor(dy * (height - 1)).toInt()
             for (x in 0 until width) {
                 val src = 4 * (x + srcRow * width)

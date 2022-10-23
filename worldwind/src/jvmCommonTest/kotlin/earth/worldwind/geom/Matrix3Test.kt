@@ -1,6 +1,6 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.test.*
@@ -138,7 +138,7 @@ class Matrix3Test {
     fun testSetRotation() {
         val m1 = Matrix3(11.0, 12.0, 13.0, 21.0, 22.0, 23.0, 31.0, 32.0, 33.0)
         val m2 = Matrix3(11.0, 12.0, 13.0, 21.0, 22.0, 23.0, 31.0, 32.0, 33.0) // identical
-        val theta = fromDegrees(30.0) // rotation angle
+        val theta = 30.0.degrees // rotation angle
         val c = cos(theta.radians)
         val s = sin(theta.radians)
         val m3 = m1.setRotation(theta)
@@ -217,7 +217,7 @@ class Matrix3Test {
     @Test
     fun testSetToRotation() {
         val m1 = Matrix3(11.0, 12.0, 13.0, 21.0, 22.0, 23.0, 31.0, 32.0, 33.0)
-        val theta = fromDegrees(30.0) // rotation angle
+        val theta = 30.0.degrees // rotation angle
         val c = cos(theta.radians)
         val s = sin(theta.radians)
         val m2 = m1.setToRotation(theta)
@@ -343,7 +343,7 @@ class Matrix3Test {
     @Test
     fun testMultiplyByRotation() {
         val m1 = Matrix3() // identity matrix
-        val theta = fromDegrees(30.0) // rotation angle
+        val theta = 30.0.degrees // rotation angle
         val c = cos(theta.radians)
         val s = sin(theta.radians)
         val m2 = m1.multiplyByRotation(theta)

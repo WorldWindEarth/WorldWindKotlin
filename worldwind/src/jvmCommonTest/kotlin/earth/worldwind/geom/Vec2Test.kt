@@ -1,6 +1,6 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.util.Logger
 import io.mockk.every
 import io.mockk.mockkStatic
@@ -401,7 +401,7 @@ class Vec2Test {
      */
     @Test
     fun testMultiplyByMatrix() {
-        val theta = fromDegrees(30.0)
+        val theta = 30.0.degrees
         val x = 2.0
         val y = 3.0
         val m = Matrix3().multiplyByRotation(theta).setTranslation(x, y)

@@ -1,6 +1,6 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.geom.Position.Companion.fromRadians
@@ -153,7 +153,7 @@ class PositionTest {
     @Test
     fun testSet_WithDoubles() {
         val pos = Position()
-        pos.set(fromDegrees(LAT), fromDegrees(LON), ELEV)
+        pos.set(LAT.degrees, LON.degrees, ELEV)
         assertEquals(LAT, pos.latitude.degrees, 0.0, "latitude")
         assertEquals(LON, pos.longitude.degrees, 0.0, "longitude")
         assertEquals(ELEV, pos.altitude, 0.0, "altitude")

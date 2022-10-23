@@ -30,23 +30,23 @@ value class Angle private constructor(
 
     companion object {
         /** Represents an angle of zero degrees  */
-        @JvmStatic val ZERO = fromDegrees(0.0)
+        @JvmStatic val ZERO = 0.0.degrees
         /** Represents a right angle of positive 90 degrees  */
-        @JvmStatic val POS90 = fromDegrees(90.0)
+        @JvmStatic val POS90 = 90.0.degrees
         /** Represents a right angle of negative 90 degrees  */
-        @JvmStatic val NEG90 = fromDegrees(-90.0)
+        @JvmStatic val NEG90 = (-90.0).degrees
         /** Represents an angle of positive 180 degrees  */
-        @JvmStatic val POS180 = fromDegrees(180.0)
+        @JvmStatic val POS180 = 180.0.degrees
         /** Represents an angle of negative 180 degrees  */
-        @JvmStatic val NEG180 = fromDegrees(-180.0)
+        @JvmStatic val NEG180 = (-180.0).degrees
         /** Represents an angle of positive 360 degrees  */
-        @JvmStatic val POS360 = fromDegrees(360.0)
+        @JvmStatic val POS360 = 360.0.degrees
         /** Represents an angle of negative 360 degrees  */
-        @JvmStatic val NEG360 = fromDegrees(-360.0)
+        @JvmStatic val NEG360 = (-360.0).degrees
         /** Represents an angle of 1 minute  */
-        @JvmStatic val MINUTE = fromDegrees(1.0 / 60.0)
+        @JvmStatic val MINUTE = (1.0 / 60.0).degrees
         /** Represents an angle of 1 second  */
-        @JvmStatic val SECOND = fromDegrees(1.0 / 3600.0)
+        @JvmStatic val SECOND = (1.0 / 3600.0).degrees
         /**
          * Conversion factor for degrees to radians.
          */
@@ -110,7 +110,7 @@ value class Angle private constructor(
          *
          * @return a new angle, whose size is determined from `x` and `y`.
          */
-        @JvmStatic fun fromXY(x: Double, y: Double) = fromRadians(atan2(y, x))
+        @JvmStatic fun fromXY(x: Double, y: Double) = atan2(y, x).radians
 
         /**
          * Obtain an angle from a given number of positive degrees, minutes and seconds.
@@ -355,7 +355,7 @@ value class Angle private constructor(
             // Linearly interpolate between the two angles then normalize the interpolated result. Normalizing the result is
             // necessary when we have added 360 degrees to either angle in order to interpolate along the shortest arc.
             val angle = (1 - amount) * normalizedAngle1 + amount * normalizedAngle2
-            return fromDegrees(normalizeAngle180(angle))
+            return normalizeAngle180(angle).degrees
         }
 
         /**
@@ -385,7 +385,7 @@ value class Angle private constructor(
             // Linearly interpolate between the two angles then normalize the interpolated result. Normalizing the result is
             // necessary when we have added 360 degrees to either angle in order to interpolate along the shortest arc.
             val angle = (1 - amount) * normalizedAngle1 + amount * normalizedAngle2
-            return fromDegrees(normalizeAngle360(angle))
+            return normalizeAngle360(angle).degrees
         }
 
         /**
@@ -517,16 +517,16 @@ value class Angle private constructor(
     fun distanceTo(angle: Angle): Angle {
         var distance = angle.degrees - degrees
         if (distance < -180) distance += 360.0 else if (distance > 180) distance -= 360.0
-        return fromDegrees(abs(distance))
+        return abs(distance).degrees
     }
 
-    fun normalize180() = if (degrees in -180.0..180.0) this else fromDegrees(normalizeAngle180(degrees))
+    fun normalize180() = if (degrees in -180.0..180.0) this else normalizeAngle180(degrees).degrees
 
-    fun normalize360() = if (degrees in 0.0..360.0) this else fromDegrees(normalizeAngle360(degrees))
+    fun normalize360() = if (degrees in 0.0..360.0) this else normalizeAngle360(degrees).degrees
 
-    fun normalizeLatitude() = if (degrees in -90.0..90.0) this else fromDegrees(normalizeLatitude(degrees))
+    fun normalizeLatitude() = if (degrees in -90.0..90.0) this else normalizeLatitude(degrees).degrees
 
-    fun normalizeLongitude() = if (degrees in -180.0..180.0) this else fromDegrees(normalizeLongitude(degrees))
+    fun normalizeLongitude() = if (degrees in -180.0..180.0) this else normalizeLongitude(degrees).degrees
 
     fun clampAngle180() = coerceIn(NEG180, POS180)
 

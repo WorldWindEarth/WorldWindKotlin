@@ -1,7 +1,7 @@
 package earth.worldwind.globe.projection
 
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.fromDegrees
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Position.Companion.fromDegrees
@@ -62,8 +62,8 @@ class Wgs84ProjectionTest {
     @Test
     fun testGeographicToCartesian_Reciprocal() {
         val wgs84 = Wgs84Projection()
-        val lat = fromDegrees(34.2)
-        val lon = fromDegrees(-119.2)
+        val lat = 34.2.degrees
+        val lon = (-119.2).degrees
         val alt = 1000.0
         val vec = Vec3()
         val pos = Position()
@@ -80,8 +80,8 @@ class Wgs84ProjectionTest {
     @Test
     fun testGeographicToCartesianNormal() {
         val wgs84 = Wgs84Projection()
-        val lat = fromDegrees(34.2)
-        val lon = fromDegrees(-119.2)
+        val lat = 34.2.degrees
+        val lon = (-119.2).degrees
         val result = wgs84.geographicToCartesianNormal(globe, lat, lon, Vec3())
         val theta = toDegrees(asin(result.y))
         val lambda = toDegrees(atan2(result.x, result.z))
@@ -99,8 +99,8 @@ class Wgs84ProjectionTest {
         // at the position. So the Z axes points along the normal to the
         // ellipsoid -- the vector Rn in diagrams.
         val wgs84 = Wgs84Projection()
-        val lat = fromDegrees(34.2)
-        val lon = fromDegrees(-119.2)
+        val lat = 34.2.degrees
+        val lon = (-119.2).degrees
         val alt = 0.0
         // Compute the radius of the prime vertical, Rn, and the vertical
         // delta between the equator and the intersection of Rn and Y axis.

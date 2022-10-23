@@ -1,6 +1,7 @@
 package earth.worldwind.globe.terrain
 
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.fromDegrees
 import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Location.Companion.fromDegrees
@@ -73,7 +74,7 @@ class BasicTerrainTest {
         val tileHeight = tile.level.tileHeight
         val rowStride = (tileWidth + 2) * 3
         val points = FloatArray((tileWidth + 2) * (tileHeight + 2) * 3)
-        val tileOrigin = globe.geographicToCartesian(fromDegrees(0.5), fromDegrees(0.5), 0.0, Vec3())
+        val tileOrigin = globe.geographicToCartesian(0.5.degrees, 0.5.degrees, 0.0, Vec3())
         globe.geographicToCartesianGrid(tile.sector, tileWidth, tileHeight, null, 1.0f, tileOrigin, points, rowStride + 3, rowStride)
         globe.geographicToCartesianBorder(tile.sector, tileWidth + 2, tileHeight + 2, 0.0f, tileOrigin, points)
         tile.origin = tileOrigin
@@ -89,8 +90,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_SouthwestCorner() {
-        val lat = fromDegrees(0.0)
-        val lon = fromDegrees(0.0)
+        val lat = 0.0.degrees
+        val lon = 0.0.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -104,8 +105,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_SoutheastCorner() {
-        val lat = fromDegrees(0.0)
-        val lon = fromDegrees(1.0)
+        val lat = 0.0.degrees
+        val lon = 1.0.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -119,8 +120,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_NorthwestCorner() {
-        val lat = fromDegrees(1.0)
-        val lon = fromDegrees(0.0)
+        val lat = 1.0.degrees
+        val lon = 0.0.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -134,8 +135,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_NortheastCorner() {
-        val lat = fromDegrees(1.0)
-        val lon = fromDegrees(1.0)
+        val lat = 1.0.degrees
+        val lon = 1.0.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -149,8 +150,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_SouthEdge() {
-        val lat = fromDegrees(0.0)
-        val lon = fromDegrees(0.5)
+        val lat = 0.0.degrees
+        val lon = 0.5.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -164,8 +165,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_NorthEdge() {
-        val lat = fromDegrees(1.0)
-        val lon = fromDegrees(0.5)
+        val lat = 1.0.degrees
+        val lon = 0.5.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -179,8 +180,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_WestEdge() {
-        val lat = fromDegrees(0.5)
-        val lon = fromDegrees(0.0)
+        val lat = 0.5.degrees
+        val lon = 0.0.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -194,8 +195,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_EastEdge() {
-        val lat = fromDegrees(0.5)
-        val lon = fromDegrees(1.0)
+        val lat = 0.5.degrees
+        val lon = 1.0.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true
@@ -216,7 +217,7 @@ class BasicTerrainTest {
         val expected = worldWindEcef(bilinearCentroid(sw, se, nw, ne))
         val expectedReturn = true
         val actual = Vec3()
-        val actualReturn = terrain.surfacePoint(fromDegrees(0.125), fromDegrees(0.125), actual)
+        val actualReturn = terrain.surfacePoint(0.125.degrees, 0.125.degrees, actual)
         assertEquals(expected.x, actual.x, TOLERANCE, "surfacePoint Southwest cell x")
         assertEquals(expected.y, actual.y, TOLERANCE, "surfacePoint Southwest cell y")
         assertEquals(expected.z, actual.z, TOLERANCE, "surfacePoint Southwest cell z")
@@ -232,7 +233,7 @@ class BasicTerrainTest {
         val expected = worldWindEcef(bilinearCentroid(sw, se, nw, ne))
         val expectedReturn = true
         val actual = Vec3()
-        val actualReturn = terrain.surfacePoint(fromDegrees(0.125), fromDegrees(0.875), actual)
+        val actualReturn = terrain.surfacePoint(0.125.degrees, 0.875.degrees, actual)
         assertEquals(expected.x, actual.x, TOLERANCE, "surfacePoint Southeast cell x")
         assertEquals(expected.y, actual.y, TOLERANCE, "surfacePoint Southeast cell y")
         assertEquals(expected.z, actual.z, TOLERANCE, "surfacePoint Southeast cell z")
@@ -248,7 +249,7 @@ class BasicTerrainTest {
         val expected = worldWindEcef(bilinearCentroid(sw, se, nw, ne))
         val expectedReturn = true
         val actual = Vec3()
-        val actualReturn = terrain.surfacePoint(fromDegrees(0.875), fromDegrees(0.125), actual)
+        val actualReturn = terrain.surfacePoint(0.875.degrees, 0.125.degrees, actual)
         assertEquals(expected.x, actual.x, TOLERANCE, "surfacePoint Northwest cell x")
         assertEquals(expected.y, actual.y, TOLERANCE, "surfacePoint Northwest cell y")
         assertEquals(expected.z, actual.z, TOLERANCE, "surfacePoint Northwest cell z")
@@ -264,7 +265,7 @@ class BasicTerrainTest {
         val expected = worldWindEcef(bilinearCentroid(sw, se, nw, ne))
         val expectedReturn = true
         val actual = Vec3()
-        val actualReturn = terrain.surfacePoint(fromDegrees(0.875), fromDegrees(0.875), actual)
+        val actualReturn = terrain.surfacePoint(0.875.degrees, 0.875.degrees, actual)
         assertEquals(expected.x, actual.x, TOLERANCE, "surfacePoint Northeast cell x")
         assertEquals(expected.y, actual.y, TOLERANCE, "surfacePoint Northeast cell y")
         assertEquals(expected.z, actual.z, TOLERANCE, "surfacePoint Northeast cell z")
@@ -273,8 +274,8 @@ class BasicTerrainTest {
 
     @Test
     fun testSurfacePoint_Centroid() {
-        val lat = fromDegrees(0.5)
-        val lon = fromDegrees(0.5)
+        val lat = 0.5.degrees
+        val lon = 0.5.degrees
         val alt = 0.0
         val expected = worldWindEcef(officialWgs84Ecef(lat, lon, alt))
         val expectedReturn = true

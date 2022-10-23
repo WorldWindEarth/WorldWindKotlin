@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
@@ -75,7 +76,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
         super.start()
         engine.layers.addLayer(layer)
         engine.camera.set(
-            Angle.fromDegrees(30.0), Angle.fromDegrees(-100.0), engine.distanceToViewGlobeExtents * 1.1,
+            30.0.degrees, (-100.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
     }

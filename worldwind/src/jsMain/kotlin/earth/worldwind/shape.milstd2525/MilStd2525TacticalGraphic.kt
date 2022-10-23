@@ -1,6 +1,10 @@
 package earth.worldwind.shape.milstd2525
 
-import earth.worldwind.geom.*
+import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.Location
+import earth.worldwind.geom.Position
+import earth.worldwind.geom.Sector
 import earth.worldwind.render.Font
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.*
@@ -137,7 +141,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     shape.getModifierString(), textAttributes
                 ).apply {
                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                    rotation = Angle.fromDegrees(shape.getModifierStringAngle().toDouble())
+                    rotation = shape.getModifierStringAngle().toDouble().degrees
                     rotationMode = OrientationMode.RELATIVE_TO_GLOBE
 //                    highlightAttributes = TextAttributes(textAttributes).apply {
 //                        textColor = Color(1f, 1f, 1f, 1f)
