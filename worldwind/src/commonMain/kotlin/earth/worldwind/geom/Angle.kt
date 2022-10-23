@@ -20,6 +20,34 @@ value class Angle private constructor(
      */
     val inRadians get() = toRadians(inDegrees)
     /**
+     * Size of this angle in minutes.
+     */
+    val inMinutes get() = toMinutes(inDegrees)
+    /**
+     * Size of this angle in seconds.
+     */
+    val inSeconds get() = toSeconds(inDegrees)
+    /**
+     * Size of this angle in milliradians.
+     */
+    val inMrad get() = toMrad(inDegrees)
+    /**
+     * Size of this angle in mil NATO.
+     */
+    val inMilNATO get() = toMilNATO(inDegrees)
+    /**
+     * Size of this angle in mil Warsaw Pact.
+     */
+    val inMilWP get() = toMilWP(inDegrees)
+    /**
+     * Size of this angle in Streck.
+     */
+    val inStreck get() = toStreck(inDegrees)
+    /**
+     * Size of this angle in minute of angle (MOA).
+     */
+    val inMOA get() = toMOA(inDegrees)
+    /**
      * Indicates whether this angle is within the normal range of latitude, [-90, 90].
      */
     val isValidLatitude get() = isValidLatitude(inDegrees)
@@ -50,11 +78,67 @@ value class Angle private constructor(
         /**
          * Conversion factor for degrees to radians.
          */
-        private const val DEGREES_TO_RADIANS = PI / 180.0
+        const val DEGREES_TO_RADIANS = PI / 180.0
         /**
          * Conversion factor for radians to degrees.
          */
-        private const val RADIANS_TO_DEGREES = 180.0 / PI
+        const val RADIANS_TO_DEGREES = 180.0 / PI
+        /**
+         * Conversion factor for degrees to minutes.
+         */
+        const val DEGREES_TO_MINUTES = 60.0
+        /**
+         * Conversion factor for minutes to degrees.
+         */
+        const val MINUTES_TO_DEGREES = 1.0 / 60.0
+        /**
+         * Conversion factor for degrees to seconds.
+         */
+        const val DEGREES_TO_SECONDS = 3600.0
+        /**
+         * Conversion factor for seconds to degrees.
+         */
+        const val SECONDS_TO_DEGREES = 1.0 / 3600.0
+        /**
+         * Conversion factor for degrees to milliradians.
+         */
+        const val DEGREES_TO_MRAD = PI * 2.0 / 360.0
+        /**
+         * Conversion factor for milliradians to degrees.
+         */
+        const val MRAD_TO_DEGREES = 360.0 / PI / 2.0
+        /**
+         * Conversion factor for degrees to milliradians (NATO).
+         */
+        const val DEGREES_TO_MIL_NATO = 6400.0 / 360.0
+        /**
+         * Conversion factor for milliradians (NATO) to degrees.
+         */
+        const val MIL_NATO_TO_DEGREES = 360.0 / 6400.0
+        /**
+         * Conversion factor for degrees to milliradians (Warsaw Pact).
+         */
+        const val DEGREES_TO_MIL_WP = 6000.0 / 360.0
+        /**
+         * Conversion factor for milliradians (Warsaw Pact) to degrees.
+         */
+        const val MIL_WP_TO_DEGREES = 360.0 / 6000.0
+        /**
+         * Conversion factor for degrees to milliradians (Sweden).
+         */
+        const val DEGREES_TO_STRECK = 6300.0 / 360.0
+        /**
+         * Conversion factor for milliradians (Sweden) to degrees.
+         */
+        const val STRECK_TO_DEGREES = 360.0 / 6000.0
+        /**
+         * Conversion factor for degrees to minute of angle (MOA).
+         */
+        const val DEGREES_TO_MOA = 21600.0 / 360.0
+        /**
+         * Conversion factor for minute of angle (MOA) to degrees.
+         */
+        const val MOA_TO_DEGREES = 360.0 / 21600.0
 
         /**
          * Returns an Angle equal to this Double number in degrees.
@@ -65,6 +149,41 @@ value class Angle private constructor(
          * Returns an Angle equal to this Double number in radians.
          */
         inline val Double.radians get() = fromRadians(this)
+
+        /**
+         * Returns an Angle equal to this Double number in minutes.
+         */
+        inline val Double.minutes get() = fromMinutes(this)
+
+        /**
+         * Returns an Angle equal to this Double number in seconds.
+         */
+        inline val Double.seconds get() = fromSeconds(this)
+
+        /**
+         * Returns an Angle equal to this Double number in milliradians.
+         */
+        inline val Double.mrad get() = fromMrad(this)
+
+        /**
+         * Returns an Angle equal to this Double number in mil NATO.
+         */
+        inline val Double.milNATO get() = fromMilNATO(this)
+
+        /**
+         * Returns an Angle equal to this Double number in mil Warsaw Pact.
+         */
+        inline val Double.milWP get() = fromMilWP(this)
+
+        /**
+         * Returns an Angle equal to this Double number in Streck.
+         */
+        inline val Double.streck get() = fromStreck(this)
+
+        /**
+         * Returns an Angle equal to this Double number in minute of angle (MOA).
+         */
+        inline val Double.MOA get() = fromMOA(this)
 
         /**
          * Convert radians to degrees
@@ -85,11 +204,74 @@ value class Angle private constructor(
         @JvmStatic fun toRadians(degrees: Double) = degrees * DEGREES_TO_RADIANS
 
         /**
+         * Convert degrees to minutes
+         *
+         * @param degrees value in degrees
+         *
+         * @return value in minutes
+         */
+        @JvmStatic fun toMinutes(degrees: Double) = degrees * DEGREES_TO_MINUTES
+
+        /**
+         * Convert degrees to seconds
+         *
+         * @param degrees value in degrees
+         *
+         * @return value in seconds
+         */
+        @JvmStatic fun toSeconds(degrees: Double) = degrees * DEGREES_TO_SECONDS
+
+        /**
+         * Convert degrees to milliradians
+         *
+         * @param degrees value in degrees
+         *
+         * @return value in milliradians
+         */
+        @JvmStatic fun toMrad(degrees: Double) = degrees * DEGREES_TO_MRAD
+
+        /**
+         * Convert degrees to mil NATO
+         *
+         * @param degrees value in degrees
+         *
+         * @return value in mil NATO
+         */
+        @JvmStatic fun toMilNATO(degrees: Double) = degrees * DEGREES_TO_MIL_NATO
+
+        /**
+         * Convert degrees to mil Warsaw Pact
+         *
+         * @param degrees value in degrees
+         *
+         * @return value in mil Warsaw Pact
+         */
+        @JvmStatic fun toMilWP(degrees: Double) = degrees * DEGREES_TO_MIL_WP
+
+        /**
+         * Convert degrees to Streck
+         *
+         * @param degrees value in degrees
+         *
+         * @return value in mil Streck
+         */
+        @JvmStatic fun toStreck(degrees: Double) = degrees * DEGREES_TO_STRECK
+
+        /**
+         * Convert degrees to minute of angle (MOA)
+         *
+         * @param degrees value in degrees
+         *
+         * @return value in minute of angle (MOA)
+         */
+        @JvmStatic fun toMOA(degrees: Double) = degrees * DEGREES_TO_MOA
+
+        /**
          * Obtains an angle from a specified number of degrees.
          *
          * @param degrees the size in degrees of the angle to be obtained
          *
-         * @return a new angle, whose size in degrees is given by `degrees`
+         * @return a new angle, whose size in degrees is given by [degrees]
          */
         @JvmStatic fun fromDegrees(degrees: Double) = Angle(degrees)
 
@@ -98,9 +280,72 @@ value class Angle private constructor(
          *
          * @param radians the size in radians of the angle to be obtained.
          *
-         * @return a new angle, whose size in radians is given by `radians`.
+         * @return a new angle, whose size in radians is given by [radians].
          */
-        @JvmStatic fun fromRadians(radians: Double) = Angle(toDegrees(radians))
+        @JvmStatic fun fromRadians(radians: Double) = Angle(radians * RADIANS_TO_DEGREES)
+
+        /**
+         * Obtains an angle from a specified number of minutes.
+         *
+         * @param minutes the size in minutes of the angle to be obtained.
+         *
+         * @return a new angle, whose size in minutes is given by [minutes].
+         */
+        @JvmStatic fun fromMinutes(minutes: Double) = Angle(minutes * MINUTES_TO_DEGREES)
+
+        /**
+         * Obtains an angle from a specified number of seconds.
+         *
+         * @param seconds the size in seconds of the angle to be obtained.
+         *
+         * @return a new angle, whose size in seconds is given by [seconds].
+         */
+        @JvmStatic fun fromSeconds(seconds: Double) = Angle(seconds * SECONDS_TO_DEGREES)
+
+        /**
+         * Obtains an angle from a specified number of milliradians.
+         *
+         * @param mrad the size in milliradians of the angle to be obtained.
+         *
+         * @return a new angle, whose size in milliradians is given by [mrad].
+         */
+        @JvmStatic fun fromMrad(mrad: Double) = Angle(mrad * MRAD_TO_DEGREES)
+
+        /**
+         * Obtains an angle from a specified number of mil NATO.
+         *
+         * @param milNATO the size in mil NATO of the angle to be obtained.
+         *
+         * @return a new angle, whose size in mil NATO is given by [milNATO].
+         */
+        @JvmStatic fun fromMilNATO(milNATO: Double) = Angle(milNATO * MIL_NATO_TO_DEGREES)
+
+        /**
+         * Obtains an angle from a specified number of mil Warsaw Pact.
+         *
+         * @param milWP the size in mil WP of the angle to be obtained.
+         *
+         * @return a new angle, whose size in mil WP is given by [milWP].
+         */
+        @JvmStatic fun fromMilWP(milWP: Double) = Angle(milWP * MIL_WP_TO_DEGREES)
+
+        /**
+         * Obtains an angle from a specified number of Streck.
+         *
+         * @param streck the size in Streck of the angle to be obtained.
+         *
+         * @return a new angle, whose size in Streck is given by [streck].
+         */
+        @JvmStatic fun fromStreck(streck: Double) = Angle(streck * STRECK_TO_DEGREES)
+
+        /**
+         * Obtains an angle from a specified number of minute of angle (MOA).
+         *
+         * @param moa the size in MOA of the angle to be obtained.
+         *
+         * @return a new angle, whose size in MOA is given by [moa].
+         */
+        @JvmStatic fun fromMOA(moa: Double) = Angle(moa * MOA_TO_DEGREES)
 
         /**
          * Obtains an angle from rectangular coordinates.
