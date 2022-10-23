@@ -40,9 +40,9 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
                 f = converter.f
             }
             var err = converter.setTransverseMercatorParameters(
-                a, f, originLatitude.radians, centralMeridian.radians, falseEasting, falseNorthing, scale
+                a, f, originLatitude.inRadians, centralMeridian.inRadians, falseEasting, falseNorthing, scale
             )
-            if (err == TMCoordConverter.NO_ERROR) err = converter.convertGeodeticToTransverseMercator(latitude.radians, longitude.radians)
+            if (err == TMCoordConverter.NO_ERROR) err = converter.convertGeodeticToTransverseMercator(latitude.inRadians, longitude.inRadians)
             require(err == TMCoordConverter.NO_ERROR || err == TMCoordConverter.LON_WARNING) { "TM Conversion Error" }
             return TMCoord(latitude, longitude, converter.easting, converter.northing)
         }
@@ -71,7 +71,7 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
             val a = converter.a
             val f = converter.f
             var err = converter.setTransverseMercatorParameters(
-                a, f, originLatitude.radians, centralMeridian.radians, falseEasting, falseNorthing, scale
+                a, f, originLatitude.inRadians, centralMeridian.inRadians, falseEasting, falseNorthing, scale
             )
             if (err == TMCoordConverter.NO_ERROR) err = converter.convertTransverseMercatorToGeodetic(easting, northing)
             require(err == TMCoordConverter.NO_ERROR || err == TMCoordConverter.LON_WARNING) { "TM Conversion Error" }

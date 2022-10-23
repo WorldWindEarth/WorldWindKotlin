@@ -368,21 +368,21 @@ open class Polygon @JvmOverloads constructor(
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (type != VERTEX_COMBINED) {
-            tessCoords[0] = longitude.degrees
-            tessCoords[1] = latitude.degrees
+            tessCoords[0] = longitude.inDegrees
+            tessCoords[1] = latitude.inDegrees
             tessCoords[2] = altitude
             GLU.gluTessVertex(rc.tessellator, tessCoords, 0 /*coords_offset*/, vertex)
         }
         if (vertex == 0) {
-            if (isSurfaceShape) vertexOrigin.set(longitude.degrees, latitude.degrees, altitude) else vertexOrigin.copy(point)
+            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude) else vertexOrigin.copy(point)
             texCoord1d = 0.0
         } else {
             texCoord1d += point.distanceTo(prevPoint)
         }
         prevPoint.copy(point)
         if (isSurfaceShape) {
-            vertexArray[vertexIndex++] = (longitude.degrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.degrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = texCoord2d.x.toFloat()
             vertexArray[vertexIndex++] = texCoord2d.y.toFloat()

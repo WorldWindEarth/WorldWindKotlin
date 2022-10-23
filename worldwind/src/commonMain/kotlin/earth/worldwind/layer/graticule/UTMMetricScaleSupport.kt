@@ -44,7 +44,7 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
             if (layer.hasLookAtPos(rc)) {
                 val latitude = layer.getLookAtLatitude(rc)
                 val longitude = layer.getLookAtLongitude(rc)
-                zone = if (latitude.degrees in UTM_MIN_LATITUDE..UTM_MAX_LATITUDE) {
+                zone = if (latitude.inDegrees in UTM_MIN_LATITUDE..UTM_MAX_LATITUDE) {
                     val utm = UTMCoord.fromLatLon(latitude, longitude)
                     utm.zone
                 } else 0
@@ -64,19 +64,19 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
         if (size < 1 || size > maxResolution) return
         val levelExtremes = extremes!![log10(size).toInt() - 1]
         if (ge.type == TYPE_LINE_EASTING || ge.type == TYPE_LINE_EAST || ge.type == TYPE_LINE_WEST) {
-            levelExtremes.minX = ge.value.degrees.coerceAtMost(levelExtremes.minX)
-            levelExtremes.maxX = ge.value.degrees.coerceAtLeast(levelExtremes.maxX)
+            levelExtremes.minX = ge.value.inDegrees.coerceAtMost(levelExtremes.minX)
+            levelExtremes.maxX = ge.value.inDegrees.coerceAtLeast(levelExtremes.maxX)
         } else if (ge.type == TYPE_LINE_NORTHING || ge.type == TYPE_LINE_SOUTH || ge.type == TYPE_LINE_NORTH) {
             if (hemisphere == levelExtremes.minYHemisphere) {
-                levelExtremes.minY = ge.value.degrees.coerceAtMost(levelExtremes.minY)
+                levelExtremes.minY = ge.value.inDegrees.coerceAtMost(levelExtremes.minY)
             } else if (hemisphere == Hemisphere.S) {
-                levelExtremes.minY = ge.value.degrees
+                levelExtremes.minY = ge.value.inDegrees
                 levelExtremes.minYHemisphere = hemisphere
             }
             if (hemisphere == levelExtremes.maxYHemisphere) {
-                levelExtremes.maxY = ge.value.degrees.coerceAtLeast(levelExtremes.maxY)
+                levelExtremes.maxY = ge.value.inDegrees.coerceAtLeast(levelExtremes.maxY)
             } else if (hemisphere == Hemisphere.N) {
-                levelExtremes.maxY = ge.value.degrees
+                levelExtremes.maxY = ge.value.inDegrees
                 levelExtremes.maxYHemisphere = hemisphere
             }
         }

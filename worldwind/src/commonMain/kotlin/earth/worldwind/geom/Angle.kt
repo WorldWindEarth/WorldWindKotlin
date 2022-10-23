@@ -12,21 +12,21 @@ value class Angle private constructor(
     /**
      * Size of this angle in degrees.
      */
-    val degrees: Double
+    val inDegrees: Double
 ): Comparable<Angle> {
     /**
      * Size of this angle in radians. This may be useful for functions, which
      * generally take radians as trigonometric arguments.
      */
-    val radians get() = toRadians(degrees)
+    val inRadians get() = toRadians(inDegrees)
     /**
      * Indicates whether this angle is within the normal range of latitude, [-90, 90].
      */
-    val isValidLatitude get() = isValidLatitude(degrees)
+    val isValidLatitude get() = isValidLatitude(inDegrees)
     /**
      * Indicates whether this angle is within the normal range of longitude, [-180, 180].
      */
-    val isValidLongitude get() = isValidLongitude(degrees)
+    val isValidLongitude get() = isValidLongitude(inDegrees)
 
     companion object {
         /** Represents an angle of zero degrees  */
@@ -344,8 +344,8 @@ value class Angle private constructor(
         @JvmStatic
         fun interpolateAngle180(amount: Double, angle1: Angle, angle2: Angle): Angle {
             // Normalize the two angles to the range [-180, +180].
-            var normalizedAngle1 = normalizeAngle180(angle1.degrees)
-            var normalizedAngle2 = normalizeAngle180(angle2.degrees)
+            var normalizedAngle1 = normalizeAngle180(angle1.inDegrees)
+            var normalizedAngle2 = normalizeAngle180(angle2.inDegrees)
 
             // If the shortest arc between the two angles crosses the -180/+180 degree boundary, add 360 degrees to the
             // smaller of the two angles then interpolate.
@@ -374,8 +374,8 @@ value class Angle private constructor(
         @JvmStatic
         fun interpolateAngle360(amount: Double, angle1: Angle, angle2: Angle): Angle {
             // Normalize the two angles to the range [-180, +180].
-            var normalizedAngle1 = normalizeAngle180(angle1.degrees)
-            var normalizedAngle2 = normalizeAngle180(angle2.degrees)
+            var normalizedAngle1 = normalizeAngle180(angle1.inDegrees)
+            var normalizedAngle2 = normalizeAngle180(angle2.inDegrees)
 
             // If the shortest arc between the two angles crosses the -180/+180 degree boundary, add 360 degrees to the
             // smaller of the two angles then interpolate.
@@ -398,13 +398,13 @@ value class Angle private constructor(
          * @return the average of `a1` and `a2`
          */
         @JvmStatic
-        fun average(a1: Angle, a2: Angle) = fromDegrees(0.5 * (a1.degrees + a2.degrees))
+        fun average(a1: Angle, a2: Angle) = fromDegrees(0.5 * (a1.inDegrees + a2.inDegrees))
 
         @JvmStatic
-        fun max(a: Angle, b: Angle) = if (a.degrees >= b.degrees) a else b
+        fun max(a: Angle, b: Angle) = if (a.inDegrees >= b.inDegrees) a else b
 
         @JvmStatic
-        fun min(a: Angle, b: Angle) = if (a.degrees <= b.degrees) a else b
+        fun min(a: Angle, b: Angle) = if (a.inDegrees <= b.inDegrees) a else b
 
         /**
          * Indicates whether a specified value is within the normal range of latitude, [-90, 90].
@@ -425,7 +425,7 @@ value class Angle private constructor(
 
     init {
         // NaN value is not suppoted due to unpredictable `compareTo(NaN)` behavior
-        require(!degrees.isNaN()) {
+        require(!inDegrees.isNaN()) {
             logMessage(ERROR, "Angle", "init", "NaN is not supported!")
         }
     }
@@ -439,9 +439,9 @@ value class Angle private constructor(
      *
      * @return an angle whose size is the total of these angles and angles size.
      */
-    operator fun plus(angle: Angle) = fromDegrees(degrees + angle.degrees)
-    fun plusDegrees(degrees: Double) = fromDegrees(this.degrees + degrees)
-    fun plusRadians(radians: Double) = fromRadians(this.radians + radians)
+    operator fun plus(angle: Angle) = fromDegrees(inDegrees + angle.inDegrees)
+    fun plusDegrees(degrees: Double) = fromDegrees(this.inDegrees + degrees)
+    fun plusRadians(radians: Double) = fromRadians(this.inRadians + radians)
 
     /**
      * Obtains the difference of these two angles. This method is not commutative.
@@ -451,9 +451,9 @@ value class Angle private constructor(
      *
      * @return a new angle corresponding to this angle's size minus angle's size.
      */
-    operator fun minus(angle: Angle) = fromDegrees(degrees - angle.degrees)
-    fun minusDegrees(degrees: Double) = fromDegrees(this.degrees - degrees)
-    fun minusRadians(radians: Double) = fromRadians(this.radians - radians)
+    operator fun minus(angle: Angle) = fromDegrees(inDegrees - angle.inDegrees)
+    fun minusDegrees(degrees: Double) = fromDegrees(this.inDegrees - degrees)
+    fun minusRadians(radians: Double) = fromRadians(this.inRadians - radians)
 
     /**
      * Multiplies this angle by another angle.
@@ -464,7 +464,7 @@ value class Angle private constructor(
      *
      * @return a new angle whose size equals this angle's size multiplied by angle's size.
      */
-    operator fun times(angle: Angle) = this * angle.degrees
+    operator fun times(angle: Angle) = this * angle.inDegrees
 
     /**
      * Multiplies this angle by `multiplier`.
@@ -475,7 +475,7 @@ value class Angle private constructor(
      *
      * @return a new angle whose size equals this angle's size multiplied by `multiplier`.
      */
-    operator fun times(multiplier: Double) = fromDegrees(degrees * multiplier)
+    operator fun times(multiplier: Double) = fromDegrees(inDegrees * multiplier)
 
     /**
      * Divides this angle by another angle.
@@ -485,7 +485,7 @@ value class Angle private constructor(
      *
      * @return this angle's degrees divided by angle's degrees.
      */
-    operator fun div(angle: Angle) = this / angle.degrees
+    operator fun div(angle: Angle) = this / angle.inDegrees
 
     /**
      * Divides this angle by another angle.
@@ -499,13 +499,13 @@ value class Angle private constructor(
         require(divisor != 0.0) {
             logMessage(ERROR, "Angle", "div", "divideByZero")
         }
-        return fromDegrees(degrees / divisor)
+        return fromDegrees(inDegrees / divisor)
     }
 
     /**
      * Returns new angle with opposite sign.
      */
-    operator fun unaryMinus() = Angle(-degrees)
+    operator fun unaryMinus() = Angle(-inDegrees)
 
     /**
      * Computes the shortest distance between this and angle, as an angle.
@@ -515,18 +515,18 @@ value class Angle private constructor(
      * @return the angular distance between this and `value`.
      */
     fun distanceTo(angle: Angle): Angle {
-        var distance = angle.degrees - degrees
+        var distance = angle.inDegrees - inDegrees
         if (distance < -180) distance += 360.0 else if (distance > 180) distance -= 360.0
         return abs(distance).degrees
     }
 
-    fun normalize180() = if (degrees in -180.0..180.0) this else normalizeAngle180(degrees).degrees
+    fun normalize180() = if (inDegrees in -180.0..180.0) this else normalizeAngle180(inDegrees).degrees
 
-    fun normalize360() = if (degrees in 0.0..360.0) this else normalizeAngle360(degrees).degrees
+    fun normalize360() = if (inDegrees in 0.0..360.0) this else normalizeAngle360(inDegrees).degrees
 
-    fun normalizeLatitude() = if (degrees in -90.0..90.0) this else normalizeLatitude(degrees).degrees
+    fun normalizeLatitude() = if (inDegrees in -90.0..90.0) this else normalizeLatitude(inDegrees).degrees
 
-    fun normalizeLongitude() = if (degrees in -180.0..180.0) this else normalizeLongitude(degrees).degrees
+    fun normalizeLongitude() = if (inDegrees in -180.0..180.0) this else normalizeLongitude(inDegrees).degrees
 
     fun clampAngle180() = coerceIn(NEG180, POS180)
 
@@ -537,7 +537,7 @@ value class Angle private constructor(
     fun clampLongitude() = coerceIn(NEG180, POS180)
 
     fun toDMS(): DoubleArray {
-        var temp = degrees
+        var temp = inDegrees
         val sign = sign(temp)
         temp *= sign
         var d = floor(temp)
@@ -569,7 +569,7 @@ value class Angle private constructor(
         require(digits in 0..15) {
             logMessage(ERROR, "Angle", "toDecimalDegreesString", "outOfRange")
         }
-        return "%.${digits}f°".format(degrees)
+        return "%.${digits}f°".format(inDegrees)
     }
 
     /**
@@ -612,7 +612,7 @@ value class Angle private constructor(
      *
      * @return -1 if this angle is smaller, 0 if both are equal and +1 if this angle is larger.
      */
-    override operator fun compareTo(other: Angle) = degrees.compareTo(other.degrees)
+    override operator fun compareTo(other: Angle) = inDegrees.compareTo(other.inDegrees)
 
-    override fun toString() = "$degrees°"
+    override fun toString() = "$inDegrees°"
 }

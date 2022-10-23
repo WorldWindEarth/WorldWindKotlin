@@ -53,13 +53,13 @@ open class UTMGraticuleLayer: AbstractUTMGraticuleLayer("UTM Graticule", 1000000
 
     override fun getGridColumn(longitude: Angle): Int {
         val deltaLon = 360.0 / GRID_COLS
-        val col = floor((longitude.degrees + 180) / deltaLon).toInt()
+        val col = floor((longitude.inDegrees + 180) / deltaLon).toInt()
         return col.coerceAtMost(GRID_COLS - 1)
     }
 
     override fun getGridRow(latitude: Angle): Int {
         val deltaLat = UTM_MAX_LATITUDE * 2.0 / GRID_ROWS
-        val row = floor((latitude.degrees + UTM_MAX_LATITUDE) / deltaLat).toInt()
+        val row = floor((latitude.inDegrees + UTM_MAX_LATITUDE) / deltaLat).toInt()
         return row.coerceIn(0, GRID_ROWS - 1)
     }
 

@@ -197,15 +197,15 @@ class WmtsCapabilitiesTest {
         val expectedMinYTwo = -90.0
         val expectedMaxYTwo = 84.0
         var layer = layers[0]
-        val actualMinXOne = layer.wgs84BoundingBox?.sector?.minLongitude?.degrees!!
-        val actualMaxXOne = layer.wgs84BoundingBox?.sector?.maxLongitude?.degrees!!
-        val actualMinYOne = layer.wgs84BoundingBox?.sector?.minLatitude?.degrees!!
-        val actualMaxYOne = layer.wgs84BoundingBox?.sector?.maxLatitude?.degrees!!
+        val actualMinXOne = layer.wgs84BoundingBox?.sector?.minLongitude?.inDegrees!!
+        val actualMaxXOne = layer.wgs84BoundingBox?.sector?.maxLongitude?.inDegrees!!
+        val actualMinYOne = layer.wgs84BoundingBox?.sector?.minLatitude?.inDegrees!!
+        val actualMaxYOne = layer.wgs84BoundingBox?.sector?.maxLatitude?.inDegrees!!
         layer = layers[1]
-        val actualMinXTwo = layer.wgs84BoundingBox?.sector?.minLongitude?.degrees!!
-        val actualMaxXTwo = layer.wgs84BoundingBox?.sector?.maxLongitude?.degrees!!
-        val actualMinYTwo = layer.wgs84BoundingBox?.sector?.minLatitude?.degrees!!
-        val actualMaxYTwo = layer.wgs84BoundingBox?.sector?.maxLatitude?.degrees!!
+        val actualMinXTwo = layer.wgs84BoundingBox?.sector?.minLongitude?.inDegrees!!
+        val actualMaxXTwo = layer.wgs84BoundingBox?.sector?.maxLongitude?.inDegrees!!
+        val actualMinYTwo = layer.wgs84BoundingBox?.sector?.minLatitude?.inDegrees!!
+        val actualMaxYTwo = layer.wgs84BoundingBox?.sector?.maxLatitude?.inDegrees!!
         assertEquals(expectedMinXOne, actualMinXOne, DELTA, "Layer Bounding Box MinX Layer One")
         assertEquals(expectedMaxXOne, actualMaxXOne, DELTA, "Layer Bounding Box MaxX Layer One")
         assertEquals(expectedMinYOne, actualMinYOne, DELTA, "Layer Bounding Box MinY Layer One")

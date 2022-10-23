@@ -21,10 +21,10 @@ open class Wgs84Projection: GeographicProjection {
     override val is2D = false
 
     override fun geographicToCartesian(globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, result: Vec3): Vec3 {
-        val cosLat = cos(latitude.radians)
-        val sinLat = sin(latitude.radians)
-        val cosLon = cos(longitude.radians)
-        val sinLon = sin(longitude.radians)
+        val cosLat = cos(latitude.inRadians)
+        val sinLat = sin(latitude.inRadians)
+        val cosLon = cos(longitude.inRadians)
+        val sinLon = sin(longitude.inRadians)
         val ec2 = globe.eccentricitySquared
         val rpm = globe.equatorialRadius / sqrt(1.0 - ec2 * sinLat * sinLat)
         return result.set(
@@ -35,10 +35,10 @@ open class Wgs84Projection: GeographicProjection {
     }
 
     override fun geographicToCartesianNormal(globe: Globe, latitude: Angle, longitude: Angle, result: Vec3): Vec3 {
-        val cosLat = cos(latitude.radians)
-        val sinLat = sin(latitude.radians)
-        val cosLon = cos(longitude.radians)
-        val sinLon = sin(longitude.radians)
+        val cosLat = cos(latitude.inRadians)
+        val sinLat = sin(latitude.inRadians)
+        val cosLon = cos(longitude.inRadians)
+        val sinLon = sin(longitude.inRadians)
         val eqr2 = globe.equatorialRadius * globe.equatorialRadius
         val pol2 = globe.polarRadius * globe.polarRadius
         return result.set(
@@ -51,10 +51,10 @@ open class Wgs84Projection: GeographicProjection {
     override fun geographicToCartesianTransform(
         globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4
     ): Matrix4 {
-        val cosLat = cos(latitude.radians)
-        val sinLat = sin(latitude.radians)
-        val cosLon = cos(longitude.radians)
-        val sinLon = sin(longitude.radians)
+        val cosLat = cos(latitude.inRadians)
+        val sinLat = sin(latitude.inRadians)
+        val cosLon = cos(longitude.inRadians)
+        val sinLon = sin(longitude.inRadians)
         val ec2 = globe.eccentricitySquared
         val rpm = globe.equatorialRadius / sqrt(1.0 - ec2 * sinLat * sinLat)
         val eqr2 = globe.equatorialRadius * globe.equatorialRadius
@@ -133,10 +133,10 @@ open class Wgs84Projection: GeographicProjection {
         require(height == null || height.size >= numLat * numLon) {
             logMessage(ERROR, "Wgs84Projection", "geographicToCartesianGrid", "missingArray")
         }
-        val minLat = sector.minLatitude.radians
-        val maxLat = sector.maxLatitude.radians
-        val minLon = sector.minLongitude.radians
-        val maxLon = sector.maxLongitude.radians
+        val minLat = sector.minLatitude.inRadians
+        val maxLat = sector.maxLatitude.inRadians
+        val minLon = sector.minLongitude.inRadians
+        val maxLon = sector.maxLongitude.inRadians
         val deltaLat = (maxLat - minLat) / if (numLat > 1) numLat - 1 else 1
         val deltaLon = (maxLon - minLon) / if (numLon > 1) numLon - 1 else 1
         val eqr = globe.equatorialRadius
@@ -192,10 +192,10 @@ open class Wgs84Projection: GeographicProjection {
                 "Number of latitude or longitude locations is less than one"
             )
         }
-        val minLat = sector.minLatitude.radians
-        val maxLat = sector.maxLatitude.radians
-        val minLon = sector.minLongitude.radians
-        val maxLon = sector.maxLongitude.radians
+        val minLat = sector.minLatitude.inRadians
+        val maxLat = sector.maxLatitude.inRadians
+        val minLon = sector.minLongitude.inRadians
+        val maxLon = sector.maxLongitude.inRadians
         val deltaLat = (maxLat - minLat) / if (numLat > 1) numLat - 3 else 1
         val deltaLon = (maxLon - minLon) / if (numLon > 1) numLon - 3 else 1
         var lat = minLat
@@ -309,10 +309,10 @@ open class Wgs84Projection: GeographicProjection {
 
     override fun cartesianToLocalTransform(globe: Globe, x: Double, y: Double, z: Double, result: Matrix4): Matrix4 {
         val pos = cartesianToGeographic(globe, x, y, z, scratchPos)
-        val cosLat = cos(pos.latitude.radians)
-        val sinLat = sin(pos.latitude.radians)
-        val cosLon = cos(pos.longitude.radians)
-        val sinLon = sin(pos.longitude.radians)
+        val cosLat = cos(pos.latitude.inRadians)
+        val sinLat = sin(pos.latitude.inRadians)
+        val cosLon = cos(pos.longitude.inRadians)
+        val sinLon = sin(pos.longitude.inRadians)
         val eqr2 = globe.equatorialRadius * globe.equatorialRadius
         val pol2 = globe.polarRadius * globe.polarRadius
 

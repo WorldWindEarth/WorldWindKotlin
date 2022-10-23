@@ -15,8 +15,8 @@ class CoordTest {
         private fun isClose(a: Location, b: Location) = isClose(a, b, toRadians(9.0e-6))
 
         private fun isClose(a: Location, b: Location, limit: Double) =
-            (isClose(a.latitude.radians, b.latitude.radians, limit)
-                    && isClose(a.longitude.radians, b.longitude.radians, limit))
+            (isClose(a.latitude.inRadians, b.latitude.inRadians, limit)
+                    && isClose(a.longitude.inRadians, b.longitude.inRadians, limit))
 
         private val TEST_POSITIONS = arrayOf(
             fromDegrees(-74.37916, 155.02235),

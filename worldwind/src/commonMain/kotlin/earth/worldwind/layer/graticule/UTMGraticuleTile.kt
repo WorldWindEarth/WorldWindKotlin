@@ -13,7 +13,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.PathType
 
 internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, private val zone: Int): AbstractGraticuleTile(layer, sector) {
-    private val hemisphere = if (sector.centroidLatitude.degrees > 0) Hemisphere.N else Hemisphere.S
+    private val hemisphere = if (sector.centroidLatitude.inDegrees > 0) Hemisphere.N else Hemisphere.S
     private var squares: MutableList<UTMSquareZone>? = null
     override val layer get() = super.layer as UTMGraticuleLayer
 
@@ -66,7 +66,7 @@ internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, privat
         gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE, sector.minLongitude))
 
         // Generate south parallel at south pole and equator
-        if (sector.minLatitude.degrees == UTM_MIN_LATITUDE || sector.minLatitude.degrees == 0.0) {
+        if (sector.minLatitude.inDegrees == UTM_MIN_LATITUDE || sector.minLatitude.inDegrees == 0.0) {
             positions.clear()
             positions.add(Position(sector.minLatitude, sector.minLongitude, 0.0))
             positions.add(Position(sector.minLatitude, sector.maxLongitude, 0.0))
@@ -76,7 +76,7 @@ internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, privat
         }
 
         // Generate north parallel at north pole
-        if (sector.maxLatitude.degrees == UTM_MAX_LATITUDE) {
+        if (sector.maxLatitude.inDegrees == UTM_MAX_LATITUDE) {
             positions.clear()
             positions.add(Position(sector.maxLatitude, sector.minLongitude, 0.0))
             positions.add(Position(sector.maxLatitude, sector.maxLongitude, 0.0))
@@ -98,9 +98,9 @@ internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, privat
     private fun hasLabel(): Boolean {
         // Has label if it contains hemisphere mid latitude
         val southLat = UTM_MIN_LATITUDE / 2.0
-        val southLabel = sector.minLatitude.degrees < southLat && southLat <= sector.maxLatitude.degrees
+        val southLabel = sector.minLatitude.inDegrees < southLat && southLat <= sector.maxLatitude.inDegrees
         val northLat = UTM_MAX_LATITUDE / 2.0
-        val northLabel = (sector.minLatitude.degrees < northLat && northLat <= sector.maxLatitude.degrees)
+        val northLabel = (sector.minLatitude.inDegrees < northLat && northLat <= sector.maxLatitude.inDegrees)
         return southLabel || northLabel
     }
 

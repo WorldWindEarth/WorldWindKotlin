@@ -116,8 +116,8 @@ The cross-hairs and overlays react to the user input"""
      * @param camera Where the camera is positioned
      */
     protected open fun updateOverlayContents(lookAt: LookAt, camera: Camera) {
-        latView.text = formatLatitude(lookAt.position.latitude.degrees)
-        lonView.text = formatLongitude(lookAt.position.longitude.degrees)
+        latView.text = formatLatitude(lookAt.position.latitude.inDegrees)
+        lonView.text = formatLongitude(lookAt.position.longitude.inDegrees)
         elevView.text = formatElevation(
             wwd.engine.globe.getElevationAtLocation(
                 lookAt.position.latitude, lookAt.position.longitude

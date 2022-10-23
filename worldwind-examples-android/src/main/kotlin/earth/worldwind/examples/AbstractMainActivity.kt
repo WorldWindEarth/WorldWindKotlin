@@ -129,14 +129,14 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
 
         // Write the camera data
         val camera = wwd.engine.camera
-        editor.putFloat(CAMERA_LATITUDE, camera.position.latitude.degrees.toFloat())
-        editor.putFloat(CAMERA_LONGITUDE, camera.position.longitude.degrees.toFloat())
+        editor.putFloat(CAMERA_LATITUDE, camera.position.latitude.inDegrees.toFloat())
+        editor.putFloat(CAMERA_LONGITUDE, camera.position.longitude.inDegrees.toFloat())
         editor.putFloat(CAMERA_ALTITUDE, camera.position.altitude.toFloat())
         editor.putInt(CAMERA_ALTITUDE_MODE, camera.altitudeMode.ordinal)
-        editor.putFloat(CAMERA_HEADING, camera.heading.degrees.toFloat())
-        editor.putFloat(CAMERA_TILT, camera.tilt.degrees.toFloat())
-        editor.putFloat(CAMERA_ROLL, camera.roll.degrees.toFloat())
-        editor.putFloat(CAMERA_FOV, camera.fieldOfView.degrees.toFloat())
+        editor.putFloat(CAMERA_HEADING, camera.heading.inDegrees.toFloat())
+        editor.putFloat(CAMERA_TILT, camera.tilt.inDegrees.toFloat())
+        editor.putFloat(CAMERA_ROLL, camera.roll.inDegrees.toFloat())
+        editor.putFloat(CAMERA_FOV, camera.fieldOfView.inDegrees.toFloat())
         editor.apply()
     }
 

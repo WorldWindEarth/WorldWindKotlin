@@ -249,7 +249,7 @@ open class Path @JvmOverloads constructor(
         val vertex = vertexIndex / VERTEX_STRIDE
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertex == 0) {
-            if (isSurfaceShape) vertexOrigin.set(longitude.degrees, latitude.degrees, altitude)
+            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
             else vertexOrigin.copy(point)
             texCoord1d = 0.0
         } else {
@@ -257,8 +257,8 @@ open class Path @JvmOverloads constructor(
         }
         prevPoint.copy(point)
         if (isSurfaceShape) {
-            vertexArray[vertexIndex++] = (longitude.degrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.degrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
             outlineElements.add(vertex.toShort())

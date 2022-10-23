@@ -408,8 +408,8 @@ class Vec2Test {
 
         // Rotate and translate a unit vector
         val u = Vec2(1.0, 0.0).multiplyByMatrix(m)
-        assertEquals(theta.radians, acos(u.x - x), 1e-10, "acos u.x")
-        assertEquals(theta.radians, asin(u.y - y), 1e-10, "asin u.y")
+        assertEquals(theta.inRadians, acos(u.x - x), 1e-10, "acos u.x")
+        assertEquals(theta.inRadians, asin(u.y - y), 1e-10, "asin u.y")
     }
 
     /**

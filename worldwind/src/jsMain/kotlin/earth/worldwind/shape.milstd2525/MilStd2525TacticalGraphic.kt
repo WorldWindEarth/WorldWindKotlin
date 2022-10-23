@@ -28,7 +28,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
 
     override fun transformLocations(locations: List<Location>) {
         if (this::controlPoints.isInitialized) controlPoints.clear() else controlPoints = java.util.ArrayList()
-        for (location in locations) controlPoints.add(armyc2.c2sd.graphics2d.Point2D(location.longitude.degrees, location.latitude.degrees))
+        for (location in locations) controlPoints.add(armyc2.c2sd.graphics2d.Point2D(location.longitude.inDegrees, location.latitude.inDegrees))
         val point0 = controlPoints.get(0) ?: return
         var left = point0.getX().toDouble()
         var top = point0.getY().toDouble()

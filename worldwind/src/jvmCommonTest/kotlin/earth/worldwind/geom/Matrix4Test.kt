@@ -533,8 +533,8 @@ class Matrix4Test {
         assertEquals(0.0, r.y, TOLERANCE, "u.y")
         assertEquals(0.0, r.z, TOLERANCE, "u.z")
         val theta = 30.0.degrees // rotation angle
-        val c = cos(theta.radians)
-        val s = sin(theta.radians)
+        val c = cos(theta.inRadians)
+        val s = sin(theta.inRadians)
         val m1 = Matrix4().multiplyByRotation(1.0, 0.0, 0.0, theta)
         val m2 = Matrix4().multiplyByRotation(0.0, 1.0, 0.0, theta)
         val m3 = Matrix4().multiplyByRotation(0.0, 0.0, 1.0, theta)

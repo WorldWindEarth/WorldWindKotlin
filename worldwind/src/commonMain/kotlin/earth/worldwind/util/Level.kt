@@ -67,8 +67,8 @@ open class Level internal constructor(
         require(tileDelta.latitude > ZERO && tileDelta.longitude > ZERO) {
             logMessage(ERROR, "Level", "constructor", "The tile delta is zero")
         }
-        levelWidth = (parent.tileWidth * parent.sector.deltaLongitude.degrees / tileDelta.longitude.degrees).roundToInt()
-        levelHeight = (parent.tileHeight * parent.sector.deltaLatitude.degrees / tileDelta.latitude.degrees).roundToInt()
+        levelWidth = (parent.tileWidth * parent.sector.deltaLongitude.inDegrees / tileDelta.longitude.inDegrees).roundToInt()
+        levelHeight = (parent.tileHeight * parent.sector.deltaLatitude.inDegrees / tileDelta.latitude.inDegrees).roundToInt()
         tileWidth = parent.tileWidth
         tileHeight = parent.tileHeight
     }

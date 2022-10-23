@@ -17,8 +17,8 @@ import earth.worldwind.shape.PathType
  * Represent a UTM zone / latitude band intersection
  */
 class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticuleTile(layer, sector) {
-    val isUPS = sector.maxLatitude.degrees > AbstractUTMGraticuleLayer.UTM_MAX_LATITUDE
-            || sector.minLatitude.degrees < AbstractUTMGraticuleLayer.UTM_MIN_LATITUDE
+    val isUPS = sector.maxLatitude.inDegrees > AbstractUTMGraticuleLayer.UTM_MAX_LATITUDE
+            || sector.minLatitude.inDegrees < AbstractUTMGraticuleLayer.UTM_MIN_LATITUDE
     private var name: String
     private var hemisphere: Hemisphere
     private var zone: Int
@@ -29,7 +29,7 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
         val mgrs = MGRSCoord.fromLatLon(sector.centroidLatitude, sector.centroidLongitude)
         if (isUPS) {
             name = mgrs.toString().substring(2, 3)
-            hemisphere = if (sector.minLatitude.degrees > 0) Hemisphere.N else Hemisphere.S
+            hemisphere = if (sector.minLatitude.inDegrees > 0) Hemisphere.N else Hemisphere.S
             zone = 0
         } else {
             name = mgrs.toString().substring(0, 3)

@@ -52,9 +52,9 @@ class BoundingBoxTest {
         val centerLat = ZERO
         val centerLon = ZERO
         // Create a very, very small sector.
-        val smallSector = sectorFromCentroid(centerLat.degrees, centerLon.degrees, 0.0001, 0.0001)
+        val smallSector = sectorFromCentroid(centerLat.inDegrees, centerLon.inDegrees, 0.0001, 0.0001)
         // Create a large sector.
-        val largeSector = sectorFromCentroid(centerLat.degrees, centerLon.degrees, 1.0, 1.0)
+        val largeSector = sectorFromCentroid(centerLat.inDegrees, centerLon.inDegrees, 1.0, 1.0)
         // Create a point coincident with the sectors' centroids
         val point = globe.geographicToCartesian(centerLat, centerLon, 0.0, Vec3())
 

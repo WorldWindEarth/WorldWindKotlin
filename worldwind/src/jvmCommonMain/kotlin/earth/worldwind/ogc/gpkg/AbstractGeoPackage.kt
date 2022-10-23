@@ -106,10 +106,10 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
         writeDefaultSpatialReferenceSystems()
-        val minX = levelSet.sector.minLongitude.degrees
-        val minY = levelSet.sector.minLatitude.degrees
-        val maxX = levelSet.sector.maxLongitude.degrees
-        val maxY = levelSet.sector.maxLatitude.degrees
+        val minX = levelSet.sector.minLongitude.inDegrees
+        val minY = levelSet.sector.minLatitude.inDegrees
+        val maxX = levelSet.sector.maxLongitude.inDegrees
+        val maxY = levelSet.sector.maxLatitude.inDegrees
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
         val content = GpkgContent(this, tableName, "tiles", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
         writeContent(content)
@@ -117,8 +117,8 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
             val matrixWidth = levelWidth / tileWidth
             val matrixHeight = levelHeight / tileHeight
-            val pixelXSize = levelSet.sector.deltaLongitude.degrees / levelWidth
-            val pixelYSize = levelSet.sector.deltaLatitude.degrees / levelHeight
+            val pixelXSize = levelSet.sector.deltaLongitude.inDegrees / levelWidth
+            val pixelYSize = levelSet.sector.deltaLatitude.inDegrees / levelHeight
             writeMatrix(
                 GpkgTileMatrix(
                     this@AbstractGeoPackage, tableName, levelNumber + firstLevelOffset,
@@ -165,17 +165,17 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         createRequiredTables()
         createGriddedCoverageTables()
         writeDefaultSpatialReferenceSystems()
-        val minX = tileMatrixSet.sector.minLongitude.degrees
-        val minY = tileMatrixSet.sector.minLatitude.degrees
-        val maxX = tileMatrixSet.sector.maxLongitude.degrees
-        val maxY = tileMatrixSet.sector.maxLatitude.degrees
+        val minX = tileMatrixSet.sector.minLongitude.inDegrees
+        val minY = tileMatrixSet.sector.minLatitude.inDegrees
+        val maxX = tileMatrixSet.sector.maxLongitude.inDegrees
+        val maxY = tileMatrixSet.sector.maxLatitude.inDegrees
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
         val content = GpkgContent(this, tableName, "2d-gridded-coverage", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
         writeContent(content)
         writeMatrixSet(GpkgTileMatrixSet(this, tableName, EPSG_ID, minX, minY, maxX, maxY))
         for (tileMatrix in tileMatrixSet.entries) tileMatrix.run {
-            val pixelXSize = tileMatrixSet.sector.deltaLongitude.degrees / matrixWidth / tileWidth
-            val pixelYSize = tileMatrixSet.sector.deltaLatitude.degrees / matrixHeight / tileHeight
+            val pixelXSize = tileMatrixSet.sector.deltaLongitude.inDegrees / matrixWidth / tileWidth
+            val pixelYSize = tileMatrixSet.sector.deltaLatitude.inDegrees / matrixHeight / tileHeight
             writeMatrix(GpkgTileMatrix(this@AbstractGeoPackage, tableName, ordinal, matrixWidth, matrixHeight, tileWidth, tileHeight, pixelXSize, pixelYSize))
         }
         createTilesTable(tableName)

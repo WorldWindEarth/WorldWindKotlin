@@ -410,7 +410,7 @@ open class WorldWind @JvmOverloads constructor(
      * @return the pixel height in meters per pixel
      */
     open fun pixelSizeAtDistance(distance: Double): Double {
-        val tanFovY2 = tan(camera.fieldOfView.radians * 0.5)
+        val tanFovY2 = tan(camera.fieldOfView.inRadians * 0.5)
         val frustumHeight = 2 * distance * tanFovY2
         return frustumHeight / viewport.height
     }
@@ -420,7 +420,7 @@ open class WorldWind @JvmOverloads constructor(
      * Window.
      */
     val distanceToViewGlobeExtents get(): Double {
-        val sinFovY2 = sin(camera.fieldOfView.radians * 0.5)
+        val sinFovY2 = sin(camera.fieldOfView.inRadians * 0.5)
         val radius = globe.equatorialRadius
         return radius / sinFovY2 - radius
     }
@@ -541,7 +541,7 @@ open class WorldWind @JvmOverloads constructor(
             camera.position.latitude, camera.position.longitude
         ) * verticalExaggeration
         if (distanceToSurface > 0) {
-            val tanHalfFov = tan(0.5 * camera.fieldOfView.radians)
+            val tanHalfFov = tan(0.5 * camera.fieldOfView.inRadians)
             val maxNearDistance = distanceToSurface / (2 * sqrt(2 * tanHalfFov * tanHalfFov + 1))
             if (near > maxNearDistance) near = maxNearDistance
         }

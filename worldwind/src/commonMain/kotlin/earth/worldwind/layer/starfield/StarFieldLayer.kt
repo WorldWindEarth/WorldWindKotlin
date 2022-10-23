@@ -110,8 +110,8 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
         //.y = right ascension
         //.z = point size
         //.w = magnitude
-        sunBufferView[0] = sunCelestialLocation.declination.degrees.toFloat()
-        sunBufferView[1] = sunCelestialLocation.rightAscension.degrees.toFloat()
+        sunBufferView[0] = sunCelestialLocation.declination.inDegrees.toFloat()
+        sunBufferView[1] = sunCelestialLocation.rightAscension.inDegrees.toFloat()
         sunBufferView[2] = sunSize.coerceAtMost(MAX_GL_POINT_SIZE)
         sunBufferView[3] = 1f
 

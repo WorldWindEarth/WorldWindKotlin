@@ -59,7 +59,7 @@ open class LevelSetConfig {
             logMessage(ERROR, "LevelSetConfig", "numLevelsForResolution", "invalidResolution")
         }
         val degreesPerPixel = toDegrees(radiansPerPixel)
-        val firstLevelDegreesPerPixel = firstLevelDelta.latitude.degrees / tileHeight
+        val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
         val level = ln(firstLevelDegreesPerPixel / degreesPerPixel) / ln(2.0) // fractional level address
         var levelNumber = ceil(level).toInt() // ceiling captures the resolution
         if (levelNumber < 0) levelNumber = 0 // need at least one level, even if it exceeds the desired resolution
@@ -82,7 +82,7 @@ open class LevelSetConfig {
             logMessage(ERROR, "LevelSetConfig", "numLevelsForMinResolution", "invalidResolution")
         }
         val degreesPerPixel = toDegrees(radiansPerPixel)
-        val firstLevelDegreesPerPixel = firstLevelDelta.latitude.degrees / tileHeight
+        val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
         val level = ln(firstLevelDegreesPerPixel / degreesPerPixel) / ln(2.0) // fractional level address
         var levelNumber = floor(level).toInt() // floor prevents exceeding the min scale
         if (levelNumber < 0) levelNumber = 0 // need at least one level, even if it exceeds the desired resolution

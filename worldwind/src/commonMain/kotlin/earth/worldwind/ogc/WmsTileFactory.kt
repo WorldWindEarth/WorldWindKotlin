@@ -87,15 +87,15 @@ class WmsTileFactory(
             appendQueryParameter("CRS", coordinateSystem)
             appendQueryParameter("BBOX", sector.run {
                 if (coordinateSystem == "CRS:84") {
-                    "${minLongitude.degrees},${minLatitude.degrees},${maxLongitude.degrees},${maxLatitude.degrees}"
+                    "${minLongitude.inDegrees},${minLatitude.inDegrees},${maxLongitude.inDegrees},${maxLatitude.inDegrees}"
                 } else {
-                    "${minLatitude.degrees},${minLongitude.degrees},${maxLatitude.degrees},${maxLongitude.degrees}"
+                    "${minLatitude.inDegrees},${minLongitude.inDegrees},${maxLatitude.inDegrees},${maxLongitude.inDegrees}"
                 }
             })
         } else {
             appendQueryParameter("SRS", coordinateSystem)
             appendQueryParameter("BBOX", sector.run {
-                "${minLongitude.degrees},${minLatitude.degrees},${maxLongitude.degrees},${maxLatitude.degrees}"
+                "${minLongitude.inDegrees},${minLatitude.inDegrees},${maxLongitude.inDegrees},${maxLatitude.inDegrees}"
             })
         }
         timeString?.let{ appendQueryParameter("TIME", it) }

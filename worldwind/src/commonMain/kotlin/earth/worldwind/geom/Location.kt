@@ -126,13 +126,13 @@ open class Location(
             if (len < 2) return false
 
             // Compute the longitude attributes associated with the first location.
-            var lon1 = normalizeLongitude(locations[0].longitude.degrees)
+            var lon1 = normalizeLongitude(locations[0].longitude.inDegrees)
             var sig1 = sign(lon1)
 
             // Iterate over the segments in the list. A segment crosses the antimeridian if its endpoint longitudes have
             // different signs and are more than 180 degrees apart (but not 360, which indicates the longitudes are the same).
             for (idx in 1 until len) {
-                val lon2 = normalizeLongitude(locations[idx].longitude.degrees)
+                val lon2 = normalizeLongitude(locations[idx].longitude.inDegrees)
                 val sig2 = sign(lon2)
                 if (sig1 != sig2) {
                     val delta = abs(lon1 - lon2)
@@ -235,10 +235,10 @@ open class Location(
      * @return the computed azimuth
      */
     fun greatCircleAzimuth(location: Location): Angle {
-        val lat1 = latitude.radians
-        val lon1 = longitude.radians
-        val lat2 = location.latitude.radians
-        val lon2 = location.longitude.radians
+        val lat1 = latitude.inRadians
+        val lon1 = longitude.inRadians
+        val lat2 = location.latitude.inRadians
+        val lon2 = location.longitude.inRadians
         if (lat1 == lat2 && lon1 == lon2) return ZERO
         if (lon1 == lon2) return if (lat1 > lat2) POS180 else ZERO
 
@@ -261,10 +261,10 @@ open class Location(
      * @return the computed angular distance in radians
      */
     fun greatCircleDistance(location: Location): Double {
-        val lat1Radians = latitude.radians
-        val lon1Radians = longitude.radians
-        val lat2Radians = location.latitude.radians
-        val lon2Radians = location.longitude.radians
+        val lat1Radians = latitude.inRadians
+        val lon1Radians = longitude.inRadians
+        val lat2Radians = location.latitude.inRadians
+        val lon2Radians = location.longitude.inRadians
         if (lat1Radians == lat2Radians && lon1Radians == lon2Radians) return 0.0
 
         // "Haversine formula," taken from http://en.wikipedia.org/wiki/Great-circle_distance#Formul.C3.A6
@@ -291,9 +291,9 @@ open class Location(
             result.longitude = longitude
             return result
         }
-        val latRadians = latitude.radians
-        val lonRadians = longitude.radians
-        val azimuthRadians = azimuth.radians
+        val latRadians = latitude.inRadians
+        val lonRadians = longitude.inRadians
+        val azimuthRadians = azimuth.inRadians
         val cosLat = cos(latRadians)
         val sinLat = sin(latRadians)
         val cosAzimuth = cos(azimuthRadians)
@@ -326,10 +326,10 @@ open class Location(
      * @return the computed azimuth
      */
     fun rhumbAzimuth(location: Location): Angle {
-        val lat1 = latitude.radians
-        val lon1 = longitude.radians
-        val lat2 = location.latitude.radians
-        val lon2 = location.longitude.radians
+        val lat1 = latitude.inRadians
+        val lon1 = longitude.inRadians
+        val lat2 = location.latitude.inRadians
+        val lon2 = location.longitude.inRadians
         if (lat1 == lat2 && lon1 == lon2) return ZERO
         var dLon = lon2 - lon1
         val dPhi = ln(tan(lat2 / 2.0 + PI / 4) / tan(lat1 / 2.0 + PI / 4))
@@ -351,10 +351,10 @@ open class Location(
      * @return the computed angular distance in radians
      */
     fun rhumbDistance(location: Location): Double {
-        val lat1 = latitude.radians
-        val lon1 = longitude.radians
-        val lat2 = location.latitude.radians
-        val lon2 = location.longitude.radians
+        val lat1 = latitude.inRadians
+        val lon1 = longitude.inRadians
+        val lat2 = location.latitude.inRadians
+        val lon2 = location.longitude.inRadians
         if (lat1 == lat2 && lon1 == lon2) return 0.0
         val dLat = lat2 - lat1
         var dLon = lon2 - lon1
@@ -387,9 +387,9 @@ open class Location(
             result.longitude = longitude
             return result
         }
-        val latRadians = latitude.radians
-        val lonRadians = longitude.radians
-        val azimuthRadians = azimuth.radians
+        val latRadians = latitude.inRadians
+        val lonRadians = longitude.inRadians
+        val azimuthRadians = azimuth.inRadians
         var endLatRadians = latRadians + distanceRadians * cos(azimuthRadians)
         val dLat = endLatRadians - latRadians
         // Avoid indeterminates along E/W courses when lat end points are "nearly" identical
@@ -423,10 +423,10 @@ open class Location(
      * @return the computed azimuth
      */
     fun linearAzimuth(location: Location): Angle {
-        val lat1 = latitude.radians
-        val lon1 = longitude.radians
-        val lat2 = location.latitude.radians
-        val lon2 = location.longitude.radians
+        val lat1 = latitude.inRadians
+        val lon1 = longitude.inRadians
+        val lat2 = location.latitude.inRadians
+        val lon2 = location.longitude.inRadians
         if (lat1 == lat2 && lon1 == lon2) return ZERO
         var dLon = lon2 - lon1
         val dPhi = lat2 - lat1
@@ -448,10 +448,10 @@ open class Location(
      * @return the computed angular distance in radians
      */
     fun linearDistance(location: Location): Double {
-        val lat1 = latitude.radians
-        val lon1 = longitude.radians
-        val lat2 = location.latitude.radians
-        val lon2 = location.longitude.radians
+        val lat1 = latitude.inRadians
+        val lon1 = longitude.inRadians
+        val lat2 = location.latitude.inRadians
+        val lon2 = location.longitude.inRadians
         if (lat1 == lat2 && lon1 == lon2) return 0.0
         val dLat = lat2 - lat1
         var dLon = lon2 - lon1
@@ -478,9 +478,9 @@ open class Location(
             result.longitude = longitude
             return result
         }
-        val latRadians = latitude.radians
-        val lonRadians = longitude.radians
-        val azimuthRadians = azimuth.radians
+        val latRadians = latitude.inRadians
+        val lonRadians = longitude.inRadians
+        val azimuthRadians = azimuth.inRadians
         var endLatRadians = latRadians + distanceRadians * cos(azimuthRadians)
 
         // Handle latitude passing over either pole.

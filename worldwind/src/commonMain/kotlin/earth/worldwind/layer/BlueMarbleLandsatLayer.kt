@@ -35,7 +35,7 @@ class BlueMarbleLandsatLayer @JvmOverloads constructor(
     })
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int): Tile {
-        val radiansPerPixel = level.tileDelta.latitude.radians / level.tileHeight
+        val radiansPerPixel = level.tileDelta.latitude.inRadians / level.tileHeight
         val metersPerPixel = radiansPerPixel * Ellipsoid.WGS84.semiMajorAxis
         // switch to Landsat at 2km resolution
         return if (metersPerPixel < 2.0e3) landsatTileFactory.createTile(sector, level, row, column)

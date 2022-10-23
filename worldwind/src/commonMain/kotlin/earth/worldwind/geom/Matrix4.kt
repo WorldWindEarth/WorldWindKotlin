@@ -307,8 +307,8 @@ open class Matrix4 private constructor(
      * @return this matrix with its rotation components set to the specified values and all other components unmodified
      */
     fun setRotation(x: Double, y: Double, z: Double, angle: Angle) = apply {
-        val c = cos(angle.radians)
-        val s = sin(angle.radians)
+        val c = cos(angle.inRadians)
+        val s = sin(angle.inRadians)
         m[0] = c + (1 - c) * x * x
         m[1] = (1 - c) * x * y - s * z
         m[2] = (1 - c) * x * z + s * y
@@ -387,8 +387,8 @@ open class Matrix4 private constructor(
      * an identity matrix
      */
     fun setToRotation(x: Double, y: Double, z: Double, angle: Angle) = apply {
-        val c = cos(angle.radians)
-        val s = sin(angle.radians)
+        val c = cos(angle.inRadians)
+        val s = sin(angle.inRadians)
         m[0] = c + (1 - c) * x * x
         m[1] = (1 - c) * x * y - s * z
         m[2] = (1 - c) * x * z + s * y
@@ -503,7 +503,7 @@ open class Matrix4 private constructor(
 
         // Compute the dimensions of the near rectangle given the specified parameters.
         val aspect = viewportWidth / viewportHeight.toDouble()
-        val tanFov2 = tan(vFieldOfView.radians * 0.5)
+        val tanFov2 = tan(vFieldOfView.inRadians * 0.5)
         val nearHeight = 2 * nearDistance * tanFov2
         val nearWidth = nearHeight * aspect
 
@@ -571,7 +571,7 @@ open class Matrix4 private constructor(
 
         // Compute the dimensions of the near rectangle given the specified parameters.
         val aspect = viewportWidth / viewportHeight.toDouble()
-        val tanFov2 = tan(vFieldOfView.radians * 0.5)
+        val tanFov2 = tan(vFieldOfView.inRadians * 0.5)
         val nearHeight = 2 * nearDistance * tanFov2
         val nearWidth = nearHeight * aspect
 
@@ -760,8 +760,8 @@ open class Matrix4 private constructor(
      * @return this matrix multiplied by the rotation matrix implied by the specified values
      */
     fun multiplyByRotation(x: Double, y: Double, z: Double, angle: Angle) = apply {
-        val c = cos(angle.radians)
-        val s = sin(angle.radians)
+        val c = cos(angle.inRadians)
+        val s = sin(angle.inRadians)
         multiplyByMatrix(
             c + (1 - c) * x * x,
             (1 - c) * x * y - s * z,
@@ -1194,8 +1194,8 @@ open class Matrix4 private constructor(
      * @return the extracted heading angle
      */
     fun extractHeading(roll: Angle): Angle {
-        val cr = cos(roll.radians)
-        val sr = sin(roll.radians)
+        val cr = cos(roll.inRadians)
+        val sr = sin(roll.inRadians)
         val ch = cr * m[0] - sr * m[4]
         val sh = sr * m[5] - cr * m[1]
         return atan2(sh, ch).radians

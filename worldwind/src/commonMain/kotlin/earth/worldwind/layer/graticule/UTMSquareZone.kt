@@ -130,8 +130,8 @@ class UTMSquareZone(
         // Label
         if (name != null) {
             // Only add a label to squares above some dimension
-            if (boundingSector.deltaLongitude.degrees * cos(centroid.latitude.radians) > .2
-                && boundingSector.deltaLatitude.degrees > .2
+            if (boundingSector.deltaLongitude.inDegrees * cos(centroid.latitude.inRadians) > .2
+                && boundingSector.deltaLatitude.inDegrees > .2
             ) {
                 val labelPos = if (UTMZone != 0) centroid // Not at poles
                 else if (isPositionInside(Position(squareCenter.latitude, squareCenter.longitude, 0.0))) squareCenter

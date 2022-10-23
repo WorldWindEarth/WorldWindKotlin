@@ -53,7 +53,7 @@ actual open class MercatorImageTile actual constructor(
         val maxy = sector.maxLatPercent
         for (y in 0 until height) {
             val sy = 1.0 - y / (height - 1.0)
-            val lat = sy * sector.deltaLatitude.degrees + sector.minLatitude.degrees
+            val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
             val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
             val srcRow = floor(dy * (height - 1)).toInt()
             for (x in 0 until width) {

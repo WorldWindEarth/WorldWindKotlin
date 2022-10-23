@@ -270,10 +270,10 @@ class WmsCapabilitiesTest {
         val expectedGeographicBoundingBoxNorthLat = 42.90
         val wmsLayer = wmsCapabilities130.getNamedLayer("ROADS_1M")
         val sector = wmsLayer?.geographicBoundingBox!!
-        assertEquals(expectedGeographicBoundingBoxWestLong, sector.minLongitude.degrees, 0.0, "Layer Geographic Bounding Box West")
-        assertEquals(expectedGeographicBoundingBoxEastLong, sector.maxLongitude.degrees, 0.0, "Layer Geographic Bounding Box East")
-        assertEquals(expectedGeographicBoundingBoxNorthLat, sector.maxLatitude.degrees, 0.0, "Layer Geographic Bounding Box North")
-        assertEquals(expectedGeographicBoundingBoxSouthLat, sector.minLatitude.degrees, 0.0, "Layer Geographic Bounding Box South")
+        assertEquals(expectedGeographicBoundingBoxWestLong, sector.minLongitude.inDegrees, 0.0, "Layer Geographic Bounding Box West")
+        assertEquals(expectedGeographicBoundingBoxEastLong, sector.maxLongitude.inDegrees, 0.0, "Layer Geographic Bounding Box East")
+        assertEquals(expectedGeographicBoundingBoxNorthLat, sector.maxLatitude.inDegrees, 0.0, "Layer Geographic Bounding Box North")
+        assertEquals(expectedGeographicBoundingBoxSouthLat, sector.minLatitude.inDegrees, 0.0, "Layer Geographic Bounding Box South")
     }
 
     @Test

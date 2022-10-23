@@ -101,14 +101,14 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 10000
             }
         }
         // Poles
-        if (vs.maxLatitude.degrees > 84) {
+        if (vs.maxLatitude.inDegrees > 84) {
             // North pole
             if (poleZones[2] == null) poleZones[2] = MGRSGridZone(this, fromDegrees(84.0, -180.0, 6.0, 180.0)) // Y
             if (poleZones[3] == null) poleZones[3] = MGRSGridZone(this, fromDegrees(84.0, 0.0, 6.0, 180.0)) // Z
             zoneList.add(poleZones[2]!!)
             zoneList.add(poleZones[3]!!)
         }
-        if (vs.minLatitude.degrees < -80) {
+        if (vs.minLatitude.inDegrees < -80) {
             // South pole
             if (poleZones[0] == null) poleZones[0] = MGRSGridZone(this, fromDegrees(-90.0, -180.0, 10.0, 180.0)) // B
             if (poleZones[1] == null) poleZones[1] = MGRSGridZone(this, fromDegrees(-90.0, 0.0, 10.0, 180.0)) // A
@@ -120,11 +120,11 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 10000
 
     private fun getGridRectangleForSector(sector: Sector): Viewport? {
         var rectangle: Viewport? = null
-        if (sector.minLatitude.degrees < 84 && sector.maxLatitude.degrees > -80) {
-            val minLat = sector.minLatitude.degrees.coerceAtLeast(-80.0)
-            val maxLat = sector.maxLatitude.degrees.coerceAtMost(84.0)
+        if (sector.minLatitude.inDegrees < 84 && sector.maxLatitude.inDegrees > -80) {
+            val minLat = sector.minLatitude.inDegrees.coerceAtLeast(-80.0)
+            val maxLat = sector.maxLatitude.inDegrees.coerceAtMost(84.0)
             val gridSector = fromDegrees(
-                minLat, sector.minLongitude.degrees, maxLat - minLat, sector.deltaLongitude.degrees
+                minLat, sector.minLongitude.inDegrees, maxLat - minLat, sector.deltaLongitude.inDegrees
             )
             var x1 = getGridColumn(gridSector.minLongitude)
             var x2 = getGridColumn(gridSector.maxLongitude)
@@ -145,9 +145,9 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 10000
         return rectangle
     }
 
-    private fun getGridColumn(longitude: Angle) = floor((longitude.degrees + 180) / 6.0).toInt().coerceAtMost(59)
+    private fun getGridColumn(longitude: Angle) = floor((longitude.inDegrees + 180) / 6.0).toInt().coerceAtMost(59)
 
-    private fun getGridRow(latitude: Angle) = floor((latitude.degrees + 80) / 8.0).toInt().coerceAtMost(19)
+    private fun getGridRow(latitude: Angle) = floor((latitude.inDegrees + 80) / 8.0).toInt().coerceAtMost(19)
 
     private fun getGridSector(row: Int, col: Int): Sector {
         val minLat = -80 + row * 8

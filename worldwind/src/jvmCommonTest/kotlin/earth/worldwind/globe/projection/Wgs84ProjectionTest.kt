@@ -69,8 +69,8 @@ class Wgs84ProjectionTest {
         val pos = Position()
         wgs84.geographicToCartesian(globe, lat, lon, alt, vec)
         wgs84.cartesianToGeographic(globe, vec.x, vec.y, vec.z, pos)
-        assertEquals(lat.degrees, pos.latitude.degrees, 1e-6, "lat")
-        assertEquals(lon.degrees, pos.longitude.degrees, 1e-6, "lon")
+        assertEquals(lat.inDegrees, pos.latitude.inDegrees, 1e-6, "lat")
+        assertEquals(lon.inDegrees, pos.longitude.inDegrees, 1e-6, "lon")
         assertEquals(alt, pos.altitude, 1e-6, "alt")
     }
 
@@ -85,8 +85,8 @@ class Wgs84ProjectionTest {
         val result = wgs84.geographicToCartesianNormal(globe, lat, lon, Vec3())
         val theta = toDegrees(asin(result.y))
         val lambda = toDegrees(atan2(result.x, result.z))
-        assertEquals(theta, lat.degrees, 1e-6, "latitude: ")
-        assertEquals(lambda, lon.degrees, 1e-6, "longitude: ")
+        assertEquals(theta, lat.inDegrees, 1e-6, "latitude: ")
+        assertEquals(lambda, lon.inDegrees, 1e-6, "longitude: ")
     }
 
     /**
@@ -106,7 +106,7 @@ class Wgs84ProjectionTest {
         // delta between the equator and the intersection of Rn and Y axis.
         val a = globe.equatorialRadius
         val e2 = globe.eccentricitySquared
-        val sinLat = sin(lat.radians)
+        val sinLat = sin(lat.inRadians)
         val rn = a / sqrt(1 - e2 * sinLat * sinLat)
         val delta = e2 * rn * sinLat
         // First rotate longitude about the Y axis; second, translate the
@@ -159,8 +159,8 @@ class Wgs84ProjectionTest {
             // Note: we must rotate the axis to match the WW coord system to the WGS ECEF coord system
             // WW: Y is polar axis, X and Z line on the equatorial plane with X coincident with +/-90 and Z +/-180
             wgs84.cartesianToGeographic(globe, v.x, v.y, v.z, result)
-            assertEquals(p.latitude.normalizeLatitude().degrees, result.latitude.degrees, 1e-6, key)
-            assertEquals(p.longitude.normalizeLongitude().degrees, result.longitude.degrees, 1e-6, key)
+            assertEquals(p.latitude.normalizeLatitude().inDegrees, result.latitude.inDegrees, 1e-6, key)
+            assertEquals(p.longitude.normalizeLongitude().inDegrees, result.longitude.inDegrees, 1e-6, key)
             assertEquals(p.altitude, result.altitude, 1e-3, key)
         }
     }

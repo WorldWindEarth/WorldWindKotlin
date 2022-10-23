@@ -5,7 +5,7 @@ import earth.worldwind.geom.Sector.Companion.fromDegrees
 open class TileMatrix internal constructor(
     val sector: Sector, val ordinal: Int, val matrixWidth: Int, val matrixHeight: Int, val tileWidth: Int, val tileHeight: Int
 ) {
-    val degreesPerPixel get() = sector.deltaLatitude.degrees / (matrixHeight * tileHeight)
+    val degreesPerPixel get() = sector.deltaLatitude.inDegrees / (matrixHeight * tileHeight)
 
     fun tileKey(row: Int, column: Int): Long {
         val lOrd = (ordinal and 0xFF).toLong() // 8 bits
@@ -15,10 +15,10 @@ open class TileMatrix internal constructor(
     }
 
     fun tileSector(row: Int, column: Int): Sector {
-        val deltaLat = sector.deltaLatitude.degrees / matrixHeight
-        val deltaLon = sector.deltaLongitude.degrees / matrixWidth
-        val minLat = sector.maxLatitude.degrees - deltaLat * (row + 1)
-        val minLon = sector.minLongitude.degrees + deltaLon * column
+        val deltaLat = sector.deltaLatitude.inDegrees / matrixHeight
+        val deltaLon = sector.deltaLongitude.inDegrees / matrixWidth
+        val minLat = sector.maxLatitude.inDegrees - deltaLat * (row + 1)
+        val minLon = sector.minLongitude.inDegrees + deltaLon * column
         return fromDegrees(minLat, minLon, deltaLat, deltaLon)
     }
 }

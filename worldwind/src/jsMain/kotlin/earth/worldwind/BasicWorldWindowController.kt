@@ -119,8 +119,8 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
                 val sideRadians = sideMeters / globeRadius
 
                 // Apply the change in latitude and longitude to the view, relative to the current heading.
-                val sinHeading = sin(lookAt.heading.radians)
-                val cosHeading = cos(lookAt.heading.radians)
+                val sinHeading = sin(lookAt.heading.inRadians)
+                val cosHeading = cos(lookAt.heading.inRadians)
                 lookAt.position.apply {
                     latitude = latitude.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
                     longitude = longitude.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)

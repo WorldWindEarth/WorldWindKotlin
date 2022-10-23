@@ -34,7 +34,7 @@ open class Wcs100TileFactory(
         .appendQueryParameter("COVERAGE", coverage)
         .appendQueryParameter("CRS", "EPSG:4326")
         .appendQueryParameter("BBOX", tileMatrix.tileSector(row, col).run {
-            "${minLongitude.degrees},${minLatitude.degrees},${maxLongitude.degrees},${maxLatitude.degrees}"
+            "${minLongitude.inDegrees},${minLatitude.inDegrees},${maxLongitude.inDegrees},${maxLatitude.inDegrees}"
         })
         .appendQueryParameter("WIDTH", tileMatrix.tileWidth.toString())
         .appendQueryParameter("HEIGHT", tileMatrix.tileHeight.toString())
