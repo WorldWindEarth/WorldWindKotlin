@@ -297,7 +297,7 @@ open class WorldWindow(
 
         // Subscribe on redraw events from WorldWind's global event bus.
         mainScope.launch {
-            WorldWind.eventBus.filterIsInstance<WorldWind.RequestRedrawEvent>().collectLatest { requestRedraw() }
+            WorldWind.eventBus.filterIsInstance<WorldWind.Event.RequestRedraw>().collectLatest { requestRedraw() }
         }
 
         // Request redraw at least once.

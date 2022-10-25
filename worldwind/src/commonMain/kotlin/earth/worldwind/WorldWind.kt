@@ -612,18 +612,20 @@ open class WorldWind @JvmOverloads constructor(
          * Provides a global mechanism for broadcasting notifications within the WorldWind library.
          */
         @JvmStatic
-        val eventBus = MutableSharedFlow<Any>(extraBufferCapacity = 1)
+        val eventBus = MutableSharedFlow<Event>(extraBufferCapacity = 1)
 
         /**
          * Requests that all WorldWindow instances update their display. Internally, this dispatches a REQUEST_REDRAW
          * message to the WorldWind message center.
          */
         @JvmStatic
-        fun requestRedraw() { eventBus.tryEmit(RequestRedrawEvent()) }
+        fun requestRedraw() { eventBus.tryEmit(Event.RequestRedraw) }
     }
 
-    /**
-     * Event requesting WorldWindow instances to update their display.
-     */
-    class RequestRedrawEvent
+    sealed class Event {
+        /**
+         * Event requesting WorldWindow instances to update their display.
+         */
+        object RequestRedraw : Event()
+    }
 }
