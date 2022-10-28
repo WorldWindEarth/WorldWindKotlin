@@ -13,7 +13,9 @@ kotlin {
         binaries.executable()
         browser {
             commonWebpackConfig {
-                cssSupport.enabled = true
+                cssSupport {
+                    enabled = true
+                }
             }
         }
     }
@@ -32,7 +34,7 @@ kotlin {
                 implementation("androidx.appcompat:appcompat:1.5.1")
                 implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.5.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
-                implementation("com.google.android.material:material:1.6.1")
+                implementation("com.google.android.material:material:1.7.0")
             }
         }
     }
@@ -53,7 +55,7 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             setProguardFiles(listOf(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"))
         }
     }

@@ -24,7 +24,9 @@ kotlin {
     js(IR) {
         browser {
             commonWebpackConfig {
-                cssSupport.enabled = true
+                cssSupport {
+                    enabled = true
+                }
             }
         }
     }
@@ -100,7 +102,7 @@ kotlin {
         val androidMain by getting {
             dependsOn(jvmCommonMain)
             dependencies {
-                implementation("androidx.annotation:annotation:1.4.0")
+                implementation("androidx.annotation:annotation:1.5.0")
                 implementation("androidx.appcompat:appcompat-resources:1.5.1")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.50")
             }
@@ -136,12 +138,8 @@ android {
         targetSdk = extra["targetSdk"] as Int
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
-            setProguardFiles(listOf(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"))
-        }
+
+        consumerProguardFiles("proguard-rules.pro")
     }
     publishing {
         singleVariant("release") {
