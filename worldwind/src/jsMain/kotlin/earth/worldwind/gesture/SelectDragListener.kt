@@ -125,23 +125,23 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
     }
 
     protected val handlePrimaryClick: (GestureRecognizer) -> Unit = {
-        val callback = callback
-        val position = pickedPosition
-        if (position != null && callback != null) {
-            val renderable = pickedRenderable
-            if (renderable != null && callback.canPickRenderable(renderable))
-                callback.onRenderablePicked(renderable, position) else callback.onTerrainPicked(position)
+        callback?.let { callback ->
+            pickedPosition?.let { position ->
+                val renderable = pickedRenderable
+                if (renderable != null && callback.canPickRenderable(renderable))
+                    callback.onRenderablePicked(renderable, position) else callback.onTerrainPicked(position)
+            } ?: callback.onNothingPicked()
             wwd.requestRedraw()
         }
     }
 
     protected val handleSecondaryClick: (GestureRecognizer) -> Unit = {
-        val callback = callback
-        val position = pickedPosition
-        if (position != null && callback != null) {
-            val renderable = pickedRenderable
-            if (renderable != null && callback.canPickRenderable(renderable))
-                callback.onRenderableContext(renderable, position) else callback.onTerrainContext(position)
+        callback?.let { callback ->
+            pickedPosition?.let { position ->
+                val renderable = pickedRenderable
+                if (renderable != null && callback.canPickRenderable(renderable))
+                    callback.onRenderableContext(renderable, position) else callback.onTerrainContext(position)
+            } ?: callback.onNothingContext()
             wwd.requestRedraw()
         }
     }

@@ -8,6 +8,16 @@ import earth.worldwind.render.Renderable
  */
 interface SelectDragCallback {
     /**
+     * Nothing was picked due to picking point is outside the terrain.
+     */
+    fun onNothingPicked() {}
+
+    /**
+     * Nothing context was requested due to selected point is outside the terrain.
+     */
+    fun onNothingContext() {}
+
+    /**
      * Terrain position was picked.
      *
      * @param position picked terrain position

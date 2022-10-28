@@ -37,14 +37,13 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         val callback = callback ?: return false
         wwd.mainScope.launch {
             val pickList = pickRequest.await()
-            val position = pickList.terrainPickedObject?.terrainPosition
-            if (position != null) {
+            pickList.terrainPickedObject?.terrainPosition?.let { position ->
                 val renderable = pickList.topPickedObject?.userObject
                 if (renderable is Renderable && callback.canPickRenderable(renderable))
                     callback.onRenderablePicked(renderable, position)
                 else callback.onTerrainPicked(position)
-                wwd.requestRedraw()
-            }
+            } ?: callback.onNothingPicked()
+            wwd.requestRedraw()
         }
         return false
     }
@@ -89,8 +88,9 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         val callback = callback ?: return false
         return runBlocking {
             val pickList = pickRequest.await()
-            val position = pickList.terrainPickedObject?.terrainPosition
             val renderable = pickList.topPickedObject?.userObject
+            val position = if (renderable is Movable) renderable.referencePosition
+            else pickList.terrainPickedObject?.terrainPosition
             if (renderable is Renderable && position != null) {
                 callback.onRenderableDoubleTap(renderable, position)
                 wwd.requestRedraw()
@@ -129,13 +129,12 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         val callback = callback ?: return
         wwd.mainScope.launch {
             val pickList = pickRequest.await()
-            val position = pickList.terrainPickedObject?.terrainPosition
-            if (position != null) {
+            pickList.terrainPickedObject?.terrainPosition?.let { position ->
                 val renderable = pickList.topPickedObject?.userObject
                 if (renderable is Renderable) callback.onRenderableContext(renderable, position)
                 else callback.onTerrainContext(position)
-                wwd.requestRedraw()
-            }
+            } ?: callback.onNothingContext()
+            wwd.requestRedraw()
         }
     }
 

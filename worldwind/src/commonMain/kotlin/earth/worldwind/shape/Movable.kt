@@ -13,7 +13,7 @@ interface Movable {
      *
      * @return the object's reference position, or null if no reference position is available.
      */
-    val referencePosition: Position?
+    val referencePosition: Position
 
     /**
      * [AltitudeMode] used by movable object
