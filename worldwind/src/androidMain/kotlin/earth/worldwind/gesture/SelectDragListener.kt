@@ -44,7 +44,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
                     callback.onRenderablePicked(renderable, position)
                 else callback.onTerrainPicked(position)
                 wwd.requestRedraw()
-            }
+            } else callback.onNothingPicked()
         }
         return false
     }
@@ -89,8 +89,9 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         val callback = callback ?: return false
         return runBlocking {
             val pickList = pickRequest.await()
-            val position = pickList.terrainPickedObject?.terrainPosition
             val renderable = pickList.topPickedObject?.userObject
+            val position = if (renderable is Movable) renderable.referencePosition
+            else pickList.terrainPickedObject?.terrainPosition
             if (renderable is Renderable && position != null) {
                 callback.onRenderableDoubleTap(renderable, position)
                 wwd.requestRedraw()
