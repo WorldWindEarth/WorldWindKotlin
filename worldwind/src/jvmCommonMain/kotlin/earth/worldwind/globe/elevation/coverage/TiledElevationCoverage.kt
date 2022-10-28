@@ -15,6 +15,7 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
+import io.ktor.client.network.sockets.*
 import kotlinx.coroutines.*
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
@@ -180,6 +181,7 @@ actual open class TiledElevationCoverage actual constructor(
         retrievalFailed(key)
         when {
             // log socket timeout exceptions while suppressing the stack trace
+            ex is ConnectTimeoutException -> log(WARN, "Connect timeout retrieving coverage '$source'")
             ex is SocketTimeoutException -> log(WARN, "Socket timeout retrieving coverage '$source'")
             // log file not found exceptions while suppressing the stack trace
             ex is FileNotFoundException -> log(WARN, "Coverage not found '$source'")

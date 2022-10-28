@@ -16,6 +16,7 @@ import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
+import io.ktor.client.network.sockets.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -165,6 +166,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         WorldWind.requestRedraw() // Try to load alternate image source
         when {
             // log socket timeout exceptions while suppressing the stack trace
+            ex is ConnectTimeoutException -> log(WARN, "Connect timeout retrieving image '$source'")
             ex is SocketTimeoutException -> log(WARN, "Socket timeout retrieving image '$source'")
             // log file not found exceptions while suppressing the stack trace
             ex is FileNotFoundException -> log(WARN, "Image not found '$source'")
