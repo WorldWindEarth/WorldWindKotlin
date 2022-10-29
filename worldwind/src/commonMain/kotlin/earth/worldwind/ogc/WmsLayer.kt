@@ -66,7 +66,6 @@ open class WmsLayer @JvmOverloads constructor(displayName: String = "WMS Layer")
             this.sector.copy(sector)
             numLevels = numLevelsForResolution(radiansPerPixel)
         }
-        tiledSurfaceImage?.let { removeRenderable(it) }
-        tiledSurfaceImage = TiledSurfaceImage(WmsTileFactory(config), LevelSet(levelsConfig)).also { addRenderable(it) }
+        tiledSurfaceImage = TiledSurfaceImage(WmsTileFactory(config), LevelSet(levelsConfig))
     }
 }

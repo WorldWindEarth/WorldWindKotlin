@@ -1,13 +1,11 @@
 package earth.worldwind.ogc
 
 import com.eygraber.uri.Uri
-import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle.Companion.NEG180
 import earth.worldwind.geom.Angle.Companion.NEG90
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Location
-import earth.worldwind.layer.Layer
-import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.ogc.wmts.WmtsCapabilities
 import earth.worldwind.ogc.wmts.WmtsLayer
 import earth.worldwind.shape.TiledSurfaceImage
@@ -22,9 +20,7 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.utils.io.core.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
@@ -32,135 +28,93 @@ import nl.adaptivity.xmlutil.serialization.UnknownChildHandler
 import nl.adaptivity.xmlutil.serialization.XML
 import kotlin.math.abs
 
-open class WmtsLayerFactory(
-    protected val mainScope: CoroutineScope,
-) {
-    protected val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
-    protected val compatibleCoordinateSystems = listOf(
+object WmtsLayerFactory {
+
+    private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
+    private val compatibleCoordinateSystems = listOf(
         "urn:ogc:def:crs:OGC:1.3:CRS84",
         "urn:ogc:def:crs:EPSG::4326",
         "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
     )
     @OptIn(ExperimentalXmlUtilApi::class)
-    protected val xml = XML {
+    private val xml = XML {
         unknownChildHandler = UnknownChildHandler { _, _, _, _, _ -> emptyList() } // Ignore unknown properties
     }
 
-    open fun createLayer(
-        serviceAddress: String, layerIdentifier: String,
-        creationFailed: ((Exception) -> Unit)? = null, creationSucceeded: ((Layer) -> Unit)? = null
-    ): Layer {
+    suspend fun createLayer(serviceAddress: String, layerIdentifier: String): TiledImageLayer {
+        require(serviceAddress.isNotEmpty()) {
+            logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingServiceAddress")
+        }
         require(layerIdentifier.isNotEmpty()) {
-            logMessage(ERROR, "WmtsLayerFactory", "createFromWmts", "missingLayerNames")
+            logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val layer = RenderableLayer().apply { isPickEnabled = false }
-        mainScope.launch {
-            try {
-                val wmtsLayer = retrieveWmtsCapabilities(serviceAddress).getLayer(layerIdentifier)
-                requireNotNull(wmtsLayer) {
-                    makeMessage(
-                        "WmtsLayerFactory", "createFromWmts", "The layer identifier specified was not found"
-                    )
-                }
-                createWmtsLayer(wmtsLayer, layer)
-                creationSucceeded?.invoke(layer)
-                WorldWind.requestRedraw()
-            } catch (e: Exception) {
-                creationFailed?.invoke(e)
-            }
+        val wmtsLayer = retrieveWmtsCapabilities(serviceAddress).getLayer(layerIdentifier)
+        requireNotNull(wmtsLayer) {
+            makeMessage("WmtsLayerFactory", "createLayer", "The layer identifier specified was not found")
         }
-        return layer
+        return object : TiledImageLayer(wmtsLayer.title ?: layerIdentifier) {
+            init { tiledSurfaceImage = createWmtsSurfaceImage(wmtsLayer) }
+        }
     }
 
-    protected open suspend fun retrieveWmtsCapabilities(serviceAddress: String) = DefaultHttpClient().use {
+    private suspend fun retrieveWmtsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
             .appendQueryParameter("VERSION", "1.0.0")
             .appendQueryParameter("SERVICE", "WMTS")
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        val response = it.get(serviceUri.toString()) { expectSuccess = true }
-        response.bodyAsText()
+        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
     }.let { xmlText ->
         withContext(Dispatchers.Default) { xml.decodeFromString<WmtsCapabilities>(xmlText) }
     }
 
-    protected open fun createWmtsLayer(wmtsLayer: WmtsLayer, layer: RenderableLayer) {
+    private fun createWmtsSurfaceImage(wmtsLayer: WmtsLayer): TiledSurfaceImage {
         // Determine if there is a TileMatrixSet which matches our Coordinate System compatibility and tiling scheme
         val compatibleTileMatrixSets = determineCoordSysCompatibleTileMatrixSets(wmtsLayer)
-        require (compatibleTileMatrixSets.isNotEmpty()) {
-            makeMessage(
-                "WmtsLayerFactory", "createWmtsLayer",
-                "Coordinate Systems Not Compatible"
-            )
+        require(compatibleTileMatrixSets.isNotEmpty()) {
+            makeMessage("WmtsLayerFactory", "createWmtsLayer", "Coordinate Systems Not Compatible")
         }
 
         // Search the list of coordinate system compatible tile matrix sets for compatible tiling schemes
-        val compatibleTileMatrixSet = determineTileSchemeCompatibleTileMatrixSet(
-            wmtsLayer.capabilities, compatibleTileMatrixSets
-        ) ?: error(
-            makeMessage(
-                "WmtsLayerFactory", "createWmtsLayer", "Tile Schemes Not Compatible"
-            )
+        val compatibleTileMatrixSet = determineCompatibleTileMatrixSet(wmtsLayer.capabilities, compatibleTileMatrixSets) ?: error(
+            makeMessage("WmtsLayerFactory", "createWmtsLayer", "Tile Schemes Not Compatible")
         )
-        val tileFactory = createWmtsTileFactory(wmtsLayer, compatibleTileMatrixSet) ?: error(
-            makeMessage(
-                "WmtsLayerFactory", "createWmtsLayer", "Unable to create TileFactory"
-            )
-        )
+        val tileFactory = createWmtsTileFactory(wmtsLayer, compatibleTileMatrixSet)
         val levelSet = createWmtsLevelSet(wmtsLayer, compatibleTileMatrixSet)
-        val surfaceImage = TiledSurfaceImage(tileFactory, levelSet)
-
-        // Add the tiled surface image to the layer on the main thread and notify the caller. Request redraw to ensure
-        // that the image displays on all WorldWindows the layer may be attached to.
-        layer.addRenderable(surfaceImage)
+        return TiledSurfaceImage(tileFactory, levelSet)
     }
 
-    protected open fun createWmtsTileFactory(wmtsLayer: WmtsLayer, compatibleTileMatrixSet: CompatibleTileMatrixSet): TileFactory? {
+    private fun createWmtsTileFactory(wmtsLayer: WmtsLayer, compatibleTileMatrixSet: CompatibleTileMatrixSet): TileFactory {
         // First choice is a ResourceURL
-        for (resourceUrl in wmtsLayer.resourceUrls)
-            if (compatibleImageFormats.contains(resourceUrl.format)) {
-                val template = resourceUrl.template
-                    .replace("{style}", wmtsLayer.styles[0].identifier)
-                    .replace("{TileMatrixSet}", compatibleTileMatrixSet.tileMatrixSetId!!)
-                return WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices)
-            }
+        for (resourceUrl in wmtsLayer.resourceUrls) if (compatibleImageFormats.contains(resourceUrl.format)) {
+            val template = resourceUrl.template
+                .replace("{style}", wmtsLayer.styles[0].identifier)
+                .replace("{TileMatrixSet}", compatibleTileMatrixSet.tileMatrixSetId)
+            return WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices)
+        }
 
         // Second choice is if the server supports KVP
         val baseUrl = determineKvpUrl(wmtsLayer)
         return if (baseUrl != null) {
-            var imageFormat: String? = null
-            for (compatibleImageFormat in compatibleImageFormats)
-                if (wmtsLayer.formats.contains(compatibleImageFormat)) {
-                    imageFormat = compatibleImageFormat
-                    break
-                }
-            imageFormat ?: error(
-                makeMessage(
-                    "WmtsLayerFactory", "getWmtsTileFactory",
-                    "Image Formats Not Compatible"
-                )
+            val imageFormat = compatibleImageFormats.firstOrNull { format -> wmtsLayer.formats.contains(format) } ?: error(
+                makeMessage("WmtsLayerFactory", "getWmtsTileFactory", "Image Formats Not Compatible")
             )
             val styleIdentifier = wmtsLayer.styles[0].identifier
             val template = buildWmtsKvpTemplate(
-                baseUrl, wmtsLayer.identifier, imageFormat, styleIdentifier,
-                compatibleTileMatrixSet.tileMatrixSetId!!
+                baseUrl, wmtsLayer.identifier, imageFormat, styleIdentifier, compatibleTileMatrixSet.tileMatrixSetId
             )
             WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices)
-        } else error(
-            makeMessage("WmtsLayerFactory", "getWmtsTileFactory", "No KVP Get Support")
-        )
+        } else error(makeMessage("WmtsLayerFactory", "getWmtsTileFactory", "No KVP Get Support"))
     }
 
-    protected open fun createWmtsLevelSet(wmtsLayer: WmtsLayer, compatibleTileMatrixSet: CompatibleTileMatrixSet): LevelSet {
+    private fun createWmtsLevelSet(wmtsLayer: WmtsLayer, compatibleTileMatrixSet: CompatibleTileMatrixSet): LevelSet {
         val boundingBox = wmtsLayer.wgs84BoundingBox?.sector ?: error(
             makeMessage(
                 "WmtsLayerFactory", "createWmtsLevelSet",
                 "WGS84BoundingBox not defined for layer: " + wmtsLayer.identifier
             )
         )
-        val tileMatrixSet = wmtsLayer.capabilities.getTileMatrixSet(
-            compatibleTileMatrixSet.tileMatrixSetId!!
-        ) ?: error(
+        val tileMatrixSet = wmtsLayer.capabilities.getTileMatrixSet(compatibleTileMatrixSet.tileMatrixSetId) ?: error(
             makeMessage(
                 "WmtsLayerFactory", "createWmtsLevelSet",
                 "Compatible TileMatrixSet not found for: $compatibleTileMatrixSet"
@@ -173,7 +127,7 @@ open class WmtsLayerFactory(
         )
     }
 
-    protected open fun buildWmtsKvpTemplate(
+    private fun buildWmtsKvpTemplate(
         kvpServiceAddress: String, layer: String, format: String, styleIdentifier: String, tileMatrixSet: String
     ) = Uri.parse(kvpServiceAddress).buildUpon()
         .appendQueryParameter("VERSION", "1.0.0")
@@ -188,20 +142,11 @@ open class WmtsLayerFactory(
         .appendQueryParameter("TILECOL", WmtsTileFactory.TILECOL_TEMPLATE)
         .build().toString()
 
-    protected open fun determineCoordSysCompatibleTileMatrixSets(layer: WmtsLayer): List<String> {
-        val compatibleTileMatrixSets = mutableListOf<String>()
+    private fun determineCoordSysCompatibleTileMatrixSets(layer: WmtsLayer) = layer.layerSupportedTileMatrixSets
+        .filter { tileMatrixSet -> compatibleCoordinateSystems.contains(tileMatrixSet.supportedCrs) }
+        .map { tileMatrixSet -> tileMatrixSet.identifier }
 
-        // Look for compatible coordinate system types
-        val tileMatrixSets = layer.layerSupportedTileMatrixSets
-        for (tileMatrixSet in tileMatrixSets) {
-            if (compatibleCoordinateSystems.contains(tileMatrixSet.supportedCrs)) {
-                compatibleTileMatrixSets.add(tileMatrixSet.identifier)
-            }
-        }
-        return compatibleTileMatrixSets
-    }
-
-    protected open fun determineTileSchemeCompatibleTileMatrixSet(
+    private fun determineCompatibleTileMatrixSet(
         capabilities: WmtsCapabilities, tileMatrixSetIds: List<String>
     ): CompatibleTileMatrixSet? {
         val compatibleSet = CompatibleTileMatrixSet()
@@ -229,10 +174,7 @@ open class WmtsLayerFactory(
 
                 // Convert Values
                 val topLeftCorner = try {
-                    doubleArrayOf(
-                        topLeftCornerValue[0].toDouble(),
-                        topLeftCornerValue[1].toDouble()
-                    )
+                    doubleArrayOf(topLeftCornerValue[0].toDouble(), topLeftCornerValue[1].toDouble())
                 } catch (e: Exception) {
                     logMessage(
                         WARN, "WmtsLayerFactory", "determineTileSchemeCompatibleTileMatrixSet",
@@ -280,7 +222,7 @@ open class WmtsLayerFactory(
      *
      * @return the URL for the supported KVP or null if KVP or 'GET' method isn't provided by the layer
      */
-    protected open fun determineKvpUrl(layer: WmtsLayer): String? {
+    private fun determineKvpUrl(layer: WmtsLayer): String? {
         val capabilities = layer.capabilities
         val operationsMetadata = capabilities.operationsMetadata ?: return null
         val getTileOperation = operationsMetadata.getTile ?: return null
@@ -294,8 +236,8 @@ open class WmtsLayerFactory(
         return if (allowedValues.contains("KVP")) getMethods[0].url else null
     }
 
-    protected open class CompatibleTileMatrixSet {
-        var tileMatrixSetId: String? = null
+    private class CompatibleTileMatrixSet {
+        lateinit var tileMatrixSetId: String
         val tileMatrices = mutableListOf<String>()
     }
 }

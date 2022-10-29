@@ -8,7 +8,6 @@ import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.render.image.ImageConfig
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Level
 import earth.worldwind.util.LevelSet
@@ -28,16 +27,19 @@ abstract class MercatorTiledImageLayer(
                 )
             }
     }
-    override var tiledSurfaceImage: TiledSurfaceImage? = MercatorTiledSurfaceImage(tileFactory).apply {
-        val sector = MercatorSector(-1.0, 1.0, NEG180, POS180)
-        val divisor = (1 shl firstLevelOffset).toDouble()
-        levelSet = LevelSet(
-            sector, Location(sector.minLatitude, sector.minLongitude),
-            Location(sector.deltaLatitude / divisor, sector.deltaLongitude / divisor),
-            numLevels - firstLevelOffset, tileSize, tileSize
-        )
-        if (!overlay) imageOptions = ImageOptions(ImageConfig.RGB_565) // reduce memory usage by using a 16-bit configuration with no alpha
-    }.also { addRenderable(it) }
+
+    init {
+        tiledSurfaceImage = MercatorTiledSurfaceImage(tileFactory).apply {
+            val sector = MercatorSector(-1.0, 1.0, NEG180, POS180)
+            val divisor = (1 shl firstLevelOffset).toDouble()
+            levelSet = LevelSet(
+                sector, Location(sector.minLatitude, sector.minLongitude),
+                Location(sector.deltaLatitude / divisor, sector.deltaLongitude / divisor),
+                numLevels - firstLevelOffset, tileSize, tileSize
+            )
+            if (!overlay) imageOptions = ImageOptions(ImageConfig.RGB_565) // reduce memory usage by using a 16-bit configuration with no alpha
+        }
+    }
 
     protected abstract fun getImageSourceUrl(x: Int, y: Int, z: Int): String
 }

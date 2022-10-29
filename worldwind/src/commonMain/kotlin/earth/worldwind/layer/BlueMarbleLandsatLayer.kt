@@ -18,14 +18,6 @@ import kotlin.jvm.JvmOverloads
 class BlueMarbleLandsatLayer @JvmOverloads constructor(
     serviceAddress: String = "https://worldwind25.arc.nasa.gov/wms"
 ): TiledImageLayer("Blue Marble & Landsat"), TileFactory {
-    override var tiledSurfaceImage: TiledSurfaceImage? = TiledSurfaceImage(this, LevelSet(LevelSetConfig().apply {
-        // Configure this layer's level set to capture the entire globe at 15m resolution.
-        numLevels = numLevelsForResolution(15.0 / Ellipsoid.WGS84.semiMajorAxis)
-    })).apply {
-        // Reduce memory usage by using a 16-bit configuration with no alpha
-        imageOptions = ImageOptions(ImageConfig.RGB_565)
-    }.also { addRenderable(it) }
-
     private val blueMarbleTileFactory = WmsTileFactory(WmsLayerConfig(serviceAddress, "BlueMarble-200405").apply {
         isTransparent = false // the BlueMarble layer is opaque
     })
@@ -33,6 +25,16 @@ class BlueMarbleLandsatLayer @JvmOverloads constructor(
     private val landsatTileFactory = WmsTileFactory(WmsLayerConfig(serviceAddress, "BlueMarble-200405,esat").apply {
         isTransparent = false // combining BlueMarble and esat layers results in opaque images
     })
+
+    init {
+        tiledSurfaceImage = TiledSurfaceImage(this, LevelSet(LevelSetConfig().apply {
+            // Configure this layer's level set to capture the entire globe at 15m resolution.
+            numLevels = numLevelsForResolution(15.0 / Ellipsoid.WGS84.semiMajorAxis)
+        })).apply {
+            // Reduce memory usage by using a 16-bit configuration with no alpha
+            imageOptions = ImageOptions(ImageConfig.RGB_565)
+        }
+    }
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int): Tile {
         val radiansPerPixel = level.tileDelta.latitude.inRadians / level.tileHeight

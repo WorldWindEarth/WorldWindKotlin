@@ -2,29 +2,36 @@ package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle
+import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.ogc.WmsLayerFactory
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
-class WmsLayerTutorial(private val engine: WorldWind, mainScope: CoroutineScope) : AbstractTutorial() {
+class WmsLayerTutorial(private val engine: WorldWind, private val mainScope: CoroutineScope) : AbstractTutorial() {
 
-    private val wmsLayer by lazy {
-        // Create a WMS layer factory.
-        val wmsLayerFactory = WmsLayerFactory(mainScope)
-
-        // Create an OGC Web Map Service (WMS) layer to display the
-        // surface temperature layer from NASA's Near Earth Observations WMS.
-        wmsLayerFactory.createLayer(
-            "https://neo.gsfc.nasa.gov/wms/wms", listOf("MOD_LSTD_CLIM_M"),
-            { Logger.log(Logger.ERROR, "WMS layer creation failed", it) },
-            { Logger.log(Logger.INFO, "WMS layer creation succeeded") }
-        )
-    }
+    private var wmsLayer: TiledImageLayer? = null
+    private var isStarted = false
 
     override fun start() {
         super.start()
-        // Add WMS layer to the WorldWindow.
-        engine.layers.addLayer(wmsLayer)
+        mainScope.launch {
+            try {
+                isStarted = true
+                // Create an OGC Web Map Service (WMS) layer to display the
+                // surface temperature layer from NASA's Near Earth Observations WMS.
+                WmsLayerFactory.createLayer("https://neo.gsfc.nasa.gov/wms/wms", listOf("MOD_LSTD_CLIM_M")).also {
+                    if (isStarted) {
+                        wmsLayer = it
+                        engine.layers.addLayer(it)
+                        WorldWind.requestRedraw()
+                    }
+                }
+                Logger.log(Logger.INFO, "WMS layer creation succeeded")
+            } catch (e: Exception) {
+                Logger.log(Logger.ERROR, "WMS layer creation failed", e)
+            }
+        }
         engine.camera.apply {
             position.altitude = engine.distanceToViewGlobeExtents * 1.1
             heading = Angle.ZERO
@@ -35,7 +42,8 @@ class WmsLayerTutorial(private val engine: WorldWind, mainScope: CoroutineScope)
 
     override fun stop() {
         super.stop()
-        engine.layers.removeLayer(wmsLayer)
+        isStarted = false
+        wmsLayer?.let { engine.layers.removeLayer(it) }.also { wmsLayer = null }
     }
 
 }

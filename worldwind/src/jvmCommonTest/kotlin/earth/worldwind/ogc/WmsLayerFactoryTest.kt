@@ -5,32 +5,16 @@ import earth.worldwind.ogc.wms.*
 import earth.worldwind.ogc.wms.WmsLayer
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
 import kotlin.test.*
 
 class WmsLayerFactoryTest {
-
-    private lateinit var mainScope: CoroutineScope
-
-    @BeforeTest
-    fun setup() {
-        mainScope = MainScope()
-    }
-
-    @AfterTest
-    fun destroy() {
-        mainScope.cancel()
-    }
 
     @Test
     fun testGetLayerConfigFromWmsCapabilities_Nominal() {
         val wmsCapabilities = boilerPlateWmsCapabilities
         val wmsLayer = wmsCapabilities.getNamedLayer(DEFAULT_LAYER_NAME)!!
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
-        val wmsLayerConfig = layerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
+        val wmsLayerConfig = WmsLayerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
         assertEquals(DEFAULT_VERSION, wmsLayerConfig.wmsVersion, "Version")
         assertEquals(DEFAULT_LAYER_NAME, wmsLayerConfig.layerNames, "Layer Name")
         assertEquals(DEFAULT_REQUEST_URL, wmsLayerConfig.serviceAddress, "Request URL")
@@ -45,9 +29,8 @@ class WmsLayerFactoryTest {
         every { wmsCapabilities.version } returns "1.2.1"
         val wmsLayer = wmsCapabilities.getNamedLayer(DEFAULT_LAYER_NAME)!!
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
         try {
-            layerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
+            WmsLayerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
             fail("Invalid Version")
         } catch (e: RuntimeException) {
             assertNotNull(e, "Invalid Version")
@@ -61,9 +44,8 @@ class WmsLayerFactoryTest {
         every { wmsCapabilities.capability.layers[0].capability } returns null
         val wmsLayer = wmsCapabilities.getNamedLayer(DEFAULT_LAYER_NAME)!!
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
         try {
-            layerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
+            WmsLayerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
             fail("Invalid Request URL")
         } catch (e: RuntimeException) {
             assertNotNull(e, "Invalid Request URL")
@@ -77,8 +59,7 @@ class WmsLayerFactoryTest {
         val modifiedReferenceSystems = listOf("CRS:84")
         every { wmsLayer.referenceSystems } returns modifiedReferenceSystems
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
-        val wmsLayerConfig = layerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
+        val wmsLayerConfig = WmsLayerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
         assertEquals("CRS:84", wmsLayerConfig.coordinateSystem, "Alternate Coordinate System")
     }
 
@@ -89,9 +70,8 @@ class WmsLayerFactoryTest {
         val modifiedReferenceSystems = listOf("EPSG:1234")
         every { wmsLayer.referenceSystems } returns modifiedReferenceSystems
         val layerCapabilities: List<WmsLayer> = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
         try {
-            layerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
+            WmsLayerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
             fail("Invalid Coordinate System")
         } catch (e: RuntimeException) {
             assertNotNull(e, "Invalid Coordinate System")
@@ -105,8 +85,7 @@ class WmsLayerFactoryTest {
         val modifiedImageFormats = listOf("image/dds", "image/jpg")
         every { wmsCapabilities.capability.request.getMap.formats } returns modifiedImageFormats
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
-        val wmsLayerConfig = layerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
+        val wmsLayerConfig = WmsLayerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
         assertEquals("image/jpg", wmsLayerConfig.imageFormat, "Alternate Image Format")
     }
 
@@ -117,9 +96,8 @@ class WmsLayerFactoryTest {
         val modifiedImageFormats = listOf("image/dds", "image/never")
         every { wmsCapabilities.capability.request.getMap.formats } returns modifiedImageFormats
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
         try {
-            layerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
+            WmsLayerFactory.getLayerConfigFromWmsCapabilities(layerCapabilities)
             fail("Invalid Image Format")
         } catch (e: RuntimeException) {
             assertTrue(true, "Invalid Image Format")
@@ -131,8 +109,7 @@ class WmsLayerFactoryTest {
         val wmsCapabilities = boilerPlateWmsCapabilities
         val wmsLayer = wmsCapabilities.getNamedLayer(DEFAULT_LAYER_NAME)!!
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
-        val levelSetConfig = layerFactory.getLevelSetConfigFromWmsCapabilities(layerCapabilities)
+        val levelSetConfig = WmsLayerFactory.getLevelSetConfigFromWmsCapabilities(layerCapabilities)
         assertEquals(Sector().setFullSphere(), levelSetConfig.sector, "Bounding Box")
         assertEquals(47, levelSetConfig.numLevels, "Number of Levels")
     }
@@ -143,8 +120,7 @@ class WmsLayerFactoryTest {
         val wmsLayer = wmsCapabilities.getNamedLayer(DEFAULT_LAYER_NAME)!!
         every { wmsLayer.minScaleDenominator } returns 1e13
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
-        val levelSetConfig = layerFactory.getLevelSetConfigFromWmsCapabilities(layerCapabilities)
+        val levelSetConfig = WmsLayerFactory.getLevelSetConfigFromWmsCapabilities(layerCapabilities)
         assertEquals(1, levelSetConfig.numLevels, "Number of Levels")
     }
 
@@ -154,8 +130,7 @@ class WmsLayerFactoryTest {
         val wmsLayer = wmsCapabilities.getNamedLayer(DEFAULT_LAYER_NAME)!!
         every { wmsLayer.minScaleDenominator } returns null
         val layerCapabilities = listOf(wmsLayer)
-        val layerFactory = WmsLayerFactory(mainScope)
-        val levelSetConfig = layerFactory.getLevelSetConfigFromWmsCapabilities(layerCapabilities)
+        val levelSetConfig = WmsLayerFactory.getLevelSetConfigFromWmsCapabilities(layerCapabilities)
         assertEquals(20, levelSetConfig.numLevels, "Number of Levels")
     }
 

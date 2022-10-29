@@ -9,9 +9,14 @@ import earth.worldwind.render.image.ImageTile
 import earth.worldwind.shape.TiledSurfaceImage
 import kotlinx.coroutines.*
 
-abstract class AbstractTiledImageLayer(name: String): RenderableLayer(name) {
-    protected open val firstLevelOffset = 0
-    protected open var tiledSurfaceImage: TiledSurfaceImage? = null
+actual abstract class AbstractTiledImageLayer actual constructor(name: String): RenderableLayer(name) {
+    protected actual open val firstLevelOffset = 0
+    protected actual var tiledSurfaceImage: TiledSurfaceImage? = null
+        set(value) {
+            field?.let { removeRenderable(it) }
+            value?.let { addRenderable(it) }
+            field = value
+        }
     override var isPickEnabled = false
     /**
      * Configures tiled image layer to work only with cache source
