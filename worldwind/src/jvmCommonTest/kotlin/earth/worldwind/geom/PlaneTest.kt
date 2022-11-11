@@ -115,7 +115,7 @@ class PlaneTest {
         val plane = Plane(normal.x, normal.y, normal.z, distance)
         // The plane's normal points towards the origin, so use the normal's
         // reversed direction to create a point on the plane
-        val point = Vec3(normal).negate().multiply(distance)
+        val point = -normal * distance
         val origin = Vec3(0.0, 0.0, 0.0)
         val distanceToOrigin = plane.distanceToPoint(origin)
         val distanceToPoint = plane.distanceToPoint(point)

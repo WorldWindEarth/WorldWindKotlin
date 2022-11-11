@@ -131,7 +131,23 @@ open class Vec2(
      *
      * @return this vector after adding the specified vector to it
      */
-    fun add(vector: Vec2) = apply {
+    fun add(vector: Vec2) = apply { plusAssign(vector) }
+
+    /**
+     * Creates new vector containing sum of this and specified vectors.
+     *
+     * @param vector the vector to add
+     *
+     * @return new vector containing sum of this and specified vectors.
+     */
+    operator fun plus(vector: Vec2) = Vec2(this).apply { plusAssign(vector) }
+
+    /**
+     * Adds a specified vector to this vector.
+     *
+     * @param vector the vector to add
+     */
+    operator fun plusAssign(vector: Vec2) {
         x += vector.x
         y += vector.y
     }
@@ -143,7 +159,23 @@ open class Vec2(
      *
      * @return this vector after subtracting the specified vector from it
      */
-    fun subtract(vector: Vec2) = apply {
+    fun subtract(vector: Vec2) = apply { minusAssign(vector) }
+
+    /**
+     * Creates new vector containing difference of this and specified vectors.
+     *
+     * @param vector the vector to subtract
+     *
+     * @return new vector containing difference of this and specified vectors.
+     */
+    operator fun minus(vector: Vec2) = Vec2(this).apply { minusAssign(vector) }
+
+    /**
+     * Subtracts a specified vector from this vector.
+     *
+     * @param vector the vector to subtract
+     */
+    operator fun minusAssign(vector: Vec2) {
         x -= vector.x
         y -= vector.y
     }
@@ -155,7 +187,23 @@ open class Vec2(
      *
      * @return this vector multiplied by the specified scalar
      */
-    open fun multiply(scalar: Double) = apply {
+    open fun multiply(scalar: Double) = apply { timesAssign(scalar) }
+
+    /**
+     * Creates new vector containing this vector multiplied by a scalar.
+     *
+     * @param scalar the scalar to multiply this vector by
+     *
+     * @return new vector containing this vector multiplied by a scalar.
+     */
+    open operator fun times(scalar: Double) = Vec2(this).apply { timesAssign(scalar) }
+
+    /**
+     * Multiplies this vector by a scalar.
+     *
+     * @param scalar the scalar to multiply this vector by
+     */
+    open operator fun timesAssign(scalar: Double) {
         x *= scalar
         y *= scalar
     }
@@ -184,10 +232,33 @@ open class Vec2(
      *
      * @return this vector divided by the specified scalar
      */
-    open fun divide(divisor: Double) = apply {
+    open fun divide(divisor: Double) = apply { divAssign(divisor) }
+
+    /**
+     * Creates new vector containing this vector divided by a scalar.
+     *
+     * @param divisor the scalar to divide this vector by
+     *
+     * @return new vector containing this vector divided by a scalar
+     */
+    open operator fun div(divisor: Double) = Vec2(this).apply { divAssign(divisor) }
+
+    /**
+     * Divides this vector by a scalar.
+     *
+     * @param divisor the scalar to divide this vector by
+     */
+    open operator fun divAssign(divisor: Double) {
         x /= divisor
         y /= divisor
     }
+
+    /**
+     * Creates new vector which has components with opposite sign to the vector.
+     *
+     * @return new vector, which has components with opposite sign to the vector
+     */
+    open operator fun unaryMinus() = Vec2(this).negate()
 
     /**
      * Negates the components of this vector.

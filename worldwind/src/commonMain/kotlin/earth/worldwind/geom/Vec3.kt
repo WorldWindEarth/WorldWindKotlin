@@ -127,8 +127,24 @@ open class Vec3(
      *
      * @return this vector after adding the specified vector to it
      */
-    fun add(vector: Vec3) = apply {
-        super.add(vector)
+    fun add(vector: Vec3) = apply { plusAssign(vector) }
+
+    /**
+     * Creates new vector containing sum of this and specified vectors.
+     *
+     * @param vector the vector to add
+     *
+     * @return new vector containing sum of this and specified vectors.
+     */
+    operator fun plus(vector: Vec3) = Vec3(this).apply { plusAssign(vector) }
+
+    /**
+     * Adds a specified vector to this vector.
+     *
+     * @param vector the vector to add
+     */
+    operator fun plusAssign(vector: Vec3) {
+        super.plusAssign(vector)
         z += vector.z
     }
 
@@ -139,8 +155,24 @@ open class Vec3(
      *
      * @return this vector after subtracting the specified vector from it
      */
-    fun subtract(vector: Vec3) = apply {
-        super.subtract(vector)
+    fun subtract(vector: Vec3) = apply { minusAssign(vector) }
+
+    /**
+     * Creates new vector containing difference of this and specified vectors.
+     *
+     * @param vector the vector to subtract
+     *
+     * @return new vector containing difference of this and specified vectors.
+     */
+    operator fun minus(vector: Vec3) = Vec3(this).apply { minusAssign(vector) }
+
+    /**
+     * Subtracts a specified vector from this vector.
+     *
+     * @param vector the vector to subtract
+     */
+    operator fun minusAssign(vector: Vec3) {
+        super.minusAssign(vector)
         z -= vector.z
     }
 
@@ -151,8 +183,24 @@ open class Vec3(
      *
      * @return this vector multiplied by the specified scalar
      */
-    override fun multiply(scalar: Double) = apply {
-        super.multiply(scalar)
+    override fun multiply(scalar: Double) = apply { timesAssign(scalar) }
+
+    /**
+     * Creates new vector containing this vector multiplied by a scalar.
+     *
+     * @param scalar the scalar to multiply this vector by
+     *
+     * @return new vector containing this vector multiplied by a scalar.
+     */
+    override fun times(scalar: Double) = Vec3(this).apply { timesAssign(scalar) }
+
+    /**
+     * Multiplies this vector by a scalar.
+     *
+     * @param scalar the scalar to multiply this vector by
+     */
+    override fun timesAssign(scalar: Double) {
+        super.timesAssign(scalar)
         z *= scalar
     }
 
@@ -182,10 +230,33 @@ open class Vec3(
      *
      * @return this vector divided by the specified scalar
      */
-    override fun divide(divisor: Double) = apply {
-        super.divide(divisor)
+    override fun divide(divisor: Double) = apply { divAssign(divisor) }
+
+    /**
+     * Creates new vector containing this vector divided by a scalar.
+     *
+     * @param divisor the scalar to divide this vector by
+     *
+     * @return new vector containing this vector divided by a scalar
+     */
+    override fun div(divisor: Double) = Vec3(this).apply { divAssign(divisor) }
+
+    /**
+     * Divides this vector by a scalar.
+     *
+     * @param divisor the scalar to divide this vector by
+     */
+    override fun divAssign(divisor: Double) {
+        super.divAssign(divisor)
         z /= divisor
     }
+
+    /**
+     * Creates new vector which has components with opposite sign to the vector.
+     *
+     * @return new vector, which has components with opposite sign to the vector
+     */
+    override fun unaryMinus() = Vec3(this).negate()
 
     /**
      * Negates the components of this vector.

@@ -100,7 +100,7 @@ class LineTest {
         val pointA = Vec3(1.0, 2.0, 3.0)
         val pointB = Vec3(4.0, 5.0, 6.0)
         val origin = Vec3(pointA)
-        val direction = Vec3(pointB).subtract(pointA)
+        val direction = pointB - pointA
         val line = Line()
         line.setToSegment(pointA, pointB)
         assertEquals(origin, line.origin, "origin")
@@ -113,7 +113,7 @@ class LineTest {
         val direction = Vec3(4.0, 5.0, 6.0)
         val line = Line(origin, direction)
         val distance = -2.0
-        val expected = Vec3(origin).add(Vec3(direction).multiply(distance))
+        val expected = origin + direction * distance
         val point = line.pointAt(distance, Vec3())
         assertEquals(expected, point, "point at")
     }
