@@ -312,6 +312,20 @@ open class WorldWind @JvmOverloads constructor(
      * converted is successful. This returns false if the Cartesian point is clipped by either the WorldWindow's near
      * clipping plane or far clipping plane.
      *
+     * @param point  the Cartesian point in meters
+     * @param result a pre-allocated [Vec2] in which to return the screen point
+     *
+     * @return true if the transformation is successful, otherwise false
+     */
+    fun cartesianToScreenPoint(point: Vec3, result: Vec2) = cartesianToScreenPoint(point.x, point.y, point.z, result)
+
+    /**
+     * Transforms a Cartesian coordinate point to viewport coordinates.
+     * <br>
+     * This stores the converted point in the result argument, and returns a boolean value indicating whether the
+     * converted is successful. This returns false if the Cartesian point is clipped by either the WorldWindow's near
+     * clipping plane or far clipping plane.
+     *
      * @param x      the Cartesian point's x component in meters
      * @param y      the Cartesian point's y component in meters
      * @param z      the Cartesian point's z component in meters
@@ -355,7 +369,7 @@ open class WorldWind @JvmOverloads constructor(
         globe.geographicToCartesian(latitude, longitude, altitude, scratchPoint)
 
         // Convert the position from Cartesian coordinates to screen coordinates.
-        return cartesianToScreenPoint(scratchPoint.x, scratchPoint.y, scratchPoint.z, result)
+        return cartesianToScreenPoint(scratchPoint, result)
     }
 
     /**
