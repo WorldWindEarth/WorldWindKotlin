@@ -252,8 +252,24 @@ open class RenderContext {
     }
 
     /**
+     * Converts a geographic [Position] to Cartesian coordinates according to an [altitudeMode].
+     * The Cartesian coordinate system is a function of this render context's current globe and its terrain surface,
+     * depending on the altitude mode. In general, it is not safe to cache the Cartesian coordinates,
+     * as many factors contribute to the value returned, and may change from one frame to the next.
+     *
+     * @param position     the specified position
+     * @param altitudeMode an altitude mode indicating how to interpret the position's altitude component
+     * @param result       a pre-allocated [Vec3] in which to store the computed X, Y and Z Cartesian coordinates
+     *
+     * @return the result argument, set to the computed Cartesian coordinates
+     */
+    fun geographicToCartesian(
+        position: Position, altitudeMode: AltitudeMode, result: Vec3
+    ) = geographicToCartesian(position.latitude, position.longitude, position.altitude, altitudeMode, result)
+
+    /**
      * Converts a geographic position to Cartesian coordinates according to an [altitudeMode].
-     * The Cartesian coordinate system is a function of this render context's current globe and its the terrain surface,
+     * The Cartesian coordinate system is a function of this render context's current globe and its terrain surface,
      * depending on the altitude mode. In general, it is not safe to cache the Cartesian coordinates,
      * as many factors contribute to the value returned, and may change from one frame to the next.
      *

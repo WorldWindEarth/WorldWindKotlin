@@ -142,9 +142,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
     }
 
     protected open fun determineCenterPoint(rc: RenderContext): Boolean {
-        rc.geographicToCartesian(
-            position.latitude, position.longitude, position.altitude, altitudeMode, centerPoint
-        )
+        rc.geographicToCartesian(position, altitudeMode, centerPoint)
         return centerPoint.x != 0.0 && centerPoint.y != 0.0 && centerPoint.z != 0.0
     }
 

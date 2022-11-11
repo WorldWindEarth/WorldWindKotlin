@@ -183,9 +183,7 @@ open class Placemark @JvmOverloads constructor(
      */
     override fun doRender(rc: RenderContext) {
         // Compute the placemark's Cartesian model point.
-        rc.geographicToCartesian(
-            position.latitude, position.longitude, position.altitude, altitudeMode, placePoint
-        )
+        rc.geographicToCartesian(position, altitudeMode, placePoint)
 
         // Compute the camera distance to the place point, the value which is used for ordering the placemark drawable
         // and determining the amount of depth offset to apply.
@@ -219,9 +217,7 @@ open class Placemark @JvmOverloads constructor(
         // drawable in order to give the icon visual priority over the leader.
         if (mustDrawLeader(rc)) {
             // Compute the placemark's Cartesian ground point.
-            rc.geographicToCartesian(
-                position.latitude, position.longitude, 0.0, AltitudeMode.CLAMP_TO_GROUND, groundPoint
-            )
+            rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {

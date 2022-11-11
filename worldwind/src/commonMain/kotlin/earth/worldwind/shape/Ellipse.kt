@@ -385,9 +385,7 @@ open class Ellipse @JvmOverloads constructor(
         if (isSurfaceShape) {
             vertexOrigin.set(center.longitude.inDegrees, center.latitude.inDegrees, center.altitude)
         } else {
-            rc.geographicToCartesian(
-                center.latitude, center.longitude, center.altitude, altitudeMode, scratchPoint
-            )
+            rc.geographicToCartesian(center, altitudeMode, scratchPoint)
             vertexOrigin.set(scratchPoint.x, scratchPoint.y, scratchPoint.z)
         }
 
@@ -496,7 +494,7 @@ open class Ellipse @JvmOverloads constructor(
     }
 
     protected open fun determineModelToTexCoord(rc: RenderContext) {
-        val point = rc.geographicToCartesian(center.latitude, center.longitude, center.altitude, altitudeMode, scratchPoint)
+        val point = rc.geographicToCartesian(center, altitudeMode, scratchPoint)
         rc.globe!!.cartesianToLocalTransform(point.x, point.y, point.z, modelToTexCoord)
         modelToTexCoord.invertOrthonormal()
     }
@@ -511,7 +509,7 @@ open class Ellipse @JvmOverloads constructor(
     protected open fun computeIntervals(rc: RenderContext): Int {
         var intervals = MIN_INTERVALS
         if (intervals >= maximumIntervals) return intervals // use at least the minimum number of intervals
-        val centerPoint = rc.geographicToCartesian(center.latitude, center.longitude, center.altitude, altitudeMode, scratchPoint)
+        val centerPoint = rc.geographicToCartesian(center, altitudeMode, scratchPoint)
         val maxRadius = max(majorRadius, minorRadius)
         val cameraDistance = centerPoint.distanceTo(rc.cameraPoint) - maxRadius
         if (cameraDistance <= 0) return maximumIntervals // use the maximum number of intervals when the camera is very close

@@ -100,9 +100,7 @@ open class Label @JvmOverloads constructor(
         if (text?.isEmpty() != false) return  // no text to render
 
         // Compute the label's Cartesian model point.
-        rc.geographicToCartesian(
-            position.latitude, position.longitude, position.altitude, altitudeMode, renderData.placePoint
-        )
+        rc.geographicToCartesian(position, altitudeMode, renderData.placePoint)
 
         // Compute the camera distance to the place point, the value which is used for ordering the label drawable and
         // determining the amount of depth offset to apply.

@@ -419,9 +419,7 @@ open class Polygon @JvmOverloads constructor(
         for (positions in boundaries) {
             if (positions.isEmpty()) continue  // no boundary positions
             for (pos in positions) {
-                val point = rc.geographicToCartesian(
-                    pos.latitude, pos.longitude, pos.altitude, AltitudeMode.ABSOLUTE, point
-                )
+                val point = rc.geographicToCartesian(pos, AltitudeMode.ABSOLUTE, point)
                 mx += point.x
                 my += point.y
                 mz += point.z
