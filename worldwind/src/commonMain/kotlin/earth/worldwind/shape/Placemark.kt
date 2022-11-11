@@ -189,44 +189,11 @@ open class Placemark @JvmOverloads constructor(
         // and determining the amount of depth offset to apply.
         cameraDistance = rc.cameraPoint.distanceTo(placePoint)
 
-        // Compute a screen depth offset appropriate for the current viewing parameters.
-        var depthOffset = 0.0
-        val absTilt = abs(rc.camera!!.tilt.inDegrees)
-        if (cameraDistance < rc.horizonDistance && absTilt <= 90) {
-            depthOffset = (1 - absTilt / 90) * DEFAULT_DEPTH_OFFSET
-        }
-
-        // Project the placemark's model point to screen coordinates, using the screen depth offset to push the screen
-        // point's z component closer to the eye point.
-        if (!rc.projectWithDepth(placePoint, depthOffset, screenPlacePoint)) return // clipped by the near plane or the far plane
-
         // Allow the placemark to adjust the level of detail based on distance to the camera
         if (levelOfDetailSelector?.selectLevelOfDetail(rc, this, cameraDistance) == false) return // skip rendering
 
         // Determine the attributes to use for the current render pass.
         determineActiveAttributes(rc)
-
-        // Keep track of the drawable count to determine whether this placemark has enqueued drawables.
-        val drawableCount = rc.drawableCount
-        if (rc.isPickMode) {
-            pickedObjectId = rc.nextPickedObjectId()
-            PickedObject.identifierToUniqueColor(pickedObjectId, pickColor)
-        }
-
-        // Prepare a drawable for the placemark's leader, if requested. Enqueue the leader drawable before the icon
-        // drawable in order to give the icon visual priority over the leader.
-        if (mustDrawLeader(rc)) {
-            // Compute the placemark's Cartesian ground point.
-            rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
-
-            // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
-            if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
-                val pool = rc.getDrawablePool<DrawableLines>()
-                val drawable = DrawableLines.obtain(pool)
-                prepareDrawableLeader(rc, drawable)
-                rc.offerShapeDrawable(drawable, cameraDistance)
-            }
-        }
 
         // Perform point based culling for placemarks who's textures haven't been loaded yet.
         // If the texture hasn't been loaded yet, then perform point-based culling to avoid
@@ -234,15 +201,14 @@ open class Placemark @JvmOverloads constructor(
         // There are cases where a placemark's texture would be partially visible if it at the
         // edge of the screen were loaded. In these cases the placemark will "pop" into view when
         // the placePoint enters the view frustum.
-        val activeTexture = activeAttributes.imageSource?.let { rc.getTexture(it, null, rc.frustum.containsPoint(placePoint)) }
+        val activeTexture = activeAttributes.imageSource?.let {
+            rc.getTexture(it, null, rc.frustum.containsPoint(placePoint))
+        }
 
         // Compute a camera-position proximity scaling factor, so that distant placemarks can be scaled smaller than
         // nearer placemarks.
         var visibilityScale = if (isEyeDistanceScaling)
             (eyeDistanceScalingThreshold / cameraDistance).coerceIn(activeAttributes.minimumImageScale, 1.0) else 1.0
-
-        // Initialize the unit square transform to the identity matrix.
-        imageTransform.setToIdentity()
 
         // Apply the icon's translation and scale according to the image size, image offset and image scale. The image
         // offset is defined with its origin at the image's bottom-left corner and axes that extend up and to the right
@@ -273,34 +239,48 @@ open class Placemark @JvmOverloads constructor(
             scaleX = scaleY
         }
 
-        // Position image on screen
-        imageTransform.multiplyByTranslation(
-            screenPlacePoint.x, screenPlacePoint.y, screenPlacePoint.z
-        )
-
-        // Divide Z by 2^24 to prevent texture clipping when tilting (where 24 is depth buffer bit size).
-        // Doing so will limit depth range to (diagonal length)/2^24 and make its value within 0..1 range.
-        imageTransform.multiplyByScale(1.0, 1.0, 1.0 / (1 shl 24))
-
-        // Perform the tilt so that the image tilts back from its base into the view volume
-        if (imageTilt != ZERO) {
-            val actualTilt = if (imageTiltReference == OrientationMode.RELATIVE_TO_GLOBE)
-                rc.camera!!.tilt + imageTilt else imageTilt
-            imageTransform.multiplyByRotation(-1.0, 0.0, 0.0, actualTilt)
+        // Offset along the normal vector to avoid collision with terrain.
+        if (offsetY != 0.0) {
+            rc.globe!!.geographicToCartesianNormal(position.latitude, position.longitude, scratchVector).also {
+                placePoint.add(scratchVector.multiply(offsetY * rc.pixelSizeAtDistance(cameraDistance)))
+            }
         }
 
-        // Perform image rotation
-        if (imageRotation != ZERO) {
-            val actualRotation = if (imageRotationReference == OrientationMode.RELATIVE_TO_GLOBE)
-                rc.camera!!.heading - imageRotation else -imageRotation
-            imageTransform.multiplyByRotation(0.0, 0.0, 1.0, actualRotation)
+        // Compute a screen depth offset appropriate for the current viewing parameters.
+        var depthOffset = 0.0
+        val absTilt = abs(rc.camera!!.tilt.inDegrees)
+        if (cameraDistance < rc.horizonDistance && absTilt <= 90) {
+            depthOffset = (1 - absTilt / 90) * DEFAULT_DEPTH_OFFSET
         }
 
-        // Apply pivot translation
-        imageTransform.multiplyByTranslation(-offsetX, -offsetY, 0.0)
+        // Project the placemark's model point to screen coordinates, using the screen depth offset to push the screen
+        // point's z component closer to the eye point.
+        if (!rc.projectWithDepth(placePoint, depthOffset, screenPlacePoint)) return // clipped by the near plane or the far plane
 
-        // Apply scale
-        imageTransform.multiplyByScale(scaleX, scaleY, 1.0)
+        // Keep track of the drawable count to determine whether this placemark has enqueued drawables.
+        val drawableCount = rc.drawableCount
+        if (rc.isPickMode) {
+            pickedObjectId = rc.nextPickedObjectId()
+            PickedObject.identifierToUniqueColor(pickedObjectId, pickColor)
+        }
+
+        // Prepare a drawable for the placemark's leader, if requested. Enqueue the leader drawable before the icon
+        // drawable in order to give the icon visual priority over the leader.
+        if (mustDrawLeader(rc)) {
+            // Compute the placemark's Cartesian ground point.
+            rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
+
+            // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
+            if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
+                val pool = rc.getDrawablePool<DrawableLines>()
+                val drawable = DrawableLines.obtain(pool)
+                prepareDrawableLeader(rc, drawable)
+                rc.offerShapeDrawable(drawable, cameraDistance)
+            }
+        }
+
+        // Prepare image transformation matrix
+        prepareImageTransform(rc.camera!!, offsetX, offsetY, scaleX, scaleY)
 
         // If the placemark's icon is visible, enqueue a drawable icon for processing on the OpenGL thread.
         boundingRectForUnitSquare(imageTransform, imageBounds)
@@ -355,6 +335,51 @@ open class Placemark @JvmOverloads constructor(
     protected open fun determineActiveAttributes(rc: RenderContext) {
         val highlightAttributes = highlightAttributes
         activeAttributes = if (isHighlighted && highlightAttributes != null) highlightAttributes else attributes
+    }
+
+    /**
+     * Prepare image transform matrix according to specified parameters
+     *
+     * @param camera current camera view
+     * @param offsetX offset along X axis
+     * @param offsetY offset along X axis
+     * @param scaleX scaled width
+     * @param scaleY scaled height
+     */
+    protected open fun prepareImageTransform(
+        camera: Camera, offsetX: Double, offsetY: Double, scaleX: Double, scaleY: Double
+    ) {
+        // Initialize the unit square transform to the identity matrix.
+        imageTransform.setToIdentity()
+
+        // Position image on screen
+        imageTransform.multiplyByTranslation(
+            screenPlacePoint.x, screenPlacePoint.y, screenPlacePoint.z
+        )
+
+        // Divide Z by 2^24 to prevent texture clipping when tilting (where 24 is depth buffer bit size).
+        // Doing so will limit depth range to (diagonal length)/2^24 and make its value within 0..1 range.
+        imageTransform.multiplyByScale(1.0, 1.0, 1.0 / (1 shl 24))
+
+        // Perform the tilt so that the image tilts back from its base into the view volume
+        if (imageTilt != ZERO) {
+            val actualTilt = if (imageTiltReference == OrientationMode.RELATIVE_TO_GLOBE)
+                camera.tilt + imageTilt else imageTilt
+            imageTransform.multiplyByRotation(-1.0, 0.0, 0.0, actualTilt)
+        }
+
+        // Perform image rotation
+        if (imageRotation != ZERO) {
+            val actualRotation = if (imageRotationReference == OrientationMode.RELATIVE_TO_GLOBE)
+                camera.heading - imageRotation else -imageRotation
+            imageTransform.multiplyByRotation(0.0, 0.0, 1.0, actualRotation)
+        }
+
+        // Apply pivot translation
+        imageTransform.multiplyByTranslation(-offsetX, -offsetY, 0.0)
+
+        // Apply scale
+        imageTransform.multiplyByScale(scaleX, scaleY, 1.0)
     }
 
     /**
@@ -466,6 +491,7 @@ open class Placemark @JvmOverloads constructor(
         protected const val DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD = 4e5
         protected const val DEFAULT_DEPTH_OFFSET = -0.03
         private val placePoint = Vec3()
+        private val scratchVector = Vec3()
         private val screenPlacePoint = Vec3()
         private val groundPoint = Vec3()
         private val offset = Vec2()

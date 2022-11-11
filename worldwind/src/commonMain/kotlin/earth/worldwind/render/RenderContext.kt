@@ -295,9 +295,7 @@ open class RenderContext {
                 if (altitude != 0.0) {
                     // Offset along the normal vector at the terrain surface point.
                     globe?.geographicToCartesianNormal(latitude, longitude, scratchVector)?.also {
-                        result.x += scratchVector.x * altitude
-                        result.y += scratchVector.y * altitude
-                        result.z += scratchVector.z * altitude
+                        result.add(scratchVector.multiply(altitude))
                     }
                 }
             } else {

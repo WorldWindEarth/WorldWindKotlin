@@ -53,9 +53,7 @@ actual open class MilStd2525Placemark actual constructor(
                 // presence of text modifiers.
                 imageOffset = Offset(
                     OffsetMode.PIXELS, imageInfo.getCenterPoint().getX().toDouble(), // x offset
-                    // Use billboarding or lollipopping to prevent icon clipping by terrain as described in MIL-STD-2525C APPENDIX F.5.1.1.2
-                    //OffsetMode.INSET_PIXELS, imageInfo.getCenterPoint().getY().toDouble() // y offset converted to lower-left origin
-                    OffsetMode.PIXELS, 0.0 // bottom of icon
+                    OffsetMode.INSET_PIXELS, imageInfo.getCenterPoint().getY().toDouble() // y offset converted to lower-left origin
                 )
                 imageSource = ImageSource.fromImage(imageInfo.getImage())
             }
