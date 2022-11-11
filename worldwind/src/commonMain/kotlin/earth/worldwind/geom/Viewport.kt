@@ -175,12 +175,22 @@ open class Viewport(
     /**
      * Indicates whether this viewport contains a specified point. An empty viewport never contains a point.
      *
+     * @param point the point
+     *
+     * @return true if this viewport contains the point, false otherwise
+     */
+    fun contains(point: Vec2) = contains(point.x, point.y)
+
+    /**
+     * Indicates whether this viewport contains a specified point. An empty viewport never contains a point.
+     *
      * @param x the point's X component
      * @param y the point's Y component
      *
      * @return true if this viewport contains the point, false otherwise
      */
-    fun contains(x: Int, y: Int) = x >= this.x && x < this.x + width && y >= this.y && y < this.y + height
+    fun contains(x: Number, y: Number) = x.toDouble() >= this.x && x.toDouble() < this.x + width
+            && y.toDouble() >= this.y && y.toDouble() < this.y + height
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
