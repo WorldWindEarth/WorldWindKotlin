@@ -201,7 +201,7 @@ open class Label @JvmOverloads constructor(
         if (rc.isPickMode) drawable.color.copy(renderData.pickColor)
         else drawable.color.set(1f, 1f, 1f, 1f)
         drawable.texture = texture
-        drawable.enableDepthTest = activeAttributes.isEnableDepthTest
+        drawable.enableDepthTest = activeAttributes.isDepthTestEnabled
 
         // Enqueue a drawable for processing on the OpenGL thread.
         rc.offerShapeDrawable(drawable, renderData.cameraDistance)

@@ -42,7 +42,7 @@ abstract class AbstractTiledElevationCoverage(
      */
     protected val currentRetrievals = mutableSetOf<Long>()
     protected val coverageCache = LruMemoryCache<Long, ShortArray>(1024 * 1024 * 8)
-    protected var isEnableRetrieval = false
+    protected var isRetrievalEnabled = false
     protected val absentResourceList = AbsentResourceList<Long>(3, 5.seconds)
 
     init { log(INFO, "Coverage cache initialized %.0f KB".format(coverageCache.capacity / 1024.0)) }
@@ -60,7 +60,7 @@ abstract class AbstractTiledElevationCoverage(
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)
         val tileBlock = TileBlock()
         for (idx in targetIdx downTo 0) {
-            isEnableRetrieval = idx == targetIdx || idx == 0 // enable retrieval of the target matrix and the first matrix
+            isRetrievalEnabled = idx == targetIdx || idx == 0 // enable retrieval of the target matrix and the first matrix
             val tileMatrix = tileMatrixSet.entries[idx]
             if (fetchTileBlock(gridSector, gridWidth, gridHeight, tileMatrix, tileBlock)) {
                 readHeightGrid(gridSector, gridWidth, gridHeight, tileBlock, result)
@@ -75,7 +75,7 @@ abstract class AbstractTiledElevationCoverage(
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)
         val tileBlock = TileBlock()
         for (idx in targetIdx downTo 0) {
-            isEnableRetrieval = idx == targetIdx || idx == 0 // enable retrieval of the target matrix and the first matrix
+            isRetrievalEnabled = idx == targetIdx || idx == 0 // enable retrieval of the target matrix and the first matrix
             val tileMatrix = tileMatrixSet.entries[idx]
             if (fetchTileBlock(sector, tileMatrix, tileBlock)) {
                 scanHeightLimits(sector, tileBlock, result)
@@ -203,7 +203,7 @@ abstract class AbstractTiledElevationCoverage(
         val key = tileMatrix.tileKey(row, column)
         return coverageCache[key] ?: run {
             // Ignore retrieval of already requested or marked as absent tiles
-            if (isEnableRetrieval && currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(key)
+            if (isRetrievalEnabled && currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(key)
                 && !absentResourceList.isResourceAbsent(key)) {
                 currentRetrievals += key
                 retrieveTileArray(key, tileMatrix, row, column)

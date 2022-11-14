@@ -39,7 +39,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         var y = -scratchBounds.top + 1f
         var width = scratchBounds.width() + 2
         var height = scratchBounds.height() + 2
-        if (attributes.isEnableOutline) {
+        if (attributes.isOutlineEnabled) {
             val strokeWidth2 = ceil(paint.strokeWidth * 0.5f).toInt()
             x += strokeWidth2
             y += strokeWidth2
@@ -48,7 +48,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         }
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         canvas.setBitmap(bitmap)
-        if (attributes.isEnableOutline) {
+        if (attributes.isOutlineEnabled) {
             paint.style = Paint.Style.FILL_AND_STROKE
             paint.color = attributes.outlineColor.toColorInt()
             canvas.drawText(text, 0, text.length, x, y, paint)

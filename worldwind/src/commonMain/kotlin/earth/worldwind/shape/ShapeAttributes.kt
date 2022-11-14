@@ -30,7 +30,7 @@ open class ShapeAttributes(
      * Sets whether shape lighting is enabled. When true, the appearance of a shape's color and image source may be
      * modified by shading applied from a global light source.
      */
-    var isEnableLighting: Boolean,
+    var isLightingEnabled: Boolean,
     /**
      * Indicates the color and opacity of shape interiors.
      */
@@ -77,7 +77,7 @@ open class ShapeAttributes(
         isDrawOutline = true,
         isDrawVerticals = false,
         isDepthTest = true,
-        isEnableLighting = false,
+        isLightingEnabled = false,
         interiorColor = Color(1f, 1f, 1f, 1f), // white
         outlineColor = Color(1f, 0f, 0f, 1f), // red
         outlineWidth = 1.0f,
@@ -90,7 +90,7 @@ open class ShapeAttributes(
         attributes.isDrawOutline,
         attributes.isDrawVerticals,
         attributes.isDepthTest,
-        attributes.isEnableLighting,
+        attributes.isLightingEnabled,
         Color(attributes.interiorColor),
         Color(attributes.outlineColor),
         attributes.outlineWidth,
@@ -103,7 +103,7 @@ open class ShapeAttributes(
         isDrawOutline = attributes.isDrawOutline
         isDrawVerticals = attributes.isDrawVerticals
         isDepthTest = attributes.isDepthTest
-        isEnableLighting = attributes.isEnableLighting
+        isLightingEnabled = attributes.isLightingEnabled
         interiorColor.copy(attributes.interiorColor)
         outlineColor.copy(attributes.outlineColor)
         outlineWidth = attributes.outlineWidth
@@ -118,7 +118,7 @@ open class ShapeAttributes(
         if (isDrawOutline != other.isDrawOutline) return false
         if (isDrawVerticals != other.isDrawVerticals) return false
         if (isDepthTest != other.isDepthTest) return false
-        if (isEnableLighting != other.isEnableLighting) return false
+        if (isLightingEnabled != other.isLightingEnabled) return false
         if (interiorColor != other.interiorColor) return false
         if (outlineColor != other.outlineColor) return false
         if (outlineWidth != other.outlineWidth) return false
@@ -133,7 +133,7 @@ open class ShapeAttributes(
         result = 31 * result + isDrawOutline.hashCode()
         result = 31 * result + isDrawVerticals.hashCode()
         result = 31 * result + isDepthTest.hashCode()
-        result = 31 * result + isEnableLighting.hashCode()
+        result = 31 * result + isLightingEnabled.hashCode()
         result = 31 * result + interiorColor.hashCode()
         result = 31 * result + outlineColor.hashCode()
         result = 31 * result + outlineWidth.hashCode()

@@ -13,8 +13,8 @@ open class TextAttributes protected constructor(
     textOffset: Offset,
     outlineColor: Color,
     var outlineWidth: Float,
-    var isEnableOutline: Boolean,
-    var isEnableDepthTest: Boolean,
+    var isOutlineEnabled: Boolean,
+    var isDepthTestEnabled: Boolean,
     var scale: Double
 ) {
     var font = font
@@ -40,8 +40,8 @@ open class TextAttributes protected constructor(
         textOffset = Offset.bottomCenter(),
         outlineColor = Color(0f, 0f, 0f, 1f),
         outlineWidth = 3f,
-        isEnableOutline = true,
-        isEnableDepthTest = true,
+        isOutlineEnabled = true,
+        isDepthTestEnabled = true,
         scale = 1.0
     )
 
@@ -51,8 +51,8 @@ open class TextAttributes protected constructor(
         Offset(attributes.textOffset),
         Color(attributes.outlineColor),
         attributes.outlineWidth,
-        attributes.isEnableOutline,
-        attributes.isEnableDepthTest,
+        attributes.isOutlineEnabled,
+        attributes.isDepthTestEnabled,
         attributes.scale
     )
 
@@ -62,8 +62,8 @@ open class TextAttributes protected constructor(
         textOffset.copy(attributes.textOffset)
         outlineColor.copy(attributes.outlineColor)
         outlineWidth = attributes.outlineWidth
-        isEnableOutline = attributes.isEnableOutline
-        isEnableDepthTest = attributes.isEnableDepthTest
+        isOutlineEnabled = attributes.isOutlineEnabled
+        isDepthTestEnabled = attributes.isDepthTestEnabled
         scale = attributes.scale
     }
 
@@ -75,8 +75,8 @@ open class TextAttributes protected constructor(
         if (textOffset != other.textOffset) return false
         if (outlineColor != other.outlineColor) return false
         if (outlineWidth != other.outlineWidth) return false
-        if (isEnableOutline != other.isEnableOutline) return false
-        if (isEnableDepthTest != other.isEnableDepthTest) return false
+        if (isOutlineEnabled != other.isOutlineEnabled) return false
+        if (isDepthTestEnabled != other.isDepthTestEnabled) return false
         if (scale != other.scale) return false
         return true
     }
@@ -87,8 +87,8 @@ open class TextAttributes protected constructor(
         result = 31 * result + textOffset.hashCode()
         result = 31 * result + outlineColor.hashCode()
         result = 31 * result + outlineWidth.hashCode()
-        result = 31 * result + isEnableOutline.hashCode()
-        result = 31 * result + isEnableDepthTest.hashCode()
+        result = 31 * result + isOutlineEnabled.hashCode()
+        result = 31 * result + isDepthTestEnabled.hashCode()
         result = 31 * result + scale.hashCode()
         return result
     }

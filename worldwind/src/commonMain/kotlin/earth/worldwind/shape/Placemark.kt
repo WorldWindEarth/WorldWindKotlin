@@ -23,7 +23,7 @@ import kotlin.math.sin
 /**
  * Represents a Placemark shape. A placemark displays an image, a label and a leader connecting the placemark's
  * geographic position to the ground. All three of these items are optional. By default, the leader is not pickable. See
- * [Placemark.isEnableLeaderPicking].
+ * [Placemark.isLeaderPickingEnabled].
  * <br>
  * Placemarks may be drawn with either an image or as single-color square with a specified size. When the placemark
  * attributes indicate a valid image, the placemark's image is drawn as a rectangle in the image's original dimensions,
@@ -93,7 +93,7 @@ open class Placemark @JvmOverloads constructor(
     /**
      * Indicates whether this placemark's leader, if any, is pickable.
      */
-    var isEnableLeaderPicking = false
+    var isLeaderPickingEnabled = false
     /**
      * Enable additional altitude offset (billboarding) to prevent clipping Placamerk by terrain on tilt.
      */
@@ -408,7 +408,7 @@ open class Placemark @JvmOverloads constructor(
         // or not available, draw a simple colored square.
         drawable.color.copy(if (rc.isPickMode) pickColor else activeAttributes.imageColor)
         drawable.texture = activeTexture
-        drawable.enableDepthTest = activeAttributes.isDepthTest
+        drawable.enableDepthTest = activeAttributes.isDepthTestEnabled
     }
 
     /**
@@ -432,7 +432,7 @@ open class Placemark @JvmOverloads constructor(
         // in the texture's color.
         if (rc.isPickMode) drawable.color.copy(pickColor) else drawable.color.set(1f, 1f, 1f, 1f)
         drawable.texture = labelTexture
-        drawable.enableDepthTest = activeAttributes.labelAttributes.isEnableDepthTest
+        drawable.enableDepthTest = activeAttributes.labelAttributes.isDepthTestEnabled
     }
 
     /**
@@ -486,7 +486,7 @@ open class Placemark @JvmOverloads constructor(
      * @return True if leader-line directive is enabled and there are valid leader-line attributes.
      */
     protected open fun mustDrawLeader(rc: RenderContext) =
-        activeAttributes.isDrawLeader && (isEnableLeaderPicking || !rc.isPickMode) && altitudeMode != AltitudeMode.CLAMP_TO_GROUND
+        activeAttributes.isDrawLeader && (isLeaderPickingEnabled || !rc.isPickMode) && altitudeMode != AltitudeMode.CLAMP_TO_GROUND
 
     companion object {
         /**

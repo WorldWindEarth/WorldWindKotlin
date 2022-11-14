@@ -18,7 +18,7 @@ open class PlacemarkAttributes(
     var imageSource: ImageSource?,
     /**
      * Returns the image color. When this attribute bundle has a valid image path the placemark's image is composed with
-     * this image color to achieve the final placemark color. Otherwise the placemark is drawn in this color. The color
+     * this image color to achieve the final placemark color. Otherwise, the placemark is drawn in this color. The color
      * white, the default, causes the image to be drawn in its native colors.
      */
     imageColor: Color,
@@ -29,7 +29,7 @@ open class PlacemarkAttributes(
     imageOffset: Offset,
     /**
      * Returns the amount to scale the placemark's image. When this attribute bundle has a valid image path the scale is
-     * applied to the image's dimensions. Otherwise the scale indicates the dimensions in pixels of a square drawn at
+     * applied to the image's dimensions. Otherwise, the scale indicates the dimensions in pixels of a square drawn at
      * the placemark's geographic position. A scale of 0 causes the placemark to disappear; however, the placemark's
      * label, if any, is still drawn.
      */
@@ -53,20 +53,19 @@ open class PlacemarkAttributes(
      * occluded by terrain and other objects. If this value is true, the placemark's label, if any, has an independent
      * depth-test control.
      */
-    var isDepthTest: Boolean,
+    var isDepthTestEnabled: Boolean,
     /**
      * Returns the attributes to apply to the placemark's label
      */
     labelAttributes: TextAttributes,
     /**
-     * Returns the attributes to apply to the leader line if it's drawn
-     * drawn.
+     * Returns the attributes to apply to the leader line if it's drawn.
      */
     leaderAttributes: ShapeAttributes
 ) {
     /**
      * Returns the image color. When this attribute bundle has a valid image path the placemark's image is composed with
-     * this image color to achieve the final placemark color. Otherwise the placemark is drawn in this color. The color
+     * this image color to achieve the final placemark color. Otherwise, the placemark is drawn in this color. The color
      * white, the default, causes the image to be drawn in its native colors.
      */
     var imageColor = imageColor
@@ -89,8 +88,7 @@ open class PlacemarkAttributes(
             field.copy(value)
         }
     /**
-     * Returns the attributes to apply to the leader line if it's drawn
-     * drawn.
+     * Returns the attributes to apply to the leader line if it's drawn.
      */
     var leaderAttributes = leaderAttributes
         set(value) {
@@ -109,7 +107,7 @@ open class PlacemarkAttributes(
         minimumImageScale = 0.0,
         isDrawLabel = true,
         isDrawLeader = false,
-        isDepthTest = true,
+        isDepthTestEnabled = true,
         labelAttributes = TextAttributes(),
         leaderAttributes = ShapeAttributes()
     )
@@ -128,7 +126,7 @@ open class PlacemarkAttributes(
         attributes.minimumImageScale,
         attributes.isDrawLabel,
         attributes.isDrawLeader,
-        attributes.isDepthTest,
+        attributes.isDepthTestEnabled,
         TextAttributes(attributes.labelAttributes),
         ShapeAttributes(attributes.leaderAttributes)
     )
@@ -141,7 +139,7 @@ open class PlacemarkAttributes(
         minimumImageScale = attributes.minimumImageScale
         isDrawLabel = attributes.isDrawLabel
         isDrawLeader = attributes.isDrawLeader
-        isDepthTest = attributes.isDepthTest
+        isDepthTestEnabled = attributes.isDepthTestEnabled
         labelAttributes.copy(attributes.labelAttributes)
         leaderAttributes.copy(attributes.leaderAttributes)
     }
@@ -156,7 +154,7 @@ open class PlacemarkAttributes(
         if (minimumImageScale != other.minimumImageScale) return false
         if (isDrawLabel != other.isDrawLabel) return false
         if (isDrawLeader != other.isDrawLeader) return false
-        if (isDepthTest != other.isDepthTest) return false
+        if (isDepthTestEnabled != other.isDepthTestEnabled) return false
         if (labelAttributes != other.labelAttributes) return false
         if (leaderAttributes != other.leaderAttributes) return false
 
@@ -171,7 +169,7 @@ open class PlacemarkAttributes(
         result = 31 * result + minimumImageScale.hashCode()
         result = 31 * result + isDrawLabel.hashCode()
         result = 31 * result + isDrawLeader.hashCode()
-        result = 31 * result + isDepthTest.hashCode()
+        result = 31 * result + isDepthTestEnabled.hashCode()
         result = 31 * result + labelAttributes.hashCode()
         result = 31 * result + leaderAttributes.hashCode()
         return result

@@ -51,7 +51,8 @@ abstract class AbstractMilStd2525Placemark(
 
     init {
         levelOfDetailSelector = MilStd2525LevelOfDetailSelector()
-        isEnableLeaderPicking = true
+        isLeaderPickingEnabled = true
+        isBillboardingEnabled = true
     }
 
     protected open fun invalidate() {

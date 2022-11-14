@@ -14,7 +14,7 @@ class ShapeAttributesTest {
         assertTrue(shapeAttributes.isDrawOutline, "drawOutline should be true")
         assertFalse(shapeAttributes.isDrawVerticals, "drawVerticals should be false")
         assertTrue(shapeAttributes.isDepthTest, "depthTest should be true")
-        assertFalse(shapeAttributes.isEnableLighting, "enableLighting should be false")
+        assertFalse(shapeAttributes.isLightingEnabled, "isLightingEnabled should be false")
         assertEquals(Color(1f, 1f, 1f, 1f), shapeAttributes.interiorColor, "interiorColor should be white")
         assertEquals(Color(1f, 0f, 0f, 1f), shapeAttributes.outlineColor, "outlineColor should be red")
         assertEquals(1.0f, shapeAttributes.outlineWidth, 0.0f, "outlineWidth should be 1.0")
@@ -47,7 +47,7 @@ class ShapeAttributesTest {
         other.isDrawOutline = false
         other.isDrawVerticals = true
         other.isDepthTest = false
-        other.isEnableLighting = true
+        other.isLightingEnabled = true
         other.interiorColor = Color(0f, 0f, 0f, 0f)
         other.outlineColor = Color(0f, 1f, 1f, 0f)
         other.outlineWidth = 0.0f
@@ -65,7 +65,7 @@ class ShapeAttributesTest {
         assertEquals(same.isDrawOutline, attributes.isDrawOutline)
         assertEquals(same.isDrawVerticals, attributes.isDrawVerticals)
         assertEquals(same.isDepthTest, attributes.isDepthTest)
-        assertEquals(same.isEnableLighting, attributes.isEnableLighting)
+        assertEquals(same.isLightingEnabled, attributes.isLightingEnabled)
         assertEquals(same.interiorColor, attributes.interiorColor)
         assertEquals(same.outlineColor, attributes.outlineColor)
         assertEquals(same.outlineWidth, attributes.outlineWidth, 0.0f)
@@ -84,7 +84,7 @@ class ShapeAttributesTest {
         different.isDrawOutline = false
         different.isDrawVerticals = true
         different.isDepthTest = false
-        different.isEnableLighting = true
+        different.isLightingEnabled = true
         different.interiorColor = Color(0f, 0f, 0f, 0f)
         different.outlineColor = Color(0f, 1f, 1f, 0f)
         different.outlineWidth = 0.0f
@@ -94,7 +94,7 @@ class ShapeAttributesTest {
         assertNotEquals(different.isDrawOutline, typical.isDrawOutline)
         assertNotEquals(different.isDrawVerticals, typical.isDrawVerticals)
         assertNotEquals(different.isDepthTest, typical.isDepthTest)
-        assertNotEquals(different.isEnableLighting, typical.isEnableLighting)
+        assertNotEquals(different.isLightingEnabled, typical.isLightingEnabled)
         assertNotEquals(different.interiorColor, typical.interiorColor)
         assertNotEquals(different.outlineColor, typical.outlineColor)
         assertNotEquals(different.outlineWidth, typical.outlineWidth, 0.0f)
