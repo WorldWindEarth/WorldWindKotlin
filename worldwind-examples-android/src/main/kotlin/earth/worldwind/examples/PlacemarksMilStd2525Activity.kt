@@ -87,6 +87,7 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
                 MilStd2525Placemark.getPlacemarkAttributes("SFAPMFQM--GIUSA", modifiers)
             )
             drone.attributes.isDrawLeader = true
+            drone.isBillboardingEnabled = true
             symbolLayer.addRenderable(drone)
 
             // Add a "MIL-STD-2525 Hostile Self-Propelled Rocket Launchers"
@@ -98,6 +99,7 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
                 MilStd2525Placemark.getPlacemarkAttributes("SHGXUCFRMS----G", modifiers)
             )
             launcher.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            launcher.isBillboardingEnabled = true
             symbolLayer.addRenderable(launcher)
 
             // Add a "MIL-STD-2525 Friendly Heavy Machine Gun"
@@ -112,6 +114,7 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
                 MilStd2525Placemark.getPlacemarkAttributes("SFGPEWRH--MTUSG", modifiers)
             )
             machineGun.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            machineGun.isBillboardingEnabled = true
             symbolLayer.addRenderable(machineGun)
 
             // Add "MIL-STD-2525 Counterattack by fire"

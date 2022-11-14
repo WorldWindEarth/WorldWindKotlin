@@ -18,6 +18,7 @@ import earth.worldwind.util.math.boundingRectForUnitSquare
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
+import kotlin.math.sin
 
 /**
  * Represents a Placemark shape. A placemark displays an image, a label and a leader connecting the placemark's
@@ -93,6 +94,10 @@ open class Placemark @JvmOverloads constructor(
      * Indicates whether this placemark's leader, if any, is pickable.
      */
     var isEnableLeaderPicking = false
+    /**
+     * Enable additional altitude offset (billboarding) to prevent clipping Placamerk by terrain on tilt.
+     */
+    var isBillboardingEnabled = false
     /**
      * The amount of rotation to apply to the image, measured clockwise and relative to this placemark's
      * [Placemark.imageRotationReference].
@@ -240,9 +245,10 @@ open class Placemark @JvmOverloads constructor(
         }
 
         // Offset along the normal vector to avoid collision with terrain.
-        if (offsetY != 0.0) {
+        if (isBillboardingEnabled && offsetY != 0.0) {
             rc.globe!!.geographicToCartesianNormal(position.latitude, position.longitude, scratchVector).also {
-                placePoint.add(scratchVector.multiply(offsetY * rc.pixelSizeAtDistance(cameraDistance)))
+                val altitude = rc.pixelSizeAtDistance(cameraDistance) * sin(rc.camera!!.tilt.inRadians)
+                placePoint.add(scratchVector.multiply(offsetY * altitude))
             }
         }
 
