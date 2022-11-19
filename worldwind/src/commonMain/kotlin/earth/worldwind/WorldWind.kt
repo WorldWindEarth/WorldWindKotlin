@@ -636,10 +636,10 @@ open class WorldWind @JvmOverloads constructor(
         fun requestRedraw() { eventBus.tryEmit(Event.RequestRedraw) }
     }
 
-    sealed class Event {
+    sealed interface Event {
         /**
          * Event requesting WorldWindow instances to update their display.
          */
-        object RequestRedraw : Event()
+        object RequestRedraw : Event
     }
 }
