@@ -138,9 +138,9 @@ internal class GARSGraticuleTile(
                 Position(sector.minLatitude, lon, 0.0), Position(sector.maxLatitude, lon, 0.0)
             )
             val line = layer.createLineRenderable(positions, PathType.LINEAR)
-            val sector = Sector(sector.minLatitude, sector.maxLatitude, lon, lon)
+            val lineSector = Sector(sector.minLatitude, sector.maxLatitude, lon, lon)
             val lineType = if (lon == sector.minLongitude) TYPE_LINE_WEST else TYPE_LINE
-            gridElements!!.add(GridElement(sector, line, lineType, lon))
+            gridElements!!.add(GridElement(lineSector, line, lineType, lon))
 
             // Increase longitude
             lon = lon.plusDegrees(step)
@@ -153,9 +153,9 @@ internal class GARSGraticuleTile(
                 Position(lat, sector.minLongitude, 0.0), Position(lat, sector.maxLongitude, 0.0)
             )
             val line = layer.createLineRenderable(positions, PathType.LINEAR)
-            val sector = Sector(lat, lat, sector.minLongitude, sector.maxLongitude)
+            val lineSector = Sector(lat, lat, sector.minLongitude, sector.maxLongitude)
             val lineType = if (lat == sector.minLatitude) TYPE_LINE_SOUTH else TYPE_LINE
-            gridElements!!.add(GridElement(sector, line, lineType, lat))
+            gridElements!!.add(GridElement(lineSector, line, lineType, lat))
 
             // Increase latitude
             lat = lat.plusDegrees(step)
@@ -167,8 +167,8 @@ internal class GARSGraticuleTile(
                 Position(POS90, sector.minLongitude, 0.0), Position(POS90, sector.maxLongitude, 0.0)
             )
             val line = layer.createLineRenderable(positions, PathType.LINEAR)
-            val sector = Sector(POS90, POS90, sector.minLongitude, sector.maxLongitude)
-            gridElements!!.add(GridElement(sector, line, TYPE_LINE_NORTH, POS90))
+            val lineSector = Sector(POS90, POS90, sector.minLongitude, sector.maxLongitude)
+            gridElements!!.add(GridElement(lineSector, line, TYPE_LINE_NORTH, POS90))
         }
         var resolution = sector.deltaLatitude.inDegrees / divisions
         when (level) {
