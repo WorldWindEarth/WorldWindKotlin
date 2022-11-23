@@ -782,14 +782,14 @@ value class Angle private constructor(
     fun clampLongitude() = coerceIn(NEG180, POS180)
 
     fun toDMS(): DoubleArray {
-        var temp = inDegrees
-        val sign = sign(temp)
-        temp *= sign
-        var d = floor(temp)
-        temp = (temp - d) * 60.0
-        var m = floor(temp)
-        temp = (temp - m) * 60.0
-        var s = temp
+        var angle = inDegrees
+        val sign = sign(angle)
+        angle *= sign
+        var d = floor(angle)
+        angle = (angle - d) * 60.0
+        var m = floor(angle)
+        angle = (angle - m) * 60.0
+        var s = round(angle * 100) / 100 // keep two decimals for seconds
         if (s == 60.0) {
             m++
             s = 0.0
@@ -798,7 +798,7 @@ value class Angle private constructor(
             d++
             m = 0.0
         }
-        return doubleArrayOf(sign * d, m, s)
+        return doubleArrayOf(sign, d, m, s)
     }
 
     /**
@@ -824,8 +824,8 @@ value class Angle private constructor(
      */
     fun toDMmmString(): String {
         val dms = toDMS()
-        val mf = if (dms[2] == 0.0) dms[1] else dms[1] + dms[2] / 60.0
-        return "%d° %5.2f’".format(dms[0], mf)
+        val mf = if (dms[3] == 0.0) dms[2] else dms[2] + dms[3] / 60.0
+        return "${if (dms[0] < 0) "-" else ""}%d° %2.2f’".format(dms[1], mf)
     }
 
     /**
@@ -835,7 +835,7 @@ value class Angle private constructor(
      */
     fun toDMSssString(): String {
         val dms = toDMS()
-        return "%4d° %2d’ %5.2f”".format(dms[0], dms[1], dms[2])
+        return "${if (dms[0] < 0) "-" else ""}%d° %2d’ %2.2f”".format(dms[1], dms[2], dms[3])
     }
 
     /**
@@ -846,7 +846,7 @@ value class Angle private constructor(
      */
     fun toDMSString(): String {
         val dms = toDMS()
-        return "%d° %d’ %d”".format(dms[0], dms[1], dms[2])
+        return "${if (dms[0] < 0) "-" else ""}%d° %d’ %.0f”".format(dms[1], dms[2], dms[3])
     }
 
     /**

@@ -74,16 +74,16 @@ abstract class AbstractLatLonGraticuleLayer(name: String): AbstractGraticuleLaye
             if (resolution >= 1) angle.toDecimalDegreesString(0)
             else {
                 val dms = angle.toDMS()
-                if (dms[1] < epsilon && dms[2] < epsilon) "%4d°".format(dms[0].toInt())
-                else if (dms[2] < epsilon) "%4d° %2d’".format(dms[0].toInt(), dms[1].toInt())
+                if (dms[2] < epsilon && dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d°".format(dms[1].toInt())
+                else if (dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d° %2d’".format(dms[1].toInt(), dms[2].toInt())
                 else angle.toDMSString()
             }
         } else if (angleFormat == AngleFormat.DM) {
             if (resolution >= 1) angle.toDecimalDegreesString(0)
             else {
                 val dms = angle.toDMS()
-                if (dms[1] < epsilon && dms[2] < epsilon) "%4d°".format(dms[0].toInt())
-                else if (dms[2] < epsilon) "%4d° %2d’".format(dms[0].toInt(), dms[1].toInt())
+                if (dms[2] < epsilon && dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d°".format(dms[1].toInt())
+                else if (dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d° %2d’".format(dms[1].toInt(), dms[2].toInt())
                 else angle.toDMmmString()
             }
         } else { // default to decimal degrees
