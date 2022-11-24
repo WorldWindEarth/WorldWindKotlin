@@ -81,15 +81,16 @@ fun fractionalFormat(_value: Double, width: Int, fractionPartLength: Int = -1): 
     if (abs(value) >= 1) {
         val i = if (fractionPartLength == 0) value.roundToLong() else value.toLong()
         result.append(i)
-        result.append('.')
         value -= i
-    } else result.append((if (value < 0) "-0." else "0."))
+    } else result.append((if (value < 0) "-0" else "0"))
 
-    //val result = StringBuilder(if( value < 0) "-0." else "0.")
     var fl = if (fractionPartLength < 0) {
         if (width < 0) 6
-        else width - result.length
+        else width - result.length - 1
     } else fractionPartLength
+
+    if (fl != 0) result.append('.')
+
     var rest = value * 10
     while (fl-- > 0) {
         val d = if (fl > 0) rest.toInt() else rest.roundToInt()
