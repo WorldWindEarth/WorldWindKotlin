@@ -143,8 +143,12 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("definition", definition)
                 put("description", description)
             }
-            database.insert("gpkg_spatial_ref_sys", null, values)
-            addSpatialReferenceSystem(this)
+            try {
+                database.insertOrThrow("gpkg_spatial_ref_sys", null, values)
+                addSpatialReferenceSystem(this)
+            } catch (_: SQLException) {
+                // Handle exception manually as -1 is a valid primary key field value for spatial reference system table
+            }
         } }
     }
 
@@ -162,8 +166,9 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("max_y", maxY)
                 put("srs_id", srsId)
             }
-            database.insertOrThrow("gpkg_contents", null, values)
-            addContent(this)
+            if (database.insert("gpkg_contents", null, values) >= 0) {
+                addContent(this)
+            }
         } }
     }
 
@@ -177,8 +182,9 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("max_x", maxX)
                 put("max_y", maxY)
             }
-            database.insertOrThrow("gpkg_tile_matrix_set", null, values)
-            addMatrixSet(this)
+            if (database.insert("gpkg_tile_matrix_set", null, values) >= 0) {
+                addMatrixSet(this)
+            }
         } }
     }
 
@@ -194,8 +200,9 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("pixel_x_size", pixelXSize)
                 put("pixel_y_size", pixelYSize)
             }
-            database.insertOrThrow("gpkg_tile_matrix", null, values)
-            addMatrix(this)
+            if (database.insert("gpkg_tile_matrix", null, values) >= 0) {
+                addMatrix(this)
+            }
         } }
     }
 
@@ -208,8 +215,9 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("definition", definition)
                 put("scope", scope)
             }
-            database.insertOrThrow("gpkg_extensions", null, values)
-            addExtension(this)
+            if (database.insert("gpkg_extensions", null, values) >= 0) {
+                addExtension(this)
+            }
         } }
     }
 
@@ -227,8 +235,9 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("field_name", fieldName)
                 put("quantity_definition", quantityDefinition)
             }
-            database.insertOrThrow("gpkg_2d_gridded_coverage_ancillary", null, values)
-            addGriddedCoverage(this)
+            if (database.insert("gpkg_2d_gridded_coverage_ancillary", null, values) >= 0) {
+                addGriddedCoverage(this)
+            }
         } }
     }
 
