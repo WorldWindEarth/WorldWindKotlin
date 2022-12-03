@@ -9,5 +9,5 @@ interface DownloadPostprocessor<T> {
      * @param resource original resource
      * @return processed resource
      */
-    fun process(resource: T): T
+    suspend fun process(resource: T): T
 }

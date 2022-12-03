@@ -8,6 +8,8 @@ import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.google.GoogleLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -47,7 +49,9 @@ The globe uses the default navigation gestures:
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-                configureCache(File(cacheDir, "cache.gpkg").absolutePath, "GSat")
+                wwd.mainScope.launch(Dispatchers.IO) {
+                    configureCache(File(cacheDir, "cache.gpkg").absolutePath, "GSat")
+                }
             })
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
@@ -55,7 +59,9 @@ The globe uses the default navigation gestures:
 
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            configureCache(File(cacheDir, "cache.gpkg").absolutePath, "SRTM")
+            wwd.mainScope.launch(Dispatchers.IO) {
+                configureCache(File(cacheDir, "cache.gpkg").absolutePath, "SRTM")
+            }
         })
     }
 

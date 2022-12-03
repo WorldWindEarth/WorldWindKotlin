@@ -51,7 +51,7 @@ actual open class TiledElevationCoverage actual constructor(
      *
      * @return Cache configured successfully
      */
-    fun configureCache(pathName: String, tableName: String, readOnly: Boolean = false, isFloat: Boolean = false): Boolean {
+    suspend fun configureCache(pathName: String, tableName: String, readOnly: Boolean = false, isFloat: Boolean = false): Boolean {
         return try {
             val geoPackage = GeoPackage(pathName, readOnly)
             val content = geoPackage.content.firstOrNull { it.tableName == tableName }?.also {

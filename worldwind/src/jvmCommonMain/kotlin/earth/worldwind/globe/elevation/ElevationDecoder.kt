@@ -36,7 +36,7 @@ open class ElevationDecoder: Closeable {
         else -> null
     }
 
-    protected open fun decodeFile(file: File, postprocessor: DownloadPostprocessor<Buffer>?) =
+    protected open suspend fun decodeFile(file: File, postprocessor: DownloadPostprocessor<Buffer>?) =
         when(file.name.substring(file.name.lastIndexOf('.') + 1)) {
             "tiff" -> "image/tiff"
             "bil16" -> "application/bil16"
@@ -54,7 +54,7 @@ open class ElevationDecoder: Closeable {
         return null
     }
 
-    protected open fun decodeBytes(bytes: ByteArray, contentType: String?, postprocessor: DownloadPostprocessor<Buffer>?) = decodeBuffer(
+    protected open suspend fun decodeBytes(bytes: ByteArray, contentType: String?, postprocessor: DownloadPostprocessor<Buffer>?) = decodeBuffer(
         when {
             contentType.equals("image/bil", true) ||
             contentType.equals("application/bil", true) ||

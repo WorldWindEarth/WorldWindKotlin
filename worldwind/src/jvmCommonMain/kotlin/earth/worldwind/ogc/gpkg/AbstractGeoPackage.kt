@@ -6,6 +6,7 @@ import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
+import kotlinx.coroutines.runBlocking
 
 // TODO verify its a GeoPackage container
 abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
@@ -24,13 +25,15 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     protected val tileMatrixIndex = mutableMapOf<String, MutableMap<Int, GpkgTileMatrix>>()
 
     init {
-        this.initConnection(pathName, isReadOnly)
-        this.readSpatialReferenceSystem()
-        this.readContent()
-        this.readTileMatrixSet()
-        this.readTileMatrix()
-        this.readExtension()
-        this.readGriddedCoverage()
+        runBlocking {
+            initConnection(pathName, isReadOnly)
+            readSpatialReferenceSystem()
+            readContent()
+            readTileMatrixSet()
+            readTileMatrix()
+            readExtension()
+            readGriddedCoverage()
+        }
     }
 
     fun getSpatialReferenceSystem(id: Int?) = srsIdIndex[id]?.let { spatialReferenceSystem[it] }
@@ -39,17 +42,17 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
 
     fun getTileMatrix(tableName: String) = tileMatrixIndex[tableName]
 
-    fun readTileUserData(tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int) =
+    suspend fun readTileUserData(tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int) =
         readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)
 
-    fun writeTileUserData(tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray) {
+    suspend fun writeTileUserData(tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         val tileUserData = readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.also { it.tileData = tileData }
             ?: GpkgTileUserData(this, -1, zoomLevel, tileColumn, tileRow, tileData)
         writeTileUserData(tiles.tableName, tileUserData)
     }
 
-    fun writeGriddedTile(
+    suspend fun writeGriddedTile(
         tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, scale: Double = 1.0, offset: Double = 0.0,
         min: Double? = null, max: Double? = null, mean: Double? = null, stdDev: Double? = null
     ) {
@@ -100,7 +103,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     }
 
     // TODO What if data already exists?
-    fun setupTilesContent(
+    suspend fun setupTilesContent(
         tableName: String, identifier: String, levelSet: LevelSet, isWebp: Boolean = false
     ): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
@@ -110,9 +113,6 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         val minY = levelSet.sector.minLatitude.inDegrees
         val maxX = levelSet.sector.maxLongitude.inDegrees
         val maxY = levelSet.sector.maxLatitude.inDegrees
-        // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
-        val content = GpkgContent(this, tableName, "tiles", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
-        writeContent(content)
         writeMatrixSet(GpkgTileMatrixSet(this, tableName, EPSG_ID, minX, minY, maxX, maxY))
         setupTileMatrices(tableName, levelSet)
         createTilesTable(tableName)
@@ -122,10 +122,13 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
                 "GeoPackage 1.0 Specification Annex P", "read-write"
             )
         )
+        // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
+        val content = GpkgContent(this, tableName, "tiles", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
+        writeContent(content)
         return content
     }
 
-    fun setupTileMatrices(tableName: String, levelSet: LevelSet) {
+    suspend fun setupTileMatrices(tableName: String, levelSet: LevelSet) {
         for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
             getTileMatrix(tableName)?.get(levelNumber) ?: run {
                 val matrixWidth = levelWidth / tileWidth
@@ -166,7 +169,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     }
 
     // TODO What if data already exists?
-    fun setupGriddedCoverageContent(tableName: String, identifier: String, tileMatrixSet: TileMatrixSet, isFloat: Boolean = false): GpkgContent {
+    suspend fun setupGriddedCoverageContent(tableName: String, identifier: String, tileMatrixSet: TileMatrixSet, isFloat: Boolean = false): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
         createGriddedCoverageTables()
@@ -175,9 +178,6 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         val minY = tileMatrixSet.sector.minLatitude.inDegrees
         val maxX = tileMatrixSet.sector.maxLongitude.inDegrees
         val maxY = tileMatrixSet.sector.maxLatitude.inDegrees
-        // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
-        val content = GpkgContent(this, tableName, "2d-gridded-coverage", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
-        writeContent(content)
         writeMatrixSet(GpkgTileMatrixSet(this, tableName, EPSG_ID, minX, minY, maxX, maxY))
         for (tileMatrix in tileMatrixSet.entries) tileMatrix.run {
             val pixelXSize = tileMatrixSet.sector.deltaLongitude.inDegrees / matrixWidth / tileWidth
@@ -211,13 +211,16 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
                 "http://docs.opengeospatial.org/is/17-066r1/17-066r1.html", "read-write"
             )
         )
+        // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
+        val content = GpkgContent(this, tableName, "2d-gridded-coverage", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
+        writeContent(content)
         return content
     }
 
     /**
      * Undefined cartesian and geographic SRS - Requirement 11 http://www.geopackage.org/spec131/index.html
      */
-    protected open fun writeDefaultSpatialReferenceSystems() {
+    protected open suspend fun writeDefaultSpatialReferenceSystems() {
         writeSpatialReferenceSystem(
             GpkgSpatialReferenceSystem(
                 this, "Undefined cartesian SRS", -1, "NONE", -1,
@@ -263,27 +266,27 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
 
     protected open fun addGriddedCoverage(griddedCoverage: GpkgGriddedCoverage) { griddedCoverages.add(griddedCoverage) }
 
-    protected abstract fun initConnection(pathName: String, isReadOnly: Boolean)
+    protected abstract suspend fun initConnection(pathName: String, isReadOnly: Boolean)
 
-    protected abstract fun createRequiredTables()
-    protected abstract fun createGriddedCoverageTables()
-    protected abstract fun createTilesTable(tableName: String)
+    protected abstract suspend fun createRequiredTables()
+    protected abstract suspend fun createGriddedCoverageTables()
+    protected abstract suspend fun createTilesTable(tableName: String)
 
-    protected abstract fun writeSpatialReferenceSystem(srs: GpkgSpatialReferenceSystem)
-    protected abstract fun writeContent(content: GpkgContent)
-    protected abstract fun writeMatrixSet(matrixSet: GpkgTileMatrixSet)
-    protected abstract fun writeMatrix(matrix: GpkgTileMatrix)
-    protected abstract fun writeExtension(extension: GpkgExtension)
-    protected abstract fun writeGriddedCoverage(griddedCoverage: GpkgGriddedCoverage)
-    protected abstract fun writeGriddedTile(griddedTile: GpkgGriddedTile)
-    protected abstract fun writeTileUserData(tableName: String, userData: GpkgTileUserData)
+    protected abstract suspend fun writeSpatialReferenceSystem(srs: GpkgSpatialReferenceSystem)
+    protected abstract suspend fun writeContent(content: GpkgContent)
+    protected abstract suspend fun writeMatrixSet(matrixSet: GpkgTileMatrixSet)
+    protected abstract suspend fun writeMatrix(matrix: GpkgTileMatrix)
+    protected abstract suspend fun writeExtension(extension: GpkgExtension)
+    protected abstract suspend fun writeGriddedCoverage(griddedCoverage: GpkgGriddedCoverage)
+    protected abstract suspend fun writeGriddedTile(griddedTile: GpkgGriddedTile)
+    protected abstract suspend fun writeTileUserData(tableName: String, userData: GpkgTileUserData)
 
-    protected abstract fun readSpatialReferenceSystem()
-    protected abstract fun readContent()
-    protected abstract fun readTileMatrixSet()
-    protected abstract fun readTileMatrix()
-    protected abstract fun readExtension()
-    protected abstract fun readGriddedCoverage()
-    protected abstract fun readGriddedTile(tableName: String, tileId: Int): GpkgGriddedTile?
-    protected abstract fun readTileUserData(tableName: String, zoom: Int, column: Int, row: Int): GpkgTileUserData?
+    protected abstract suspend fun readSpatialReferenceSystem()
+    protected abstract suspend fun readContent()
+    protected abstract suspend fun readTileMatrixSet()
+    protected abstract suspend fun readTileMatrix()
+    protected abstract suspend fun readExtension()
+    protected abstract suspend fun readGriddedCoverage()
+    protected abstract suspend fun readGriddedTile(tableName: String, tileId: Int): GpkgGriddedTile?
+    protected abstract suspend fun readTileUserData(tableName: String, zoom: Int, column: Int, row: Int): GpkgTileUserData?
 }

@@ -32,14 +32,18 @@ wwd = WorldWindow(requireContext())
 wwd.engine.layers.apply {
     addLayer(BackgroundLayer())
     addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-        configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
+        wwd.mainScope.launch(Dispatchers.IO) {
+            configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
+        }
     })
     addLayer(StarFieldLayer())
     addLayer(AtmosphereLayer())
 }
 // Setting up the WorldWindow's elevation coverages.
 wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-    configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+    wwd.mainScope.launch(Dispatchers.IO) {
+        configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+    }
 })
     </textarea>
 </div>

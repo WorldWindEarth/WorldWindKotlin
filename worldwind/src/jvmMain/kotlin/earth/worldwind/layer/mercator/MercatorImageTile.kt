@@ -16,7 +16,7 @@ import java.awt.image.BufferedImage
 actual open class MercatorImageTile actual constructor(
     sector: MercatorSector, level: Level, row: Int, column: Int
 ): AbstractMercatorImageTile(sector, level, row, column) {
-    override fun process(resource: BufferedImage): BufferedImage {
+    override suspend fun process(resource: BufferedImage): BufferedImage {
         // Re-project mercator tile to equirectangular projection
         val type = if (resource.type != BufferedImage.TYPE_INT_RGB) BufferedImage.TYPE_INT_ARGB else BufferedImage.TYPE_INT_RGB
         val result = BufferedImage(resource.width, resource.height, type)

@@ -14,7 +14,7 @@ open class GpkgBitmapFactory(
     protected val format: Bitmap.CompressFormat,
     protected val quality: Int
 ): ImageSource.BitmapFactory {
-    override fun createBitmap(): Bitmap? {
+    override suspend fun createBitmap(): Bitmap? {
         // Attempt to read the GeoPackage tile user data
         val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
 
@@ -22,7 +22,7 @@ open class GpkgBitmapFactory(
         return BitmapFactory.decodeByteArray(tileUserData.tileData, 0, tileUserData.tileData.size)
     }
 
-    fun saveBitmap(bitmap: Bitmap) {
+    suspend fun saveBitmap(bitmap: Bitmap) {
         if (!tiles.container.isReadOnly) {
             val stream = ByteArrayOutputStream()
             bitmap.compress(format, quality, stream)

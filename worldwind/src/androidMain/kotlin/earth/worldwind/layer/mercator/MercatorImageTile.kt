@@ -16,7 +16,7 @@ import earth.worldwind.util.Level
 actual open class MercatorImageTile actual constructor(
     sector: MercatorSector, level: Level, row: Int, column: Int
 ): AbstractMercatorImageTile(sector, level, row, column) {
-    override fun process(resource: Bitmap): Bitmap {
+    override suspend fun process(resource: Bitmap): Bitmap {
         // Re-project mercator tile to equirectangular projection
         val pixels = IntArray(resource.width * resource.height)
         val result = IntArray(resource.width * resource.height)

@@ -12,5 +12,5 @@ actual open class ImageTile actual constructor(
     actual var imageSource: ImageSource? = null
     actual var cacheSource: ImageSource? = null
 
-    override fun process(resource: BufferedImage) = resource
+    override suspend fun process(resource: BufferedImage) = resource
 }

@@ -35,7 +35,7 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
      */
     fun disableCache() { tiledSurfaceImage?.cacheTileFactory = null }
 
-    protected open fun getOrSetupTilesContent(pathName: String, tableName: String, readOnly: Boolean, isWebp: Boolean): GpkgContent {
+    protected open suspend fun getOrSetupTilesContent(pathName: String, tableName: String, readOnly: Boolean, isWebp: Boolean): GpkgContent {
         val tiledSurfaceImage = tiledSurfaceImage ?: error("Surface image not defined")
         val levelSet = tiledSurfaceImage.levelSet
         val geoPackage = GeoPackage(pathName, readOnly)

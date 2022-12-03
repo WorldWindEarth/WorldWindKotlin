@@ -23,7 +23,7 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      */
     @Suppress("DEPRECATION")
     @JvmOverloads
-    fun configureCache(
+    suspend fun configureCache(
         pathName: String, tableName: String, readOnly: Boolean = false, format: CompressFormat = CompressFormat.PNG, quality: Int = 100
     ) = try {
         val isWebp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

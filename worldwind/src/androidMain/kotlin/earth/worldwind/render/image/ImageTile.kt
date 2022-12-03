@@ -13,7 +13,7 @@ actual open class ImageTile actual constructor(
     actual var imageSource: ImageSource? = null
     actual var cacheSource: ImageSource? = null
 
-    override fun process(resource: Bitmap): Bitmap {
+    override suspend fun process(resource: Bitmap): Bitmap {
         val source = cacheSource?.asUnrecognized()
         if (source is GpkgBitmapFactory) source.saveBitmap(resource)
         return resource

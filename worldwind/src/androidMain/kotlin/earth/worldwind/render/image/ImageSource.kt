@@ -253,11 +253,11 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          *
          * @return the bitmap associated with this factory
          */
-        fun createBitmap(): Bitmap?
+        suspend fun createBitmap(): Bitmap?
     }
 
     protected open class LineStippleBitmapFactory(protected val factor: Int, protected val pattern: Short): BitmapFactory {
-        override fun createBitmap(): Bitmap {
+        override suspend fun createBitmap(): Bitmap {
             val transparent = argb(0, 0, 0, 0)
             val white = argb(255, 255, 255, 255)
             return if (factor <= 0) {

@@ -46,7 +46,7 @@ open class TextureStressTestActivity : BasicGlobeActivity() {
         // Create an image source with a unique factory instance. This pattern is used in order to force WorldWind to
         // allocate a new OpenGL texture object for each surface image from a single bitmap instance.
         val imageSource = fromBitmapFactory(object : ImageSource.BitmapFactory {
-            override fun createBitmap() = bitmap
+            override suspend fun createBitmap() = bitmap
         })
 
         // Add the surface image to this test's layer.

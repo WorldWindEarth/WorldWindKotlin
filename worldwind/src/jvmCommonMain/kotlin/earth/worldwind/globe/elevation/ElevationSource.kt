@@ -141,6 +141,6 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
         /**
          * @return the elevation tile data associated with this factory
          */
-        fun fetchTileData(): Buffer?
+        suspend fun fetchTileData(): Buffer?
     }
 }

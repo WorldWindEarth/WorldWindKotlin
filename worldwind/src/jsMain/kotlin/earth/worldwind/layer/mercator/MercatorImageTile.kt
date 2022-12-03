@@ -30,7 +30,7 @@ actual open class MercatorImageTile actual constructor(
         val dstCtx = dstCanvas.getContext("2d") as CanvasRenderingContext2D
     }
 
-    override fun process(resource: Image): Image {
+    override suspend fun process(resource: Image): Image {
         val width = resource.width
         val height = resource.height
         val widthDouble = resource.width.toDouble()

@@ -12,6 +12,8 @@ import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.google.GoogleLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 
 open class BasicGlobeFragment: Fragment() {
@@ -31,14 +33,18 @@ open class BasicGlobeFragment: Fragment() {
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-                configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
+                wwd.mainScope.launch(Dispatchers.IO) {
+                    configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
+                }
             })
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
         }
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+            wwd.mainScope.launch(Dispatchers.IO) {
+                configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+            }
         })
         return wwd
     }
