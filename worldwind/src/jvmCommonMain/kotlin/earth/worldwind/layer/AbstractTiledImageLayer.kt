@@ -10,7 +10,6 @@ import earth.worldwind.shape.TiledSurfaceImage
 import kotlinx.coroutines.*
 
 actual abstract class AbstractTiledImageLayer actual constructor(name: String): RenderableLayer(name) {
-    protected actual open val firstLevelOffset = 0
     protected actual var tiledSurfaceImage: TiledSurfaceImage? = null
         set(value) {
             field?.let { removeRenderable(it) }
@@ -19,10 +18,16 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
         }
     override var isPickEnabled = false
     /**
+     * Determines how many levels to skip from retrieving texture during tile pyramid subdivision.
+     */
+    var levelOffset: Int
+        get() = tiledSurfaceImage?.levelOffset ?: 0
+        set(value) { tiledSurfaceImage?.levelOffset = value }
+    /**
      * Configures tiled image layer to work only with cache source
      */
     var useCacheOnly: Boolean
-        get() =  tiledSurfaceImage?.useCacheOnly ?: false
+        get() = tiledSurfaceImage?.useCacheOnly ?: false
         set(value) { tiledSurfaceImage?.useCacheOnly = value }
 
     /**
@@ -39,14 +44,15 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
             val config = geoPackage.buildLevelSetConfig(it)
             require(config.sector == levelSet.sector) { "Invalid sector" }
             require(config.tileOrigin == levelSet.tileOrigin) { "Invalid tile origin" }
-            require(config.firstLevelDelta == levelSet.firstLevelDelta) { "Invalid level delta" }
-            require(config.numLevels == levelSet.numLevels) { "Invalid number of levels" }
+            require(config.firstLevelDelta == levelSet.firstLevelDelta) { "Invalid first level delta" }
             require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
-            require(geoPackage.getTileMatrix(tableName)?.keys?.sorted()?.get(0) == firstLevelOffset) { "Invalid level offset" }
+            require(geoPackage.getTileMatrix(tableName)?.keys?.sorted()?.get(0) == 0) { "Invalid level offset" }
             if (isWebp) requireNotNull(geoPackage.extensions.firstOrNull { e ->
                 e.tableName == tableName && e.columnName == "tile_data" && e.extensionName == "gpkg_webp"
             }) { "WEBP extension missed" }
-        } ?: geoPackage.setupTilesContent(tableName, displayName ?: tableName, levelSet, firstLevelOffset, isWebp)
+            // Verify if all required tile matrices created
+            if (config.numLevels < levelSet.numLevels) geoPackage.setupTileMatrices(tableName, levelSet)
+        } ?: geoPackage.setupTilesContent(tableName, displayName ?: tableName, levelSet, isWebp)
     }
 
     protected open fun launchBulkRetrieval(

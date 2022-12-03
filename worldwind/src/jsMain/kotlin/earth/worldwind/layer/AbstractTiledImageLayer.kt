@@ -3,7 +3,6 @@ package earth.worldwind.layer
 import earth.worldwind.shape.TiledSurfaceImage
 
 actual abstract class AbstractTiledImageLayer actual constructor(name: String): RenderableLayer(name) {
-    protected actual open val firstLevelOffset = 0
     protected actual var tiledSurfaceImage: TiledSurfaceImage? = null
         set(value) {
             field?.let { removeRenderable(it) }
@@ -11,4 +10,10 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
             field = value
         }
     override var isPickEnabled = false
+    /**
+     * Determines how many levels to skip from retrieving texture during tile pyramid subdivision.
+     */
+    var levelOffset: Int
+        get() = tiledSurfaceImage?.levelOffset ?: 0
+        set(value) { tiledSurfaceImage?.levelOffset = value }
 }

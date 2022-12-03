@@ -31,6 +31,10 @@ open class TiledSurfaceImage @JvmOverloads constructor(
             invalidateTiles()
         }
     var detailControl = 1.0
+    /**
+     * Determines how many levels to skip from retrieving texture during tile pyramid subdivision.
+     */
+    var levelOffset = 0
     var cacheTileFactory: TileFactory? = null
     var useCacheOnly = false
     protected val topLevelTiles = mutableListOf<Tile>()
@@ -104,13 +108,14 @@ open class TiledSurfaceImage @JvmOverloads constructor(
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
         // ignore the tile and its descendants if it's not needed or not visible
         if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc, rc.frustum)) return
+        val retrieveCurrentLevel = tile.level.levelNumber >= levelOffset
         if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
-            addTile(rc, tile)
+            if (retrieveCurrentLevel) addTile(rc, tile)
             return  // use the tile if it does not need to be subdivided
         }
         val currentAncestorTile = ancestorTile
         val currentAncestorTexture = ancestorTexture
-        getTexture(rc, tile, RETRIEVE_TOP_LEVEL_TILES)?.let { tileTexture ->
+        getTexture(rc, tile, RETRIEVE_TOP_LEVEL_TILES && retrieveCurrentLevel)?.let { tileTexture ->
             // tile has a texture; use it as a fallback tile for descendants
             ancestorTile = tile
             ancestorTexture = tileTexture

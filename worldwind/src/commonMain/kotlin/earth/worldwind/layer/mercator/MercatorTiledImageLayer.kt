@@ -16,13 +16,12 @@ import earth.worldwind.util.TileFactory
 abstract class MercatorTiledImageLayer(
     name: String, numLevels: Int, tileSize: Int, overlay: Boolean
 ): TiledImageLayer(name) {
-    override val firstLevelOffset = 3 // Skip several topmost levels with bad resolution from processing
     private val tileFactory = object : TileFactory {
         override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
             MercatorImageTile(sector as MercatorSector, level, row, column).apply {
                 imageSource = ImageSource.fromUrlString(
                     getImageSourceUrl(
-                        column, (1 shl level.levelNumber + firstLevelOffset) - 1 - row, level.levelNumber + firstLevelOffset
+                        column, (1 shl level.levelNumber) - 1 - row, level.levelNumber
                     ), this as DownloadPostprocessor<*>
                 )
             }
@@ -31,13 +30,12 @@ abstract class MercatorTiledImageLayer(
     init {
         tiledSurfaceImage = MercatorTiledSurfaceImage(tileFactory).apply {
             val sector = MercatorSector(-1.0, 1.0, NEG180, POS180)
-            val divisor = (1 shl firstLevelOffset).toDouble()
             levelSet = LevelSet(
                 sector, Location(sector.minLatitude, sector.minLongitude),
-                Location(sector.deltaLatitude / divisor, sector.deltaLongitude / divisor),
-                numLevels - firstLevelOffset, tileSize, tileSize
+                Location(sector.deltaLatitude, sector.deltaLongitude), numLevels, tileSize, tileSize
             )
             if (!overlay) imageOptions = ImageOptions(ImageConfig.RGB_565) // reduce memory usage by using a 16-bit configuration with no alpha
+            levelOffset = 1 // Skip topmost level with bad resolution from processing
         }
     }
 

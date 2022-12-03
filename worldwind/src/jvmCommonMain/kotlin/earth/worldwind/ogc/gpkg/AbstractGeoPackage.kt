@@ -101,7 +101,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
 
     // TODO What if data already exists?
     fun setupTilesContent(
-        tableName: String, identifier: String, levelSet: LevelSet, firstLevelOffset: Int, isWebp: Boolean = false
+        tableName: String, identifier: String, levelSet: LevelSet, isWebp: Boolean = false
     ): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
@@ -114,18 +114,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         val content = GpkgContent(this, tableName, "tiles", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
         writeContent(content)
         writeMatrixSet(GpkgTileMatrixSet(this, tableName, EPSG_ID, minX, minY, maxX, maxY))
-        for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
-            val matrixWidth = levelWidth / tileWidth
-            val matrixHeight = levelHeight / tileHeight
-            val pixelXSize = levelSet.sector.deltaLongitude.inDegrees / levelWidth
-            val pixelYSize = levelSet.sector.deltaLatitude.inDegrees / levelHeight
-            writeMatrix(
-                GpkgTileMatrix(
-                    this@AbstractGeoPackage, tableName, levelNumber + firstLevelOffset,
-                    matrixWidth, matrixHeight, tileWidth, tileHeight, pixelXSize, pixelYSize
-                )
-            )
-        }
+        setupTileMatrices(tableName, levelSet)
         createTilesTable(tableName)
         if (isWebp) writeExtension(
             GpkgExtension(
@@ -134,6 +123,23 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
             )
         )
         return content
+    }
+
+    fun setupTileMatrices(tableName: String, levelSet: LevelSet) {
+        for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
+            getTileMatrix(tableName)?.get(levelNumber) ?: run {
+                val matrixWidth = levelWidth / tileWidth
+                val matrixHeight = levelHeight / tileHeight
+                val pixelXSize = levelSet.sector.deltaLongitude.inDegrees / levelWidth
+                val pixelYSize = levelSet.sector.deltaLatitude.inDegrees / levelHeight
+                writeMatrix(
+                    GpkgTileMatrix(
+                        this@AbstractGeoPackage, tableName, levelNumber,
+                        matrixWidth, matrixHeight, tileWidth, tileHeight, pixelXSize, pixelYSize
+                    )
+                )
+            }
+        }
     }
 
     fun buildTileMatrixSet(content: GpkgContent): TileMatrixSet {
