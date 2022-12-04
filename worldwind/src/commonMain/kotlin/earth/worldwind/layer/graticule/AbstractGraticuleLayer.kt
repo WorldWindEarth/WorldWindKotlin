@@ -484,10 +484,8 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
             //rc.modelview.extractEyePoint(forwardRay.origin)
             forwardRay.origin.copy(rc.cameraPoint)
             rc.modelview.extractForwardVector(forwardRay.direction)
-            val range = if (rc.globe!!.intersect(forwardRay, lookAtPoint)) {
-                rc.globe!!.cartesianToGeographic(
-                    lookAtPoint.x, lookAtPoint.y, lookAtPoint.z, lookAtPos
-                )
+            val range = if (rc.terrain!!.intersect(forwardRay, lookAtPoint)) {
+                rc.globe!!.cartesianToGeographic(lookAtPoint.x, lookAtPoint.y, lookAtPoint.z, lookAtPos)
                 rc.putUserProperty(LOOK_AT_LATITUDE_PROPERTY, lookAtPos.latitude)
                 rc.putUserProperty(LOOK_AT_LONGITUDE_PROPERTY, lookAtPos.longitude)
                 lookAtPoint.distanceTo(rc.cameraPoint)
