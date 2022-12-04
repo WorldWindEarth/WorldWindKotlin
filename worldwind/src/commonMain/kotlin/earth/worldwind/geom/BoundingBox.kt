@@ -1,5 +1,7 @@
 package earth.worldwind.geom
 
+import earth.worldwind.geom.Angle.Companion.POS180
+import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.globe.Globe
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -39,6 +41,8 @@ open class BoundingBox {
 
     private val endPoint1 = Vec3()
     private val endPoint2 = Vec3()
+    private val scratchHeights = FloatArray(NUM_LAT * NUM_LON)
+    private val scratchPoints = FloatArray(NUM_LAT * NUM_LON * 3)
 
     /**
      * Indicates whether this bounding box is a unit box centered at the Cartesian origin (0, 0, 0).
@@ -160,17 +164,14 @@ open class BoundingBox {
     fun setToSector(sector: Sector, globe: Globe, minHeight: Float, maxHeight: Float) = apply {
         // Compute the cartesian points for a 3x3 geographic grid. This grid captures enough detail to bound the
         // sector. Use minimum elevation at the corners and max elevation everywhere else.
-        val numLat = 3
-        val numLon = 3
-        val count = numLat * numLon
-        val heights = FloatArray(count)
+        val heights = scratchHeights
         heights.fill(maxHeight)
+        heights[0] = minHeight
+        heights[2] = minHeight
+        heights[6] = minHeight
         heights[8] = minHeight
-        heights[6] = heights[8]
-        heights[2] = heights[6]
-        heights[0] = heights[2]
-        val points = FloatArray(count * 3)
-        globe.geographicToCartesianGrid(sector, numLat, numLon, heights, 1.0f, null, points, 0, 0)
+        val points = scratchPoints
+        globe.geographicToCartesianGrid(sector, NUM_LAT, NUM_LON, heights, 1.0f, null, points, 0, 0)
 
         // Compute the local coordinate axes. Since we know this box is bounding a geographic sector, we use the
         // local coordinate axes at its centroid as the box axes. Using these axes results in a box that has +-10%
@@ -192,6 +193,17 @@ open class BoundingBox {
         for (idx in points.indices step 3) {
             p.set(points[idx].toDouble(), points[idx + 1].toDouble(), points[idx + 2].toDouble())
             adjustExtremes(r, rExtremes, s, sExtremes, t, tExtremes, p)
+        }
+
+        // If the sector encompasses more than one hemisphere, the 3x3 grid does not capture enough detail to bound
+        // the sector. The antipodal points along the parallel through the sector's centroid represent its extremes
+        // in longitude. Incorporate those antipodal points into the extremes along each axis.
+        if (sector.deltaLongitude > POS180) {
+            val altitude = maxHeight.toDouble()
+            globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude + POS90, altitude, endPoint1)
+            globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude - POS90, altitude, endPoint2)
+            adjustExtremes(r, rExtremes, s, sExtremes, t, tExtremes, endPoint1)
+            adjustExtremes(r, rExtremes, s, sExtremes, t, tExtremes, endPoint2)
         }
 
         // Sort the axes from most prominent to least prominent. The frustum intersection methods assume that the axes
@@ -326,6 +338,9 @@ open class BoundingBox {
     override fun toString() = "BoundingBox(center=$center, bottomCenter=$bottomCenter, topCenter=$topCenter, r=$r, s=$s, t=$t, radius=$radius)"
 
     companion object {
+        private const val NUM_LAT = 3
+        private const val NUM_LON = 3
+
         private fun adjustExtremes(
             r: Vec3, rExtremes: DoubleArray, s: Vec3, sExtremes: DoubleArray, t: Vec3, tExtremes: DoubleArray, p: Vec3
         ) {
