@@ -16,6 +16,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger
 import earth.worldwind.util.kgl.*
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
@@ -626,7 +627,7 @@ open class WorldWind @JvmOverloads constructor(
          * Provides a global mechanism for broadcasting notifications within the WorldWind library.
          */
         @JvmStatic
-        val eventBus = MutableSharedFlow<Event>(extraBufferCapacity = 1)
+        val eventBus = MutableSharedFlow<Event>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
         /**
          * Requests that all WorldWindow instances update their display. Internally, this dispatches a REQUEST_REDRAW
