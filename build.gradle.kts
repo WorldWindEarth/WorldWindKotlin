@@ -22,7 +22,7 @@ allprojects {
     extra.apply {
         set("minSdk", 26) // java.time requires Oreo. Use "isCoreLibraryDesugaringEnabled = true" to lower API to KitKat
         set("targetSdk", 33)
-        set("versionCode", 1)
+        set("versionCode", 2)
     }
 
     repositories {
