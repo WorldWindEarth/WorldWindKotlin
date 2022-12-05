@@ -129,6 +129,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     }
 
     suspend fun setupTileMatrices(tableName: String, levelSet: LevelSet) {
+        if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
         for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
             getTileMatrix(tableName)?.get(levelNumber) ?: run {
                 val matrixWidth = levelWidth / tileWidth
