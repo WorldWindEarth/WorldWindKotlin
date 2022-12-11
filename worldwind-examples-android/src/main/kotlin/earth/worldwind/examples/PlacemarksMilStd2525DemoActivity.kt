@@ -21,9 +21,7 @@ import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 import kotlin.random.Random
 
 open class PlacemarksMilStd2525DemoActivity: GeneralGlobeActivity() {
@@ -198,7 +196,7 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
                 var nam = 0
                 var na3 = 0
                 var use = 0
-                BufferedReader(InputStreamReader(resources.openRawResource(R.raw.world_apts))).forEachLine { line ->
+                resources.openRawResource(R.raw.world_apts).bufferedReader().forEachLine { line ->
                     val fields = line.split(",")
                     if (headers) {
                         headers = false

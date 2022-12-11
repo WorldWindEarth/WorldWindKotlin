@@ -23,9 +23,7 @@ import earth.worldwind.shape.*
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 import kotlin.random.Random
 
 /**
@@ -133,7 +131,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                 var lat = 0
                 var lon = 0
                 var nam = 0
-                BufferedReader(InputStreamReader(resources.openRawResource(R.raw.world_placenames))).forEachLine { line ->
+                resources.openRawResource(R.raw.world_placenames).bufferedReader().forEachLine { line ->
                     val fields = line.split(",")
                     if (headers) {
                         headers = false
@@ -180,7 +178,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                 // var hwy = 0
                 val wktStart = "\"LINESTRING ("
                 val wktEnd = ")\""
-                BufferedReader(InputStreamReader(resources.openRawResource(R.raw.world_highways))).forEachLine { line ->
+                resources.openRawResource(R.raw.world_highways).bufferedReader().forEachLine { line ->
                     if (headers) {
                         // Process the header in the first line of the CSV file ...
                         headers = false
@@ -244,7 +242,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                 // var name = 0
                 val wktStart = "\"POLYGON ("
                 val wktEnd = ")\""
-                BufferedReader(InputStreamReader(resources.openRawResource(R.raw.world_political_boundaries))).forEachLine { line ->
+                resources.openRawResource(R.raw.world_political_boundaries).bufferedReader().forEachLine { line ->
                     if (headers) {
                         // Process the header in the first line of the CSV file ...
                         headers = false

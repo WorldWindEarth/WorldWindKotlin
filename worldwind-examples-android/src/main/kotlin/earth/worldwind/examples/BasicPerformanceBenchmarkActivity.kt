@@ -25,9 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 
 open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
 
@@ -161,7 +159,7 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
             var na3 = 0
             var use = 0
             var attrIndex = 0
-            BufferedReader(InputStreamReader(resources.openRawResource(R.raw.world_apts))).forEachLine { line ->
+            resources.openRawResource(R.raw.world_apts).bufferedReader().forEachLine { line ->
                 val fields = line.split(",")
                 if (headers) {
                     headers = false

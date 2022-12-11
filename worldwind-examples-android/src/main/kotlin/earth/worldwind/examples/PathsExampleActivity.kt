@@ -14,9 +14,7 @@ import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 
 open class PathsExampleActivity: GeneralGlobeActivity() {
     protected val airportTable = mutableListOf<Airport>()
@@ -96,7 +94,7 @@ open class PathsExampleActivity: GeneralGlobeActivity() {
             var iko = 0
             var na3 = 0
             var use = 0
-            BufferedReader(InputStreamReader(resources.openRawResource(R.raw.world_apts))).forEachLine { line ->
+            resources.openRawResource(R.raw.world_apts).bufferedReader().forEachLine { line ->
                 val fields = line.split(",")
                 if (headers) {
                     headers = false

@@ -30,9 +30,7 @@ import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 import java.lang.ref.WeakReference
 
 /**
@@ -396,7 +394,7 @@ Placemarks are conditionally displayed based on the camera distance:
                 var nam = 0
                 var pop = 0
                 var typ = 0
-                BufferedReader(InputStreamReader(resources.openRawResource(R.raw.ntad_place))).forEachLine { line ->
+                resources.openRawResource(R.raw.ntad_place).bufferedReader().forEachLine { line ->
                     val fields = line.split(",")
                     if (headers) {
                         headers = false
