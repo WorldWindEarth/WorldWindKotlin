@@ -356,6 +356,21 @@ open class WorldWind @JvmOverloads constructor(
      * converted is successful. This returns false if the Cartesian point is clipped by either of the WorldWindow's
      * near clipping plane or far clipping plane.
      *
+     * @param position  the geographic position
+     * @param result    a pre-allocated [Vec2] in which to return the screen point
+     *
+     * @return true if the transformation is successful, otherwise false
+     */
+    fun geographicToScreenPoint(position: Position, result: Vec2) =
+        geographicToScreenPoint(position.latitude, position.longitude, position.altitude, result)
+
+    /**
+     * Transforms a geographic position to viewport coordinates.
+     * <br>
+     * This stores the converted point in the result argument, and returns a boolean value indicating whether the
+     * converted is successful. This returns false if the Cartesian point is clipped by either of the WorldWindow's
+     * near clipping plane or far clipping plane.
+     *
      * @param latitude  the position's latitude
      * @param longitude the position's longitude
      * @param altitude  the position's altitude in meters
