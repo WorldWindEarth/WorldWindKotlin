@@ -34,16 +34,16 @@ kotlin {
         publishLibraryVariants("release")
     }
     sourceSets {
-        val mockkVersion = "1.13.1"
+        val mockkVersion = "1.13.3"
         val mokoVersion = "0.20.1"
-        val ktorVersion = "2.1.1"
+        val ktorVersion = "2.2.1"
         val commonMain by getting {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.github.pdvrieze.xmlutil:serialization:0.84.2")
+                implementation("io.github.pdvrieze.xmlutil:serialization:0.84.3")
                 implementation("com.eygraber:uri-kmp:0.0.9")
                 api("dev.icerock.moko:resources:$mokoVersion")
             }
