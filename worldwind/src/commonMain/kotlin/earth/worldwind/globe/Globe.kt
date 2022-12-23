@@ -144,7 +144,7 @@ open class Globe(
      *
      * @return Elevation in meters in specified location
      */
-    fun getElevationAtLocation(latitude: Angle, longitude: Angle): Double {
+    fun getElevation(latitude: Angle, longitude: Angle): Double {
         scratchSector.set(latitude, longitude, ZERO, ZERO)
         elevationModel.getHeightGrid(scratchSector, 1, 1, scratchHeights)
         return scratchHeights[0].toDouble()

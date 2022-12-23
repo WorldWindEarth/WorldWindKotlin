@@ -268,7 +268,7 @@ open class WorldWind @JvmOverloads constructor(
         // Check if camera altitude is not under the surface
         val position = camera.position
         if (position.altitude < COLLISION_CHECK_LIMIT * verticalExaggeration + COLLISION_THRESHOLD) {
-            val elevation = globe.getElevationAtLocation(
+            val elevation = globe.getElevation(
                 position.latitude, position.longitude
             ) * verticalExaggeration + COLLISION_THRESHOLD
             if (elevation > position.altitude) {
@@ -567,7 +567,7 @@ open class WorldWind @JvmOverloads constructor(
         var near = far / (maxDepthValue / (1 - farResolution / far) - maxDepthValue + 1)
 
         // Prevent the near clip plane from intersecting the terrain.
-        val distanceToSurface = eyeAltitude - globe.getElevationAtLocation(
+        val distanceToSurface = eyeAltitude - globe.getElevation(
             camera.position.latitude, camera.position.longitude
         ) * verticalExaggeration
         if (distanceToSurface > 0) {
@@ -621,12 +621,12 @@ open class WorldWind @JvmOverloads constructor(
                 position.latitude, position.longitude, position.altitude, result
             )
             AltitudeMode.CLAMP_TO_GROUND -> globe.geographicToCartesianTransform(
-                position.latitude, position.longitude, globe.getElevationAtLocation(
+                position.latitude, position.longitude, globe.getElevation(
                     position.latitude, position.longitude
                 ) * verticalExaggeration, result
             )
             AltitudeMode.RELATIVE_TO_GROUND -> globe.geographicToCartesianTransform(
-                position.latitude, position.longitude, position.altitude + globe.getElevationAtLocation(
+                position.latitude, position.longitude, position.altitude + globe.getElevation(
                     position.latitude, position.longitude
                 ) * verticalExaggeration, result
             )

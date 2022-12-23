@@ -187,7 +187,7 @@ class CameraControlFragment: BasicGlobeFragment() {
             // Check if camera altitude is not under the surface
             val ve = wwd.engine.verticalExaggeration
             if (position.altitude < COLLISION_CHECK_LIMIT * ve + COLLISION_THRESHOLD) {
-                val elevation = wwd.engine.globe.getElevationAtLocation(
+                val elevation = wwd.engine.globe.getElevation(
                     position.latitude, position.longitude
                 ) * ve + COLLISION_THRESHOLD
                 if (elevation > position.altitude) position.altitude = elevation

@@ -346,7 +346,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     fun getSurfacePoint(rc: RenderContext, latitude: Angle, longitude: Angle): Vec3 {
         if (!rc.terrain!!.surfacePoint(latitude, longitude, surfacePoint))
             rc.globe!!.geographicToCartesian(
-                latitude, longitude, rc.globe!!.getElevationAtLocation(latitude, longitude)
+                latitude, longitude, rc.globe!!.getElevation(latitude, longitude)
                         * rc.verticalExaggeration, surfacePoint
             )
         return surfacePoint
