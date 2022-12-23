@@ -36,13 +36,12 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
     override fun onSingleTapUp(event: MotionEvent): Boolean {
         val callback = callback ?: return false
         wwd.mainScope.launch {
-            val pickList = pickRequest.await()
-            pickList.terrainPickedObject?.terrainPosition?.let { position ->
-                val renderable = pickList.topPickedObject?.userObject
-                if (renderable is Renderable && callback.canPickRenderable(renderable))
+            val (renderable, position) = awaitPickResult()
+            if (position != null) {
+                if (renderable is Renderable && callback.canPickRenderable(renderable)) {
                     callback.onRenderablePicked(renderable, position)
-                else callback.onTerrainPicked(position)
-            } ?: callback.onNothingPicked()
+                } else callback.onTerrainPicked(position)
+            } else callback.onNothingPicked()
             wwd.requestRedraw()
         }
         return false
@@ -53,10 +52,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         val x = moveEvent.x.toDouble()
         val y = moveEvent.y.toDouble()
         wwd.mainScope.launch {
-            val pickList = pickRequest.await()
-            val renderable = pickList.topPickedObject?.userObject
-            val toPosition = if (renderable is Movable) renderable.referencePosition
-            else pickList.terrainPickedObject?.terrainPosition
+            val (renderable, toPosition) = awaitPickResult()
             if (isDraggingArmed && toPosition != null && renderable is Renderable) {
                 // Signal that dragging is in progress
                 isDragging = true
@@ -87,10 +83,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
     override fun onDoubleTap(event: MotionEvent): Boolean {
         val callback = callback ?: return false
         return runBlocking {
-            val pickList = pickRequest.await()
-            val renderable = pickList.topPickedObject?.userObject
-            val position = if (renderable is Movable) renderable.referencePosition
-            else pickList.terrainPickedObject?.terrainPosition
+            val (renderable, position) = awaitPickResult()
             if (renderable is Renderable && position != null) {
                 callback.onRenderableDoubleTap(renderable, position)
                 wwd.requestRedraw()
@@ -115,9 +108,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         isDraggingArmed = false
         val callback = callback ?: return
         wwd.mainScope.launch {
-            val pickList = pickRequest.await()
-            val position = pickList.terrainPickedObject?.terrainPosition
-            val renderable = pickList.topPickedObject?.userObject
+            val (renderable, position) = awaitPickResult()
             if (renderable is Renderable && position != null) {
                 callback.onRenderableMovingFinished(renderable, position)
                 wwd.requestRedraw()
@@ -128,12 +119,11 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
     private fun showContext() {
         val callback = callback ?: return
         wwd.mainScope.launch {
-            val pickList = pickRequest.await()
-            pickList.terrainPickedObject?.terrainPosition?.let { position ->
-                val renderable = pickList.topPickedObject?.userObject
+            val (renderable, position) = awaitPickResult()
+            if (position != null) {
                 if (renderable is Renderable) callback.onRenderableContext(renderable, position)
                 else callback.onTerrainContext(position)
-            } ?: callback.onNothingContext()
+            } else callback.onNothingContext()
             wwd.requestRedraw()
         }
     }
@@ -151,6 +141,14 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
             // Determine whether the dragging flag should be "armed".
             isDraggingArmed = userObject is Renderable && callback?.canMoveRenderable(userObject) == true
         }
+    }
+
+    private suspend fun awaitPickResult(): Pair<Any?, Position?> {
+        val pickList = pickRequest.await()
+        val userObject = pickList.topPickedObject?.userObject
+        val position = if (userObject is Movable) userObject.referencePosition
+        else pickList.terrainPickedObject?.terrainPosition
+        return userObject to position
     }
 
 }
