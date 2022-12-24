@@ -109,7 +109,9 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
         // Get top picked renderable to use it in listener callbacks
         val topPickedObject = pickList.topPickedObject?.userObject
         if (topPickedObject is Renderable) pickedRenderable = topPickedObject
-        if (topPickedObject is Movable) pickedPosition = topPickedObject.referencePosition
+
+        // Take reference position as a backup, if user pressed outside the globe
+        if (topPickedObject is Movable && pickedPosition == null) pickedPosition = topPickedObject.referencePosition
 
         // Resolve conflict between item movement and globe rotation
         if (topPickedObject is Renderable && callback?.canMoveRenderable(topPickedObject) == true) {
@@ -151,8 +153,9 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
             BEGAN, CHANGED -> {
                 isDragArmed = true
                 val callback = callback
-                val toPosition = pickedPosition
                 val renderable = pickedRenderable
+                // Reference position is a priority during movement
+                val toPosition = if (renderable is Movable) renderable.referencePosition else pickedPosition
                 if (toPosition != null && renderable != null && callback != null) {
                     // First we compute the screen coordinates of the position's "ground" point. We'll apply the
                     // screen X and Y drag distances to this point, from which we'll compute a new position,
@@ -171,6 +174,8 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
                         lastTranslation.set(recognizer.translationX, recognizer.translationY)
                         // Restore original altitude
                         toPosition.altitude = fromPosition.altitude
+                        // Update movable position
+                        if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
                         // Notify callback
                         callback.onRenderableMoved(renderable, fromPosition, toPosition)
                         // Reflect the change in position on the globe.

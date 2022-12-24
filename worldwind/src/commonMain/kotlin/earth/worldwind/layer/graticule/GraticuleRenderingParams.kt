@@ -5,46 +5,25 @@ import earth.worldwind.render.Font
 
 class GraticuleRenderingParams: MutableMap<String, Any?> by HashMap() {
     var isDrawLines: Boolean
-        get() {
-            val value = get(KEY_DRAW_LINES)
-            return if (value is Boolean) value else false
-        }
+        get() = get(KEY_DRAW_LINES) as? Boolean ?: false
         set(drawLines) { put(KEY_DRAW_LINES, drawLines) }
     var lineColor: Color?
-        get() {
-            val value = get(KEY_LINE_COLOR)
-            return if (value is Color) value else null
-        }
+        get() = get(KEY_LINE_COLOR) as? Color
         set(color) { put(KEY_LINE_COLOR, color) }
     var lineWidth: Double
-        get() {
-            val value = get(KEY_LINE_WIDTH)
-            return if (value is Double) value else 0.0
-        }
+        get() = get(KEY_LINE_WIDTH) as? Double ?: 0.0
         set(lineWidth) { put(KEY_LINE_WIDTH, lineWidth) }
 //    var lineStyle: String?
-//        get() {
-//            val value = get(KEY_LINE_STYLE)
-//            return if (value is String) value else null
-//        }
+//        get() = get(KEY_LINE_STYLE) as? String
 //        set(lineStyle) { put(KEY_LINE_STYLE, lineStyle) }
     var isDrawLabels: Boolean
-        get() {
-            val value = get(KEY_DRAW_LABELS)
-            return if (value is Boolean) value else false
-        }
+        get() = get(KEY_DRAW_LABELS) as? Boolean ?: false
         set(drawLabels) { put(KEY_DRAW_LABELS, drawLabels) }
     var labelColor: Color?
-        get() {
-            val value = get(KEY_LABEL_COLOR)
-            return if (value is Color) value else null
-        }
+        get() = get(KEY_LABEL_COLOR) as? Color
         set(color) { put(KEY_LABEL_COLOR, color) }
     var labelFont: Font?
-        get() {
-            val value = get(KEY_LABEL_FONT)
-            return if (value is Font) value else null
-        }
+        get() = get(KEY_LABEL_FONT) as? Font
         set(font) { put(KEY_LABEL_FONT, font) }
 
     fun getStringValue(key: String) = this[key]?.toString()
