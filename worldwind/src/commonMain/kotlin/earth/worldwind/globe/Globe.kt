@@ -149,4 +149,32 @@ open class Globe(
         elevationModel.getHeightGrid(scratchSector, 1, 1, scratchHeights)
         return scratchHeights[0].toDouble()
     }
+
+    /**
+     * Get absolute position with terrain elevation at specified coordinates
+     *
+     * @param latitude Specified latitude
+     * @param longitude Specified longitude
+     *
+     * @return Absolute position with terrain elevation
+     */
+    fun getAbsolutePosition(latitude: Angle, longitude: Angle) =
+        Position(latitude, longitude, getElevation(latitude, longitude))
+
+    /**
+     * Get absolute position for specified position and specified altitude mode
+     *
+     * @param position Specified position
+     * @param altitudeMode Specified altitude mode
+     *
+     * @return Absolute position for specified altitude mode
+     */
+    fun getAbsolutePosition(position: Position, altitudeMode: AltitudeMode) = when (altitudeMode) {
+        AltitudeMode.CLAMP_TO_GROUND -> getAbsolutePosition(position.latitude, position.longitude)
+        AltitudeMode.RELATIVE_TO_GROUND -> getAbsolutePosition(position.latitude, position.longitude).apply {
+            altitude += position.altitude
+        }
+        else -> Position(position)
+    }
+
 }
