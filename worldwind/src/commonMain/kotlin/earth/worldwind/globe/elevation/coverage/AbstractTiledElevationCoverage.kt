@@ -327,13 +327,14 @@ abstract class AbstractTiledElevationCoverage(
                 val colIMax = colIMin + tileWidth - 1
                 val i0 = iMin.coerceIn(colIMin, colIMax) % tileWidth
                 val i1 = iMax.coerceIn(colIMin, colIMax) % tileWidth
-                val tileArray = tileBlock.getTileArray(row, col)
-                // TODO how often do we read all of tileArray?
-                for (j in j0..j1) for (i in i0..i1) {
-                    val pos = i + j * tileWidth
-                    val texel = tileArray[pos]
-                    if (result[0] > texel) result[0] = texel.toFloat()
-                    if (result[1] < texel) result[1] = texel.toFloat()
+                tileBlock.getTileArray(row, col)?.let { tileArray ->
+                    // TODO how often do we read all of tileArray?
+                    for (j in j0..j1) for (i in i0..i1) {
+                        val pos = i + j * tileWidth
+                        val texel = tileArray[pos]
+                        if (result[0] > texel) result[0] = texel.toFloat()
+                        if (result[1] < texel) result[1] = texel.toFloat()
+                    }
                 }
             }
         }
@@ -380,20 +381,15 @@ abstract class AbstractTiledElevationCoverage(
             arrays[key] = array
         }
 
-        fun getTileArray(row: Int, column: Int): ShortArray {
+        fun getTileArray(row: Int, column: Int): ShortArray? {
             if (texelRow != row || texelCol != column) {
-                val key = tileMatrix.tileKey(row, column)
                 texelRow = row
                 texelCol = column
-                texelArray = arrays[key]
+                texelArray = arrays[tileMatrix.tileKey(row, column)]
             }
-            return texelArray!!
+            return texelArray
         }
 
-        fun readTexel(row: Int, column: Int, i: Int, j: Int): Short {
-            val array = getTileArray(row, column)
-            val pos = i + j * tileMatrix.tileWidth
-            return array[pos]
-        }
+        fun readTexel(row: Int, column: Int, i: Int, j: Int) = getTileArray(row, column)?.get(i + j * tileMatrix.tileWidth) ?: 0
     }
 }
