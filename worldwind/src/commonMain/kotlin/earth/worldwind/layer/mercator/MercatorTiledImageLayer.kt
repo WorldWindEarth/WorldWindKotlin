@@ -14,7 +14,7 @@ import earth.worldwind.util.LevelSet
 import earth.worldwind.util.TileFactory
 
 abstract class MercatorTiledImageLayer(
-    name: String, numLevels: Int, tileSize: Int, overlay: Boolean
+    name: String, numLevels: Int, tileSize: Int, transparent: Boolean
 ): TiledImageLayer(name) {
     private val tileFactory = object : TileFactory {
         override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
@@ -34,7 +34,7 @@ abstract class MercatorTiledImageLayer(
                 sector, Location(sector.minLatitude, sector.minLongitude),
                 Location(sector.deltaLatitude, sector.deltaLongitude), numLevels, tileSize, tileSize
             )
-            if (!overlay) imageOptions = ImageOptions(ImageConfig.RGB_565) // reduce memory usage by using a 16-bit configuration with no alpha
+            if (!transparent) imageOptions = ImageOptions(ImageConfig.RGB_565) // reduce memory usage by using a 16-bit configuration with no alpha
             levelOffset = 1 // Skip topmost level with bad resolution from processing
         }
     }
