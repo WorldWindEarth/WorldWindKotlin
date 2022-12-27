@@ -3,8 +3,8 @@ package earth.worldwind.layer
 import earth.worldwind.shape.TiledSurfaceImage
 
 actual abstract class AbstractTiledImageLayer actual constructor(name: String): RenderableLayer(name) {
-    protected actual var tiledSurfaceImage: TiledSurfaceImage? = null
-        set(value) {
+    actual var tiledSurfaceImage: TiledSurfaceImage? = null
+        protected set(value) {
             field?.let { removeRenderable(it) }
             value?.let { addRenderable(it) }
             field = value

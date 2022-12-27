@@ -15,27 +15,45 @@ import kotlin.jvm.JvmOverloads
 open class TiledSurfaceImage @JvmOverloads constructor(
     tileFactory: TileFactory, levelSet: LevelSet = LevelSet() // empty level set
 ): AbstractRenderable("Tiled Surface Image") {
+    /**
+     * Tile factory implementation.
+     */
     var tileFactory = tileFactory
         set(value) {
             field = value
             invalidateTiles()
         }
+    /**
+     * Tile pyramid representation.
+     */
     var levelSet = levelSet
         set(value) {
             field = value
             invalidateTiles()
         }
+    /**
+     * Additional image texture options.
+     */
     var imageOptions: ImageOptions? = null
         set(value) {
             field = value
             invalidateTiles()
         }
+    /**
+     * Define imagery level of details. It controls tile pixel density on the screen.
+     */
     var detailControl = 1.0
     /**
      * Determines how many levels to skip from retrieving texture during tile pyramid subdivision.
      */
     var levelOffset = 0
+    /**
+     * Define cache tiles factory implementation.
+     */
     var cacheTileFactory: TileFactory? = null
+    /**
+     * Configures tiled surface image to work only with cache source.
+     */
     var useCacheOnly = false
     protected val topLevelTiles = mutableListOf<Tile>()
 
