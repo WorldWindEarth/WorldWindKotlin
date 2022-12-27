@@ -1,6 +1,8 @@
 package earth.worldwind.ogc
 
 import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
+import earth.worldwind.ogc.gpkg.AbstractGeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.LevelSet
@@ -25,10 +27,14 @@ object GpkgLayerFactory {
             val geoPackage = GeoPackage(pathName)
             for (content in geoPackage.content) if (layerNames.isEmpty() || layerNames.contains(content.tableName)) {
                 try {
-                    val config = geoPackage.buildLevelSetConfig(content)
-                    val surfaceImage = TiledSurfaceImage(GpkgTileFactory(content), LevelSet(config)).apply {
-                        displayName = content.identifier
+                    val tileFactory = GpkgTileFactory(content)
+                    val levelSet = LevelSet(geoPackage.buildLevelSetConfig(content))
+                    val surfaceImage = if (content.srsId == AbstractGeoPackage.EPSG_3857) {
+                        MercatorTiledSurfaceImage(tileFactory, levelSet)
+                    } else {
+                        TiledSurfaceImage(tileFactory, levelSet)
                     }
+                    surfaceImage.displayName = content.identifier
                     addRenderable(surfaceImage)
                 } catch (e: IllegalArgumentException) {
                     logMessage(WARN, "GpkgLayerFactory", "createGeoPackageLayer", e.message!!)

@@ -45,11 +45,11 @@ open class LevelSet {
      */
     val numLevels get() = levels.size
     /**
-     * Returns the first level (lowest resolution) of this level set.
+     * Returns the first level (the lowest resolution) of this level set.
      */
     val firstLevel get() = if (levels.isNotEmpty()) levels[0] else null
     /**
-     * Returns the last level (highest resolution) of this level set.
+     * Returns the last level (the highest resolution) of this level set.
      */
     val lastLevel get() = if (levels.isNotEmpty()) levels[levels.size - 1] else null
 
@@ -71,7 +71,7 @@ open class LevelSet {
      *
      * @param sector          the sector spanned by this level set
      * @param tileOrigin      the origin for this level set
-     * @param firstLevelDelta the geographic width and height of tiles in the first level (lowest resolution)
+     * @param firstLevelDelta the geographic width and height of tiles in the first level (the lowest resolution)
      * of the level set
      * @param numLevels       the number of levels in the level set
      * @param tileWidth       the height in pixels of images associated with tiles in this level set, or the number of
@@ -93,9 +93,9 @@ open class LevelSet {
         require(tileWidth >= 1 && tileHeight >= 1) {
             logMessage(ERROR, "LevelSet", "constructor", "invalidWidthOrHeight")
         }
-        this.sector = Sector(sector)
-        this.tileOrigin = Location(tileOrigin)
-        this.firstLevelDelta = Location(firstLevelDelta)
+        this.sector = sector
+        this.tileOrigin = tileOrigin
+        this.firstLevelDelta = firstLevelDelta
         this.tileWidth = tileWidth
         this.tileHeight = tileHeight
         this.levels = Array(numLevels) {

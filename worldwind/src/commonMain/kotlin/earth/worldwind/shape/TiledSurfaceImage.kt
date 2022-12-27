@@ -10,11 +10,8 @@ import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.render.program.SurfaceTextureProgram
 import earth.worldwind.util.*
-import kotlin.jvm.JvmOverloads
 
-open class TiledSurfaceImage @JvmOverloads constructor(
-    tileFactory: TileFactory, levelSet: LevelSet = LevelSet() // empty level set
-): AbstractRenderable("Tiled Surface Image") {
+open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): AbstractRenderable("Tiled Surface Image") {
     /**
      * Tile factory implementation.
      */

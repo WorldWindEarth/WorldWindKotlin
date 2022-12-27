@@ -2,6 +2,8 @@ package earth.worldwind.ogc
 
 import android.graphics.Bitmap
 import earth.worldwind.geom.Sector
+import earth.worldwind.layer.mercator.MercatorImageTile
+import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
@@ -14,7 +16,13 @@ actual open class GpkgTileFactory actual constructor(protected val tiles: GpkgCo
     var quality = 100
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
-        ImageTile(sector, level, row, column).apply { imageSource = getImageSource(level, row, column) }
+        buildTile(sector, level, row, column).apply { imageSource = getImageSource(level, row, column) }
+
+    protected open fun buildTile(sector: Sector, level: Level, row: Int, column: Int) = if (sector is MercatorSector) {
+        MercatorImageTile(sector, level, row, column)
+    } else {
+        ImageTile(sector, level, row, column)
+    }
 
     protected open fun getImageSource(level: Level, row: Int, column: Int): ImageSource? {
         val tileMatrixByZoomLevel = tiles.container.getTileMatrix(tiles.tableName) ?: return null

@@ -26,11 +26,10 @@ abstract class AbstractMercatorImageTile(
          *
          * @param level       the level to create the tiles for
          * @param tileFactory the tile factory to use for creating tiles.
-         * @param result      an pre-allocated Collection in which to store the results
+         * @param result      a pre-allocated Collection in which to store the results
          */
         @JvmStatic
         fun assembleMercatorTilesForLevel(level: Level, tileFactory: TileFactory, result: MutableList<Tile>) {
-            // NOTE LevelSet.sector is final Sector attribute and thus can not be cast to MercatorSector!
             val sector = fromSector(level.parent.sector)
             val tileOrigin = level.parent.tileOrigin
             val dLat = level.tileDelta.latitude

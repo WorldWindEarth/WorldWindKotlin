@@ -4,6 +4,7 @@ import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
+import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import kotlinx.coroutines.runBlocking
@@ -11,7 +12,8 @@ import kotlinx.coroutines.runBlocking
 // TODO verify its a GeoPackage container
 abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     companion object {
-        const val EPSG_ID = 4326
+        const val EPSG_3857 = 3857
+        const val EPSG_4326 = 4326
     }
 
     val spatialReferenceSystem = mutableListOf<GpkgSpatialReferenceSystem>()
@@ -75,7 +77,8 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
             "Unsupported GeoPackage content data_type: " + content.dataType
         }
         val srs = getSpatialReferenceSystem(content.srsId)
-        require(srs != null && srs.organization.equals("EPSG", true) && srs.organizationCoordSysId == EPSG_ID) {
+        require(srs != null && srs.organization.equals("EPSG", true)
+                && (srs.organizationCoordSysId == EPSG_3857 || srs.organizationCoordSysId == EPSG_4326)) {
             "Unsupported GeoPackage spatial reference system: " + (srs?.srsName ?: "undefined")
         }
         val tileMatrixSet = getTileMatrixSet(content.tableName)
@@ -109,11 +112,18 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
         writeDefaultSpatialReferenceSystems()
+        val srsId = if (levelSet.sector is MercatorSector) {
+            writeEPSG3857SpatialReferenceSystem()
+            EPSG_3857
+        } else {
+            writeEPSG4326SpatialReferenceSystem()
+            EPSG_4326
+        }
         val minX = levelSet.sector.minLongitude.inDegrees
         val minY = levelSet.sector.minLatitude.inDegrees
         val maxX = levelSet.sector.maxLongitude.inDegrees
         val maxY = levelSet.sector.maxLatitude.inDegrees
-        writeMatrixSet(GpkgTileMatrixSet(this, tableName, EPSG_ID, minX, minY, maxX, maxY))
+        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, minX, minY, maxX, maxY))
         setupTileMatrices(tableName, levelSet)
         createTilesTable(tableName)
         if (isWebp) writeExtension(
@@ -123,7 +133,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
             )
         )
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
-        val content = GpkgContent(this, tableName, "tiles", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
+        val content = GpkgContent(this, tableName, "tiles", identifier, "", "", minX, minY, maxX, maxY, srsId)
         writeContent(content)
         return content
     }
@@ -151,7 +161,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
             "Unsupported GeoPackage content data_type: " + content.dataType
         }
         val srs = getSpatialReferenceSystem(content.srsId)
-        require(srs != null && srs.organization.equals("EPSG", true) && srs.organizationCoordSysId == EPSG_ID) {
+        require(srs != null && srs.organization.equals("EPSG", true) && srs.organizationCoordSysId == EPSG_4326) {
             "Unsupported GeoPackage spatial reference system: " + (srs?.srsName ?: "undefined")
         }
         val tileMatrixSet = getTileMatrixSet(content.tableName)
@@ -175,11 +185,13 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         createRequiredTables()
         createGriddedCoverageTables()
         writeDefaultSpatialReferenceSystems()
+        writeEPSG4326SpatialReferenceSystem()
+        val srsId = EPSG_4326
         val minX = tileMatrixSet.sector.minLongitude.inDegrees
         val minY = tileMatrixSet.sector.minLatitude.inDegrees
         val maxX = tileMatrixSet.sector.maxLongitude.inDegrees
         val maxY = tileMatrixSet.sector.maxLatitude.inDegrees
-        writeMatrixSet(GpkgTileMatrixSet(this, tableName, EPSG_ID, minX, minY, maxX, maxY))
+        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, minX, minY, maxX, maxY))
         for (tileMatrix in tileMatrixSet.entries) tileMatrix.run {
             val pixelXSize = tileMatrixSet.sector.deltaLongitude.inDegrees / matrixWidth / tileWidth
             val pixelYSize = tileMatrixSet.sector.deltaLatitude.inDegrees / matrixHeight / tileHeight
@@ -213,7 +225,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
             )
         )
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
-        val content = GpkgContent(this, tableName, "2d-gridded-coverage", identifier, "", "", minX, minY, maxX, maxY, EPSG_ID)
+        val content = GpkgContent(this, tableName, "2d-gridded-coverage", identifier, "", "", minX, minY, maxX, maxY, srsId)
         writeContent(content)
         return content
     }
@@ -234,9 +246,22 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
                 "undefined", "undefined geographic coordinate reference system"
             )
         )
+    }
+
+    protected open suspend fun writeEPSG3857SpatialReferenceSystem() {
         writeSpatialReferenceSystem(
             GpkgSpatialReferenceSystem(
-                this, "WGS 84 geodetic", EPSG_ID, "EPSG", EPSG_ID,
+                this, "Web Mercator", EPSG_3857, "EPSG", EPSG_3857,
+                """PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["Popular Visualisation CRS",DATUM["Popular_Visualisation_Datum",SPHEROID["Popular Visualisation Sphere",6378137,0,AUTHORITY["EPSG","7059"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6055"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4055"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Mercator_1SP"],PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],PARAMETER["false_easting",0],PARAMETER["false_northing",0],AUTHORITY["EPSG","3785"],AXIS["X",EAST],AXIS["Y",NORTH]]""",
+                "Popular Visualisation Sphere"
+            )
+        )
+    }
+
+    protected open suspend fun writeEPSG4326SpatialReferenceSystem() {
+        writeSpatialReferenceSystem(
+            GpkgSpatialReferenceSystem(
+                this, "WGS 84 geodetic", EPSG_4326, "EPSG", EPSG_4326,
                 """GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]""",
                 "longitude/latitude coordinates in decimal degrees on the WGS 84 spheroid"
             )
