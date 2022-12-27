@@ -110,15 +110,7 @@ kotlin {
         val androidTest by getting {
             dependsOn(jvmCommonTest)
         }
-        val androidAndroidTestRelease by getting
-        val androidTestFixtures by getting
-        val androidTestFixturesDebug by getting
-        val androidTestFixturesRelease by getting
         val androidAndroidTest by getting {
-            dependsOn(androidAndroidTestRelease) // Workaround to avoid Gradle build warning
-            dependsOn(androidTestFixtures) // Workaround to avoid Gradle build warning
-            dependsOn(androidTestFixturesDebug) // Workaround to avoid Gradle build warning
-            dependsOn(androidTestFixturesRelease) // Workaround to avoid Gradle build warning
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("io.mockk:mockk-android:$mockkVersion")
