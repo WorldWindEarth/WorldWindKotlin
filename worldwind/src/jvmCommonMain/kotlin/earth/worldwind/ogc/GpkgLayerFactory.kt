@@ -24,6 +24,7 @@ object GpkgLayerFactory {
 
     private suspend fun createGeoPackageLayer(pathName: String, layerNames: List<String>) = withContext(Dispatchers.IO) {
         RenderableLayer().apply {
+            isPickEnabled = false // Disable picking for the tiled image layer
             val geoPackage = GeoPackage(pathName)
             for (content in geoPackage.content) if (layerNames.isEmpty() || layerNames.contains(content.tableName)) {
                 try {
