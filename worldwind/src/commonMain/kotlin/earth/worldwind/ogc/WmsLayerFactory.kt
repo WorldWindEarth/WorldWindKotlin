@@ -108,6 +108,10 @@ object WmsLayerFactory {
         wmsLayerConfig.imageFormat = compatibleImageFormats.firstOrNull { format -> imageFormats.contains(format) } ?: error(
             makeMessage("WmsLayerFactory", "getLayerConfigFromWmsCapabilities", "Image Formats Not Compatible")
         )
+
+        // Setup transparency. If at least one layer is opaque then transparency is disabled
+        wmsLayerConfig.isTransparent = !wmsLayers.any { layer -> layer.isOpaque }
+
         return wmsLayerConfig
     }
 
