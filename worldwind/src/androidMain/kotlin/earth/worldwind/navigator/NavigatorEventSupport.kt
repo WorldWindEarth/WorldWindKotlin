@@ -7,18 +7,21 @@ import earth.worldwind.geom.Matrix4
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
 open class NavigatorEventSupport(protected var wwd: WorldWindow) {
     var stoppedEventDelay = 250.milliseconds
     protected val listeners = mutableListOf<NavigatorListener>()
     protected var lastModelview: Matrix4? = null
+    protected var lastElevationTimestamp = Instant.DISTANT_PAST
     protected var lastTouchEvent: MotionEvent? = null
     protected var stopTouchEvent: MotionEvent? = null
     protected var stopJob: Job? = null
 
     open fun reset() {
         lastModelview = null
+        lastElevationTimestamp = Instant.DISTANT_PAST
         lastTouchEvent?.recycle()
         lastTouchEvent = null
         stopTouchEvent?.recycle()
@@ -38,16 +41,17 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
         lastTouchEvent = MotionEvent.obtain(event)
     }
 
-    open fun onFrameRendered(modelview: Matrix4) {
+    open fun onFrameRendered(modelview: Matrix4, elevationTimestamp: Instant) {
         if (listeners.isEmpty()) return  // no listeners to notify; ignore the event
         val lastModelview = lastModelview
         if (lastModelview == null) { // this is the first frame; copy the frame's modelview
             this.lastModelview = Matrix4(modelview)
             // Notify listeners with stopped event on first frame
             stopJob = wwd.mainScope.launch { onNavigatorStopped() }
-        } else if (lastModelview != modelview) {
-            // the frame's modelview has changed
+        } else if (lastModelview != modelview || lastElevationTimestamp !== elevationTimestamp) {
+            // the frame's modelview or elevation timestamp has changed
             lastModelview.copy(modelview)
+            lastElevationTimestamp = elevationTimestamp
             // Notify the listeners of a navigator moved event.
             onNavigatorMoved()
             // Schedule a navigator stopped event after a specified delay in milliseconds.
