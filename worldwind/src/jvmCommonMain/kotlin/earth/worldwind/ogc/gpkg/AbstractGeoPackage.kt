@@ -231,6 +231,77 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     }
 
     /**
+     * Delete specified content table and its related metadata
+     */
+    suspend fun deleteContent(tableName: String) {
+        if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
+
+        // Remove all tiles of specified content table, including gridded tile data
+        dropTilesTable(tableName)
+        deleteGriddedTiles(tableName)
+
+        // Remove metadata of specified content table
+        content.iterator().let {
+            while (it.hasNext()) {
+                val content = it.next()
+                if (content.tableName == tableName) {
+                    deleteContent(content)
+                    it.remove()
+                    break
+                }
+            }
+        }
+
+        // Remove tile matrix set related to specified content table
+        tileMatrixSetIndex.remove(tableName)
+        tileMatrixSet.iterator().let {
+            while (it.hasNext()) {
+                val matrixSet = it.next()
+                if (matrixSet.tableName == tableName) {
+                    deleteMatrixSet(matrixSet)
+                    it.remove()
+                    break
+                }
+            }
+        }
+
+        // Remove all tile matrices related to specified content table
+        tileMatrixIndex.remove(tableName)
+        tileMatrix.iterator().let {
+            while (it.hasNext()) {
+                val matrix = it.next()
+                if (matrix.tableName == tableName) {
+                    deleteMatrix(matrix)
+                    it.remove()
+                }
+            }
+        }
+
+        // Remove all extensions related to specified content table
+        extensions.iterator().let {
+            while (it.hasNext()) {
+                val extension = it.next()
+                if (extension.tableName == tableName) {
+                    deleteExtension(extension)
+                    it.remove()
+                }
+            }
+        }
+
+        // Remove gridded coverage metadata if exists
+        griddedCoverages.iterator().let {
+            while (it.hasNext()) {
+                val coverage = it.next()
+                if (coverage.tileMatrixSetName == tableName) {
+                    deleteGriddedCoverage(coverage)
+                    it.remove()
+                    break
+                }
+            }
+        }
+    }
+
+    /**
      * Undefined cartesian and geographic SRS - Requirement 11 http://www.geopackage.org/spec131/index.html
      */
     protected open suspend fun writeDefaultSpatialReferenceSystems() {
@@ -315,4 +386,13 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     protected abstract suspend fun readGriddedCoverage()
     protected abstract suspend fun readGriddedTile(tableName: String, tileId: Int): GpkgGriddedTile?
     protected abstract suspend fun readTileUserData(tableName: String, zoom: Int, column: Int, row: Int): GpkgTileUserData?
+
+    protected abstract suspend fun deleteContent(content: GpkgContent)
+    protected abstract suspend fun deleteMatrixSet(matrixSet: GpkgTileMatrixSet)
+    protected abstract suspend fun deleteMatrix(matrix: GpkgTileMatrix)
+    protected abstract suspend fun deleteExtension(extension: GpkgExtension)
+    protected abstract suspend fun deleteGriddedCoverage(griddedCoverage: GpkgGriddedCoverage)
+    protected abstract suspend fun deleteGriddedTiles(tableName: String)
+
+    protected abstract suspend fun dropTilesTable(tableName: String)
 }

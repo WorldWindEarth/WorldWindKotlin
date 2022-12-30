@@ -5,7 +5,7 @@ import android.database.SQLException
 import android.database.sqlite.SQLiteDatabase.*
 import java.util.concurrent.TimeUnit
 
-// TODO parameterize table names and column names as constants or use ORMLite
+// TODO parameterize column names as constants or use ORMLite
 actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Boolean): AbstractGeoPackage(pathName, isReadOnly) {
     private lateinit var connection: SQLiteConnection
 
@@ -18,7 +18,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     override suspend fun createRequiredTables() {
         connection.openDatabase().use { database ->
             database.execSQL("""
-                CREATE TABLE IF NOT EXISTS gpkg_spatial_ref_sys (
+                CREATE TABLE IF NOT EXISTS $SPATIAL_REF_SYS (
                     srs_name TEXT NOT NULL,
                     srs_id INTEGER NOT NULL PRIMARY KEY,
                     organization TEXT NOT NULL,
@@ -28,7 +28,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 )
             """.trimIndent())
             database.execSQL("""
-                CREATE TABLE IF NOT EXISTS gpkg_contents (
+                CREATE TABLE IF NOT EXISTS $CONTENTS (
                     table_name TEXT NOT NULL PRIMARY KEY,
                     data_type TEXT NOT NULL,
                     identifier TEXT UNIQUE,
@@ -43,7 +43,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 )
             """.trimIndent())
             database.execSQL("""
-                CREATE TABLE IF NOT EXISTS gpkg_tile_matrix_set (
+                CREATE TABLE IF NOT EXISTS $TILE_MATRIX_SET (
                     table_name TEXT NOT NULL PRIMARY KEY,
                     srs_id INTEGER NOT NULL,
                     min_x DOUBLE NOT NULL,
@@ -55,7 +55,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 )
             """.trimIndent())
             database.execSQL("""
-                CREATE TABLE IF NOT EXISTS gpkg_tile_matrix (
+                CREATE TABLE IF NOT EXISTS $TILE_MATRIX (
                     table_name TEXT NOT NULL,
                     zoom_level INTEGER NOT NULL,
                     matrix_width INTEGER NOT NULL,
@@ -69,13 +69,13 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 )
             """.trimIndent())
             database.execSQL("""
-                CREATE TABLE IF NOT EXISTS gpkg_extensions (
+                CREATE TABLE IF NOT EXISTS $EXTENSIONS (
                     table_name TEXT,
                     column_name TEXT,
                     extension_name TEXT NOT NULL,
                     definition TEXT NOT NULL,
                     scope TEXT NOT NULL,
-                    CONSTRAINT ge_tce UNIQUE (table_name, column_name, extension_name)
+                    UNIQUE (table_name, column_name, extension_name)
                 )
             """.trimIndent())
         }
@@ -84,7 +84,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     override suspend fun createGriddedCoverageTables() {
         connection.openDatabase().use { database ->
             database.execSQL("""
-                CREATE TABLE IF NOT EXISTS gpkg_2d_gridded_coverage_ancillary (
+                CREATE TABLE IF NOT EXISTS $GRIDDED_COVERAGE_ANCILLARY (
                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     tile_matrix_set_name TEXT NOT NULL UNIQUE,
                     datatype TEXT NOT NULL DEFAULT 'integer',
@@ -101,7 +101,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 )
             """.trimIndent())
             database.execSQL("""
-                CREATE TABLE IF NOT EXISTS gpkg_2d_gridded_tile_ancillary (
+                CREATE TABLE IF NOT EXISTS $GRIDDED_TILE_ANCILLARY (
                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     tpudt_name TEXT NOT NULL,
                     tpudt_id INTEGER NOT NULL,
@@ -144,7 +144,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("description", description)
             }
             try {
-                database.insertOrThrow("gpkg_spatial_ref_sys", null, values)
+                database.insertOrThrow(SPATIAL_REF_SYS, null, values)
                 addSpatialReferenceSystem(this)
             } catch (_: SQLException) {
                 // Handle exception manually as -1 is a valid primary key field value for spatial reference system table
@@ -166,9 +166,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("max_y", maxY)
                 put("srs_id", srsId)
             }
-            if (database.insert("gpkg_contents", null, values) >= 0) {
-                addContent(this)
-            }
+            if (database.insert(CONTENTS, null, values) >= 0) addContent(this)
         } }
     }
 
@@ -182,9 +180,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("max_x", maxX)
                 put("max_y", maxY)
             }
-            if (database.insert("gpkg_tile_matrix_set", null, values) >= 0) {
-                addMatrixSet(this)
-            }
+            if (database.insert(TILE_MATRIX_SET, null, values) >= 0) addMatrixSet(this)
         } }
     }
 
@@ -200,9 +196,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("pixel_x_size", pixelXSize)
                 put("pixel_y_size", pixelYSize)
             }
-            if (database.insert("gpkg_tile_matrix", null, values) >= 0) {
-                addMatrix(this)
-            }
+            if (database.insert(TILE_MATRIX, null, values) >= 0) addMatrix(this)
         } }
     }
 
@@ -215,9 +209,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("definition", definition)
                 put("scope", scope)
             }
-            if (database.insert("gpkg_extensions", null, values) >= 0) {
-                addExtension(this)
-            }
+            if (database.insert(EXTENSIONS, null, values) >= 0) addExtension(this)
         } }
     }
 
@@ -235,9 +227,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("field_name", fieldName)
                 put("quantity_definition", quantityDefinition)
             }
-            if (database.insert("gpkg_2d_gridded_coverage_ancillary", null, values) >= 0) {
-                addGriddedCoverage(this)
-            }
+            if (database.insert(GRIDDED_COVERAGE_ANCILLARY, null, values) >= 0) addGriddedCoverage(this)
         } }
     }
 
@@ -253,8 +243,8 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("mean", mean)
                 put("std_dev", stdDev)
             }
-            if (id == -1) database.insert("gpkg_2d_gridded_tile_ancillary", null, values)
-            else database.update("gpkg_2d_gridded_tile_ancillary", values, "id=?", arrayOf(id.toString()))
+            if (id == -1) database.insert(GRIDDED_TILE_ANCILLARY, null, values)
+            else database.update(GRIDDED_TILE_ANCILLARY, values, "id=?", arrayOf(id.toString()))
         } }
     }
 
@@ -276,7 +266,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             try {
                 database.rawQuery("""
                     SELECT srs_name, srs_id, organization, organization_coordsys_id, definition, description 
-                    FROM 'gpkg_spatial_ref_sys'
+                    FROM '$SPATIAL_REF_SYS'
                 """.trimIndent(), null).use { it.run {
                     while (moveToNext()) addSpatialReferenceSystem(
                         GpkgSpatialReferenceSystem(
@@ -285,7 +275,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                         )
                     )
                 } }
-            } catch (e: SQLException) {
+            } catch (_: SQLException) {
                 // Skip exception. Table will be created later
             }
         }
@@ -296,7 +286,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             try {
                 database.rawQuery("""
                     SELECT table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
-                    FROM 'gpkg_contents'
+                    FROM '$CONTENTS'
                 """.trimIndent(), null).use { it.run {
                     while (moveToNext()) addContent(
                         GpkgContent(
@@ -306,7 +296,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                         )
                     )
                 } }
-            } catch (e: SQLException) {
+            } catch (_: SQLException) {
                 // Skip exception. Table will be created later
             }
         }
@@ -316,7 +306,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         connection.openDatabase().use { database ->
             try {
                 database.rawQuery(
-                    "SELECT table_name, srs_id, min_x, min_y, max_x, max_y FROM 'gpkg_tile_matrix_set'", null
+                    "SELECT table_name, srs_id, min_x, min_y, max_x, max_y FROM '$TILE_MATRIX_SET'", null
                 ).use { it.run {
                     while (moveToNext()) addMatrixSet(
                         GpkgTileMatrixSet(
@@ -325,7 +315,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                         )
                     )
                 } }
-            } catch (e: SQLException) {
+            } catch (_: SQLException) {
                 // Skip exception. Table will be created later
             }
         }
@@ -336,7 +326,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             try {
                 database.rawQuery("""
                     SELECT table_name, zoom_level, matrix_width, matrix_height, tile_width, tile_height, pixel_x_size, pixel_y_size 
-                    FROM 'gpkg_tile_matrix'
+                    FROM '$TILE_MATRIX'
                 """.trimIndent(), null).use { it.run {
                     while (moveToNext()) addMatrix(
                         GpkgTileMatrix(
@@ -345,7 +335,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                         )
                     )
                 } }
-            } catch (e: SQLException) {
+            } catch (_: SQLException) {
                 // Skip exception. Table will be created later
             }
         }
@@ -355,7 +345,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         connection.openDatabase().use { database ->
             try {
                 database.rawQuery(
-                    "SELECT table_name, column_name, extension_name, definition, scope FROM 'gpkg_extensions'", null
+                    "SELECT table_name, column_name, extension_name, definition, scope FROM '$EXTENSIONS'", null
                 ).use { it.run {
                     while (moveToNext()) addExtension(
                         GpkgExtension(
@@ -364,7 +354,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                         )
                     )
                 } }
-            } catch (e: SQLException) {
+            } catch (_: SQLException) {
                 // Skip exception. Table will be created later
             }
         }
@@ -375,7 +365,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             try {
                 database.rawQuery("""
                     SELECT id, tile_matrix_set_name, datatype, scale, 'offset', precision, data_null, grid_cell_encoding,
-                        uom, field_name, quantity_definition FROM 'gpkg_2d_gridded_coverage_ancillary'
+                        uom, field_name, quantity_definition FROM '$GRIDDED_COVERAGE_ANCILLARY'
                 """.trimIndent(), null).use { it.run {
                     while (moveToNext()) addGriddedCoverage(
                         GpkgGriddedCoverage(
@@ -385,7 +375,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                         )
                     )
                 } }
-            } catch (e: SQLException) {
+            } catch (_: SQLException) {
                 // Skip exception. Table will be created later
             }
         }
@@ -394,7 +384,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     override suspend fun readGriddedTile(tableName: String, tileId: Int) =
         connection.openDatabase().use { database ->
             database.rawQuery("""
-                SELECT id, tpudt_name, tpudt_id, scale, 'offset', min, max, mean, std_dev FROM 'gpkg_2d_gridded_tile_ancillary' 
+                SELECT id, tpudt_name, tpudt_id, scale, 'offset', min, max, mean, std_dev FROM '$GRIDDED_TILE_ANCILLARY' 
                 WHERE tpudt_name=? AND tpudt_id=? LIMIT 1
             """.trimIndent(), arrayOf(tableName, tileId.toString())).use { it.run {
                 if (moveToNext()) GpkgGriddedTile(
@@ -418,4 +408,81 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 ) else null
             } }
         }
+
+    override suspend fun deleteContent(content: GpkgContent) {
+        connection.openDatabase().use { database ->
+            try {
+                database.delete(CONTENTS, "table_name=?", arrayOf(content.tableName))
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
+    override suspend fun deleteMatrixSet(matrixSet: GpkgTileMatrixSet) {
+        connection.openDatabase().use { database ->
+            try {
+                database.delete(TILE_MATRIX_SET, "table_name=?", arrayOf(matrixSet.tableName))
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
+    override suspend fun deleteMatrix(matrix: GpkgTileMatrix) {
+        connection.openDatabase().use { database ->
+            try {
+                val args = arrayOf(matrix.tableName, matrix.zoomLevel.toString())
+                database.delete(TILE_MATRIX, "table_name=? AND zoom_level=?", args)
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
+    override suspend fun deleteExtension(extension: GpkgExtension) {
+        connection.openDatabase().use { database ->
+            try {
+                database.delete(EXTENSIONS, "table_name=?", arrayOf(extension.tableName))
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
+    override suspend fun deleteGriddedCoverage(griddedCoverage: GpkgGriddedCoverage) {
+        connection.openDatabase().use { database ->
+            try {
+                val args = arrayOf(griddedCoverage.tileMatrixSetName)
+                database.delete(GRIDDED_COVERAGE_ANCILLARY, "tile_matrix_set_name=?", args)
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
+    override suspend fun deleteGriddedTiles(tableName: String) {
+        connection.openDatabase().use { database ->
+            try {
+                database.delete(GRIDDED_TILE_ANCILLARY, "tpudt_name=?", arrayOf(tableName))
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
+    override suspend fun dropTilesTable(tableName: String) {
+        connection.openDatabase().use { database -> database.execSQL("DROP TABLE IF EXISTS $tableName") }
+    }
+
+    companion object {
+        private const val SPATIAL_REF_SYS = "gpkg_spatial_ref_sys"
+        private const val CONTENTS = "gpkg_contents"
+        private const val TILE_MATRIX_SET = "gpkg_tile_matrix_set"
+        private const val TILE_MATRIX = "gpkg_tile_matrix"
+        private const val EXTENSIONS = "gpkg_extensions"
+        private const val GRIDDED_COVERAGE_ANCILLARY = "gpkg_2d_gridded_coverage_ancillary"
+        private const val GRIDDED_TILE_ANCILLARY = "gpkg_2d_gridded_tile_ancillary"
+    }
+
 }
