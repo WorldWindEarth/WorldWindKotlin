@@ -10,6 +10,7 @@ import earth.worldwind.globe.elevation.ElevationSource.Companion.fromUnrecognize
 import earth.worldwind.globe.elevation.ElevationTileFactory
 import earth.worldwind.ogc.GpkgElevationFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
+import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
@@ -34,6 +35,7 @@ actual open class TiledElevationCoverage actual constructor(
     protected actual val mainScope = MainScope() // Use own scope with the same livecycle as WorldWindow main scope.
     protected val elevationDecoder = ElevationDecoder()
     protected var cacheTileFactory: ElevationTileFactory? = null
+    protected var cacheContent: GpkgContent? = null
     var useCacheOnly = false
 
     override fun invalidateTiles() {
@@ -64,6 +66,7 @@ actual open class TiledElevationCoverage actual constructor(
                 }) { "Invalid data type" }
             } ?: geoPackage.setupGriddedCoverageContent(tableName, displayName ?: tableName, tileMatrixSet, isFloat)
 
+            cacheContent = content
             cacheTileFactory = object : ElevationTileFactory {
                 override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
                     // Convert the WorldWind tile row to the equivalent GeoPackage tile row.
@@ -84,7 +87,15 @@ actual open class TiledElevationCoverage actual constructor(
     /**
      * Removes cache provider from current tiled elevation coverage.
      */
-    fun disableCache() { cacheTileFactory = null }
+    fun disableCache() {
+        cacheContent = null
+        cacheTileFactory = null
+    }
+
+    /**
+     * Delete all tiles from current cache storage
+     */
+    suspend fun clearCache() = cacheContent?.run { container.deleteContent(tableName) }.also { disableCache() }
 
     /**
      * Start a new coroutine Job that downloads all elevations for a given sector and resolution,

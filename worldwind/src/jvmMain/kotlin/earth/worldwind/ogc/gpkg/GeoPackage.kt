@@ -80,4 +80,32 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     override suspend fun readTileUserData(tableName: String, zoom: Int, column: Int, row: Int): GpkgTileUserData? {
         TODO("Not yet implemented")
     }
+
+    override suspend fun deleteContent(content: GpkgContent) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun deleteMatrixSet(matrixSet: GpkgTileMatrixSet) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun deleteMatrix(matrix: GpkgTileMatrix) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun deleteExtension(extension: GpkgExtension) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun deleteGriddedCoverage(griddedCoverage: GpkgGriddedCoverage) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun deleteGriddedTiles(tableName: String) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun dropTilesTable(tableName: String) {
+        TODO("Not yet implemented")
+    }
 }

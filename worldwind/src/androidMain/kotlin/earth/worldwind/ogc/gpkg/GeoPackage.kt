@@ -75,7 +75,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                     extension_name TEXT NOT NULL,
                     definition TEXT NOT NULL,
                     scope TEXT NOT NULL,
-                    CONSTRAINT ge_tce UNIQUE (table_name, column_name, extension_name)
+                    UNIQUE (table_name, column_name, extension_name)
                 )
             """.trimIndent())
         }
@@ -418,4 +418,46 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 ) else null
             } }
         }
+
+    override suspend fun deleteContent(content: GpkgContent) {
+        connection.openDatabase().use { database ->
+            database.delete("gpkg_contents", "table_name=?", arrayOf(content.tableName))
+        }
+    }
+
+    override suspend fun deleteMatrixSet(matrixSet: GpkgTileMatrixSet) {
+        connection.openDatabase().use { database ->
+            database.delete("gpkg_tile_matrix_set", "table_name=?", arrayOf(matrixSet.tableName))
+        }
+    }
+
+    override suspend fun deleteMatrix(matrix: GpkgTileMatrix) {
+        connection.openDatabase().use { database ->
+            val args = arrayOf(matrix.tableName, matrix.zoomLevel.toString())
+            database.delete("gpkg_tile_matrix", "table_name=? AND zoom_level=?", args)
+        }
+    }
+
+    override suspend fun deleteExtension(extension: GpkgExtension) {
+        connection.openDatabase().use { database ->
+            database.delete("gpkg_extensions", "table_name=?", arrayOf(extension.tableName))
+        }
+    }
+
+    override suspend fun deleteGriddedCoverage(griddedCoverage: GpkgGriddedCoverage) {
+        connection.openDatabase().use { database ->
+            val args = arrayOf(griddedCoverage.tileMatrixSetName)
+            database.delete("gpkg_2d_gridded_coverage_ancillary", "tile_matrix_set_name=?", args)
+        }
+    }
+
+    override suspend fun deleteGriddedTiles(tableName: String) {
+        connection.openDatabase().use { database ->
+            database.delete("gpkg_2d_gridded_tile_ancillary", "tpudt_name=?", arrayOf(tableName))
+        }
+    }
+
+    override suspend fun dropTilesTable(tableName: String) {
+        connection.openDatabase().use { database -> database.execSQL("DROP TABLE $tableName") }
+    }
 }

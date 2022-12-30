@@ -31,7 +31,7 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
         } else {
             format == CompressFormat.WEBP
         }
-        val content = getOrSetupTilesContent(pathName, tableName, readOnly, isWebp)
+        val content = getOrSetupTilesContent(pathName, tableName, readOnly, isWebp).also { cacheContent = it }
         tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content).also {
             it.format = format
             it.quality = quality

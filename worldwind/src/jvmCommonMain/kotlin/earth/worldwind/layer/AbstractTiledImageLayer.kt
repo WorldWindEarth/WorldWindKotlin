@@ -30,10 +30,20 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
         get() = tiledSurfaceImage?.useCacheOnly ?: false
         set(value) { tiledSurfaceImage?.useCacheOnly = value }
 
+    protected var cacheContent: GpkgContent? = null
+
     /**
      * Removes cache provider from current tiled image layer.
      */
-    fun disableCache() { tiledSurfaceImage?.cacheTileFactory = null }
+    fun disableCache() {
+        cacheContent = null
+        tiledSurfaceImage?.cacheTileFactory = null
+    }
+
+    /**
+     * Delete all tiles from current cache storage
+     */
+    suspend fun clearCache() = cacheContent?.run { container.deleteContent(tableName) }.also { disableCache() }
 
     protected open suspend fun getOrSetupTilesContent(pathName: String, tableName: String, readOnly: Boolean, isWebp: Boolean): GpkgContent {
         val tiledSurfaceImage = tiledSurfaceImage ?: error("Surface image not defined")
