@@ -43,7 +43,7 @@ kotlin {
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.github.pdvrieze.xmlutil:serialization:0.84.3")
+                implementation("io.github.pdvrieze.xmlutil:serialization:0.84.2") // Version 0.84.3 has problems during R8 minification
                 implementation("com.eygraber:uri-kmp:0.0.9")
                 api("dev.icerock.moko:resources:$mokoVersion")
             }
