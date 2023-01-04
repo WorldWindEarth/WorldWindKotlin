@@ -12,16 +12,16 @@ import kotlin.math.atan
 class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
     // Create an elevation coverage from a version 1.0.0 WCS
     private val wcsElevationCoverage = Wcs100ElevationCoverage(
-        // Specify the bounding sector - provided by the WCS
-        sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
-        // Specify the number of levels to match data resolution
-        numLevels = 12,
         // Specify the version 1.0.0 WCS address
         serviceAddress = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer",
         // Specify the coverage name
         coverage = "DEP3Elevation",
         // Specify the image format
-        imageFormat = "geotiff"
+        imageFormat = "geotiff",
+        // Specify the bounding sector - provided by the WCS
+        sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
+        // Specify the number of levels to match data resolution
+        numLevels = 12
     )
 
     override fun start() {

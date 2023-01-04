@@ -13,7 +13,7 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
  * service supports the format and coordinate system parameters detailed here.
  */
 class Wcs100ElevationCoverage(
-    sector: Sector, numLevels: Int, serviceAddress: String, coverage: String, imageFormat: String
+    serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, numLevels: Int
 ): TiledElevationCoverage(
     TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, numLevels),
     Wcs100TileFactory(serviceAddress, coverage, imageFormat)

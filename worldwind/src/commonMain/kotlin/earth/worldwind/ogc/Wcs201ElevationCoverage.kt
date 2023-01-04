@@ -48,16 +48,16 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
     /**
      * Constructs a Web Coverage Service (WCS) elevation coverage with specified WCS configuration values.
      *
-     * @param sector         the coverage's geographic bounding sector
-     * @param numLevels      the number of levels of elevations to generate, beginning with 2-by-4 geographic grid of
-     * 90-degree tiles containing 256x256 elevation pixels
      * @param serviceAddress the WCS service address
      * @param coverage       the WCS coverage name
      * @param imageFormat    the WCS source image format
+     * @param sector         the coverage's geographic bounding sector
+     * @param numLevels      the number of levels of elevations to generate, beginning with 2-by-4 geographic grid of
+     * 90-degree tiles containing 256x256 elevation pixels
      *
      * @throws IllegalArgumentException If any argument is null or if the number of levels is less than 0
      */
-    constructor(sector: Sector, numLevels: Int, serviceAddress: String, coverage: String, imageFormat: String): super(
+    constructor(serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, numLevels: Int): super(
         TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, numLevels),
         Wcs201TileFactory(serviceAddress, coverage, imageFormat)
     )
