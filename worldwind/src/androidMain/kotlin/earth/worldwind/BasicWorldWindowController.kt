@@ -235,11 +235,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, 
 
     protected open fun gestureDidBegin() {
         if (activeGestures++ == 0) {
-            // Render pick frame to ensure terrain availability outside last rendered terrain.
-            val terrainPosition = wwd.pick(
-                wwd.engine.viewport.width / 2f, wwd.engine.viewport.height / 2f
-            ).terrainPickedObject?.terrainPosition
-            wwd.engine.cameraAsLookAt(beginLookAt, terrainPosition)
+            wwd.engine.cameraAsLookAt(beginLookAt)
             lookAt.copy(beginLookAt)
         }
     }
