@@ -5,10 +5,10 @@ import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationDecoder
 import earth.worldwind.globe.elevation.ElevationSource
-import earth.worldwind.globe.elevation.ElevationSource.Companion.fromElevationFactory
 import earth.worldwind.globe.elevation.ElevationSource.Companion.fromUnrecognized
 import earth.worldwind.globe.elevation.ElevationTileFactory
 import earth.worldwind.ogc.GpkgElevationFactory
+import earth.worldwind.ogc.GpkgElevationTileFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.util.Logger.DEBUG
@@ -67,13 +67,7 @@ actual open class TiledElevationCoverage actual constructor(
             } ?: geoPackage.setupGriddedCoverageContent(tableName, displayName ?: tableName, tileMatrixSet, isFloat)
 
             cacheContent = content
-            cacheTileFactory = object : ElevationTileFactory {
-                override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
-                    // Convert the WorldWind tile row to the equivalent GeoPackage tile row.
-                    val gpkgRow = tileMatrix.matrixHeight - row - 1
-                    return fromElevationFactory(GpkgElevationFactory(content, tileMatrix.ordinal, column, gpkgRow, isFloat))
-                }
-            }
+            cacheTileFactory = GpkgElevationTileFactory(content, isFloat)
             true
         } catch (e: IllegalArgumentException) {
             logMessage(WARN, "TiledImageLayer", "configureCache", e.message!!)
