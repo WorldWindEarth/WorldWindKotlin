@@ -187,21 +187,12 @@ open class WorldWind @JvmOverloads constructor(
      * Get look at orientation and range based on current camera position and specified geographic position
      *
      * @param result Pre-allocated look at object
-     * @param lookAtPos Geographic position to calculate look at orientation. Position at the viewport center by default.
      * @return Look at orientation and range based on current camera position and specified geographic position
      */
-    @JvmOverloads
-    open fun cameraAsLookAt(
-        result: LookAt = LookAt(),
-        lookAtPos: Position? = pickTerrainPosition(viewport.width / 2.0, viewport.height / 2.0)
-    ): LookAt {
-        cameraToViewingTransform(scratchModelview)
-        if (lookAtPos != null) {
-            // Use specified look at position
-            globe.geographicToCartesian(lookAtPos.latitude, lookAtPos.longitude, lookAtPos.altitude, scratchPoint)
-            result.position.copy(lookAtPos)
-        } else {
-            // No look at position specified - use point on horizon
+    open fun cameraAsLookAt(result: LookAt): LookAt {
+        if (viewport.isEmpty || !pickTerrainPosition(viewport.width / 2.0, viewport.height / 2.0, result.position)) {
+            // Use point on horizon as a backup
+            cameraToViewingTransform(scratchModelview)
             scratchModelview.extractEyePoint(scratchRay.origin)
             scratchModelview.extractForwardVector(scratchRay.direction)
             scratchRay.pointAt(globe.horizonDistance(camera.position.altitude), scratchPoint)
@@ -300,11 +291,13 @@ open class WorldWind @JvmOverloads constructor(
      * @param y the screen point's Y coordinate
      * @param result a pre-allocated [Position] in which to store the computed geographic position
      *
-     * @return a terrain [Position] at the screen point or null, if the screen point is not on the terrain
+     * @return true if the screen point could be converted; false if the screen point is not on the terrain
      */
-    open fun pickTerrainPosition(x: Double, y: Double, result: Position = Position()) =
-        if (rayThroughScreenPoint(x, y, scratchRay) && tessellator.lastTerrain.intersect(scratchRay, scratchPoint))
-            globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, result) else null
+    open fun pickTerrainPosition(x: Double, y: Double, result: Position) =
+        if (rayThroughScreenPoint(x, y, scratchRay) && tessellator.lastTerrain.intersect(scratchRay, scratchPoint)) {
+            globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, result)
+            true
+        } else false
 
     /**
      * Transforms a Cartesian coordinate point to viewport coordinates.

@@ -163,7 +163,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
                     val fromPosition = Position(toPosition)
                     val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     val movePoint = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
-                    if (clapToGround && wwd.engine.pickTerrainPosition(movePoint.x, movePoint.y, toPosition) != null
+                    if (clapToGround && wwd.engine.pickTerrainPosition(movePoint.x, movePoint.y, toPosition)
                         || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
                         && wwd.engine.screenPointToGroundPosition(
                             dragRefPt.x + recognizer.translationX - lastTranslation.x,

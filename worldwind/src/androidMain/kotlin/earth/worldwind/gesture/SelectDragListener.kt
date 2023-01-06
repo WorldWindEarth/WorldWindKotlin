@@ -62,7 +62,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
                 // wherein we restore the original position's altitude.
                 val fromPosition = Position(toPosition)
                 val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
-                if (clapToGround && wwd.engine.pickTerrainPosition(x, y, toPosition) != null
+                if (clapToGround && wwd.engine.pickTerrainPosition(x, y, toPosition)
                     || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
                     && wwd.engine.screenPointToGroundPosition(dragRefPt.x - distanceX, dragRefPt.y - distanceY, toPosition)) {
                     // Restore original altitude
