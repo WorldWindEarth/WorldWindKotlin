@@ -146,6 +146,7 @@ open class Globe(
      */
     fun getElevation(latitude: Angle, longitude: Angle): Double {
         scratchSector.set(latitude, longitude, ZERO, ZERO)
+        scratchHeights[0] = 0f // Clear scratch height before new value determination
         elevationModel.getHeightGrid(scratchSector, 1, 1, scratchHeights)
         return scratchHeights[0].toDouble()
     }
