@@ -1,5 +1,6 @@
 package earth.worldwind.ogc
 
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
@@ -9,19 +10,27 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 
 /**
  * Generates elevations from OGC Web Map Service (WMS) version 1.3.0.
+ *
+ * @param serviceAddress OGC Web Map Service (WMS) server address
+ * @param coverage comma-separated coverage names
+ * @param imageFormat required image format
+ * @param sector bounding sector
+ * @param resolution the target resolution in angular value of latitude per texel
  */
 open class WmsElevationCoverage(
-    serviceAddress: String, coverage: String, imageFormat: String, sector: Sector = Sector().setFullSphere(), numLevels: Int = 13
+    serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, resolution: Angle
 ): TiledElevationCoverage(
-    buildTileMatrixSet(sector, numLevels),
-    buildTileFactory(serviceAddress, coverage, imageFormat)
+    buildTileMatrixSet(sector, resolution), buildTileFactory(serviceAddress, coverage, imageFormat)
 ) {
     companion object {
         /**
          * 4x2 top level matrix equivalent to 90 degree top level tiles
+         *
+         * @param sector bounding sector
+         * @param resolution the target resolution in angular value of latitude per texel
          */
-        private fun buildTileMatrixSet(sector: Sector, numLevels: Int) = TileMatrixSet.fromTilePyramid(
-            sector, 4, 2, 256, 256, numLevels
+        private fun buildTileMatrixSet(sector: Sector, resolution: Angle) = TileMatrixSet.fromTilePyramid(
+            sector, 4, 2, 256, 256, resolution
         )
 
         private fun buildTileFactory(serviceAddress: String, coverage: String, imageFormat: String): ElevationTileFactory {

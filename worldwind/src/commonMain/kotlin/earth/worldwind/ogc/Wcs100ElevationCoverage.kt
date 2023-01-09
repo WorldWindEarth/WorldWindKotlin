@@ -1,5 +1,6 @@
 package earth.worldwind.ogc
 
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
@@ -13,8 +14,8 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
  * service supports the format and coordinate system parameters detailed here.
  */
 class Wcs100ElevationCoverage(
-    serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, numLevels: Int
+    serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, resolution: Angle
 ): TiledElevationCoverage(
-    TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, numLevels),
+    TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
     Wcs100TileFactory(serviceAddress, coverage, imageFormat)
 )

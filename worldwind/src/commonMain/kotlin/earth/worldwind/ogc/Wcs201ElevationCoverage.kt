@@ -2,6 +2,7 @@ package earth.worldwind.ogc
 
 import com.eygraber.uri.Uri
 import earth.worldwind.WorldWind
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.geom.TileMatrixSet
@@ -25,8 +26,6 @@ import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
 import nl.adaptivity.xmlutil.serialization.UnknownChildHandler
 import nl.adaptivity.xmlutil.serialization.XML
-import kotlin.math.ceil
-import kotlin.math.ln
 
 /**
  * Generates elevations from OGC Web Coverage Service (WCS) version 2.0.1.
@@ -52,13 +51,13 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
      * @param coverage       the WCS coverage name
      * @param imageFormat    the WCS source image format
      * @param sector         the coverage's geographic bounding sector
-     * @param numLevels      the number of levels of elevations to generate, beginning with 2-by-4 geographic grid of
+     * @param resolution     the target resolution in angular value of latitude per texel
      * 90-degree tiles containing 256x256 elevation pixels
      *
      * @throws IllegalArgumentException If any argument is null or if the number of levels is less than 0
      */
-    constructor(serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, numLevels: Int): super(
-        TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, numLevels),
+    constructor(serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, resolution: Angle): super(
+        TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
         Wcs201TileFactory(serviceAddress, coverage, imageFormat)
     )
 
@@ -135,14 +134,9 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
         )
         val tileWidth = 256
         val tileHeight = 256
-        val gridHeight = gridHigh[1] - gridLow[1]
-        val level = ln(gridHeight / tileHeight.toDouble()) / ln(2.0) // fractional level address
-        var levelNumber = ceil(level).toInt() // ceiling captures the resolution
-        if (levelNumber < 0) levelNumber = 0 // need at least one level, even if it exceeds the desired resolution
-        val numLevels = levelNumber + 1 // convert level number to level count
+        val resolution = boundingSector.deltaLatitude.div((gridHigh[1] - gridLow[1]).toDouble())
         return TileMatrixSet.fromTilePyramid(
-            boundingSector, if (boundingSector.isFullSphere) 2 else 1, 1,
-            tileWidth, tileHeight, numLevels
+            boundingSector, if (boundingSector.isFullSphere) 2 else 1, 1, tileWidth, tileHeight, resolution
         )
     }
 

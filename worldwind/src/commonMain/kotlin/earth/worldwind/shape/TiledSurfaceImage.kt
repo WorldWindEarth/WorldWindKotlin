@@ -1,6 +1,7 @@
 package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawableSurfaceTexture
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.AbstractRenderable
@@ -83,10 +84,10 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
      * Determine list of tiles which fit specified sector and maximum resolution.
      *
      * @param sector     the bounding sector.
-     * @param resolution the target resolution, provided in radians of latitude per texel.
+     * @param resolution the desired resolution in angular value of latitude per pixel.
      * @return List of tiles which fit specified sector and maximum resolution.
      */
-    open fun assembleTilesList(sector: Sector, resolution: Double): List<ImageTile> {
+    open fun assembleTilesList(sector: Sector, resolution: Angle): List<ImageTile> {
         val result = mutableListOf<ImageTile>()
         val level = levelSet.levelForResolution(resolution)
         if (topLevelTiles.isEmpty()) createTopLevelTiles()

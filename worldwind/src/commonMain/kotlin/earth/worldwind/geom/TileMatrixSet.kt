@@ -12,20 +12,21 @@ open class TileMatrixSet(val sector: Sector, val entries: List<TileMatrix>) {
     companion object {
         @JvmStatic
         fun fromTilePyramid(
-            sector: Sector, matrixWidth: Int, matrixHeight: Int, tileWidth: Int, tileHeight: Int, numLevels: Int
+            sector: Sector, matrixWidth: Int, matrixHeight: Int, tileWidth: Int, tileHeight: Int, resolution: Angle
         ): TileMatrixSet {
-            require(numLevels >= 0) {
-                makeMessage("TileMatrixSet", "fromTilePyramid", "invalidNumLevels")
+            require(resolution > Angle.ZERO) {
+                makeMessage("TileMatrixSet", "fromTilePyramid", "invalidResolution")
             }
+            var idx = 0
             var width = matrixWidth
             var height = matrixHeight
             val tileMatrices = mutableListOf<TileMatrix>()
-            for (idx in 0 until numLevels) {
-                val matrix = TileMatrix(sector, idx, width, height, tileWidth, tileHeight)
+            do {
+                val matrix = TileMatrix(sector, idx++, width, height, tileWidth, tileHeight)
                 tileMatrices.add(matrix)
                 width *= 2
                 height *= 2
-            }
+            } while (matrix.degreesPerPixel > resolution.inDegrees)
             return TileMatrixSet(sector, tileMatrices)
         }
     }

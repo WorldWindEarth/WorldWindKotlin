@@ -1,7 +1,6 @@
 package earth.worldwind.util
 
-import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.toDegrees
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger.ERROR
@@ -84,7 +83,7 @@ open class LevelSet {
     constructor(
         sector: Sector, tileOrigin: Location, firstLevelDelta: Location, numLevels: Int, tileWidth: Int, tileHeight: Int
     ) {
-        require(firstLevelDelta.latitude > ZERO && firstLevelDelta.longitude > ZERO) {
+        require(firstLevelDelta.latitude > Angle.ZERO && firstLevelDelta.longitude > Angle.ZERO) {
             logMessage(ERROR, "LevelSet", "constructor", "invalidTileDelta")
         }
         require(numLevels >= 0) {
@@ -132,20 +131,19 @@ open class LevelSet {
     /**
      * Returns the level that most closely approximates the specified resolution.
      *
-     * @param radiansPerPixel the desired resolution in radians per pixel
+     * @param resolution the desired resolution in angular value of latitude per pixel.
      *
      * @return the level for the specified resolution, or null if this level set is empty
      *
      * @throws IllegalArgumentException If the resolution is not positive
      */
-    fun levelForResolution(radiansPerPixel: Double): Level? {
-        require(radiansPerPixel > 0) {
+    fun levelForResolution(resolution: Angle): Level? {
+        require(resolution > Angle.ZERO) {
             logMessage(ERROR, "LevelSetConfig", "levelForResolution", "invalidResolution")
         }
         if (levels.isEmpty()) return null // this level set is empty
-        val degreesPerPixel = toDegrees(radiansPerPixel)
         val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
-        val level = ln(firstLevelDegreesPerPixel / degreesPerPixel) / ln(2.0) // fractional level address
+        val level = ln(firstLevelDegreesPerPixel / resolution.inDegrees) / ln(2.0) // fractional level address
         val levelNumber = level.roundToInt() // nearest neighbor level
         return when {
             levelNumber < 0 -> levels[0] // unable to match the resolution; return the first level

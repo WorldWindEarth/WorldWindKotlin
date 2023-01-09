@@ -20,8 +20,8 @@ class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
         imageFormat = "geotiff",
         // Specify the bounding sector - provided by the WCS
         sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
-        // Specify the number of levels to match data resolution
-        numLevels = 12
+        // Specify the data resolution of 10m (1/3 arc-second)
+        resolution = Angle.fromSeconds(1.0 / 3.0)
     )
 
     override fun start() {

@@ -2,6 +2,7 @@ package earth.worldwind.layer
 
 import android.graphics.Bitmap.CompressFormat
 import android.os.Build
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.GpkgTileFactory
 import earth.worldwind.render.RenderResourceCache
@@ -53,7 +54,7 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      * meters divided by the globe radius.
      *
      * @param sector     the sector to download data for.
-     * @param resolution the target resolution, provided in radians of latitude per texel.
+     * @param resolution the desired resolution in angular value of latitude per pixel.
      * @param cache      render resource cache to access absent resource list
      * @param scope      custom coroutine scope for better job management. Global scope by default.
      * @param onProgress an optional retrieval listener.
@@ -65,7 +66,7 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      */
     @OptIn(DelicateCoroutinesApi::class)
     fun makeLocal(
-        sector: Sector, resolution: Double, cache: RenderResourceCache, scope: CoroutineScope = GlobalScope,
+        sector: Sector, resolution: Angle, cache: RenderResourceCache, scope: CoroutineScope = GlobalScope,
         onProgress: ((Int, Int) -> Unit)? = null
     ) = launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->
             // Check if tile exists in cache. If cache retrieval fail, then image source will be requested.

@@ -1,5 +1,6 @@
 package earth.worldwind.layer
 
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
@@ -66,7 +67,7 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
     }
 
     protected open fun launchBulkRetrieval(
-        scope: CoroutineScope, sector: Sector, resolution: Double, onProgress: ((Int, Int) -> Unit)?,
+        scope: CoroutineScope, sector: Sector, resolution: Angle, onProgress: ((Int, Int) -> Unit)?,
         retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Unit
     ): Job? {
         val tiledSurfaceImage = tiledSurfaceImage ?: error("Surface image not defined")

@@ -1,5 +1,6 @@
 package earth.worldwind.globe.elevation.coverage
 
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
@@ -99,7 +100,7 @@ actual open class TiledElevationCoverage actual constructor(
      * meters divided by the globe radius.
      *
      * @param sector     the sector to download data for.
-     * @param resolution the target resolution, provided in radians of latitude per texel.
+     * @param resolution the target resolution in angular value of latitude per texel.
      * @param scope      custom coroutine scope for better job management. Global scope by default.
      * @param onProgress an optional retrieval listener.
      *
@@ -110,7 +111,7 @@ actual open class TiledElevationCoverage actual constructor(
      */
     @OptIn(DelicateCoroutinesApi::class)
     fun makeLocal(
-        sector: Sector, resolution: Double, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int) -> Unit)? = null
+        sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int) -> Unit)? = null
     ): Job? {
         val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
         return if (sector.intersect(tileMatrixSet.sector)) {
