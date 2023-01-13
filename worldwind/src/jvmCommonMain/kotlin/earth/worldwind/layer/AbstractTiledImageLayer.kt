@@ -9,6 +9,7 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.shape.TiledSurfaceImage
 import kotlinx.coroutines.*
+import kotlin.jvm.Throws
 
 actual abstract class AbstractTiledImageLayer actual constructor(name: String): RenderableLayer(name) {
     actual var tiledSurfaceImage: TiledSurfaceImage? = null
@@ -43,9 +44,13 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
 
     /**
      * Delete all tiles from current cache storage
+     *
+     * @throws IllegalStateException In case of read-only database.
      */
+    @Throws(IllegalStateException::class)
     suspend fun clearCache() = cacheContent?.run { container.deleteContent(tableName) }.also { disableCache() }
 
+    @Throws(IllegalArgumentException::class, IllegalStateException::class)
     protected open suspend fun getOrSetupTilesContent(pathName: String, tableName: String, readOnly: Boolean, isWebp: Boolean): GpkgContent {
         val tiledSurfaceImage = tiledSurfaceImage ?: error("Surface image not defined")
         val levelSet = tiledSurfaceImage.levelSet
@@ -66,6 +71,7 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
         } ?: geoPackage.setupTilesContent(tableName, displayName ?: tableName, levelSet, isWebp)
     }
 
+    @Throws(IllegalStateException::class)
     protected open fun launchBulkRetrieval(
         scope: CoroutineScope, sector: Sector, resolution: Angle, onProgress: ((Int, Int) -> Unit)?,
         retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Unit

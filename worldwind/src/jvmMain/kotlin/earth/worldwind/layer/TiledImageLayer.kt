@@ -4,6 +4,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.RenderResourceCache
 import kotlinx.coroutines.*
+import kotlin.jvm.Throws
 
 actual abstract class TiledImageLayer actual constructor(name: String): AbstractTiledImageLayer(name) {
     /**
@@ -22,9 +23,10 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      * @return the coroutine Job executing the retrieval or `null` if the specified sector does
      * not intersect the layer bounding sector.
      *
-     * @throws IllegalStateException if tiled surface image is not initialized or cache not configured.
+     * @throws IllegalStateException if tiled surface image is not initialized or cache is not configured.
      */
     @OptIn(DelicateCoroutinesApi::class)
+    @Throws(IllegalStateException::class)
     fun makeLocal(
         sector: Sector, resolution: Angle, cache: RenderResourceCache, scope: CoroutineScope = GlobalScope,
         onProgress: ((Int, Int) -> Unit)? = null

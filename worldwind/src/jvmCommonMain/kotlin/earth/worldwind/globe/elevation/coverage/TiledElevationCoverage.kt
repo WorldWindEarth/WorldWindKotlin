@@ -21,6 +21,7 @@ import io.ktor.client.network.sockets.*
 import kotlinx.coroutines.*
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
+import kotlin.jvm.Throws
 
 actual open class TiledElevationCoverage actual constructor(
     tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory,
@@ -53,30 +54,25 @@ actual open class TiledElevationCoverage actual constructor(
      * @param isFloat If true, then cache will be stored in Float32 format, else Int16.
      *
      * @return Cache configured successfully
+     * @throws IllegalArgumentException In case of incompatible matrix set configured in cache content.
+     * @throws IllegalStateException In case of new content creation required on read-only database.
      */
-    suspend fun configureCache(pathName: String, tableName: String, readOnly: Boolean = false, isFloat: Boolean = false): Boolean {
-        return try {
-            val geoPackage = GeoPackage(pathName, readOnly)
-            val content = geoPackage.content.firstOrNull { it.tableName == tableName }?.also {
-                // Check if current layer fits cache content
-                val matrixSet = geoPackage.buildTileMatrixSet(it)
-                require(matrixSet.sector == tileMatrixSet.sector) { "Invalid sector" }
-                require(matrixSet.entries.size == tileMatrixSet.entries.size) { "Invalid number of matrices" }
-                requireNotNull(geoPackage.griddedCoverages.firstOrNull { gc ->
-                    gc.tileMatrixSetName == tableName && gc.datatype == if (isFloat) "float" else "integer"
-                }) { "Invalid data type" }
-            } ?: geoPackage.setupGriddedCoverageContent(tableName, displayName ?: tableName, tileMatrixSet, isFloat)
+    @JvmOverloads
+    @Throws(IllegalArgumentException::class, IllegalStateException::class)
+    suspend fun configureCache(pathName: String, tableName: String, readOnly: Boolean = false, isFloat: Boolean = false) {
+        val geoPackage = GeoPackage(pathName, readOnly)
+        val content = geoPackage.content.firstOrNull { it.tableName == tableName }?.also {
+            // Check if current layer fits cache content
+            val matrixSet = geoPackage.buildTileMatrixSet(it)
+            require(matrixSet.sector == tileMatrixSet.sector) { "Invalid sector" }
+            require(matrixSet.entries.size == tileMatrixSet.entries.size) { "Invalid number of matrices" }
+            requireNotNull(geoPackage.griddedCoverages.firstOrNull { gc ->
+                gc.tileMatrixSetName == tableName && gc.datatype == if (isFloat) "float" else "integer"
+            }) { "Invalid data type" }
+        } ?: geoPackage.setupGriddedCoverageContent(tableName, displayName ?: tableName, tileMatrixSet, isFloat)
 
-            cacheContent = content
-            cacheTileFactory = GpkgElevationTileFactory(content, isFloat)
-            true
-        } catch (e: IllegalArgumentException) {
-            logMessage(WARN, "TiledImageLayer", "configureCache", e.message!!)
-            false
-        } catch (e: IllegalStateException) {
-            logMessage(WARN, "TiledImageLayer", "configureCache", e.message!!)
-            false
-        }
+        cacheContent = content
+        cacheTileFactory = GpkgElevationTileFactory(content, isFloat)
     }
 
     /**
@@ -89,7 +85,10 @@ actual open class TiledElevationCoverage actual constructor(
 
     /**
      * Delete all tiles from current cache storage
+     *
+     * @throws IllegalStateException In case of read-only database.
      */
+    @Throws(IllegalStateException::class)
     suspend fun clearCache() = cacheContent?.run { container.deleteContent(tableName) }.also { disableCache() }
 
     /**
@@ -107,9 +106,10 @@ actual open class TiledElevationCoverage actual constructor(
      * @return the coroutine Job executing the retrieval or `null` if the specified sector does
      * not intersect the elevation model bounding sector.
      *
-     * @throws IllegalStateException if cache not configured.
+     * @throws IllegalStateException if cache is not configured.
      */
     @OptIn(DelicateCoroutinesApi::class)
+    @Throws(IllegalStateException::class)
     fun makeLocal(
         sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int) -> Unit)? = null
     ): Job? {

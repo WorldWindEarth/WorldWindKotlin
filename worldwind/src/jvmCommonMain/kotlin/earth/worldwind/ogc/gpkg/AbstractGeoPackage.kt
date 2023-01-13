@@ -8,6 +8,7 @@ import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import kotlinx.coroutines.runBlocking
+import kotlin.jvm.Throws
 
 // TODO verify its a GeoPackage container
 abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
@@ -47,6 +48,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     suspend fun readTileUserData(tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int) =
         readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)
 
+    @Throws(IllegalStateException::class)
     suspend fun writeTileUserData(tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         val tileUserData = readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.also { it.tileData = tileData }
@@ -54,6 +56,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         writeTileUserData(tiles.tableName, tileUserData)
     }
 
+    @Throws(IllegalStateException::class)
     suspend fun writeGriddedTile(
         tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, scale: Double = 1.0, offset: Double = 0.0,
         min: Double? = null, max: Double? = null, mean: Double? = null, stdDev: Double? = null
@@ -72,6 +75,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         }
     }
 
+    @Throws(IllegalArgumentException::class)
     fun buildLevelSetConfig(content: GpkgContent): LevelSetConfig {
         require(content.dataType.equals("tiles", true)) {
             "Unsupported GeoPackage content data_type: " + content.dataType
@@ -106,6 +110,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     }
 
     // TODO What if data already exists?
+    @Throws(IllegalStateException::class)
     suspend fun setupTilesContent(
         tableName: String, identifier: String, levelSet: LevelSet, isWebp: Boolean = false
     ): GpkgContent {
@@ -138,6 +143,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         return content
     }
 
+    @Throws(IllegalStateException::class)
     suspend fun setupTileMatrices(tableName: String, levelSet: LevelSet) {
         if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
         for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
@@ -156,6 +162,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         }
     }
 
+    @Throws(IllegalArgumentException::class)
     fun buildTileMatrixSet(content: GpkgContent): TileMatrixSet {
         require(content.dataType.equals("2d-gridded-coverage", true)) {
             "Unsupported GeoPackage content data_type: " + content.dataType
@@ -180,6 +187,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     }
 
     // TODO What if data already exists?
+    @Throws(IllegalStateException::class)
     suspend fun setupGriddedCoverageContent(tableName: String, identifier: String, tileMatrixSet: TileMatrixSet, isFloat: Boolean = false): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
@@ -232,7 +240,10 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
 
     /**
      * Delete specified content table and its related metadata
+     *
+     * @throws IllegalStateException In case of new content creation required on read-only database.
      */
+    @Throws(IllegalStateException::class)
     suspend fun deleteContent(tableName: String) {
         if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
 

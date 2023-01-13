@@ -9,6 +9,7 @@ import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.*
+import kotlin.jvm.Throws
 
 actual abstract class TiledImageLayer actual constructor(name: String): AbstractTiledImageLayer(name) {
     /**
@@ -21,12 +22,15 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      * @param quality Tile image compression quality
      *
      * @return Cache configured successfully
+     * @throws IllegalArgumentException In case of incompatible level set configured in cache content.
+     * @throws IllegalStateException In case of new content creation required on read-only database.
      */
     @Suppress("DEPRECATION")
     @JvmOverloads
+    @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun configureCache(
         pathName: String, tableName: String, readOnly: Boolean = false, format: CompressFormat = CompressFormat.PNG, quality: Int = 100
-    ) = try {
+    ) {
         val isWebp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             format == CompressFormat.WEBP_LOSSLESS || format == CompressFormat.WEBP_LOSSY
         } else {
@@ -37,13 +41,6 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
             it.format = format
             it.quality = quality
         }
-        true
-    } catch (e: IllegalArgumentException) {
-        logMessage(WARN, "TiledImageLayer", "configureCache", e.message!!)
-        false
-    } catch (e: IllegalStateException) {
-        logMessage(WARN, "TiledImageLayer", "configureCache", e.message!!)
-        false
     }
 
     /**
@@ -62,9 +59,10 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      * @return the coroutine Job executing the retrieval or `null` if the specified sector does
      * not intersect the layer bounding sector.
      *
-     * @throws IllegalStateException if tiled surface image is not initialized or cache not configured.
+     * @throws IllegalStateException if tiled surface image is not initialized or cache is not configured.
      */
     @OptIn(DelicateCoroutinesApi::class)
+    @Throws(IllegalStateException::class)
     fun makeLocal(
         sector: Sector, resolution: Angle, cache: RenderResourceCache, scope: CoroutineScope = GlobalScope,
         onProgress: ((Int, Int) -> Unit)? = null
