@@ -3,6 +3,8 @@ package earth.worldwind.ogc
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.util.DownloadPostprocessor
+import earth.worldwind.util.Logger.ERROR
+import earth.worldwind.util.Logger.logMessage
 import java.nio.*
 
 // TODO Add support of greyscale PNG encoding for 16-bit integer data and TIFF encoding for 32-bit floating point data
@@ -33,7 +35,13 @@ open class GpkgElevationFactory(
                         byteBuffer.asFloatBuffer().put(resource)
                         resource.clear()
                         byteBuffer.array()
-                    } else null // Do not save tile with incorrect datatype
+                    } else {
+                        logMessage(
+                            ERROR, "GpkgElevationFactory", "process",
+                            "Invalid data type configuration! Expected float type."
+                        )
+                        null // Do not save tile with incorrect datatype
+                    }
                 }
                 is ShortBuffer -> {
                     if (!isFloat) {
@@ -42,9 +50,18 @@ open class GpkgElevationFactory(
                         byteBuffer.asShortBuffer().put(resource)
                         resource.clear()
                         byteBuffer.array()
-                    } else null // Do not save tile with incorrect datatype
+                    } else {
+                        logMessage(
+                            ERROR, "GpkgElevationFactory", "process",
+                            "Invalid data type configuration! Expected integer type."
+                        )
+                        null // Do not save tile with incorrect datatype
+                    }
                 }
-                else -> null // Do not save tile with incorrect datatype
+                else -> {
+                    logMessage(ERROR, "GpkgElevationFactory", "process", "Invalid buffer type")
+                    null // Do not save tile with incorrect datatype
+                }
             }?.let {
                 tiles.container.writeTileUserData(tiles, zoomLevel, tileColumn, tileRow, it)
                 // TODO Calculate and save gridded tile meta data, such as min and max altitude, scale and offset...
