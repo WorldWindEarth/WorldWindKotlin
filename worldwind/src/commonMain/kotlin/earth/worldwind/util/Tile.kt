@@ -4,9 +4,7 @@ import earth.worldwind.geom.*
 import earth.worldwind.render.RenderContext
 import kotlinx.datetime.Instant
 import kotlin.jvm.JvmStatic
-import kotlin.math.ceil
-import kotlin.math.cos
-import kotlin.math.floor
+import kotlin.math.*
 
 /**
  * Geographically rectangular tile within a [LevelSet], typically representing terrain or imagery. Provides a base
@@ -63,8 +61,6 @@ open class Tile protected constructor(
     protected var heightLimits: FloatArray? = null
     protected var heightLimitsTimestamp = Instant.DISTANT_PAST
     protected var extentExaggeration = 0.0
-    var distanceToCamera = 0.0
-        protected set
 
     /**
      * Indicates whether this tile's Cartesian extent intersects a specified frustum.
@@ -95,9 +91,9 @@ open class Tile protected constructor(
      * @return true if the tile should be subdivided, otherwise false
      */
     open fun mustSubdivide(rc: RenderContext, detailFactor: Double): Boolean {
-        distanceToCamera = distanceToCamera(rc)
+        val dist = distanceToCamera(rc)
         val texelSize = texelSizeFactor * rc.globe!!.equatorialRadius
-        val pixelSize = rc.pixelSizeAtDistance(distanceToCamera)
+        val pixelSize = rc.pixelSizeAtDistance(dist)
 
         // Adjust the subdivision factory when the display density is low.
         return texelSize > pixelSize * detailFactor * rc.densityFactor
@@ -182,6 +178,23 @@ open class Tile protected constructor(
         heightLimitsTimestamp = elevationTimestamp
         extentExaggeration = verticalExaggeration
         return extent
+    }
+
+    /**
+     * Calculates the distance from this tile to the camera point which ensures front to back sorting(L1 distance in degrees).
+     *
+     * @param rc the render context which provides the current camera point
+     *
+     * @return the L1 distance in degrees
+     */
+    open fun drawSortOrder(rc: RenderContext): Double {
+        // determine the nearest latitude
+        val latAbsDifference = abs(rc.camera!!.position.latitude.inDegrees - sector.centroidLatitude.inDegrees)
+        // determine the nearest longitude and account for the antimeridian discontinuity
+        val lonAbsDifference = abs(rc.camera!!.position.longitude.inDegrees - sector.centroidLongitude.inDegrees)
+        val lonAbsDifferenceCorrected = min(lonAbsDifference, 360.0 - lonAbsDifference)
+
+        return latAbsDifference + lonAbsDifferenceCorrected //L1 distance on cylinder
     }
 
     /**

@@ -91,7 +91,8 @@ open class BasicTessellator: Tessellator, TileFactory {
         val pool = rc.getDrawablePool<BasicDrawableTerrain>()
         val drawable = BasicDrawableTerrain.obtain(pool)
         prepareDrawableTerrain(rc, tile, drawable)
-        rc.offerDrawableTerrain(drawable, tile.distanceToCamera)
+        val sortOrder = tile.drawSortOrder(rc)
+        rc.offerDrawableTerrain(drawable, sortOrder)
     }
 
     protected open fun invalidateTiles() {
