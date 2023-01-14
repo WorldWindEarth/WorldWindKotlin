@@ -6,10 +6,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.GpkgTileFactory
 import earth.worldwind.render.RenderResourceCache
-import earth.worldwind.util.Logger.WARN
-import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.*
-import kotlin.jvm.Throws
 
 actual abstract class TiledImageLayer actual constructor(name: String): AbstractTiledImageLayer(name) {
     /**

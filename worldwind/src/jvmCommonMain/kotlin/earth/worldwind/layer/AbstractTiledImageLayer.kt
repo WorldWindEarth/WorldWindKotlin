@@ -9,7 +9,6 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.shape.TiledSurfaceImage
 import kotlinx.coroutines.*
-import kotlin.jvm.Throws
 
 actual abstract class AbstractTiledImageLayer actual constructor(name: String): RenderableLayer(name) {
     actual var tiledSurfaceImage: TiledSurfaceImage? = null

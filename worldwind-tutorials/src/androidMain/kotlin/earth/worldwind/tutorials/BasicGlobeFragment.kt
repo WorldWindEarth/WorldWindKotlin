@@ -34,7 +34,11 @@ open class BasicGlobeFragment: Fragment() {
             addLayer(BackgroundLayer())
             addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
                 wwd.mainScope.launch(Dispatchers.IO) {
-                    configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
+                    try {
+                        configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             })
             addLayer(StarFieldLayer())
@@ -43,7 +47,11 @@ open class BasicGlobeFragment: Fragment() {
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
             wwd.mainScope.launch(Dispatchers.IO) {
-                configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+                try {
+                    configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         })
         return wwd

@@ -8,7 +8,6 @@ import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import kotlinx.coroutines.runBlocking
-import kotlin.jvm.Throws
 
 // TODO verify its a GeoPackage container
 abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
@@ -200,11 +199,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         val maxX = tileMatrixSet.sector.maxLongitude.inDegrees
         val maxY = tileMatrixSet.sector.maxLatitude.inDegrees
         writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, minX, minY, maxX, maxY))
-        for (tileMatrix in tileMatrixSet.entries) tileMatrix.run {
-            val pixelXSize = tileMatrixSet.sector.deltaLongitude.inDegrees / matrixWidth / tileWidth
-            val pixelYSize = tileMatrixSet.sector.deltaLatitude.inDegrees / matrixHeight / tileHeight
-            writeMatrix(GpkgTileMatrix(this@AbstractGeoPackage, tableName, ordinal, matrixWidth, matrixHeight, tileWidth, tileHeight, pixelXSize, pixelYSize))
-        }
+        setupTileMatrices(tableName, tileMatrixSet)
         createTilesTable(tableName)
         writeGriddedCoverage(
             GpkgGriddedCoverage(
@@ -237,6 +232,17 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         writeContent(content)
         return content
     }
+
+    @Throws(IllegalStateException::class)
+    suspend fun setupTileMatrices(tableName: String, tileMatrixSet: TileMatrixSet) {
+        if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
+        for (tileMatrix in tileMatrixSet.entries) tileMatrix.run {
+            val pixelXSize = tileMatrixSet.sector.deltaLongitude.inDegrees / matrixWidth / tileWidth
+            val pixelYSize = tileMatrixSet.sector.deltaLatitude.inDegrees / matrixHeight / tileHeight
+            writeMatrix(GpkgTileMatrix(this@AbstractGeoPackage, tableName, ordinal, matrixWidth, matrixHeight, tileWidth, tileHeight, pixelXSize, pixelYSize))
+        }
+    }
+
 
     /**
      * Delete specified content table and its related metadata

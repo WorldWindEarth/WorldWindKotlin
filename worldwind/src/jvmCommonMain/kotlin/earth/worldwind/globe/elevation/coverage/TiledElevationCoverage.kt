@@ -16,12 +16,10 @@ import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
-import earth.worldwind.util.Logger.logMessage
 import io.ktor.client.network.sockets.*
 import kotlinx.coroutines.*
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
-import kotlin.jvm.Throws
 
 actual open class TiledElevationCoverage actual constructor(
     tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory,
@@ -65,10 +63,11 @@ actual open class TiledElevationCoverage actual constructor(
             // Check if current layer fits cache content
             val matrixSet = geoPackage.buildTileMatrixSet(it)
             require(matrixSet.sector == tileMatrixSet.sector) { "Invalid sector" }
-            require(matrixSet.entries.size == tileMatrixSet.entries.size) { "Invalid number of matrices" }
             requireNotNull(geoPackage.griddedCoverages.firstOrNull { gc ->
                 gc.tileMatrixSetName == tableName && gc.datatype == if (isFloat) "float" else "integer"
             }) { "Invalid data type" }
+            // Verify if all required tile matrices created
+            if (matrixSet.entries.size < tileMatrixSet.entries.size) geoPackage.setupTileMatrices(tableName, tileMatrixSet)
         } ?: geoPackage.setupGriddedCoverageContent(tableName, displayName ?: tableName, tileMatrixSet, isFloat)
 
         cacheContent = content
