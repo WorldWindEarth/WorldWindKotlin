@@ -56,7 +56,7 @@ fun main() {
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage())
 
         // Allow pick and move any movable object
-        wwd.selectDragListener.callback = object : SelectDragCallback {
+        wwd.selectDragDetector.callback = object : SelectDragCallback {
             override fun canPickRenderable(renderable: Renderable) = renderable is Movable
             override fun canMoveRenderable(renderable: Renderable) = renderable is Movable
         }

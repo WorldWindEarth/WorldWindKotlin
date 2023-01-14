@@ -56,7 +56,7 @@ open class PlacemarksSelectDragActivity: GeneralGlobeActivity() {
         for (i in automotiveTypes.indices) automotiveIconMap[automotiveTypes[i]] = automotiveIcons[i]
 
         // Add dragging callback
-        wwd.controller.setSelectDragCallback(object : SelectDragCallback {
+        wwd.selectDragDetector.callback = object : SelectDragCallback {
             override fun canPickRenderable(renderable: Renderable) = true //renderable.hasUserProperty(SELECTABLE)
             override fun canMoveRenderable(renderable: Renderable) = renderable === selectedObject && renderable.hasUserProperty(MOVABLE)
             override fun onRenderablePicked(renderable: Renderable, position: Position) = toggleSelection(renderable)
@@ -132,7 +132,7 @@ open class PlacemarksSelectDragActivity: GeneralGlobeActivity() {
                         Toast.LENGTH_LONG).show()
                 }
             }
-        })
+        }
 
         // Add a layer for placemarks to the WorldWindow
         wwd.engine.layers.addLayer(

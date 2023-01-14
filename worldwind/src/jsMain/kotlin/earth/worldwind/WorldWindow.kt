@@ -4,7 +4,7 @@ import earth.worldwind.frame.Frame
 import earth.worldwind.geom.Line
 import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Viewport
-import earth.worldwind.gesture.SelectDragListener
+import earth.worldwind.gesture.SelectDragDetector
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.INFO
@@ -63,11 +63,11 @@ open class WorldWindow(
     /**
      * The controller used to manipulate the globe with the keyboard.
      */
-    var keyboardControls = KeyboardControls(this)
+    open val keyboardControls = KeyboardControls(this)
     /**
-     * Helper class to process Renderable selection and drag. Assign [SelectDragListener.callback] to handle events.
+     * Renderable selection and drag gestures detector. Assign [SelectDragDetector.callback] to handle events.
      */
-    var selectDragListener = SelectDragListener(this)
+    open val selectDragDetector = SelectDragDetector(this)
     /**
      * The list of callbacks to call immediately before and immediately after performing a redrawn. The callbacks
      * have two arguments: this WorldWindow and the redraw stage, e.g., <code style='white-space:nowrap'>redrawCallback(worldWindow, stage);</code>.

@@ -1,6 +1,5 @@
 package earth.worldwind
 
-import android.view.GestureDetector
 import android.view.MotionEvent
 import earth.worldwind.geom.Angle.Companion.NEG180
 import earth.worldwind.geom.Angle.Companion.NEG90
@@ -14,6 +13,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, GestureListener {
+    /**
+     * The factor controls how much [lookAt] range will change during one call of [zoomIn] or [zoomOut].
+     */
     var zoomFactor = 1.5f
         set(value) {
             require(value > 0f) { "Invalid zoom factor" }
@@ -34,8 +36,6 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, 
     protected val allRecognizers = listOf(
         panRecognizer, pinchRecognizer, rotationRecognizer, tiltRecognizer, mouseTiltRecognizer
     )
-    protected val selectDragListener = SelectDragListener(wwd)
-    protected open val selectDragDetector = GestureDetector(wwd.context, selectDragListener)
 
     init {
         panRecognizer.addListener(this)
@@ -78,23 +78,11 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, 
         gestureDidEnd()
     }
 
-    override fun setSelectDragCallback(callback: SelectDragCallback) { selectDragListener.callback = callback }
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
         var handled = false
-        // Skip select and drag processing if callback is not assigned
-        if (selectDragListener.callback != null) {
-            // Allow select and drag detector to intercept event. It sets the state flags which will
-            // either preempt or allow the event to be subsequently processed by the globe's navigation event handlers.
-            handled = selectDragDetector.onTouchEvent(event)
-            // Is a dragging operation started or in progress? Any ACTION_UP event cancels a drag operation.
-            if (selectDragListener.isDragging && event.action == MotionEvent.ACTION_UP) selectDragListener.cancelDragging()
-            // Preempt the globe's pan navigation recognizer if we're dragging
-            panRecognizer.isEnabled = !selectDragListener.isDragging
-        }
         // Pass on the event on to the default globe navigation handlers
         // use or-assignment to indicate if any recognizer handled the event
-        if (!handled) for (recognizer in allRecognizers) handled = handled or recognizer.onTouchEvent(event)
+        for (recognizer in allRecognizers) handled = handled or recognizer.onTouchEvent(event)
         // Handle dependent gestures lock
         if (handled) {
             tiltRecognizer.isEnabled = !isInProcess(rotationRecognizer) || !rotationRecognizer.isEnabled

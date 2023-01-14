@@ -13,7 +13,11 @@ import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.EventListener
 import org.w3c.dom.events.MouseEvent
 
-open class SelectDragListener(protected val wwd: WorldWindow) {
+open class SelectDragDetector(protected val wwd: WorldWindow) {
+    /**
+     * Main interface representing all interaction callbacks
+     */
+    var callback: SelectDragCallback? = null
     /**
      * Enable/disable mouse events processing.
      * If disabled, highlighting of Renderables and all callbacks will be switched off.
@@ -23,11 +27,6 @@ open class SelectDragListener(protected val wwd: WorldWindow) {
      * Enable/disable dragging of flying objects using their terrain projection position
      */
     var isDragTerrainPosition = false
-    /**
-     * Main interface representing all interaction callbacks
-     */
-    var callback: SelectDragCallback? = null
-
     protected var pickedPosition: Position? = null
     protected var pickedRenderable: Renderable? = null
     protected val oldHighlighted = mutableSetOf<Highlightable>()

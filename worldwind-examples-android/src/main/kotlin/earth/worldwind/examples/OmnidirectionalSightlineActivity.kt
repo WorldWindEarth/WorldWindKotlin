@@ -66,12 +66,12 @@ open class OmnidirectionalSightlineActivity: BasicGlobeActivity() {
         )
 
         // Add dragging callback
-        wwd.controller.setSelectDragCallback(object : SelectDragCallback {
+        wwd.selectDragDetector.callback = object : SelectDragCallback {
             override fun canMoveRenderable(renderable: Renderable) = renderable === sightlinePlacemark
             override fun onRenderableMoved(renderable: Renderable, fromPosition: Position, toPosition: Position) {
                 sightline.position = toPosition
             }
-        })
+        }
 
         // And finally, for this demo, position the viewer to look at the sightline position
         val lookAt = LookAt(

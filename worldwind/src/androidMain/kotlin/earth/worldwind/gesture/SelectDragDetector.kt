@@ -1,5 +1,6 @@
 package earth.worldwind.gesture
 
+import android.view.GestureDetector
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import android.view.ViewConfiguration
@@ -11,22 +12,44 @@ import earth.worldwind.geom.Vec2
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
-open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureListener() {
+open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureListener() {
 
-    protected val slope = ViewConfiguration.get(wwd.context).scaledTouchSlop
-    protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
-    protected var isDraggingArmed = false
-    var isDragging = false
-        protected set
     /**
-     * Enable/disable dragging of flying objects using their terrain projection position
+     * Main callback to process renederable selection and drag events.
+     */
+    var callback: SelectDragCallback? = null
+    /**
+     * Enable/disable renderables selection and drag processing.
+     */
+    var isEnabled = true
+    /**
+     * Enable/disable dragging of flying objects using their terrain projection position.
      */
     var isDragTerrainPosition = false
-    var callback: SelectDragCallback? = null
+    protected open val gestureDetector = GestureDetector(wwd.context, this)
+    protected val slop = ViewConfiguration.get(wwd.context).scaledTouchSlop
+    protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
+    protected var isDragging = false
+    protected var isDraggingArmed = false
+    protected var draggingJob: Job? = null
     private val dragRefPt = Vec2()
+
+    fun onTouchEvent(event: MotionEvent): Boolean {
+        var handled = false
+        // Skip select and drag processing if processor is disabled or callback is not assigned
+        if (isEnabled && callback != null) {
+            // Allow select and drag detector to intercept event. It sets the state flags which will
+            // either preempt or allow the event to be subsequently processed by other event handlers.
+            handled = gestureDetector.onTouchEvent(event)
+            // Is a dragging operation started or in progress? Any ACTION_UP event cancels a drag operation.
+            if (isDragging && event.action == MotionEvent.ACTION_UP) cancelDragging()
+        }
+        return handled || isDragging
+    }
 
     override fun onDown(event: MotionEvent): Boolean {
         pick(event)
@@ -51,7 +74,8 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
         val callback = callback ?: return false
         val x = moveEvent.x.toDouble()
         val y = moveEvent.y.toDouble()
-        wwd.mainScope.launch {
+        draggingJob?.cancel()
+        draggingJob = wwd.mainScope.launch {
             val (renderable, toPosition) = awaitPickResult(true)
             if (isDraggingArmed && toPosition != null && renderable is Renderable) {
                 // Signal that dragging is in progress
@@ -108,6 +132,8 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
     fun cancelDragging() {
         isDragging = false
         isDraggingArmed = false
+        draggingJob?.cancel()
+        draggingJob = null
         val callback = callback ?: return
         wwd.mainScope.launch {
             val (renderable, position) = awaitPickResult(true)
@@ -136,7 +162,7 @@ open class SelectDragListener(protected val wwd: WorldWindow) : SimpleOnGestureL
      */
     private fun pick(event: MotionEvent) {
         // Perform the pick at the screen x, y
-        pickRequest = wwd.pickAsync(event.x - slope / 2f, event.y - slope / 2f, slope.toFloat(), slope.toFloat())
+        pickRequest = wwd.pickAsync(event.x - slop / 2f, event.y - slop / 2f, slop.toFloat(), slop.toFloat())
         wwd.mainScope.launch {
             // Get top picked object
             val userObject = pickRequest.await().topPickedObject?.userObject

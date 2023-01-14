@@ -12,6 +12,7 @@ import earth.worldwind.frame.Frame
 import earth.worldwind.geom.Line
 import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Viewport
+import earth.worldwind.gesture.SelectDragDetector
 import earth.worldwind.navigator.NavigatorEventSupport
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger.ERROR
@@ -50,9 +51,13 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
      */
     var controller: WorldWindowController = BasicWorldWindowController(this)
     /**
+     * Renderable selection and drag gestures detector. Assign [SelectDragDetector.callback] to handle events.
+     */
+    open val selectDragDetector = SelectDragDetector(this)
+    /**
      * Helper class to process WorldWindow navigation event callbacks
      */
-    val navigatorEvents = NavigatorEventSupport(this)
+    open val navigatorEvents = NavigatorEventSupport(this)
     protected val framePool = SynchronizedPool<Frame>()
     protected val frameQueue = ConcurrentLinkedQueue<Frame>()
     protected val pickQueue = ConcurrentLinkedQueue<Frame>()
@@ -353,9 +358,10 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         // Give the superclass first opportunity to handle the event.
         if (super.onTouchEvent(event)) return true
 
-        // Give the WorldWindow's controller an opportunity to handle the event
         try {
-            if (controller.onTouchEvent(event)) navigatorEvents.onTouchEvent(event)
+            if (!selectDragDetector.onTouchEvent(event)) {
+                if (controller.onTouchEvent(event)) navigatorEvents.onTouchEvent(event)
+            }
         } catch (e: Exception) {
             logMessage(
                 ERROR, "WorldWindow", "onTouchEvent", "Exception while handling touch event '$event'", e
