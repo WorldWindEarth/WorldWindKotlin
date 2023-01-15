@@ -12,16 +12,8 @@ import earth.worldwind.gesture.GestureState.*
 import kotlin.math.cos
 import kotlin.math.sin
 
-open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, GestureListener {
-    /**
-     * The factor controls how much [lookAt] range will change during one call of [zoomIn] or [zoomOut].
-     */
-    var zoomFactor = 1.5f
-        set(value) {
-            require(value > 0f) { "Invalid zoom factor" }
-            field = value
-        }
-    protected open val wwd = wwd
+open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWindowController, GestureListener {
+
     protected var lastX = 0f
     protected var lastY = 0f
     protected var lastRotation = 0f
@@ -55,39 +47,19 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, 
         mouseTiltRecognizer.interpretDistance = wwd.context.resources.getDimension(R.dimen.tilt_interpret_distance)
     }
 
-    open fun resetOrientation(heading: Boolean = true, tilt: Boolean = true, roll: Boolean = true) {
-        gestureDidBegin()
-        if (heading) lookAt.heading = ZERO
-        if (tilt) lookAt.tilt = ZERO
-        if (roll) lookAt.roll = ZERO
-        applyChanges()
-        gestureDidEnd()
-    }
-
-    open fun zoomIn() {
-        gestureDidBegin()
-        lookAt.range = lookAt.range / zoomFactor
-        applyChanges()
-        gestureDidEnd()
-    }
-
-    open fun zoomOut() {
-        gestureDidBegin()
-        lookAt.range = lookAt.range * zoomFactor
-        applyChanges()
-        gestureDidEnd()
-    }
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
         var handled = false
+
         // Pass on the event on to the default globe navigation handlers
         // use or-assignment to indicate if any recognizer handled the event
         for (recognizer in allRecognizers) handled = handled or recognizer.onTouchEvent(event)
+
         // Handle dependent gestures lock
         if (handled) {
             tiltRecognizer.isEnabled = !isInProcess(rotationRecognizer) || !rotationRecognizer.isEnabled
             rotationRecognizer.isEnabled = !isInProcess(tiltRecognizer) || !tiltRecognizer.isEnabled
         }
+
         return handled
     }
 
@@ -202,8 +174,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, 
                 // Apply the change in tilt to the camera, relative to when the gesture began.
                 //val headingDegrees = 180 * dx / wwd.width
                 val tiltDegrees = -180 * dy / wwd.height
-                // Do not change heading on tilt
-                //lookAt.heading = beginLookAt.heading.addDegrees(headingDegrees).normalize360();
+                //lookAt.heading = beginLookAt.heading.plusDegrees(headingDegrees.toDouble()).normalize360()
                 lookAt.tilt = beginLookAt.tilt.plusDegrees(tiltDegrees.toDouble())
                 applyChanges()
             }
@@ -216,6 +187,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController, 
         // Apply navigation limits
         lookAt.range = lookAt.range.coerceIn(10.0, wwd.engine.distanceToViewGlobeExtents * 2)
         lookAt.tilt = lookAt.tilt.coerceIn(ZERO, POS90)
+
         // Update camera view
         wwd.engine.cameraFromLookAt(lookAt)
         wwd.requestRedraw()
