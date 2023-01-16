@@ -1,13 +1,11 @@
 package earth.worldwind
 
-import earth.worldwind.geom.Angle
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Vec2
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.WheelEvent
-import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -267,45 +265,12 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         applyChanges()
     }
 
-    /**
-     * Limits the properties of a look at view to prevent unwanted navigation behaviour and update camera view.
-     */
     protected open fun applyChanges() {
-        // Clamp latitude to between -90 and +90, and normalize longitude to between -180 and +180.
-        lookAt.position.latitude = lookAt.position.latitude.clampLatitude()
-        lookAt.position.longitude = lookAt.position.longitude.normalizeLongitude()
-
-        // Clamp range to values greater than 1 in order to prevent degenerating to a first-person lookAt when
-        // range is zero.
-        lookAt.range = lookAt.range.coerceIn(10.0, wwd.engine.distanceToViewGlobeExtents * 2)
-
-        // Normalize heading to between -180 and +180.
-        lookAt.heading = lookAt.heading.normalize180()
-
-        // Clamp tilt to between 0 and +90 to prevent the viewer from going upside down.
-        lookAt.tilt = lookAt.tilt.coerceIn(Angle.ZERO, Angle.POS90)
-
-        // Normalize heading to between -180 and +180.
-        lookAt.roll = lookAt.roll.normalize180()
-
-        // Apply 2D limits when the globe is 2D.
-        if (wwd.engine.globe.is2D) {
-            // Clamp range to prevent more than 360 degrees of visible longitude. Assumes a 45 degree horizontal
-            // field of view.
-            lookAt.range = lookAt.range.coerceIn(1.0, 2.0 * PI * wwd.engine.globe.equatorialRadius)
-
-            // Force tilt to 0 when in 2D mode to keep the viewer looking straight down.
-            lookAt.tilt = Angle.ZERO
-        }
-
         // Update camera view
         wwd.engine.cameraFromLookAt(lookAt)
         wwd.requestRedraw()
     }
 
-    /**
-     * Sets common variables at the beginning of gesture.
-     */
     protected open fun gestureDidBegin() {
         if (activeGestures++ == 0) {
             wwd.engine.cameraAsLookAt(beginLookAt)

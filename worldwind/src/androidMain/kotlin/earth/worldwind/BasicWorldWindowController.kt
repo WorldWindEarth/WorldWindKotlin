@@ -5,7 +5,6 @@ import earth.worldwind.geom.Angle.Companion.NEG180
 import earth.worldwind.geom.Angle.Companion.NEG90
 import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Angle.Companion.POS90
-import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.LookAt
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
@@ -184,10 +183,6 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
     }
 
     protected open fun applyChanges() {
-        // Apply navigation limits
-        lookAt.range = lookAt.range.coerceIn(10.0, wwd.engine.distanceToViewGlobeExtents * 2)
-        lookAt.tilt = lookAt.tilt.coerceIn(ZERO, POS90)
-
         // Update camera view
         wwd.engine.cameraFromLookAt(lookAt)
         wwd.requestRedraw()

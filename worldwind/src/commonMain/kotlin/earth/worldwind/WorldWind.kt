@@ -21,10 +21,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
-import kotlin.math.acos
-import kotlin.math.sin
-import kotlin.math.sqrt
-import kotlin.math.tan
+import kotlin.math.*
 
 /**
  * Main WorldWind model, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
@@ -246,6 +243,7 @@ open class WorldWind @JvmOverloads constructor(
      * @param lookAt Look at position, orientation and range
      */
     open fun cameraFromLookAt(lookAt: LookAt) {
+        applyLookAtLimits(lookAt)
         lookAtToViewingTransform(lookAt, scratchModelview)
         scratchModelview.extractEyePoint(scratchPoint)
         globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, camera.position)
@@ -625,6 +623,35 @@ open class WorldWind @JvmOverloads constructor(
             )
         }
         return result
+    }
+
+    protected open fun applyLookAtLimits(lookAt: LookAt) {
+        // Clamp latitude to between -90 and +90, and normalize longitude to between -180 and +180.
+        lookAt.position.latitude = lookAt.position.latitude.clampLatitude()
+        lookAt.position.longitude = lookAt.position.longitude.normalizeLongitude()
+
+        // Clamp range to values greater than 1 in order to prevent degenerating to a first-person lookAt when
+        // range is zero.
+        lookAt.range = lookAt.range.coerceIn(10.0, distanceToViewGlobeExtents * 2)
+
+        // Normalize heading to between -180 and +180.
+        lookAt.heading = lookAt.heading.normalize180()
+
+        // Clamp tilt to between 0 and +90 to prevent the viewer from going upside down.
+        lookAt.tilt = lookAt.tilt.coerceIn(Angle.ZERO, Angle.POS90)
+
+        // Normalize heading to between -180 and +180.
+        lookAt.roll = lookAt.roll.normalize180()
+
+        // Apply 2D limits when the globe is 2D.
+        if (globe.is2D) {
+            // Clamp range to prevent more than 360 degrees of visible longitude. Assumes a 45 degree horizontal
+            // field of view.
+            lookAt.range = lookAt.range.coerceIn(1.0, 2.0 * PI * globe.equatorialRadius)
+
+            // Force tilt to 0 when in 2D mode to keep the viewer looking straight down.
+            lookAt.tilt = Angle.ZERO
+        }
     }
 
     companion object {

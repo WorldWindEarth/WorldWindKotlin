@@ -160,7 +160,6 @@ open class KeyboardControls(
         if (isKeyDown) {
             if (operation == "zoomIn") lookAt.range *= (1 - zoomIncrement)
             else if (operation == "zoomOut") lookAt.range *= (1 + zoomIncrement)
-            lookAt.range = lookAt.range.coerceIn(10.0, wwd.engine.distanceToViewGlobeExtents * 2)
             wwd.engine.cameraFromLookAt(lookAt)
             wwd.requestRedraw()
             window.setTimeout(::handleZoom, 50, operation)
@@ -174,7 +173,6 @@ open class KeyboardControls(
         if (isKeyDown) {
             if (operation == "tiltUp") lookAt.tilt = lookAt.tilt.minusDegrees(tiltIncrement)
             else if (operation == "tiltDown") lookAt.tilt = lookAt.tilt.plusDegrees(tiltIncrement)
-            lookAt.tilt = lookAt.tilt.coerceIn(Angle.ZERO, Angle.POS90)
             wwd.engine.cameraFromLookAt(lookAt)
             wwd.requestRedraw()
             window.setTimeout(::handleTilt, 50, operation)
