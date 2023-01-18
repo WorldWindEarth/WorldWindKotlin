@@ -3,7 +3,6 @@ plugins {
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("android") version kotlinVersion apply false
-    kotlin("js") version kotlinVersion apply false
     id("org.jetbrains.dokka") version kotlinVersion apply false
     id("com.android.library") apply false
     id("com.android.application") apply false
@@ -17,7 +16,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.1.14"
+    version = "1.1.15"
 
     extra.apply {
         set("minSdk", 26) // java.time requires Oreo. Use "isCoreLibraryDesugaringEnabled = true" to lower API to KitKat
