@@ -1,11 +1,13 @@
 package earth.worldwind.layer
 
+import android.content.Context
 import android.graphics.Bitmap.CompressFormat
 import android.os.Build
+import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.GpkgTileFactory
-import earth.worldwind.render.RenderResourceCache
+import earth.worldwind.render.image.ImageDecoder
 import kotlinx.coroutines.*
 
 actual abstract class TiledImageLayer actual constructor(name: String): AbstractTiledImageLayer(name) {
@@ -57,18 +59,21 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      * not intersect the layer bounding sector.
      *
      * @throws IllegalStateException if tiled surface image is not initialized or cache is not configured.
+     * @throws IllegalArgumentException if sector does not intersect tiled surface image sector
      */
     @OptIn(DelicateCoroutinesApi::class)
-    @Throws(IllegalStateException::class)
+    @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
-        sector: Sector, resolution: Angle, cache: RenderResourceCache, scope: CoroutineScope = GlobalScope,
+        sector: Sector, resolution: Angle, context: Context, scope: CoroutineScope = GlobalScope,
         onProgress: ((Int, Int) -> Unit)? = null
-    ) = launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->
+    ): Job {
+        val imageDecoder = ImageDecoder(context)
+        return launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->
             // Check if tile exists in cache. If cache retrieval fail, then image source will be requested.
             // TODO If retrieved cache source is outdated, then retrieve original image source to refresh cache
-            cache.imageDecoder.run { decodeImage(cacheSource, options) ?: decodeImage(imageSource, options) }?.also {
+            imageDecoder.run { decodeImage(cacheSource, options) ?: decodeImage(imageSource, options) }?.also {
                 // Un-mark cache source from absent list
-                scope.launch(Dispatchers.Main) { cache.absentResourceList.unmarkResourceAbsent(cacheSource.hashCode()) }
+                WorldWind.unmarkResourceAbsent(cacheSource.hashCode()) }
             }
-        }
+    }
 }

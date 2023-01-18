@@ -70,32 +70,31 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
         } ?: geoPackage.setupTilesContent(tableName, displayName ?: tableName, levelSet, isWebp)
     }
 
-    @Throws(IllegalStateException::class)
+    @Throws(IllegalStateException::class, IllegalArgumentException::class)
     protected open fun launchBulkRetrieval(
         scope: CoroutineScope, sector: Sector, resolution: Angle, onProgress: ((Int, Int) -> Unit)?,
         retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Unit
-    ): Job? {
+    ): Job {
         val tiledSurfaceImage = tiledSurfaceImage ?: error("Surface image not defined")
         val cacheTileFactory = tiledSurfaceImage.cacheTileFactory ?: error("Cache not configured")
-        return if (sector.intersect(tiledSurfaceImage.levelSet.sector)) {
-            scope.launch(Dispatchers.IO) {
-                val processingList = tiledSurfaceImage.assembleTilesList(sector, resolution)
-                for ((current, tile) in processingList.withIndex()) {
-                    ensureActive()
-                    // No image source indicates an empty level or an image missing from the tiled data store
-                    val imageSource = tile.imageSource ?: continue
-                    // If cache tile factory is specified, then create cache source and store it in tile
-                    val cacheSource = tile.cacheSource
-                        ?: (cacheTileFactory.createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile)
-                            .imageSource?.also { tile.cacheSource = it } ?: continue
-                    try {
-                        retrieveTile(imageSource, cacheSource, tiledSurfaceImage.imageOptions)
-                    } catch (ignore: Throwable) {
-                        // Ignore particular tile retrieval failure
-                    }
-                    onProgress?.invoke(current + 1, processingList.size)
+        require(sector.intersect(tiledSurfaceImage.levelSet.sector)) { "Sector does not intersect tiled surface image sector" }
+        return scope.launch(Dispatchers.IO) {
+            val processingList = tiledSurfaceImage.assembleTilesList(sector, resolution)
+            for ((current, tile) in processingList.withIndex()) {
+                ensureActive()
+                // No image source indicates an empty level or an image missing from the tiled data store
+                val imageSource = tile.imageSource ?: continue
+                // If cache tile factory is specified, then create cache source and store it in tile
+                val cacheSource = tile.cacheSource
+                    ?: (cacheTileFactory.createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile)
+                        .imageSource?.also { tile.cacheSource = it } ?: continue
+                try {
+                    retrieveTile(imageSource, cacheSource, tiledSurfaceImage.imageOptions)
+                } catch (ignore: Throwable) {
+                    // Ignore particular tile retrieval failure
                 }
+                onProgress?.invoke(current + 1, processingList.size)
             }
-        } else null
+        }
     }
 }

@@ -20,8 +20,6 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SynchronizedPool
 import earth.worldwind.util.kgl.AndroidKgl
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterIsInstance
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -316,16 +314,23 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
 
     /**
      * Called immediately after the surface is first created, in which case the WorldWindow instance adds itself as a
-     * listener to the [WorldWind.eventBus] - a facility for broadcasting global redraw requests to active WorldWindows.
+     * listener to the [WorldWind.events] - a facility for broadcasting global redraw requests to active WorldWindows.
      *
      * @param holder the SurfaceHolder whose surface is being created
      */
     override fun surfaceCreated(holder: SurfaceHolder) {
         super.surfaceCreated(holder)
 
-        // Subscribe on redraw events from WorldWind's global event bus.
+        // Subscribe on events from WorldWind's global event bus.
         mainScope.launch {
-            WorldWind.eventBus.filterIsInstance<WorldWind.Event.RequestRedraw>().collectLatest { requestRedraw() }
+            WorldWind.events.collect {
+                when (it) {
+                    is WorldWind.Event.RequestRedraw -> requestRedraw()
+                    is WorldWind.Event.UnmarkResourceAbsent -> {
+                        engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(it.resourceId)
+                    }
+                }
+            }
         }
     }
 

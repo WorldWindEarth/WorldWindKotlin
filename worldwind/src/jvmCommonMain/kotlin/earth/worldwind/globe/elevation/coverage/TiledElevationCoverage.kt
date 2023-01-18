@@ -106,43 +106,43 @@ actual open class TiledElevationCoverage actual constructor(
      * not intersect the elevation model bounding sector.
      *
      * @throws IllegalStateException if cache is not configured.
+     * @throws IllegalArgumentException if sector does not intersect elevation coverage sector
      */
     @OptIn(DelicateCoroutinesApi::class)
-    @Throws(IllegalStateException::class)
+    @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
         sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int) -> Unit)? = null
-    ): Job? {
+    ): Job {
         val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
-        return if (sector.intersect(tileMatrixSet.sector)) {
-            scope.launch(Dispatchers.IO) {
-                val processingList = assembleTilesList(sector, resolution)
-                for ((current, tile) in processingList.withIndex()) {
-                    ensureActive()
-                    try {
-                        val cacheSource = cacheTileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col)
-                        // Check if tile exists in cache. If cache retrieval fail, then normal tile source will be requested.
-                        // TODO If retrieved cache source is outdated, then retrieve original tile source to refresh cache
-                        elevationDecoder.run {
-                            decodeElevation(cacheSource) ?: decodeElevation(
-                                tileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
-                                    // Assign download postprocessor
-                                    val source = cacheSource.asUnrecognized()
-                                    if (source is GpkgElevationFactory) it.postprocessor = source
-                                }
-                            )
-                        }?.also {
-                            // Un-mark tile key from absent list
-                            launch(Dispatchers.Main) {
-                                absentResourceList.unmarkResourceAbsent(tile.tileMatrix.tileKey(tile.row, tile.col))
+        require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }
+        return scope.launch(Dispatchers.IO) {
+            val processingList = assembleTilesList(sector, resolution)
+            for ((current, tile) in processingList.withIndex()) {
+                ensureActive()
+                try {
+                    val cacheSource = cacheTileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col)
+                    // Check if tile exists in cache. If cache retrieval fail, then normal tile source will be requested.
+                    // TODO If retrieved cache source is outdated, then retrieve original tile source to refresh cache
+                    elevationDecoder.run {
+                        decodeElevation(cacheSource) ?: decodeElevation(
+                            tileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
+                                // Assign download postprocessor
+                                val source = cacheSource.asUnrecognized()
+                                if (source is GpkgElevationFactory) it.postprocessor = source
                             }
+                        )
+                    }?.also {
+                        // Un-mark tile key from absent list
+                        launch(Dispatchers.Main) {
+                            absentResourceList.unmarkResourceAbsent(tile.tileMatrix.tileKey(tile.row, tile.col))
                         }
-                    } catch (ignore: Throwable) {
-                        // Ignore particular tile retrieval failure
                     }
-                    onProgress?.invoke(current + 1, processingList.size)
+                } catch (ignore: Throwable) {
+                    // Ignore particular tile retrieval failure
                 }
+                onProgress?.invoke(current + 1, processingList.size)
             }
-        } else null
+        }
     }
 
     // TODO If retrieved cache source is outdated, than try to retrieve online source anyway to refresh cache

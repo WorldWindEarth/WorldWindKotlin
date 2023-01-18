@@ -14,8 +14,6 @@ import earth.worldwind.util.kgl.WebKgl
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 import org.khronos.webgl.WebGLContextAttributes
 import org.khronos.webgl.WebGLContextEvent
@@ -295,9 +293,16 @@ open class WorldWindow(
         // Enable WebGL depth texture extension to be able to use GL_DEPTH_COMPONENT texture format
         gl.getExtension("WEBGL_depth_texture")
 
-        // Subscribe on redraw events from WorldWind's global event bus.
+        // Subscribe on events from WorldWind's global event bus.
         mainScope.launch {
-            WorldWind.eventBus.filterIsInstance<WorldWind.Event.RequestRedraw>().collectLatest { requestRedraw() }
+            WorldWind.events.collect {
+                when (it) {
+                    is WorldWind.Event.RequestRedraw -> requestRedraw()
+                    is WorldWind.Event.UnmarkResourceAbsent -> {
+                        engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(it.resourceId)
+                    }
+                }
+            }
         }
 
         // Request redraw at least once.

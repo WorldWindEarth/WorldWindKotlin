@@ -16,8 +16,8 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger
 import earth.worldwind.util.kgl.*
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -658,18 +658,28 @@ open class WorldWind @JvmOverloads constructor(
         protected const val COLLISION_CHECK_LIMIT = 8848.86 // Everest mountain altitude
         protected const val COLLISION_THRESHOLD = 10.0 // 10m above surface
 
+        private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 1)
+
         /**
          * Provides a global mechanism for broadcasting notifications within the WorldWind library.
          */
         @JvmStatic
-        val eventBus = MutableSharedFlow<Event>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val events = _events.asSharedFlow()
 
         /**
          * Requests that all WorldWindow instances update their display. Internally, this dispatches a REQUEST_REDRAW
          * message to the WorldWind message center.
          */
         @JvmStatic
-        fun requestRedraw() { eventBus.tryEmit(Event.RequestRedraw) }
+        fun requestRedraw() { _events.tryEmit(Event.RequestRedraw) }
+
+        /**
+         * Requests render resource cache to remove specified resource ID from absent list
+         *
+         * @param resourceId resource ID to be removed from absent list
+         */
+        @JvmStatic
+        suspend fun unmarkResourceAbsent(resourceId: Int) { _events.emit(Event.UnmarkResourceAbsent(resourceId)) }
     }
 
     sealed interface Event {
@@ -677,5 +687,11 @@ open class WorldWind @JvmOverloads constructor(
          * Event requesting WorldWindow instances to update their display.
          */
         object RequestRedraw : Event
+        /**
+         * Event requesting RenderResourceCache to un-mark resource from absent list
+         *
+         * @param resourceId resource ID to be removed from absent list
+         */
+        data class UnmarkResourceAbsent(val resourceId: Int) : Event
     }
 }
