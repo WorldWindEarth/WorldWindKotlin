@@ -3,6 +3,7 @@ package earth.worldwind.geom.coords
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
 import kotlin.jvm.JvmStatic
+import kotlin.math.roundToInt
 
 /**
  * This immutable class holds a set of UTM coordinates along with it's corresponding latitude and longitude.
@@ -56,5 +57,5 @@ class UTMCoord private constructor(
         }
     }
 
-    override fun toString() = zone.toString() + " " + hemisphere + " " + easting + "E" + " " + northing + "N"
+    override fun toString() = zone.toString() + " " + hemisphere + " " + easting.roundToInt() + "E" + " " + northing.roundToInt() + "N"
 }
