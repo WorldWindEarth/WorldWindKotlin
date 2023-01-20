@@ -825,7 +825,7 @@ value class Angle private constructor(
     fun toDMmmString(): String {
         val dms = toDMS()
         val mf = if (dms[3] == 0.0) dms[2] else dms[2] + dms[3] / 60.0
-        return "${if (dms[0] < 0) "-" else ""}%d° %2.2f’".format(dms[1], mf)
+        return "${if (dms[0] < 0) "-" else ""}%d° %2.3f’".format(dms[1], mf)
     }
 
     /**
@@ -835,7 +835,7 @@ value class Angle private constructor(
      */
     fun toDMSssString(): String {
         val dms = toDMS()
-        return "${if (dms[0] < 0) "-" else ""}%d° %2d’ %2.2f”".format(dms[1], dms[2], dms[3])
+        return "${if (dms[0] < 0) "-" else ""}%d° %2d’ %2.1f”".format(dms[1], dms[2], dms[3])
     }
 
     /**
