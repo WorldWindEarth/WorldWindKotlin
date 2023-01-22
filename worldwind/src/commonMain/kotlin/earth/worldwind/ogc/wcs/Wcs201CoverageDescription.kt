@@ -12,7 +12,7 @@ data class Wcs201CoverageDescription(
     @XmlSerialName("CoverageId", WCS20_NAMESPACE, WCS20_PREFIX)
     override val id: String,
     @XmlSerialName("boundedBy", GML32_NAMESPACE, GML32_PREFIX)
-    override val boundedBy: GmlBoundingShape? = null,
+    override val boundedBy: GmlBoundingShape,
     @XmlSerialName("domainSet", GML32_NAMESPACE, GML32_PREFIX)
     val domainSet: GmlDomainSet,
 ) : GmlAbstractFeature()

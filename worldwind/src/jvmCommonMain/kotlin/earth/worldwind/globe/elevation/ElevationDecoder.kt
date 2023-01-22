@@ -62,7 +62,7 @@ open class ElevationDecoder: Closeable {
             contentType.equals("application/bil32", true) -> wrapBytes(bytes).asFloatBuffer()
             contentType.equals("image/tiff", true) -> decodeTiffData(bytes)
             else -> throw RuntimeException(
-                logMessage(ERROR, "ElevationDecoder", "decodeBytes", "Format not supported")
+                logMessage(ERROR, "ElevationDecoder", "decodeBytes", "Format not supported: $contentType")
             )
         }.let { postprocessor?.run { process(it) } ?: it } // Process loaded elevation data if necessary
     )

@@ -16,8 +16,8 @@ class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
         serviceAddress = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer",
         // Specify the coverage name
         coverage = "DEP3Elevation",
-        // Specify the image format
-        imageFormat = "geotiff",
+        // Specify the output format
+        outputFormat = "geotiff",
         // Specify the bounding sector - provided by the WCS
         sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
         // Specify the data resolution of 10m (1/3 arc-second)

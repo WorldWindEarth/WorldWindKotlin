@@ -12,15 +12,15 @@ open class Wcs100TileFactory(
     /**
      * The WCS service address use to build Get Coverage URLs.
      */
-    var serviceAddress: String,
+    protected val serviceAddress: String,
     /**
      * The coverage name of the desired WCS coverage.
      */
-    var coverage: String,
+    protected val coverage: String,
     /**
-     * Required WCS source image format
+     * Required WCS source output format
      */
-    var imageFormat: String
+    protected val outputFormat: String
 ): ElevationTileFactory {
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         val urlString = urlForTile(tileMatrix, row, column)
@@ -38,6 +38,6 @@ open class Wcs100TileFactory(
         })
         .appendQueryParameter("WIDTH", tileMatrix.tileWidth.toString())
         .appendQueryParameter("HEIGHT", tileMatrix.tileHeight.toString())
-        .appendQueryParameter("FORMAT", imageFormat)
+        .appendQueryParameter("FORMAT", outputFormat)
         .build().toString()
 }

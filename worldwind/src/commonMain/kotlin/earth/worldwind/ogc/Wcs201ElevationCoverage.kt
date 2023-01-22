@@ -49,16 +49,16 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
      *
      * @param serviceAddress the WCS service address
      * @param coverage       the WCS coverage name
-     * @param imageFormat    the WCS source image format
+     * @param outputFormat   the WCS source data format
      * @param sector         the coverage's geographic bounding sector
      * @param resolution     the target resolution in angular value of latitude per texel
      * 90-degree tiles containing 256x256 elevation pixels
      *
      * @throws IllegalArgumentException If any argument is null or if the number of levels is less than 0
      */
-    constructor(serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, resolution: Angle): super(
+    constructor(serviceAddress: String, coverage: String, outputFormat: String, sector: Sector, resolution: Angle): super(
         TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
-        Wcs201TileFactory(serviceAddress, coverage, imageFormat)
+        Wcs201TileFactory(serviceAddress, coverage, outputFormat)
     )
 
     /**
@@ -69,9 +69,9 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
      *
      * @param serviceAddress the WCS service address
      * @param coverage       the WCS coverage name
-     * @param imageFormat    the WCS source image format
+     * @param outputFormat   the WCS source data format
      */
-    constructor(serviceAddress: String, coverage: String, imageFormat: String) {
+    constructor(serviceAddress: String, coverage: String, outputFormat: String) {
         mainScope.launch {
             try {
                 // Fetch the DescribeCoverage document and determine the bounding box and number of levels
@@ -82,7 +82,14 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
                         "WCS coverage is undefined: $coverage"
                     )
                 )
-                tileFactory = Wcs201TileFactory(serviceAddress, coverage, imageFormat)
+                val axisLabels = coverageDescription.boundedBy.envelope.axisLabelsList
+                require(axisLabels.size >= 2) {
+                    makeMessage(
+                        "Wcs201ElevationCoverage", "constructor",
+                        "WCS coverage axis labels are undefined: $coverage"
+                    )
+                }
+                tileFactory = Wcs201TileFactory(serviceAddress, coverage, outputFormat, axisLabels)
                 tileMatrixSet = tileMatrixSetFromCoverageDescription(coverageDescription)
                 WorldWind.requestRedraw()
             } catch (logged: Throwable) {
@@ -95,7 +102,7 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
     }
 
     protected open fun tileMatrixSetFromCoverageDescription(coverageDescription: Wcs201CoverageDescription): TileMatrixSet {
-        val srsName = coverageDescription.boundedBy?.envelope?.srsName
+        val srsName = coverageDescription.boundedBy.envelope.srsName
         require(srsName != null && srsName.contains("4326")) {
             makeMessage(
                 "Wcs201ElevationCoverage", "tileMatrixSetFromCoverageDescription",

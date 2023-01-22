@@ -13,7 +13,7 @@ import earth.worldwind.util.TileFactory
 /**
  * Factory for constructing URLs associated with WMS Get Map requests.
  */
-class WmsTileFactory(
+open class WmsTileFactory(
     /**
      * The WMS service address used to build Get Map URLs.
      */
