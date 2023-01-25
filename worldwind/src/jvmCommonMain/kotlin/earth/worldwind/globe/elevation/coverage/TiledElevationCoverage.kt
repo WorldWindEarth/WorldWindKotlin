@@ -20,6 +20,7 @@ import io.ktor.client.network.sockets.*
 import kotlinx.coroutines.*
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
+import kotlin.time.Duration.Companion.seconds
 
 actual open class TiledElevationCoverage actual constructor(
     tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory,
@@ -36,7 +37,22 @@ actual open class TiledElevationCoverage actual constructor(
     protected val elevationDecoder = ElevationDecoder()
     protected var cacheTileFactory: ElevationTileFactory? = null
     protected var cacheContent: GpkgContent? = null
+    /**
+     * Configures tiled elevation coverage to work with cache source only
+     */
     var useCacheOnly = false
+    /**
+     * Number of reties of bulk tile retrieval before long timeout
+     */
+    var makeLocalRetries = 3
+    /**
+     * Short timeout on bulk tile retrieval failed
+     */
+    var makeLocalTimeoutShort = 5.seconds
+    /**
+     * Long timeout on bulk tile retrieval failed
+     */
+    var makeLocalTimeoutLong = 15.seconds
 
     override fun invalidateTiles() {
         mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
@@ -100,7 +116,7 @@ actual open class TiledElevationCoverage actual constructor(
      * @param sector     the sector to download data for.
      * @param resolution the target resolution in angular value of latitude per texel.
      * @param scope      custom coroutine scope for better job management. Global scope by default.
-     * @param onProgress an optional retrieval listener.
+     * @param onProgress an optional retrieval listener, indication successful, failed and total tiles amount.
      *
      * @return the coroutine Job executing the retrieval or `null` if the specified sector does
      * not intersect the elevation model bounding sector.
@@ -111,36 +127,59 @@ actual open class TiledElevationCoverage actual constructor(
     @OptIn(DelicateCoroutinesApi::class)
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
-        sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int) -> Unit)? = null
+        sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
         val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
         require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }
         return scope.launch(Dispatchers.IO) {
+            // Prepare tile list for download, based on specified sector and resolution
             val processingList = assembleTilesList(sector, resolution)
-            for ((current, tile) in processingList.withIndex()) {
-                ensureActive()
-                try {
-                    val cacheSource = cacheTileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col)
-                    // Check if tile exists in cache. If cache retrieval fail, then normal tile source will be requested.
-                    // TODO If retrieved cache source is outdated, then retrieve original tile source to refresh cache
-                    elevationDecoder.run {
-                        decodeElevation(cacheSource) ?: decodeElevation(
-                            tileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
-                                // Assign download postprocessor
-                                val source = cacheSource.asUnrecognized()
-                                if (source is GpkgElevationFactory) it.postprocessor = source
+            var downloaded = 0
+            var skipped = 0
+            // Try to download each tile in a list
+            for (tile in processingList) {
+                var attempt = 0
+                // Retry download attempts till success or 404 not fond or job cancelled
+                while(true) {
+                    // Check if job cancelled
+                    ensureActive()
+                    // Attempt to download tile
+                    try {
+                        ++attempt
+                        val cacheSource = cacheTileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col)
+                        // Check if tile exists in cache. If cache retrieval fail, then normal tile source will be requested.
+                        // TODO If retrieved cache source is outdated, then retrieve original tile source to refresh cache
+                        val success = elevationDecoder.run {
+                            decodeElevation(cacheSource) ?: decodeElevation(
+                                tileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
+                                    // Assign download postprocessor
+                                    val source = cacheSource.asUnrecognized()
+                                    if (source is GpkgElevationFactory) it.postprocessor = source
+                                }
+                            )
+                        }?.let {
+                            // Un-mark tile key from absent list
+                            launch(Dispatchers.Main) {
+                                absentResourceList.unmarkResourceAbsent(tile.tileMatrix.tileKey(tile.row, tile.col))
                             }
-                        )
-                    }?.also {
-                        // Un-mark tile key from absent list
-                        launch(Dispatchers.Main) {
-                            absentResourceList.unmarkResourceAbsent(tile.tileMatrix.tileKey(tile.row, tile.col))
+                            true
+                        } ?: false
+                        // Tile successfully downloaded
+                        if (success) onProgress?.invoke(++downloaded, skipped, processingList.size)
+                        // Received data can not be decoded as image
+                        else onProgress?.invoke(downloaded, ++skipped, processingList.size)
+                        break // Continue downloading next tile
+                    } catch (throwable: Throwable) {
+                        when (throwable) {
+                            is FileNotFoundException -> {
+                                onProgress?.invoke(downloaded, ++skipped, processingList.size)
+                                break // Skip missed tile and continue download next one
+                            }
+                            // Wait some time and retry
+                            else -> delay(if(attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
                         }
                     }
-                } catch (ignore: Throwable) {
-                    // Ignore particular tile retrieval failure
                 }
-                onProgress?.invoke(current + 1, processingList.size)
             }
         }
     }

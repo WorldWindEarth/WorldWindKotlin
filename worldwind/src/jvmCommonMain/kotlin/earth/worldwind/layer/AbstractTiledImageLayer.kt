@@ -9,6 +9,8 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.shape.TiledSurfaceImage
 import kotlinx.coroutines.*
+import java.io.FileNotFoundException
+import kotlin.time.Duration.Companion.seconds
 
 actual abstract class AbstractTiledImageLayer actual constructor(name: String): RenderableLayer(name) {
     actual var tiledSurfaceImage: TiledSurfaceImage? = null
@@ -25,11 +27,23 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
         get() = tiledSurfaceImage?.levelOffset ?: 0
         set(value) { tiledSurfaceImage?.levelOffset = value }
     /**
-     * Configures tiled image layer to work only with cache source
+     * Configures tiled image layer to work with cache source only
      */
     var useCacheOnly: Boolean
         get() = tiledSurfaceImage?.useCacheOnly ?: false
         set(value) { tiledSurfaceImage?.useCacheOnly = value }
+    /**
+     * Number of reties of bulk tile retrieval before long timeout
+     */
+    var makeLocalRetries = 3
+    /**
+     * Short timeout on bulk tile retrieval failed
+     */
+    var makeLocalTimeoutShort = 5.seconds
+    /**
+     * Long timeout on bulk tile retrieval failed
+     */
+    var makeLocalTimeoutLong = 15.seconds
 
     protected var cacheContent: GpkgContent? = null
 
@@ -72,28 +86,51 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
 
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     protected open fun launchBulkRetrieval(
-        scope: CoroutineScope, sector: Sector, resolution: Angle, onProgress: ((Int, Int) -> Unit)?,
-        retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Unit
+        scope: CoroutineScope, sector: Sector, resolution: Angle, onProgress: ((Int, Int, Int) -> Unit)?,
+        retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Boolean
     ): Job {
         val tiledSurfaceImage = tiledSurfaceImage ?: error("Surface image not defined")
         val cacheTileFactory = tiledSurfaceImage.cacheTileFactory ?: error("Cache not configured")
         require(sector.intersect(tiledSurfaceImage.levelSet.sector)) { "Sector does not intersect tiled surface image sector" }
         return scope.launch(Dispatchers.IO) {
+            // Prepare tile list for download, based on specified sector and resolution
             val processingList = tiledSurfaceImage.assembleTilesList(sector, resolution)
-            for ((current, tile) in processingList.withIndex()) {
-                ensureActive()
-                // No image source indicates an empty level or an image missing from the tiled data store
-                val imageSource = tile.imageSource ?: continue
-                // If cache tile factory is specified, then create cache source and store it in tile
-                val cacheSource = tile.cacheSource
-                    ?: (cacheTileFactory.createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile)
-                        .imageSource?.also { tile.cacheSource = it } ?: continue
-                try {
-                    retrieveTile(imageSource, cacheSource, tiledSurfaceImage.imageOptions)
-                } catch (ignore: Throwable) {
-                    // Ignore particular tile retrieval failure
+            var downloaded = 0
+            var skipped = 0
+            // Try to download each tile in a list
+            for (tile in processingList) {
+                var attempt = 0
+                // Retry download attempts till success or 404 not fond or job cancelled
+                while(true) {
+                    // Check if job cancelled
+                    ensureActive()
+                    // No image source indicates an empty level or an image missing from the tiled data store
+                    val imageSource = tile.imageSource ?: break
+                    // If cache tile factory is specified, then create cache source and store it in tile
+                    val cacheSource = tile.cacheSource
+                        ?: (cacheTileFactory.createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile)
+                            .imageSource?.also { tile.cacheSource = it } ?: break
+                    // Attempt to download tile
+                    try {
+                        ++attempt
+                        if (retrieveTile(imageSource, cacheSource, tiledSurfaceImage.imageOptions)) {
+                            // Tile successfully downloaded
+                            onProgress?.invoke(++downloaded, skipped, processingList.size)
+                        } else {
+                            // Received data can not be decoded as image
+                            onProgress?.invoke(downloaded, ++skipped, processingList.size)
+                        }
+                        break // Continue downloading next tile
+                    } catch (throwable: Throwable) {
+                        when (throwable) {
+                            is FileNotFoundException -> {
+                                onProgress?.invoke(downloaded, ++skipped, processingList.size)
+                                break // Skip missed tile and continue download next one
+                            }
+                            else -> delay(if(attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
+                        }
+                    }
                 }
-                onProgress?.invoke(current + 1, processingList.size)
             }
         }
     }
