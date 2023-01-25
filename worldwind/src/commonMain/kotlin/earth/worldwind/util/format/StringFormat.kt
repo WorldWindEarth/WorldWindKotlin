@@ -2,7 +2,8 @@ package earth.worldwind.util.format
 
 import kotlinx.datetime.*
 
-class StringFormat(val format: String, val args: Array<out Any?>) {
+internal class StringFormat(val format: String, val args: Array<out Any?>) {
+
     private var pos = 0
     private var specStart = -1
     private val result = StringBuilder()
