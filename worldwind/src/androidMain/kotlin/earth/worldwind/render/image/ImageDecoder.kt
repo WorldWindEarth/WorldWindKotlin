@@ -54,11 +54,13 @@ open class ImageDecoder(val context: Context): Closeable {
                 append(HttpHeaders.UserAgent, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
             }
         }
-        val bytes = response.readBytes()
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bitmapFactoryOptions(imageOptions))?.let{
-            // Apply bitmap transformation if required
-            postprocessor?.process(it) ?: it
-        }
+        return if (response.status == HttpStatusCode.OK) {
+            val bytes = response.readBytes()
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bitmapFactoryOptions(imageOptions))?.let{
+                // Apply bitmap transformation if required
+                postprocessor?.process(it) ?: it
+            }
+        } else null // Result is not an image, access denied or server error
     }
 
     protected open fun decodeUnrecognized(imageSource: ImageSource): Bitmap? {

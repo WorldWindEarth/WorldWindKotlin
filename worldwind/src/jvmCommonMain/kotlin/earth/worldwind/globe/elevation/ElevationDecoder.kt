@@ -47,7 +47,11 @@ open class ElevationDecoder: Closeable {
         )
 
     protected open suspend fun decodeUrl(url: URL, postprocessor: DownloadPostprocessor<Buffer>?) =
-        httpClient.get(url).let { decodeBytes(it.readBytes(), it.contentType().toString(), postprocessor) }
+        httpClient.get(url).let {
+            if (it.status == HttpStatusCode.OK) {
+                decodeBytes(it.readBytes(), it.contentType().toString(), postprocessor)
+            } else null // Result is not an elevation data, access denied or server error
+        }
 
     protected open fun decodeUnrecognized(imageSource: ElevationSource): ShortArray? {
         log(WARN, "Unrecognized image source '$imageSource'")
