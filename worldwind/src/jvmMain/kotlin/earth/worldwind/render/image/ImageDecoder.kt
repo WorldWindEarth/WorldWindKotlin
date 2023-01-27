@@ -20,8 +20,9 @@ open class ImageDecoder: Closeable {
 
     open suspend fun decodeImage(imageSource: ImageSource, imageOptions: ImageOptions?): BufferedImage? {
         val image = when {
-            imageSource.isResource-> imageSource.asResource().image
-            imageSource.isImage-> imageSource.asImage()
+            imageSource.isResource -> imageSource.asResource().image
+            imageSource.isImage -> imageSource.asImage()
+            imageSource.isImageFactory -> imageSource.asImageFactory().createImage()
             imageSource.isFile -> decodeFile(imageSource.asFile())
             imageSource.isUrl -> decodeUrl(imageSource.asUrl())
             else -> decodeUnrecognized(imageSource)
