@@ -1,6 +1,7 @@
 package earth.worldwind.layer.mercator.google
 
 import earth.worldwind.layer.mercator.MercatorTiledImageLayer
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.locale.language
 
 class GoogleLayer(type: Type): MercatorTiledImageLayer(type.layerName, 22, 256, type.overlay) {
@@ -17,7 +18,6 @@ class GoogleLayer(type: Type): MercatorTiledImageLayer(type.layerName, 22, 256, 
         TRAFFIC("Google traffic", "h,traffic&style=15", true);
     }
 
-    override fun getImageSourceUrl(x: Int, y: Int, z: Int): String {
-        return "https://mt.google.com/vt/lyrs=$lyrs&x=$x&y=$y&z=$z&hl=$language"
-    }
+    override fun getImageSource(x: Int, y: Int, z: Int) =
+        ImageSource.fromUrlString("https://mt.google.com/vt/lyrs=$lyrs&x=$x&y=$y&z=$z&hl=$language")
 }

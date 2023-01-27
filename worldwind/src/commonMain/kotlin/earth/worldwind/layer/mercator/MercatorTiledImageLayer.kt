@@ -19,11 +19,9 @@ abstract class MercatorTiledImageLayer(
     private val tileFactory = object : TileFactory {
         override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
             MercatorImageTile(sector as MercatorSector, level, row, column).apply {
-                imageSource = ImageSource.fromUrlString(
-                    getImageSourceUrl(
-                        column, (1 shl level.levelNumber) - 1 - row, level.levelNumber
-                    )
-                ).also { it.postprocessor = this as ResourcePostprocessor<*> }
+                imageSource = getImageSource(column, (1 shl level.levelNumber) - 1 - row, level.levelNumber).also {
+                    it.postprocessor = this as ResourcePostprocessor<*>
+                }
             }
     }
 
@@ -39,5 +37,5 @@ abstract class MercatorTiledImageLayer(
         }
     }
 
-    protected abstract fun getImageSourceUrl(x: Int, y: Int, z: Int): String
+    protected abstract fun getImageSource(x: Int, y: Int, z: Int): ImageSource
 }

@@ -1,6 +1,7 @@
 package earth.worldwind.layer.mercator.wiki
 
 import earth.worldwind.layer.mercator.MercatorTiledImageLayer
+import earth.worldwind.render.image.ImageSource
 import kotlin.jvm.JvmOverloads
 
 class WikiLayer @JvmOverloads constructor(
@@ -12,9 +13,9 @@ class WikiLayer @JvmOverloads constructor(
         const val NAME = "Wiki"
     }
 
-    override fun getImageSourceUrl(x: Int, y: Int, z: Int): String {
+    override fun getImageSource(x: Int, y: Int, z: Int): ImageSource {
         val i = x % 4 + y % 4 * 4
         val type = type.name.lowercase()
-        return "http://i$i.wikimapia.org/?lng=1&x=$x&y=$y&zoom=$z&type=$type"
+        return ImageSource.fromUrlString("http://i$i.wikimapia.org/?lng=1&x=$x&y=$y&zoom=$z&type=$type")
     }
 }
