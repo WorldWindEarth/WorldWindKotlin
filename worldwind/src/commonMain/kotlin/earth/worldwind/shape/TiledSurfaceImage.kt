@@ -89,17 +89,21 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
      */
     open fun assembleTilesList(sector: Sector, resolution: Angle): List<ImageTile> {
         val result = mutableListOf<ImageTile>()
-        val level = levelSet.levelForResolution(resolution)
+        val lastLevelNumber = levelSet.levelForResolution(resolution).levelNumber
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
-        topLevelTiles.forEach { addAndSubdivideTile(it as ImageTile, sector, level, result) }
+        topLevelTiles.forEach { addAndSubdivideTile(it as ImageTile, sector, lastLevelNumber, result) }
         return result
     }
 
-    protected open fun addAndSubdivideTile(tile: ImageTile, sector: Sector, level: Level?, result: MutableList<ImageTile>) {
+    protected open fun addAndSubdivideTile(tile: ImageTile, sector: Sector, lastLevelNumber: Int, result: MutableList<ImageTile>) {
         if (!tile.intersectsSector(sector)) return // Ignore tiles and its descendants outside the specified sector
-        result.add(tile)
-        if (tile.level != level) tile.subdivide(tileFactory).forEach {
-            addAndSubdivideTile(it as ImageTile, sector, level, result)
+        // Skip tiles with level less than specified offset from the result list
+        if (tile.level.levelNumber >= levelOffset) result.add(tile)
+        // Do not subdivide if specified level or last available level reached
+        if (tile.level.levelNumber < lastLevelNumber && !tile.level.isLastLevel) {
+            tile.subdivide(tileFactory).forEach {
+                addAndSubdivideTile(it as ImageTile, sector, lastLevelNumber, result)
+            }
         }
     }
 

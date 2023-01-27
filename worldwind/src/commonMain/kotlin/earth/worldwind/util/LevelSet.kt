@@ -5,6 +5,7 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import kotlin.math.ceil
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
@@ -136,12 +137,13 @@ open class LevelSet {
      * @return the level for the specified resolution, or null if this level set is empty
      *
      * @throws IllegalArgumentException If the resolution is not positive
+     * @throws IllegalStateException If this level set is empty
      */
-    fun levelForResolution(resolution: Angle): Level? {
+    fun levelForResolution(resolution: Angle): Level {
         require(resolution > Angle.ZERO) {
             logMessage(ERROR, "LevelSetConfig", "levelForResolution", "invalidResolution")
         }
-        if (levels.isEmpty()) return null // this level set is empty
+        if (levels.isEmpty()) error("This level set is empty")
         val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
         val level = ln(firstLevelDegreesPerPixel / resolution.inDegrees) / ln(2.0) // fractional level address
         val levelNumber = level.roundToInt() // nearest neighbor level
@@ -150,5 +152,20 @@ open class LevelSet {
             levelNumber < levels.size -> levels[levelNumber] // nearest neighbor level is in this level set
             else -> levels[levels.size - 1] // unable to match the resolution; return the last level
         }
+    }
+
+    /**
+     * Calculates amount of tiles, which fit specified sector at specified level
+     *
+     * @param sector the desired sector to check tile count
+     * @param levelNumber the desired level of details number to check tile count
+     * @return Number of tiles which fit specified sector on specified level
+     */
+    fun tilesInSectorAtLevel(sector: Sector, levelNumber: Int): Int {
+        val latSizeDegrees = firstLevelDelta.latitude.inDegrees / ( 1 shl levelNumber )
+        val lonSizeDegrees = firstLevelDelta.longitude.inDegrees / ( 1 shl levelNumber )
+        val tilesPerLat = ceil(sector.deltaLatitude.inDegrees / latSizeDegrees).toInt()
+        val tilesPerLon = ceil(sector.deltaLongitude.inDegrees / lonSizeDegrees).toInt()
+        return tilesPerLat * tilesPerLon
     }
 }
