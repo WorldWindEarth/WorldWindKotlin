@@ -1,6 +1,5 @@
 package earth.worldwind.render.image
 
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.http.DefaultHttpClient
@@ -24,8 +23,11 @@ open class ImageDecoder: Closeable {
             imageSource.isResource-> imageSource.asResource().image
             imageSource.isImage-> imageSource.asImage()
             imageSource.isFile -> decodeFile(imageSource.asFile())
-            imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageSource.postprocessor)
+            imageSource.isUrl -> decodeUrl(imageSource.asUrl())
             else -> decodeUnrecognized(imageSource)
+        }?.let{
+            // Apply image transformation if required
+            imageSource.imagePostprocessor?.process(it) ?: it
         }
         // Convert image to required type
         val type = when (imageOptions?.imageConfig) {
@@ -43,8 +45,8 @@ open class ImageDecoder: Closeable {
     protected open fun decodeFile(file: File): BufferedImage = ImageIO.read(file)
 
     @Suppress("BlockingMethodInNonBlockingContext")
-    protected open suspend fun decodeUrl(url: URL, postprocessor: DownloadPostprocessor<BufferedImage>?): BufferedImage? {
-        val image = if (url.protocol.equals("http", true) || url.protocol.equals("https", true)) {
+    protected open suspend fun decodeUrl(url: URL) =
+        if (url.protocol.equals("http", true) || url.protocol.equals("https", true)) {
             val response = httpClient.get(url) {
                 headers {
                     // Some map servers block requests without Accept and User-Agent headers
@@ -54,9 +56,6 @@ open class ImageDecoder: Closeable {
             }
             ImageIO.read(ByteArrayInputStream(response.readBytes()))
         } else ImageIO.read(url)
-        // Apply image transformation if required
-        return image?.let { postprocessor?.process(it) ?: it }
-    }
 
     protected open fun decodeUnrecognized(imageSource: ImageSource): BufferedImage? {
         log(WARN, "Unrecognized image source '$imageSource'")

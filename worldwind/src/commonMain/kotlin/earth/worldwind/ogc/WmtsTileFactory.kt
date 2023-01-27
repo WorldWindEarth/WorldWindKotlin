@@ -1,12 +1,12 @@
 package earth.worldwind.ogc
 
 import earth.worldwind.geom.Sector
-import earth.worldwind.render.image.ImageSource
+import earth.worldwind.render.image.ImageSource.Companion.fromUrlString
 import earth.worldwind.render.image.ImageTile
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Level
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.ResourcePostprocessor
 import earth.worldwind.util.TileFactory
 
 open class WmtsTileFactory(var template: String, var tileMatrixIdentifiers: List<String>): TileFactory {
@@ -18,7 +18,8 @@ open class WmtsTileFactory(var template: String, var tileMatrixIdentifiers: List
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) = ImageTile(sector, level, row, column).apply {
         urlForTile(level.levelNumber, row, column)?.let { urlString ->
-            imageSource = ImageSource.fromUrlString(urlString, this as DownloadPostprocessor<*>)
+            // Assign resource post-processor to transform received resource and save it in cache if necessary
+            imageSource = fromUrlString(urlString).also { it.postprocessor = this as ResourcePostprocessor<*> }
         }
     }
 

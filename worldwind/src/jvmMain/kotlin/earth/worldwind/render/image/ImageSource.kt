@@ -2,9 +2,9 @@ package earth.worldwind.render.image
 
 import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.ResourcePostprocessor
 import java.awt.image.BufferedImage
 import java.io.File
 import java.net.MalformedURLException
@@ -23,7 +23,7 @@ import java.net.URL
  * ImageSource instances are intended to be used as a key into a cache or other data structure that enables sharing of
  * loaded images. BufferedImages are compared by reference. File paths and URLs with the same string representation considered equals.
  */
-actual open class ImageSource protected constructor(source: Any): AbstractSource<BufferedImage>(source) {
+actual open class ImageSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
         /**
          * Constructs an image source with a multi-platform resource identifier.
@@ -74,25 +74,22 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          * Constructs an image source with an [URL].
          *
          * @param url Uniform Resource Locator
-         * @param postprocessor implementation of image post-processing routine
          *
          * @return the new image source
          */
-        @JvmStatic @JvmOverloads
-        fun fromUrl(url: URL, postprocessor: DownloadPostprocessor<BufferedImage>? = null) =
-            ImageSource(url).apply { this.postprocessor = postprocessor }
+        @JvmStatic
+        fun fromUrl(url: URL) = ImageSource(url)
 
         /**
          * Constructs an image source with a URL string.
          *
          * @param urlString complete URL string
-         * @param postprocessor implementation of image post-processing routine
          *
          * @return the new image source
          */
-        @JvmStatic @JvmOverloads @Suppress("UNCHECKED_CAST")
-        actual fun fromUrlString(urlString: String, postprocessor: DownloadPostprocessor<*>?) = try {
-            fromUrl(URL(urlString), postprocessor as DownloadPostprocessor<BufferedImage>?)
+        @JvmStatic
+        actual fun fromUrlString(urlString: String) = try {
+            fromUrl(URL(urlString))
         } catch (e: MalformedURLException) {
             logMessage(ERROR, "ImageSource", "fromUrlString", "invalidUrlString", e)
             throw e
@@ -137,6 +134,11 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         }
     }
 
+    /**
+     * Image post-processing routine.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val imagePostprocessor get() = postprocessor as ResourcePostprocessor<BufferedImage>?
     /**
      * Indicates whether this image source is a multi-platform resource.
      */

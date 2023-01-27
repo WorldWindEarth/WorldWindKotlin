@@ -152,7 +152,7 @@ actual open class TiledElevationCoverage actual constructor(
                         val success = elevationDecoder.run {
                             decodeElevation(cacheSource) ?: decodeElevation(
                                 tileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
-                                    // Assign download postprocessor
+                                    // Assign buffer postprocessor to save retrieved online tile to cache
                                     val source = cacheSource.asUnrecognized()
                                     if (source is GpkgElevationFactory) it.postprocessor = source
                                 }
@@ -201,7 +201,7 @@ actual open class TiledElevationCoverage actual constructor(
                 if (!useCacheOnly || cacheSource == null) {
                     // Determine online source
                     val onlineSource = tileFactory.createElevationSource(tileMatrix, row, column)
-                    // Assign download postprocessor to save retrieved online tile to cache
+                    // Assign buffer postprocessor to save retrieved online tile to cache
                     val source = cacheSource?.asUnrecognized()
                     if (source is GpkgElevationFactory) onlineSource.postprocessor = source
                     try {

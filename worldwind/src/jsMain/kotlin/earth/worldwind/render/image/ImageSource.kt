@@ -2,9 +2,9 @@ package earth.worldwind.render.image
 
 import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.ResourcePostprocessor
 import org.w3c.dom.Image
 import org.w3c.dom.url.URL
 
@@ -20,7 +20,7 @@ import org.w3c.dom.url.URL
  * ImageSource instances are intended to be used as a key into a cache or other data structure that enables sharing of
  * loaded images. Images are compared by reference. URLs with the same string representation considered equals.
  */
-actual open class ImageSource protected constructor(source: Any): AbstractSource<Image>(source) {
+actual open class ImageSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
         /**
          * Constructs an image source with a multi-platform resource identifier.
@@ -44,24 +44,20 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          * Constructs an image source with an [URL]. The image's dimensions should be no greater than 2048 x 2048.
          *
          * @param url Uniform Resource Locator
-         * @param postprocessor implementation of image post-processing routine
          *
          * @return the new image source
          */
-        fun fromUrl(url: URL, postprocessor: DownloadPostprocessor<Image>? = null) =
-            ImageSource(url.href).apply { this.postprocessor = postprocessor }
+        fun fromUrl(url: URL) = ImageSource(url.href)
 
         /**
          * Constructs an image source with a URL string. The image's dimensions should not be greater than 2048 x 2048.
          *
          * @param urlString complete URL string
-         * @param postprocessor implementation of image post-processing routine
          *
          * @return the new image source
          */
-        @Suppress("UNCHECKED_CAST")
-        actual fun fromUrlString(urlString: String, postprocessor: DownloadPostprocessor<*>?) = try {
-            fromUrl(URL(urlString), postprocessor as DownloadPostprocessor<Image>?)
+        actual fun fromUrlString(urlString: String) = try {
+            fromUrl(URL(urlString))
         } catch (e: Exception) {
             logMessage(ERROR, "ImageSource", "fromUrlString", "invalidUrlString", e)
             throw e
@@ -99,11 +95,16 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
             is ImageResource -> fromResource(source)
             is Image -> fromImage(source)
             is URL -> fromUrl(source)
-            is String -> fromUrlString(source, null)
+            is String -> fromUrlString(source)
             else -> ImageSource(source)
         }
     }
 
+    /**
+     * Image post-processing routine.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val imagePostprocessor get() = postprocessor as ResourcePostprocessor<Image>?
     /**
      * Indicates whether this image source is a multi-platform resource.
      */

@@ -4,11 +4,11 @@ package earth.worldwind.util
  * AbstractSource instances are intended to be used as a key into a cache or other data structure that enables sharing of
  * loaded resources.
  */
-abstract class AbstractSource<T> protected constructor(protected val source: Any) {
+abstract class AbstractSource protected constructor(protected val source: Any) {
     /**
-     * Interface for resource download post-processing
+     * Resource post-processing routine.
      */
-    var postprocessor: DownloadPostprocessor<T>? = null
+    var postprocessor: ResourcePostprocessor<*>? = null
 
     /**
      * @return generic image source as unrecognized object.
@@ -17,7 +17,7 @@ abstract class AbstractSource<T> protected constructor(protected val source: Any
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is AbstractSource<*>) return false
+        if (other !is AbstractSource) return false
         if (source != other.source) return false
         return true
     }

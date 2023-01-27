@@ -8,9 +8,9 @@ import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.render.image.ImageConfig
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Level
 import earth.worldwind.util.LevelSet
+import earth.worldwind.util.ResourcePostprocessor
 import earth.worldwind.util.TileFactory
 
 abstract class MercatorTiledImageLayer(
@@ -22,8 +22,8 @@ abstract class MercatorTiledImageLayer(
                 imageSource = ImageSource.fromUrlString(
                     getImageSourceUrl(
                         column, (1 shl level.levelNumber) - 1 - row, level.levelNumber
-                    ), this as DownloadPostprocessor<*>
-                )
+                    )
+                ).also { it.postprocessor = this as ResourcePostprocessor<*> }
             }
     }
 

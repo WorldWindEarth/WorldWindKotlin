@@ -88,7 +88,7 @@ actual open class RenderResourceCache(
         image.onload = {
             // Check if image postprocessor is assigned and not yet executed.
             // OnLoad event can be called second time by reassigning image.src inside postprocessor.
-            val postprocessor = imageSource.postprocessor
+            val postprocessor = imageSource.imagePostprocessor
             if (postprocessor != null && !postprocessorExecuted) {
                 postprocessorExecuted = true // Prevent cyclic processing due to src modification inside postprocessing.
                 mainScope.launch { postprocessor.process(image) } // Apply image transformation.

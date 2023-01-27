@@ -1,9 +1,9 @@
 package earth.worldwind.util
 
 /**
- * Interface for resource download post-processing
+ * Interface for resource post-processing
  */
-interface DownloadPostprocessor<T> {
+interface ResourcePostprocessor<T> {
     /**
      * Process resource according to specified algorithm implementation
      * @param resource original resource

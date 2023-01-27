@@ -5,9 +5,9 @@ import android.graphics.Color.argb
 import androidx.annotation.DrawableRes
 import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.ResourcePostprocessor
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
@@ -28,7 +28,7 @@ import java.net.URL
  * loaded images. Android bitmaps and WorldWind bitmap factories are compared by reference. Android resource identifiers
  * with equivalent IDs are considered equivalent. File paths and URLs with the same string representation considered equals.
  */
-actual open class ImageSource protected constructor(source: Any): AbstractSource<Bitmap>(source) {
+actual open class ImageSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
         protected val lineStippleFactories = mutableMapOf<Any, BitmapFactory>()
 
@@ -135,25 +135,22 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          * Constructs an image source with an [URL].
          *
          * @param url Uniform Resource Locator
-         * @param postprocessor implementation of image post-processing routine
          *
          * @return the new image source
          */
-        @JvmStatic @JvmOverloads
-        fun fromUrl(url: URL, postprocessor: DownloadPostprocessor<Bitmap>? = null) =
-            ImageSource(url).apply { this.postprocessor = postprocessor }
+        @JvmStatic
+        fun fromUrl(url: URL) = ImageSource(url)
 
         /**
          * Constructs an image source with a URL string.
          *
          * @param urlString complete URL string
-         * @param postprocessor implementation of image post-processing routine
          *
          * @return the new image source
          */
-        @JvmStatic @JvmOverloads @Suppress("UNCHECKED_CAST")
-        actual fun fromUrlString(urlString: String, postprocessor: DownloadPostprocessor<*>?) = try {
-            fromUrl(URL(urlString), postprocessor as DownloadPostprocessor<Bitmap>?)
+        @JvmStatic
+        actual fun fromUrlString(urlString: String) = try {
+            fromUrl(URL(urlString))
         } catch (e: MalformedURLException) {
             logMessage(ERROR, "ImageSource", "fromUrlString", "invalidUrlString", e)
             throw e
@@ -179,6 +176,11 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         }
     }
 
+    /**
+     * Bitmap post-processing routine.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val bitmapPostprocessor get() = postprocessor as ResourcePostprocessor<Bitmap>?
     /**
      * Indicates whether this image source is an Android or multi-platform resource.
      */

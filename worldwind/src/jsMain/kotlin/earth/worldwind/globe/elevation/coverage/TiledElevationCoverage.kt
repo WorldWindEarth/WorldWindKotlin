@@ -61,7 +61,7 @@ actual open class TiledElevationCoverage actual constructor(
                             message = "Elevations retrieval failed (Unexpected content type $contentType): $url"
                             null
                         }
-                    }
+                    }?.let { elevationSource.bufferPostprocessor?.process(it) ?: it } // Apply buffer transformations
                     decodeBuffer(buffer)?.let {
                         retrievalSucceeded(key, it, "Elevation retrieval succeeded: $url")
                     } ?: retrievalFailed(key, message ?: "Elevations retrieval failed: $url")

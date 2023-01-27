@@ -3,6 +3,7 @@ package earth.worldwind.globe.elevation
 import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.ResourcePostprocessor
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
@@ -19,7 +20,7 @@ import java.nio.Buffer
  * ElevationSource instances are intended to be used as a key into a cache or other data structure that enables sharing
  * of loaded elevation resources. File paths and URLs with the same string representation considered equals.
  */
-actual open class ElevationSource protected constructor(source: Any): AbstractSource<Buffer>(source) {
+actual open class ElevationSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
         /**
          * Constructs an elevation source with a [ElevationFactory].
@@ -98,6 +99,11 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
         }
     }
 
+    /**
+     * Buffer post-processing routine.
+     */
+    @Suppress("UNCHECKED_CAST")
+    val bufferPostprocessor get() = postprocessor as ResourcePostprocessor<Buffer>?
     /**
      * Indicates whether this elevation source is an elevation factory.
      */

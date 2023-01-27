@@ -2,11 +2,11 @@ package earth.worldwind.globe.elevation
 
 import earth.worldwind.formats.tiff.Subfile
 import earth.worldwind.formats.tiff.Tiff
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.ResourcePostprocessor
 import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -25,8 +25,8 @@ open class ElevationDecoder: Closeable {
 
     open suspend fun decodeElevation(elevationSource: ElevationSource) = when {
         elevationSource.isElevationFactory -> decodeBuffer(elevationSource.asElevationFactory().fetchTileData())
-        elevationSource.isFile -> decodeFile(elevationSource.asFile(), elevationSource.postprocessor)
-        elevationSource.isUrl -> decodeUrl(elevationSource.asUrl(), elevationSource.postprocessor)
+        elevationSource.isFile -> decodeFile(elevationSource.asFile(), elevationSource.bufferPostprocessor)
+        elevationSource.isUrl -> decodeUrl(elevationSource.asUrl(), elevationSource.bufferPostprocessor)
         else -> decodeUnrecognized(elevationSource)
     }
 
@@ -36,7 +36,7 @@ open class ElevationDecoder: Closeable {
         else -> null
     }
 
-    protected open suspend fun decodeFile(file: File, postprocessor: DownloadPostprocessor<Buffer>?) =
+    protected open suspend fun decodeFile(file: File, postprocessor: ResourcePostprocessor<Buffer>?) =
         when(file.name.substring(file.name.lastIndexOf('.') + 1)) {
             "tiff" -> "image/tiff"
             "bil16" -> "application/bil16"
@@ -46,19 +46,18 @@ open class ElevationDecoder: Closeable {
             logMessage(ERROR, "ElevationDecoder", "decodeFile", "Unknown mime-type")
         )
 
-    protected open suspend fun decodeUrl(url: URL, postprocessor: DownloadPostprocessor<Buffer>?) =
-        httpClient.get(url).let {
-            if (it.status == HttpStatusCode.OK) {
-                decodeBytes(it.readBytes(), it.contentType().toString(), postprocessor)
-            } else null // Result is not an elevation data, access denied or server error
-        }
+    protected open suspend fun decodeUrl(url: URL, postprocessor: ResourcePostprocessor<Buffer>?) = httpClient.get(url).let {
+        if (it.status == HttpStatusCode.OK) {
+            decodeBytes(it.readBytes(), it.contentType().toString(), postprocessor)
+        } else null // Result is not an elevation data, access denied or server error
+    }
 
     protected open fun decodeUnrecognized(imageSource: ElevationSource): ShortArray? {
         log(WARN, "Unrecognized image source '$imageSource'")
         return null
     }
 
-    protected open suspend fun decodeBytes(bytes: ByteArray, contentType: String?, postprocessor: DownloadPostprocessor<Buffer>?) = decodeBuffer(
+    protected open suspend fun decodeBytes(bytes: ByteArray, contentType: String?, postprocessor: ResourcePostprocessor<Buffer>?) = decodeBuffer(
         when {
             contentType.equals("image/bil", true) ||
             contentType.equals("application/bil", true) ||
@@ -68,7 +67,7 @@ open class ElevationDecoder: Closeable {
             else -> throw RuntimeException(
                 logMessage(ERROR, "ElevationDecoder", "decodeBytes", "Format not supported: $contentType")
             )
-        }.let { postprocessor?.run { process(it) } ?: it } // Process loaded elevation data if necessary
+        }.let { postprocessor?.process(it) ?: it } // Process loaded elevation data if necessary
     )
 
     protected open fun decodeTiffData(bytes: ByteArray): Buffer {

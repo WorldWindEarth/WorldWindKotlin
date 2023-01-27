@@ -7,7 +7,6 @@ import android.graphics.Canvas
 import androidx.appcompat.content.res.AppCompatResources
 import earth.worldwind.render.image.ImageConfig.RGBA_8888
 import earth.worldwind.render.image.ImageConfig.RGB_565
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.http.DefaultHttpClient
@@ -28,8 +27,11 @@ open class ImageDecoder(val context: Context): Closeable {
         imageSource.isBitmapFactory -> imageSource.asBitmapFactory().createBitmap()
         imageSource.isResource -> decodeResource(imageSource.asResource(), imageOptions)
         imageSource.isFile -> decodeFile(imageSource.asFile(), imageOptions)
-        imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageOptions, imageSource.postprocessor)
+        imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageOptions)
         else -> decodeUnrecognized(imageSource)
+    }?.let{
+        // Apply bitmap transformation if required
+        imageSource.bitmapPostprocessor?.process(it) ?: it
     }
 
     protected open fun decodeResource(id: Int, imageOptions: ImageOptions?) =
@@ -46,7 +48,7 @@ open class ImageDecoder(val context: Context): Closeable {
     protected open fun decodeFile(file: File, imageOptions: ImageOptions?): Bitmap? =
         BitmapFactory.decodeFile(file.absolutePath, bitmapFactoryOptions(imageOptions))
 
-    protected open suspend fun decodeUrl(url: URL, imageOptions: ImageOptions?, postprocessor: DownloadPostprocessor<Bitmap>?): Bitmap? {
+    protected open suspend fun decodeUrl(url: URL, imageOptions: ImageOptions?): Bitmap? {
         val response = httpClient.get(url) {
             headers {
                 // Some map servers block requests without Accept and User-Agent headers
@@ -56,10 +58,7 @@ open class ImageDecoder(val context: Context): Closeable {
         }
         return if (response.status == HttpStatusCode.OK) {
             val bytes = response.readBytes()
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bitmapFactoryOptions(imageOptions))?.let{
-                // Apply bitmap transformation if required
-                postprocessor?.process(it) ?: it
-            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bitmapFactoryOptions(imageOptions))
         } else null // Result is not an image, access denied or server error
     }
 

@@ -2,9 +2,9 @@ package earth.worldwind.ogc
 
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.ogc.gpkg.GpkgContent
-import earth.worldwind.util.DownloadPostprocessor
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.ResourcePostprocessor
 import java.nio.*
 
 // TODO Add support of greyscale PNG encoding for 16-bit integer data and TIFF encoding for 32-bit floating point data
@@ -14,7 +14,7 @@ open class GpkgElevationFactory(
     protected val tileColumn: Int,
     protected val tileRow: Int,
     protected val isFloat: Boolean
-): ElevationSource.ElevationFactory, DownloadPostprocessor<Buffer> {
+): ElevationSource.ElevationFactory, ResourcePostprocessor<Buffer> {
     override suspend fun fetchTileData(): Buffer? {
         // Attempt to read the GeoPackage tile user data
         val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
