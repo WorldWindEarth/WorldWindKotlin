@@ -2,8 +2,10 @@ package earth.worldwind.util
 
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Location
+import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -71,5 +73,17 @@ open class Level internal constructor(
         levelHeight = (parent.tileHeight * parent.sector.deltaLatitude.inDegrees / tileDelta.latitude.inDegrees).roundToInt()
         tileWidth = parent.tileWidth
         tileHeight = parent.tileHeight
+    }
+
+    /**
+     * Calculates amount of tiles, which fit specified sector
+     *
+     * @param sector the desired sector to check tile count
+     * @return Number of tiles which fit specified sector at this level
+     */
+    fun tilesInSector(sector: Sector): Int {
+        val tilesPerLat = ceil(sector.deltaLatitude.inDegrees / tileDelta.latitude.inDegrees).toInt()
+        val tilesPerLon = ceil(sector.deltaLongitude.inDegrees / tileDelta.longitude.inDegrees).toInt()
+        return tilesPerLat * tilesPerLon
     }
 }
