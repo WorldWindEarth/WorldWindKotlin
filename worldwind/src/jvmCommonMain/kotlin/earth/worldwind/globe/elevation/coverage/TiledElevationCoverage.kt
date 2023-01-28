@@ -103,12 +103,20 @@ actual open class TiledElevationCoverage actual constructor(
     }
 
     /**
-     * Delete all tiles from current cache storage
+     * Deletes all tiles from current cache storage, but keeps cache metadata.
      *
      * @throws IllegalStateException In case of read-only database.
      */
     @Throws(IllegalStateException::class)
-    suspend fun clearCache() = cacheContent?.run { container.deleteContent(tableName) }.also { disableCache() }
+    suspend fun clearCache() = cacheContent?.run { container.clearContent(tableName) }
+
+    /**
+     * Deletes cache storage with all metadata and disables cache
+     *
+     * @throws IllegalStateException In case of read-only database.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun deleteCache() = cacheContent?.run { container.deleteContent(tableName) }.also { disableCache() }
 
     /**
      * Start a new coroutine Job that downloads all elevations for a given sector and resolution,

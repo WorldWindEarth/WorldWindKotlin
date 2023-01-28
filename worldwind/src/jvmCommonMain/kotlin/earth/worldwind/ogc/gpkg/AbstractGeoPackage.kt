@@ -243,17 +243,30 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         }
     }
 
+    /**
+     * Clear specified content table and keep its related metadata
+     *
+     * @throws IllegalStateException In case of read-only database.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun clearContent(tableName: String) {
+        if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
+
+        // Remove all tiles in specified content table and gridded tile data
+        clearTilesTable(tableName)
+        deleteGriddedTiles(tableName)
+    }
 
     /**
      * Delete specified content table and its related metadata
      *
-     * @throws IllegalStateException In case of new content creation required on read-only database.
+     * @throws IllegalStateException In case of read-only database.
      */
     @Throws(IllegalStateException::class)
     suspend fun deleteContent(tableName: String) {
         if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
 
-        // Remove all tiles of specified content table, including gridded tile data
+        // Remove specified content table and gridded tile data
         dropTilesTable(tableName)
         deleteGriddedTiles(tableName)
 
@@ -411,5 +424,6 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
     protected abstract suspend fun deleteGriddedCoverage(griddedCoverage: GpkgGriddedCoverage)
     protected abstract suspend fun deleteGriddedTiles(tableName: String)
 
+    protected abstract suspend fun clearTilesTable(tableName: String)
     protected abstract suspend fun dropTilesTable(tableName: String)
 }

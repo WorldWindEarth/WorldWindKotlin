@@ -105,6 +105,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         TODO("Not yet implemented")
     }
 
+    override suspend fun clearTilesTable(tableName: String) {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun dropTilesTable(tableName: String) {
         TODO("Not yet implemented")
     }

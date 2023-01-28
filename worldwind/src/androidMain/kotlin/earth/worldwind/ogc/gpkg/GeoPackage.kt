@@ -471,6 +471,16 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         }
     }
 
+    override suspend fun clearTilesTable(tableName: String) {
+        connection.openDatabase().use { database ->
+            try {
+                database.delete(tableName, "", emptyArray())
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
     override suspend fun dropTilesTable(tableName: String) {
         connection.openDatabase().use { database -> database.execSQL("DROP TABLE IF EXISTS $tableName") }
     }
