@@ -38,6 +38,10 @@ actual open class TiledElevationCoverage actual constructor(
     protected var cacheTileFactory: ElevationTileFactory? = null
     protected var cacheContent: GpkgContent? = null
     /**
+     * Checks if cache is successfully configured
+     */
+    val isCacheConfigured get() = cacheTileFactory != null
+    /**
      * Configures tiled elevation coverage to work with cache source only
      */
     var useCacheOnly = false

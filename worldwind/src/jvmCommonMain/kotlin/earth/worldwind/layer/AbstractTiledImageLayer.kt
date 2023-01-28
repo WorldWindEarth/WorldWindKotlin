@@ -27,6 +27,10 @@ actual abstract class AbstractTiledImageLayer actual constructor(name: String): 
         get() = tiledSurfaceImage?.levelOffset ?: 0
         set(value) { tiledSurfaceImage?.levelOffset = value }
     /**
+     * Checks if cache is successfully configured
+     */
+    val isCacheConfigured get() = tiledSurfaceImage?.cacheTileFactory != null
+    /**
      * Configures tiled image layer to work with cache source only
      */
     var useCacheOnly: Boolean
