@@ -32,8 +32,7 @@ actual open class TiledElevationCoverage actual constructor(
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
-    // WorldWindow main scope cannot be injected due to constructor is common on all platforms.
-    protected actual val mainScope = MainScope() // Use own scope with the same livecycle as WorldWindow main scope.
+    protected actual val mainScope = MainScope()
     protected val elevationDecoder = ElevationDecoder()
     protected var cacheTileFactory: ElevationTileFactory? = null
     protected var cacheContent: GpkgContent? = null

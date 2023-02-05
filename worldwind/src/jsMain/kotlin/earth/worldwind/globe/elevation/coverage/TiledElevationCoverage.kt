@@ -21,7 +21,7 @@ import kotlin.math.roundToInt
 actual open class TiledElevationCoverage actual constructor(
     tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory
 ) : AbstractTiledElevationCoverage(tileMatrixSet, tileFactory) {
-    protected actual val mainScope = MainScope() // Use own scope with the same livecycle as WorldWindow main scope.
+    protected actual val mainScope = MainScope()
 
     /**
      * This is a dummy workaround for asynchronously defined TileFactory
