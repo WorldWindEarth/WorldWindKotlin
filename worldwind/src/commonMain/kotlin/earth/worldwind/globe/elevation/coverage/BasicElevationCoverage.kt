@@ -10,5 +10,5 @@ import earth.worldwind.ogc.WmsElevationCoverage
  * retrieve elevation coverage from the WMS at [&amp;https://wms.worldwind.earth/elev](https://wms.worldwind.earth/elev?SERVICE=WMS&amp;REQUEST=GetCapabilities).
  */
 class BasicElevationCoverage : WmsElevationCoverage(
-    "https://wms.worldwind.earth/elev", "SRTM-CGIAR,GEBCO", "application/bil16", Sector().setFullSphere(), Angle.fromSeconds(3.0)
+    "https://wms.worldwind.earth/elev", "GEBCO,SRTM-CGIAR", "application/bil16", Sector().setFullSphere(), Angle.fromSeconds(3.0)
 )
