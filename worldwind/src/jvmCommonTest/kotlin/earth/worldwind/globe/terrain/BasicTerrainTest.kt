@@ -73,12 +73,11 @@ class BasicTerrainTest {
         val tileWidth = tile.level.tileWidth
         val tileHeight = tile.level.tileHeight
         val rowStride = (tileWidth + 2) * 3
-        val points = FloatArray((tileWidth + 2) * (tileHeight + 2) * 3)
-        val tileOrigin = globe.geographicToCartesian(0.5.degrees, 0.5.degrees, 0.0, Vec3())
+        val points = tile.points
+        val tileOrigin = globe.geographicToCartesian(0.5.degrees, 0.5.degrees, 0.0, tile.origin)
         globe.geographicToCartesianGrid(tile.sector, tileWidth, tileHeight, null, 1.0f, tileOrigin, points, rowStride + 3, rowStride)
         globe.geographicToCartesianBorder(tile.sector, tileWidth + 2, tileHeight + 2, 0.0f, tileOrigin, points)
-        tile.origin = tileOrigin
-        tile.points = points
+        tile.updatePointBufferKey()
     }
 
     @Test

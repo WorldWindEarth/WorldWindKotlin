@@ -31,6 +31,7 @@ open class BasicTerrain: Terrain {
     }
 
     override fun intersect(line: Line, result: Vec3): Boolean {
+        val triStripElements = triStripElements ?: return false
         var minDist2 = Double.POSITIVE_INFINITY
         for (tile in tiles) {
             // Translate the line to the terrain tile's local coordinate system.
@@ -39,7 +40,7 @@ open class BasicTerrain: Terrain {
             // Compute the first intersection of the terrain tile with the line. The line is interpreted as a ray;
             // intersection points behind the line's origin are ignored. Store the nearest intersection found so far
             // in the result argument.
-            if (line.triStripIntersection(tile.points!!, 3, triStripElements!!, triStripElements!!.size, intersectPoint)) {
+            if (line.triStripIntersection(tile.points, 3, triStripElements, triStripElements.size, intersectPoint)) {
                 val dist2 = line.origin.distanceToSquared(intersectPoint)
                 if (minDist2 > dist2) {
                     minDist2 = dist2
@@ -47,7 +48,7 @@ open class BasicTerrain: Terrain {
                 }
             }
 
-            // Restore the line's origin to it's previous coordinate system.
+            // Restore the line's origin to its previous coordinate system.
             line.origin.add(tile.origin)
         }
         return minDist2 != Double.POSITIVE_INFINITY
@@ -84,7 +85,7 @@ open class BasicTerrain: Terrain {
                 val f10 = sf * (1 - tf)
                 val f01 = (1 - sf) * tf
                 val f11 = sf * tf
-                val points = tile.points!!
+                val points = tile.points
                 result.x = points[i00] * f00 + points[i10] * f10 + points[i01] * f01 + points[i11] * f11
                 result.y = points[i00 + 1] * f00 + points[i10 + 1] * f10 + points[i01 + 1] * f01 + points[i11 + 1] * f11
                 result.z = points[i00 + 2] * f00 + points[i10 + 2] * f10 + points[i01 + 2] * f01 + points[i11 + 2] * f11
