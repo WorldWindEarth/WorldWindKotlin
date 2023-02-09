@@ -12,7 +12,7 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, val
     private var extent: BoundingBox? = null
     private var heightLimits: FloatArray? = null
     private var heightLimitsTimestamp = Instant.DISTANT_PAST
-    private var extentExaggeration = 0.0
+    private var extentExaggeration = 0.0f
 
     open fun isInView(rc: RenderContext) = getExtent(rc).intersectsFrustum(rc.frustum)
 
@@ -63,10 +63,10 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, val
             // check for valid height limits
             if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
         }
-        val verticalExaggeration = rc.verticalExaggeration
+        val verticalExaggeration = rc.verticalExaggeration.toFloat()
         if (verticalExaggeration != extentExaggeration || elevationTimestamp !== heightLimitsTimestamp) {
-            val minHeight = (heightLimits[0] * verticalExaggeration).toFloat()
-            val maxHeight = (heightLimits[1] * verticalExaggeration).toFloat()
+            val minHeight = heightLimits[0] * verticalExaggeration
+            val maxHeight = heightLimits[1] * verticalExaggeration
             extent.setToSector(sector, rc.globe!!, minHeight, maxHeight)
         }
         heightLimitsTimestamp = elevationTimestamp
