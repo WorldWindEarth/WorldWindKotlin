@@ -285,22 +285,21 @@ open class RenderContext {
         latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, result: Vec3
     ): Vec3 {
         when (altitudeMode) {
-            ABSOLUTE -> globe?.geographicToCartesian(
-                latitude, longitude, altitude * verticalExaggeration, result
-            )
-            CLAMP_TO_GROUND -> if (terrain?.surfacePoint(latitude, longitude, result) != true)
-                // TODO use elevation model height as a fallback
-                globe?.geographicToCartesian(latitude, longitude, 0.0, result)
+            ABSOLUTE -> globe?.geographicToCartesian(latitude, longitude, altitude * verticalExaggeration, result)
+            CLAMP_TO_GROUND -> if (terrain?.surfacePoint(latitude, longitude, result) != true) globe?.run {
+                // Use elevation model height as a fallback
+                val elevation = getElevation(latitude, longitude)
+                geographicToCartesian(latitude, longitude, elevation * verticalExaggeration, result)
+            }
             RELATIVE_TO_GROUND -> if (terrain?.surfacePoint(latitude, longitude, result) == true) {
-                if (altitude != 0.0) {
-                    // Offset along the normal vector at the terrain surface point.
-                    globe?.geographicToCartesianNormal(latitude, longitude, scratchVector)?.also {
-                        result.add(scratchVector.multiply(altitude))
-                    }
+                // Offset along the normal vector at the terrain surface point.
+                if (altitude != 0.0) globe?.geographicToCartesianNormal(latitude, longitude, scratchVector)?.also {
+                    result.add(scratchVector.multiply(altitude))
                 }
-            } else {
-                // TODO use elevation model height as a fallback
-                globe?.geographicToCartesian(latitude, longitude, altitude * verticalExaggeration, result)
+            } else globe?.run {
+                // Use elevation model height plus relative altitude as a fallback
+                val elevation = getElevation(latitude, longitude) + altitude
+                geographicToCartesian(latitude, longitude, elevation * verticalExaggeration, result)
             }
         }
         return result
