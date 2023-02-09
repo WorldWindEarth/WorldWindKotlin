@@ -17,16 +17,14 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import io.ktor.client.network.sockets.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache @JvmOverloads constructor(
-    actual val mainScope: CoroutineScope, val context: Context, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
+    val context: Context, capacity: Long = recommendedCapacity(context), lowWater: Long = (capacity * 0.75).toLong()
 ): LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     companion object {
         protected const val STALE_AGE = 300L
@@ -48,6 +46,10 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     protected val urlRetrievals = mutableSetOf<ImageSource>()
     protected val localRetrievals = mutableSetOf<ImageSource>()
     /**
+     * Main render resource retrieval scope
+     */
+    actual val mainScope = MainScope()
+    /**
      * Identifies requested resources that whose retrieval failed.
      */
     actual val absentResourceList = AbsentResourceList<Int>(3, 60.seconds)
@@ -57,6 +59,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     }
 
     override fun clear() {
+        mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
         entries.clear() // the cache entries are invalid; clear but don't call entryRemoved
         evictionQueue.clear() // the eviction queue no longer needs to be processed
         urlRetrievals.clear()
@@ -133,7 +136,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
                     retrievalFailed(imageSource, logged)
                 }
                 finally {
-                    launch(Dispatchers.Main) { currentRetrievals -= imageSource }
+                    withContext(Dispatchers.Main) { currentRetrievals -= imageSource }
                 }
             }
         }
@@ -153,7 +156,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         return texture
     }
 
-    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, bitmap: Bitmap) = mainScope.launch {
+    protected open suspend fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, bitmap: Bitmap) = withContext(Dispatchers.Main) {
         val texture = createTexture(options, bitmap)
         put(source, texture, texture.byteCount)
         absentResourceList.unmarkResourceAbsent(source.hashCode())
@@ -161,7 +164,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         if (isLoggable(DEBUG)) log(DEBUG, "Image retrieval succeeded '$source'")
     }
 
-    protected open fun retrievalFailed(source: ImageSource, ex: Throwable? = null) = mainScope.launch {
+    protected open suspend fun retrievalFailed(source: ImageSource, ex: Throwable? = null) = withContext(Dispatchers.Main) {
         absentResourceList.markResourceAbsent(source.hashCode(), !source.isUrl) // All local resources marked as absent permanently
         WorldWind.requestRedraw() // Try to load alternate image source
         when {

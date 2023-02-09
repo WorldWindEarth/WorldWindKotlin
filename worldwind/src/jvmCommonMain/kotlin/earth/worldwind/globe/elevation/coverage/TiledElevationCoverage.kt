@@ -32,8 +32,7 @@ actual open class TiledElevationCoverage actual constructor(
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
-    // WorldWindow main scope cannot be injected due to constructor is common on all platforms.
-    protected actual val mainScope = MainScope() // Use own scope with the same livecycle as WorldWindow main scope.
+    protected actual val mainScope = MainScope()
     protected val elevationDecoder = ElevationDecoder()
     protected var cacheTileFactory: ElevationTileFactory? = null
     protected var cacheContent: GpkgContent? = null
@@ -228,12 +227,12 @@ actual open class TiledElevationCoverage actual constructor(
         }
     }
 
-    protected open fun retrievalSucceeded(key: Long, source: ElevationSource, value: ShortArray) = mainScope.launch {
+    protected open suspend fun retrievalSucceeded(key: Long, source: ElevationSource, value: ShortArray) = withContext(Dispatchers.Main) {
         retrievalSucceeded(key, value)
         if (isLoggable(DEBUG)) log(DEBUG, "Coverage retrieval succeeded '$source'")
     }
 
-    protected open fun retrievalFailed(key: Long, source: ElevationSource, ex: Throwable? = null) = mainScope.launch {
+    protected open suspend fun retrievalFailed(key: Long, source: ElevationSource, ex: Throwable? = null) = withContext(Dispatchers.Main) {
         retrievalFailed(key)
         when {
             // log socket timeout exceptions while suppressing the stack trace
