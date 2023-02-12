@@ -60,7 +60,7 @@ open class Tile protected constructor(
 
     protected var heightLimits: FloatArray? = null
     protected var heightLimitsTimestamp = Instant.DISTANT_PAST
-    protected var extentExaggeration = 0.0
+    protected var extentExaggeration = 0.0f
 
     /**
      * Indicates whether this tile's Cartesian extent intersects a specified frustum.
@@ -169,10 +169,10 @@ open class Tile protected constructor(
             // check for valid height limits
             if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
         }
-        val verticalExaggeration = rc.verticalExaggeration
+        val verticalExaggeration = rc.verticalExaggeration.toFloat()
         if (verticalExaggeration != extentExaggeration || elevationTimestamp !== heightLimitsTimestamp) {
-            val minHeight = (heightLimits[0] * verticalExaggeration).toFloat()
-            val maxHeight = (heightLimits[1] * verticalExaggeration).toFloat()
+            val minHeight = heightLimits[0] * verticalExaggeration
+            val maxHeight = heightLimits[1] * verticalExaggeration
             extent.setToSector(sector, rc.globe!!, minHeight, maxHeight)
         }
         heightLimitsTimestamp = elevationTimestamp

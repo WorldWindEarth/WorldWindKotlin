@@ -16,22 +16,27 @@ import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 
 open class BasicTessellator: Tessellator, TileFactory {
     override val lastTerrain = BasicTerrain()
-    // ~0.6 meter resolution
-    var levelSet = LevelSet(Sector().setFullSphere(), Location(NEG90, NEG180), Location(POS90, POS90), 20, 32, 32)
+    /**
+     * Default level set is configured to ~10 meter resolution
+     */
+    var levelSet = LevelSet(Sector().setFullSphere(), Location(NEG90, NEG180), Location(POS90, POS90), 16, 32, 32)
         set(value) {
             field = value
             invalidateTiles()
         }
-    var detailControl = 32.0
-    protected val topLevelTiles = mutableListOf<Tile>()
-    protected val currentTerrain = BasicTerrain()
+    /**
+     * Detail control determines how much times terrain texel is greater than screen pixel.
+     */
+    var detailControl = 20.0
     /**
      * Memory cache for this tessellator's subdivision tiles. Each entry contains an array of four terrain tiles
-     * corresponding to the subdivision of the group's common parent tile. The cache is configured to hold 200 groups, a
+     * corresponding to the subdivision of the group's common parent tile. The cache is configured to hold 320 groups, a
      * number tuned to store the tiles needed to navigate a small region, given the tessellator's first level tile delta
-     * of 90 degrees, tile dimensions of 32x32 and detail control of 32.
+     * of 90 degrees, tile dimensions of 32x32 and detail control of 20.
      */
-    protected val tileCache = LruMemoryCache<String, Array<Tile>>(200)
+    protected var tileCache = LruMemoryCache<String, Array<Tile>>(400, 320)
+    protected val topLevelTiles = mutableListOf<Tile>()
+    protected val currentTerrain = BasicTerrain()
     protected var levelSetVertexTexCoords: FloatArray? = null
     protected var levelSetLineElements: ShortArray? = null
     protected var levelSetTriStripElements: ShortArray? = null
@@ -41,6 +46,13 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected var levelSetElementBuffer: ShortBufferObject? = null
     protected var levelSetVertexTexCoordKey = this::class.simpleName + ".vertexTexCoordKey"
     protected var levelSetElementKey = this::class.simpleName + ".elementKey"
+
+    /**
+     * Cache size should be adjusted in case of levelSet or detailControl changed.
+     */
+    fun setupTileCache(capacity: Long, lowWater: Long = (capacity * 0.8).toLong()) {
+        tileCache = LruMemoryCache(capacity, lowWater)
+    }
 
     override fun tessellate(rc: RenderContext) {
         currentTerrain.clear()
@@ -109,28 +121,26 @@ open class BasicTessellator: Tessellator, TileFactory {
         val tileHeight = tile.level.tileHeight
         val elevationTimestamp = rc.globe!!.elevationModel.timestamp
         if (elevationTimestamp !== tile.heightTimestamp) {
-            val heights = tile.heights ?: FloatArray(tileWidth * tileHeight)
+            val heights = tile.heights
             heights.fill(0f)
             rc.globe!!.elevationModel.getHeightGrid(tile.sector, tileWidth, tileHeight, heights)
-            tile.heights = heights
         }
-        val verticalExaggeration = rc.verticalExaggeration
+        val verticalExaggeration = rc.verticalExaggeration.toFloat()
         if (verticalExaggeration != tile.verticalExaggeration || elevationTimestamp !== tile.heightTimestamp) {
             val origin = tile.origin
             val heights = tile.heights
-            val points = tile.points ?: FloatArray((tileWidth + 2) * (tileHeight + 2) * 3)
-            val borderHeight = (tile.minTerrainElevation * verticalExaggeration).toFloat()
+            val points = tile.points
+            val borderHeight = tile.minTerrainElevation * verticalExaggeration
             val rowStride = (tileWidth + 2) * 3
             rc.globe!!.geographicToCartesian(tile.sector.centroidLatitude, tile.sector.centroidLongitude, 0.0, origin)
             rc.globe!!.geographicToCartesianGrid(
-                tile.sector, tileWidth, tileHeight, heights, verticalExaggeration.toFloat(),
+                tile.sector, tileWidth, tileHeight, heights, verticalExaggeration,
                 origin, points, rowStride + 3, rowStride
             )
             rc.globe!!.geographicToCartesianBorder(
                 tile.sector, tileWidth + 2, tileHeight + 2, borderHeight, origin, points
             )
-            tile.origin = origin
-            tile.points = points
+            tile.updatePointBufferKey()
         }
         tile.heightTimestamp = elevationTimestamp
         tile.verticalExaggeration = verticalExaggeration
