@@ -67,7 +67,7 @@ class PlacemarksTutorial(private val engine: WorldWind) : AbstractTutorial() {
         engine.cameraFromLookAt(
             LookAt(
                 position = Position.fromDegrees(34.200, -119.208, 0.0),
-                altitudeMode = AltitudeMode.ABSOLUTE, range = 1e5,
+                altitudeMode = AltitudeMode.ABSOLUTE, range = 1e4,
                 heading = Angle.ZERO, tilt = 80.0.degrees, roll = Angle.ZERO
             )
         )

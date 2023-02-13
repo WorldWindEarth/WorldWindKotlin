@@ -32,7 +32,7 @@ wwd = WorldWindow(requireContext())
 wwd.engine.layers.apply {
     addLayer(BackgroundLayer())
     addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-        wwd.mainScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
             } catch (e: Exception) {
@@ -45,7 +45,7 @@ wwd.engine.layers.apply {
 }
 // Setting up the WorldWindow's elevation coverages.
 wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-    wwd.mainScope.launch(Dispatchers.IO) {
+    lifecycleScope.launch(Dispatchers.IO) {
         try {
             configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
         } catch (e: Exception) {

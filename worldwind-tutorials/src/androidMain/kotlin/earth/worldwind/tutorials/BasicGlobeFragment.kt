@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.WorldWindow
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
@@ -33,7 +34,7 @@ open class BasicGlobeFragment: Fragment() {
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-                wwd.mainScope.launch(Dispatchers.IO) {
+                lifecycleScope.launch(Dispatchers.IO) {
                     try {
                         configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
                     } catch (e: Exception) {
@@ -46,7 +47,7 @@ open class BasicGlobeFragment: Fragment() {
         }
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            wwd.mainScope.launch(Dispatchers.IO) {
+            lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
                 } catch (e: Exception) {
