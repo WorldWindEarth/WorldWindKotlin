@@ -141,7 +141,7 @@ class FrustumTest {
 //        // Create a Frustum similar to the way the WorldWindow does it.
 //
 //        // Setup a Camera, looking near Oxnard Airport.
-//        val lookAt = LookAt().setDegrees(34.15, -119.15, 0.0, AltitudeMode.ABSOLUTE, 2e4 /*range*/, 0.0, 45.0, 0.0)
+//        val lookAt = LookAt(Position(34.15.degrees, (-119.15).degrees, 0.0), AltitudeMode.ABSOLUTE, 2e4 /*range*/, 0.0.degrees, 45.0.degrees, 0.0.degrees)
 //        wwd.cameraFromLookAt(lookAt)
 //
 //        // Compute a perspective projection matrix given the viewport, field of view, and clip distances.
@@ -206,7 +206,7 @@ class FrustumTest {
 //        // Create a Frustum similar to the way the WorldWindow does it when picking
 //
 //        // Setup a Camera, looking near Oxnard Airport.
-//        val lookAt = LookAt().setDegrees(34.15, -119.15, 0.0, AltitudeMode.ABSOLUTE, 2e4 /*range*/, 0.0, 45.0, 0.0)
+//        val lookAt = LookAt(Position(34.15.degrees, (-119.15).degrees, 0.0), AltitudeMode.ABSOLUTE, 2e4 /*range*/, 0.0.degrees, 45.0.degrees, 0.0.degrees)
 //        wwd.cameraFromLookAt(lookAt)
 //
 //        // Compute a perspective projection matrix given the viewport, field of view, and clip distances.

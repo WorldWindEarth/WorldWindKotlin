@@ -63,15 +63,9 @@ class PlacemarksPickingFragment: BasicGlobeFragment() {
         layer.addRenderable(createAircraftPlacemark(fromDegrees(34.15, -119.15, 2000.0)))
 
         // Position the viewer to look near the airports
-        val lookAt = LookAt().set(
-            latitude = 34.15.degrees,
-            longitude = -119.15.degrees,
-            altitude = 0.0,
-            altitudeMode = AltitudeMode.ABSOLUTE,
-            range = 2e4,
-            heading = 0.0.degrees,
-            tilt = 45.0.degrees,
-            roll = 0.0.degrees
+        val lookAt = LookAt(
+            position = Position(34.15.degrees, (-119.15).degrees, 0.0), altitudeMode = AltitudeMode.ABSOLUTE,
+            range = 2e4, heading = 0.0.degrees, tilt = 45.0.degrees, roll = 0.0.degrees
         )
         wwd.engine.cameraFromLookAt(lookAt)
         return wwd
