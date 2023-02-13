@@ -4,6 +4,7 @@ import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
+import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
@@ -29,6 +30,7 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
             Placemark(position).apply {
                 attributes.apply {
                     imageSource = earth.worldwind.render.image.ImageSource.fromResource(MR.images.aircraft_fixwing)
+                    imageOffset = Offset.bottomCenter()
                     imageScale = 2.0
                     isDrawLeader = true
                 }
