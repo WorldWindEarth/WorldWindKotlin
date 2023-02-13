@@ -54,13 +54,48 @@ abstract class AbstractTiledElevationCoverage(
         updateTimestamp()
     }
 
+    override fun doGetHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
+        if (!tileMatrixSet.sector.contains(latitude, longitude)) return null // no coverage in the specified location
+        val targetIdx = tileMatrixSet.entries.size - 1 // retrieve height from last available matrix
+        for (idx in targetIdx downTo 0) {
+            // enable retrieval of the last and the first matrix
+            isRetrievalEnabled = retrieve && (idx == targetIdx || idx == 0)
+            val tileMatrix = tileMatrixSet.entries[idx]
+            val deltaLat = tileMatrix.sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
+            val deltaLon = tileMatrix.sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
+            val row = floor((tileMatrix.sector.maxLatitude.inDegrees - latitude.inDegrees) / deltaLat).toInt()
+            val col = floor((longitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
+            fetchTileArray(tileMatrix, row, col)?.let {
+                val maxLat = tileMatrix.sector.maxLatitude.inDegrees - deltaLat * row
+                val minLon = tileMatrix.sector.minLongitude.inDegrees + deltaLon * col
+                val maxX = tileMatrix.tileWidth - 1
+                val maxY = tileMatrix.tileHeight - 1
+                val x = (maxX * (longitude.inDegrees - minLon) / deltaLon).toFloat()
+                val y = (maxY * (maxLat - latitude.inDegrees) / deltaLat).toFloat()
+                val x0 = floor(x).toInt().coerceIn(0, maxX)
+                val x1 = (x0 + 1).coerceIn(0, maxX)
+                val y0 = floor(y).toInt().coerceIn(0, maxY)
+                val y1 = (y0 + 1).coerceIn(0, maxY)
+                val x0y0 = it[x0 + y0 * tileMatrix.tileWidth]
+                val x1y0 = it[x1 + y0 * tileMatrix.tileWidth]
+                val x0y1 = it[x0 + y1 * tileMatrix.tileWidth]
+                val x1y1 = it[x1 + y1 * tileMatrix.tileWidth]
+                val xf = x - x0
+                val yf = y - y0
+                return (1 - xf) * (1 - yf) * x0y0 + xf * (1 - yf) * x1y0 + (1 - xf) * yf * x0y1 + xf * yf * x1y1
+            }
+        }
+        return null // did not find a tile
+    }
+
     override fun doGetHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         if (!tileMatrixSet.sector.intersects(gridSector)) return  // no coverage in the specified sector
         val targetPixelSpan = gridSector.deltaLatitude.inDegrees / gridHeight
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)
         val tileBlock = TileBlock()
         for (idx in targetIdx downTo 0) {
-            isRetrievalEnabled = idx == targetIdx || idx == 0 // enable retrieval of the target matrix and the first matrix
+            // enable retrieval of the target matrix and the first matrix
+            isRetrievalEnabled = idx == targetIdx || idx == 0
             val tileMatrix = tileMatrixSet.entries[idx]
             if (fetchTileBlock(gridSector, gridWidth, gridHeight, tileMatrix, tileBlock)) {
                 readHeightGrid(gridSector, gridWidth, gridHeight, tileBlock, result)
@@ -75,7 +110,8 @@ abstract class AbstractTiledElevationCoverage(
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)
         val tileBlock = TileBlock()
         for (idx in targetIdx downTo 0) {
-            isRetrievalEnabled = idx == targetIdx || idx == 0 // enable retrieval of the target matrix and the first matrix
+            // enable retrieval of the target matrix and the first matrix
+            isRetrievalEnabled = idx == targetIdx || idx == 0
             val tileMatrix = tileMatrixSet.entries[idx]
             if (fetchTileBlock(sector, tileMatrix, tileBlock)) {
                 scanHeightLimits(sector, tileBlock, result)
@@ -107,7 +143,8 @@ abstract class AbstractTiledElevationCoverage(
         val deltaLon = gridSector.deltaLongitude.inDegrees / (gridWidth - 1)
         var uIdx = 0
         while (uIdx < gridWidth) {
-            if (uIdx == gridWidth - 1) lon = gridSector.maxLongitude.inDegrees // explicitly set the last lon to the max longitude to ensure alignment
+            // explicitly set the last lon to the max longitude to ensure alignment
+            if (uIdx == gridWidth - 1) lon = gridSector.maxLongitude.inDegrees
             if (lon in matrixMinLon..matrixMaxLon) {
                 val s = (lon - matrixMinLon) / matrixDeltaLon
                 var u: Double
@@ -134,7 +171,8 @@ abstract class AbstractTiledElevationCoverage(
         val deltaLat = gridSector.deltaLatitude.inDegrees / (gridHeight - 1)
         var vIdx = 0
         while (vIdx < gridHeight) {
-            if (vIdx == gridHeight - 1) lat = gridSector.maxLatitude.inDegrees // explicitly set the last lat to the max latitude to ensure alignment
+            // explicitly set the last lat to the max latitude to ensure alignment
+            if (vIdx == gridHeight - 1) lat = gridSector.maxLatitude.inDegrees
             if (lat in matrixMinLat..matrixMaxLat) {
                 val t = (matrixMaxLat - lat) / matrixDeltaLat
                 val v = rasterHeight * t.coerceIn(tMin, tMax) // clamp the vertical coordinate to the raster edge
@@ -249,7 +287,8 @@ abstract class AbstractTiledElevationCoverage(
         val deltaLat = gridSector.deltaLatitude.inDegrees / (gridHeight - 1)
         var hIdx = 0
         while (hIdx < gridHeight) {
-            if (hIdx == gridHeight - 1) lat = gridSector.maxLatitude.inDegrees // explicitly set the last lat to the max latitude to ensure alignment
+            // explicitly set the last lat to the max latitude to ensure alignment
+            if (hIdx == gridHeight - 1) lat = gridSector.maxLatitude.inDegrees
             val t = (matrixMaxLat - lat) / matrixDeltaLat
             val v = rasterHeight * t.coerceIn(tMin, tMax) // clamp the vertical coordinate to the raster edge
             val b = fract(v - 0.5).toFloat()
@@ -261,7 +300,8 @@ abstract class AbstractTiledElevationCoverage(
             val deltaLon = gridSector.deltaLongitude.inDegrees / (gridWidth - 1)
             var wIdx = 0
             while (wIdx < gridWidth) {
-                if (wIdx == gridWidth - 1) lon = gridSector.maxLongitude.inDegrees // explicitly set the last lon to the max longitude to ensure alignment
+                // explicitly set the last lon to the max longitude to ensure alignment
+                if (wIdx == gridWidth - 1) lon = gridSector.maxLongitude.inDegrees
                 val s = (lon - matrixMinLon) / matrixDeltaLon
                 var u: Double
                 var i0: Int
@@ -390,6 +430,7 @@ abstract class AbstractTiledElevationCoverage(
             return texelArray
         }
 
-        fun readTexel(row: Int, column: Int, i: Int, j: Int) = getTileArray(row, column)?.get(i + j * tileMatrix.tileWidth) ?: 0
+        fun readTexel(row: Int, column: Int, i: Int, j: Int) =
+            getTileArray(row, column)?.get(i + j * tileMatrix.tileWidth) ?: 0
     }
 }

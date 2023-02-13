@@ -120,7 +120,7 @@ The cross-hairs and overlays react to the user input"""
         lonView.text = formatLongitude(lookAt.position.longitude.inDegrees)
         elevView.text = formatElevation(
             wwd.engine.globe.getElevation(
-                lookAt.position.latitude, lookAt.position.longitude
+                lookAt.position.latitude, lookAt.position.longitude, retrieve = true
             )
         )
         altView.text = formatAltitude(camera.position.altitude)
