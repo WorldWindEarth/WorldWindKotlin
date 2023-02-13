@@ -251,7 +251,9 @@ open class Placemark @JvmOverloads constructor(
         // Offset along the normal vector to avoid collision with terrain.
         if (isBillboardingEnabled && offsetY != 0.0) {
             rc.globe!!.geographicToCartesianNormal(position.latitude, position.longitude, scratchVector).also {
-                val altitude = rc.pixelSizeAtDistance(cameraDistance) * sin(rc.camera!!.tilt.inRadians)
+                // Use real camera distance in billboarding
+                val distance = if (isAlwaysOnTop) rc.cameraPoint.distanceTo(placePoint) else cameraDistance
+                val altitude = rc.pixelSizeAtDistance(distance) * sin(rc.camera!!.tilt.inRadians)
                 placePoint.add(scratchVector.multiply(offsetY * altitude))
             }
         }
