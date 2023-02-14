@@ -256,29 +256,27 @@ open class WorldWind @JvmOverloads constructor(
 
         // Check if camera altitude is not under the surface
         val position = camera.position
-        if (position.altitude < COLLISION_CHECK_LIMIT * verticalExaggeration + COLLISION_THRESHOLD) {
-            val elevation = globe.getElevation(
-                position.latitude, position.longitude
-            ) * verticalExaggeration + COLLISION_THRESHOLD
-            if (elevation > position.altitude) {
-                // Set camera altitude above the surface
-                position.altitude = elevation
-                // Compute new camera point
-                globe.geographicToCartesian(position.latitude, position.longitude, position.altitude, scratchPoint)
-                // Compute look at point
-                globe.geographicToCartesian(
-                    lookAt.position.latitude,
-                    lookAt.position.longitude,
-                    lookAt.position.altitude,
-                    scratchRay.origin
-                )
-                // Compute normal to globe in look at point
-                globe.geographicToCartesianNormal(lookAt.position.latitude, lookAt.position.longitude, scratchRay.direction)
-                // Calculate tilt angle between new camera point and look at point
-                scratchPoint.subtract(scratchRay.origin).normalize()
-                val dot = scratchRay.direction.dot(scratchPoint)
-                if (dot >= -1 && dot <= 1) camera.tilt = acos(dot).radians
-            }
+        val elevation = globe.getElevation(
+            position.latitude, position.longitude
+        ) * verticalExaggeration + COLLISION_THRESHOLD
+        if (elevation > position.altitude) {
+            // Set camera altitude above the surface
+            position.altitude = elevation
+            // Compute new camera point
+            globe.geographicToCartesian(position.latitude, position.longitude, position.altitude, scratchPoint)
+            // Compute look at point
+            globe.geographicToCartesian(
+                lookAt.position.latitude,
+                lookAt.position.longitude,
+                lookAt.position.altitude,
+                scratchRay.origin
+            )
+            // Compute normal to globe in look at point
+            globe.geographicToCartesianNormal(lookAt.position.latitude, lookAt.position.longitude, scratchRay.direction)
+            // Calculate tilt angle between new camera point and look at point
+            scratchPoint.subtract(scratchRay.origin).normalize()
+            val dot = scratchRay.direction.dot(scratchPoint)
+            if (dot >= -1 && dot <= 1) camera.tilt = acos(dot).radians
         }
     }
 
@@ -617,9 +615,9 @@ open class WorldWind @JvmOverloads constructor(
                 ) * verticalExaggeration, result
             )
             AltitudeMode.RELATIVE_TO_GROUND -> globe.geographicToCartesianTransform(
-                position.latitude, position.longitude, position.altitude + globe.getElevation(
+                position.latitude, position.longitude, (position.altitude + globe.getElevation(
                     position.latitude, position.longitude
-                ) * verticalExaggeration, result
+                )) * verticalExaggeration, result
             )
         }
         return result
@@ -655,7 +653,6 @@ open class WorldWind @JvmOverloads constructor(
     }
 
     companion object {
-        protected const val COLLISION_CHECK_LIMIT = 8848.86 // Everest mountain altitude
         protected const val COLLISION_THRESHOLD = 10.0 // 10m above surface
 
         private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 1)

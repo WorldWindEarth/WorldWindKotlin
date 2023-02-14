@@ -1,5 +1,6 @@
 package earth.worldwind.globe.elevation.coverage
 
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import kotlinx.datetime.Clock
 
@@ -27,15 +28,19 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
 
     override fun hasUserProperty(key: Any) = userProperties?.containsKey(key) == true
 
+    override fun getHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
+        return if (isEnabled) doGetHeight(latitude, longitude, retrieve) else null
+    }
+
     override fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
-        if (!isEnabled) return
-        doGetHeightGrid(gridSector, gridWidth, gridHeight, result)
+        if (isEnabled) doGetHeightGrid(gridSector, gridWidth, gridHeight, result)
     }
 
     override fun getHeightLimits(sector: Sector, result: FloatArray) {
-        if (!isEnabled) return
-        doGetHeightLimits(sector, result)
+        if (isEnabled) doGetHeightLimits(sector, result)
     }
+
+    protected abstract fun doGetHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float?
 
     protected abstract fun doGetHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray)
 

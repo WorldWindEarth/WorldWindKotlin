@@ -1,7 +1,6 @@
 package earth.worldwind.globe
 
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.globe.elevation.ElevationModel
 import earth.worldwind.globe.projection.GeographicProjection
 import kotlin.math.sin
@@ -43,8 +42,6 @@ open class Globe(
      * Indicates whether this is a 2D globe.
      */
     val is2D get() = projection.is2D
-    private val scratchHeights = FloatArray(1)
-    private val scratchSector = Sector()
 
     /**
      * Indicates the radius in meters of the globe's ellipsoid at a specified location.
@@ -141,15 +138,12 @@ open class Globe(
      *
      * @param latitude  location latitude
      * @param longitude location longitude
+     * @param retrieve  retrieve the most detailed elevation data instead of using first available cached value
      *
      * @return Elevation in meters in specified location
      */
-    fun getElevation(latitude: Angle, longitude: Angle): Double {
-        scratchSector.set(latitude, longitude, ZERO, ZERO)
-        scratchHeights[0] = 0f // Clear scratch height before new value determination
-        elevationModel.getHeightGrid(scratchSector, 1, 1, scratchHeights)
-        return scratchHeights[0].toDouble()
-    }
+    fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean = false) =
+        elevationModel.getHeight(latitude, longitude, retrieve).toDouble()
 
     /**
      * Get absolute position with terrain elevation at specified coordinates
@@ -160,7 +154,7 @@ open class Globe(
      * @return Absolute position with terrain elevation
      */
     fun getAbsolutePosition(latitude: Angle, longitude: Angle) =
-        Position(latitude, longitude, getElevation(latitude, longitude))
+        Position(latitude, longitude, getElevation(latitude, longitude, retrieve = true))
 
     /**
      * Get absolute position for specified position and specified altitude mode
