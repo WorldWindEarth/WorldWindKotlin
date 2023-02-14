@@ -71,10 +71,9 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
         super.start()
         engine.layers.addLayer(layer)
         engine.cameraFromLookAt(
-            LookAt().set(
-                latitude = 46.230.degrees, longitude = -122.190.degrees, altitude = 500.0,
-                altitudeMode = AltitudeMode.ABSOLUTE, range = 1.5e4,
-                heading = 45.0.degrees, tilt = 70.0.degrees, roll = 0.0.degrees
+            LookAt(
+                position = Position(46.230.degrees, (-122.190).degrees, 500.0), altitudeMode = AltitudeMode.ABSOLUTE,
+                range = 1.5e4, heading = 45.0.degrees, tilt = 70.0.degrees, roll = 0.0.degrees
             )
         )
     }

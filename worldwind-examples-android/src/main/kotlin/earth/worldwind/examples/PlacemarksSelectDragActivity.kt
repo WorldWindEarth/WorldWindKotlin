@@ -182,15 +182,9 @@ open class PlacemarksSelectDragActivity: GeneralGlobeActivity() {
         )
 
         // And finally, for this demo, position the viewer to look at the placemarks
-        val lookAt = LookAt().set(
-            latitude = 34.150.degrees,
-            longitude = (-119.150).degrees,
-            altitude = 0.0,
-            altitudeMode = AltitudeMode.ABSOLUTE,
-            range = 2e4,
-            heading = 0.0.degrees,
-            tilt = 45.0.degrees,
-            roll = 0.0.degrees
+        val lookAt = LookAt(
+            position = Position(34.150.degrees, (-119.150).degrees, 0.0), altitudeMode = AltitudeMode.ABSOLUTE,
+            range = 2e4, heading = 0.0.degrees, tilt = 45.0.degrees, roll = 0.0.degrees
         )
         wwd.engine.cameraFromLookAt(lookAt)
     }
