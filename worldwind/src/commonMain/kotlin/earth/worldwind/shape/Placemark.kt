@@ -99,6 +99,10 @@ open class Placemark @JvmOverloads constructor(
      */
     var isBillboardingEnabled = false
     /**
+     * Indicates whether this placemark has visual priority over other shapes in the scene.
+     */
+    var isAlwaysOnTop = false
+    /**
      * The amount of rotation to apply to the image, measured clockwise and relative to this placemark's
      * [Placemark.imageRotationReference].
      */
@@ -192,7 +196,7 @@ open class Placemark @JvmOverloads constructor(
 
         // Compute the camera distance to the place point, the value which is used for ordering the placemark drawable
         // and determining the amount of depth offset to apply.
-        cameraDistance = rc.cameraPoint.distanceTo(placePoint)
+        cameraDistance = if (isAlwaysOnTop) 0.0 else rc.cameraPoint.distanceTo(placePoint)
 
         // Allow the placemark to adjust the level of detail based on distance to the camera
         if (levelOfDetailSelector?.selectLevelOfDetail(rc, this, cameraDistance) == false) return // skip rendering
@@ -247,7 +251,9 @@ open class Placemark @JvmOverloads constructor(
         // Offset along the normal vector to avoid collision with terrain.
         if (isBillboardingEnabled && offsetY != 0.0) {
             rc.globe!!.geographicToCartesianNormal(position.latitude, position.longitude, scratchVector).also {
-                val altitude = rc.pixelSizeAtDistance(cameraDistance) * sin(rc.camera!!.tilt.inRadians)
+                // Use real camera distance in billboarding
+                val distance = if (isAlwaysOnTop) rc.cameraPoint.distanceTo(placePoint) else cameraDistance
+                val altitude = rc.pixelSizeAtDistance(distance) * sin(rc.camera!!.tilt.inRadians)
                 placePoint.add(scratchVector.multiply(offsetY * altitude))
             }
         }
