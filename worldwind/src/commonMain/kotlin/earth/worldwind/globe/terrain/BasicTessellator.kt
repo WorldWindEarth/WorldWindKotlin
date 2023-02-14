@@ -55,7 +55,6 @@ open class BasicTessellator: Tessellator, TileFactory {
     }
 
     override fun tessellate(rc: RenderContext) {
-        currentTerrain.clear()
         assembleTiles(rc)
         rc.terrain = currentTerrain
         if (!rc.isPickMode) lastTerrain.copy(currentTerrain)
@@ -64,6 +63,9 @@ open class BasicTessellator: Tessellator, TileFactory {
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) = TerrainTile(sector, level, row, column)
 
     protected open fun assembleTiles(rc: RenderContext) {
+        // Clear previous terrain tiles
+        currentTerrain.clear()
+
         // Assemble the terrain buffers and OpenGL buffer objects associated with the level set.
         assembleLevelSetBuffers(rc)
         currentTerrain.triStripElements = levelSetTriStripElements
@@ -73,6 +75,9 @@ open class BasicTessellator: Tessellator, TileFactory {
 
         // Subdivide the top level tiles until the desired resolution is achieved in each part of the scene.
         for (tile in topLevelTiles) addTileOrDescendants(rc, tile as TerrainTile)
+
+        // Sort terrain tiles by L1 distance on cylinder from camera
+        currentTerrain.sort()
 
         // Release references to render resources acquired while assembling tiles.
         levelSetVertexTexCoordBuffer = null
@@ -96,14 +101,14 @@ open class BasicTessellator: Tessellator, TileFactory {
 
     protected open fun addTile(rc: RenderContext, tile: TerrainTile) {
         // Prepare the terrain tile and add it.
-        prepareTile(rc, tile)
+        tile.prepare(rc)
         currentTerrain.addTile(tile)
 
         // Prepare a drawable for the terrain tile for processing on the OpenGL thread.
         val pool = rc.getDrawablePool<BasicDrawableTerrain>()
         val drawable = BasicDrawableTerrain.obtain(pool)
         prepareDrawableTerrain(rc, tile, drawable)
-        rc.offerDrawableTerrain(drawable, tile.drawSortOrder(rc))
+        rc.offerDrawableTerrain(drawable, tile.sortOrder)
     }
 
     protected open fun invalidateTiles() {
@@ -114,36 +119,6 @@ open class BasicTessellator: Tessellator, TileFactory {
         levelSetVertexTexCoords = null
         levelSetLineElements = null
         levelSetTriStripElements = null
-    }
-
-    protected open fun prepareTile(rc: RenderContext, tile: TerrainTile) {
-        val tileWidth = tile.level.tileWidth
-        val tileHeight = tile.level.tileHeight
-        val elevationTimestamp = rc.globe!!.elevationModel.timestamp
-        if (elevationTimestamp !== tile.heightTimestamp) {
-            val heights = tile.heights
-            heights.fill(0f)
-            rc.globe!!.elevationModel.getHeightGrid(tile.sector, tileWidth, tileHeight, heights)
-        }
-        val verticalExaggeration = rc.verticalExaggeration.toFloat()
-        if (verticalExaggeration != tile.verticalExaggeration || elevationTimestamp !== tile.heightTimestamp) {
-            val origin = tile.origin
-            val heights = tile.heights
-            val points = tile.points
-            val borderHeight = tile.minTerrainElevation * verticalExaggeration
-            val rowStride = (tileWidth + 2) * 3
-            rc.globe!!.geographicToCartesian(tile.sector.centroidLatitude, tile.sector.centroidLongitude, 0.0, origin)
-            rc.globe!!.geographicToCartesianGrid(
-                tile.sector, tileWidth, tileHeight, heights, verticalExaggeration,
-                origin, points, rowStride + 3, rowStride
-            )
-            rc.globe!!.geographicToCartesianBorder(
-                tile.sector, tileWidth + 2, tileHeight + 2, borderHeight, origin, points
-            )
-            tile.updatePointBufferKey()
-        }
-        tile.heightTimestamp = elevationTimestamp
-        tile.verticalExaggeration = verticalExaggeration
     }
 
     protected open fun prepareDrawableTerrain(rc: RenderContext, tile: TerrainTile, drawable: BasicDrawableTerrain) {
