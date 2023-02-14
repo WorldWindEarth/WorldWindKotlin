@@ -32,10 +32,9 @@ open class PathsExampleActivity: GeneralGlobeActivity() {
         wwd.engine.layers.addLayer(flightPathLayer)
 
         // Set the camera to look at the area where the symbols will be displayed.
-        val lookAt = LookAt().set(
-            latitude = 47.448982.degrees, longitude = (-122.309311).degrees, altitude = 0.0,
-            altitudeMode = AltitudeMode.ABSOLUTE, range = wwd.engine.distanceToViewGlobeExtents / 4,
-            heading = 0.0.degrees, tilt = 60.0.degrees, roll = 0.0.degrees
+        val lookAt = LookAt(
+            position = Position(47.448982.degrees, (-122.309311).degrees, 0.0), altitudeMode = AltitudeMode.ABSOLUTE,
+            range = wwd.engine.distanceToViewGlobeExtents / 4, heading = 0.0.degrees, tilt = 60.0.degrees, roll = 0.0.degrees
         )
         wwd.engine.cameraFromLookAt(lookAt)
     }
