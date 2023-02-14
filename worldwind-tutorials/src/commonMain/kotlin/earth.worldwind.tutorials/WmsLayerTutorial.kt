@@ -6,22 +6,23 @@ import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.ogc.WmsLayerFactory
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class WmsLayerTutorial(private val engine: WorldWind, private val mainScope: CoroutineScope) : AbstractTutorial() {
+class WmsLayerTutorial(private val engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial() {
 
     private var wmsLayer: TiledImageLayer? = null
-    private var isStarted = false
+    private var job: Job? = null
 
     override fun start() {
         super.start()
-        mainScope.launch {
+        job = scope.launch {
             try {
-                isStarted = true
                 // Create an OGC Web Map Service (WMS) layer to display the
                 // surface temperature layer from NASA's Near Earth Observations WMS.
                 WmsLayerFactory.createLayer("https://neo.gsfc.nasa.gov/wms/wms", listOf("MOD_LSTD_CLIM_M")).also {
-                    if (isStarted) {
+                    if (isActive) {
                         wmsLayer = it
                         engine.layers.addLayer(it)
                         WorldWind.requestRedraw()
@@ -42,7 +43,7 @@ class WmsLayerTutorial(private val engine: WorldWind, private val mainScope: Cor
 
     override fun stop() {
         super.stop()
-        isStarted = false
+        job?.cancel()
         wmsLayer?.let { engine.layers.removeLayer(it) }.also { wmsLayer = null }
     }
 

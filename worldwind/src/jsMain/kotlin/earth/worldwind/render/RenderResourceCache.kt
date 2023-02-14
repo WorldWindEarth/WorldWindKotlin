@@ -13,14 +13,14 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import kotlinx.browser.window
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.Image
 import org.w3c.dom.url.URL
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache(
-    actual val mainScope: CoroutineScope, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
+    capacity: Long = recommendedCapacity(), lowWater: Long = (capacity * 0.75).toLong()
 ) : LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     companion object {
         fun recommendedCapacity(): Long = (window.navigator.asDynamic().deviceMemory as? Number)
@@ -29,6 +29,10 @@ actual open class RenderResourceCache(
 
     override var age = 0L // Manually incrementable cache age
     var urlRetrievalQueueSize = 16
+    /**
+     * Main render resource retrieval scope
+     */
+    actual val mainScope = MainScope()
     /**
      * Identifies requested resources that whose retrieval failed.
      */
@@ -43,6 +47,7 @@ actual open class RenderResourceCache(
         currentRetrievals.clear()
         absentResourceList.clear()
         usedCapacity = 0
+        age = 0
     }
 
     actual fun incAge() { ++age }

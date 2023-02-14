@@ -4,8 +4,9 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Vec3
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -21,11 +22,7 @@ open class GoToAnimator(
     /**
      * The [WorldWind] engine associated with this animator.
      */
-    protected val engine: WorldWind,
-    /**
-     * Main scope to launch animation
-     */
-    protected val mainScope: CoroutineScope
+    protected val engine: WorldWind
 ) {
     /**
      * The frequency in milliseconds at which to animate the position change.
@@ -38,16 +35,15 @@ open class GoToAnimator(
      */
     var travelTime = 3000
     /**
-     * Indicates whether the current or most recent animation has been cancelled. Use the cancel() function
-     * to cancel an animation.
+     * Main scope to launch animation
      */
-    var isCancelled = false
-        protected set
+    protected val mainScope get() = engine.renderResourceCache.mainScope
     /**
      * A temp variable used to hold the current view as a look at during calculations. Using an object level temp
      * property negates the need for ad-hoc allocations and reduces load on the garbage collector.
      */
     protected val lookAt = LookAt()
+    protected var animationJob: Job? = null
     protected var completionCallback: ((GoToAnimator) -> Unit)? = null
     protected var targetPosition: Position? = null
     protected var startPosition: Position? = null
@@ -60,7 +56,7 @@ open class GoToAnimator(
     /**
      * Stop the current animation.
      */
-    fun cancel() { isCancelled = true }
+    fun cancel() { animationJob?.cancel() }
 
     /**
      * Moves the camera to a specified look at location or position.
@@ -73,8 +69,6 @@ open class GoToAnimator(
      */
     open fun goTo(position: Location, completionCallback: ((GoToAnimator) -> Unit)? = null) {
         this.completionCallback = completionCallback
-
-        isCancelled = false // Reset the cancellation flag.
 
         engine.cameraAsLookAt(lookAt)
         // Capture the target position and determine its altitude.
@@ -143,9 +137,10 @@ open class GoToAnimator(
     }
 
     protected open fun setUpAnimationTimer() {
-        mainScope.launch {
+        animationJob?.cancel()
+        animationJob = mainScope.launch {
             delay(animationFrequency)
-            if (isCancelled || !update()) completionCallback?.invoke(this@GoToAnimator) else setUpAnimationTimer()
+            if (!isActive || !update()) completionCallback?.invoke(this@GoToAnimator) else setUpAnimationTimer()
         }
     }
 

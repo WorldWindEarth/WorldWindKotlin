@@ -9,15 +9,19 @@ import earth.worldwind.util.AbsentResourceList
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache @JvmOverloads constructor(
-    actual val mainScope: CoroutineScope, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
+    capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
 ) : LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     override var age = 0L // Manually incrementable cache age
+    /**
+     * Main render resource retrieval scope
+     */
+    actual val mainScope = MainScope()
     /**
      * Identifies requested resources that whose retrieval failed.
      */
@@ -28,6 +32,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         entries.clear() // the cache entries are invalid; clear but don't call entryRemoved
         absentResourceList.clear()
         usedCapacity = 0
+        age = 0
     }
 
     actual fun incAge() { ++age }

@@ -63,7 +63,7 @@ open class WorldWind @JvmOverloads constructor(
     /**
      * The [GoToAnimator] used by this WorldWindow to respond to its goTo method.
      */
-    val goToAnimator = GoToAnimator(this, renderResourceCache.mainScope)
+    val goToAnimator = GoToAnimator(this)
     /**
      * Screen area occupied by this WorldWind.
      */
