@@ -1,5 +1,6 @@
 package earth.worldwind.globe.elevation
 
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage
 import kotlinx.datetime.Instant
@@ -45,6 +46,11 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
     fun clearCoverages() = coverages.clear()
 
     override fun iterator() = coverages.iterator()
+
+    fun getHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float {
+        // coverages composite from fine to coarse
+        return coverages.asReversed().firstNotNullOfOrNull { it.getHeight(latitude, longitude, retrieve) } ?: 0f
+    }
 
     fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         // coverages composite from coarse to fine

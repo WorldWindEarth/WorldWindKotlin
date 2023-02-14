@@ -185,13 +185,10 @@ class CameraControlFragment: BasicGlobeFragment() {
             position.altitude = position.altitude.coerceIn(minAltitude, distanceToExtents)
 
             // Check if camera altitude is not under the surface
-            val ve = wwd.engine.verticalExaggeration
-            if (position.altitude < COLLISION_CHECK_LIMIT * ve + COLLISION_THRESHOLD) {
-                val elevation = wwd.engine.globe.getElevation(
-                    position.latitude, position.longitude
-                ) * ve + COLLISION_THRESHOLD
-                if (elevation > position.altitude) position.altitude = elevation
-            }
+            val elevation = wwd.engine.globe.getElevation(
+                position.latitude, position.longitude
+            ) * wwd.engine.verticalExaggeration + COLLISION_THRESHOLD
+            if (elevation > position.altitude) position.altitude = elevation
 
             // Limit the tilt to between nadir and the horizon (roughly)
             val r = wwd.engine.globe.getRadiusAt(position.latitude, position.longitude)
@@ -201,7 +198,6 @@ class CameraControlFragment: BasicGlobeFragment() {
         }
 
         companion object {
-            private const val COLLISION_CHECK_LIMIT = 8848.86 // Everest mountain altitude
             private const val COLLISION_THRESHOLD = 20.0 // 20m above surface
         }
     }
