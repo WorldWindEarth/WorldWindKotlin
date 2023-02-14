@@ -63,7 +63,7 @@ open class WorldWind @JvmOverloads constructor(
     /**
      * The [GoToAnimator] used by this WorldWindow to respond to its goTo method.
      */
-    val goToAnimator = GoToAnimator(this, renderResourceCache.mainScope)
+    val goToAnimator = GoToAnimator(this)
     /**
      * Screen area occupied by this WorldWind.
      */
@@ -130,6 +130,9 @@ open class WorldWind @JvmOverloads constructor(
      * Reset internal WorldWind state to initial values.
      */
     open fun reset() {
+        // Cancel all async jobs
+        renderResourceCache.cancel()
+
         // Clear the render resource cache; it's entries are now invalid.
         renderResourceCache.clear()
 

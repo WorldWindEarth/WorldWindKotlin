@@ -35,15 +35,11 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     /**
      * Main WorldWindow scope to execute jobs which should be cancelled on GL surface destroy
      */
-    val mainScope = MainScope()
+    val mainScope get() = engine.renderResourceCache.mainScope
     /**
      * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic
      */
-    open val engine = WorldWind(
-        AndroidKgl(), // Android OpenGL ES implementation
-        RenderResourceCache(mainScope, context, RenderResourceCache.recommendedCapacity(context)),
-        frameMetrics = BasicFrameMetrics()
-    )
+    open val engine = WorldWind(AndroidKgl(), RenderResourceCache(context), frameMetrics = BasicFrameMetrics())
     /**
      * Current WorldWindow camera and gestures controller
      */
@@ -67,16 +63,11 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     }
 
     /**
-     * Constructs a WorldWindow associated with the specified application context. This is the constructor to use when
-     * creating a WorldWindow from code.
-     */
-    constructor(context: Context): super(context) { this.init(null) }
-
-    /**
      * Constructs a WorldWindow associated with the specified application context and EGL configuration chooser. This is
      * the constructor to use when creating a WorldWindow from code.
      */
-    constructor(context: Context, configChooser: EGLConfigChooser): super(context) { this.init(configChooser) }
+    @JvmOverloads
+    constructor(context: Context, configChooser: EGLConfigChooser? = null): super(context) { this.init(configChooser) }
 
     /**
      * Constructs a WorldWindow associated with the specified application context and attributes from an XML tag. This
@@ -341,9 +332,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
      */
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         super.surfaceDestroyed(holder)
-
-        // Cancel all async jobs but keep scope reusable
-        mainScope.coroutineContext.cancelChildren()
 
         // Reset any state associated with navigator events.
         navigatorEvents.reset()

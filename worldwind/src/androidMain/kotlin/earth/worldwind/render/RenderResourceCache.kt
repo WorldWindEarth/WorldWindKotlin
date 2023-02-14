@@ -17,8 +17,9 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import io.ktor.client.network.sockets.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
@@ -26,7 +27,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache @JvmOverloads constructor(
-    actual val mainScope: CoroutineScope, val context: Context, capacity: Long, lowWater: Long = (capacity * 0.75).toLong()
+    val context: Context, capacity: Long = recommendedCapacity(context), lowWater: Long = (capacity * 0.75).toLong()
 ): LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     companion object {
         protected const val STALE_AGE = 300L
@@ -48,6 +49,10 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     protected val urlRetrievals = mutableSetOf<ImageSource>()
     protected val localRetrievals = mutableSetOf<ImageSource>()
     /**
+     * Main render resource retrieval scope
+     */
+    actual val mainScope = MainScope()
+    /**
      * Identifies requested resources that whose retrieval failed.
      */
     actual val absentResourceList = AbsentResourceList<Int>(3, 60.seconds)
@@ -63,7 +68,10 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         localRetrievals.clear()
         absentResourceList.clear()
         usedCapacity = 0
+        age = 0
     }
+
+    actual fun cancel() = mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
 
     actual fun incAge() { ++age }
 

@@ -12,8 +12,6 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.WebKgl
 import kotlinx.browser.window
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import org.khronos.webgl.WebGLContextAttributes
 import org.khronos.webgl.WebGLContextEvent
@@ -45,11 +43,11 @@ open class WorldWindow(
     /**
      * Main WorldWindow scope to execute jobs which should be cancelled on GL context lost
      */
-    val mainScope = MainScope()
+    val mainScope get() = engine.renderResourceCache.mainScope
     /**
      * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
      */
-    open val engine = WorldWind(WebKgl(gl), RenderResourceCache(mainScope, cacheCapacity))
+    open val engine = WorldWind(WebKgl(gl), RenderResourceCache(cacheCapacity))
     /**
      * List of registered event listeners for the specified event type on this WorldWindow's canvas.
      */
@@ -267,9 +265,6 @@ open class WorldWindow(
         // Stop the rendering animation frame loop, resuming only if the WebGL context is restored.
         window.cancelAnimationFrame(redrawRequestId)
 
-        // Cancel all async jobs but keep scope reusable
-        mainScope.coroutineContext.cancelChildren()
-
         // Remove all cached WebGL resources, which are now invalid.
         engine.reset()
     }
@@ -279,10 +274,8 @@ open class WorldWindow(
      * this draw context to resume rendering.
      */
     protected open fun contextRestored() {
-        // Remove all cached WebGL resources. This cache is already cleared when the context is lost, but
-        // asynchronous load operations that complete between context lost and context restored populate the cache
-        // with invalid entries.
-        engine.reset()
+        // Remove all cached WebGL resources, which are now invalid.
+        engine.renderResourceCache.clear()
 
         // Specify the default WorldWind OpenGL state.
         engine.setupDrawContext()
