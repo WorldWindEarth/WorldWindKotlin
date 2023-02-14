@@ -74,6 +74,10 @@ open class Label @JvmOverloads constructor(
      * simply it's position property.
      */
     override val referencePosition get() = position
+    /**
+     * Indicates whether this placemark has visual priority over other shapes in the scene.
+     */
+    var isAlwaysOnTop = false
 
     companion object {
         /**
@@ -104,7 +108,7 @@ open class Label @JvmOverloads constructor(
 
         // Compute the camera distance to the place point, the value which is used for ordering the label drawable and
         // determining the amount of depth offset to apply.
-        renderData.cameraDistance = rc.cameraPoint.distanceTo(renderData.placePoint)
+        renderData.cameraDistance = if (isAlwaysOnTop) 0.0 else rc.cameraPoint.distanceTo(renderData.placePoint)
 
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0
