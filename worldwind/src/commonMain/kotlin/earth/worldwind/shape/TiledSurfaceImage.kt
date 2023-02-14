@@ -10,7 +10,10 @@ import earth.worldwind.render.Texture
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.render.program.SurfaceTextureProgram
-import earth.worldwind.util.*
+import earth.worldwind.util.LevelSet
+import earth.worldwind.util.LruMemoryCache
+import earth.worldwind.util.Tile
+import earth.worldwind.util.TileFactory
 
 open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): AbstractRenderable("Tiled Surface Image") {
     /**
