@@ -31,11 +31,15 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected var pickedRenderable: Renderable? = null
     protected val oldHighlighted = mutableSetOf<Highlightable>()
     protected val newHighlighted = mutableSetOf<Highlightable>()
-    protected var isDragArmed = false
+    protected var isDragging = false
+    protected var isDraggingArmed = false
     private val dragRefPt = Vec2()
     private val lastTranslation = Vec2()
 
     protected val handlePick = EventListener { event ->
+        // Do not pick new items if dragging is in progress or detector is disabled
+        if (isDragging || !isEnabled) return@EventListener
+
         // Determine pick point from event
         var clientX = 0
         var clientY = 0
@@ -52,9 +56,6 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
             }
             else -> return@EventListener
         }
-
-        // Do not pick new items until drag in progress or listener is disabled
-        if (isDragArmed || !isEnabled) return@EventListener
 
         // Reset previous pick result
         pickedPosition = null
@@ -112,17 +113,8 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // Take reference position as a backup, if user pressed outside the globe
         if (topPickedObject is Movable && pickedPosition == null) pickedPosition = topPickedObject.referencePosition
 
-        // Resolve conflict between item movement and globe rotation
-        if (topPickedObject is Renderable && callback?.canMoveRenderable(topPickedObject) == true) {
-            val controller = wwd.controller
-            if (controller is BasicWorldWindowController) {
-                controller.primaryDragRecognizer.state = FAILED
-                controller.panRecognizer.state = FAILED
-            }
-        } else {
-            dragRecognizer.state = FAILED
-            panRecognizer.state = FAILED
-        }
+        // Determine whether the dragging flag should be "armed".
+        isDraggingArmed = topPickedObject is Renderable && callback?.canMoveRenderable(topPickedObject) == true
     }
 
     protected val handlePrimaryClick: (GestureRecognizer) -> Unit = {
@@ -150,12 +142,14 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected val handleDrag: (GestureRecognizer) -> Unit = { recognizer ->
         when (recognizer.state) {
             BEGAN, CHANGED -> {
-                isDragArmed = true
                 val callback = callback
                 val renderable = pickedRenderable
                 // Reference position is a priority during movement
                 val toPosition = if (renderable is Movable) renderable.referencePosition else pickedPosition
                 if (toPosition != null && renderable != null && callback != null) {
+                    // Signal that dragging is in progress
+                    isDragging = true
+
                     // First we compute the screen coordinates of the position's "ground" point. We'll apply the
                     // screen X and Y drag distances to this point, from which we'll compute a new position,
                     // wherein we restore the original position's altitude.
@@ -194,9 +188,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                     callback.onRenderableMovingFinished(renderable, position)
                     wwd.requestRedraw()
                 }
-                isDragArmed = false
+                cancelDragging()
             }
-            CANCELLED -> isDragArmed = false
+            CANCELLED -> cancelDragging()
             else -> {}
         }
     }
@@ -205,11 +199,15 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected val tapRecognizer = TapRecognizer(wwd.canvas, handlePrimaryClick)
     protected val secondaryClickRecognizer = ClickRecognizer(wwd.canvas, handleSecondaryClick).apply { button = 2 } // Secondary mouse button
     protected val doubleTapRecognizer = TapRecognizer(wwd.canvas, handleSecondaryClick).apply { numberOfTaps = 2 } // Double tap
-    protected val dragRecognizer = DragRecognizer(wwd.canvas, handleDrag)
-    protected val panRecognizer = PanRecognizer(wwd.canvas, handleDrag)
+    protected val dragRecognizer = object : DragRecognizer(wwd.canvas, handleDrag) {
+        override fun shouldRecognize() = super.shouldRecognize() && isDraggingArmed
+    }
+    protected val panRecognizer = object : PanRecognizer(wwd.canvas, handleDrag) {
+        override fun shouldRecognize() = super.shouldRecognize() && isDraggingArmed
+    }
 
     companion object {
-        //        const val SLOPE = 16
+//        const val SLOPE = 16
         const val HIGHLIGHT_LOCKED_KEY = "highlight_locked"
     }
 
@@ -218,5 +216,17 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         wwd.addEventListener("mousemove", handlePick)
         wwd.addEventListener("touchstart", handlePick)
         wwd.addEventListener("touchmove", handlePick)
+
+        // Resolve conflict between item movement and globe rotation
+        val controller = wwd.controller
+        if (controller is BasicWorldWindowController) {
+            controller.primaryDragRecognizer.requireRecognizerToFail(dragRecognizer)
+            controller.panRecognizer.requireRecognizerToFail(panRecognizer)
+        }
+    }
+
+    protected fun cancelDragging() {
+        isDragging = false
+        isDraggingArmed = false
     }
 }

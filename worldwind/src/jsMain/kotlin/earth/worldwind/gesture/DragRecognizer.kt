@@ -17,19 +17,21 @@ open class DragRecognizer(
 
     override fun mouseMove(event: MouseEvent) {
         if (state == POSSIBLE) {
-            if (shouldInterpret()) state = if (shouldRecognize()) {
-                // set translation to zero when the drag begins
-                resetTranslation()
-                BEGAN
-            } else {
-                FAILED
+            if (shouldInterpret()) {
+                state = if (shouldRecognize()) {
+                    resetTranslation() // set translation to zero when the drag begins
+                    BEGAN
+                } else {
+                    FAILED
+                }
             }
         } else if (state == BEGAN || state == CHANGED) state = CHANGED
     }
 
     override fun mouseUp(event: MouseEvent) {
-        if (mouseButtonMask == 0) // last button up
+        if (mouseButtonMask == 0) { // last button up
             if (state == POSSIBLE) state = FAILED else if (state == BEGAN || state == CHANGED) state = ENDED
+        }
     }
 
     override fun touchStart(touch: TouchWrapper) {
