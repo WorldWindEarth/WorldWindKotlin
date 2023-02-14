@@ -23,13 +23,46 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     internal val minTerrainElevation = -Short.MAX_VALUE.toFloat()
     internal var heightTimestamp = Instant.DISTANT_PAST
     internal var verticalExaggeration = 0.0f
+    var sortOrder = 0.0
+        protected set
     private lateinit var pointBufferKey: String
 
-    fun updatePointBufferKey() { pointBufferKey = "TerrainTile.points.$tileKey.${pointBufferSequence++}" }
+    open fun prepare(rc: RenderContext) {
+        val globe = rc.globe!!
+        val tileWidth = level.tileWidth
+        val tileHeight = level.tileHeight
+        val timestamp = globe.elevationModel.timestamp
+        if (timestamp !== heightTimestamp) {
+            val heights = heights
+            heights.fill(0f)
+            globe.elevationModel.getHeightGrid(sector, tileWidth, tileHeight, heights)
+        }
+        val ve = rc.verticalExaggeration.toFloat()
+        if (ve != verticalExaggeration || timestamp !== heightTimestamp) {
+            val origin = origin
+            val heights = heights
+            val points = points
+            val borderHeight = minTerrainElevation * ve
+            val rowStride = (tileWidth + 2) * 3
+            globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude, 0.0, origin)
+            globe.geographicToCartesianGrid(
+                sector, tileWidth, tileHeight, heights, ve, origin, points, rowStride + 3, rowStride
+            )
+            globe.geographicToCartesianBorder(
+                sector, tileWidth + 2, tileHeight + 2, borderHeight, origin, points
+            )
+            updatePointBufferKey()
+        }
+        heightTimestamp = timestamp
+        verticalExaggeration = ve
+        sortOrder = drawSortOrder(rc)
+    }
 
     fun getPointBuffer(rc: RenderContext) = rc.getBufferObject(pointBufferKey) {
         FloatBufferObject(GL_ARRAY_BUFFER, points)
     }
+
+    protected fun updatePointBufferKey() { pointBufferKey = "TerrainTile.points.$tileKey.${pointBufferSequence++}" }
 
     companion object {
         private var pointBufferSequence = 0L // must be static to avoid cache collisions when a tile instances is destroyed and re-created

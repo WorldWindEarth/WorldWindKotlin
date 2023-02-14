@@ -52,13 +52,13 @@ open class Tile protected constructor(
     /**
      * The tile's Cartesian bounding box.
      */
-    protected var extent: BoundingBox? = null
+    protected val extent by lazy { BoundingBox() }
     /**
      * The nearest point on the tile to the camera. Altitude value is based on the minimum height for the tile.
      */
     protected val nearestPoint = Vec3()
 
-    protected var heightLimits: FloatArray? = null
+    protected val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = Instant.DISTANT_PAST
     protected var extentExaggeration = 0.0f
 
@@ -158,25 +158,26 @@ open class Tile protected constructor(
     ) = cache[tileKey] ?: subdivide(tileFactory).also { cache.put(tileKey, it, cacheSize) }
 
     protected open fun getExtent(rc: RenderContext): BoundingBox {
-        val heightLimits = heightLimits ?: FloatArray(2).also { heightLimits = it }
-        val extent = extent ?: BoundingBox().also { extent = it }
-        val elevationTimestamp = rc.globe!!.elevationModel.timestamp
-        if (elevationTimestamp !== heightLimitsTimestamp) {
+        val globe = rc.globe!!
+        val heightLimits = heightLimits
+        val extent = extent
+        val timestamp = globe.elevationModel.timestamp
+        if (timestamp !== heightLimitsTimestamp) {
             // initialize the heights for elevation model scan
             heightLimits[0] = Float.MAX_VALUE
             heightLimits[1] = -Float.MAX_VALUE
-            rc.globe!!.elevationModel.getHeightLimits(sector, heightLimits)
+            globe.elevationModel.getHeightLimits(sector, heightLimits)
             // check for valid height limits
             if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
         }
-        val verticalExaggeration = rc.verticalExaggeration.toFloat()
-        if (verticalExaggeration != extentExaggeration || elevationTimestamp !== heightLimitsTimestamp) {
-            val minHeight = heightLimits[0] * verticalExaggeration
-            val maxHeight = heightLimits[1] * verticalExaggeration
-            extent.setToSector(sector, rc.globe!!, minHeight, maxHeight)
+        val ve = rc.verticalExaggeration.toFloat()
+        if (ve != extentExaggeration || timestamp !== heightLimitsTimestamp) {
+            val minHeight = heightLimits[0] * ve
+            val maxHeight = heightLimits[1] * ve
+            extent.setToSector(sector, globe, minHeight, maxHeight)
         }
-        heightLimitsTimestamp = elevationTimestamp
-        extentExaggeration = verticalExaggeration
+        heightLimitsTimestamp = timestamp
+        extentExaggeration = ve
         return extent
     }
 
@@ -187,11 +188,12 @@ open class Tile protected constructor(
      *
      * @return the L1 distance in degrees
      */
-    open fun drawSortOrder(rc: RenderContext): Double {
+    protected open fun drawSortOrder(rc: RenderContext): Double {
+        val cameraPosition = rc.camera!!.position
         // determine the nearest latitude
-        val latAbsDifference = abs(rc.camera!!.position.latitude.inDegrees - sector.centroidLatitude.inDegrees)
+        val latAbsDifference = abs(cameraPosition.latitude.inDegrees - sector.centroidLatitude.inDegrees)
         // determine the nearest longitude and account for the antimeridian discontinuity
-        val lonAbsDifference = abs(rc.camera!!.position.longitude.inDegrees - sector.centroidLongitude.inDegrees)
+        val lonAbsDifference = abs(cameraPosition.longitude.inDegrees - sector.centroidLongitude.inDegrees)
         val lonAbsDifferenceCorrected = min(lonAbsDifference, 360.0 - lonAbsDifference)
 
         return latAbsDifference + lonAbsDifferenceCorrected // L1 distance on cylinder
@@ -205,16 +207,17 @@ open class Tile protected constructor(
      * @return the distance in meters
      */
     protected open fun distanceToCamera(rc: RenderContext): Double {
+        val cameraPosition = rc.camera!!.position
         // determine the nearest latitude
-        val nearestLat = rc.camera!!.position.latitude.coerceIn(sector.minLatitude, sector.maxLatitude)
+        val nearestLat = cameraPosition.latitude.coerceIn(sector.minLatitude, sector.maxLatitude)
         // determine the nearest longitude and account for the antimeridian discontinuity
-        val lonDifference = rc.camera!!.position.longitude.inDegrees - sector.centroidLongitude.inDegrees
+        val lonDifference = cameraPosition.longitude.inDegrees - sector.centroidLongitude.inDegrees
         val nearestLon = when {
             lonDifference < -180.0 -> sector.maxLongitude
             lonDifference > 180.0 -> sector.minLongitude
-            else -> rc.camera!!.position.longitude.coerceIn(sector.minLongitude, sector.maxLongitude)
+            else -> cameraPosition.longitude.coerceIn(sector.minLongitude, sector.maxLongitude)
         }
-        val minHeight = heightLimits!![0] * rc.verticalExaggeration
+        val minHeight = heightLimits[0] * rc.verticalExaggeration
         rc.geographicToCartesian(nearestLat, nearestLon, minHeight, AltitudeMode.ABSOLUTE, nearestPoint)
         return rc.cameraPoint.distanceTo(nearestPoint)
     }
@@ -259,7 +262,7 @@ open class Tile protected constructor(
          *
          * @param tileDelta   the level's tile delta
          * @param maxLatitude the tile's maximum latitude
-         * @param origin    the origin of the grid
+         * @param origin      the origin of the grid
          *
          * @return the computed row number
          */
@@ -276,7 +279,7 @@ open class Tile protected constructor(
          *
          * @param tileDelta    the level's tile delta
          * @param maxLongitude the tile's maximum longitude
-         * @param origin    the origin of the grid
+         * @param origin       the origin of the grid
          *
          * @return The computed column number
          */

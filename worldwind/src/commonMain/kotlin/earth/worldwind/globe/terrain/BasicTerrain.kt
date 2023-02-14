@@ -30,9 +30,13 @@ open class BasicTerrain: Terrain {
         triStripElements = terrain.triStripElements
     }
 
+    open fun sort() = tiles.sortBy { it.sortOrder }
+
     override fun intersect(line: Line, result: Vec3): Boolean {
-        val triStripElements = triStripElements ?: return false
-        var minDist2 = Double.POSITIVE_INFINITY
+        var found = false
+        val triStripElements = triStripElements ?: return found
+
+        // Tiles considered as sorted by L1 distance on cylinder from camera
         for (tile in tiles) {
             // Translate the line to the terrain tile's local coordinate system.
             line.origin.subtract(tile.origin)
@@ -41,17 +45,17 @@ open class BasicTerrain: Terrain {
             // intersection points behind the line's origin are ignored. Store the nearest intersection found so far
             // in the result argument.
             if (line.triStripIntersection(tile.points, 3, triStripElements, triStripElements.size, intersectPoint)) {
-                val dist2 = line.origin.distanceToSquared(intersectPoint)
-                if (minDist2 > dist2) {
-                    minDist2 = dist2
-                    result.copy(intersectPoint).add(tile.origin)
-                }
+                result.copy(intersectPoint).add(tile.origin)
+                found = true
             }
 
             // Restore the line's origin to its previous coordinate system.
             line.origin.add(tile.origin)
+
+            // Do not analyze other tiles as they are sorted by distance from camera
+            if (found) break
         }
-        return minDist2 != Double.POSITIVE_INFINITY
+        return found
     }
 
     override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean {
