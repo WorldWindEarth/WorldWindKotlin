@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")
+
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
@@ -103,7 +105,7 @@ kotlin {
             dependsOn(jvmCommonMain)
             dependencies {
                 implementation("androidx.annotation:annotation:1.5.0")
-                implementation("androidx.appcompat:appcompat-resources:1.5.1")
+                implementation("androidx.appcompat:appcompat-resources:1.6.1")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.50")
             }
         }
@@ -114,8 +116,8 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("io.mockk:mockk-android:$mockkVersion")
-                implementation("androidx.test.ext:junit:1.1.3")
-                implementation("androidx.test:rules:1.4.0")
+                implementation("androidx.test.ext:junit:1.1.5")
+                implementation("androidx.test:rules:1.5.0")
             }
         }
     }
