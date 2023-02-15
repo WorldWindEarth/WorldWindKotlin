@@ -311,7 +311,7 @@ open class BoundingBox {
 
     private fun intersectsAt(plane: Plane): Double {
         val n = plane.normal
-        val effectiveRadius = 0.5 * (abs(s.dot(n)) + abs(t.dot(n)))
+        val effectiveRadius = 0.5 * (abs(s.dot(n)) + abs(t.dot(n)) + abs(r.dot(n)))
 
         // Test the distance from the first end-point.
         val dq1 = plane.dot(endPoint1)
