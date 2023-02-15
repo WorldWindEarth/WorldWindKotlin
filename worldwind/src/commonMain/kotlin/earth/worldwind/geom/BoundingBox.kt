@@ -309,9 +309,38 @@ open class BoundingBox {
                 && intersectsAt(frustum.top) >= 0 && intersectsAt(frustum.bottom) >= 0
     }
 
+    /**
+     * Returns the effective radius of this box relative to a specified plane, using only this box's S and T axes. This
+     * is an optimization available when using the effective radius to test the distance from a plane to the line
+     * segment along this box's R axis, as is done in this class' [.intersects] method. See Lengyel, 2
+     * Ed, Section 7.2.4.
+     *
+     * @param plane the plane in question.
+     *
+     * @return the effective radius of this box relative to the specified plane, using only this box's S and T axes to
+     * determine the effective radius.
+     */
+    protected open fun getEffectiveRadius2(plane: Plane): Double {
+        if (plane == null) return 0.0
+
+        // Determine the effective radius of the box axis relative to the plane, use only the S and T axes because the
+        // R axis is incorporated into the endpoints of the line this place is being tested against.
+        val n = plane.normal
+        return 0.5 * (abs(s.dot(n)) + abs(t.dot(n)))
+    }
+
+    /** {@inheritDoc}  */
+    open fun getEffectiveRadius(plane: Plane): Double {
+        if (plane == null) return 0.0
+
+        // Determine the effective radius of the box axis relative to the plane.
+        val n = plane.normal
+        return 0.5 * (abs(s.dot(n)) + abs(t.dot(n)) + abs(r.dot(n)))
+    }
+
     private fun intersectsAt(plane: Plane): Double {
         val n = plane.normal
-        val effectiveRadius = 0.5 * (abs(s.dot(n)) + abs(t.dot(n)))
+        val effectiveRadius = getEffectiveRadius(plane)
 
         // Test the distance from the first end-point.
         val dq1 = plane.dot(endPoint1)
