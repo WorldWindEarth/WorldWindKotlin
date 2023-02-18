@@ -313,7 +313,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         super.surfaceCreated(holder)
 
         // Subscribe on events from WorldWind's global event bus.
-        mainScope.launch {
+        mainScope.launch(Dispatchers.Main.immediate) {
             WorldWind.events.collect {
                 when (it) {
                     is WorldWind.Event.RequestRedraw -> requestRedraw()

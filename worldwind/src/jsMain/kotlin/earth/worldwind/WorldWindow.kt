@@ -12,6 +12,7 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.WebKgl
 import kotlinx.browser.window
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.khronos.webgl.WebGLContextAttributes
 import org.khronos.webgl.WebGLContextEvent
@@ -287,7 +288,7 @@ open class WorldWindow(
         gl.getExtension("WEBGL_depth_texture")
 
         // Subscribe on events from WorldWind's global event bus.
-        mainScope.launch {
+        mainScope.launch(Dispatchers.Main.immediate) {
             WorldWind.events.collect {
                 when (it) {
                     is WorldWind.Event.RequestRedraw -> requestRedraw()
