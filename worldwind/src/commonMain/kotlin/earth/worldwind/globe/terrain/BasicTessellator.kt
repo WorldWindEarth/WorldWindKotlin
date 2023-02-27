@@ -90,7 +90,7 @@ open class BasicTessellator: Tessellator, TileFactory {
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: TerrainTile) {
         // ignore the tile and its descendants if it's not needed or not visible
-        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc, rc.frustum)) return
+        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc)) return
         if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
             addTile(rc, tile)
             return  // use the tile if it does not need to be subdivided
