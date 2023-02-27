@@ -500,7 +500,7 @@ open class Placemark @JvmOverloads constructor(
          * If [Placemark.isEyeDistanceScaling] is true, this placemark's image, label and leader sizes are reduced as
          * the eye distance increases beyond this threshold.
          */
-        protected const val DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD = 4e5
+        const val DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD = 4e5
         protected const val DEFAULT_DEPTH_OFFSET = -0.03
         private val placePoint = Vec3()
         private val scratchVector = Vec3()
