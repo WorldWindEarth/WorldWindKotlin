@@ -20,7 +20,7 @@ abstract class AbstractTiledElevationCoverage(
     tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory,
 ): AbstractElevationCoverage() {
     companion object {
-        protected const val GET_HEIGHT_LIMIT_SAMPLES = 8
+        protected const val GET_HEIGHT_LIMIT_SAMPLES = 64
     }
 
     var tileMatrixSet: TileMatrixSet = tileMatrixSet
@@ -41,11 +41,18 @@ abstract class AbstractTiledElevationCoverage(
      * The list of elevation retrievals in progress.
      */
     protected val currentRetrievals = mutableSetOf<Long>()
-    protected val coverageCache = LruMemoryCache<Long, ShortArray>(1024 * 1024 * 8)
+    protected var coverageCache = LruMemoryCache<Long, ShortArray>(1024 * 1024 * 64)
     protected var isRetrievalEnabled = false
     protected val absentResourceList = AbsentResourceList<Long>(3, 5.seconds)
 
     init { log(INFO, "Coverage cache initialized %.0f KB".format(coverageCache.capacity / 1024.0)) }
+
+    /**
+     * Setup custom coverage cache size according to device capabilities and user needs.
+     */
+    fun setupCoverageCache(capacity: Long, lowWater: Long = (capacity * 0.75).toLong()) {
+        coverageCache = LruMemoryCache(capacity, lowWater)
+    }
 
     override fun invalidateTiles() {
         currentRetrievals.clear()
