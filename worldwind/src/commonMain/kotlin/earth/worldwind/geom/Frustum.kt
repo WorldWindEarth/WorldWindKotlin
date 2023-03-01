@@ -11,7 +11,7 @@ open class Frustum {
     internal val near = Plane(0.0, 0.0, -1.0, 1.0)
     internal val far = Plane(0.0, 0.0, 1.0, 1.0)
     internal val viewport = Viewport(0, 0, 1, 1)
-    protected val planes = arrayOf(left, right, top, bottom, near, far)
+    internal val planes = arrayOf(near, far, left, right, top, bottom)
     private val scratchMatrix = Matrix4()
 
     /**

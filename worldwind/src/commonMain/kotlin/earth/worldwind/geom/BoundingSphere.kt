@@ -21,6 +21,7 @@ open class BoundingSphere {
             }
             field = value
         }
+    private var coherentPlaneIdx = -1
 
     /**
      * Sets this bounding sphere to the specified center point and radius.
@@ -48,9 +49,14 @@ open class BoundingSphere {
         // -radius, the extent is completely clipped by that plane and therefore does not intersect the space enclosed
         // by this Frustum.
         val nr = -radius
-        return frustum.near.distanceToPoint(center) > nr && frustum.far.distanceToPoint(center) > nr
-                && frustum.left.distanceToPoint(center) > nr && frustum.right.distanceToPoint(center) > nr
-                && frustum.top.distanceToPoint(center) > nr && frustum.bottom.distanceToPoint(center) > nr
+        // There is a high probability that the node is outside the same coherent plane as last frame.
+        // Start testing against that plane hoping for fast rejection.
+        val coherentPlane = if (coherentPlaneIdx >= 0) frustum.planes[coherentPlaneIdx] else null
+        var idx = -1
+        return coherentPlane?.let { it.distanceToPoint(center) > nr } != false && frustum.planes.all { plane ->
+            (++idx == coherentPlaneIdx || plane.distanceToPoint(center) > nr).also { if (!it) coherentPlaneIdx = idx }
+        }
+
     }
 
     override fun equals(other: Any?): Boolean {

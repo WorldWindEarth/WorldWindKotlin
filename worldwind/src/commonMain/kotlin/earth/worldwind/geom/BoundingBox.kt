@@ -43,6 +43,7 @@ open class BoundingBox {
     private val endPoint2 = Vec3()
     private val scratchHeights = FloatArray(NUM_LAT * NUM_LON)
     private val scratchPoints = FloatArray(NUM_LAT * NUM_LON * 3)
+    private var coherentPlaneIdx = -1
 
     /**
      * Indicates whether this bounding box is a unit box centered at the Cartesian origin (0, 0, 0).
@@ -304,9 +305,13 @@ open class BoundingBox {
     fun intersectsFrustum(frustum: Frustum): Boolean {
         endPoint1.copy(bottomCenter)
         endPoint2.copy(topCenter)
-        return intersectsAt(frustum.near) >= 0 && intersectsAt(frustum.far) >= 0
-                && intersectsAt(frustum.left) >= 0 && intersectsAt(frustum.right) >= 0
-                && intersectsAt(frustum.top) >= 0 && intersectsAt(frustum.bottom) >= 0
+        // There is a high probability that the node is outside the same coherent plane as last frame.
+        // Start testing against that plane hoping for fast rejection.
+        val coherentPlane = if (coherentPlaneIdx >= 0) frustum.planes[coherentPlaneIdx] else null
+        var idx = -1
+        return coherentPlane?.let { intersectsAt(it) >= 0 } != false && frustum.planes.all { plane ->
+            (++idx == coherentPlaneIdx || intersectsAt(plane) >= 0).also { if (!it) coherentPlaneIdx = idx }
+        }
     }
 
     private fun intersectsAt(plane: Plane): Double {
