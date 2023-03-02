@@ -1,9 +1,9 @@
 plugins {
-    val kotlinVersion = "1.7.20"
+    val kotlinVersion = "1.8.10"
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("android") version kotlinVersion apply false
-    id("org.jetbrains.dokka") version kotlinVersion apply false
+    id("org.jetbrains.dokka") version "1.7.20" apply false
     id("com.android.library") apply false
     id("com.android.application") apply false
 }

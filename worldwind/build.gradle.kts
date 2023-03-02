@@ -27,7 +27,7 @@ kotlin {
         browser {
             commonWebpackConfig {
                 cssSupport {
-                    enabled = true
+                    enabled.set(true)
                 }
             }
         }
@@ -104,15 +104,15 @@ kotlin {
         val androidMain by getting {
             dependsOn(jvmCommonMain)
             dependencies {
-                implementation("androidx.annotation:annotation:1.5.0")
+                implementation("androidx.annotation:annotation:1.6.0")
                 implementation("androidx.appcompat:appcompat-resources:1.6.1")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.50")
             }
         }
-        val androidTest by getting {
+        val androidUnitTest by getting {
             dependsOn(jvmCommonTest)
         }
-        val androidAndroidTest by getting {
+        val androidInstrumentedTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("io.mockk:mockk-android:$mockkVersion")
@@ -127,6 +127,7 @@ android {
     namespace = project.group.toString()
     compileSdk = extra["targetSdk"] as Int
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
+    sourceSets["main"].res.srcDir(File(buildDir, "generated/moko/androidMain/res")) // Fix for Moko resources
     defaultConfig {
         minSdk = extra["minSdk"] as Int
         targetSdk = extra["targetSdk"] as Int
