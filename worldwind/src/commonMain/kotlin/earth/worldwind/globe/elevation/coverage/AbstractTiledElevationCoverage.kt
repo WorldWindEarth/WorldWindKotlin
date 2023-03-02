@@ -41,7 +41,7 @@ abstract class AbstractTiledElevationCoverage(
      * The list of elevation retrievals in progress.
      */
     protected val currentRetrievals = mutableSetOf<Long>()
-    protected var coverageCache = LruMemoryCache<Long, ShortArray>(1024 * 1024 * 64)
+    protected var coverageCache = LruMemoryCache<Long, TileArray>(1024 * 1024 * 64)
     protected var isRetrievalEnabled = false
     protected val absentResourceList = AbsentResourceList<Long>(3, 5.seconds)
 
@@ -72,7 +72,7 @@ abstract class AbstractTiledElevationCoverage(
             val deltaLon = tileMatrix.sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
             val row = floor((tileMatrix.sector.maxLatitude.inDegrees - latitude.inDegrees) / deltaLat).toInt()
             val col = floor((longitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
-            fetchTileArray(tileMatrix, row, col)?.let {
+            fetchTileArray(tileMatrix, row, col)?.value?.let {
                 val maxLat = tileMatrix.sector.maxLatitude.inDegrees - deltaLat * row
                 val minLon = tileMatrix.sector.minLongitude.inDegrees + deltaLon * col
                 val maxX = tileMatrix.tileWidth - 1
@@ -121,7 +121,7 @@ abstract class AbstractTiledElevationCoverage(
             isRetrievalEnabled = idx == targetIdx || idx == 0
             val tileMatrix = tileMatrixSet.entries[idx]
             if (fetchTileBlock(sector, tileMatrix, tileBlock)) {
-                scanHeightLimits(sector, tileBlock, result)
+                scanHeightLimitsSimplified(sector, tileBlock, result)
                 return
             }
         }
@@ -244,7 +244,7 @@ abstract class AbstractTiledElevationCoverage(
         return true
     }
 
-    protected open fun fetchTileArray(tileMatrix: TileMatrix, row: Int, column: Int): ShortArray? {
+    protected open fun fetchTileArray(tileMatrix: TileMatrix, row: Int, column: Int): TileArray? {
         val key = tileMatrix.tileKey(row, column)
         return coverageCache[key] ?: run {
             // Ignore retrieval of already requested or marked as absent tiles
@@ -260,7 +260,13 @@ abstract class AbstractTiledElevationCoverage(
     protected abstract fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int)
 
     protected fun retrievalSucceeded(key: Long, value: ShortArray) {
-        coverageCache.put(key, value, value.size * 2)
+        var minHeight = Short.MAX_VALUE
+        var maxHeight = Short.MIN_VALUE
+        for (texel in value) {
+            if (minHeight > texel) minHeight = texel
+            if (maxHeight < texel) maxHeight = texel
+        }
+        coverageCache.put(key, TileArray(value, minHeight, maxHeight), value.size * 2)
         absentResourceList.unmarkResourceAbsent(key)
         currentRetrievals -= key
         updateTimestamp()
@@ -374,7 +380,7 @@ abstract class AbstractTiledElevationCoverage(
                 val colIMax = colIMin + tileWidth - 1
                 val i0 = iMin.coerceIn(colIMin, colIMax) % tileWidth
                 val i1 = iMax.coerceIn(colIMin, colIMax) % tileWidth
-                tileBlock.getTileArray(row, col)?.let { tileArray ->
+                tileBlock.getTileArray(row, col)?.value?.let { tileArray ->
                     // TODO how often do we read all of tileArray?
                     for (j in j0..j1) for (i in i0..i1) {
                         val pos = i + j * tileWidth
@@ -384,6 +390,13 @@ abstract class AbstractTiledElevationCoverage(
                     }
                 }
             }
+        }
+    }
+
+    protected open fun scanHeightLimitsSimplified(sector: Sector, tileBlock: TileBlock, result: FloatArray) {
+        for (row in tileBlock.rows.keys) for (col in tileBlock.cols.keys) tileBlock.getTileArray(row, col)?.run {
+            if (result[0] > minHeight) result[0] = minHeight.toFloat()
+            if (result[1] < maxHeight) result[1] = maxHeight.toFloat()
         }
     }
 
@@ -405,14 +418,16 @@ abstract class AbstractTiledElevationCoverage(
 
     protected data class Tile(val tileMatrix: TileMatrix, val row: Int, val col: Int)
 
+    protected class TileArray(val value: ShortArray, val minHeight: Short, val maxHeight: Short)
+
     protected open class TileBlock {
         lateinit var tileMatrix: TileMatrix
         val rows = mutableMapOf<Int, Int>()
         val cols = mutableMapOf<Int, Int>()
-        val arrays = mutableMapOf<Long, ShortArray>()
+        private val arrays = mutableMapOf<Long, TileArray>()
         private var texelRow = -1
         private var texelCol = -1
-        private var texelArray: ShortArray? = null
+        private var texelArray: TileArray? = null
 
         open fun clear() {
             rows.clear()
@@ -423,12 +438,12 @@ abstract class AbstractTiledElevationCoverage(
             texelArray = null
         }
 
-        fun putTileArray(row: Int, column: Int, array: ShortArray) {
+        fun putTileArray(row: Int, column: Int, array: TileArray) {
             val key = tileMatrix.tileKey(row, column)
             arrays[key] = array
         }
 
-        fun getTileArray(row: Int, column: Int): ShortArray? {
+        fun getTileArray(row: Int, column: Int): TileArray? {
             if (texelRow != row || texelCol != column) {
                 texelRow = row
                 texelCol = column
@@ -438,6 +453,6 @@ abstract class AbstractTiledElevationCoverage(
         }
 
         fun readTexel(row: Int, column: Int, i: Int, j: Int) =
-            getTileArray(row, column)?.get(i + j * tileMatrix.tileWidth) ?: 0
+            getTileArray(row, column)?.value?.get(i + j * tileMatrix.tileWidth) ?: 0
     }
 }
