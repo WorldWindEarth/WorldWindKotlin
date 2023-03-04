@@ -9,6 +9,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.GpkgTileFactory
 import earth.worldwind.render.image.ImageDecoder
 import kotlinx.coroutines.*
+import java.io.File
 
 actual abstract class TiledImageLayer actual constructor(name: String): AbstractTiledImageLayer(name) {
     /**
@@ -24,15 +25,16 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      * @throws IllegalArgumentException In case of incompatible level set configured in cache content.
      * @throws IllegalStateException In case of new content creation required on read-only database.
      */
-    @Suppress("DEPRECATION")
     @JvmOverloads
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun configureCache(
         pathName: String, tableName: String, readOnly: Boolean = false, format: CompressFormat = CompressFormat.PNG, quality: Int = 100
     ) {
+        if (readOnly && !File(pathName).exists()) return // Avid exception if cache file does not exist in read-only mode
         val isWebp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             format == CompressFormat.WEBP_LOSSLESS || format == CompressFormat.WEBP_LOSSY
         } else {
+            @Suppress("DEPRECATION")
             format == CompressFormat.WEBP
         }
         val content = getOrSetupTilesContent(pathName, tableName, readOnly, isWebp).also { cacheContent = it }

@@ -18,6 +18,7 @@ import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
 import io.ktor.client.network.sockets.*
 import kotlinx.coroutines.*
+import java.io.File
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 import kotlin.time.Duration.Companion.seconds
@@ -77,6 +78,7 @@ actual open class TiledElevationCoverage actual constructor(
     @JvmOverloads
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun configureCache(pathName: String, tableName: String, readOnly: Boolean = false, isFloat: Boolean = false) {
+        if (readOnly && !File(pathName).exists()) return // Avid exception if cache file does not exist in read-only mode
         val geoPackage = GeoPackage(pathName, readOnly)
         val content = geoPackage.content.firstOrNull { it.tableName == tableName }?.also {
             // Check if current layer fits cache content
