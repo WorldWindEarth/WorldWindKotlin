@@ -187,10 +187,15 @@ open class WorldWind @JvmOverloads constructor(
      * Get look at orientation and range based on current camera position and specified geographic position
      *
      * @param result Pre-allocated look at object
+     * @param lookAtPosition Custom "look at" position. Terrain position on viewport center will be used by default.
      * @return Look at orientation and range based on current camera position and specified geographic position
      */
-    open fun cameraAsLookAt(result: LookAt): LookAt {
-        if (viewport.isEmpty || !pickTerrainPosition(viewport.width / 2.0, viewport.height / 2.0, result.position)) {
+    open fun cameraAsLookAt(result: LookAt, lookAtPosition: Position? = null): LookAt {
+        if (lookAtPosition != null) {
+            cameraToViewingTransform(scratchModelview)
+            globe.geographicToCartesian(lookAtPosition.latitude, lookAtPosition.longitude, lookAtPosition.altitude, scratchPoint)
+            result.position.copy(lookAtPosition)
+        } else if (viewport.isEmpty || !pickTerrainPosition(viewport.width / 2.0, viewport.height / 2.0, result.position)) {
             // Use point on horizon as a backup
             cameraToViewingTransform(scratchModelview)
             scratchModelview.extractEyePoint(scratchRay.origin)
