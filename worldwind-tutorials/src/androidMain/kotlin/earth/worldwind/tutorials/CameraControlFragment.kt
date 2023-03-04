@@ -179,16 +179,20 @@ class CameraControlFragment: BasicGlobeFragment() {
         }
 
         private fun applyLimits(camera: Camera) {
-            val position = camera.position
-            val distanceToExtents = wwd.engine.distanceToViewGlobeExtents * 1.1
+            val position = wwd.engine.globe.getAbsolutePosition(camera.position, camera.altitudeMode)
+            val maxAltitude = wwd.engine.distanceToViewGlobeExtents * 1.1
             val minAltitude = 100.0
-            position.altitude = position.altitude.coerceIn(minAltitude, distanceToExtents)
+            position.altitude = position.altitude.coerceIn(minAltitude, maxAltitude)
 
             // Check if camera altitude is not under the surface
             val elevation = wwd.engine.globe.getElevation(
                 position.latitude, position.longitude
             ) * wwd.engine.verticalExaggeration + COLLISION_THRESHOLD
             if (elevation > position.altitude) position.altitude = elevation
+
+            // Apply modified absolute position back to camera
+            camera.position.copy(position)
+            camera.altitudeMode = AltitudeMode.ABSOLUTE
 
             // Limit the tilt to between nadir and the horizon (roughly)
             val r = wwd.engine.globe.getRadiusAt(position.latitude, position.longitude)

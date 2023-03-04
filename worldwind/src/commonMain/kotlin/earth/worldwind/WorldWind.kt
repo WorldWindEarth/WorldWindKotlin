@@ -195,7 +195,8 @@ open class WorldWind @JvmOverloads constructor(
             cameraToViewingTransform(scratchModelview)
             scratchModelview.extractEyePoint(scratchRay.origin)
             scratchModelview.extractForwardVector(scratchRay.direction)
-            scratchRay.pointAt(globe.horizonDistance(camera.position.altitude), scratchPoint)
+            val cameraPosition = globe.getAbsolutePosition(camera.position, camera.altitudeMode)
+            scratchRay.pointAt(globe.horizonDistance(cameraPosition.altitude), scratchPoint)
             globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, result.position)
         }
         globe.cartesianToLocalTransform(scratchPoint.x, scratchPoint.y, scratchPoint.z, scratchProjection)
@@ -269,10 +270,7 @@ open class WorldWind @JvmOverloads constructor(
             globe.geographicToCartesian(position.latitude, position.longitude, position.altitude, scratchPoint)
             // Compute look at point
             globe.geographicToCartesian(
-                lookAt.position.latitude,
-                lookAt.position.longitude,
-                lookAt.position.altitude,
-                scratchRay.origin
+                lookAt.position.latitude, lookAt.position.longitude, lookAt.position.altitude, scratchRay.origin
             )
             // Compute normal to globe in look at point
             globe.geographicToCartesianNormal(lookAt.position.latitude, lookAt.position.longitude, scratchRay.direction)
@@ -457,9 +455,10 @@ open class WorldWind @JvmOverloads constructor(
         rc.terrainTessellator = tessellator
         rc.layers = layers
         rc.camera = camera
-        rc.horizonDistance = globe.horizonDistance(camera.position.altitude)
+        val cameraPosition = globe.getAbsolutePosition(camera.position, camera.altitudeMode)
+        rc.horizonDistance = globe.horizonDistance(cameraPosition.altitude)
         globe.geographicToCartesian(
-            camera.position.latitude, camera.position.longitude, camera.position.altitude, rc.cameraPoint
+            cameraPosition.latitude, cameraPosition.longitude, cameraPosition.altitude, rc.cameraPoint
         )
         rc.renderResourceCache = renderResourceCache
         rc.verticalExaggeration = verticalExaggeration
@@ -545,7 +544,7 @@ open class WorldWind @JvmOverloads constructor(
     protected open fun computeViewingTransform(projection: Matrix4, modelview: Matrix4) {
         // Compute the clip plane distances. The near distance is set to a large value that does not clip the globe's
         // surface. The far distance is set to the smallest value that does not clip the atmosphere.
-        val eyeAltitude = camera.position.altitude
+        val eyeAltitude = globe.getAbsolutePosition(camera.position, camera.altitudeMode).altitude
         val eyeHorizon = globe.horizonDistance(eyeAltitude)
         val atmosphereHorizon = globe.horizonDistance(atmosphereAltitude)
 

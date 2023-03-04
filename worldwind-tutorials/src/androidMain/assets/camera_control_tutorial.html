@@ -42,7 +42,7 @@ class CameraControlFragment: BasicGlobeFragment() {
         // Apply camera position above KOXR airport, Oxnard, CA
         engine.camera.set(
             latitude = 34.2.degrees,
-            longitude = -119.2.degrees,
+            longitude = (-119.2).degrees,
             altitude = 10000.0,
             altitudeMode = AltitudeMode.ABSOLUTE,
             heading = 90.0.degrees,
@@ -90,17 +90,17 @@ class CameraControlFragment: BasicGlobeFragment() {
                         val sideRadians = sideMeters / globeRadius
 
                         // Adjust the change in latitude and longitude based on the camera's heading.
-                        val sinHeading = sin(heading.radians)
-                        val cosHeading = cos(heading.radians)
+                        val sinHeading = sin(heading.inRadians)
+                        val cosHeading = cos(heading.inRadians)
                         lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
                         lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
 
                         // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
                         // the camera to the appropriate spot on the other side of the pole.
-                        if (lat.degrees < -90 || lat.degrees > 90) {
+                        if (lat.inDegrees < -90 || lat.inDegrees > 90) {
                             position.latitude = lat.normalizeLatitude()
                             position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
-                        } else if (lon.degrees < -180 || lon.degrees > 180) {
+                        } else if (lon.inDegrees < -180 || lon.inDegrees > 180) {
                             position.latitude = lat
                             position.longitude = lon.normalizeLongitude()
                         } else {
@@ -196,29 +196,29 @@ class CameraControlFragment: BasicGlobeFragment() {
         }
 
         private fun applyLimits(camera: Camera) {
-            val position = camera.position
-            val distanceToExtents = wwd.engine.distanceToViewGlobeExtents * 1.1
+            val position = wwd.engine.globe.getAbsolutePosition(camera.position, camera.altitudeMode)
+            val maxAltitude = wwd.engine.distanceToViewGlobeExtents * 1.1
             val minAltitude = 100.0
-            position.altitude = position.altitude.coerceIn(minAltitude, distanceToExtents)
+            position.altitude = position.altitude.coerceIn(minAltitude, maxAltitude)
 
             // Check if camera altitude is not under the surface
-            val ve = wwd.engine.verticalExaggeration
-            if (position.altitude < COLLISION_CHECK_LIMIT * ve + COLLISION_THRESHOLD) {
-                val elevation = wwd.engine.globe.getElevationAtLocation(
-                    position.latitude, position.longitude
-                ) * ve + COLLISION_THRESHOLD
-                if (elevation > position.altitude) position.altitude = elevation
-            }
+            val elevation = wwd.engine.globe.getElevation(
+                position.latitude, position.longitude
+            ) * wwd.engine.verticalExaggeration + COLLISION_THRESHOLD
+            if (elevation > position.altitude) position.altitude = elevation
+
+            // Apply modified absolute position back to camera
+            camera.position.copy(position)
+            camera.altitudeMode = AltitudeMode.ABSOLUTE
 
             // Limit the tilt to between nadir and the horizon (roughly)
             val r = wwd.engine.globe.getRadiusAt(position.latitude, position.longitude)
             val maxTilt = Math.toDegrees(asin(r / (r + position.altitude)))
             val minTilt = 0.0
-            camera.tilt = camera.tilt.degrees.coerceIn(minTilt, maxTilt).degrees
+            camera.tilt = camera.tilt.inDegrees.coerceIn(minTilt, maxTilt).degrees
         }
 
         companion object {
-            private const val COLLISION_CHECK_LIMIT = 8848.86 // Everest mountain altitude
             private const val COLLISION_THRESHOLD = 20.0 // 20m above surface
         }
     }
