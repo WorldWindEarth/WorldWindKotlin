@@ -14,6 +14,7 @@ class DrawableSkyAtmosphere : Drawable {
     var triStripElements: ShortBufferObject? = null
     val lightDirection = Vec3()
     var globeRadius = 0.0
+    var atmosphereAltitude = 0.0
     var program: SkyProgram? = null
     private var pool: Pool<DrawableSkyAtmosphere>? = null
 
@@ -41,8 +42,8 @@ class DrawableSkyAtmosphere : Drawable {
         val triStripElements = triStripElements ?: return // element buffer unspecified
         if (!triStripElements.bindBuffer(dc)) return  // element buffer failed to bind
 
-        // Use the draw context's globe.
-        program.loadGlobeRadius(globeRadius)
+        // Use the render context's globe radius and atmosphere altitude.
+        program.loadAtmosphereParams(globeRadius, atmosphereAltitude)
 
         // Use the draw context's eye point.
         program.loadEyePoint(dc.eyePoint)

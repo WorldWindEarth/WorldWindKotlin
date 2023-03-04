@@ -61,11 +61,12 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         val size = 128
         drawable.program = rc.getShaderProgram { SkyProgram() }
         drawable.vertexPoints = rc.getBufferObject(VERTEX_POINTS_KEY) {
-            assembleVertexPoints(rc, size, size, drawable.program!!.altitude.toFloat())
+            assembleVertexPoints(rc, size, size, rc.atmosphereAltitude.toFloat())
         }
         drawable.triStripElements = rc.getBufferObject(TRI_STRIP_ELEMENTS_KEY) { assembleTriStripElements(size, size) }
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe!!.equatorialRadius
+        drawable.atmosphereAltitude = rc.atmosphereAltitude
         rc.offerSurfaceDrawable(drawable, Double.POSITIVE_INFINITY)
     }
 
@@ -76,6 +77,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         drawable.program = rc.getShaderProgram { GroundProgram() }
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe!!.equatorialRadius
+        drawable.atmosphereAltitude = rc.atmosphereAltitude
 
         // Use this layer's night image when the light location is different from the eye location.
         drawable.nightTexture = time?.run{ rc.getTexture(nightImageSource, nightImageOptions) }

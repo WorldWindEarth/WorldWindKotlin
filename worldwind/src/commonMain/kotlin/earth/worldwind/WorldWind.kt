@@ -98,7 +98,7 @@ open class WorldWind @JvmOverloads constructor(
             field = value
         }
     /**
-     * Object altitude for horizon distance. Used to control when objects are clipped by the far plain behind the globe.
+     * Atmosphere altitude above ellipsoid. Used to control when objects are clipped by the far plain behind the globe.
      */
     var atmosphereAltitude = 160000.0
     /**
@@ -463,6 +463,7 @@ open class WorldWind @JvmOverloads constructor(
         rc.renderResourceCache = renderResourceCache
         rc.verticalExaggeration = verticalExaggeration
         rc.densityFactor = densityFactor
+        rc.atmosphereAltitude = atmosphereAltitude
 
         // Configure the frame's Cartesian modelview matrix and eye coordinate projection matrix.
         computeViewingTransform(frame.projection, frame.modelview)

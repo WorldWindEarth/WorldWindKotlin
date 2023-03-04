@@ -37,6 +37,7 @@ open class RenderContext {
     var currentLayer: Layer? = null
     var verticalExaggeration = 1.0
     var horizonDistance = 0.0
+    var atmosphereAltitude = 0.0
     var camera: Camera? = null
     var cameraPoint = Vec3()
     val viewport = Viewport()
@@ -74,6 +75,7 @@ open class RenderContext {
         currentLayer = null
         verticalExaggeration = 1.0
         horizonDistance = 0.0
+        atmosphereAltitude = 0.0
         camera = null
         cameraPoint.set(0.0, 0.0, 0.0)
         viewport.setEmpty()

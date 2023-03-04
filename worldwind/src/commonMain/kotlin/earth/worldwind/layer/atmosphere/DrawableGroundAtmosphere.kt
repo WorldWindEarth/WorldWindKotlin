@@ -15,6 +15,7 @@ import kotlin.jvm.JvmStatic
 open class DrawableGroundAtmosphere : Drawable {
     val lightDirection = Vec3()
     var globeRadius = 0.0
+    var atmosphereAltitude = 0.0
     var program: GroundProgram? = null
     var nightTexture: Texture? = null
     protected val mvpMatrix = Matrix4()
@@ -42,8 +43,8 @@ open class DrawableGroundAtmosphere : Drawable {
         val program = program ?: return  // program unspecified
         if (!program.useProgram(dc)) return  // program failed to build
 
-        // Use the draw context's globe.
-        program.loadGlobeRadius(globeRadius)
+        // Use the render context's globe radius and atmosphere altitude.
+        program.loadAtmosphereParams(globeRadius, atmosphereAltitude)
 
         // Use the draw context's eye point.
         program.loadEyePoint(dc.eyePoint)

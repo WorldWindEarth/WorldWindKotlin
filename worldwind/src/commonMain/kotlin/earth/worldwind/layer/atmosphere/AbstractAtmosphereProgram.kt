@@ -12,8 +12,6 @@ import kotlin.math.pow
 // TODO Correctly compute the atmosphere color for eye positions beneath the atmosphere
 // TODO Test the effect of working in local coordinates (reference point) on the GLSL atmosphere programs
 abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
-    var altitude = 160000.0
-        protected set
     protected var fragModeId = KglUniformLocation.NONE
     protected var mvpMatrixId = KglUniformLocation.NONE
     protected var texCoordMatrixId = KglUniformLocation.NONE
@@ -56,7 +54,6 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
             1 / 0.570.pow(4.0),  // 570 nm for green
             1 / 0.475.pow(4.0)   // 475 nm for blue
         )
-        val rayleighScaleDepth = 0.25
         val kr = 0.0025 // Rayleigh scattering constant
         val km = 0.0010 // Mie scattering constant
         val eSun = 20.0 // Sun brightness constant
@@ -89,11 +86,8 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
         invWavelength.toArray(array, 0)
         gl.uniform3fv(invWavelengthId, 1, array, 0)
         atmosphereRadiusId = gl.getUniformLocation(program, "atmosphereRadius")
-        gl.uniform1f(atmosphereRadiusId, 0f)
         atmosphereRadius2Id = gl.getUniformLocation(program, "atmosphereRadius2")
-        gl.uniform1f(atmosphereRadius2Id, 0f)
         globeRadiusId = gl.getUniformLocation(program, "globeRadius")
-        gl.uniform1f(globeRadiusId, 0f)
         krESunId = gl.getUniformLocation(program, "KrESun")
         gl.uniform1f(krESunId, (kr * eSun).toFloat())
         kmESunId = gl.getUniformLocation(program, "KmESun")
@@ -103,11 +97,8 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
         km4PIId = gl.getUniformLocation(program, "Km4PI")
         gl.uniform1f(km4PIId, (km * 4 * PI).toFloat())
         scaleId = gl.getUniformLocation(program, "scale")
-        gl.uniform1f(scaleId, (1 / altitude).toFloat())
         scaleDepthId = gl.getUniformLocation(program, "scaleDepth")
-        gl.uniform1f(scaleDepthId, rayleighScaleDepth.toFloat())
         scaleOverScaleDepthId = gl.getUniformLocation(program, "scaleOverScaleDepth")
-        gl.uniform1f(scaleOverScaleDepthId, (1 / altitude / rayleighScaleDepth).toFloat())
         gId = gl.getUniformLocation(program, "g")
         gl.uniform1f(gId, g.toFloat())
         g2Id = gl.getUniformLocation(program, "g2")
@@ -149,10 +140,14 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
         gl.uniform1f(eyeMagnitude2Id, eyePoint.magnitudeSquared.toFloat())
     }
 
-    fun loadGlobeRadius(equatorialRadius: Double) {
-        val ar = equatorialRadius + altitude
+    fun loadAtmosphereParams(equatorialRadius: Double, atmosphereAltitude: Double) {
+        val rayleighScaleDepth = 0.25
+        val ar = equatorialRadius + atmosphereAltitude
         gl.uniform1f(globeRadiusId, equatorialRadius.toFloat())
         gl.uniform1f(atmosphereRadiusId, ar.toFloat())
         gl.uniform1f(atmosphereRadius2Id, (ar * ar).toFloat())
+        gl.uniform1f(scaleId, (1 / atmosphereAltitude).toFloat())
+        gl.uniform1f(scaleDepthId, rayleighScaleDepth.toFloat())
+        gl.uniform1f(scaleOverScaleDepthId, (1 / atmosphereAltitude / rayleighScaleDepth).toFloat())
     }
 }
