@@ -137,7 +137,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
         // ignore the tile and its descendants if it's not needed or not visible
-        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc)) return
+        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain!!.sector) || !tile.intersectsFrustum(rc)) return
         val retrieveCurrentLevel = tile.level.levelNumber >= levelOffset
         if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
             if (retrieveCurrentLevel) addTile(rc, tile)

@@ -9,7 +9,7 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sec
     var gridElements: MutableList<GridElement>? = null
         private set
 
-    open fun isInView(rc: RenderContext) = intersectsFrustum(rc)
+    open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain!!.sector) && intersectsFrustum(rc)
 
     open fun getSizeInPixels(rc: RenderContext): Double {
         val centerPoint = layer.getSurfacePoint(rc, sector.centroidLatitude, sector.centroidLongitude)
