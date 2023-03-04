@@ -1,10 +1,7 @@
 package earth.worldwind.shape.milstd2525
 
-import earth.worldwind.geom.Line
-import earth.worldwind.geom.Location
-import earth.worldwind.geom.Sector
-import earth.worldwind.geom.Vec3
-import earth.worldwind.render.AbstractRenderable
+import earth.worldwind.geom.*
+import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Highlightable
@@ -14,7 +11,7 @@ import kotlin.jvm.JvmStatic
 abstract class AbstractMilStd2525TacticalGraphic(
     protected val sidc: String, locations: List<Location>, boundingSector: Sector,
     modifiers: Map<String, String>?, attributes: Map<String, String>?,
-) : AbstractRenderable(), Highlightable {
+) : AbstractSurfaceRenderable(boundingSector), Highlightable {
     override var isHighlighted = false
     var modifiers = modifiers
         set(value) {
@@ -26,7 +23,6 @@ abstract class AbstractMilStd2525TacticalGraphic(
             field = value
             reset()
         }
-    protected lateinit var boundingSector: Sector
     private var minScale = 0.0
     private var maxScale = 0.0
     private val lodBuffer = mutableMapOf<Int,MutableList<Renderable>>()
@@ -66,7 +62,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
             Logger.logMessage(Logger.ERROR, "MilStd2525TacticalGraphic", "constructor", "missingList")
         }
         transformLocations(locations)
-        this.boundingSector = boundingSector
+        sector = boundingSector
         val diagonalDistance = Location(boundingSector.maxLatitude, boundingSector.minLongitude)
             .greatCircleDistance(Location(boundingSector.minLatitude, boundingSector.maxLongitude))
         minScale = diagonalDistance / MAX_WIDTH_DP
@@ -75,9 +71,8 @@ abstract class AbstractMilStd2525TacticalGraphic(
     }
 
     override fun doRender(rc: RenderContext) {
-        // TODO Tessellator has a bug, which sometimes cause invalid terrain sector calculation (-90*, 90*) and lead to performance issue
-        val sector = rc.terrain!!.sector
-        if (!sector.isEmpty && sector.intersects(boundingSector)) {
+        val terrainSector = rc.terrain!!.sector
+        if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
             // Use shapes from previous frame during pick
             if (!rc.isPickMode) {
                 // Get current map scale based on observation range.
