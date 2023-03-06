@@ -87,7 +87,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
      */
     protected open fun init(configChooser: EGLConfigChooser?) {
         // Set up to render on demand to an OpenGL ES 2.x context
-        // TODO Investigate and use the EGL chooser submitted by jgiovino
         setEGLConfigChooser(configChooser)
         setEGLContextClientVersion(2) // must be called before setRenderer
         setRenderer(this)
