@@ -202,8 +202,8 @@ open class BasicTessellator: Tessellator, TileFactory {
         var pos = 0
 
         // Add a line between each row to define the horizontal cell outlines.
-        for (latIndex in 0 until numLat) {
-            for (lonIndex in 0 until numLon - 1) {
+        for (latIndex in 1 until numLat-1) {
+            for (lonIndex in 1 until numLon - 2) {
                 val vertex = lonIndex + latIndex * numLon
                 result[pos++] = vertex.toShort()
                 result[pos++] = (vertex + 1).toShort()
@@ -211,8 +211,8 @@ open class BasicTessellator: Tessellator, TileFactory {
         }
 
         // Add a line between each column to define the vertical cell outlines.
-        for (lonIndex in 0 until numLon) {
-            for (latIndex in 0 until numLat - 1) {
+        for (lonIndex in 1 until numLon - 1) {
+            for (latIndex in 1 until numLat - 2) {
                 val vertex = lonIndex + latIndex * numLon
                 result[pos++] = vertex.toShort()
                 result[pos++] = (vertex + numLon).toShort()
