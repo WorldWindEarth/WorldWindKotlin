@@ -351,17 +351,22 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         if (super.onTouchEvent(event)) return true
 
         try {
-            if (!selectDragDetector.onTouchEvent(event)) {
-                if (controller.onTouchEvent(event)) navigatorEvents.onTouchEvent(event)
+            return when {
+                selectDragDetector.onTouchEvent(event) -> true
+                controller.onTouchEvent(event) -> {
+                    navigatorEvents.onTouchEvent(event)
+                    true
+                }
+                // Always return true for action down, indicating that the event was handled,
+                // otherwise Android suppresses subsequent events.
+                else -> event.action == MotionEvent.ACTION_DOWN
             }
         } catch (e: Exception) {
             logMessage(
                 ERROR, "WorldWindow", "onTouchEvent", "Exception while handling touch event '$event'", e
             )
+            return false
         }
-
-        // Always return true indicating that the event was handled, otherwise Android suppresses subsequent events.
-        return true
     }
 
     protected open fun renderFrame(frame: Frame) {
