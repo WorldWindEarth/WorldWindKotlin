@@ -379,7 +379,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         requestRender()
 
         // Notify navigator change listeners when the modelview matrix associated with the frame has changed.
-        if (!frame.isPickMode) navigatorEvents.onFrameRendered(frame.modelview, engine.globe.elevationModel.timestamp)
+        if (!frame.isPickMode) navigatorEvents.onFrameRendered(frame.modelview, frame.projection, engine.globe.elevationModel.timestamp)
     }
 
     protected open fun clearFrameQueue() {

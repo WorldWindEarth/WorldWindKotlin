@@ -14,6 +14,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
     var stoppedEventDelay = 250.milliseconds
     protected val listeners = mutableListOf<NavigatorListener>()
     protected var lastModelview: Matrix4? = null
+    protected var lastProjection: Matrix4? = null
     protected var lastElevationTimestamp = Instant.DISTANT_PAST
     protected var lastTouchEvent: MotionEvent? = null
     protected var stopTouchEvent: MotionEvent? = null
@@ -21,6 +22,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
 
     open fun reset() {
         lastModelview = null
+        lastProjection = null
         lastElevationTimestamp = Instant.DISTANT_PAST
         lastTouchEvent?.recycle()
         lastTouchEvent = null
@@ -41,16 +43,19 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
         lastTouchEvent = MotionEvent.obtain(event)
     }
 
-    open fun onFrameRendered(modelview: Matrix4, elevationTimestamp: Instant) {
+    open fun onFrameRendered(modelview: Matrix4, projection: Matrix4, elevationTimestamp: Instant) {
         if (listeners.isEmpty()) return  // no listeners to notify; ignore the event
-        val lastModelview = lastModelview
-        if (lastModelview == null) { // this is the first frame; copy the frame's modelview
+        val lastModelview = this.lastModelview
+        val lastProjection = this.lastProjection
+        if (lastModelview == null || lastProjection == null) { // this is the first frame; copy the frame's modelview
             this.lastModelview = Matrix4(modelview)
+            this.lastProjection = Matrix4(projection)
             // Notify listeners with stopped event on first frame
             stopJob = wwd.mainScope.launch { onNavigatorStopped() }
-        } else if (lastModelview != modelview || lastElevationTimestamp !== elevationTimestamp) {
+        } else if (lastModelview != modelview || lastProjection != projection || lastElevationTimestamp !== elevationTimestamp) {
             // the frame's modelview or elevation timestamp has changed
             lastModelview.copy(modelview)
+            lastProjection.copy(projection)
             lastElevationTimestamp = elevationTimestamp
             // Notify the listeners of a navigator moved event.
             onNavigatorMoved()
