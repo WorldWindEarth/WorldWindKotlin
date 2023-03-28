@@ -16,6 +16,7 @@ actual object MilStd2525 {
      * The actual rendering engine for the MIL-STD-2525 graphics.
      */
     private val renderer = MilStdIconRenderer.getInstance()
+    private val rendererSettings = RendererSettings.getInstance()
     actual var outlineWidth = 0f
         private set
     var pixelSize = 0f
@@ -37,20 +38,19 @@ actual object MilStd2525 {
 
         // Establish the default rendering values.
         // See: https://github.com/missioncommand/mil-sym-android/blob/master/Renderer/src/main/java/armyc2/c2sd/renderer/utilities/RendererSettings.java
-        val rs = RendererSettings.getInstance()
-        rs.symbologyStandard = RendererSettings.Symbology_2525C
-        rs.defaultPixelSize = context.resources.getDimensionPixelSize(R.dimen.default_pixel_size)
+        rendererSettings.symbologyStandard = RendererSettings.Symbology_2525C
+        rendererSettings.defaultPixelSize = context.resources.getDimensionPixelSize(R.dimen.default_pixel_size)
 
         // Depending on screen size and DPI you may want to change the font size.
-        rs.setModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.modifier_font_size))
-        rs.setMPModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.mp_modifier_font_size))
+        rendererSettings.setModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.modifier_font_size))
+        rendererSettings.setMPModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.mp_modifier_font_size))
 
         // Configure modifier text output
-        rs.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
-        rs.textOutlineWidth = context.resources.getDimensionPixelSize(R.dimen.text_outline_width)
+        rendererSettings.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
+        rendererSettings.textOutlineWidth = context.resources.getDimensionPixelSize(R.dimen.text_outline_width)
 
         // Configure Single point symbol outline width
-        rs.singlePointSymbolOutlineWidth = context.resources.getDimensionPixelSize(R.dimen.symbol_outline_width)
+        rendererSettings.singlePointSymbolOutlineWidth = context.resources.getDimensionPixelSize(R.dimen.symbol_outline_width)
 
         // Tell the renderer where the cache folder is located which is needed to process the embedded xml files.
         renderer.init(context, context.cacheDir.absolutePath)
@@ -122,14 +122,14 @@ actual object MilStd2525 {
      */
     @JvmStatic
     fun getSymbolDef(sidc: String): SymbolDef? = SymbolDefTable.getInstance()
-        .getSymbolDef(SymbolUtilities.getBasicSymbolID(sidc), RendererSettings.getInstance().symbologyStandard)
+        .getSymbolDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
 
     /**
      * Get symbol visual attributes like draw category, min points, max points, etc.
      */
     @JvmStatic
     fun getUnitDef(sidc: String): UnitDef? = UnitDefTable.getInstance()
-        .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), RendererSettings.getInstance().symbologyStandard)
+        .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
 
     @JvmStatic
     actual fun getSimplifiedSymbolID(sidc: String) =
@@ -202,9 +202,9 @@ actual object MilStd2525 {
 
     @JvmStatic
     actual fun getLineColor(sidc: String) = SymbolUtilities.getLineColorOfAffiliation(sidc)?.toARGB()
-        ?: RendererSettings.getInstance().friendlyGraphicLineColor.toARGB()
+        ?: rendererSettings.friendlyGraphicLineColor.toARGB()
 
     @JvmStatic
     actual fun getFillColor(sidc: String) = SymbolUtilities.getFillColorOfAffiliation(sidc)?.toARGB()
-        ?: RendererSettings.getInstance().friendlyGraphicFillColor.toARGB()
+        ?: rendererSettings.friendlyGraphicFillColor.toARGB()
 }

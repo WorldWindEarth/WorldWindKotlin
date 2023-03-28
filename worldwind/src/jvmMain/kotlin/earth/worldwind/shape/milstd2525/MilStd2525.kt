@@ -18,6 +18,7 @@ actual object MilStd2525 {
      * The actual rendering engine for the MIL-STD-2525 graphics.
      */
     private val renderer = SinglePoint2525Renderer()
+    private val rendererSettings = RendererSettings.getInstance()
 
     /**
     * Initializes the static MIL-STD-2525 symbol renderer.
@@ -25,19 +26,18 @@ actual object MilStd2525 {
     init {
         // Establish the default rendering values.
         // See: https://github.com/missioncommand/mil-sym-android/blob/master/Renderer/src/main/java/armyc2/c2sd/renderer/utilities/RendererSettings.java
-        val rs = RendererSettings.getInstance()
-        rs.symbologyStandard = RendererSettings.Symbology_2525C
+        rendererSettings.symbologyStandard = RendererSettings.Symbology_2525C
 
         // Depending on screen size and DPI you may want to change the font size.
-        rs.setLabelFont("Arial", Font.BOLD, 8)
-        rs.setMPLabelFont("Arial", Font.BOLD, 12)
+        rendererSettings.setLabelFont("Arial", Font.BOLD, 8)
+        rendererSettings.setMPLabelFont("Arial", Font.BOLD, 12)
 
         // Configure modifier text output
-        rs.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
-        rs.textOutlineWidth = 4
+        rendererSettings.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
+        rendererSettings.textOutlineWidth = 4
 
         // Configure Single point symbol outline width
-        rs.singlePointSymbolOutlineWidth = 0
+        rendererSettings.singlePointSymbolOutlineWidth = 0
     }
 
     /**
@@ -66,14 +66,14 @@ actual object MilStd2525 {
      */
     @JvmStatic
     fun getSymbolDef(sidc: String): SymbolDef? = SymbolDefTable.getInstance()
-        .getSymbolDef(SymbolUtilities.getBasicSymbolID(sidc), RendererSettings.getInstance().symbologyStandard)
+        .getSymbolDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
 
     /**
      * Get symbol visual attributes like draw category, min points, max points, etc.
      */
     @JvmStatic
     fun getUnitDef(sidc: String): UnitDef? = UnitDefTable.getInstance()
-        .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), RendererSettings.getInstance().symbologyStandard)
+        .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
 
     @JvmStatic
     actual fun getSimplifiedSymbolID(sidc: String) =
@@ -147,9 +147,9 @@ actual object MilStd2525 {
 
     @JvmStatic
     actual fun getLineColor(sidc: String) = SymbolUtilities.getLineColorOfAffiliation(sidc)?.rgb
-        ?: RendererSettings.getInstance().friendlyGraphicLineColor.rgb
+        ?: rendererSettings.friendlyGraphicLineColor.rgb
 
     @JvmStatic
     actual fun getFillColor(sidc: String) = SymbolUtilities.getFillColorOfAffiliation(sidc)?.rgb
-        ?: RendererSettings.getInstance().friendlyGraphicFillColor.rgb
+        ?: rendererSettings.friendlyGraphicFillColor.rgb
 }
