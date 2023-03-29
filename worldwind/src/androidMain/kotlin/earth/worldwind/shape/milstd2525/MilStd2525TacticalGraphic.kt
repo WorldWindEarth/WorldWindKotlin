@@ -115,7 +115,10 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     val positions = mutableListOf<Position>()
                     for (point in polyline) {
                         val geoPoint = ipc.PixelsToGeo(point)
-                        positions.add(Position.fromDegrees(geoPoint.y, geoPoint.x, 0.0))
+                        val position = Position.fromDegrees(geoPoint.y, geoPoint.x, 0.0)
+                        positions.add(position)
+                        sector.union(position) // Extend bounding box by real graphics measures
+                        invalidateExtent() // Regenerate extent in next frame
                     }
                     val path = Path(positions, shapeAttributes).apply {
                         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
@@ -140,9 +143,10 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     )
                 }
                 val point = ipc.PixelsToGeo(shape.modifierStringPosition ?: shape.glyphPosition)
-                val label = Label(
-                    Position.fromDegrees(point.y, point.x, 0.0), shape.modifierString, textAttributes
-                ).apply {
+                val position = Position.fromDegrees(point.y, point.x, 0.0)
+                sector.union(position) // Extend bounding box by real graphics measures
+                invalidateExtent() // Regenerate extent in next frame
+                val label = Label(position, shape.modifierString, textAttributes).apply {
                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                     rotation = shape.modifierStringAngle.degrees
                     rotationMode = OrientationMode.RELATIVE_TO_GLOBE
