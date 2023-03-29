@@ -63,10 +63,6 @@ abstract class AbstractMilStd2525TacticalGraphic(
         }
         transformLocations(locations)
         sector = boundingSector
-        val diagonalDistance = Location(boundingSector.maxLatitude, boundingSector.minLongitude)
-            .greatCircleDistance(Location(boundingSector.minLatitude, boundingSector.maxLongitude))
-        minScale = diagonalDistance / MAX_WIDTH_DP
-        maxScale = diagonalDistance / MIN_WIDTH_DP
         reset()
     }
 
@@ -94,6 +90,15 @@ abstract class AbstractMilStd2525TacticalGraphic(
                 renderable.render(rc)
             }
         }
+    }
+
+    override fun invalidateExtent() {
+        super.invalidateExtent()
+        // Recalculate scale limits according to new sector
+        val diagonalDistance = Location(sector.maxLatitude, sector.minLongitude)
+            .greatCircleDistance(Location(sector.minLatitude, sector.maxLongitude))
+        minScale = diagonalDistance / MAX_WIDTH_DP
+        maxScale = diagonalDistance / MIN_WIDTH_DP
     }
 
     protected open fun reset() {

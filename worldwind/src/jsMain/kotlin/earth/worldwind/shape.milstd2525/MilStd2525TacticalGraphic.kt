@@ -83,6 +83,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         // Create Renderables based on Poly-lines and Modifiers from Renderer
         for (shape in mss.getSymbolShapes().getArray()) convertShapeToRenderables(shape, mss, ipc, shapes)
         for (shape in mss.getModifierShapes().getArray()) convertShapeToRenderables(shape, mss, ipc, shapes)
+        invalidateExtent() // Regenerate extent in next frame due to sector may be extended by real shape measures
     }
 
     protected open fun convertShapeToRenderables(
@@ -109,7 +110,9 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     val positions = mutableListOf<Position>()
                     for (point in polyline.toArray()) {
                         val geoPoint = ipc.PixelsToGeo(point)
-                        positions.add(Position.fromDegrees(geoPoint.getY().toDouble(), geoPoint.getX().toDouble(), 0.0))
+                        val position = Position.fromDegrees(geoPoint.getY().toDouble(), geoPoint.getX().toDouble(), 0.0)
+                        positions.add(position)
+                        sector.union(position) // Extend bounding box by real graphics measures
                     }
                     val path = Path(positions, shapeAttributes).apply {
                         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
@@ -136,10 +139,9 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     )
                 }
                 val point = ipc.PixelsToGeo(shape.getModifierStringPosition() ?: shape.getGlyphPosition())
-                val label = Label(
-                    Position.fromDegrees(point.getY().toDouble(), point.getX().toDouble(), 0.0),
-                    shape.getModifierString(), textAttributes
-                ).apply {
+                val position = Position.fromDegrees(point.getY().toDouble(), point.getX().toDouble(), 0.0)
+                sector.union(position) // Extend bounding box by real graphics measures
+                val label = Label(position, shape.getModifierString(), textAttributes).apply {
                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                     rotation = shape.getModifierStringAngle().toDouble().degrees
                     rotationMode = OrientationMode.RELATIVE_TO_GLOBE
