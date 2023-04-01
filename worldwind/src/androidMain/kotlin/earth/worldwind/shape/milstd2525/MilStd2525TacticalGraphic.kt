@@ -99,7 +99,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         when (shape.shapeType) {
             ShapeInfo.SHAPE_TYPE_POLYLINE -> {
                 val shapeAttributes = ShapeAttributes().apply {
-                    outlineWidth = MilStd2525.outlineWidth
+                    outlineWidth = MilStd2525.graphicsLineWidth
                     shape.lineColor?.let { outlineColor = Color(it.toARGB()) }
                     shape.fillColor?.let { interiorColor = Color(it.toARGB()) }
                     // Fill dash pattern
@@ -112,6 +112,13 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                         )
                     }
                 }
+                val hasOutline = MilStd2525.graphicsOutlineWidth != 0f
+                val outlineAttributes = if (hasOutline) ShapeAttributes(shapeAttributes).apply {
+                    outlineColor = Color(RendererUtilities.getIdealOutlineColor(shape.lineColor).toARGB()).apply { alpha = 0.5f }
+                    outlineWidth += MilStd2525.graphicsOutlineWidth * 2f
+                } else shapeAttributes
+                val lines = mutableListOf<Renderable>()
+                val outlines = mutableListOf<Renderable>()
                 for (polyline in shape.polylines) {
                     val positions = mutableListOf<Position>()
                     for (point in polyline) {
@@ -120,18 +127,22 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                         positions.add(position)
                         sector.union(position) // Extend bounding box by real graphics measures
                     }
-                    val path = Path(positions, shapeAttributes).apply {
-                        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                        isFollowTerrain = true
-                        maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
-                        highlightAttributes = ShapeAttributes(shapeAttributes).apply {
-//                            outlineColor = Color(android.graphics.Color.WHITE)
-                            outlineWidth *= HIGHLIGHT_FACTOR
+                    for (i in 0..1) {
+                        val path = Path(positions, if (i == 0) shapeAttributes else outlineAttributes).apply {
+                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                            isFollowTerrain = true
+                            maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
+                            highlightAttributes = ShapeAttributes(attributes).apply {
+                                outlineWidth *= HIGHLIGHT_FACTOR
+                            }
+                            pickDelegate = this@MilStd2525TacticalGraphic
                         }
+                        if (i == 0) lines += path else outlines += path
+                        if (!hasOutline) break
                     }
-                    path.pickDelegate = this
-                    shapes.add(path)
                 }
+                shapes += outlines
+                shapes += lines
             }
             ShapeInfo.SHAPE_TYPE_MODIFIER_FILL -> {
                 val rs = RendererSettings.getInstance()
@@ -149,12 +160,9 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                     rotation = shape.modifierStringAngle.degrees
                     rotationMode = OrientationMode.RELATIVE_TO_GLOBE
-//                    highlightAttributes = TextAttributes(textAttributes).apply {
-//                        textColor = Color(android.graphics.Color.WHITE)
-//                    }
+                    pickDelegate = this@MilStd2525TacticalGraphic
                 }
-                label.pickDelegate = this
-                shapes.add(label)
+                shapes += label
             }
             else -> Logger.logMessage(Logger.ERROR, "MilStd2525TacticalGraphic", "convertShapeToRenderables", "unknownShapeType")
         }

@@ -1,9 +1,10 @@
 package earth.worldwind.shape.milstd2525
 
 expect object MilStd2525 {
-    var outlineWidth: Float
+    var graphicsLineWidth: Float
         private set
     fun getSimplifiedSymbolID(sidc: String): String
+    fun isTacticalGraphic(sidc: String): Boolean
     fun setAffiliation(sidc: String, affiliation: String?): String
     fun setStatus(sidc: String, status: String?): String
     fun setEchelon(sidc: String, echelon: String?): String

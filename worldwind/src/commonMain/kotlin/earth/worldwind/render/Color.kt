@@ -266,9 +266,10 @@ open class Color @JvmOverloads constructor(
      * because some uses reject a four-component color specification.
      *
      * @param isUsingAlpha Enable the use of an alpha component.
+     * @param argb If true use #AARRGGBB sequence, otherwise use #RRGGBBAA
      * @returns A color string suitable for CSS.
      */
-    fun toHexString(isUsingAlpha: Boolean = false): String {
+    fun toHexString(isUsingAlpha: Boolean = false, argb: Boolean = false): String {
         // Use Math.ceil() to get 0.75 to map to 0xc0. This is important if the display is dithering.
         val redHex = ceil(red * 255).toInt().toString(16)
         val greenHex = ceil(green * 255).toInt().toString(16)
@@ -276,10 +277,11 @@ open class Color @JvmOverloads constructor(
         val alphaHex = ceil(alpha * 255).toInt().toString(16)
 
         var result = "#"
+        if (isUsingAlpha && argb) result += if (alphaHex.length < 2) ("0$alphaHex") else alphaHex
         result += if (redHex.length < 2) ("0$redHex") else redHex
         result += if (greenHex.length < 2) ("0$greenHex") else greenHex
         result += if (blueHex.length < 2) ("0$blueHex") else blueHex
-        if (isUsingAlpha) result += if (alphaHex.length < 2) ("0$alphaHex") else alphaHex
+        if (isUsingAlpha && !argb) result += if (alphaHex.length < 2) ("0$alphaHex") else alphaHex
         return result
     }
 
@@ -297,6 +299,41 @@ open class Color @JvmOverloads constructor(
     }
 
     companion object {
+        /**
+         * @param hexString representing hex value
+         * (formatted "0xRRGGBB" i.e. "0xFFFFFF")
+         * OR
+         * formatted "0xAARRGGBB" i.e. "0x00FFFFFF" for a color with an alpha value
+         * I will also put up with "RRGGBB" and "AARRGGBB" without the starting "0x"
+         * @param argb If true use #AARRGGBB sequence, otherwise use #RRGGBBAA
+         * @return color represented by hex string
+         */
+        fun fromHexString(hexString: String, argb: Boolean = false): Color {
+            val hexValue = when {
+                hexString[0] == '#' -> hexString.substring(1)
+                hexString.substring(0, 2).equals("0x", true) -> hexString.substring(2)
+                else -> hexString
+            }.uppercase()
+
+            val length = hexValue.length
+
+            return if (length == 8 || length == 6) {
+                val hexAlphabet = "0123456789ABCDEF"
+                val value = intArrayOf(0, 0, 0, 0)
+                for ((k, i) in (0 until length step 2).withIndex()) {
+                    val int1 = hexAlphabet.indexOf(hexValue[i])
+                    val int2 = hexAlphabet.indexOf(hexValue[i + 1])
+                    value[k] = int1 * 16 + int2
+                }
+
+                when (length) {
+                    8 -> if (argb) Color(value[1],value[2],value[3],value[0]) else Color(value[0],value[1],value[2],value[3])
+                    6 -> Color(value[0],value[1],value[2])
+                    else -> error("Bad hex value: $hexString")
+                }
+            } else error("Bad hex value: $hexString")
+        }
+
         /**
          * Return the alpha component of a color int. This is the same as saying
          * color >>> 24

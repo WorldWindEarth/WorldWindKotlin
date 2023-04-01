@@ -17,9 +17,9 @@ actual object MilStd2525 {
      */
     private val renderer = MilStdIconRenderer.getInstance()
     private val rendererSettings = RendererSettings.getInstance()
-    actual var outlineWidth = 0f
+    actual var graphicsLineWidth = 0f
         private set
-    var pixelSize = 0f
+    var graphicsOutlineWidth = 0f
         private set
     @JvmStatic
     var isInitialized = false
@@ -54,8 +54,8 @@ actual object MilStd2525 {
 
         // Tell the renderer where the cache folder is located which is needed to process the embedded xml files.
         renderer.init(context, context.cacheDir.absolutePath)
-        outlineWidth = context.resources.getDimension(R.dimen.graphics_outline_width)
-        pixelSize = context.resources.getDimension(R.dimen.default_pixel_size)
+        graphicsLineWidth = context.resources.getDimension(R.dimen.graphics_line_width)
+        graphicsOutlineWidth = context.resources.getDimension(R.dimen.symbol_outline_width)
         isInitialized = true
     }
 
@@ -134,6 +134,9 @@ actual object MilStd2525 {
     @JvmStatic
     actual fun getSimplifiedSymbolID(sidc: String) =
         setAffiliation(SymbolUtilities.getBasicSymbolID(sidc), sidc.substring(1, 2))
+
+    @JvmStatic
+    actual fun isTacticalGraphic(sidc: String) = SymbolUtilities.isTacticalGraphic(sidc)
 
     @JvmStatic
     actual fun setAffiliation(sidc: String, affiliation: String?) =

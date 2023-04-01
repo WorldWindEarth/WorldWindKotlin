@@ -47,7 +47,9 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         if (cameraDistance > placemark.eyeDistanceScalingThreshold && !placemark.isHighlighted) {
             // Low-fidelity: use a SIDC code with affiliation code only
             if (lastLevelOfDetail != LOW_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val simpleCode = placemark.symbolCode.substring(0, 3) + "*------*****"
+                val simpleCode = if (MilStd2525.isTacticalGraphic(placemark.symbolCode))
+                    MilStd2525.getSimplifiedSymbolID(placemark.symbolCode)
+                else placemark.symbolCode.substring(0, 3) + "*------*****"
                 placemarkAttributes = MilStd2525Placemark.getPlacemarkAttributes(
                     simpleCode, symbolAttributes = placemark.symbolAttributes
                 )

@@ -57,7 +57,7 @@ actual open class MilStd2525Placemark actual constructor(
                 )
                 imageSource = ImageSource.fromImage(imageInfo.getImage())
             }
-            leaderAttributes.outlineWidth = MilStd2525.GRAPHICS_OUTLINE_WIDTH / 1.5f
+            leaderAttributes.outlineWidth = MilStd2525.graphicsLineWidth / 1.5f
             minimumImageScale = MINIMUM_IMAGE_SCALE
         }
     }

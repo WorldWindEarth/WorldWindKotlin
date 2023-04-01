@@ -92,10 +92,23 @@ open external class Color {
     fun getGreen(): Number
     fun getBlue(): Number
     fun toARGB(): Number
+    /**
+     * A hex string in the format of AARRGGBB
+     * @param withAlpha Optional, default is true. If set to false,
+     * will return a hex string without alpha values.
+     */
+    fun toHexString(withAlpha : Boolean): String
 }
 
 external object RendererUtilities {
     fun fontsLoaded(): Boolean
+    /**
+     * @param color like "#FFFFFF"
+     * @param forceRGB, return value drops any alpha value
+     * and is formatted like "#RRGGBB"
+     * @returns {String}
+     */
+    fun getIdealOutlineColor(color: String, forceRGB: Boolean): String
 }
 
 external object RendererSettings {

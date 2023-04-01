@@ -10,10 +10,11 @@ import java.awt.Font
  * @see <a href="https://github.com/missioncommand/mil-sym-java">https://github.com/missioncommand/mil-sym-java</a>
  */
 actual object MilStd2525 {
-    const val GRAPHICS_OUTLINE_WIDTH = 3f
-    const val DEFAULT_PIXEL_SIZE = 35
+    private const val GRAPHICS_LINE_WIDTH = 3f
+    private const val SYMBOL_OUTLINE_WIDTH = 1
 
-    actual var outlineWidth = GRAPHICS_OUTLINE_WIDTH
+    actual var graphicsLineWidth = GRAPHICS_LINE_WIDTH
+    var graphicsOutlineWidth = SYMBOL_OUTLINE_WIDTH.toFloat()
     /**
      * The actual rendering engine for the MIL-STD-2525 graphics.
      */
@@ -37,7 +38,7 @@ actual object MilStd2525 {
         rendererSettings.textOutlineWidth = 4
 
         // Configure Single point symbol outline width
-        rendererSettings.singlePointSymbolOutlineWidth = 0
+        rendererSettings.singlePointSymbolOutlineWidth = SYMBOL_OUTLINE_WIDTH
     }
 
     /**
@@ -78,6 +79,9 @@ actual object MilStd2525 {
     @JvmStatic
     actual fun getSimplifiedSymbolID(sidc: String) =
         setAffiliation(SymbolUtilities.getBasicSymbolID(sidc), sidc.substring(1, 2))
+
+    @JvmStatic
+    actual fun isTacticalGraphic(sidc: String) = SymbolUtilities.isTacticalGraphic(sidc)
 
     @JvmStatic
     actual fun setAffiliation(sidc: String, affiliation: String?) =

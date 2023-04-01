@@ -5,10 +5,11 @@ package earth.worldwind.shape.milstd2525
  * @see <a href="https://github.com/missioncommand/mil-sym-js">https://github.com/missioncommand/mil-sym-js</a>
  */
 actual object MilStd2525 {
-    const val GRAPHICS_OUTLINE_WIDTH = 3f
-    const val DEFAULT_PIXEL_SIZE = 35
+    private const val GRAPHICS_LINE_WIDTH = 3f
+    private const val SYMBOL_OUTLINE_WIDTH = 1
 
-    actual var outlineWidth = GRAPHICS_OUTLINE_WIDTH
+    actual var graphicsLineWidth = GRAPHICS_LINE_WIDTH
+    var graphicsOutlineWidth = SYMBOL_OUTLINE_WIDTH.toFloat()
 
     init {
         // Initialize RendererSettings
@@ -23,7 +24,7 @@ actual object MilStd2525 {
         RendererSettings.setTextOutlineWidth(1) // 2 is the factory default
 
         // Configure Single point symbol outline width
-        RendererSettings.setSinglePointSymbolOutlineWidth(0) // No outline
+        RendererSettings.setSinglePointSymbolOutlineWidth(SYMBOL_OUTLINE_WIDTH)
     }
 
 // TODO Implement async fonts loading check
@@ -79,6 +80,8 @@ actual object MilStd2525 {
 
     actual fun getSimplifiedSymbolID(sidc: String) =
         setAffiliation(SymbolUtilities.getBasicSymbolID(sidc), sidc.substring(1, 2))
+
+    actual fun isTacticalGraphic(sidc: String) = SymbolUtilities.isTacticalGraphic(sidc)
 
     actual fun setAffiliation(sidc: String, affiliation: String?) =
         // Weather symbols has no affiliation
