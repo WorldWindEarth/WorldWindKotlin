@@ -24,7 +24,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
-import nl.adaptivity.xmlutil.serialization.UnknownChildHandler
 import nl.adaptivity.xmlutil.serialization.XML
 
 /**
@@ -40,9 +39,7 @@ import nl.adaptivity.xmlutil.serialization.XML
  */
 open class Wcs201ElevationCoverage: TiledElevationCoverage {
     @OptIn(ExperimentalXmlUtilApi::class)
-    protected val xml = XML(serializersModule) {
-        unknownChildHandler = UnknownChildHandler { _, _, _, _, _ -> emptyList() } // Ignore unknown properties
-    }
+    protected val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
 
     /**
      * Constructs a Web Coverage Service (WCS) elevation coverage with specified WCS configuration values.
