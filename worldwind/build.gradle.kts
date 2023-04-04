@@ -37,16 +37,16 @@ kotlin {
     }
     sourceSets {
         val mockkVersion = "1.13.3"
-        val mokoVersion = "0.20.1"
-        val ktorVersion = "2.2.1"
+        val mokoVersion = "0.21.1"
+        val ktorVersion = "2.2.4"
         val commonMain by getting {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.github.pdvrieze.xmlutil:serialization:0.84.3")
-                implementation("com.eygraber:uri-kmp:0.0.9")
+                implementation("io.github.pdvrieze.xmlutil:serialization:0.85.0")
+                implementation("com.eygraber:uri-kmp:0.0.11")
                 api("dev.icerock.moko:resources:$mokoVersion")
             }
         }
@@ -106,7 +106,7 @@ kotlin {
             dependencies {
                 implementation("androidx.annotation:annotation:1.6.0")
                 implementation("androidx.appcompat:appcompat-resources:1.6.1")
-                implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.50")
+                implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.51")
             }
         }
         val androidUnitTest by getting {
@@ -128,9 +128,9 @@ android {
     compileSdk = extra["targetSdk"] as Int
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     sourceSets["main"].res.srcDir(File(buildDir, "generated/moko/androidMain/res")) // Fix for Moko resources
+
     defaultConfig {
         minSdk = extra["minSdk"] as Int
-        targetSdk = extra["targetSdk"] as Int
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -143,9 +143,14 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }
 
 val dokkaOutputDir = "$buildDir/dokka"

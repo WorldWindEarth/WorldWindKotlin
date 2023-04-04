@@ -21,7 +21,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
-import nl.adaptivity.xmlutil.serialization.UnknownChildHandler
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
@@ -29,9 +28,7 @@ object WmsLayerFactory {
     private const val DEFAULT_WMS_NUM_LEVELS = 20
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
     @OptIn(ExperimentalXmlUtilApi::class)
-    private val xml = XML {
-        unknownChildHandler = UnknownChildHandler { _, _, _, _, _ -> emptyList() } // Ignore unknown properties
-    }
+    private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
 
     suspend fun createLayer(serviceAddress: String, layerNames: List<String>): TiledImageLayer {
         require(serviceAddress.isNotEmpty()) {
