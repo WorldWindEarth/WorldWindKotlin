@@ -14,7 +14,7 @@ open class LookAt(
         roll = ZERO)
 
     constructor(lookAt: LookAt): this(
-        lookAt.position,
+        Position(lookAt.position),
         lookAt.altitudeMode,
         lookAt.range,
         lookAt.heading,
