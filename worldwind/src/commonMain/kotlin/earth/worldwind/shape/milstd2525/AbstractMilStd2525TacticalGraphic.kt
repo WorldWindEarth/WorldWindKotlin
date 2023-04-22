@@ -7,6 +7,9 @@ import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Highlightable
 import earth.worldwind.util.Logger
 import kotlin.jvm.JvmStatic
+import kotlin.math.PI
+import kotlin.math.ln
+import kotlin.math.roundToInt
 
 abstract class AbstractMilStd2525TacticalGraphic(
     protected val sidc: String, locations: List<Location>, boundingSector: Sector,
@@ -34,11 +37,14 @@ abstract class AbstractMilStd2525TacticalGraphic(
         const val HIGHLIGHT_FACTOR = 2f
 
         private const val SCALE_PROPERTY = "scale"
+        private const val ZERO_LEVEL_PX = 256
         private val forwardRay = Line()
         private val lookAtPoint = Vec3()
 
         @JvmStatic
-        fun computeScale(rc: RenderContext) = if (rc.hasUserProperty(SCALE_PROPERTY)) rc.getUserProperty(SCALE_PROPERTY) as Double else {
+        fun defaultBoundingSector(locations: List<Location>) = Sector().apply { locations.forEach { l -> union(l) } }
+
+        private fun computeScale(rc: RenderContext) = if (rc.hasUserProperty(SCALE_PROPERTY)) rc.getUserProperty(SCALE_PROPERTY) as Double else {
             // Get camera viewing vector
             //rc.modelview.extractEyePoint(forwardRay.origin)
             forwardRay.origin.copy(rc.cameraPoint)
@@ -51,8 +57,11 @@ abstract class AbstractMilStd2525TacticalGraphic(
             rc.pixelSizeAtDistance(range) * rc.densityFactor
         }.also { rc.putUserProperty(SCALE_PROPERTY, it) }
 
-        @JvmStatic
-        fun defaultBoundingSector(locations: List<Location>) = Sector().apply { locations.forEach { l -> union(l) } }
+        private fun computeNearestLoD(equatorialRadius: Double, scale: Double) =
+            (ln(2 * PI * equatorialRadius / ZERO_LEVEL_PX / scale) / ln(2.0)).roundToInt()
+
+        private fun computeLoDScale(equatorialRadius: Double, lod: Int) =
+            2 * PI * equatorialRadius / ZERO_LEVEL_PX / (1 shl lod)
     }
 
     init { setGeometry(locations, boundingSector) }
@@ -78,10 +87,10 @@ abstract class AbstractMilStd2525TacticalGraphic(
                 else if (currentScale > maxScale) currentScale = maxScale
                 // Get renderables for current LoD
                 val equatorialRadius = rc.globe!!.equatorialRadius
-                val lod = MilStd2525Util.computeNearestLoD(equatorialRadius, currentScale)
+                val lod = computeNearestLoD(equatorialRadius, currentScale)
                 shapes = lodBuffer[lod] ?: mutableListOf<Renderable>().also {
                     lodBuffer[lod] = it
-                    makeRenderables(MilStd2525Util.computeLoDScale(equatorialRadius, lod), it)
+                    makeRenderables(computeLoDScale(equatorialRadius, lod), it)
                 }
             }
             // Draw available shapes
