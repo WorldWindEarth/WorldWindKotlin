@@ -17,10 +17,7 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import io.ktor.client.network.sockets.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -113,11 +110,22 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     }
 
     actual fun retrieveTexture(imageSource: ImageSource, options: ImageOptions?): Texture? {
-        // Bitmap image sources are already in memory, so a texture may be created and put into the cache immediately.
-        if (imageSource.isBitmap) {
-            val texture = createTexture(options, imageSource.asBitmap())
-            put(imageSource, texture, texture.byteCount)
-            return texture
+        when {
+            imageSource.isBitmap -> {
+                // Bitmap image sources are already in memory, so a texture may be created and put into the cache immediately.
+                return createTexture(options, imageSource.asBitmap()).also { put(imageSource, it, it.byteCount) }
+            }
+            imageSource.isBitmapFactory -> {
+                val factory = imageSource.asBitmapFactory()
+                if (factory.isRunBlocking) {
+                    // Bitmap factory makes easy operations, so a texture may be created and put into the cache immediately.
+                    return runBlocking {
+                        factory.createBitmap()?.let { bitmap ->
+                            createTexture(options, bitmap).also { put(imageSource, it, it.byteCount) }
+                        }
+                    }
+                }
+            }
         }
 
         // Ignore retrieval of resources marked as absent

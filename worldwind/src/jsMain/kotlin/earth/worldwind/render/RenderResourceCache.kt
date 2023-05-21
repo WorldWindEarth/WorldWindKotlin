@@ -60,11 +60,20 @@ actual open class RenderResourceCache(
     }
 
     actual fun retrieveTexture(imageSource: ImageSource, options: ImageOptions?): Texture? {
-        // Following type of image sources is already in memory, so a texture may be created and put into the cache immediately.
-        if (imageSource.isImage) {
-            val texture = createTexture(options, imageSource.asImage())
-            put(imageSource, texture, texture.byteCount)
-            return texture
+        when {
+            imageSource.isImage -> {
+                // Following type of image sources is already in memory, so a texture may be created and put into the cache immediately.
+                return createTexture(options, imageSource.asImage()).also { put(imageSource, it, it.byteCount) }
+            }
+            imageSource.isImageFactory -> {
+                val factory = imageSource.asImageFactory()
+                if (factory.isRunBlocking) {
+                    // Image factory makes easy operations, so a texture may be created and put into the cache immediately.
+                    return factory.createImage()?.let { bitmap ->
+                        createTexture(options, bitmap).also { put(imageSource, it, it.byteCount) }
+                    }
+                }
+            }
         }
 
         // Ignore retrieval of already requested resources or marked as absent

@@ -246,6 +246,11 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      */
     interface BitmapFactory {
         /**
+         * Bitmap factory runs asynchronously by default, but this behavior can be changed by overriding current attribute.
+         */
+        val isRunBlocking: Boolean get() = false
+
+        /**
          * Returns the bitmap associated with this factory. This method may be called more than once and may be called
          * from a non-UI thread. Each invocation must return a bitmap with equivalent content, dimensions and
          * configuration. Any side effects applied to the WorldWind scene by the factory must be executed on the main
