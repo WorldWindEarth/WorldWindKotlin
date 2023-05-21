@@ -11,7 +11,8 @@ import earth.worldwind.shape.PlacemarkAttributes
  */
 open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
     companion object {
-        protected const val DEFAULT_HIGHLIGHT_SCALE = 1.3
+        protected const val NORMAL_SCALE = 1.0
+        protected const val HIGHLIGHTED_SCALE = 1.3
         protected const val LOW_LEVEL_OF_DETAIL = 0
         protected const val MEDIUM_LEVEL_OF_DETAIL = 1
         protected const val HIGH_LEVEL_OF_DETAIL = 2
@@ -38,19 +39,18 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
      * @return if placemark should display or skip its rendering
      */
     override fun selectLevelOfDetail(rc: RenderContext, placemark: Placemark, cameraDistance: Double): Boolean {
-        placemark as MilStd2525Placemark
+        if (placemark !is MilStd2525Placemark) return false
         val isHighlightChanged = placemark.isHighlighted != isHighlighted
         isHighlighted = placemark.isHighlighted
 
         // Determine the normal attributes based on highlighted state and the distance from the camera to the placemark
-        var placemarkAttributes: PlacemarkAttributes? = null
         if (cameraDistance > placemark.eyeDistanceScalingThreshold && !placemark.isHighlighted) {
             // Low-fidelity: use a SIDC code with affiliation code only
             if (lastLevelOfDetail != LOW_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val simpleCode = if (MilStd2525.isTacticalGraphic(placemark.symbolCode))
                     MilStd2525.getSimplifiedSymbolID(placemark.symbolCode)
                 else placemark.symbolCode.substring(0, 3) + "*------*****"
-                placemarkAttributes = MilStd2525Placemark.getPlacemarkAttributes(
+                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
                     simpleCode, symbolAttributes = placemark.symbolAttributes
                 )
                 lastLevelOfDetail = LOW_LEVEL_OF_DETAIL
@@ -59,7 +59,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
             // Medium-fidelity: use a simplified SIDC code without status, mobility, size and text modifiers
             if (lastLevelOfDetail != MEDIUM_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val simpleCode = MilStd2525.getSimplifiedSymbolID(placemark.symbolCode)
-                placemarkAttributes = MilStd2525Placemark.getPlacemarkAttributes(
+                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
                     simpleCode, symbolAttributes = placemark.symbolAttributes
                 )
                 lastLevelOfDetail = MEDIUM_LEVEL_OF_DETAIL
@@ -68,7 +68,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
             // High-fidelity: use the regular SIDC code without text modifiers, except unique designation (T)
             if (lastLevelOfDetail != HIGH_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val basicModifiers = placemark.symbolModifiers?.filter { (k,_) -> k == "T" }
-                placemarkAttributes = MilStd2525Placemark.getPlacemarkAttributes(
+                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
                     placemark.symbolCode, basicModifiers, placemark.symbolAttributes
                 )
                 lastLevelOfDetail = HIGH_LEVEL_OF_DETAIL
@@ -76,7 +76,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         } else {
             // Highest-fidelity: use the regular SIDC code with all available text modifiers
             if (lastLevelOfDetail != HIGHEST_LEVEL_OF_DETAIL || isInvalidateRequested || isHighlightChanged) {
-                placemarkAttributes = MilStd2525Placemark.getPlacemarkAttributes(
+                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
                     placemark.symbolCode, placemark.symbolModifiers, placemark.symbolAttributes
                 )
                 lastLevelOfDetail = HIGHEST_LEVEL_OF_DETAIL
@@ -85,17 +85,10 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
 
         isInvalidateRequested = false
 
-        // Scale placemark across distance in low level of details
         placemark.isEyeDistanceScaling = lastLevelOfDetail == LOW_LEVEL_OF_DETAIL
+        placemark.attributes.isDrawLeader = lastLevelOfDetail >= MEDIUM_LEVEL_OF_DETAIL
+        placemark.attributes.imageScale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
 
-        if (placemarkAttributes != null) placemark.attributes.apply {
-            // Apply attributes
-            copy(placemarkAttributes)
-            // Draw leader line for flying placemark on high details level
-            isDrawLeader = lastLevelOfDetail >= MEDIUM_LEVEL_OF_DETAIL
-            // Set scale for highlighted placemark
-            if (placemark.isHighlighted) imageScale *= DEFAULT_HIGHLIGHT_SCALE
-        }
         return true
     }
 }

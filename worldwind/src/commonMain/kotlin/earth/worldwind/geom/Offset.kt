@@ -64,14 +64,19 @@ open class Offset(
     }
 
     /**
+     * Sets this offset to specified property values.
+     */
+    fun set(xUnits: OffsetMode, x: Double, yUnits: OffsetMode, y: Double) = apply {
+        this.xUnits = xUnits
+        this.x = x
+        this.yUnits = yUnits
+        this.y = y
+    }
+
+    /**
      * Sets this offset to identical property values of the specified offset.
      */
-    fun copy(offset: Offset) = apply {
-        x = offset.x
-        y = offset.y
-        xUnits = offset.xUnits
-        yUnits = offset.yUnits
-    }
+    fun copy(offset: Offset) = set(offset.xUnits, offset.x, offset.yUnits, offset.y)
 
     /**
      * Returns this offset's absolute X and Y coordinates in pixels for a rectangle of a specified size in pixels. The
