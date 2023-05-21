@@ -38,7 +38,7 @@ class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
                 )
             ).apply {
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the polygon vertices to the ground
-                followTerrain = true // follow the ground between polygon vertices
+                isFollowTerrain = true // follow the ground between polygon vertices
             }
         )
 

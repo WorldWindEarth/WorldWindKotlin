@@ -24,16 +24,6 @@ open class Path @JvmOverloads constructor(
             field = value
             reset()
         }
-    var isExtrude = false
-        set(value) {
-            field = value
-            reset()
-        }
-    var isFollowTerrain = false
-        set(value) {
-            field = value
-            reset()
-        }
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations

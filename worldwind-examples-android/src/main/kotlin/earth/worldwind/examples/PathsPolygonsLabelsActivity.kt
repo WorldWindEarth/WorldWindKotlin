@@ -261,7 +261,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                         val polygon = Polygon()
                         polygon.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                         polygon.pathType = PathType.LINEAR
-                        polygon.followTerrain = true // essential for preventing long segments from intercepting ellipsoid.
+                        polygon.isFollowTerrain = true // essential for preventing long segments from intercepting ellipsoid.
                         polygon.displayName = fields[1]
                         polygon.attributes = ShapeAttributes(commonAttrs)
                         polygon.attributes.interiorColor = Color(

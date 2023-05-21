@@ -99,22 +99,6 @@ open class Ellipse @JvmOverloads constructor(
             reset()
         }
     /**
-     * Draw sides of the ellipse which extend from the defined position and altitude to the ground.
-     */
-    var isExtrude = false
-        set(value) {
-            field = value
-            reset()
-        }
-    /**
-     * Determines whether this ellipse's geometry follows the terrain surface or is fixed at a constant altitude.
-     */
-    var isFollowTerrain = false
-        set(value) {
-            field = value
-            reset()
-        }
-    /**
      * The maximum pixels a single edge interval will span before the number of intervals is increased. Increasing this
      * value will make ellipses appear coarser.
      */

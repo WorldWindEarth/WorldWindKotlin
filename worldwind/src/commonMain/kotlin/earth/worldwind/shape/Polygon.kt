@@ -27,16 +27,6 @@ open class Polygon @JvmOverloads constructor(
 ): AbstractShape(attributes) {
     protected val boundaries = mutableListOf(positions)
     val boundaryCount get() = boundaries.size
-    var isExtrude = false
-        set(value) {
-            field = value
-            reset()
-        }
-    var followTerrain = false
-        set(value) {
-            field = value
-            reset()
-        }
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
@@ -260,7 +250,7 @@ open class Polygon @JvmOverloads constructor(
 
     protected open fun assembleGeometry(rc: RenderContext) {
         // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
-        isSurfaceShape = altitudeMode == AltitudeMode.CLAMP_TO_GROUND && followTerrain
+        isSurfaceShape = altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
 
         // Determine the number of vertexes
         val noIntermediatePoints = isSurfaceShape || maximumIntermediatePoints <= 0 || pathType == LINEAR

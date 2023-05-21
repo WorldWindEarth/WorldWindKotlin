@@ -26,6 +26,22 @@ abstract class AbstractShape @JvmOverloads constructor(
             field = value
             reset()
         }
+    /**
+     * Draw sides of the shape which extend from the defined position and altitude to the ground.
+     */
+    var isExtrude = false
+        set(value) {
+            field = value
+            reset()
+        }
+    /**
+     * Determines whether this shape's geometry follows the terrain surface or is fixed at a constant altitude.
+     */
+    var isFollowTerrain = false
+        set(value) {
+            field = value
+            reset()
+        }
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
     var maximumIntermediatePoints = 10
@@ -43,7 +59,7 @@ abstract class AbstractShape @JvmOverloads constructor(
         // Select the currently active attributes. Don't render anything if the attributes are unspecified.
         determineActiveAttributes(rc)
 
-        // Keep track of the drawable count to determine whether or not this shape has enqueued drawables.
+        // Keep track of the drawable count to determine whether this shape has enqueued drawables.
         val drawableCount = rc.drawableCount
         if (rc.isPickMode) {
             pickedObjectId = rc.nextPickedObjectId()

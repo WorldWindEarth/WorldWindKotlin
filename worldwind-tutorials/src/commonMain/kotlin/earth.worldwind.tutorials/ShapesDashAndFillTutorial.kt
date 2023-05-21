@@ -93,7 +93,7 @@ class ShapesDashAndFillTutorial(private val engine: WorldWind) : AbstractTutoria
                     outlineImageSource = ImageSource.fromLineStipple(8, 0xDFF6.toShort())
                 }
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                followTerrain = true
+                isFollowTerrain = true
             }
         )
     }
