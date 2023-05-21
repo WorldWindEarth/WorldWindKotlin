@@ -21,6 +21,7 @@ open class BitmapTexture(bitmap: Bitmap) : Texture(bitmap.width, bitmap.height, 
 
     override fun release(dc: DrawContext) {
         super.release(dc)
+        bitmap?.recycle()
         bitmap = null // Bitmap can be non-null if the texture has never been used
     }
 
@@ -41,6 +42,7 @@ open class BitmapTexture(bitmap: Bitmap) : Texture(bitmap.width, bitmap.height, 
                 "Exception attempting to load texture image '$bitmap'", e
             )
         } finally {
+            bitmap?.recycle()
             bitmap = null
         }
     }
