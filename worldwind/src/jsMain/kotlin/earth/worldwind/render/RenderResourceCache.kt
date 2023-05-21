@@ -75,6 +75,14 @@ actual open class RenderResourceCache(
         when {
             imageSource.isResource -> retrieveRemoteImage(imageSource, options, imageSource.asResource().fileUrl)
             imageSource.isUrl -> retrieveRemoteImage(imageSource, options, imageSource.asUrl())
+            imageSource.isImageFactory -> {
+                currentRetrievals += imageSource
+                mainScope.launch {
+                    imageSource.asImageFactory().createImage()?.let {
+                        retrievalSucceeded(imageSource, options, it)
+                    } ?: retrievalFailed(imageSource)
+                }
+            }
         }
 
         return  null

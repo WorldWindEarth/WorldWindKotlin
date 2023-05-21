@@ -15,6 +15,7 @@ import org.w3c.dom.url.URL
  * ImageSource supports following source types:
  * - Uniform Resource Locator [URL]
  * - [Image] object
+ * - WorldWind [ImageSource.ImageFactory]
  * - Multi-platform resource identifier
  * <br>
  * ImageSource instances are intended to be used as a key into a cache or other data structure that enables sharing of
@@ -39,6 +40,16 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          * @return the new image source
          */
         fun fromImage(image: Image) = ImageSource(image)
+
+        /**
+         * Constructs an image source with a [ImageFactory]. WorldWind shapes configured with an image factory image source
+         * construct their images lazily, typically when the shape becomes visible on screen.
+         *
+         * @param factory the [ImageFactory] to use as an image source
+         *
+         * @return the new image source
+         */
+        fun fromImageFactory(factory: ImageFactory) = ImageSource(factory)
 
         /**
          * Constructs an image source with an [URL]. The image's dimensions should be no greater than 2048 x 2048.
@@ -94,6 +105,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         actual fun fromUnrecognized(source: Any) = when (source) {
             is ImageResource -> fromResource(source)
             is Image -> fromImage(source)
+            is ImageFactory -> fromImageFactory(source)
             is URL -> fromUrl(source)
             is String -> fromUrlString(source)
             else -> ImageSource(source)
@@ -114,6 +126,10 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      */
     val isImage get() = source is Image
     /**
+     * Indicates whether this image source is an image factory.
+     */
+    val isImageFactory get() = source is ImageFactory
+    /**
      * Indicates whether this image source is an [URL] string.
      */
     val isUrl get() = source is String
@@ -130,6 +146,12 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
     fun asImage() = source as Image
 
     /**
+     * @return the source [ImageFactory]. Call isImageFactory to determine whether the source is an image
+     * factory.
+     */
+    fun asImageFactory() = source as ImageFactory
+
+    /**
      * @return the source [URL]. Call [isUrl] to determine whether the source is an [URL] string.
      */
     fun asUrl() = source as String
@@ -137,7 +159,24 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
     override fun toString() = when(source) {
         is ImageResource -> "Resource: $source"
         is Image -> "Image: $source"
+        is ImageFactory -> "ImageFactory: $source"
         is String -> "URL: $source"
         else -> super.toString()
+    }
+
+    /**
+     * Factory for delegating construction of images. WorldWind shapes configured with a ImageFactory construct
+     * their images lazily, typically when the shape becomes visible on screen.
+     */
+    interface ImageFactory {
+        /**
+         * Returns the image associated with this factory. This method may be called more than once and may be called
+         * from a non-UI thread. Each invocation must return an image with equivalent content, dimensions and
+         * configuration. Any side effects applied to the WorldWind scene by the factory must be executed on the main
+         * thread.
+         *
+         * @return the image associated with this factory
+         */
+        suspend fun createImage(): Image?
     }
 }
