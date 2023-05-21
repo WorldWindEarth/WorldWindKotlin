@@ -85,7 +85,7 @@ kotlin {
                 implementation("org.lwjgl:lwjgl-opengl:$lwjglVersion")
                 implementation("org.lwjgl:lwjgl-stb:$lwjglVersion")
 
-                implementation("io.github.missioncommand:mil-sym-renderer:0.1.40")
+                implementation("io.github.missioncommand:mil-sym-renderer:0.1.41")
             }
         }
         val jvmTest by getting {
@@ -106,7 +106,7 @@ kotlin {
             dependencies {
                 implementation("androidx.annotation:annotation:1.6.0")
                 implementation("androidx.appcompat:appcompat-resources:1.6.1")
-                implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.51")
+                implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.54")
             }
         }
         val androidUnitTest by getting {

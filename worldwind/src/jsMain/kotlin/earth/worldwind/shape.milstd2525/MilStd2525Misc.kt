@@ -59,3 +59,7 @@ external object armyc2 {
         }
     }
 }
+
+external class WeakRef<T>(element: T) {
+    fun deref(): T?
+}

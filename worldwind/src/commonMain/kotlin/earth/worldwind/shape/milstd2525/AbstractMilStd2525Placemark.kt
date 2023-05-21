@@ -1,8 +1,6 @@
 package earth.worldwind.shape.milstd2525
 
-import earth.worldwind.MR
 import earth.worldwind.geom.Position
-import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.Placemark
 
 /**
@@ -24,10 +22,15 @@ abstract class AbstractMilStd2525Placemark(
 
     protected companion object {
         const val MINIMUM_IMAGE_SCALE = 0.5
-        /**
-         * The image to use when the renderer cannot render an image.
-         */
-        val DEFAULT_IMAGE_SOURCE = ImageSource.fromResource(MR.images.default_image)
+
+        fun getSymbolCacheKey(
+            symbolCode: String, symbolModifiers: Map<String, String>?, symbolAttributes: Map<String, String>?
+        ): Int {
+            var result = symbolCode.hashCode()
+            result = 31 * result + (symbolModifiers?.hashCode() ?: 0)
+            result = 31 * result + (symbolAttributes?.hashCode() ?: 0)
+            return result
+        }
     }
 
     var symbolModifiers = symbolModifiers

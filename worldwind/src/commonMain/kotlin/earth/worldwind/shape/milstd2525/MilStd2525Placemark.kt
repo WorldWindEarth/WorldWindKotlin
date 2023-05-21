@@ -12,6 +12,9 @@ expect open class MilStd2525Placemark(
 ) : AbstractMilStd2525Placemark {
     companion object {
         @JvmStatic
+        fun clearSymbolCache()
+
+        @JvmStatic
         fun getPlacemarkAttributes(
             symbolCode: String,
             symbolModifiers: Map<String, String>? = null,
