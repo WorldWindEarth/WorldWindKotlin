@@ -16,12 +16,12 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.2.10"
+    version = "1.2.13"
 
     extra.apply {
         set("minSdk", 21)
         set("targetSdk", 33)
-        set("versionCode", 5)
+        set("versionCode", 6)
     }
 
     repositories {
