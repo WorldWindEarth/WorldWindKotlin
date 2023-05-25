@@ -2,10 +2,7 @@ package earth.worldwind.util.math
 
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Viewport
-import kotlin.math.floor
-import kotlin.math.ln
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 
 /**
  * Restricts a value to the range [min, max] degrees, clamping values outside the range. Values less than min are
@@ -108,6 +105,6 @@ fun isPowerOfTwo(value: Int) = value != 0 && value and value - 1 == 0
  * @return the value that is the nearest power of 2 greater than or equal to the reference value
  */
 fun powerOfTwoCeiling(value: Int): Int {
-    val pow = floor(ln(value.toDouble()) / ln(2.0)).toInt()
+    val pow = ceil(ln(value.toDouble()) / ln(2.0)).toInt()
     return 1 shl pow
 }
