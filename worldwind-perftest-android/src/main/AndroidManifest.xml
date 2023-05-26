@@ -11,7 +11,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".GeneralGlobeActivity"
+            android:name=".BasicPerformanceBenchmarkActivity"
             android:configChanges="orientation|screenSize"
             android:launchMode="singleInstance"
             android:noHistory="true"
@@ -23,7 +23,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".BasicPerformanceBenchmarkActivity"
+            android:name=".GeneralGlobeActivity"
             android:configChanges="orientation|screenSize"
             android:label="@string/title_basic_performance_benchmark"
             android:launchMode="singleInstance"

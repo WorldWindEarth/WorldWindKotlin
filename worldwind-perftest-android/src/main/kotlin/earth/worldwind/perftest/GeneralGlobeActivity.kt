@@ -1,4 +1,4 @@
-package earth.worldwind.examples
+package earth.worldwind.perftest
 
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
