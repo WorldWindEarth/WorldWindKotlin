@@ -30,13 +30,6 @@ open class BasicGlobeActivity: AbstractMainActivity() {
 
         // Establish the activity content
         setContentView(layoutResourceId)
-        aboutBoxTitle = "About the " + resources.getText(R.string.title_basic_globe)
-        aboutBoxText = """Demonstrates how to construct a WorldWindow with a few layers.
-The globe uses the default navigation gestures: 
- - one-finger pan moves the camera,
- - two-finger pinch-zoom adjusts the range to the look at position, 
- - two-finger rotate arcs the camera horizontally around the look at position,
- - three-finger tilt arcs the camera vertically around the look at position."""
 
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
         wwd = WorldWindow(this)

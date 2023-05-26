@@ -31,11 +31,7 @@ import java.util.*
 /**
  * This abstract Activity class implements a Navigation Drawer menu shared by all the WorldWind Example activities.
  */
-abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
-    protected lateinit var drawerToggle: ActionBarDrawerToggle
-    protected lateinit var navigationView: NavigationView
-    protected lateinit var aboutBoxTitle: String
-    protected lateinit var aboutBoxText: String
+abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.OnNavigationItemSelectedListener {
     /**
      * Returns a reference to the WorldWindow.
      *
@@ -60,28 +56,10 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
         // Add support for a Toolbar and set to act as the ActionBar
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
-
-        // Add support for the navigation drawer full of examples
-        val drawer = findViewById<DrawerLayout>(R.id.drawer_layout)
-        drawerToggle = ActionBarDrawerToggle(
-            this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close
-        )
-        drawer.addDrawerListener(drawerToggle)
-        drawerToggle.syncState()
-        navigationView = findViewById(R.id.nav_view)
-        navigationView.setNavigationItemSelectedListener(this)
-        navigationView.setCheckedItem(selectedItemId)
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (drawer.isDrawerOpen(GravityCompat.START)) drawer.closeDrawer(GravityCompat.START) else finish()
-            }
-        })
     }
 
     override fun onResume() {
         super.onResume()
-        // Update the menu by highlighting the last selected menu item
-        navigationView.setCheckedItem(selectedItemId)
         // Periodically print the FrameMetrics.
         lifecycleScope.launch {
             delay(PRINT_METRICS_DELAY)
@@ -100,21 +78,7 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        val id = item.itemId
-        if (id == R.id.action_about) {
-            showAboutBox()
-            return true
-        }
-        return super.onOptionsItemSelected(item)
+        return false
     }
 
     /**
@@ -168,22 +132,6 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
         )
     }
 
-    /**
-     * This method is invoked when the About button is selected in the Options menu.
-     */
-    protected open fun showAboutBox() {
-        val alertDialogBuilder = AlertDialog.Builder(this)
-            .setTitle(aboutBoxTitle)
-            .setMessage(aboutBoxText)
-            .setCancelable(true)
-            .setNegativeButton("Close") { dialog: DialogInterface, _: Int ->
-                // if this button is clicked, just close
-                // the dialog box and do nothing
-                dialog.cancel()
-            }
-        alertDialogBuilder.create().show()
-    }
-
     protected open fun printMetrics() {
         // Assemble the current system memory info.
         val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
@@ -214,44 +162,6 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
         }
     }
 
-    override fun onPostCreate(savedInstanceState: Bundle?) {
-        super.onPostCreate(savedInstanceState)
-        drawerToggle.syncState()
-    }
-
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        drawerToggle.onConfigurationChanged(newConfig)
-    }
-
-    override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        // Persist the selected item between Activities
-        selectedItemId = item.itemId
-
-        // Handle navigation view item clicks here.
-        when (selectedItemId) {
-            R.id.nav_basic_performance_benchmark_activity -> startActivity(Intent(applicationContext, BasicPerformanceBenchmarkActivity::class.java))
-            R.id.nav_basic_stress_test_activity -> startActivity(Intent(applicationContext, BasicStressTestActivity::class.java))
-            R.id.nav_day_night_cycle_activity -> startActivity(Intent(applicationContext, DayNightCycleActivity::class.java))
-            R.id.nav_general_globe_activity -> startActivity(Intent(applicationContext, GeneralGlobeActivity::class.java))
-            R.id.nav_mgrs_graticule_activity -> startActivity(Intent(applicationContext, MGRSGraticuleActivity::class.java))
-            R.id.nav_multi_globe_activity -> startActivity(Intent(applicationContext, MultiGlobeActivity::class.java))
-            R.id.nav_omnidirectional_sightline_activity -> startActivity(Intent(applicationContext, OmnidirectionalSightlineActivity::class.java))
-            R.id.nav_paths_example -> startActivity(Intent(applicationContext, PathsExampleActivity::class.java))
-            R.id.nav_paths_and_polygons_activity -> startActivity(Intent(applicationContext, PathsPolygonsLabelsActivity::class.java))
-            R.id.nav_placemarks_demo_activity -> startActivity(Intent(applicationContext, PlacemarksDemoActivity::class.java))
-            R.id.nav_placemarks_milstd2525_activity -> startActivity(Intent(applicationContext, PlacemarksMilStd2525Activity::class.java))
-            R.id.nav_placemarks_milstd2525_demo_activity -> startActivity(Intent(applicationContext, PlacemarksMilStd2525DemoActivity::class.java))
-            R.id.nav_placemarks_milstd2525_stress_activity -> startActivity(Intent(applicationContext, PlacemarksMilStd2525StressActivity::class.java))
-            R.id.nav_placemarks_select_drag_activity -> startActivity(Intent(applicationContext, PlacemarksSelectDragActivity::class.java))
-            R.id.nav_placemarks_stress_activity -> startActivity(Intent(applicationContext, PlacemarksStressTestActivity::class.java))
-            R.id.nav_texture_stress_test_activity -> startActivity(Intent(applicationContext, TextureStressTestActivity::class.java))
-        }
-        val drawer = findViewById<DrawerLayout>(R.id.drawer_layout)
-        drawer.closeDrawer(GravityCompat.START)
-        return true
-    }
-
     companion object {
         protected const val SESSION_TIMESTAMP = "session_timestamp"
         protected const val CAMERA_LATITUDE = "latitude"
@@ -264,6 +174,5 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
         protected const val CAMERA_FOV = "fov"
         protected const val PRINT_METRICS_DELAY = 3000L
         protected val sessionTimestamp = Date().time
-        protected var selectedItemId = R.id.nav_general_globe_activity
     }
 }
