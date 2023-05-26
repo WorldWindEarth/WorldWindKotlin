@@ -51,8 +51,6 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        aboutBoxTitle = "About the " + resources.getText(R.string.title_basic_performance_benchmark)
-        aboutBoxText = "Executes a basic performance benchmark, logging the accumulated frame statistics."
 
         // Suppress the WorldWindow's built-in navigation behavior.
         wwd.controller = object : WorldWindowController {}
@@ -89,7 +87,7 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                     azimuth, 70.0.degrees, ZERO
                 )
                 delay(500)
-                animateCamera(50)
+                animateCamera(100)
 
                 // After a 1/2-second delay, fly the camera to NASA Goddard Space Flight Center over 200 frames.
                 var midLoc = arc.interpolateAlongPath(gsfc, PathType.GREAT_CIRCLE, 0.5, Location())
@@ -99,12 +97,12 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                     midLoc.latitude, midLoc.longitude, 100e3, AltitudeMode.ABSOLUTE,
                     azimuth, ZERO, ZERO
                 )
-                animateCamera(100)
+                animateCamera(200)
                 endCamera.set(
                     gsfc.latitude, gsfc.longitude, 600.0, AltitudeMode.ABSOLUTE,
                     azimuth, 70.0.degrees, ZERO
                 )
-                animateCamera(100)
+                animateCamera(200)
 
                 // After a 1/2-second delay, rotate the camera to look at ESA Centre for Earth Observation over 50 frames.
                 azimuth = gsfc.greatCircleAzimuth(esrin)
@@ -113,7 +111,7 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                     azimuth, POS90, ZERO
                 )
                 delay(500)
-                animateCamera(50)
+                animateCamera(100)
 
                 // After a 1/2-second delay, fly the camera to ESA Centre for Earth Observation over 200 frames.
                 midLoc = gsfc.interpolateAlongPath(esrin, PathType.GREAT_CIRCLE, 0.5, Location())
@@ -122,12 +120,12 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                     midLoc.latitude, midLoc.longitude, 100e3, AltitudeMode.ABSOLUTE,
                     azimuth, 60.0.degrees, ZERO
                 )
-                animateCamera(100)
+                animateCamera(200)
                 endCamera.set(
                     esrin.latitude, esrin.longitude, 600.0, AltitudeMode.ABSOLUTE,
                     azimuth, 30.0.degrees, ZERO
                 )
-                animateCamera(100)
+                animateCamera(200)
 
                 // After a 1/2-second delay, back the camera out to look at ESA Centre for Earth Observation over 100 frames.
                 endCamera.set(
@@ -135,7 +133,7 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                     ZERO, ZERO, ZERO
                 )
                 delay(500)
-                animateCamera(100)
+                animateCamera(200)
             }
 
             // After a 1-second delay, log the frame statistics associated with this test.
@@ -186,6 +184,6 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
     }
 
     companion object {
-        protected const val FRAME_INTERVAL = 67L // 67 millis; 15 frames per second
+        protected const val FRAME_INTERVAL = 33L // 33 millis; 30 frames per second
     }
 }
