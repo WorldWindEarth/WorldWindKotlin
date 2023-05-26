@@ -1,4 +1,4 @@
-package earth.worldwind.examples
+package earth.worldwind.perftest
 
 import android.content.res.Configuration
 import android.os.Bundle

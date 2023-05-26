@@ -1,4 +1,4 @@
-package earth.worldwind.examples
+package earth.worldwind.perftest
 
 import android.graphics.Color
 import android.os.Bundle

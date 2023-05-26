@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "${project.group}.examples"
+    namespace = "${project.group}.perftest"
     compileSdk = extra["targetSdk"] as Int
 
     defaultConfig {
@@ -21,7 +21,7 @@ android {
         getByName("release") {
             isMinifyEnabled = true
             setProguardFiles(listOf(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"))
-            signingConfig = signingConfigs.getByName("debug")
+            //signingConfig = signingConfigs.getByName("debug")
         }
     }
 

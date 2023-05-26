@@ -1,4 +1,4 @@
-package earth.worldwind.examples
+package earth.worldwind.perftest
 
 import android.os.Bundle
 import android.widget.FrameLayout

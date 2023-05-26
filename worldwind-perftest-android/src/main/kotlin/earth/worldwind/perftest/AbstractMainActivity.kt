@@ -1,4 +1,4 @@
-package earth.worldwind.examples
+package earth.worldwind.perftest
 
 import android.app.ActivityManager
 import android.app.AlertDialog
