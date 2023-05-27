@@ -5,9 +5,13 @@ import android.app.AlertDialog
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -21,6 +25,7 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.frame.BasicFrameMetrics
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.navigator.NavigatorAction
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.cancelChildren
@@ -42,6 +47,12 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
      */
     protected abstract val wwd: WorldWindow
 
+    protected lateinit var renderTimeView: TextView
+    protected lateinit var drawTimeView: TextView
+    protected lateinit var systemMemView: TextView
+    protected lateinit var heapMemView: TextView
+    protected lateinit var perfOverlay: ViewGroup
+
     /**
      * This method should be called by derived classes in their onCreate method.
      *
@@ -49,13 +60,17 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
      */
     override fun setContentView(@LayoutRes layoutResID: Int) {
         super.setContentView(layoutResID)
-        onCreateDrawer()
-    }
-
-    protected open fun onCreateDrawer() {
         // Add support for a Toolbar and set to act as the ActionBar
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
+
+        // Initialize the UI elements that we'll update upon the navigation events
+        perfOverlay = findViewById(R.id.perf_status)
+        perfOverlay.visibility = View.VISIBLE
+        renderTimeView = findViewById(R.id.rendertime_value)
+        drawTimeView = findViewById(R.id.drawtime_value)
+        systemMemView = findViewById(R.id.sysmem_value)
+        heapMemView = findViewById(R.id.heapmem_value)
     }
 
     override fun onResume() {
@@ -141,9 +156,18 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
         // Assemble the current WorldWind frame metrics.
         val fm = wwd.engine.frameMetrics as BasicFrameMetrics
 
+        renderTimeView.text = "RT: %.2f ms".format(fm.renderTimeAverage)
+        drawTimeView.text = "DT: %.2f ms".format(fm.drawTimeAverage)
+        systemMemView.text = "SM: %.0f KB".format((mi.totalMem - mi.availMem) / 1024.0)
+        heapMemView.text = "HM: %.0f KB".format((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024.0)
+        renderTimeView.setTextColor(if (fm.renderTimeAverage<35.0) Color.GREEN else Color.YELLOW)
+        drawTimeView.setTextColor(if (fm.drawTimeAverage<35.0) Color.GREEN else Color.YELLOW)
+        systemMemView.setTextColor(Color.YELLOW)
+        heapMemView.setTextColor(Color.YELLOW)
+
         // Print a log message with the system memory, WorldWind cache usage, and WorldWind average frame time.
         log(
-            Logger.INFO, "System memory %,.0f KB    Heap memory %,.0f KB    Render cache %,.0f KB    Frame time %.1f ms + %.1f ms".format(
+            Logger.DEBUG, "System memory %,.0f KB    Heap memory %,.0f KB    Render cache %,.0f KB    Frame time %.1f ms + %.1f ms".format(
                 (mi.totalMem - mi.availMem) / 1024.0,
                 (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024.0,
                 fm.renderResourceCacheUsedCapacity / 1024.0,
@@ -172,7 +196,7 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
         protected const val CAMERA_TILT = "tilt"
         protected const val CAMERA_ROLL = "roll"
         protected const val CAMERA_FOV = "fov"
-        protected const val PRINT_METRICS_DELAY = 3000L
+        protected const val PRINT_METRICS_DELAY = 100L
         protected val sessionTimestamp = Date().time
     }
 }

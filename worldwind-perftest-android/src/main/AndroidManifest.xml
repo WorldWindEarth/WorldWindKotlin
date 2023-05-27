@@ -10,6 +10,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+        <profileable android:shell="true"/>
         <activity
             android:name=".BasicPerformanceBenchmarkActivity"
             android:configChanges="orientation|screenSize"
@@ -30,119 +31,6 @@
             android:noHistory="true"
             android:theme="@style/AppTheme.NoActionBar">
         </activity>
-        <activity
-            android:name=".BasicStressTestActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_basic_stress_test"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".DayNightCycleActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_day_night_cycle"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".OmnidirectionalSightlineActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_movable_line_of_sight"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".MGRSGraticuleActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_mgrs_graticule"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".MultiGlobeActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_multi_globe"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PathsExampleActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_paths_example"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PathsPolygonsLabelsActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_paths_and_polygons"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PlacemarksDemoActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_placemarks_demo"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PlacemarksMilStd2525Activity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_placemarks_milstd2525"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PlacemarksMilStd2525DemoActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_placemarks_milstd2525_demo"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PlacemarksMilStd2525StressActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_placemarks_milstd2525_stress_test"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PlacemarksSelectDragActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_placemarks_select_drag"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".PlacemarksStressTestActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_placemarks_stress_test"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-        <activity
-            android:name=".TextureStressTestActivity"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/title_texture_stress_test"
-            android:launchMode="singleInstance"
-            android:noHistory="true"
-            android:theme="@style/AppTheme.NoActionBar">
-        </activity>
-
     </application>
 
 </manifest>

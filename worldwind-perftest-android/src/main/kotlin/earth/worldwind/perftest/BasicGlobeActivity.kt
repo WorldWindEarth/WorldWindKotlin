@@ -39,31 +39,6 @@ open class BasicGlobeActivity: AbstractMainActivity() {
         globeLayout.addView(wwd)
 
         // Setting up the WorldWindow's layers.
-        wwd.engine.layers.apply {
-            addLayer(BackgroundLayer())
-            addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-                wwd.mainScope.launch(Dispatchers.IO) {
-                    try {
-                        configureCache(File(cacheDir, "cache.gpkg").absolutePath, "GSat")
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-            })
-            addLayer(StarFieldLayer())
-            addLayer(AtmosphereLayer())
-        }
-
-        // Setting up the WorldWindow's elevation coverages.
-        wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            wwd.mainScope.launch(Dispatchers.IO) {
-                try {
-                    configureCache(File(cacheDir, "cache.gpkg").absolutePath, "SRTM")
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        })
     }
 
     override fun onPause() {
