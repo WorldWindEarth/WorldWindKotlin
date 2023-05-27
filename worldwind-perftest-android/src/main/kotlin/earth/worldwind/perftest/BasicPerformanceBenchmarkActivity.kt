@@ -13,8 +13,13 @@ import earth.worldwind.geom.Camera
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Position.Companion.fromDegrees
+import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
+import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.layer.atmosphere.AtmosphereLayer
+import earth.worldwind.layer.mercator.google.GoogleLayer
+import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.render.image.ImageSource.Companion.fromResource
 import earth.worldwind.shape.PathType
 import earth.worldwind.shape.Placemark
@@ -25,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.IOException
 
 open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
@@ -50,7 +56,8 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
 
     private suspend fun test_default() {
         // Add a layer containing a large number of placemarks.
-        wwd.engine.layers.addLayer(createPlacemarksLayer())
+        createStandardLayers()
+        createPlacemarksLayer()
 
         // Create location objects for the places used in this test.
         val arc = fromDegrees(37.415229, -122.06265)
@@ -123,15 +130,44 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
         delay(500)
         animateCamera(200)
     }
-    protected open fun createPlacemarksLayer(): Layer {
-        val layer = RenderableLayer("Placemarks")
-        val attrs = arrayOf(
-            createWithImage(fromResource(R.drawable.aircraft_fixwing)),
-            createWithImage(fromResource(R.drawable.airplane)),
-            createWithImage(fromResource(R.drawable.airport)),
-            createWithImage(fromResource(R.drawable.airport_terminal))
-        )
+
+    protected fun createStandardLayers() {
+        wwd.engine.layers.apply {
+            addLayer(BackgroundLayer())
+            addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
+                wwd.mainScope.launch(Dispatchers.IO) {
+                    try {
+                        configureCache(File(cacheDir, "cache.gpkg").absolutePath, "GSat")
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            })
+            addLayer(StarFieldLayer())
+            addLayer(AtmosphereLayer())
+        }
+
+        // Setting up the WorldWindow's elevation coverages.
+        wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
+            wwd.mainScope.launch(Dispatchers.IO) {
+                try {
+                    configureCache(File(cacheDir, "cache.gpkg").absolutePath, "SRTM")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        })
+    }
+
+    protected open fun createPlacemarksLayer() {
         try {
+            val layer = RenderableLayer("Placemarks")
+            val attrs = arrayOf(
+                createWithImage(fromResource(R.drawable.aircraft_fixwing)),
+                createWithImage(fromResource(R.drawable.airplane)),
+                createWithImage(fromResource(R.drawable.airport)),
+                createWithImage(fromResource(R.drawable.airport_terminal))
+            )
             var headers = true
             var lat = 0
             var lon = 0
@@ -157,10 +193,10 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                     )
                 }
             }
+            wwd.engine.layers.addLayer(layer)
         } catch (e: IOException) {
             log(Logger.ERROR, "Exception attempting to read Airports database")
         }
-        return layer
     }
 
     private val beginCamera = Camera()
