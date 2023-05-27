@@ -28,113 +28,18 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 
 open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
-
-    private val beginCamera = Camera()
-    private val endCamera = Camera()
-    private val curCamera = Camera()
-
-    private suspend fun animateCamera(steps: Int) {
-        beginCamera.copy(wwd.engine.camera)
-        for (i in 0 until steps) {
-            val amount = i / (steps - 1).toDouble()
-            beginCamera.position.interpolateAlongPath(
-                endCamera.position, PathType.GREAT_CIRCLE, amount, curCamera.position
-            )
-            curCamera.heading = interpolateAngle360(amount, beginCamera.heading, endCamera.heading)
-            curCamera.tilt = interpolateAngle180(amount, beginCamera.tilt, endCamera.tilt)
-            curCamera.roll = interpolateAngle180(amount, beginCamera.roll, endCamera.roll)
-            wwd.engine.camera.copy(curCamera)
-            wwd.requestRedraw()
-            delay(FRAME_INTERVAL)
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Suppress the WorldWindow's built-in navigation behavior.
         wwd.controller = object : WorldWindowController {}
-
-        // Add a layer containing a large number of placemarks.
-        wwd.engine.layers.addLayer(createPlacemarksLayer())
     }
 
     override fun onStart() {
         super.onStart()
 
-        // Create location objects for the places used in this test.
-        val arc = fromDegrees(37.415229, -122.06265)
-        val gsfc = fromDegrees(38.996944, -76.848333)
-        val esrin = fromDegrees(41.826947, 12.674122)
-
         lifecycleScope.launch {
-            // After a 1-second initial delay, clear the frame statistics associated with this test.
-            delay(1000)
-            wwd.engine.frameMetrics?.reset()
-
-            withContext(Dispatchers.Default) {
-                // After a 1/2-second delay, fly to NASA Ames Research Center over 100 frames.
-                endCamera.set(
-                    arc.latitude, arc.longitude, 600.0, AltitudeMode.ABSOLUTE,
-                    ZERO, ZERO, ZERO
-                )
-                animateCamera(100)
-
-                // After a 1/2-second delay, rotate the camera to look at NASA Goddard Space Flight Center over 50 frames.
-                var azimuth = arc.greatCircleAzimuth(gsfc)
-                endCamera.set(
-                    arc.latitude, arc.longitude, 600.0, AltitudeMode.ABSOLUTE,
-                    azimuth, 70.0.degrees, ZERO
-                )
-                delay(500)
-                animateCamera(100)
-
-                // After a 1/2-second delay, fly the camera to NASA Goddard Space Flight Center over 200 frames.
-                var midLoc = arc.interpolateAlongPath(gsfc, PathType.GREAT_CIRCLE, 0.5, Location())
-                azimuth = midLoc.greatCircleAzimuth(gsfc)
-                delay(500)
-                endCamera.set(
-                    midLoc.latitude, midLoc.longitude, 100e3, AltitudeMode.ABSOLUTE,
-                    azimuth, ZERO, ZERO
-                )
-                animateCamera(200)
-                endCamera.set(
-                    gsfc.latitude, gsfc.longitude, 600.0, AltitudeMode.ABSOLUTE,
-                    azimuth, 70.0.degrees, ZERO
-                )
-                animateCamera(200)
-
-                // After a 1/2-second delay, rotate the camera to look at ESA Centre for Earth Observation over 50 frames.
-                azimuth = gsfc.greatCircleAzimuth(esrin)
-                endCamera.set(
-                    gsfc.latitude, gsfc.longitude, 600.0, AltitudeMode.ABSOLUTE,
-                    azimuth, POS90, ZERO
-                )
-                delay(500)
-                animateCamera(100)
-
-                // After a 1/2-second delay, fly the camera to ESA Centre for Earth Observation over 200 frames.
-                midLoc = gsfc.interpolateAlongPath(esrin, PathType.GREAT_CIRCLE, 0.5, Location())
-                delay(500)
-                endCamera.set(
-                    midLoc.latitude, midLoc.longitude, 100e3, AltitudeMode.ABSOLUTE,
-                    azimuth, 60.0.degrees, ZERO
-                )
-                animateCamera(200)
-                endCamera.set(
-                    esrin.latitude, esrin.longitude, 600.0, AltitudeMode.ABSOLUTE,
-                    azimuth, 30.0.degrees, ZERO
-                )
-                animateCamera(200)
-
-                // After a 1/2-second delay, back the camera out to look at ESA Centre for Earth Observation over 100 frames.
-                endCamera.set(
-                    esrin.latitude, esrin.longitude, 20e3, AltitudeMode.ABSOLUTE,
-                    ZERO, ZERO, ZERO
-                )
-                delay(500)
-                animateCamera(200)
-            }
+            test_default()
 
             // After a 1-second delay, log the frame statistics associated with this test.
             delay(1000)
@@ -143,6 +48,81 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
         }
     }
 
+    private suspend fun test_default() {
+        // Add a layer containing a large number of placemarks.
+        wwd.engine.layers.addLayer(createPlacemarksLayer())
+
+        // Create location objects for the places used in this test.
+        val arc = fromDegrees(37.415229, -122.06265)
+        val gsfc = fromDegrees(38.996944, -76.848333)
+        val esrin = fromDegrees(41.826947, 12.674122)
+
+        // After a 1-second initial delay, clear the frame statistics associated with this test.
+        delay(1000)
+        wwd.engine.frameMetrics?.reset()
+
+        // After a 1/2-second delay, fly to NASA Ames Research Center over 100 frames.
+        endCamera.set(
+            arc.latitude, arc.longitude, 600.0, AltitudeMode.ABSOLUTE,
+            ZERO, ZERO, ZERO
+        )
+        animateCamera(100)
+
+        // After a 1/2-second delay, rotate the camera to look at NASA Goddard Space Flight Center over 50 frames.
+        var azimuth = arc.greatCircleAzimuth(gsfc)
+        endCamera.set(
+            arc.latitude, arc.longitude, 600.0, AltitudeMode.ABSOLUTE,
+            azimuth, 70.0.degrees, ZERO
+        )
+        delay(500)
+        animateCamera(100)
+
+        // After a 1/2-second delay, fly the camera to NASA Goddard Space Flight Center over 200 frames.
+        var midLoc = arc.interpolateAlongPath(gsfc, PathType.GREAT_CIRCLE, 0.5, Location())
+        azimuth = midLoc.greatCircleAzimuth(gsfc)
+        delay(500)
+        endCamera.set(
+            midLoc.latitude, midLoc.longitude, 100e3, AltitudeMode.ABSOLUTE,
+            azimuth, ZERO, ZERO
+        )
+        animateCamera(200)
+        endCamera.set(
+            gsfc.latitude, gsfc.longitude, 600.0, AltitudeMode.ABSOLUTE,
+            azimuth, 70.0.degrees, ZERO
+        )
+        animateCamera(200)
+
+        // After a 1/2-second delay, rotate the camera to look at ESA Centre for Earth Observation over 50 frames.
+        azimuth = gsfc.greatCircleAzimuth(esrin)
+        endCamera.set(
+            gsfc.latitude, gsfc.longitude, 600.0, AltitudeMode.ABSOLUTE,
+            azimuth, POS90, ZERO
+        )
+        delay(500)
+        animateCamera(100)
+
+        // After a 1/2-second delay, fly the camera to ESA Centre for Earth Observation over 200 frames.
+        midLoc = gsfc.interpolateAlongPath(esrin, PathType.GREAT_CIRCLE, 0.5, Location())
+        delay(500)
+        endCamera.set(
+            midLoc.latitude, midLoc.longitude, 100e3, AltitudeMode.ABSOLUTE,
+            azimuth, 60.0.degrees, ZERO
+        )
+        animateCamera(200)
+        endCamera.set(
+            esrin.latitude, esrin.longitude, 600.0, AltitudeMode.ABSOLUTE,
+            azimuth, 30.0.degrees, ZERO
+        )
+        animateCamera(200)
+
+        // After a 1/2-second delay, back the camera out to look at ESA Centre for Earth Observation over 100 frames.
+        endCamera.set(
+            esrin.latitude, esrin.longitude, 20e3, AltitudeMode.ABSOLUTE,
+            ZERO, ZERO, ZERO
+        )
+        delay(500)
+        animateCamera(200)
+    }
     protected open fun createPlacemarksLayer(): Layer {
         val layer = RenderableLayer("Placemarks")
         val attrs = arrayOf(
@@ -183,7 +163,25 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
         return layer
     }
 
-    companion object {
-        protected const val FRAME_INTERVAL = 33L // 33 millis; 30 frames per second
+    private val beginCamera = Camera()
+    private val endCamera = Camera()
+    private val curCamera = Camera()
+
+    protected val FRAME_INTERVAL = 33L // 33 millis; 30 frames per second
+
+    private suspend fun animateCamera(steps: Int) {
+        beginCamera.copy(wwd.engine.camera)
+        for (i in 0 until steps) {
+            val amount = i / (steps - 1).toDouble()
+            beginCamera.position.interpolateAlongPath(
+                endCamera.position, PathType.GREAT_CIRCLE, amount, curCamera.position
+            )
+            curCamera.heading = interpolateAngle360(amount, beginCamera.heading, endCamera.heading)
+            curCamera.tilt = interpolateAngle180(amount, beginCamera.tilt, endCamera.tilt)
+            curCamera.roll = interpolateAngle180(amount, beginCamera.roll, endCamera.roll)
+            wwd.engine.camera.copy(curCamera)
+            wwd.requestRedraw()
+            delay(FRAME_INTERVAL)
+        }
     }
 }
