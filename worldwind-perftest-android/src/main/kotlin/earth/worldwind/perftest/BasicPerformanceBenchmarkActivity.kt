@@ -15,7 +15,6 @@ import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
-import earth.worldwind.layer.Layer
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.google.GoogleLayer
@@ -29,7 +28,6 @@ import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 
@@ -41,11 +39,24 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
         wwd.controller = object : WorldWindowController {}
     }
 
+    val testsuit = mapOf<String, suspend () -> Unit>(
+        "empty" to {test_empty()},
+        "default" to {test_default()}
+    )
+
     override fun onStart() {
         super.onStart()
 
         lifecycleScope.launch {
-            test_default()
+            intent.extras?.getString("test")?.let { test_name ->
+                testsuit.get(test_name)?.let{
+                    log(Logger.INFO, "Running test: $test_name")
+                    it()
+                } ?: log(Logger.ERROR, "Test not found: $test_name")
+            } ?: run {
+                log(Logger.INFO, "Running default test")
+                test_default()
+            }
 
             // After a 1-second delay, log the frame statistics associated with this test.
             delay(1000)
@@ -129,6 +140,11 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
         )
         delay(500)
         animateCamera(200)
+    }
+
+    private suspend fun test_empty() {
+        createStandardLayers()
+        delay(5000)
     }
 
     protected fun createStandardLayers() {
