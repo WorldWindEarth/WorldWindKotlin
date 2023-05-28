@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.TextView
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.Camera
@@ -16,7 +17,7 @@ import kotlin.math.sign
 /**
  * Creates a general purpose globe view with touch navigation, a few layers, and a coordinates overlay.
  */
-open class GeneralGlobeActivity: BasicGlobeActivity() {
+open class GeneralGlobeActivity: AbstractMainActivity() {
     // UI elements
     protected lateinit var latView: TextView
     protected lateinit var lonView: TextView
@@ -28,8 +29,23 @@ open class GeneralGlobeActivity: BasicGlobeActivity() {
     // Track the navigation event time so the overlay refresh rate can be throttled
     private var lastEventTime = 0L
 
+    /**
+     * The WorldWindow (GLSurfaceView) maintained by this activity
+     */
+    override lateinit var wwd: WorldWindow
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Establish the activity content
+        setContentView(R.layout.activity_globe)
+
+        // Create the WorldWindow (a GLSurfaceView) which displays the globe.
+        wwd = WorldWindow(this)
+
+        // Add the WorldWindow view object to the layout that was reserved for the globe.
+        val globeLayout = findViewById<FrameLayout>(R.id.globe)
+        globeLayout.addView(wwd)
 
         // Initialize the UI elements that we'll update upon the navigation events
         overlay = findViewById(R.id.globe_status)
@@ -116,5 +132,20 @@ open class GeneralGlobeActivity: BasicGlobeActivity() {
             if (altitude < 100000) altitude else altitude / 1000,
             if (altitude < 100000) "m" else "km"
         )
+    }
+
+    override fun onPause() {
+        super.onPause()
+        wwd.onPause() // pauses the rendering thread
+    }
+
+    override fun onResume() {
+        super.onResume()
+        wwd.onResume() // resumes a paused rendering thread
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        wwd.engine.renderResourceCache.trimStale()
     }
 }

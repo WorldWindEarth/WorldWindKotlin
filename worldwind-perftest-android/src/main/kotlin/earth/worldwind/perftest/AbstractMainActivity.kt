@@ -156,10 +156,10 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
         // Assemble the current WorldWind frame metrics.
         val fm = wwd.engine.frameMetrics as BasicFrameMetrics
 
-        renderTimeView.text = "RT: %.2f ms".format(fm.renderTimeAverage)
-        drawTimeView.text = "DT: %.2f ms".format(fm.drawTimeAverage)
-        systemMemView.text = "SM: %.0f KB".format((mi.totalMem - mi.availMem) / 1024.0)
-        heapMemView.text = "HM: %.0f KB".format((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024.0)
+        renderTimeView.text = "RT: %4.2f ms".format(fm.renderTimeAverage)
+        drawTimeView.text = "DT: %4.2f ms".format(fm.drawTimeAverage)
+        systemMemView.text = "SM: %5.3f MB".format((mi.totalMem - mi.availMem) / (1024.0 * 1024.0))
+        heapMemView.text = "HM: %5.3f MB".format((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024.0 * 1024.0))
         renderTimeView.setTextColor(if (fm.renderTimeAverage<35.0) Color.GREEN else Color.YELLOW)
         drawTimeView.setTextColor(if (fm.drawTimeAverage<35.0) Color.GREEN else Color.YELLOW)
         systemMemView.setTextColor(Color.YELLOW)

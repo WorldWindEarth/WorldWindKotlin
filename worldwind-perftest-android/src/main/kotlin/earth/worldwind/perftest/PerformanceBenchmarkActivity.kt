@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
 
-open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
+open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -58,10 +58,8 @@ open class BasicPerformanceBenchmarkActivity: GeneralGlobeActivity() {
                 test_default()
             }
 
-            // After a 1-second delay, log the frame statistics associated with this test.
-            delay(1000)
-            log(Logger.INFO, wwd.engine.frameMetrics.toString())
-            finish()
+            finishAffinity()
+            System.exit(0)
         }
     }
 

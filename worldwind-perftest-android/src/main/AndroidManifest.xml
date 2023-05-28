@@ -12,7 +12,7 @@
         android:theme="@style/AppTheme">
         <profileable android:shell="true"/>
         <activity
-            android:name=".BasicPerformanceBenchmarkActivity"
+            android:name=".PerformanceBenchmarkActivity"
             android:configChanges="orientation|screenSize"
             android:launchMode="singleInstance"
             android:noHistory="true"
