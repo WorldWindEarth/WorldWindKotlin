@@ -3,6 +3,7 @@ package earth.worldwind.render
 interface Renderable {
     var displayName: String?
     var isEnabled: Boolean
+    var isPickEnabled: Boolean
     var pickDelegate: Any?
     fun getUserProperty(key: Any): Any?
     fun putUserProperty(key: Any, value: Any): Any?

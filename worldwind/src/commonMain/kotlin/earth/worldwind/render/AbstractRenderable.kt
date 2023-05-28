@@ -4,6 +4,7 @@ import kotlin.jvm.JvmOverloads
 
 abstract class AbstractRenderable @JvmOverloads constructor(override var displayName: String? = null): Renderable {
     override var isEnabled = true
+    override var isPickEnabled = true
     override var pickDelegate: Any? = null
     private var userProperties: MutableMap<Any, Any>? = null
 
@@ -18,7 +19,7 @@ abstract class AbstractRenderable @JvmOverloads constructor(override var display
 
     override fun hasUserProperty(key: Any) = userProperties?.containsKey(key) == true
 
-    override fun render(rc: RenderContext) { if (isEnabled) doRender(rc) }
+    override fun render(rc: RenderContext) { if (isEnabled && (isPickEnabled || !rc.isPickMode)) doRender(rc) }
 
     protected abstract fun doRender(rc: RenderContext)
 }
