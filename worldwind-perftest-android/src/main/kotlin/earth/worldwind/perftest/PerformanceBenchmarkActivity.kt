@@ -59,6 +59,7 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
             }
 
             finishAffinity()
+            dumpMetrics()
             System.exit(0)
         }
     }

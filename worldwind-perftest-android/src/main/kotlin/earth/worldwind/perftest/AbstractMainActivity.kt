@@ -53,7 +53,11 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
     protected lateinit var heapMemView: TextView
     protected lateinit var perfOverlay: ViewGroup
 
-    /**
+    data class Metrics(val rt: Double, val dt: Double, val sm: Double, val hm: Double, val rcuc: Double, val rcec: Int)
+
+    private val metrics = mutableListOf<Metrics>()
+/**
+
      * This method should be called by derived classes in their onCreate method.
      *
      * @param layoutResID Resource ID to be inflated.
@@ -156,23 +160,28 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
         // Assemble the current WorldWind frame metrics.
         val fm = wwd.engine.frameMetrics as BasicFrameMetrics
 
-        renderTimeView.text = "RT: %4.2f ms".format(fm.renderTimeAverage)
-        drawTimeView.text = "DT: %4.2f ms".format(fm.drawTimeAverage)
-        systemMemView.text = "SM: %5.3f MB".format((mi.totalMem - mi.availMem) / (1024.0 * 1024.0))
-        heapMemView.text = "HM: %5.3f MB".format((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024.0 * 1024.0))
-        renderTimeView.setTextColor(if (fm.renderTimeAverage<35.0) Color.GREEN else Color.YELLOW)
-        drawTimeView.setTextColor(if (fm.drawTimeAverage<35.0) Color.GREEN else Color.YELLOW)
+        val rt = fm.renderTimeAverage
+        val dt = fm.drawTimeAverage
+        val sm = (mi.totalMem - mi.availMem) / (1024.0 * 1024.0)
+        val hm = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024.0 * 1024.0)
+        val rcuc = fm.renderResourceCacheUsedCapacity / (1024.0 * 1024.0)
+        val rcec = fm.renderResourceCacheEntryCount
+
+        metrics.add(Metrics(rt, dt, sm, hm, rcuc, rcec))
+
+        renderTimeView.text = "RT: %4.2f ms".format(rt)
+        drawTimeView.text = "DT: %4.2f ms".format(dt)
+        systemMemView.text = "SM: %5.3f MB".format(sm)
+        heapMemView.text = "HM: %5.3f MB".format(hm)
+        renderTimeView.setTextColor(if (rt < 35.0) Color.GREEN else Color.YELLOW)
+        drawTimeView.setTextColor(if (dt < 35.0) Color.GREEN else Color.YELLOW)
         systemMemView.setTextColor(Color.YELLOW)
         heapMemView.setTextColor(Color.YELLOW)
 
         // Print a log message with the system memory, WorldWind cache usage, and WorldWind average frame time.
         log(
-            Logger.DEBUG, "System memory %,.0f KB    Heap memory %,.0f KB    Render cache %,.0f KB    Frame time %.1f ms + %.1f ms".format(
-                (mi.totalMem - mi.availMem) / 1024.0,
-                (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024.0,
-                fm.renderResourceCacheUsedCapacity / 1024.0,
-                fm.renderTimeAverage,
-                fm.drawTimeAverage
+            Logger.DEBUG, "System memory %,.3f MB    Heap memory %,.3f MB    Render cache %,.3f MB    Frame time %.1f ms + %.1f ms".format(
+                sm, hm, rcuc, rt, dt
             )
         )
 
@@ -184,6 +193,10 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
             delay(PRINT_METRICS_DELAY)
             printMetrics()
         }
+    }
+
+    protected fun dumpMetrics() {
+
     }
 
     companion object {
