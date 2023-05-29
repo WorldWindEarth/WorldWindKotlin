@@ -58,8 +58,8 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
                 test_default()
             }
 
-            finishAffinity()
             dumpMetrics()
+            finishAffinity()
             System.exit(0)
         }
     }

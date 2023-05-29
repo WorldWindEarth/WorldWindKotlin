@@ -31,6 +31,8 @@ import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
 import java.util.*
 
 /**
@@ -196,7 +198,16 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
     }
 
     protected fun dumpMetrics() {
-
+        val path = getExternalFilesDir(null)
+        val csvDirectory = File(path, "csv")
+        csvDirectory.mkdirs()
+        val dateTime =
+            SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime())
+        val file = File(csvDirectory, "ProfileRun_${dateTime}.csv")
+        val writer = file.printWriter()
+        writer.println("RenderThreadTime,DrawThreadTime,SystemMemoryMB,HeapMemoryMB,ResourceCacheUsageSizeMB,ResourceCacheEntryCount")
+        metrics.forEach { e -> writer.println("${e.rt},${e.dt},${e.sm},${e.hm},${e.rcuc},${e.rcec}") }
+        writer.close()
     }
 
     companion object {
