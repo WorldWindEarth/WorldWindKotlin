@@ -70,7 +70,6 @@ open class GeneralGlobeActivity: AbstractMainActivity() {
 
                     // Update the overlays
                     updateOverlayContents(lookAt, event.camera!!)
-                    updateOverlayColor(eventAction)
                     lastEventTime = currentTime
                 }
             }
@@ -95,19 +94,6 @@ open class GeneralGlobeActivity: AbstractMainActivity() {
             )
         )
         altView.text = formatAltitude(camera.position.altitude)
-    }
-
-    /**
-     * Brightens the colors of the overlay views when when user input occurs.
-     *
-     * @param eventAction The action associated with this navigator event
-     */
-    protected open fun updateOverlayColor(eventAction: NavigatorAction) {
-        val color = if (eventAction == NavigatorAction.STOPPED) -0x5f000100 /*semi-transparent yellow*/ else Color.YELLOW
-        latView.setTextColor(color)
-        lonView.setTextColor(color)
-        elevView.setTextColor(color)
-        altView.setTextColor(color)
     }
 
     protected open fun formatLatitude(latitude: Double): String {

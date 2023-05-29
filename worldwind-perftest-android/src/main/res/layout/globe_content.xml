@@ -119,6 +119,7 @@
             android:shadowColor="#000000"
             android:shadowRadius="2"
             android:singleLine="true"
+            android:textColor="#FFEB3B"
             android:textSize="16sp" />
 
         <TextView
@@ -136,6 +137,7 @@
             android:shadowDx="0"
             android:shadowDy="0"
             android:shadowRadius="2"
+            android:textColor="#FFEB3B"
             android:singleLine="true"/>
 
         <TextView
@@ -153,6 +155,7 @@
             android:shadowRadius="2"
             android:shadowDx="0"
             android:shadowDy="0"
+            android:textColor="#FFEB3B"
             android:singleLine="true"/>
 
         <TextView
@@ -170,6 +173,7 @@
             android:shadowRadius="2"
             android:shadowDx="0"
             android:shadowDy="0"
+            android:textColor="#FFEB3B"
             android:singleLine="true"/>
     </LinearLayout>
 
