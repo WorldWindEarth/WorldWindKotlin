@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
+import kotlin.system.exitProcess
 
 open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,11 +39,6 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
         // Suppress the WorldWindow's built-in navigation behavior.
         wwd.controller = object : WorldWindowController {}
     }
-
-    val testsuit = mapOf<String, suspend () -> Unit>(
-        "empty" to {test_empty()},
-        "default" to {test_default()}
-    )
 
     override fun onStart() {
         super.onStart()
@@ -55,20 +51,32 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
                 } ?: log(Logger.ERROR, "Test not found: $test_name")
             } ?: run {
                 log(Logger.INFO, "Running default test")
-                test_default()
+                testsuit.get("default")?.invoke()
             }
 
-            dumpMetrics()
+            dumpMetrics(intent.extras?.getString("variant") ?: "Profile")
             finishAffinity()
-            System.exit(0)
+            exitProcess(0)
         }
     }
 
-    private suspend fun test_default() {
-        // Add a layer containing a large number of placemarks.
-        createStandardLayers()
-        createPlacemarksLayer()
+    val testsuit = mapOf<String, suspend () -> Unit>(
+        "default" to {
+            createStandardLayers()
+            createPlacemarksLayer()
+            standardCameraFlythrough()
+        },
+        "terrain" to {
+            createStandardLayers()
+            standardCameraFlythrough()
+        },
+        "empty" to {
+            createStandardLayers()
+            delay(5000)
+       },
+    )
 
+    private suspend fun standardCameraFlythrough() {
         // Create location objects for the places used in this test.
         val arc = fromDegrees(37.415229, -122.06265)
         val gsfc = fromDegrees(38.996944, -76.848333)
@@ -140,12 +148,6 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
         delay(500)
         animateCamera(200)
     }
-
-    private suspend fun test_empty() {
-        createStandardLayers()
-        delay(5000)
-    }
-
     protected fun createStandardLayers() {
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
