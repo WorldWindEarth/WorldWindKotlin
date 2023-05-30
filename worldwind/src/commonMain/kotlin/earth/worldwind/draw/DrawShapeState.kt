@@ -20,6 +20,7 @@ open class DrawShapeState internal constructor() {
     var vertexStride = 0
     var enableCullFace = true
     var enableDepthTest = true
+    var enableDepthWrite = true
     var depthOffset = 0.0
     protected val color = Color()
     protected var lineWidth = 1f

@@ -53,7 +53,7 @@ open class PlacemarkAttributes(
      * occluded by terrain and other objects. If this value is true, the placemark's label, if any, has an independent
      * depth-test control.
      */
-    var isDepthTestEnabled: Boolean,
+    var isDepthTest: Boolean,
     /**
      * Returns the attributes to apply to the placemark's label
      */
@@ -107,7 +107,7 @@ open class PlacemarkAttributes(
         minimumImageScale = 0.0,
         isDrawLabel = true,
         isDrawLeader = false,
-        isDepthTestEnabled = true,
+        isDepthTest = true,
         labelAttributes = TextAttributes(),
         leaderAttributes = ShapeAttributes()
     )
@@ -126,7 +126,7 @@ open class PlacemarkAttributes(
         attributes.minimumImageScale,
         attributes.isDrawLabel,
         attributes.isDrawLeader,
-        attributes.isDepthTestEnabled,
+        attributes.isDepthTest,
         TextAttributes(attributes.labelAttributes),
         ShapeAttributes(attributes.leaderAttributes)
     )
@@ -139,7 +139,7 @@ open class PlacemarkAttributes(
         minimumImageScale = attributes.minimumImageScale
         isDrawLabel = attributes.isDrawLabel
         isDrawLeader = attributes.isDrawLeader
-        isDepthTestEnabled = attributes.isDepthTestEnabled
+        isDepthTest = attributes.isDepthTest
         labelAttributes.copy(attributes.labelAttributes)
         leaderAttributes.copy(attributes.leaderAttributes)
     }
@@ -154,7 +154,7 @@ open class PlacemarkAttributes(
         if (minimumImageScale != other.minimumImageScale) return false
         if (isDrawLabel != other.isDrawLabel) return false
         if (isDrawLeader != other.isDrawLeader) return false
-        if (isDepthTestEnabled != other.isDepthTestEnabled) return false
+        if (isDepthTest != other.isDepthTest) return false
         if (labelAttributes != other.labelAttributes) return false
         if (leaderAttributes != other.leaderAttributes) return false
 
@@ -169,7 +169,7 @@ open class PlacemarkAttributes(
         result = 31 * result + minimumImageScale.hashCode()
         result = 31 * result + isDrawLabel.hashCode()
         result = 31 * result + isDrawLeader.hashCode()
-        result = 31 * result + isDepthTestEnabled.hashCode()
+        result = 31 * result + isDepthTest.hashCode()
         result = 31 * result + labelAttributes.hashCode()
         result = 31 * result + leaderAttributes.hashCode()
         return result

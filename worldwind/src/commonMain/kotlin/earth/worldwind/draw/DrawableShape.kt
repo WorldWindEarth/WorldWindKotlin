@@ -58,6 +58,9 @@ open class DrawableShape protected constructor(): Drawable {
         // Disable depth testing if requested.
         if (!drawState.enableDepthTest) dc.gl.disable(GL_DEPTH_TEST)
 
+        // Disable depth writing if requested.
+        if (!drawState.enableDepthWrite) dc.gl.depthMask(false)
+
         // Make multi-texture unit 0 active.
         dc.activeTextureUnit(GL_TEXTURE0)
 
@@ -90,6 +93,7 @@ open class DrawableShape protected constructor(): Drawable {
         // Restore the default WorldWind OpenGL state.
         if (!drawState.enableCullFace) dc.gl.enable(GL_CULL_FACE)
         if (!drawState.enableDepthTest) dc.gl.enable(GL_DEPTH_TEST)
+        if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
         dc.gl.lineWidth(1f)
         dc.gl.enable(GL_CULL_FACE)
         dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/)

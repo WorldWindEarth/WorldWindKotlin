@@ -27,7 +27,7 @@ class TextAttributesTest {
         assertEquals(24.0f, attributes.font.size, 0.0f, "textSize should be 24.0")
         assertNull(attributes.font.typeface, "typeface should be null")
         assertTrue(attributes.isOutlineEnabled, "isOutlineEnabled should be true")
-        assertTrue(attributes.isDepthTestEnabled, "isDepthTestEnabled should be true")
+        assertTrue(attributes.isDepthTest, "isDepthTest should be true")
         assertEquals(3.0f, attributes.outlineWidth, 0.0f, "outlineWidth should be 3.0")
     }
 
@@ -55,7 +55,7 @@ class TextAttributesTest {
         other.font.size = 0.0f
         other.font.typeface = Typeface.defaultFromStyle(Typeface.NORMAL)
         other.isOutlineEnabled = false
-        other.isDepthTestEnabled = false
+        other.isDepthTest = false
         other.outlineWidth = 0.0f
         attributes.copy(other)
         assertEquals(attributes, other)
@@ -70,7 +70,7 @@ class TextAttributesTest {
         assertEquals(same.font.size, attributes.font.size, 0.0f)
         assertEquals(same.font.typeface, attributes.font.typeface)
         assertEquals(same.isOutlineEnabled, attributes.isOutlineEnabled)
-        assertEquals(same.isDepthTestEnabled, attributes.isDepthTestEnabled)
+        assertEquals(same.isDepthTest, attributes.isDepthTest)
         assertEquals(same.outlineWidth, attributes.outlineWidth, 0.0f)
         assertEquals(attributes, attributes)
         assertEquals(attributes, same)
@@ -86,14 +86,14 @@ class TextAttributesTest {
         different.font.size = 0.0f
         different.font.typeface = Typeface.defaultFromStyle(Typeface.NORMAL)
         different.isOutlineEnabled = false
-        different.isDepthTestEnabled = false
+        different.isDepthTest = false
         different.outlineWidth = 0.0f
         assertNotEquals(different.textColor, typical.textColor)
         assertNotEquals(different.textOffset, typical.textOffset)
         assertNotEquals(different.font.size, typical.font.size)
         assertNotEquals(different.font.typeface, typical.font.typeface)
         assertNotEquals(different.isOutlineEnabled, typical.isOutlineEnabled)
-        assertNotEquals(different.isDepthTestEnabled, typical.isDepthTestEnabled)
+        assertNotEquals(different.isDepthTest, typical.isDepthTest)
         assertNotEquals(different.outlineWidth, typical.outlineWidth)
         assertNotEquals(different, typical)
         assertNotEquals(typical, different)

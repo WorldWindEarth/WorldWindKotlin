@@ -414,7 +414,7 @@ open class Placemark @JvmOverloads constructor(
         // or not available, draw a simple colored square.
         drawable.color.copy(if (rc.isPickMode) pickColor else activeAttributes.imageColor)
         drawable.texture = activeTexture
-        drawable.enableDepthTest = activeAttributes.isDepthTestEnabled
+        drawable.enableDepthTest = activeAttributes.isDepthTest
     }
 
     /**
@@ -438,7 +438,7 @@ open class Placemark @JvmOverloads constructor(
         // in the texture's color.
         if (rc.isPickMode) drawable.color.copy(pickColor) else drawable.color.set(1f, 1f, 1f, 1f)
         drawable.texture = labelTexture
-        drawable.enableDepthTest = activeAttributes.labelAttributes.isDepthTestEnabled
+        drawable.enableDepthTest = activeAttributes.labelAttributes.isDepthTest
     }
 
     /**

@@ -289,6 +289,7 @@ open class Ellipse @JvmOverloads constructor(
         drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest
+        drawState.enableDepthWrite = activeAttributes.isDepthWrite
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)

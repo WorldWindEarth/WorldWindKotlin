@@ -14,7 +14,7 @@ open class TextAttributes protected constructor(
     outlineColor: Color,
     var outlineWidth: Float,
     var isOutlineEnabled: Boolean,
-    var isDepthTestEnabled: Boolean,
+    var isDepthTest: Boolean,
     var scale: Double
 ) {
     var font = font
@@ -41,7 +41,7 @@ open class TextAttributes protected constructor(
         outlineColor = Color(0f, 0f, 0f, 1f),
         outlineWidth = 3f,
         isOutlineEnabled = true,
-        isDepthTestEnabled = true,
+        isDepthTest = true,
         scale = 1.0
     )
 
@@ -52,7 +52,7 @@ open class TextAttributes protected constructor(
         Color(attributes.outlineColor),
         attributes.outlineWidth,
         attributes.isOutlineEnabled,
-        attributes.isDepthTestEnabled,
+        attributes.isDepthTest,
         attributes.scale
     )
 
@@ -63,7 +63,7 @@ open class TextAttributes protected constructor(
         outlineColor.copy(attributes.outlineColor)
         outlineWidth = attributes.outlineWidth
         isOutlineEnabled = attributes.isOutlineEnabled
-        isDepthTestEnabled = attributes.isDepthTestEnabled
+        isDepthTest = attributes.isDepthTest
         scale = attributes.scale
     }
 
@@ -76,7 +76,7 @@ open class TextAttributes protected constructor(
         if (outlineColor != other.outlineColor) return false
         if (outlineWidth != other.outlineWidth) return false
         if (isOutlineEnabled != other.isOutlineEnabled) return false
-        if (isDepthTestEnabled != other.isDepthTestEnabled) return false
+        if (isDepthTest != other.isDepthTest) return false
         if (scale != other.scale) return false
         return true
     }
@@ -88,7 +88,7 @@ open class TextAttributes protected constructor(
         result = 31 * result + outlineColor.hashCode()
         result = 31 * result + outlineWidth.hashCode()
         result = 31 * result + isOutlineEnabled.hashCode()
-        result = 31 * result + isDepthTestEnabled.hashCode()
+        result = 31 * result + isDepthTest.hashCode()
         result = 31 * result + scale.hashCode()
         return result
     }

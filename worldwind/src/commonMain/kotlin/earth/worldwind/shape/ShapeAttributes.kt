@@ -27,6 +27,10 @@ open class ShapeAttributes(
      */
     var isDepthTest: Boolean,
     /**
+     * Indicates whether depth write enabled.
+     */
+    var isDepthWrite: Boolean,
+    /**
      * Sets whether shape lighting is enabled. When true, the appearance of a shape's color and image source may be
      * modified by shading applied from a global light source.
      */
@@ -77,6 +81,7 @@ open class ShapeAttributes(
         isDrawOutline = true,
         isDrawVerticals = false,
         isDepthTest = true,
+        isDepthWrite = true,
         isLightingEnabled = false,
         interiorColor = Color(1f, 1f, 1f, 1f), // white
         outlineColor = Color(1f, 0f, 0f, 1f), // red
@@ -90,6 +95,7 @@ open class ShapeAttributes(
         attributes.isDrawOutline,
         attributes.isDrawVerticals,
         attributes.isDepthTest,
+        attributes.isDepthWrite,
         attributes.isLightingEnabled,
         Color(attributes.interiorColor),
         Color(attributes.outlineColor),
@@ -103,6 +109,7 @@ open class ShapeAttributes(
         isDrawOutline = attributes.isDrawOutline
         isDrawVerticals = attributes.isDrawVerticals
         isDepthTest = attributes.isDepthTest
+        isDepthWrite = attributes.isDepthWrite
         isLightingEnabled = attributes.isLightingEnabled
         interiorColor.copy(attributes.interiorColor)
         outlineColor.copy(attributes.outlineColor)
@@ -118,6 +125,7 @@ open class ShapeAttributes(
         if (isDrawOutline != other.isDrawOutline) return false
         if (isDrawVerticals != other.isDrawVerticals) return false
         if (isDepthTest != other.isDepthTest) return false
+        if (isDepthWrite != other.isDepthWrite) return false
         if (isLightingEnabled != other.isLightingEnabled) return false
         if (interiorColor != other.interiorColor) return false
         if (outlineColor != other.outlineColor) return false
@@ -133,6 +141,7 @@ open class ShapeAttributes(
         result = 31 * result + isDrawOutline.hashCode()
         result = 31 * result + isDrawVerticals.hashCode()
         result = 31 * result + isDepthTest.hashCode()
+        result = 31 * result + isDepthWrite.hashCode()
         result = 31 * result + isLightingEnabled.hashCode()
         result = 31 * result + interiorColor.hashCode()
         result = 31 * result + outlineColor.hashCode()

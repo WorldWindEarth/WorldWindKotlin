@@ -121,7 +121,7 @@ open class Label @JvmOverloads constructor(
         // Select the currently active attributes. Don't render anything if the attributes are unspecified.
         determineActiveAttributes(rc)
 
-        // Keep track of the drawable count to determine whether or not this label has enqueued drawables.
+        // Keep track of the drawable count to determine whether this label has enqueued drawables.
         val drawableCount = rc.drawableCount
         if (rc.isPickMode) {
             renderData.pickedObjectId = rc.nextPickedObjectId()
@@ -205,7 +205,7 @@ open class Label @JvmOverloads constructor(
         if (rc.isPickMode) drawable.color.copy(renderData.pickColor)
         else drawable.color.set(1f, 1f, 1f, 1f)
         drawable.texture = texture
-        drawable.enableDepthTest = activeAttributes.isDepthTestEnabled
+        drawable.enableDepthTest = activeAttributes.isDepthTest
 
         // Enqueue a drawable for processing on the OpenGL thread.
         rc.offerShapeDrawable(drawable, renderData.cameraDistance)
