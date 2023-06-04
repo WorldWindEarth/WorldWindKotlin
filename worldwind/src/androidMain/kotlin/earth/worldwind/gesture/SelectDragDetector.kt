@@ -39,15 +39,12 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     private val dragRefPt = Vec2()
 
     fun onTouchEvent(event: MotionEvent): Boolean {
-        var handled = false
-        // Skip select and drag processing if processor is disabled or callback is not assigned
-        if (isEnabled && callback != null) {
-            // Allow select and drag detector to intercept event. It sets the state flags which will
-            // either preempt or allow the event to be subsequently processed by other event handlers.
-            handled = gestureDetector.onTouchEvent(event)
-            // Is a dragging operation started or in progress? Any ACTION_UP event cancels a drag operation.
-            if (isDragging && event.action == MotionEvent.ACTION_UP) cancelDragging()
-        }
+        // Skip select and drag processing if the processor is disabled or callback is not assigned
+        val handled = if (isEnabled && callback != null) gestureDetector.onTouchEvent(event) else false
+        // Is a dragging operation started or in progress? Any ACTION_UP event cancels a drag operation.
+        if (isDragging && event.action == MotionEvent.ACTION_UP) cancelDragging()
+        // Allow select and drag detector to intercept event. It sets the state flags which will
+        // either preempt or allow the event to be subsequently processed by other event handlers.
         return handled || isDragging
     }
 
