@@ -3,13 +3,12 @@ package earth.worldwind.layer.graticule
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.render.RenderContext
-import earth.worldwind.util.AbstractTile
 
-abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sector: Sector) : AbstractTile(sector) {
+abstract class AbstractGraticuleTile(protected open val layer: AbstractGraticuleLayer, val sector: Sector) {
     var gridElements: MutableList<GridElement>? = null
         private set
 
-    open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain.sector) && intersectsFrustum(rc)
+    open fun isInView(rc: RenderContext) = rc.terrain.intersects(sector)
 
     open fun getSizeInPixels(rc: RenderContext): Double {
         val centerPoint = layer.getSurfacePoint(rc, sector.centroidLatitude, sector.centroidLongitude)
