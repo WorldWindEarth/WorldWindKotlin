@@ -32,6 +32,8 @@ open class BasicTerrain: Terrain {
 
     open fun sort() = tiles.sortBy { it.sortOrder }
 
+    override fun intersects(sector: Sector) = this.sector.intersects(sector) && tiles.any { it.sector.intersects(sector) }
+
     override fun intersect(line: Line, result: Vec3): Boolean {
         var found = false
         val triStripElements = triStripElements ?: return found

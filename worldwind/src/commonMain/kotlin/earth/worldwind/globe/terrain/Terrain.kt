@@ -33,6 +33,20 @@ interface Terrain {
     val sector: Sector
 
     /**
+     * Indicates whether specified sector intersects at least one terrain tile sector. Two sectors intersect when both the latitude
+     * boundaries and the longitude boundaries overlap by a non-zero amount. An empty sector never intersects another
+     * sector.
+     * <br>
+     * The sectors are assumed to have normalized angles (angles within the range [-90, +90] latitude and [-180, +180]
+     * longitude).
+     *
+     * @param sector the sector to test intersection with
+     *
+     * @return true if the specified sector intersections at least one terrain tile sector, false otherwise
+     */
+    fun intersects(sector: Sector): Boolean
+
+    /**
      * Computes the first intersection of this terrain with a specified line in Cartesian coordinates. The line is
      * interpreted as a ray; intersection points behind the line's origin are ignored. If the line does not intersect
      * the geometric surface modeled by this terrain, this returns false and does not modify the result argument.
