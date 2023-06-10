@@ -3,17 +3,22 @@ package earth.worldwind.shape
 import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawableSurfaceTexture
 import earth.worldwind.geom.Sector
-import earth.worldwind.render.AbstractSurfaceRenderable
+import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.SurfaceTextureProgram
 
-open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractSurfaceRenderable(sector, "Surface Image") {
+open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractRenderable("Surface Image") {
+    var sector = Sector(sector)
+        set(value) {
+            field.copy(value)
+        }
     var imageOptions: ImageOptions? = null
 
     override fun doRender(rc: RenderContext) {
-        if (sector.isEmpty || !rc.terrain.sector.intersects(sector) || !getExtent(rc).intersectsFrustum(rc.frustum)) return
+        if (sector.isEmpty) return  // nothing to render
+        if (!rc.terrain.intersects(sector)) return  // no terrain surface to render on
         val texture = rc.getTexture(imageSource, imageOptions) ?: return // no texture to draw
 
         // Enqueue a drawable surface texture for processing on the OpenGL thread.
