@@ -1,7 +1,10 @@
 package earth.worldwind.shape.milstd2525
 
-import earth.worldwind.geom.*
-import earth.worldwind.render.AbstractSurfaceRenderable
+import earth.worldwind.geom.Line
+import earth.worldwind.geom.Location
+import earth.worldwind.geom.Sector
+import earth.worldwind.geom.Vec3
+import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Highlightable
@@ -12,9 +15,9 @@ import kotlin.math.ln
 import kotlin.math.roundToInt
 
 abstract class AbstractMilStd2525TacticalGraphic(
-    protected val sidc: String, locations: List<Location>, boundingSector: Sector,
+    protected val sidc: String, locations: List<Location>, sector: Sector,
     modifiers: Map<String, String>?, attributes: Map<String, String>?,
-) : AbstractSurfaceRenderable(boundingSector), Highlightable {
+) : AbstractRenderable(sidc), Highlightable {
     override var isHighlighted = false
     var modifiers = modifiers
         set(value) {
@@ -25,6 +28,16 @@ abstract class AbstractMilStd2525TacticalGraphic(
         set(value) {
             field = value
             reset()
+        }
+    protected var sector = Sector()
+        set(value) {
+            field.copy(value)
+            reset()
+            // Recalculate scale limits according to new sector
+            val diagonalDistance = Location(sector.maxLatitude, sector.minLongitude)
+                .greatCircleDistance(Location(sector.minLatitude, sector.maxLongitude))
+            minScale = diagonalDistance / MAX_WIDTH_DP
+            maxScale = diagonalDistance / MIN_WIDTH_DP
         }
     private var minScale = 0.0
     private var maxScale = 0.0
@@ -64,7 +77,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
             2 * PI * equatorialRadius / ZERO_LEVEL_PX / (1 shl lod)
     }
 
-    init { setGeometry(locations, boundingSector) }
+    init { setGeometry(locations, sector) }
 
     fun setGeometry(locations: List<Location>, boundingSector: Sector = defaultBoundingSector(locations)) {
         require(locations.isNotEmpty()) {
@@ -72,12 +85,10 @@ abstract class AbstractMilStd2525TacticalGraphic(
         }
         transformLocations(locations)
         sector = boundingSector
-        reset()
     }
 
     override fun doRender(rc: RenderContext) {
-        val terrainSector = rc.terrain.sector
-        if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
+        if (rc.terrain.intersects(sector)) {
             // Use shapes from previous frame during pick
             if (!rc.isPickMode) {
                 // Get current map scale based on observation range.
@@ -99,15 +110,6 @@ abstract class AbstractMilStd2525TacticalGraphic(
                 renderable.render(rc)
             }
         }
-    }
-
-    override fun invalidateExtent() {
-        super.invalidateExtent()
-        // Recalculate scale limits according to new sector
-        val diagonalDistance = Location(sector.maxLatitude, sector.minLongitude)
-            .greatCircleDistance(Location(sector.minLatitude, sector.maxLongitude))
-        minScale = diagonalDistance / MAX_WIDTH_DP
-        maxScale = diagonalDistance / MIN_WIDTH_DP
     }
 
     protected open fun reset() {

@@ -90,7 +90,6 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         // Create Renderables based on Poly-lines and Modifiers from Renderer
         for (i in mss.symbolShapes.indices) convertShapeToRenderables(mss.symbolShapes[i], mss, ipc, shapes)
         for (i in mss.modifierShapes.indices) convertShapeToRenderables(mss.modifierShapes[i], mss, ipc, shapes)
-        invalidateExtent() // Regenerate extent in next frame due to sector may be extended by real shape measures
     }
 
     protected open fun convertShapeToRenderables(
