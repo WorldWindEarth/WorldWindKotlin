@@ -37,7 +37,7 @@ kotlin {
     }
     sourceSets {
         val mockkVersion = "1.13.3"
-        val mokoVersion = "0.21.1"
+        val mokoVersion = "0.23.0"
         val ktorVersion = "2.2.4"
         val commonMain by getting {
             dependencies {
