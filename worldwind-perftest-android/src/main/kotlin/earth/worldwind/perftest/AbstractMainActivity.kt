@@ -198,6 +198,9 @@ abstract class AbstractMainActivity: AppCompatActivity() {//}, NavigationView.On
     }
 
     protected fun dumpMetrics(variant: String) {
+        if (variant.isEmpty())
+            return
+
         val path = getExternalFilesDir(null)
         val csvDirectory = File(path, "csv")
         csvDirectory.mkdirs()

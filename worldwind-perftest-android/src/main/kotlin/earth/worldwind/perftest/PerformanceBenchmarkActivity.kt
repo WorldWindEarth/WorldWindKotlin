@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.lifecycle.lifecycleScope
 import earth.worldwind.WorldWindowController
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -12,6 +13,8 @@ import earth.worldwind.geom.Angle.Companion.interpolateAngle360
 import earth.worldwind.geom.Camera
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Location.Companion.fromDegrees
+import earth.worldwind.geom.LookAt
+import earth.worldwind.geom.Position
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
@@ -54,7 +57,7 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
                 testsuit.get("default")?.invoke()
             }
 
-            dumpMetrics(intent.extras?.getString("variant") ?: "Profile")
+            dumpMetrics(intent.extras?.getString("variant") ?: "")
             finishAffinity()
             exitProcess(0)
         }
@@ -69,6 +72,10 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
         "terrain" to {
             createStandardLayers()
             standardCameraFlythrough()
+        },
+        "low_alt_flyover" to {
+            createStandardLayers()
+            lowAltCameraFlythrough()
         },
         "empty" to {
             createStandardLayers()
@@ -148,6 +155,34 @@ open class PerformanceBenchmarkActivity: GeneralGlobeActivity() {
         delay(500)
         animateCamera(200)
     }
+
+    private suspend fun lowAltCameraFlythrough() {
+        wwd.engine.frameMetrics?.reset()
+
+        val start = fromDegrees(34.0158333, -118.4513056, 250.0)
+        val end = fromDegrees(32.9424368, -118.4081222, 250.0)
+
+        val heading = Angle.fromDegrees(90.0) - end.greatCircleAzimuth(start)
+        val range = 300.0
+        val tilt = Angle.fromDegrees(80.0)
+
+        var pos = Position(start)
+        val frameCount = 30*60
+        for (i in 0..frameCount) {
+            wwd.engine.cameraFromLookAt(
+                LookAt(
+                    start.interpolateAlongPath(end, PathType.GREAT_CIRCLE, i/frameCount.toDouble(), pos),
+                    AltitudeMode.RELATIVE_TO_GROUND,
+                    range,
+                    heading,
+                    tilt,
+                    roll = ZERO)
+            )
+            wwd.requestRedraw()
+            delay(FRAME_INTERVAL)
+        }
+     }
+
     protected fun createStandardLayers() {
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
