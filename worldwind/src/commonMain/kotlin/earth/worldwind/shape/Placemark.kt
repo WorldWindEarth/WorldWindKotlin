@@ -374,18 +374,14 @@ open class Placemark @JvmOverloads constructor(
         imageTransform.multiplyByScale(1.0, 1.0, 1.0 / (1 shl 24))
 
         // Perform the tilt so that the image tilts back from its base into the view volume
-        if (imageTilt != ZERO) {
-            val actualTilt = if (imageTiltReference == OrientationMode.RELATIVE_TO_GLOBE)
-                camera.tilt + imageTilt else imageTilt
-            imageTransform.multiplyByRotation(-1.0, 0.0, 0.0, actualTilt)
-        }
+        val actualTilt = if (imageTiltReference == OrientationMode.RELATIVE_TO_GLOBE)
+            camera.tilt + imageTilt else imageTilt
+        if (actualTilt != ZERO) imageTransform.multiplyByRotation(-1.0, 0.0, 0.0, actualTilt)
 
         // Perform image rotation
-        if (imageRotation != ZERO) {
-            val actualRotation = if (imageRotationReference == OrientationMode.RELATIVE_TO_GLOBE)
-                camera.heading - imageRotation else -imageRotation
-            imageTransform.multiplyByRotation(0.0, 0.0, 1.0, actualRotation)
-        }
+        val actualRotation = if (imageRotationReference == OrientationMode.RELATIVE_TO_GLOBE)
+            camera.heading - imageRotation else -imageRotation
+        if (actualRotation != ZERO) imageTransform.multiplyByRotation(0.0, 0.0, 1.0, actualRotation)
 
         // Apply pivot translation
         imageTransform.multiplyByTranslation(-offsetX, -offsetY, 0.0)
