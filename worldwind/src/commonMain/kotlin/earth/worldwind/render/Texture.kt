@@ -15,19 +15,20 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
             }
             // Compute the number of bytes per row of texture image level 0. Use a default of 32 bits per pixel when either
             // of the bitmap's type or internal format are unrecognized. Adjust the width to the next highest power-of-two
-            // to better estimate the memory consumed by non power-of-two images.
+            // to better estimate the memory consumed by non-power-of-two images.
             val widthPow2 = powerOfTwoCeiling(width)
-            var bytesPerRow = widthPow2 * 4
-            when (type) {
+            val bytesPerRow = when (type) {
                 GL_UNSIGNED_BYTE -> when (format) {
-                    GL_ALPHA, GL_LUMINANCE -> bytesPerRow = widthPow2 // 8 bits per pixel
-                    GL_RGB -> bytesPerRow = widthPow2 * 3 // 24 bits per pixel
-                    GL_RGBA -> bytesPerRow = widthPow2 * 4 // 32 bits per pixel
-                    GL_LUMINANCE_ALPHA -> bytesPerRow = widthPow2 * 2 // 16 bits per pixel
+                    GL_ALPHA, GL_LUMINANCE -> widthPow2 // 8 bits per pixel
+                    GL_LUMINANCE_ALPHA -> widthPow2 * 2 // 16 bits per pixel
+                    GL_RGB -> widthPow2 * 3 // 24 bits per pixel
+                    GL_RGBA -> widthPow2 * 4 // 32 bits per pixel
+                    else -> widthPow2 * 4 // 32 bits per pixel
                 }
-                GL_UNSIGNED_INT -> bytesPerRow = widthPow2 * 4 // 32 bits per pixel
                 GL_UNSIGNED_SHORT, GL_UNSIGNED_SHORT_5_6_5,
-                GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1 -> bytesPerRow = widthPow2 * 2 // 16 bits per pixel
+                GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1 -> widthPow2 * 2 // 16 bits per pixel
+                GL_UNSIGNED_INT -> widthPow2 * 4 // 32 bits per pixel
+                else -> widthPow2 * 4 // 32 bits per pixel
             }
 
             // Compute the number of bytes for the entire texture image level 0 (i.e. bytePerRow * numRows). Adjust the
