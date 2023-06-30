@@ -82,9 +82,4 @@ The globe uses the default navigation gestures:
         super.onResume()
         wwd.onResume() // resumes a paused rendering thread
     }
-
-    override fun onLowMemory() {
-        super.onLowMemory()
-        wwd.engine.renderResourceCache.trimStale()
-    }
 }

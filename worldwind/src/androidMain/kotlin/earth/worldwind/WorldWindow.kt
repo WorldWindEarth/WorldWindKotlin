@@ -1,6 +1,8 @@
 package earth.worldwind
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import android.view.Choreographer
@@ -57,6 +59,18 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     protected val pickQueue = ConcurrentLinkedQueue<Frame>()
     protected var currentFrame: Frame? = null
     protected var isWaitingForRedraw = false
+    /**
+     * Control memory consumption and trim render resource cache when system os low on memory
+     */
+    protected open val componentCallbacks = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) {}
+        override fun onLowMemory() = engine.renderResourceCache.trimStale()
+        override fun onTrimMemory(level: Int) = engine.renderResourceCache.trimStale(when (level) {
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> 3000L
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> 1000L
+            else -> 300L
+        })
+    }
 
     companion object {
         protected const val MAX_FRAME_QUEUE_SIZE = 2
@@ -344,6 +358,16 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         // Cancel any outstanding request redraw messages.
         Choreographer.getInstance().removeFrameCallback(this)
         isWaitingForRedraw = false
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        context.applicationContext.registerComponentCallbacks(componentCallbacks)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        context.applicationContext.unregisterComponentCallbacks(componentCallbacks)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

@@ -86,9 +86,4 @@ open class BasicGlobeFragment: Fragment() {
         super.onPause()
         wwd.onPause() // pauses the rendering thread
     }
-
-    override fun onLowMemory() {
-        super.onLowMemory()
-        wwd.engine.renderResourceCache.trimStale()
-    }
 }
