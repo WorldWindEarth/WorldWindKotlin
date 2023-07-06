@@ -68,6 +68,8 @@ open class GoToAnimator(
      * The completion callback is called with a single argument, this animator.
      */
     open fun goTo(position: Location, completionCallback: ((GoToAnimator) -> Unit)? = null) {
+        if (engine.viewport.isEmpty) return
+
         this.completionCallback = completionCallback
 
         engine.cameraAsLookAt(lookAt)

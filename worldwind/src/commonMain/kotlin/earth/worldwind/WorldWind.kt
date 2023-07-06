@@ -330,6 +330,8 @@ open class WorldWind @JvmOverloads constructor(
      * @return true if the transformation is successful, otherwise false
      */
     open fun cartesianToScreenPoint(x: Double, y: Double, z: Double, result: Vec2): Boolean {
+        if (viewport.isEmpty) return false
+
         // Compute the WorldWindow's modelview-projection matrix.
         computeViewingTransform(scratchProjection, scratchModelview)
         scratchProjection.multiplyByMatrix(scratchModelview)
@@ -408,6 +410,8 @@ open class WorldWind @JvmOverloads constructor(
      * @return the result set to the computed ray in Cartesian coordinates
      */
     open fun rayThroughScreenPoint(x: Double, y: Double, result: Line): Boolean {
+        if (viewport.isEmpty) return false
+
         // Compute the inverse modelview-projection matrix corresponding to the WorldWindow's current Camera state.
         computeViewingTransform(scratchProjection, scratchModelview)
         scratchProjection.multiplyByMatrix(scratchModelview).invert()
