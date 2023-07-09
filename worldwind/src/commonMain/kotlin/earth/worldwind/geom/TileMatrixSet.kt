@@ -14,7 +14,7 @@ open class TileMatrixSet(val sector: Sector, val entries: List<TileMatrix>) {
         fun fromTilePyramid(
             sector: Sector, matrixWidth: Int, matrixHeight: Int, tileWidth: Int, tileHeight: Int, resolution: Angle
         ): TileMatrixSet {
-            require(resolution > Angle.ZERO) {
+            require(resolution.inDegrees > 0.0) {
                 makeMessage("TileMatrixSet", "fromTilePyramid", "invalidResolution")
             }
             var idx = 0

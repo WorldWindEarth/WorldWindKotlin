@@ -83,7 +83,7 @@ open class LevelSet {
     constructor(
         sector: Sector, tileOrigin: Location, firstLevelDelta: Location, numLevels: Int, tileWidth: Int, tileHeight: Int
     ) {
-        require(firstLevelDelta.latitude > Angle.ZERO && firstLevelDelta.longitude > Angle.ZERO) {
+        require(firstLevelDelta.latitude.inDegrees > 0.0 && firstLevelDelta.longitude.inDegrees > 0.0) {
             logMessage(ERROR, "LevelSet", "constructor", "invalidTileDelta")
         }
         require(numLevels >= 0) {
@@ -139,7 +139,7 @@ open class LevelSet {
      * @throws IllegalStateException If this level set is empty
      */
     fun levelForResolution(resolution: Angle): Level {
-        require(resolution > Angle.ZERO) {
+        require(resolution.inDegrees > 0.0) {
             logMessage(ERROR, "LevelSetConfig", "levelForResolution", "invalidResolution")
         }
         if (levels.isEmpty()) error("This level set is empty")

@@ -1,6 +1,5 @@
 package earth.worldwind.util
 
-import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger.ERROR
@@ -66,7 +65,7 @@ open class Level internal constructor(
      * Constructs a Level within a LevelSet. Applications typically do not interact with this class.
      */
     init {
-        require(tileDelta.latitude > ZERO && tileDelta.longitude > ZERO) {
+        require(tileDelta.latitude.inDegrees > 0.0 && tileDelta.longitude.inDegrees > 0.0) {
             logMessage(ERROR, "Level", "constructor", "The tile delta is zero")
         }
         levelWidth = (parent.tileWidth * parent.sector.deltaLongitude.inDegrees / tileDelta.longitude.inDegrees).roundToInt()

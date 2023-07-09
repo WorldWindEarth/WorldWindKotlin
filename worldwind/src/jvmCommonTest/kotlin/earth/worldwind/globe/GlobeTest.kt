@@ -1,9 +1,8 @@
 package earth.worldwind.globe
 
 import earth.worldwind.geom.Angle
-import earth.worldwind.geom.Angle.Companion.NEG90
-import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.globe.projection.Wgs84Projection
 import kotlin.math.cos
@@ -90,8 +89,8 @@ class GlobeTest {
     @Test
     fun testGetRadiusAt() {
         // Test all whole number latitudes
-        var lat = NEG90
-        while (lat <= POS90) {
+        var lat = (-90.0).degrees
+        while (lat.inDegrees <= 90.0) {
             val radiusExpected = computeRadiusOfEllipsoid(lat)
             val radiusActual = globe.getRadiusAt(lat, ZERO)
             assertEquals(radiusExpected, radiusActual, 1.0e-8, lat.toString())

@@ -127,8 +127,8 @@ open class Sector(
     fun set(minLatitude: Angle, minLongitude: Angle, deltaLatitude: Angle, deltaLongitude: Angle) = apply {
         this.minLatitude = minLatitude
         this.minLongitude = minLongitude
-        maxLatitude = if (deltaLatitude > ZERO) (minLatitude + deltaLatitude).clampLatitude() else minLatitude
-        maxLongitude = if (deltaLongitude > ZERO) (minLongitude + deltaLongitude).clampLongitude() else minLongitude
+        maxLatitude = if (deltaLatitude.inDegrees > 0.0) (minLatitude + deltaLatitude).clampLatitude() else minLatitude
+        maxLongitude = if (deltaLongitude.inDegrees > 0.0) (minLongitude + deltaLongitude).clampLongitude() else minLongitude
     }
 
     /**
@@ -211,8 +211,10 @@ open class Sector(
      *
      * @return true if the specified sector intersections this sector, false otherwise
      */
-    fun intersects(sector: Sector) = minLatitude < sector.maxLatitude && maxLatitude > sector.minLatitude
-            && minLongitude < sector.maxLongitude && maxLongitude > sector.minLongitude
+    fun intersects(sector: Sector) = minLatitude.inDegrees < sector.maxLatitude.inDegrees
+            && maxLatitude.inDegrees > sector.minLatitude.inDegrees
+            && minLongitude.inDegrees < sector.maxLongitude.inDegrees
+            && maxLongitude.inDegrees > sector.minLongitude.inDegrees
 
     /**
      * Indicates if this sector is next to, or intersects, a specified sector. Two sectors intersect when the conditions
@@ -226,8 +228,10 @@ open class Sector(
      *
      * @return true if the specified sector intersects or is next to this sector, false otherwise
      */
-    fun intersectsOrNextTo(sector: Sector) = minLatitude <= sector.maxLatitude && maxLatitude >= sector.minLatitude
-            && minLongitude <= sector.maxLongitude && maxLongitude >= sector.minLongitude
+    fun intersectsOrNextTo(sector: Sector) = minLatitude.inDegrees <= sector.maxLatitude.inDegrees
+            && maxLatitude.inDegrees >= sector.minLatitude.inDegrees
+            && minLongitude.inDegrees <= sector.maxLongitude.inDegrees
+            && maxLongitude.inDegrees >= sector.minLongitude.inDegrees
 
     /**
      * Computes the intersection of this sector and a specified sector, storing the result in this sector and returning
@@ -243,13 +247,15 @@ open class Sector(
      * @return this true if this sector intersects the specified sector, false otherwise
      */
     fun intersect(sector: Sector): Boolean {
-        if (minLatitude < sector.maxLatitude && maxLatitude > sector.minLatitude // latitudes intersect
-            && minLongitude < sector.maxLongitude && maxLongitude > sector.minLongitude // longitudes intersect
+        if (minLatitude.inDegrees < sector.maxLatitude.inDegrees
+            && maxLatitude.inDegrees > sector.minLatitude.inDegrees
+            && minLongitude.inDegrees < sector.maxLongitude.inDegrees
+            && maxLongitude.inDegrees > sector.minLongitude.inDegrees
         ) {
-            if (minLatitude < sector.minLatitude) minLatitude = sector.minLatitude
-            if (maxLatitude > sector.maxLatitude) maxLatitude = sector.maxLatitude
-            if (minLongitude < sector.minLongitude) minLongitude = sector.minLongitude
-            if (maxLongitude > sector.maxLongitude) maxLongitude = sector.maxLongitude
+            if (minLatitude.inDegrees < sector.minLatitude.inDegrees) minLatitude = sector.minLatitude
+            if (maxLatitude.inDegrees > sector.maxLatitude.inDegrees) maxLatitude = sector.maxLatitude
+            if (minLongitude.inDegrees < sector.minLongitude.inDegrees) minLongitude = sector.minLongitude
+            if (maxLongitude.inDegrees > sector.maxLongitude.inDegrees) maxLongitude = sector.maxLongitude
             return true
         }
         return false // the two sectors do not intersect
@@ -265,7 +271,8 @@ open class Sector(
      *
      * @return true if this sector contains the location, false otherwise
      */
-    fun contains(latitude: Angle, longitude: Angle) = latitude in minLatitude..maxLatitude && longitude in minLongitude..maxLongitude
+    fun contains(latitude: Angle, longitude: Angle) = latitude.inDegrees in minLatitude.inDegrees..maxLatitude.inDegrees
+            && longitude.inDegrees in minLongitude.inDegrees..maxLongitude.inDegrees
 
     /**
      * Indicates whether this sector contains a specified geographic location. An empty sector never contains a
@@ -289,8 +296,10 @@ open class Sector(
      *
      * @return true if the specified sector contains this sector, false otherwise
      */
-    fun contains(sector: Sector) = minLatitude <= sector.minLatitude && maxLatitude >= sector.maxLatitude
-            && minLongitude <= sector.minLongitude && maxLongitude >= sector.maxLongitude
+    fun contains(sector: Sector) = minLatitude.inDegrees <= sector.minLatitude.inDegrees
+            && maxLatitude.inDegrees >= sector.maxLatitude.inDegrees
+            && minLongitude.inDegrees <= sector.minLongitude.inDegrees
+            && maxLongitude.inDegrees >= sector.maxLongitude.inDegrees
 
     /**
      * Sets this sector to the union of itself and a specified location.
@@ -382,10 +391,10 @@ open class Sector(
             // specified sector not empty
             if (!isEmpty) {
                 // this sector not empty, make a union
-                if (minLatitude > sector.minLatitude) minLatitude = sector.minLatitude
-                if (maxLatitude < sector.maxLatitude) maxLatitude = sector.maxLatitude
-                if (minLongitude > sector.minLongitude) minLongitude = sector.minLongitude
-                if (maxLongitude < sector.maxLongitude) maxLongitude = sector.maxLongitude
+                if (minLatitude.inDegrees > sector.minLatitude.inDegrees) minLatitude = sector.minLatitude
+                if (maxLatitude.inDegrees < sector.maxLatitude.inDegrees) maxLatitude = sector.maxLatitude
+                if (minLongitude.inDegrees > sector.minLongitude.inDegrees) minLongitude = sector.minLongitude
+                if (maxLongitude.inDegrees < sector.maxLongitude.inDegrees) maxLongitude = sector.maxLongitude
             } else {
                 // this sector is empty, set to the specified sector
                 minLatitude = sector.minLatitude

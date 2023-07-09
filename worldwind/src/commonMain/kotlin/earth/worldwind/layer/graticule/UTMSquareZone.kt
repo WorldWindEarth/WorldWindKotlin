@@ -135,7 +135,8 @@ class UTMSquareZone(
             ) {
                 val labelPos = if (UTMZone != 0) centroid // Not at poles
                 else if (isPositionInside(Position(squareCenter.latitude, squareCenter.longitude, 0.0))) squareCenter
-                else if (squareCenter.latitude <= UTMZoneSector.maxLatitude && squareCenter.latitude >= UTMZoneSector.minLatitude) centroid
+                else if (squareCenter.latitude.inDegrees <= UTMZoneSector.maxLatitude.inDegrees
+                    && squareCenter.latitude.inDegrees >= UTMZoneSector.minLatitude.inDegrees) centroid
                 else null
                 if (labelPos != null) {
                     val text = layer.createTextRenderable(

@@ -1,10 +1,10 @@
 package earth.worldwind.layer.graticule
 
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.normalizeLatitude
 import earth.worldwind.geom.Angle.Companion.normalizeLongitude
 import earth.worldwind.geom.Angle.Companion.toDegrees
+import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.Color
 import earth.worldwind.render.Font
@@ -426,7 +426,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
             var a = p1
             var b = p2
             var midPoint = greatCircleMidPoint(a, b)
-            while (getDeltaLongitude(midPoint, longitude).inRadians > precision && count <= 20) {
+            while (toRadians(getDeltaLongitude(midPoint, longitude)) > precision && count <= 20) {
                 count++
                 if (getDeltaLongitude(a, longitude) < getDeltaLongitude(b, longitude)) b = midPoint else a = midPoint
                 midPoint = greatCircleMidPoint(a, b)
@@ -474,9 +474,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         return p1.greatCircleLocation(azimuth, distance / 2, Location())
     }
 
-    private fun getDeltaLongitude(p1: Location, longitude: Angle): Angle {
+    private fun getDeltaLongitude(p1: Location, longitude: Angle): Double {
         val deltaLon = abs(p1.longitude.inDegrees - longitude.inDegrees)
-        return (if (deltaLon < 180) deltaLon else 360 - deltaLon).degrees
+        return if (deltaLon < 180) deltaLon else 360 - deltaLon
     }
 
     private fun calculateLookAtProperties(rc: RenderContext) {

@@ -1,10 +1,7 @@
 package earth.worldwind
 
 import android.view.MotionEvent
-import earth.worldwind.geom.Angle.Companion.NEG180
-import earth.worldwind.geom.Angle.Companion.NEG90
 import earth.worldwind.geom.Angle.Companion.POS180
-import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.LookAt
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
@@ -107,11 +104,11 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
 
                 // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
                 // the camera to the appropriate spot on the other side of the pole.
-                if (lat < NEG90 || lat > POS90) {
+                if (lat.inDegrees < -90.0 || lat.inDegrees > 90.0) {
                     lookAt.position.latitude = lat.normalizeLatitude()
                     lookAt.position.longitude = (lon + POS180).normalizeLongitude()
                     lookAt.heading = (heading + POS180).normalize360()
-                } else if (lon < NEG180 || lon > POS180) {
+                } else if (lon.inDegrees < -180.0 || lon.inDegrees > 180.0) {
                     lookAt.position.latitude = lat
                     lookAt.position.longitude = lon.normalizeLongitude()
                 } else {

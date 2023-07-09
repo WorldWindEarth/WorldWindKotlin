@@ -1,6 +1,5 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.globe.Globe
 import kotlin.math.abs
@@ -199,7 +198,7 @@ open class BoundingBox {
         // If the sector encompasses more than one hemisphere, the 3x3 grid does not capture enough detail to bound
         // the sector. The antipodal points along the parallel through the sector's centroid represent its extremes
         // in longitude. Incorporate those antipodal points into the extremes along each axis.
-        if (sector.deltaLongitude > POS180) {
+        if (sector.deltaLongitude.inDegrees > 180.0) {
             val altitude = maxHeight.toDouble()
             globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude + POS90, altitude, endPoint1)
             globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude - POS90, altitude, endPoint2)

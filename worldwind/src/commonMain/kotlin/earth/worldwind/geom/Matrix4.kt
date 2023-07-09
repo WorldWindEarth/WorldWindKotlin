@@ -1,7 +1,5 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.POS180
-import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -494,7 +492,7 @@ open class Matrix4 private constructor(
         require(viewportHeight > 0) {
             logMessage(ERROR, "Matrix4", "setToInfiniteProjection", "invalidHeight")
         }
-        require(vFieldOfView > ZERO && vFieldOfView < POS180) {
+        require(vFieldOfView.inDegrees > 0.0 && vFieldOfView.inDegrees < 180.0) {
             logMessage(ERROR, "Matrix4", "setToInfiniteProjection", "invalidFieldOfView")
         }
         require(nearDistance > 0) {
@@ -559,7 +557,7 @@ open class Matrix4 private constructor(
         require(viewportHeight > 0) {
             logMessage(ERROR, "Matrix4", "setToPerspectiveProjection", "invalidHeight")
         }
-        require(vFieldOfView > ZERO && vFieldOfView < POS180) {
+        require(vFieldOfView.inDegrees > 0.0 && vFieldOfView.inDegrees < 180.0) {
             logMessage(ERROR, "Matrix4", "setToPerspectiveProjection", "invalidFieldOfView")
         }
         require(nearDistance != farDistance) {

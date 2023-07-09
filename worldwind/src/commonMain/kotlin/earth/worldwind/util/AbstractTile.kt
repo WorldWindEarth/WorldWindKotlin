@@ -1,6 +1,7 @@
 package earth.worldwind.util
 
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.render.RenderContext
 import kotlinx.datetime.Instant
 import kotlin.math.abs
@@ -70,16 +71,16 @@ abstract class AbstractTile(
     protected open fun distanceToCamera(rc: RenderContext): Double {
         val cameraPosition = rc.camera!!.position
         // determine the nearest latitude
-        val nearestLat = cameraPosition.latitude.coerceIn(sector.minLatitude, sector.maxLatitude)
+        val nearestLat = cameraPosition.latitude.inDegrees.coerceIn(sector.minLatitude.inDegrees, sector.maxLatitude.inDegrees)
         // determine the nearest longitude and account for the antimeridian discontinuity
         val lonDifference = cameraPosition.longitude.inDegrees - sector.centroidLongitude.inDegrees
         val nearestLon = when {
-            lonDifference < -180.0 -> sector.maxLongitude
-            lonDifference > 180.0 -> sector.minLongitude
-            else -> cameraPosition.longitude.coerceIn(sector.minLongitude, sector.maxLongitude)
+            lonDifference < -180.0 -> sector.maxLongitude.inDegrees
+            lonDifference > 180.0 -> sector.minLongitude.inDegrees
+            else -> cameraPosition.longitude.inDegrees.coerceIn(sector.minLongitude.inDegrees, sector.maxLongitude.inDegrees)
         }
         val minHeight = heightLimits[0] * rc.verticalExaggeration
-        rc.globe!!.geographicToCartesian(nearestLat, nearestLon, minHeight, nearestPoint)
+        rc.globe!!.geographicToCartesian(nearestLat.degrees, nearestLon.degrees, minHeight, nearestPoint)
         return rc.cameraPoint.distanceTo(nearestPoint)
     }
 

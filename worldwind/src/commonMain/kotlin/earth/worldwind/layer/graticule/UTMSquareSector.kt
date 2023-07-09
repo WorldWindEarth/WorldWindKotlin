@@ -81,11 +81,11 @@ abstract class UTMSquareSector(
         var maxLon = NEG180
         for (p in locations) {
             val lat = p.latitude
-            if (lat < minLat) minLat = lat
-            if (lat > maxLat) maxLat = lat
+            if (lat.inDegrees < minLat.inDegrees) minLat = lat
+            if (lat.inDegrees > maxLat.inDegrees) maxLat = lat
             val lon = p.longitude
-            if (lon < minLon) minLon = lon
-            if (lon > maxLon) maxLon = lon
+            if (lon.inDegrees < minLon.inDegrees) minLon = lon
+            if (lon.inDegrees > maxLon.inDegrees) maxLon = lon
         }
         return Sector(minLat, maxLat, minLon, maxLon)
     }
@@ -95,8 +95,10 @@ abstract class UTMSquareSector(
         var minLon = pA.longitude
         var maxLat = pA.latitude
         var maxLon = pA.longitude
-        if (pB.latitude < minLat) minLat = pB.latitude else if (pB.latitude > maxLat) maxLat = pB.latitude
-        if (pB.longitude < minLon) minLon = pB.longitude else if (pB.longitude > maxLon) maxLon = pB.longitude
+        if (pB.latitude.inDegrees < minLat.inDegrees) minLat = pB.latitude
+        else if (pB.latitude.inDegrees > maxLat.inDegrees) maxLat = pB.latitude
+        if (pB.longitude.inDegrees < minLon.inDegrees) minLon = pB.longitude
+        else if (pB.longitude.inDegrees > maxLon.inDegrees) maxLon = pB.longitude
         return Sector(minLat, maxLat, minLon, maxLon)
     }
 

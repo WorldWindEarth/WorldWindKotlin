@@ -15,7 +15,7 @@ open class Camera {
     var roll = ZERO
     var fieldOfView = 45.0.degrees
         set(value) {
-            require(value > ZERO && value < POS180) {
+            require(value.inDegrees > 0.0 && value.inDegrees < 180.0) {
                 logMessage(ERROR, "Camera", "setFieldOfView", "invalidFieldOfView")
             }
             field = value
