@@ -67,7 +67,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         return false
     }
 
-    override fun onScroll(downEvent: MotionEvent, moveEvent: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
+    override fun onScroll(downEvent: MotionEvent?, moveEvent: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
         val callback = callback ?: return false
         val x = moveEvent.x.toDouble()
         val y = moveEvent.y.toDouble()

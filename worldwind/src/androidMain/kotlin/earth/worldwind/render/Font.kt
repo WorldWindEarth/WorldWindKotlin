@@ -2,6 +2,7 @@ package earth.worldwind.render
 
 import android.content.res.Resources
 import android.graphics.Typeface
+import android.util.TypedValue
 
 actual open class Font(var typeface: Typeface?, var size: Float) {
     actual constructor() : this(null, 24f)
@@ -10,7 +11,7 @@ actual open class Font(var typeface: Typeface?, var size: Float) {
             FontWeight.NORMAL -> Typeface.NORMAL
             FontWeight.BOLD -> Typeface.BOLD
             FontWeight.ITALIC -> Typeface.ITALIC
-        }), size * Resources.getSystem().displayMetrics.scaledDensity
+        }), TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, size.toFloat(), Resources.getSystem().displayMetrics)
     )
 
     actual fun copy(font: Font) {
