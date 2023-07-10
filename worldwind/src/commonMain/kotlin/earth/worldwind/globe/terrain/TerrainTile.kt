@@ -1,5 +1,6 @@
 package earth.worldwind.globe.terrain
 
+import earth.worldwind.geom.BoundingBox
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.render.RenderContext
@@ -19,12 +20,27 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     val heights by lazy { FloatArray( level.tileWidth * level.tileHeight) }
     val points by lazy { FloatArray((level.tileWidth + 2) * (level.tileHeight + 2) * 3) }
     val origin = Vec3()
+    /**
+     * The tile's Cartesian bounding box.
+     */
+    protected val extent by lazy { BoundingBox() }
+    protected var extentTimestamp = 0L
+    protected var extentExaggeration = 0.0f
     internal val minTerrainElevation = -Short.MAX_VALUE.toFloat()
     internal var heightTimestamp = 0L
     internal var verticalExaggeration = 0.0f
     var sortOrder = 0.0
         protected set
     private lateinit var pointBufferKey: String
+
+    /**
+     * Indicates whether this tile's Cartesian extent intersects a frustum.
+     *
+     * @param rc      the current render context
+     *
+     * @return true if the frustum intersects this tile's extent, otherwise false
+     */
+    fun intersectsFrustum(rc: RenderContext) = getExtent(rc).intersectsFrustum(rc.frustum)
 
     open fun prepare(rc: RenderContext) {
         val globe = rc.globe
@@ -62,6 +78,22 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     }
 
     protected fun updatePointBufferKey() { pointBufferKey = "TerrainTile.points.$tileKey.${pointBufferSequence++}" }
+
+    protected open fun getExtent(rc: RenderContext): BoundingBox {
+        val globe = rc.globe
+        val heightLimits = heightLimits
+        val extent = extent
+        val timestamp = rc.elevationModelTimestamp
+        val ve = rc.verticalExaggeration.toFloat()
+        if (ve != extentExaggeration || timestamp != extentTimestamp) {
+            extentTimestamp = timestamp
+            extentExaggeration = ve
+            val minHeight = heightLimits[0] * ve
+            val maxHeight = heightLimits[1] * ve
+            extent.setToSector(sector, globe, minHeight, maxHeight)
+        }
+        return extent
+    }
 
     companion object {
         private var pointBufferSequence = 0L // must be static to avoid cache collisions when a tile instances is destroyed and re-created
