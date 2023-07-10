@@ -1,7 +1,9 @@
 package earth.worldwind.globe.elevation.coverage
 
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
+import earth.worldwind.util.LruMemoryCache
 import kotlinx.datetime.Clock
 
 abstract class AbstractElevationCoverage: ElevationCoverage {
@@ -14,8 +16,12 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
     override var timestamp = Clock.System.now()
         protected set
     private var userProperties: MutableMap<Any, Any>? = null
+    private val heightCache = LruMemoryCache<Location,Float>(50000)
 
-    protected fun updateTimestamp() { timestamp = Clock.System.now() }
+    protected fun updateTimestamp() {
+        timestamp = Clock.System.now()
+        heightCache.clear() // Invalidate cache if elevation coverage changed
+    }
 
     override fun getUserProperty(key: Any) = userProperties?.get(key)
 
@@ -29,7 +35,12 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
     override fun hasUserProperty(key: Any) = userProperties?.containsKey(key) == true
 
     override fun getHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
-        return if (isEnabled) doGetHeight(latitude, longitude, retrieve) else null
+        return if (isEnabled) {
+            val location = Location(latitude, longitude)
+            heightCache[location] ?: doGetHeight(latitude, longitude, retrieve)?.also {
+                heightCache.put(location, it, 1)
+            }
+        } else null
     }
 
     override fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {

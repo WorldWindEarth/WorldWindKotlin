@@ -9,8 +9,8 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
     protected val coverages = mutableListOf<ElevationCoverage>()
     val timestamp: Instant get() {
         var maxTimestamp = Instant.DISTANT_PAST
-        for (coverage in coverages) {
-            val timestamp = coverage.timestamp
+        for (i in coverages.indices) {
+            val timestamp = coverages[i].timestamp
             if (maxTimestamp < timestamp) maxTimestamp = timestamp
         }
         return maxTimestamp
@@ -49,16 +49,24 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
 
     fun getHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float {
         // coverages composite from fine to coarse
-        return coverages.asReversed().firstNotNullOfOrNull { it.getHeight(latitude, longitude, retrieve) } ?: 0f
+        for (i in coverages.indices.reversed()) {
+            val height = coverages[i].getHeight(latitude, longitude, retrieve)
+            if (height != null) return height
+        }
+        return 0f
     }
 
     fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         // coverages composite from coarse to fine
-        for (coverage in coverages) coverage.getHeightGrid(gridSector, gridWidth, gridHeight, result)
+        for (i in coverages.indices) {
+            coverages[i].getHeightGrid(gridSector, gridWidth, gridHeight, result)
+        }
     }
 
     fun getHeightLimits(sector: Sector, result: FloatArray) {
         // coverage order is irrelevant
-        for (coverage in coverages) coverage.getHeightLimits(sector, result)
+        for (i in coverages.indices) {
+            coverages[i].getHeightLimits(sector, result)
+        }
     }
 }

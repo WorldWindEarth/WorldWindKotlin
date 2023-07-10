@@ -191,7 +191,11 @@ open class Placemark @JvmOverloads constructor(
      * @param rc the current render context
      */
     override fun doRender(rc: RenderContext) {
-        // Compute the placemark's Cartesian model point.
+        // Compute the placemark's Cartesian model point and corresponding distance to the eye point. If the placemark's
+        // position is terrain-dependent but off the terrain, then compute it ABSOLUTE so that we have a point for the
+        // placemark and are thus able to draw it. Otherwise, its image and label portion that are potentially over the
+        // terrain won't get drawn, and would disappear as soon as there is no terrain at the placemark's position. This
+        // can occur at the window edges.
         rc.geographicToCartesian(position, altitudeMode, placePoint)
 
         // Compute the camera distance to the place point, the value which is used for ordering the placemark drawable

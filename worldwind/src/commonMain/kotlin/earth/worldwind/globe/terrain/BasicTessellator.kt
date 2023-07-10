@@ -74,7 +74,7 @@ open class BasicTessellator: Tessellator, TileFactory {
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
 
         // Subdivide the top level tiles until the desired resolution is achieved in each part of the scene.
-        for (tile in topLevelTiles) addTileOrDescendants(rc, tile as TerrainTile)
+        for (i in topLevelTiles.indices) addTileOrDescendants(rc, topLevelTiles[i] as TerrainTile)
 
         // Sort terrain tiles by L1 distance on cylinder from camera
         currentTerrain.sort()
@@ -95,8 +95,8 @@ open class BasicTessellator: Tessellator, TileFactory {
             addTile(rc, tile)
             return  // use the tile if it does not need to be subdivided
         }
-        for (child in tile.subdivideToCache(this, tileCache, 4)) // each tile has a cached size of 1
-            addTileOrDescendants(rc, child as TerrainTile) // recursively process the tile's children
+        val childs = tile.subdivideToCache(this, tileCache, 4) // each tile has a cached size of 1
+        for (i in childs.indices) addTileOrDescendants(rc, childs[i] as TerrainTile) // recursively process the tile's children
     }
 
     protected open fun addTile(rc: RenderContext, tile: TerrainTile) {

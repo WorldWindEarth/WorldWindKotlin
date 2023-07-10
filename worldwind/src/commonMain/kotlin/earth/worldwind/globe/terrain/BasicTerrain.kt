@@ -37,7 +37,8 @@ open class BasicTerrain: Terrain {
         val triStripElements = triStripElements ?: return found
 
         // Tiles considered as sorted by L1 distance on cylinder from camera
-        for (tile in tiles) {
+        for (i in tiles.indices) {
+            val tile = tiles[i]
             // Translate the line to the terrain tile's local coordinate system.
             line.origin.subtract(tile.origin)
 
@@ -59,7 +60,8 @@ open class BasicTerrain: Terrain {
     }
 
     override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean {
-        for (tile in tiles) {
+        for (i in tiles.indices) {
+            val tile = tiles[i]
             val sector = tile.sector
 
             // Find the first tile that contains the specified location.

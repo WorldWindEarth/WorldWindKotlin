@@ -262,7 +262,8 @@ abstract class AbstractTiledElevationCoverage(
     protected fun retrievalSucceeded(key: Long, value: ShortArray) {
         var minHeight = Short.MAX_VALUE
         var maxHeight = Short.MIN_VALUE
-        for (texel in value) {
+        for (i in value.indices) {
+            val texel = value[i]
             if (minHeight > texel) minHeight = texel
             if (maxHeight < texel) maxHeight = texel
         }
