@@ -391,7 +391,7 @@ open class Ellipse @JvmOverloads constructor(
         val deltaRadians = 2 * PI / activeIntervals
         val majorArcRadians: Double
         val minorArcRadians: Double
-        val globeRadius = max(rc.globe!!.equatorialRadius, rc.globe!!.polarRadius)
+        val globeRadius = max(rc.globe.equatorialRadius, rc.globe.polarRadius)
         if (isStandardAxisOrientation) {
             majorArcRadians = majorRadius / globeRadius
             minorArcRadians = minorRadius / globeRadius
@@ -480,7 +480,7 @@ open class Ellipse @JvmOverloads constructor(
 
     protected open fun determineModelToTexCoord(rc: RenderContext) {
         val point = rc.geographicToCartesian(center, altitudeMode, scratchPoint)
-        rc.globe!!.cartesianToLocalTransform(point.x, point.y, point.z, modelToTexCoord)
+        rc.globe.cartesianToLocalTransform(point.x, point.y, point.z, modelToTexCoord)
         modelToTexCoord.invertOrthonormal()
     }
 

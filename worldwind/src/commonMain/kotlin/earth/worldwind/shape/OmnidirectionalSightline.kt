@@ -138,7 +138,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
         makeDrawable(rc)
 
         // Enqueue a picked object that associates the sightline's drawables with its picked object ID.
-        if (rc.isPickMode) rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer!!))
+        if (rc.isPickMode) rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
     }
 
     protected open fun determineCenterPoint(rc: RenderContext): Boolean {
@@ -164,7 +164,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
         val drawable = DrawableSightline.obtain(pool)
 
         // Compute the transform from sightline local coordinates to world coordinates.
-        rc.globe!!.cartesianToLocalTransform(
+        rc.globe.cartesianToLocalTransform(
             centerPoint.x, centerPoint.y, centerPoint.z, drawable.centerTransform
         )
 

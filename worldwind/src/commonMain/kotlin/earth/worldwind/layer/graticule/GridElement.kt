@@ -9,7 +9,7 @@ import earth.worldwind.render.Renderable
 class GridElement(val sector: Sector, val renderable: Renderable, val type: String, val value: Angle) {
     constructor(sector: Sector, renderable: Renderable, type: String): this(sector, renderable, type, ZERO)
 
-    fun isInView(rc: RenderContext) = sector.intersectsOrNextTo(rc.terrain!!.sector)
+    fun isInView(rc: RenderContext) = sector.intersectsOrNextTo(rc.terrain.sector)
 
     companion object {
         const val TYPE_LINE = "GridElement_Line"

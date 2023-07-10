@@ -72,7 +72,7 @@ abstract class AbstractShape @JvmOverloads constructor(
 
         // Enqueue a picked object that associates the shape's drawables with its picked object ID.
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
-            rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer!!))
+            rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
         }
     }
 
@@ -84,11 +84,11 @@ abstract class AbstractShape @JvmOverloads constructor(
     }
 
     protected open fun cameraDistanceGeographic(rc: RenderContext, boundingSector: Sector): Double {
-        val lat = rc.camera!!.position.latitude.inDegrees.coerceIn(
+        val lat = rc.camera.position.latitude.inDegrees.coerceIn(
             boundingSector.minLatitude.inDegrees,
             boundingSector.maxLatitude.inDegrees
         )
-        val lon = rc.camera!!.position.longitude.inDegrees.coerceIn(
+        val lon = rc.camera.position.longitude.inDegrees.coerceIn(
             boundingSector.minLongitude.inDegrees,
             boundingSector.maxLongitude.inDegrees
         )

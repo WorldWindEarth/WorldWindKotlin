@@ -135,11 +135,7 @@ open class Label @JvmOverloads constructor(
 
         // Enqueue a picked object that associates the label's drawables with its picked object ID.
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
-            rc.offerPickedObject(
-                PickedObject.fromRenderable(
-                    renderData.pickedObjectId, this, rc.currentLayer!!
-                )
-            )
+            rc.offerPickedObject(PickedObject.fromRenderable(renderData.pickedObjectId, this, rc.currentLayer))
         }
     }
 
@@ -171,7 +167,7 @@ open class Label @JvmOverloads constructor(
         // Apply the label's rotation according to its rotation value and orientation mode. The rotation is applied
         // such that the text rotates around the text offset point.
         val actualRotation = if (rotationMode == OrientationMode.RELATIVE_TO_GLOBE)
-            rc.camera!!.heading - rotation else -rotation
+            rc.camera.heading - rotation else -rotation
         if (actualRotation != ZERO) {
             renderData.unitSquareTransform.multiplyByTranslation(
                 renderData.offset.x, renderData.offset.y, 0.0

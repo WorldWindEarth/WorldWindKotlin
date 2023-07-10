@@ -13,7 +13,7 @@ class ShowTessellationLayer: AbstractLayer("Terrain Tessellation") {
         }
 
     override fun doRender(rc: RenderContext) {
-        if (rc.terrain!!.sector.isEmpty) return  // no terrain to render
+        if (rc.terrain.sector.isEmpty) return  // no terrain to render
 
         // Use WorldWind's basic GLSL program.
         val program = rc.getShaderProgram { BasicShaderProgram() }

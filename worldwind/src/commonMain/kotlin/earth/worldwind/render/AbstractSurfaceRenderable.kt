@@ -16,7 +16,7 @@ abstract class AbstractSurfaceRenderable(sector: Sector, displayName: String? = 
     protected var extentExaggeration = 0.0f
 
     protected open fun getExtent(rc: RenderContext): BoundingBox {
-        val globe = rc.globe!!
+        val globe = rc.globe
         val heightLimits = heightLimits
         val extent = extent
         val timestamp = globe.elevationModel.timestamp

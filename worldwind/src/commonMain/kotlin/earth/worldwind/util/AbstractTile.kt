@@ -51,7 +51,7 @@ abstract class AbstractTile(
      * @return the L1 distance in degrees
      */
     protected open fun drawSortOrder(rc: RenderContext): Double {
-        val cameraPosition = rc.camera!!.position
+        val cameraPosition = rc.camera.position
         // determine the nearest latitude
         val latAbsDifference = abs(cameraPosition.latitude.inDegrees - sector.centroidLatitude.inDegrees)
         // determine the nearest longitude and account for the antimeridian discontinuity
@@ -69,7 +69,7 @@ abstract class AbstractTile(
      * @return the distance in meters
      */
     protected open fun distanceToCamera(rc: RenderContext): Double {
-        val cameraPosition = rc.camera!!.position
+        val cameraPosition = rc.camera.position
         // determine the nearest latitude
         val nearestLat = cameraPosition.latitude.inDegrees.coerceIn(sector.minLatitude.inDegrees, sector.maxLatitude.inDegrees)
         // determine the nearest longitude and account for the antimeridian discontinuity
@@ -80,12 +80,12 @@ abstract class AbstractTile(
             else -> cameraPosition.longitude.inDegrees.coerceIn(sector.minLongitude.inDegrees, sector.maxLongitude.inDegrees)
         }
         val minHeight = heightLimits[0] * rc.verticalExaggeration
-        rc.globe!!.geographicToCartesian(nearestLat.degrees, nearestLon.degrees, minHeight, nearestPoint)
+        rc.globe.geographicToCartesian(nearestLat.degrees, nearestLon.degrees, minHeight, nearestPoint)
         return rc.cameraPoint.distanceTo(nearestPoint)
     }
 
     protected open fun getExtent(rc: RenderContext): BoundingBox {
-        val globe = rc.globe!!
+        val globe = rc.globe
         val heightLimits = heightLimits
         val extent = extent
         val timestamp = globe.elevationModel.timestamp

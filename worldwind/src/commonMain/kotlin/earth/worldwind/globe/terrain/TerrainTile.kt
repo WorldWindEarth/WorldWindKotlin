@@ -28,7 +28,7 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     private lateinit var pointBufferKey: String
 
     open fun prepare(rc: RenderContext) {
-        val globe = rc.globe!!
+        val globe = rc.globe
         val tileWidth = level.tileWidth
         val tileHeight = level.tileHeight
         val timestamp = globe.elevationModel.timestamp

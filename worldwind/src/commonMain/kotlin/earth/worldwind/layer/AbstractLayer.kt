@@ -26,7 +26,7 @@ abstract class AbstractLayer @JvmOverloads constructor(override var displayName:
         if (isEnabled && (isPickEnabled || !rc.isPickMode) && isWithinActiveAltitudes(rc)) doRender(rc)
     }
 
-    override fun isWithinActiveAltitudes(rc: RenderContext) = rc.camera!!.position.altitude in minActiveAltitude..maxActiveAltitude
+    override fun isWithinActiveAltitudes(rc: RenderContext) = rc.camera.position.altitude in minActiveAltitude..maxActiveAltitude
 
     protected abstract fun doRender(rc: RenderContext)
 }

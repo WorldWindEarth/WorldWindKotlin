@@ -70,12 +70,12 @@ internal class GARSGraticuleTile(
     override val layer get() = super.layer as GARSGraticuleLayer
 
     override fun isInView(rc: RenderContext) =
-        super.isInView(rc) && (level == 0 || rc.camera!!.position.altitude <= THRESHOLDS[level - 1])
+        super.isInView(rc) && (level == 0 || rc.camera.position.altitude <= THRESHOLDS[level - 1])
 
     override fun selectRenderables(rc: RenderContext) {
         super.selectRenderables(rc)
         var graticuleType = layer.getTypeFor(sector.deltaLatitude.inDegrees)
-        if (level == 0 && rc.camera!!.position.altitude > THRESHOLDS[0]) {
+        if (level == 0 && rc.camera.position.altitude > THRESHOLDS[0]) {
             val labelOffset = layer.computeLabelOffset(rc)
             for (ge in gridElements!!) {
                 if (ge.isInView(rc)) {
@@ -90,11 +90,11 @@ internal class GARSGraticuleTile(
                     }
                 }
             }
-            if (rc.camera!!.position.altitude > THRESHOLDS[0]) return
+            if (rc.camera.position.altitude > THRESHOLDS[0]) return
         }
 
         // Select tile grid elements
-        val eyeDistance = rc.camera!!.position.altitude
+        val eyeDistance = rc.camera.position.altitude
         if (level == 0 && eyeDistance <= THRESHOLDS[0] || level == 1 && eyeDistance <= THRESHOLDS[1] || level == 2) {
             val resolution = sector.deltaLatitude.inDegrees / divisions
             graticuleType = layer.getTypeFor(resolution)

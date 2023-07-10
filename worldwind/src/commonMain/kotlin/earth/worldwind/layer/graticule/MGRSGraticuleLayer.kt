@@ -73,7 +73,7 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 10000
         }
 
     override fun selectRenderables(rc: RenderContext) {
-        if (rc.camera!!.position.altitude <= GRID_ZONE_MAX_ALTITUDE) {
+        if (rc.camera.position.altitude <= GRID_ZONE_MAX_ALTITUDE) {
             selectMGRSRenderables(rc)
             super.selectRenderables(rc)
         } else {
@@ -88,7 +88,7 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 10000
 
     private fun getVisibleZones(rc: RenderContext): List<MGRSGridZone> {
         val zoneList = mutableListOf<MGRSGridZone>()
-        val vs = rc.terrain!!.sector
+        val vs = rc.terrain.sector
         // UTM Grid
         val gridRectangle = getGridRectangleForSector(vs)
         if (gridRectangle != null) {

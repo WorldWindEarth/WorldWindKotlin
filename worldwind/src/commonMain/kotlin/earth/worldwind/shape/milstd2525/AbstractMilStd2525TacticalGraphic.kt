@@ -51,7 +51,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
             rc.modelview.extractForwardVector(forwardRay.direction)
 
             // Calculate range to viewing vector intersection point with globe model or to horizon if no intersection
-            val range = if (rc.globe!!.intersect(forwardRay, lookAtPoint)) lookAtPoint.distanceTo(rc.cameraPoint) else rc.horizonDistance
+            val range = if (rc.globe.intersect(forwardRay, lookAtPoint)) lookAtPoint.distanceTo(rc.cameraPoint) else rc.horizonDistance
 
             // Calculate map scale based on viewing range taking screen density into account
             rc.pixelSizeAtDistance(range) * rc.densityFactor
@@ -76,7 +76,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
     }
 
     override fun doRender(rc: RenderContext) {
-        val terrainSector = rc.terrain!!.sector
+        val terrainSector = rc.terrain.sector
         if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
             // Use shapes from previous frame during pick
             if (!rc.isPickMode) {
@@ -86,7 +86,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
                 if (currentScale < minScale) currentScale = minScale
                 else if (currentScale > maxScale) currentScale = maxScale
                 // Get renderables for current LoD
-                val equatorialRadius = rc.globe!!.equatorialRadius
+                val equatorialRadius = rc.globe.equatorialRadius
                 val lod = computeNearestLoD(equatorialRadius, currentScale)
                 shapes = lodBuffer[lod] ?: mutableListOf<Renderable>().also {
                     lodBuffer[lod] = it

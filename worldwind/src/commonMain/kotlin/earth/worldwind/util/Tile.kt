@@ -60,7 +60,7 @@ open class Tile protected constructor(
      */
     open fun mustSubdivide(rc: RenderContext, detailFactor: Double): Boolean {
         val distanceToCamera = distanceToCamera(rc)
-        val texelSize = texelSizeFactor * rc.globe!!.equatorialRadius
+        val texelSize = texelSizeFactor * rc.globe.equatorialRadius
         val pixelSize = rc.pixelSizeAtDistance(distanceToCamera)
 
         // Adjust the subdivision factory when the display density is low.

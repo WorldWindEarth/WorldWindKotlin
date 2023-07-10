@@ -254,17 +254,17 @@ open class Placemark @JvmOverloads constructor(
 
         // Offset along the normal vector to avoid collision with terrain.
         if (isBillboardingEnabled && offsetY != 0.0) {
-            rc.globe!!.geographicToCartesianNormal(position.latitude, position.longitude, scratchVector).also {
+            rc.globe.geographicToCartesianNormal(position.latitude, position.longitude, scratchVector).also {
                 // Use real camera distance in billboarding
                 val distance = if (isAlwaysOnTop) rc.cameraPoint.distanceTo(placePoint) else cameraDistance
-                val altitude = rc.pixelSizeAtDistance(distance) * sin(rc.camera!!.tilt.inRadians)
+                val altitude = rc.pixelSizeAtDistance(distance) * sin(rc.camera.tilt.inRadians)
                 placePoint.add(scratchVector.multiply(offsetY * altitude))
             }
         }
 
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0
-        val absTilt = abs(rc.camera!!.tilt.inDegrees)
+        val absTilt = abs(rc.camera.tilt.inDegrees)
         if (cameraDistance < rc.horizonDistance && absTilt <= 90) {
             depthOffset = (1 - absTilt / 90) * DEFAULT_DEPTH_OFFSET
         }
@@ -296,7 +296,7 @@ open class Placemark @JvmOverloads constructor(
         }
 
         // Prepare image transformation matrix
-        prepareImageTransform(rc.camera!!, offsetX, offsetY, scaleX, scaleY)
+        prepareImageTransform(rc.camera, offsetX, offsetY, scaleX, scaleY)
 
         // If the placemark's icon is visible, enqueue a drawable icon for processing on the OpenGL thread.
         boundingRectForUnitSquare(imageTransform, imageBounds)
@@ -339,7 +339,7 @@ open class Placemark @JvmOverloads constructor(
 
         // Enqueue a picked object that associates the placemark's icon and leader with its picked object ID.
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
-            rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer!!))
+            rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
         }
     }
 

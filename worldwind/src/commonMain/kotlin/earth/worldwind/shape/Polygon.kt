@@ -422,7 +422,7 @@ open class Polygon @JvmOverloads constructor(
         mx /= numPoints
         my /= numPoints
         mz /= numPoints
-        rc.globe!!.cartesianToLocalTransform(mx, my, mz, modelToTexCoord)
+        rc.globe.cartesianToLocalTransform(mx, my, mz, modelToTexCoord)
         modelToTexCoord.invertOrthonormal()
     }
 

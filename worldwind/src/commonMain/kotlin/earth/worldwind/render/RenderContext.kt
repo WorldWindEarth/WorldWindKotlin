@@ -30,23 +30,23 @@ open class RenderContext {
         private const val MAX_PICKED_OBJECT_ID = 0xFFFFFF
     }
 
-    var globe: Globe? = null
-    var terrainTessellator: Tessellator? = null
-    var terrain: Terrain? = null
-    var layers: LayerList? = null
-    var currentLayer: Layer? = null
+    lateinit var globe: Globe
+    lateinit var terrainTessellator: Tessellator
+    lateinit var terrain: Terrain
+    lateinit var layers: LayerList
+    lateinit var currentLayer: Layer
+    lateinit var camera: Camera
+    lateinit var renderResourceCache: RenderResourceCache
+    var densityFactor = 1f
     var verticalExaggeration = 1.0
     var horizonDistance = 0.0
     var atmosphereAltitude = 0.0
-    var camera: Camera? = null
     var cameraPoint = Vec3()
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
     val modelviewProjection = Matrix4()
     val frustum = Frustum()
-    var renderResourceCache: RenderResourceCache? = null
-    var densityFactor = 1f
     var drawableQueue: DrawableQueue? = null
     var drawableTerrain: DrawableQueue? = null
     var pickedObjects: PickedObjectList? = null
@@ -68,23 +68,16 @@ open class RenderContext {
     val tessellator: GLUtessellator by lazy { GLU.gluNewTess() }
 
     open fun reset() {
-        globe = null
-        terrainTessellator = null
-        terrain = null
-        layers = null
-        currentLayer = null
+        densityFactor = 1f
         verticalExaggeration = 1.0
         horizonDistance = 0.0
         atmosphereAltitude = 0.0
-        camera = null
         cameraPoint.set(0.0, 0.0, 0.0)
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()
         modelviewProjection.setToIdentity()
         frustum.setToUnitFrustum()
-        renderResourceCache = null
-        densityFactor = 1f
         drawableQueue = null
         drawableTerrain = null
         pickedObjects = null
@@ -114,7 +107,7 @@ open class RenderContext {
      */
     fun pixelSizeAtDistance(distance: Double): Double {
         if (pixelSizeFactor == 0.0) { // cache the scaling factor used to convert distances to pixel sizes
-            val fov = camera!!.fieldOfView
+            val fov = camera.fieldOfView
             val tanFov2 = tan(fov.inRadians * 0.5)
             pixelSizeFactor = 2 * tanFov2 / viewport.height
         }
@@ -287,18 +280,18 @@ open class RenderContext {
         latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, result: Vec3
     ): Vec3 {
         when (altitudeMode) {
-            ABSOLUTE -> globe?.geographicToCartesian(latitude, longitude, altitude * verticalExaggeration, result)
-            CLAMP_TO_GROUND -> if (terrain?.surfacePoint(latitude, longitude, result) != true) globe?.run {
+            ABSOLUTE -> globe.geographicToCartesian(latitude, longitude, altitude * verticalExaggeration, result)
+            CLAMP_TO_GROUND -> if (!terrain.surfacePoint(latitude, longitude, result)) globe.run {
                 // Use elevation model height as a fallback
                 val elevation = getElevation(latitude, longitude)
                 geographicToCartesian(latitude, longitude, elevation * verticalExaggeration, result)
             }
-            RELATIVE_TO_GROUND -> if (terrain?.surfacePoint(latitude, longitude, result) == true) {
+            RELATIVE_TO_GROUND -> if (terrain.surfacePoint(latitude, longitude, result)) {
                 // Offset along the normal vector at the terrain surface point.
-                if (altitude != 0.0) globe?.geographicToCartesianNormal(latitude, longitude, scratchVector)?.also {
+                if (altitude != 0.0) globe.geographicToCartesianNormal(latitude, longitude, scratchVector)?.also {
                     result.add(scratchVector.multiply(altitude))
                 }
-            } else globe?.run {
+            } else globe.run {
                 // Use elevation model height as a fallback
                 val elevation = altitude + getElevation(latitude, longitude)
                 geographicToCartesian(latitude, longitude, elevation * verticalExaggeration, result)
@@ -311,16 +304,16 @@ open class RenderContext {
     // TODO created automatically on OpenGL thread, unless the caller wants to explicitly create a program
     inline fun <reified T: AbstractShaderProgram> getShaderProgram(builder: () -> T): T {
         val key = T::class
-        return renderResourceCache?.run{ get(key) ?: builder().also { put(key, it, it.programLength) } } as T
+        return renderResourceCache.run{ get(key) ?: builder().also { put(key, it, it.programLength) } } as T
     }
 
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions?, retrieve: Boolean = true) =
-        renderResourceCache?.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
+        renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
 
     inline fun <reified T: AbstractBufferObject> getBufferObject(key: Any, builder: () -> T) =
-        renderResourceCache?.run{ get(key) ?: builder().also { put(key, it, it.byteCount) } } as T
+        renderResourceCache.run{ get(key) ?: builder().also { put(key, it, it.byteCount) } } as T
 
-    fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache?.run {
+    fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache.run {
         scratchTextCacheKey.text = text
         scratchTextCacheKey.attributes = attributes
         // Use scratch key on get operation to avoid unnecessary object creation on each text render on each frame

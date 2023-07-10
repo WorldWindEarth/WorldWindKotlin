@@ -9,12 +9,12 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sec
     var gridElements: MutableList<GridElement>? = null
         private set
 
-    open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain!!.sector) && intersectsFrustum(rc)
+    open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain.sector) && intersectsFrustum(rc)
 
     open fun getSizeInPixels(rc: RenderContext): Double {
         val centerPoint = layer.getSurfacePoint(rc, sector.centroidLatitude, sector.centroidLongitude)
         val distance = rc.cameraPoint.distanceTo(centerPoint)
-        val tileSizeMeter = sector.deltaLatitude.inRadians * rc.globe!!.equatorialRadius
+        val tileSizeMeter = sector.deltaLatitude.inRadians * rc.globe.equatorialRadius
         return tileSizeMeter / rc.pixelSizeAtDistance(distance) / rc.densityFactor
     }
 

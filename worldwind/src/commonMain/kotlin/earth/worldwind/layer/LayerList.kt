@@ -89,6 +89,5 @@ open class LayerList() : Iterable<Layer> {
                 // Keep going. Draw the remaining layers.
             }
         }
-        rc.currentLayer = null
     }
 }

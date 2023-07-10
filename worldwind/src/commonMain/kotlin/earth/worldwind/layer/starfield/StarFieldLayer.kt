@@ -92,7 +92,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
     }
 
     override fun doRender(rc: RenderContext) {
-        if (rc.globe!!.is2D) return // Star Field layer is not applicable for 2D globe
+        if (rc.globe.is2D) return // Star Field layer is not applicable for 2D globe
 
         loadStarData(rc)
 
@@ -124,7 +124,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
             FloatBufferObject(GL_ARRAY_BUFFER, sunBufferView)
         }
 
-        val scale = (rc.camera!!.position.altitude * 1.5).coerceAtLeast(minScale)
+        val scale = (rc.camera.position.altitude * 1.5).coerceAtLeast(minScale)
         matrix.copy(rc.modelviewProjection)
         matrix.multiplyByScale(scale, scale, scale)
 
@@ -147,7 +147,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
     protected open fun loadStarData(rc: RenderContext) {
         if (starData == null && !loadStarted) {
             loadStarted = true
-            rc.renderResourceCache?.retrieveTextFile(starDataSource) {
+            rc.renderResourceCache.retrieveTextFile(starDataSource) {
                 starData = Json.decodeFromString(it)
                 loadStarted = false
                 WorldWind.requestRedraw()

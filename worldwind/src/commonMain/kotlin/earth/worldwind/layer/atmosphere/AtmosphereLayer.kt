@@ -47,11 +47,11 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         // TODO RenderContext property defaults to the eye lat/lon like we have below
         time?.let {
             val lightLocation = SunPosition.getAsGeographicLocation(it)
-            rc.globe!!.geographicToCartesianNormal(
+            rc.globe.geographicToCartesianNormal(
                 lightLocation.latitude, lightLocation.longitude, activeLightDirection
             )
-        } ?: rc.globe!!.geographicToCartesianNormal(
-            rc.camera!!.position.latitude, rc.camera!!.position.longitude, activeLightDirection
+        } ?: rc.globe.geographicToCartesianNormal(
+            rc.camera.position.latitude, rc.camera.position.longitude, activeLightDirection
         )
     }
 
@@ -65,18 +65,18 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         }
         drawable.triStripElements = rc.getBufferObject(TRI_STRIP_ELEMENTS_KEY) { assembleTriStripElements(size, size) }
         drawable.lightDirection.copy(activeLightDirection)
-        drawable.globeRadius = rc.globe!!.equatorialRadius
+        drawable.globeRadius = rc.globe.equatorialRadius
         drawable.atmosphereAltitude = rc.atmosphereAltitude
         rc.offerSurfaceDrawable(drawable, Double.POSITIVE_INFINITY)
     }
 
     protected open fun renderGround(rc: RenderContext) {
-        if (rc.terrain!!.sector.isEmpty) return  // no terrain surface to render on
+        if (rc.terrain.sector.isEmpty) return  // no terrain surface to render on
         val pool = rc.getDrawablePool<DrawableGroundAtmosphere>()
         val drawable = DrawableGroundAtmosphere.obtain(pool)
         drawable.program = rc.getShaderProgram { GroundProgram() }
         drawable.lightDirection.copy(activeLightDirection)
-        drawable.globeRadius = rc.globe!!.equatorialRadius
+        drawable.globeRadius = rc.globe.equatorialRadius
         drawable.atmosphereAltitude = rc.atmosphereAltitude
 
         // Use this layer's night image when the light location is different from the eye location.
@@ -89,7 +89,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         val altitudes = FloatArray(count)
         altitudes.fill(altitude)
         val points = FloatArray(count * 3)
-        rc.globe!!.geographicToCartesianGrid(
+        rc.globe.geographicToCartesianGrid(
             fullSphereSector, numLat, numLon, altitudes, 1.0f, null, points, 0, 0
         )
         return FloatBufferObject(GL_ARRAY_BUFFER, points)

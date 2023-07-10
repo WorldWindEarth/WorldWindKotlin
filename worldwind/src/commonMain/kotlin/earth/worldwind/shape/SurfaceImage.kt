@@ -13,7 +13,7 @@ open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractS
     var imageOptions: ImageOptions? = null
 
     override fun doRender(rc: RenderContext) {
-        if (sector.isEmpty || !rc.terrain!!.sector.intersects(sector) || !getExtent(rc).intersectsFrustum(rc.frustum)) return
+        if (sector.isEmpty || !rc.terrain.sector.intersects(sector) || !getExtent(rc).intersectsFrustum(rc.frustum)) return
         val texture = rc.getTexture(imageSource, imageOptions) ?: return // no texture to draw
 
         // Enqueue a drawable surface texture for processing on the OpenGL thread.
@@ -26,7 +26,7 @@ open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractS
         if (rc.isPickMode) {
             val pickedObjectId = rc.nextPickedObjectId()
             PickedObject.identifierToUniqueColor(pickedObjectId, drawable.color)
-            rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer!!))
+            rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
         }
     }
 

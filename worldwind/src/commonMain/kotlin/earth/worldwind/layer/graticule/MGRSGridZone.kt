@@ -47,7 +47,7 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
             if (ge.type == TYPE_LINE_EAST && layer.isEastNeighborInView(this, rc)) continue
             layer.addRenderable(ge.renderable, graticuleType)
         }
-        if (rc.camera!!.position.altitude > SQUARE_MAX_ALTITUDE) return
+        if (rc.camera.position.altitude > SQUARE_MAX_ALTITUDE) return
 
         // Select 100km squares elements
         squares ?: if (isUPS) createSquaresUPS() else createSquaresUTM()

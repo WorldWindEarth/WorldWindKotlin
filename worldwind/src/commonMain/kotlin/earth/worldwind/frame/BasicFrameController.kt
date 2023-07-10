@@ -23,14 +23,14 @@ open class BasicFrameController: FrameController {
     private val pickPos = Position()
 
     override fun renderFrame(rc: RenderContext) {
-        rc.terrainTessellator!!.tessellate(rc)
+        rc.terrainTessellator.tessellate(rc)
         if (rc.isPickMode) renderTerrainPickedObject(rc)
-        rc.layers!!.render(rc)
+        rc.layers.render(rc)
         rc.sortDrawables()
     }
 
     protected open fun renderTerrainPickedObject(rc: RenderContext) {
-        if (rc.terrain!!.sector.isEmpty) return  // no terrain to pick
+        if (rc.terrain.sector.isEmpty) return  // no terrain to pick
 
         // Acquire a unique picked object ID for terrain.
         val pickedObjectId = rc.nextPickedObjectId()
@@ -45,8 +45,8 @@ open class BasicFrameController: FrameController {
         // If the pick ray intersects the terrain, enqueue a picked object that associates the terrain drawable with its
         // picked object ID and the intersection position.
         val pickRay = rc.pickRay
-        if (pickRay != null && rc.terrain!!.intersect(pickRay, pickPoint)) {
-            rc.globe!!.cartesianToGeographic(pickPoint.x, pickPoint.y, pickPoint.z, pickPos)
+        if (pickRay != null && rc.terrain.intersect(pickRay, pickPoint)) {
+            rc.globe.cartesianToGeographic(pickPoint.x, pickPoint.y, pickPoint.z, pickPos)
             rc.offerPickedObject(fromTerrain(pickedObjectId, pickPos))
         }
     }

@@ -245,9 +245,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
      */
     private fun needsToUpdate(rc: RenderContext): Boolean {
         if (lastVerticalExaggeration != rc.verticalExaggeration) return true
-        if (abs(lastCameraHeading - rc.camera!!.heading.inDegrees) > 1) return true
-        if (abs(lastCameraTilt - rc.camera!!.tilt.inDegrees) > 1) return true
-        if (abs(lastFOV - rc.camera!!.fieldOfView.inDegrees) > 1) return true
+        if (abs(lastCameraHeading - rc.camera.heading.inDegrees) > 1) return true
+        if (abs(lastCameraTilt - rc.camera.tilt.inDegrees) > 1) return true
+        if (abs(lastFOV - rc.camera.fieldOfView.inDegrees) > 1) return true
         return rc.cameraPoint.distanceTo(lastCameraPoint) > computeAltitudeAboveGround(rc) / 100
 
         // We must test the globe and its projection to see if either changed. We can't simply use the globe state
@@ -260,9 +260,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     protected open fun clear(rc: RenderContext) {
         removeAllRenderables()
         lastCameraPoint.copy(rc.cameraPoint)
-        lastFOV = rc.camera!!.fieldOfView.inDegrees
-        lastCameraHeading = rc.camera!!.heading.inDegrees
-        lastCameraTilt = rc.camera!!.tilt.inDegrees
+        lastFOV = rc.camera.fieldOfView.inDegrees
+        lastCameraHeading = rc.camera.heading.inDegrees
+        lastCameraTilt = rc.camera.tilt.inDegrees
         lastVerticalExaggeration = rc.verticalExaggeration
 //        lastGlobe = rc.globe
 //        if (rc.is2DGlobe) lastProjection = (rc.globe as Globe2D).projection
@@ -272,7 +272,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
 
 //    private fun computeTerrainConformance(rc: RenderContext): Double {
 //        var value = 100
-//        val alt = rc.camera!!.position.altitude
+//        val alt = rc.camera.position.altitude
 //        when {
 //            alt < 10e3 -> value = 20
 //            alt < 50e3 -> value = 30
@@ -301,7 +301,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
                 normalizeLongitude(labelPos.longitude.inDegrees)
             )
             labelPos
-        } else rc.camera!!.position
+        } else rc.camera.position
     }
 
     fun createLineRenderable(positions: List<Position>, pathType: PathType) =
@@ -344,16 +344,16 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     }
 
     fun getSurfacePoint(rc: RenderContext, latitude: Angle, longitude: Angle): Vec3 {
-        if (!rc.terrain!!.surfacePoint(latitude, longitude, surfacePoint))
-            rc.globe!!.geographicToCartesian(
-                latitude, longitude, rc.globe!!.getElevation(latitude, longitude)
+        if (!rc.terrain.surfacePoint(latitude, longitude, surfacePoint))
+            rc.globe.geographicToCartesian(
+                latitude, longitude, rc.globe.getElevation(latitude, longitude)
                         * rc.verticalExaggeration, surfacePoint
             )
         return surfacePoint
     }
 
     fun computeAltitudeAboveGround(rc: RenderContext): Double {
-        val surfacePoint = getSurfacePoint(rc, rc.camera!!.position.latitude, rc.camera!!.position.longitude)
+        val surfacePoint = getSurfacePoint(rc, rc.camera.position.latitude, rc.camera.position.longitude)
         return rc.cameraPoint.distanceTo(surfacePoint)
     }
 
@@ -484,8 +484,8 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
             //rc.modelview.extractEyePoint(forwardRay.origin)
             forwardRay.origin.copy(rc.cameraPoint)
             rc.modelview.extractForwardVector(forwardRay.direction)
-            val range = if (rc.terrain!!.intersect(forwardRay, lookAtPoint)) {
-                rc.globe!!.cartesianToGeographic(lookAtPoint.x, lookAtPoint.y, lookAtPoint.z, lookAtPos)
+            val range = if (rc.terrain.intersect(forwardRay, lookAtPoint)) {
+                rc.globe.cartesianToGeographic(lookAtPoint.x, lookAtPoint.y, lookAtPoint.z, lookAtPos)
                 rc.putUserProperty(LOOK_AT_LATITUDE_PROPERTY, lookAtPos.latitude)
                 rc.putUserProperty(LOOK_AT_LONGITUDE_PROPERTY, lookAtPos.longitude)
                 lookAtPoint.distanceTo(rc.cameraPoint)
@@ -496,7 +496,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
             }
             val pixelSizeMeters = rc.pixelSizeAtDistance(range)
             rc.putUserProperty(GRATICULE_PIXEL_SIZE_PROPERTY, pixelSizeMeters)
-            val pixelSizeDegrees = toDegrees(pixelSizeMeters / rc.globe!!.equatorialRadius)
+            val pixelSizeDegrees = toDegrees(pixelSizeMeters / rc.globe.equatorialRadius)
             rc.putUserProperty(
                 GRATICULE_LABEL_OFFSET_PROPERTY, pixelSizeDegrees * rc.viewport.width / 4
             )

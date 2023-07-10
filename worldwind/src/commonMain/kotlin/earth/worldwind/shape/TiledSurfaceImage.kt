@@ -82,7 +82,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     }
 
     override fun doRender(rc: RenderContext) {
-        if (rc.terrain!!.sector.isEmpty) return  // no terrain surface to render on
+        if (rc.terrain.sector.isEmpty) return  // no terrain surface to render on
         determineActiveProgram(rc)
         assembleTiles(rc)
         activeProgram = null // clear the active program to avoid leaking render resources
@@ -137,7 +137,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
         // ignore the tile and its descendants if it's not needed or not visible
-        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain!!.sector) || !tile.intersectsFrustum(rc)) return
+        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc)) return
         val retrieveCurrentLevel = tile.level.levelNumber >= levelOffset
         if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
             if (retrieveCurrentLevel) addTile(rc, tile)
@@ -183,7 +183,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
             (createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile).imageSource?.also { tile.cacheSource = it }
         }
         // If cache source is not absent, then retrieve it instead of original image source
-        val isCacheAbsent = cacheSource == null || rc.renderResourceCache!!.absentResourceList.isResourceAbsent(cacheSource.hashCode())
+        val isCacheAbsent = cacheSource == null || rc.renderResourceCache.absentResourceList.isResourceAbsent(cacheSource.hashCode())
         return rc.getTexture(
             if (isCacheAbsent) imageSource else cacheSource!!, imageOptions, retrieve && (!useCacheOnly || !isCacheAbsent)
         )

@@ -32,7 +32,7 @@ open class BasicFrameMetrics : FrameMetrics {
     override fun endRendering(rc: RenderContext) {
         val now = System.currentTimeMillis()
         markEnd(renderMetrics, now)
-        assembleCacheMetrics(renderResourceCacheMetrics, rc.renderResourceCache!!)
+        assembleCacheMetrics(renderResourceCacheMetrics, rc.renderResourceCache)
     }
 
     override fun beginDrawing(dc: DrawContext) {
