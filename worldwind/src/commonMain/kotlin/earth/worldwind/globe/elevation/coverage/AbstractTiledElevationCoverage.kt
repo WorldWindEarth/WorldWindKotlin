@@ -20,7 +20,7 @@ abstract class AbstractTiledElevationCoverage(
     tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory,
 ): AbstractElevationCoverage() {
     companion object {
-        protected const val GET_HEIGHT_LIMIT_SAMPLES = 64
+        protected const val GET_HEIGHT_LIMIT_SAMPLES = 32
     }
 
     var tileMatrixSet: TileMatrixSet = tileMatrixSet
