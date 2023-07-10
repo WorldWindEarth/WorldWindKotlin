@@ -26,7 +26,8 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 10000
     var maximumGraticuleResolution: String?
         get() {
             var maxTypeDrawn: String? = null
-            for (type in orderedTypes) {
+            for (i in orderedTypes.indices) {
+                val type = orderedTypes[i]
                 val params = getRenderingParams(type)
                 if (params.isDrawLines) maxTypeDrawn = type
             }
@@ -34,7 +35,8 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 10000
         }
         set(graticuleType) {
             var pastTarget = false
-            for (type in orderedTypes) {
+            for (i in orderedTypes.indices) {
+                val type = orderedTypes[i]
                 // Enable all graticulte BEFORE and INCLUDING the target.
                 // Disable all graticules AFTER the target.
                 val params = getRenderingParams(type)

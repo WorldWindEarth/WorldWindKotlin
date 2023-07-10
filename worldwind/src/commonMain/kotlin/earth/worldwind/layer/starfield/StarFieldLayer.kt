@@ -196,7 +196,8 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
 
         val positions = FloatArray(numStars * 4)
         var positionIndex = 0
-        for (starInfo in starData.data) {
+        for (i in starData.data.indices) {
+            val starInfo = starData.data[i]
             val rightAscension = starInfo[indexes[0]] //for longitude
             val declination = starInfo[indexes[1]] //for latitude
             val magnitude = starInfo[indexes[2]]

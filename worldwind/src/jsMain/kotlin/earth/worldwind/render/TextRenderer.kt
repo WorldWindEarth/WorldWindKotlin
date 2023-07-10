@@ -55,7 +55,8 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
             else -> ctx2D.translate(textSize.x / 2.0, 0.0)
         }
 
-        for (line in lines) {
+        for (i in lines.indices) {
+            val line = lines[i]
             ctx2D.translate(0.0, attributes.font.size * (1.0 + lineSpacing) + strokeOffset)
             if (attributes.isOutlineEnabled) ctx2D.strokeText(line, 0.0, 0.0)
             ctx2D.fillText(line, 0.0, 0.0)
@@ -79,7 +80,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         val lines = text.split("\n")
         var height = lines.size * (textAttributes.font.size * (1.0 + lineSpacing))
         var maxWidth = 0.0
-        for (element in lines) maxWidth = maxWidth.coerceAtLeast(ctx2D.measureText(element).width)
+        for (i in lines.indices) maxWidth = maxWidth.coerceAtLeast(ctx2D.measureText(lines[i]).width)
 
         if (textAttributes.isOutlineEnabled) {
             maxWidth += textAttributes.outlineWidth

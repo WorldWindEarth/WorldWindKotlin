@@ -229,10 +229,10 @@ open class Frustum {
         // First do a trivial accept test.
         if (containsPoint(pointA) || containsPoint(pointB)) return true
         if (pointA == pointB) return false
-        for (plane in planes) {
+        for (i in planes.indices) {
+            val plane = planes[i]
             // See if both points are behind the plane and therefore not in the frustum.
             if (plane.onSameSide(pointA, pointB) < 0) return false
-
             // See if the segment intersects the plane.
             if (plane.clip(pointA, pointB) != null) return true
         }

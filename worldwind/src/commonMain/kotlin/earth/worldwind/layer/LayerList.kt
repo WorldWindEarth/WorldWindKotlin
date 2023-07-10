@@ -76,7 +76,8 @@ open class LayerList() : Iterable<Layer> {
     override fun iterator() = layers.iterator()
 
     fun render(rc: RenderContext) {
-        for (layer in layers) {
+        for (i in layers.indices) {
+            val layer = layers[i]
             rc.currentLayer = layer
             try {
                 layer.render(rc)

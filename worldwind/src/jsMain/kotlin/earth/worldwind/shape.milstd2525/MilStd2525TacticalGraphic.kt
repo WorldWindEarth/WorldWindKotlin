@@ -81,8 +81,8 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         armyc2.c2sd.JavaRendererServer.RenderMultipoints.clsRenderer.renderWithPolylines(mss, ipc, null /*rect*/)
 
         // Create Renderables based on Poly-lines and Modifiers from Renderer
-        for (shape in mss.getSymbolShapes().getArray()) convertShapeToRenderables(shape, mss, ipc, shapes)
-        for (shape in mss.getModifierShapes().getArray()) convertShapeToRenderables(shape, mss, ipc, shapes)
+        for (i in 0 until mss.getSymbolShapes().size()) convertShapeToRenderables(mss.getSymbolShapes().get(i)!!, mss, ipc, shapes)
+        for (i in 0 until mss.getModifierShapes().size()) convertShapeToRenderables(mss.getModifierShapes().get(i)!!, mss, ipc, shapes)
         invalidateExtent() // Regenerate extent in next frame due to sector may be extended by real shape measures
     }
 
@@ -115,10 +115,11 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                 } else shapeAttributes
                 val lines = mutableListOf<Renderable>()
                 val outlines = mutableListOf<Renderable>()
-                for (polyline in shape.getPolylines().toArray()) {
+                for (idx in 0 until shape.getPolylines().size()) {
+                    val polyline = shape.getPolylines().get(idx)!!
                     val positions = mutableListOf<Position>()
-                    for (point in polyline.toArray()) {
-                        val geoPoint = ipc.PixelsToGeo(point)
+                    for (p in 0 until polyline.size()) {
+                        val geoPoint = ipc.PixelsToGeo(polyline.get(p)!!)
                         val position = Position.fromDegrees(geoPoint.getY().toDouble(), geoPoint.getX().toDouble(), 0.0)
                         positions.add(position)
                         sector.union(position) // Extend bounding box by real graphics measures

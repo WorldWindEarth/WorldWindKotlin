@@ -59,9 +59,9 @@ open class DrawableSightline protected constructor(): Drawable {
 
         // TODO accumulate only the visible terrain, which can be used in both passes
         // TODO give terrain a bounding box, test with a frustum set using depthviewProjection
-        for (m in cubeMapFace) {
+        for (i in cubeMapFace.indices) {
             sightlineView.copy(centerTransform)
-            sightlineView.multiplyByMatrix(m)
+            sightlineView.multiplyByMatrix(cubeMapFace[i])
             sightlineView.invertOrthonormal()
             if (drawSceneDepth(dc)) drawSceneOcclusion(dc)
         }

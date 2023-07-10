@@ -17,8 +17,8 @@ abstract class WorldWindowController(
     protected val gestureEventListeners = mutableListOf<EventListener>()
 
     override fun handleEvent(event: Event) {
-        for (eventListener in gestureEventListeners) {
-            eventListener.handleEvent(event)
+        for (i in gestureEventListeners.indices) {
+            gestureEventListeners[i].handleEvent(event)
             if (event.defaultPrevented) break
         }
     }

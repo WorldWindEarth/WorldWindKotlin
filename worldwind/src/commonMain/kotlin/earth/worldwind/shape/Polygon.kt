@@ -281,7 +281,8 @@ open class Polygon @JvmOverloads constructor(
         GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, tessCallback)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, tessCallback)
         GLU.gluTessBeginPolygon(tess, rc)
-        for (positions in boundaries) {
+        for (i in boundaries.indices) {
+            val positions = boundaries[i]
             if (positions.isEmpty()) continue  // no boundary positions to assemble
             GLU.gluTessBeginContour(tess)
 
@@ -407,10 +408,11 @@ open class Polygon @JvmOverloads constructor(
         var my = 0.0
         var mz = 0.0
         var numPoints = 0.0
-        for (positions in boundaries) {
+        for (i in boundaries.indices) {
+            val positions = boundaries[i]
             if (positions.isEmpty()) continue  // no boundary positions
-            for (pos in positions) {
-                val point = rc.geographicToCartesian(pos, AltitudeMode.ABSOLUTE, point)
+            for (j in positions.indices) {
+                val point = rc.geographicToCartesian(positions[j], AltitudeMode.ABSOLUTE, point)
                 mx += point.x
                 my += point.y
                 mz += point.z

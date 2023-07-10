@@ -362,7 +362,7 @@ class Subfile @JvmOverloads constructor(
 
     private fun getTotalBytesPerPixel(): Int {
         var totalBitsPerSample = 0
-        for (bits in bitsPerSample) totalBitsPerSample += bits
+        for (i in bitsPerSample.indices) totalBitsPerSample += bitsPerSample[i]
         return totalBitsPerSample / 8
     }
 

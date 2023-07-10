@@ -81,7 +81,8 @@ open class RenderableLayer @JvmOverloads constructor(displayName: String? = null
     override fun iterator() = renderables.iterator()
 
     override fun doRender(rc: RenderContext) {
-        for (renderable in renderables) {
+        for (i in renderables.indices) {
+            val renderable = renderables[i]
             try {
                 renderable.render(rc)
             } catch (e: Exception) {

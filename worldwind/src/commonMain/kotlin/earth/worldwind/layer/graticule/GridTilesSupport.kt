@@ -30,7 +30,7 @@ internal class GridTilesSupport(private val callback: Callback, private val rows
     fun selectRenderables(rc: RenderContext) {
         val tileList = getVisibleTiles(rc)
         // Select tile visible elements
-        if (tileList.isNotEmpty()) for (gt in tileList) gt.selectRenderables(rc)
+        for (gt in tileList) gt.selectRenderables(rc)
     }
 
     private fun getVisibleTiles(rc: RenderContext): List<AbstractGraticuleTile> {

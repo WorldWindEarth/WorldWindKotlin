@@ -64,7 +64,8 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
         val sortedEntries = assembleSortedEntries()
 
         // Remove the least recently used entries until the entry's age is within the specified maximum age.
-        for (entry in sortedEntries) {
+        for (i in sortedEntries.indices) {
+            val entry = sortedEntries[i]
             if (entry.lastUsed < maxAge) {
                 entries.remove(entry.key)
                 usedCapacity -= entry.size
@@ -89,7 +90,8 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
 
         // Remove the least recently used entries until the cache capacity reaches the low water and the cache has
         // enough free capacity for the required space.
-        for (entry in sortedEntries) {
+        for (i in sortedEntries.indices) {
+            val entry = sortedEntries[i]
             if (usedCapacity > lowWater || capacity - usedCapacity < spaceRequired) {
                 entries.remove(entry.key)
                 usedCapacity -= entry.size

@@ -128,7 +128,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         // the texture is actually requested Could the tile-based operations done here be implicit on level/row/column,
         // or use transient pooled tile objects not tied to an image source?
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
-        for (tile in topLevelTiles) addTileOrDescendants(rc, tile as ImageTile)
+        for (i in topLevelTiles.indices) addTileOrDescendants(rc, topLevelTiles[i] as ImageTile)
     }
 
     protected open fun createTopLevelTiles() {
@@ -151,7 +151,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
             ancestorTexture = tileTexture
         }
         // each tile has a cached size of 1, recursively process the tile's children
-        for (child in tile.subdivideToCache(tileFactory, tileCache, 4)) addTileOrDescendants(rc, child as ImageTile)
+        val children = tile.subdivideToCache(tileFactory, tileCache, 4)
+        for (i in children.indices) addTileOrDescendants(rc, children[i] as ImageTile)
         ancestorTile = currentAncestorTile // restore the last fallback tile, even if it was null
         ancestorTexture = currentAncestorTexture
     }
