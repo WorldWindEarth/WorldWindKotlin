@@ -77,7 +77,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
     protected open fun drawShapesToTexture(dc: DrawContext, terrain: DrawableTerrain): Int {
         // Shapes have been accumulated in the draw context's scratch list.
-        val scratchList = dc.scratchList
+        val scratchList = dc.scratchList.toTypedArray()
 
         // The terrain's sector defines the geographic region in which to draw.
         val terrainSector = terrain.sector
@@ -113,9 +113,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 -terrainSector.minLatitude.inDegrees,
                 0.0
             )
-            for (idx in 0 until scratchList.size) {
+            for (element in scratchList) {
                 // Get the shape.
-                val shape = scratchList[idx] as DrawableSurfaceShape
+                val shape = element as DrawableSurfaceShape
                 if (!shape.sector.intersectsOrNextTo(terrainSector)) continue
                 if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) continue  // vertex buffer unspecified or failed to bind
                 if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) continue  // element buffer unspecified or failed to bind

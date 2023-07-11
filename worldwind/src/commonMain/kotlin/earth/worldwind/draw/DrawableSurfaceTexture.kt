@@ -84,7 +84,7 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
         dc.gl.enableVertexAttribArray(1)
 
         // Surface textures have been accumulated in the draw context's scratch list.
-        val scratchList = dc.scratchList
+        val scratchList = dc.scratchList.toTypedArray()
         for (idx in 0 until dc.drawableTerrainCount) {
             // Get the drawable terrain associated with the draw context.
             val terrain = dc.getDrawableTerrain(idx)
@@ -93,9 +93,9 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
             val terrainSector = terrain.sector
             val terrainOrigin = terrain.vertexOrigin
             var usingTerrainAttrs = false
-            for (jIdx in 0 until scratchList.size) {
+            for (element in scratchList) {
                 // Get the surface texture and its sector.
-                val texture = scratchList[jIdx] as DrawableSurfaceTexture
+                val texture = element as DrawableSurfaceTexture
                 val textureSector = texture.sector
                 if (!textureSector.intersects(terrainSector)) continue  // texture does not intersect the terrain
                 if (!texture.bindTexture(dc)) continue  // texture failed to bind
