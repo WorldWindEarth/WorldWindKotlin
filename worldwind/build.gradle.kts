@@ -153,6 +153,18 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }
 
+// Do not generate Intrinsics runtime assertion for performance reasons
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class)
+    .all {
+        kotlinOptions {
+            freeCompilerArgs = freeCompilerArgs + listOf(
+                "-Xno-call-assertions",
+                "-Xno-receiver-assertions",
+                "-Xno-param-assertions"
+            )
+        }
+    }
+
 val dokkaOutputDir = "$buildDir/dokka"
 tasks.getByName<org.jetbrains.dokka.gradle.DokkaTask>("dokkaHtml") {
     outputDirectory.set(file(dokkaOutputDir))
