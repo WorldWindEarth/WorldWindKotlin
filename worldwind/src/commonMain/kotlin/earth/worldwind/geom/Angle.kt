@@ -13,7 +13,7 @@ value class Angle private constructor(
      * Size of this angle in degrees.
      */
     val inDegrees: Double
-) {
+): Comparable<Angle> {
     /**
      * Size of this angle in radians. This may be useful for functions, which
      * generally take radians as trigonometric arguments.
@@ -848,6 +848,16 @@ value class Angle private constructor(
         val dms = toDMS()
         return "${if (dms[0] < 0) "-" else ""}%d° %d’ %.0f”".format(dms[1], dms[2], dms[3])
     }
+
+    /**
+     * Compares this [Angle] with another. Returns a negative integer if this is the smaller angle, a positive
+     * integer if this is the larger, and zero if both angles are equal.
+     *
+     * @param other the angle to compare against.
+     *
+     * @return -1 if this angle is smaller, 0 if both are equal and +1 if this angle is larger.
+     */
+    override operator fun compareTo(other: Angle) = inDegrees.compareTo(other.inDegrees)
 
     override fun toString() = "$inDegrees°"
 }

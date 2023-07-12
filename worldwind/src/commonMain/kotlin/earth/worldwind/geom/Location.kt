@@ -499,7 +499,7 @@ open class Location(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Location) return false
-        return latitude == other.latitude && longitude == other.longitude
+        return latitude.inDegrees == other.latitude.inDegrees && longitude.inDegrees == other.longitude.inDegrees
     }
 
     override fun hashCode(): Int {

@@ -1,7 +1,6 @@
 package earth.worldwind
 
 import android.view.MotionEvent
-import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.LookAt
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
@@ -106,8 +105,8 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
                 // the camera to the appropriate spot on the other side of the pole.
                 if (lat.inDegrees < -90.0 || lat.inDegrees > 90.0) {
                     lookAt.position.latitude = lat.normalizeLatitude()
-                    lookAt.position.longitude = (lon + POS180).normalizeLongitude()
-                    lookAt.heading = (heading + POS180).normalize360()
+                    lookAt.position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
+                    lookAt.heading = heading.plusDegrees(180.0).normalize360()
                 } else if (lon.inDegrees < -180.0 || lon.inDegrees > 180.0) {
                     lookAt.position.latitude = lat
                     lookAt.position.longitude = lon.normalizeLongitude()

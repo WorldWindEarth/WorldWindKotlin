@@ -1,6 +1,5 @@
 package earth.worldwind.geom
 
-import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.globe.Globe
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -200,8 +199,8 @@ open class BoundingBox {
         // in longitude. Incorporate those antipodal points into the extremes along each axis.
         if (sector.deltaLongitude.inDegrees > 180.0) {
             val altitude = maxHeight.toDouble()
-            globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude + POS90, altitude, endPoint1)
-            globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude - POS90, altitude, endPoint2)
+            globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude.plusDegrees(90.0), altitude, endPoint1)
+            globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude.minusDegrees(90.0), altitude, endPoint2)
             adjustExtremes(r, rExtremes, s, sExtremes, t, tExtremes, endPoint1)
             adjustExtremes(r, rExtremes, s, sExtremes, t, tExtremes, endPoint2)
         }
