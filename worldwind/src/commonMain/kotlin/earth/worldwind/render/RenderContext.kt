@@ -41,6 +41,7 @@ open class RenderContext {
     var verticalExaggeration = 1.0
     var horizonDistance = 0.0
     var atmosphereAltitude = 0.0
+    var elevationModelTimestamp = 0L
     var cameraPoint = Vec3()
     val viewport = Viewport()
     val projection = Matrix4()
@@ -72,6 +73,7 @@ open class RenderContext {
         verticalExaggeration = 1.0
         horizonDistance = 0.0
         atmosphereAltitude = 0.0
+        elevationModelTimestamp = 0L
         cameraPoint.set(0.0, 0.0, 0.0)
         viewport.setEmpty()
         projection.setToIdentity()

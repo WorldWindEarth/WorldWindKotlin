@@ -7,7 +7,6 @@ import earth.worldwind.geom.Matrix4
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
 open class NavigatorEventSupport(protected var wwd: WorldWindow) {
@@ -15,7 +14,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
     protected val listeners = mutableListOf<NavigatorListener>()
     protected var lastModelview: Matrix4? = null
     protected var lastProjection: Matrix4? = null
-    protected var lastElevationTimestamp = Instant.DISTANT_PAST
+    protected var lastElevationTimestamp = 0L
     protected var lastTouchEvent: MotionEvent? = null
     protected var stopTouchEvent: MotionEvent? = null
     protected var stopJob: Job? = null
@@ -23,7 +22,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
     open fun reset() {
         lastModelview = null
         lastProjection = null
-        lastElevationTimestamp = Instant.DISTANT_PAST
+        lastElevationTimestamp = 0L
         lastTouchEvent?.recycle()
         lastTouchEvent = null
         stopTouchEvent?.recycle()
@@ -43,7 +42,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
         lastTouchEvent = MotionEvent.obtain(event)
     }
 
-    open fun onFrameRendered(modelview: Matrix4, projection: Matrix4, elevationTimestamp: Instant) {
+    open fun onFrameRendered(modelview: Matrix4, projection: Matrix4, elevationTimestamp: Long) {
         if (listeners.isEmpty()) return  // no listeners to notify; ignore the event
         val lastModelview = this.lastModelview
         val lastProjection = this.lastProjection
@@ -52,7 +51,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
             this.lastProjection = Matrix4(projection)
             // Notify listeners with stopped event on first frame
             stopJob = wwd.mainScope.launch { onNavigatorStopped() }
-        } else if (lastModelview != modelview || lastProjection != projection || lastElevationTimestamp !== elevationTimestamp) {
+        } else if (lastModelview != modelview || lastProjection != projection || lastElevationTimestamp != elevationTimestamp) {
             // the frame's modelview or elevation timestamp has changed
             lastModelview.copy(modelview)
             lastProjection.copy(projection)

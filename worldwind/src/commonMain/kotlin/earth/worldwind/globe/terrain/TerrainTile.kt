@@ -7,7 +7,6 @@ import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.util.Level
 import earth.worldwind.util.Tile
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
-import kotlinx.datetime.Instant
 
 /**
  * Represents a portion of a globe's terrain. Applications typically do not interact directly with this class.
@@ -21,7 +20,7 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     val points by lazy { FloatArray((level.tileWidth + 2) * (level.tileHeight + 2) * 3) }
     val origin = Vec3()
     internal val minTerrainElevation = -Short.MAX_VALUE.toFloat()
-    internal var heightTimestamp = Instant.DISTANT_PAST
+    internal var heightTimestamp = 0L
     internal var verticalExaggeration = 0.0f
     var sortOrder = 0.0
         protected set
@@ -31,14 +30,14 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         val globe = rc.globe
         val tileWidth = level.tileWidth
         val tileHeight = level.tileHeight
-        val timestamp = globe.elevationModel.timestamp
-        if (timestamp !== heightTimestamp) {
+        val timestamp = rc.elevationModelTimestamp
+        if (timestamp != heightTimestamp) {
             val heights = heights
             heights.fill(0f)
             globe.elevationModel.getHeightGrid(sector, tileWidth, tileHeight, heights)
         }
         val ve = rc.verticalExaggeration.toFloat()
-        if (ve != verticalExaggeration || timestamp !== heightTimestamp) {
+        if (ve != verticalExaggeration || timestamp != heightTimestamp) {
             val origin = origin
             val heights = heights
             val points = points

@@ -2,12 +2,11 @@ package earth.worldwind.globe.elevation.coverage
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
-import kotlinx.datetime.Instant
 
 interface ElevationCoverage {
     var displayName: String?
     var isEnabled: Boolean
-    val timestamp: Instant
+    val timestamp: Long
     fun invalidateTiles()
     fun getUserProperty(key: Any): Any?
     fun putUserProperty(key: Any, value: Any): Any?

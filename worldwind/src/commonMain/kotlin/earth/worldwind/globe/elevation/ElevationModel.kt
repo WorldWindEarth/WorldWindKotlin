@@ -3,12 +3,11 @@ package earth.worldwind.globe.elevation
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage
-import kotlinx.datetime.Instant
 
 open class ElevationModel(): Iterable<ElevationCoverage> {
     protected val coverages = mutableListOf<ElevationCoverage>()
-    val timestamp: Instant get() {
-        var maxTimestamp = Instant.DISTANT_PAST
+    val timestamp: Long get() {
+        var maxTimestamp = 0L
         for (i in coverages.indices) {
             val timestamp = coverages[i].timestamp
             if (maxTimestamp < timestamp) maxTimestamp = timestamp

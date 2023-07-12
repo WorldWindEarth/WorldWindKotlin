@@ -474,6 +474,7 @@ open class WorldWind @JvmOverloads constructor(
         rc.verticalExaggeration = verticalExaggeration
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude
+        rc.elevationModelTimestamp = globe.elevationModel.timestamp
 
         // Configure the frame's Cartesian modelview matrix and eye coordinate projection matrix.
         computeViewingTransform(frame.projection, frame.modelview)

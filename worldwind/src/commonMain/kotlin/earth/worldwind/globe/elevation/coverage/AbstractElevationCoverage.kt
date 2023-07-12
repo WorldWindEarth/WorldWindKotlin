@@ -12,13 +12,13 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
             field = value
             updateTimestamp()
         }
-    override var timestamp = Clock.System.now()
+    override var timestamp = Clock.System.now().toEpochMilliseconds()
         protected set
     private var userProperties: MutableMap<Any, Any>? = null
     private val heightCache = LruMemoryCache<Int,Float>(50000)
 
     protected fun updateTimestamp() {
-        timestamp = Clock.System.now()
+        timestamp = Clock.System.now().toEpochMilliseconds()
         heightCache.clear() // Invalidate cache if elevation coverage changed
     }
 

@@ -1,9 +1,10 @@
 package earth.worldwind.util
 
-import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.BoundingBox
+import earth.worldwind.geom.Sector
+import earth.worldwind.geom.Vec3
 import earth.worldwind.render.RenderContext
-import kotlinx.datetime.Instant
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -22,7 +23,7 @@ abstract class AbstractTile(
      */
     protected val extent by lazy { BoundingBox() }
     protected val heightLimits by lazy { FloatArray(2) }
-    protected var heightLimitsTimestamp = Instant.DISTANT_PAST
+    protected var heightLimitsTimestamp = 0L
     protected var extentExaggeration = 0.0f
 
     /**
@@ -88,8 +89,8 @@ abstract class AbstractTile(
         val globe = rc.globe
         val heightLimits = heightLimits
         val extent = extent
-        val timestamp = globe.elevationModel.timestamp
-        if (timestamp !== heightLimitsTimestamp) {
+        val timestamp = rc.elevationModelTimestamp
+        if (timestamp != heightLimitsTimestamp) {
             // initialize the heights for elevation model scan
             heightLimits[0] = Float.MAX_VALUE
             heightLimits[1] = -Float.MAX_VALUE
@@ -98,7 +99,7 @@ abstract class AbstractTile(
             if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
         }
         val ve = rc.verticalExaggeration.toFloat()
-        if (ve != extentExaggeration || timestamp !== heightLimitsTimestamp) {
+        if (ve != extentExaggeration || timestamp != heightLimitsTimestamp) {
             val minHeight = heightLimits[0] * ve
             val maxHeight = heightLimits[1] * ve
             extent.setToSector(sector, globe, minHeight, maxHeight)
