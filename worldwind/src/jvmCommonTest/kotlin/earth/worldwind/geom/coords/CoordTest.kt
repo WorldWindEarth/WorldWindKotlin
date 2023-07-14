@@ -3,6 +3,7 @@ package earth.worldwind.geom.coords
 import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Location.Companion.fromDegrees
+import earth.worldwind.geom.Position
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -80,4 +81,23 @@ class CoordTest {
             assertEquals(mgrsString, NO_INVERSE_TO_MGRS[i])
         }
     }
+
+    @Test
+    fun usc2000() {
+        val ucs2000 = HelmertTransformation.transform(
+            Position.fromDegrees(47.824165, 35.210411, 0.0), HelmertParameters.WGS84_UCS2000
+        )
+        val rect = GKCoord.fromLatLon(ucs2000.latitude, ucs2000.longitude)
+        assertEquals("53-01351, 66-65624", rect.toString())
+    }
+
+    @Test
+    fun sk42() {
+        val sk42 = HelmertTransformation.transform(
+            Position.fromDegrees(47.824165, 35.210411, 0.0), HelmertParameters.WGS84_SK42
+        )
+        val rect = GKCoord.fromLatLon(sk42.latitude, sk42.longitude)
+        assertEquals("53-01346, 66-65640", rect.toString())
+    }
+
 }
