@@ -14,21 +14,21 @@ import kotlin.math.pow
 internal class MGRSCoordConverter {
     companion object {
         const val NO_ERROR = 0
-        private const val LAT_ERROR = 0x0001
-        private const val LON_ERROR = 0x0002
+        const val LAT_ERROR = 0x0001
+        const val LON_ERROR = 0x0002
         const val STRING_ERROR = 0x0004
-        private const val PRECISION_ERROR = 0x0008
-        private const val EASTING_ERROR = 0x0040
-        private const val NORTHING_ERROR = 0x0080
-        private const val HEMISPHERE_ERROR = 0x0200
-        private const val LAT_WARNING = 0x0400
-        private const val UTM_ERROR = 0x1000
-        private const val UPS_ERROR = 0x2000
+        const val PRECISION_ERROR = 0x0008
+        const val EASTING_ERROR = 0x0040
+        const val NORTHING_ERROR = 0x0080
+        const val HEMISPHERE_ERROR = 0x0200
+        const val LAT_WARNING = 0x0400
+        const val UTM_ERROR = 0x1000
+        const val UPS_ERROR = 0x2000
         private const val PI_OVER_2 = PI / 2.0
         private const val MAX_PRECISION = 5
         private const val MIN_UTM_LAT = -80 * PI / 180.0 // -80 degrees in radians
         private const val MAX_UTM_LAT = 84 * PI / 180.0 // 84 degrees in radians
-        const val DEG_TO_RAD = 0.017453292519943295 // PI/180
+        private const val DEG_TO_RAD = 0.017453292519943295 // PI/180
         private const val RAD_TO_DEG = 57.29577951308232 // 180/PI
         private const val MIN_EAST_NORTH = 0.0
         private const val MAX_EAST_NORTH = 4000000.0

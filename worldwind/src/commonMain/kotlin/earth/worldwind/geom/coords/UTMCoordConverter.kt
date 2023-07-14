@@ -1,6 +1,7 @@
 package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle.Companion.radians
+import earth.worldwind.geom.Ellipsoid
 import kotlin.math.PI
 
 /*
@@ -26,8 +27,9 @@ internal class UTMCoordConverter {
         private const val MAX_NORTHING = 10000000
     }
 
-    private val a = 6378137.0 /* Semi-major axis of ellipsoid in meters  */
-    private val f = 1 / 298.257223563 /* Flattening of ellipsoid                 */
+    private val ellipsoid = Ellipsoid.WGS84
+    private val a = ellipsoid.semiMajorAxis /* Semi-major axis of ellipsoid in meters  */
+    private val f = 1 / ellipsoid.inverseFlattening /* Flattening of ellipsoid                 */
     private val override = 0 /* Zone override flag                      */
     private var centralMeridian = 0.0
 

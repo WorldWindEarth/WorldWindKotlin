@@ -1,5 +1,6 @@
 package earth.worldwind.geom.coords
 
+import earth.worldwind.geom.Ellipsoid
 import kotlin.math.PI
 
 /**
@@ -8,8 +9,8 @@ import kotlin.math.PI
 internal class UPSCoordConverter {
     companion object {
         const val NO_ERROR = 0x0000
-        private const val LAT_ERROR = 0x0001
-        private const val LON_ERROR = 0x0002
+        const val LAT_ERROR = 0x0001
+        const val LON_ERROR = 0x0002
         const val HEMISPHERE_ERROR = 0x0004
         const val EASTING_ERROR = 0x0008
         const val NORTHING_ERROR = 0x0010
@@ -27,8 +28,9 @@ internal class UPSCoordConverter {
     private val originLongitude = 0.0
 
     /* Ellipsoid Parameters, default to WGS 84  */
-    private val a = 6378137.0 /* Semi-major axis of ellipsoid in meters   */
-    private val f = 1 / 298.257223563 /* Flattening of ellipsoid  */
+    private val ellipsoid = Ellipsoid.WGS84
+    private val a = ellipsoid.semiMajorAxis /* Semi-major axis of ellipsoid in meters   */
+    private val f = 1 / ellipsoid.inverseFlattening /* Flattening of ellipsoid  */
     private val falseEasting = 2000000.0
     private val falseNorthing = 2000000.0
 

@@ -1,5 +1,6 @@
 package earth.worldwind.geom.coords
 
+import earth.worldwind.geom.Ellipsoid
 import kotlin.math.*
 
 /*
@@ -9,15 +10,15 @@ import kotlin.math.*
 internal class TMCoordConverter {
     companion object {
         const val NO_ERROR = 0x0000
-        private const val LAT_ERROR = 0x0001
-        private const val LON_ERROR = 0x0002
+        const val LAT_ERROR = 0x0001
+        const val LON_ERROR = 0x0002
         const val EASTING_ERROR = 0x0004
         const val NORTHING_ERROR = 0x0008
-        private const val ORIGIN_LAT_ERROR = 0x0010
-        private const val CENT_MER_ERROR = 0x0020
-        private const val A_ERROR = 0x0040
-        private const val INV_F_ERROR = 0x0080
-        private const val SCALE_FACTOR_ERROR = 0x0100
+        const val ORIGIN_LAT_ERROR = 0x0010
+        const val CENT_MER_ERROR = 0x0020
+        const val A_ERROR = 0x0040
+        const val INV_F_ERROR = 0x0080
+        const val SCALE_FACTOR_ERROR = 0x0100
         const val LON_WARNING = 0x0200
         private const val MAX_LAT = PI * 89.99 / 180.0 /* 90 degrees in radians */
         private const val MAX_DELTA_LONG = PI * 90 / 180.0 /* 90 degrees in radians */
@@ -26,9 +27,10 @@ internal class TMCoordConverter {
     }
 
     /* Ellipsoid Parameters, default to WGS 84  */
-    var a = 6378137.0 /* Semi-major axis of ellipsoid i meters */
+    private val ellipsoid = Ellipsoid.WGS84
+    var a = ellipsoid.semiMajorAxis /* Semi-major axis of ellipsoid i meters */
         private set
-    var f = 1 / 298.257223563 /* Flattening of ellipsoid  */
+    var f = 1 / ellipsoid.inverseFlattening /* Flattening of ellipsoid  */
         private set
     private var es = 0.0066943799901413800 /* Eccentricity (0.08181919084262188000) squared */
     private var ebs = 0.0067394967565869 /* Second Eccentricity squared */

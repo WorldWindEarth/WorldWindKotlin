@@ -1,5 +1,6 @@
 package earth.worldwind.geom.coords
 
+import earth.worldwind.geom.Ellipsoid
 import kotlin.math.*
 
 /**
@@ -7,15 +8,15 @@ import kotlin.math.*
  */
 internal class PolarCoordConverter {
     companion object {
-        private const val NO_ERROR = 0x0000
-        private const val LAT_ERROR = 0x0001
-        private const val LON_ERROR = 0x0002
-        private const val ORIGIN_LAT_ERROR = 0x0004
-        private const val ORIGIN_LON_ERROR = 0x0008
+        const val NO_ERROR = 0x0000
+        const val LAT_ERROR = 0x0001
+        const val LON_ERROR = 0x0002
+        const val ORIGIN_LAT_ERROR = 0x0004
+        const val ORIGIN_LON_ERROR = 0x0008
         const val EASTING_ERROR = 0x0010
         const val NORTHING_ERROR = 0x0020
-        private const val A_ERROR = 0x0040
-        private const val INV_F_ERROR = 0x0080
+        const val A_ERROR = 0x0040
+        const val INV_F_ERROR = 0x0080
         const val RADIUS_ERROR = 0x0100
         private const val PI_OVER_2 = PI / 2.0
         private const val PI_Over_4 = PI / 4.0
@@ -23,8 +24,9 @@ internal class PolarCoordConverter {
     }
 
     /* Ellipsoid Parameters, default to WGS 84  */
-    private var a = 6378137.0 /* Semi-major axis of ellipsoid in meters  */
-    private var f = 1 / 298.257223563 /* Flattening of ellipsoid  */
+    private val ellipsoid = Ellipsoid.WGS84
+    private var a = ellipsoid.semiMajorAxis /* Semi-major axis of ellipsoid in meters  */
+    private var f = 1 / ellipsoid.inverseFlattening /* Flattening of ellipsoid  */
     private var es = 0.08181919084262188000 /* Eccentricity of ellipsoid    */
     private var esOver2 = .040909595421311 /* es / 2.0 */
     private var southernHemisphere = 0.0 /* Flag variable */
@@ -35,7 +37,7 @@ internal class PolarCoordConverter {
     private var twoA = 12756274.0 /* 2.0 * Polar_a */
 
     /* Polar Stereographic projection Parameters */
-    private var originLat = PI * 90 / 180 /* Latitude of origin in radians */
+    private var originLat = PI * 90.0 / 180.0 /* Latitude of origin in radians */
     private var originLong = 0.0 /* Longitude of origin in radians */
     private var falseEasting = 0.0 /* False easting in meters */
     private var falseNorthing = 0.0 /* False northing in meters */
