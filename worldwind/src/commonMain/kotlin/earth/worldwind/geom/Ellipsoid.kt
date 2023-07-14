@@ -60,5 +60,10 @@ open class Ellipsoid(
          */
         @JvmStatic
         val WGS84 = Ellipsoid(6378137.0, 298.257223563)
+        /**
+         * Krasovsky 1940 reference ellipsoid for Earth.
+         */
+        @JvmStatic
+        val Krasovsky = Ellipsoid(6378245.0, 298.3)
     }
 }
