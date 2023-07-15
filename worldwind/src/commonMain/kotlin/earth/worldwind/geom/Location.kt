@@ -8,6 +8,7 @@ import earth.worldwind.geom.Angle.Companion.normalizeLongitude
 import earth.worldwind.shape.PathType
 import earth.worldwind.shape.PathType.GREAT_CIRCLE
 import earth.worldwind.shape.PathType.RHUMB_LINE
+import earth.worldwind.util.format.format
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.offsetIn
@@ -142,6 +143,28 @@ open class Location(
                 sig1 = sig2
             }
             return false
+        }
+
+        @JvmStatic
+        fun fromString(coordinates: String): Location {
+            val tokens = coordinates.replace("[*'\"NSEW;°′″,]".toRegex(), " ").trim { it <= ' ' }
+                .split("\\s+".toRegex()).toTypedArray()
+            // Lat
+            var lat = 0.0
+            var exponent = 0
+            var i = 0
+            while (i < tokens.size / 2) {
+                lat += tokens[i].toDouble() / 60.0.pow(exponent++.toDouble())
+                i++
+            }
+            // Lon
+            var lon = 0.0
+            exponent = 0
+            while (i < tokens.size) {
+                lon += tokens[i].toDouble() / 60.0.pow(exponent++.toDouble())
+                i++
+            }
+            return fromDegrees(if (coordinates.contains("S")) -lat else lat, if (coordinates.contains("W")) -lon else lon)
         }
     }
 
@@ -508,5 +531,25 @@ open class Location(
         return result
     }
 
-    override fun toString() = "Location(latitude=$latitude, longitude=$longitude)"
+    override fun toString() = "%s%09.6f°, %s%010.6f°"
+        .format(latitude.latitudeLetter, abs(latitude.inDegrees), longitude.longitudeLetter, abs(longitude.inDegrees))
+
+    fun toDMString(): String {
+        val lat = latitude.toDMS()
+        val lon = longitude.toDMS()
+        return "%s%02d°%06.3f′, %s%03d°%06.3f′".format(
+            latitude.latitudeLetter, lat[1], lat[2] + lat[3] / 60.0,
+            longitude.longitudeLetter, lon[1], lon[2] + lon[3] / 60.0
+        )
+    }
+
+    fun toDMSString(): String {
+        val lat = latitude.toDMS()
+        val lon = latitude.toDMS()
+        return "%s%02d°%02d′%04.1f″, %s%03d°%02d′%04.1f″".format(
+            latitude.latitudeLetter, lat[1], lat[2], lat[3],
+            longitude.longitudeLetter, lon[1], lon[2], lon[3]
+        )
+    }
+
 }

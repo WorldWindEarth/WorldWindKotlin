@@ -117,17 +117,6 @@ class LocationTest {
         assertNotEquals(jfkHash, laxHash, "jfk hash vs lax hash")
     }
 
-    /**
-     * Ensures string output contains member representations.
-     */
-    @Test
-    fun testToString() {
-        val oxr = fromDegrees(LAT, LON)
-        val string = oxr.toString()
-        assertTrue(string.contains(LAT.toString()), "lat")
-        assertTrue(string.contains(LON.toString()), "lon")
-    }
-
     @Test
     fun testLocationsCrossAntimeridian() {
         val locations = mutableListOf<Location>()
