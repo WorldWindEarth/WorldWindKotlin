@@ -7,7 +7,7 @@ import kotlin.jvm.JvmStatic
 /**
  * Specifies an offset relative to a rectangle. Used by renderable shapes.
  */
-open class Offset(
+data class Offset(
     /**
      * The units of this instance's X offset. See this class' constructor description for a list of the possible
      * values.
@@ -102,20 +102,4 @@ open class Offset(
         }
         return result.set(x, y)
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Offset) return false
-        return xUnits == other.xUnits && x == other.x && yUnits == other.yUnits && y == other.y
-    }
-
-    override fun hashCode(): Int {
-        var result = xUnits.hashCode()
-        result = 31 * result + x.hashCode()
-        result = 31 * result + yUnits.hashCode()
-        result = 31 * result + y.hashCode()
-        return result
-    }
-
-    override fun toString() = "Offset(xUnits=$xUnits, x=$x, yUnits=$yUnits, y=$y)"
 }
