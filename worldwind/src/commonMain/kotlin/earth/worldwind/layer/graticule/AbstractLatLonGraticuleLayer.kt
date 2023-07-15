@@ -71,7 +71,7 @@ abstract class AbstractLatLonGraticuleLayer(name: String): AbstractGraticuleLaye
     private fun makeAngleLabel(angle: Angle, resolution: Double): String {
         val epsilon = .000000001
         val label = if (angleFormat == AngleFormat.DMS) {
-            if (resolution >= 1) angle.toDecimalDegreesString(0)
+            if (resolution >= 1) angle.toDDString(0)
             else {
                 val dms = angle.toDMS()
                 if (dms[2] < epsilon && dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d°".format(dms[1].toInt())
@@ -79,20 +79,20 @@ abstract class AbstractLatLonGraticuleLayer(name: String): AbstractGraticuleLaye
                 else angle.toDMSString()
             }
         } else if (angleFormat == AngleFormat.DM) {
-            if (resolution >= 1) angle.toDecimalDegreesString(0)
+            if (resolution >= 1) angle.toDDString(0)
             else {
                 val dms = angle.toDMS()
                 if (dms[2] < epsilon && dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d°".format(dms[1].toInt())
                 else if (dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d° %2d’".format(dms[1].toInt(), dms[2].toInt())
-                else angle.toDMmmString()
+                else angle.toDMString()
             }
         } else { // default to decimal degrees
             when {
-                resolution >= 1 -> angle.toDecimalDegreesString(0)
-                resolution >= .1 -> angle.toDecimalDegreesString(1)
-                resolution >= .01 -> angle.toDecimalDegreesString(2)
-                resolution >= .001 -> angle.toDecimalDegreesString(3)
-                else -> angle.toDecimalDegreesString(4)
+                resolution >= 1 -> angle.toDDString(0)
+                resolution >= .1 -> angle.toDDString(1)
+                resolution >= .01 -> angle.toDDString(2)
+                resolution >= .001 -> angle.toDDString(3)
+                else -> angle.toDDString(4)
             }
         }
         return label

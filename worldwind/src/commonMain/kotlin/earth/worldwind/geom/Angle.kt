@@ -55,6 +55,14 @@ value class Angle private constructor(
      * Indicates whether this angle is within the normal range of longitude, [-180, 180].
      */
     val isValidLongitude get() = isValidLongitude(inDegrees)
+    /**
+     * Returns North or South notation depends on sign
+     */
+    val latitudeLetter get() = if (inDegrees < 0.0) "S" else "N"
+    /**
+     * Returns West or East notation depends on sign
+     */
+    val longitudeLetter get() = if (inDegrees < 0.0) "W" else "E"
 
     companion object {
         /** Represents an angle of zero degrees  */
@@ -810,7 +818,7 @@ value class Angle private constructor(
      * decimal point. The string is padded with trailing zeros to fill the number of post-decimal point
      * positions requested.
      */
-    fun toDecimalDegreesString(digits: Int): String {
+    fun toDDString(digits: Int = 6): String {
         require(digits in 0..15) {
             logMessage(ERROR, "Angle", "toDecimalDegreesString", "outOfRange")
         }
@@ -820,33 +828,26 @@ value class Angle private constructor(
     /**
      * Obtains a [String] representation of this [Angle] formatted as degrees and decimal minutes.
      *
+     * @param digits the number of digits past the decimal point to include in the string.
+     *
      * @return the value of this angle in degrees and decimal minutes as a string.
      */
-    fun toDMmmString(): String {
+    fun toDMString(digits: Int = 3): String {
         val dms = toDMS()
         val mf = if (dms[3] == 0.0) dms[2] else dms[2] + dms[3] / 60.0
-        return "${if (dms[0] < 0) "-" else ""}%d° %2.3f’".format(dms[1], mf)
+        return "${if (dms[0] < 0) "-" else ""}%d° %2.${digits}f’".format(dms[1], mf)
     }
 
     /**
-     * Obtains a [String] representation of this [Angle] formatted as degrees, minutes and decimal seconds.
+     * Obtains a [String] representation of this [Angle] formatted as degrees, minutes and seconds.
      *
-     * @return the value of this angle in degrees, minutes and decimal seconds as a string.
-     */
-    fun toDMSssString(): String {
-        val dms = toDMS()
-        return "${if (dms[0] < 0) "-" else ""}%d° %2d’ %2.1f”".format(dms[1], dms[2], dms[3])
-    }
-
-    /**
-     * Obtains a [String] representation of this [Angle] formatted as degrees, minutes and seconds integer
-     * values.
+     * @param digits the number of digits past the decimal point to include in the string.
      *
-     * @return the value of this angle in degrees, minutes, seconds as a string.
+     * @return the value of this angle in degrees, minutes and seconds as a string.
      */
-    fun toDMSString(): String {
+    fun toDMSString(digits: Int = 1): String {
         val dms = toDMS()
-        return "${if (dms[0] < 0) "-" else ""}%d° %d’ %.0f”".format(dms[1], dms[2], dms[3])
+        return "${if (dms[0] < 0) "-" else ""}%d° %2d’ %2.${digits}f”".format(dms[1], dms[2], dms[3])
     }
 
     /**
