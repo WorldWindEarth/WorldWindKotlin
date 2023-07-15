@@ -2,6 +2,7 @@ package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
+import earth.worldwind.geom.Location
 import kotlin.jvm.JvmStatic
 
 /**
@@ -65,6 +66,8 @@ class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, p
             return MGRSCoord(converter.latitude.radians, converter.longitude.radians, str)
         }
     }
+
+    fun toLocation() = Location(latitude, longitude)
 
     override fun toString() = MGRSString
 }

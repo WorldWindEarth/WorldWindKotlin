@@ -2,6 +2,7 @@ package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
+import earth.worldwind.geom.Location
 import kotlin.jvm.JvmStatic
 
 /**
@@ -78,4 +79,6 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
             return TMCoord(converter.latitude.radians, converter.longitude.radians, easting, northing)
         }
     }
+
+    fun toLocation() = Location(latitude, longitude)
 }

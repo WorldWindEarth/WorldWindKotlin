@@ -2,6 +2,7 @@ package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
+import earth.worldwind.geom.Location
 import earth.worldwind.util.format.format
 import kotlin.jvm.JvmStatic
 import kotlin.math.roundToInt
@@ -61,6 +62,8 @@ class GKCoord private constructor(val latitude: Angle, val longitude: Angle, val
             return fromXY(x, y)
         }
     }
+
+    fun toLocation() = Location(latitude, longitude)
 
     override fun toString(): String {
         val x = x.roundToInt()

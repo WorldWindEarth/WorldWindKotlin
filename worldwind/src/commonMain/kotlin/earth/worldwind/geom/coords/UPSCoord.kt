@@ -2,6 +2,7 @@ package earth.worldwind.geom.coords
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
+import earth.worldwind.geom.Location
 import kotlin.jvm.JvmStatic
 
 /**
@@ -50,6 +51,8 @@ class UPSCoord private constructor(
             )
         }
     }
+
+    fun toLocation() = Location(latitude, longitude)
 
     override fun toString() = hemisphere.toString() + " " + easting + "E" + " " + northing + "N"
 }
