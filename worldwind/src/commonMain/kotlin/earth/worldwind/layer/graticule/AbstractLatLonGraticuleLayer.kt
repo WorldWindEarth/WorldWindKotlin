@@ -47,7 +47,7 @@ abstract class AbstractLatLonGraticuleLayer(name: String): AbstractGraticuleLaye
 
     override fun getGridColumn(longitude: Angle) = floor((longitude.inDegrees + 180) / 10.0).toInt().coerceAtMost(35)
 
-    override fun getGridRow(latitude: Angle) = floor((latitude.inDegrees+ 90) / 10.0).toInt().coerceAtMost(17)
+    override fun getGridRow(latitude: Angle) = floor((latitude.inDegrees + 90) / 10.0).toInt().coerceAtMost(17)
 
     fun addLabel(value: Angle, labelType: String, graticuleType: String, resolution: Double, labelOffset: Location) {
         var position: Position? = null
@@ -76,7 +76,7 @@ abstract class AbstractLatLonGraticuleLayer(name: String): AbstractGraticuleLaye
                 val dms = angle.toDMS()
                 if (dms[2] < epsilon && dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d°".format(dms[1].toInt())
                 else if (dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d° %2d’".format(dms[1].toInt(), dms[2].toInt())
-                else angle.toDMSString()
+                else angle.toDMSString(0)
             }
         } else if (angleFormat == AngleFormat.DM) {
             if (resolution >= 1) angle.toDDString(0)
