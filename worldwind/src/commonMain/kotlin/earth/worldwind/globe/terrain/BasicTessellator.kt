@@ -30,11 +30,11 @@ open class BasicTessellator: Tessellator, TileFactory {
     var detailControl = 20.0
     /**
      * Memory cache for this tessellator's subdivision tiles. Each entry contains an array of four terrain tiles
-     * corresponding to the subdivision of the group's common parent tile. The cache is configured to hold 800 groups, a
+     * corresponding to the subdivision of the group's common parent tile. The cache is configured to hold 300 groups, a
      * number tuned to store the tiles needed to navigate a small region, given the tessellator's first level tile delta
      * of 90 degrees, tile dimensions of 32x32 and detail control of 20.
      */
-    protected var tileCache = LruMemoryCache<String, Array<Tile>>(800)
+    protected var tileCache = LruMemoryCache<String, Array<Tile>>(300)
     protected val topLevelTiles = mutableListOf<Tile>()
     protected val currentTerrain = BasicTerrain()
     protected var levelSetVertexTexCoords: FloatArray? = null

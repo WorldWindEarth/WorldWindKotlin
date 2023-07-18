@@ -65,10 +65,10 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
 
     /**
      * Memory cache for this layer's subdivision tiles. Each entry contains an array of four image tiles corresponding
-     * to the subdivision of the group's common parent tile. The cache is configured to hold 4000 groups, a number
+     * to the subdivision of the group's common parent tile. The cache is configured to hold 1200 groups, a number
      * empirically determined to be sufficient for storing the tiles needed to navigate a small region.
      */
-    protected var tileCache = LruMemoryCache<String, Array<Tile>>(4000)
+    protected var tileCache = LruMemoryCache<String, Array<Tile>>(1200)
     protected var activeProgram: SurfaceTextureProgram? = null
     protected var ancestorTile: ImageTile? = null
     protected var ancestorTexture: Texture? = null
