@@ -48,6 +48,7 @@ open class Tile protected constructor(
      * the RenderContext.
      */
     protected val texelSizeFactor = level.tileDelta.longitude.inRadians / level.tileWidth * cos(sector.centroidLatitude.inRadians)
+    private val scratchVector = Vec3()
 
     /**
      * Indicates whether this tile should be subdivided based on the current navigation state and a specified detail
@@ -59,8 +60,17 @@ open class Tile protected constructor(
      * @return true if the tile should be subdivided, otherwise false
      */
     open fun mustSubdivide(rc: RenderContext, detailFactor: Double): Boolean {
-        val distanceToCamera = distanceToCamera(rc)
-        val texelSize = texelSizeFactor * rc.globe.equatorialRadius
+        val nearestPoint = nearestPoint(rc)
+        val distanceToCamera = nearestPoint.distanceTo(rc.cameraPoint)
+        // Accelerate the degradation of tile details depending on the viewing angle to tile normal
+        val cos = if (rc.camera.position.altitude < rc.globe.equatorialRadius / 10.0) {
+            val viewingVector = nearestPoint.subtract(rc.cameraPoint)
+            val normalVector =
+                rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
+            val dot = viewingVector.dot(normalVector)
+            abs(dot / (viewingVector.magnitude * normalVector.magnitude))
+        } else 1.0
+        val texelSize = texelSizeFactor * rc.globe.equatorialRadius * cos
         val pixelSize = rc.pixelSizeAtDistance(distanceToCamera)
 
         // Adjust the subdivision factory when the display density is low.

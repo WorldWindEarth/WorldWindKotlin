@@ -63,13 +63,13 @@ abstract class AbstractTile(
     }
 
     /**
-     * Calculates the distance from this tile to the camera point associated with the specified render context.
+     * Calculates nearest point of this tile to the camera position associated with the specified render context.
      *
      * @param rc the render context which provides the current camera point
      *
-     * @return the distance in meters
+     * @return the nearest point
      */
-    protected open fun distanceToCamera(rc: RenderContext): Double {
+    protected open fun nearestPoint(rc: RenderContext): Vec3 {
         val cameraPosition = rc.camera.position
         // determine the nearest latitude
         val nearestLat = cameraPosition.latitude.inDegrees.coerceIn(sector.minLatitude.inDegrees, sector.maxLatitude.inDegrees)
@@ -81,8 +81,7 @@ abstract class AbstractTile(
             else -> cameraPosition.longitude.inDegrees.coerceIn(sector.minLongitude.inDegrees, sector.maxLongitude.inDegrees)
         }
         val minHeight = heightLimits[0] * rc.verticalExaggeration
-        rc.globe.geographicToCartesian(nearestLat.degrees, nearestLon.degrees, minHeight, nearestPoint)
-        return rc.cameraPoint.distanceTo(nearestPoint)
+        return rc.globe.geographicToCartesian(nearestLat.degrees, nearestLon.degrees, minHeight, nearestPoint)
     }
 
     protected open fun getExtent(rc: RenderContext): BoundingBox {
