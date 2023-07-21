@@ -254,7 +254,7 @@ open class Polygon @JvmOverloads constructor(
         isSurfaceShape = altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
 
         // Determine the number of vertexes
-        val noIntermediatePoints = isSurfaceShape || maximumIntermediatePoints <= 0 || pathType == LINEAR
+        val noIntermediatePoints = maximumIntermediatePoints <= 0 || pathType == LINEAR
         val vertexCount = boundaries.sumOf { p ->
             if (noIntermediatePoints) p.size
             else if (p.isNotEmpty() && p[0] == p[p.size - 1]) p.size + (p.size - 1) * maximumIntermediatePoints
@@ -322,7 +322,7 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
-        if (isSurfaceShape || maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
+        if (maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
         val azimuth: Angle
         val length: Double
         when (pathType) {

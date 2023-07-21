@@ -163,7 +163,7 @@ open class Path @JvmOverloads constructor(
         isSurfaceShape = altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
 
         // Determine the number of vertexes
-        val vertexCount = if (isSurfaceShape || maximumIntermediatePoints <= 0 || pathType == LINEAR) positions.size
+        val vertexCount = if (maximumIntermediatePoints <= 0 || pathType == LINEAR) positions.size
         else if(positions.isNotEmpty()) positions.size + (positions.size - 1) * maximumIntermediatePoints else 0
 
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
@@ -201,7 +201,7 @@ open class Path @JvmOverloads constructor(
     }
 
     protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
-        if (isSurfaceShape || maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
+        if (maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
         val azimuth: Angle
         val length: Double
         when (pathType) {
