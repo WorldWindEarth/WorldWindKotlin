@@ -35,7 +35,9 @@ internal class GKCoordConverter {
      *
      * @return error code
      */
+    @Suppress("NAME_SHADOWING")
     fun convertGeodeticToGK(lat: Double, lon: Double): Int {
+        val lon = if (lon < 0.0) lon + 2 * PI else lon
         val zone = (lon * 180.0 / PI / 6.0 + 1).toInt()
 
         val a = ellipsoid.semiMajorAxis
@@ -54,7 +56,6 @@ internal class GKCoordConverter {
         val dLon = lon - lon0
         val dLat = lat - lat0
         val pLat = lat + lat0
-
 
         val sinLat = sin(lat)
         val sinLatPow2 = sinLat * sinLat
@@ -81,7 +82,7 @@ internal class GKCoordConverter {
         val V = v / 6.0 * cosLatPow3 * (v / p - tanLatPow2)
         val VI = v / 120.0 * cosLatPow5 * (5.0 - 18.0 * tanLatPow2 + tanLatPow4 + 14 * n2 - 58 * tanLatPow2 * n2)
 
-        easting = e0 + iv * (lon - lon0) + V * dLon * dLon * dLon + VI * dLon * dLon * dLon * dLon * dLon
+        easting = e0 + iv * dLon + V * dLon * dLon * dLon + VI * dLon * dLon * dLon * dLon * dLon
         northing = i + ii * dLon * dLon + iii * dLon * dLon * dLon * dLon + iiia * dLon * dLon * dLon * dLon * dLon * dLon
 
         return NO_ERROR
@@ -89,7 +90,7 @@ internal class GKCoordConverter {
 
     fun convertGKToGeodetic(easting: Double, northing: Double): Int {
         val zone = (easting / 1e6).toInt()
-        val l0 = (6.0 * (if (zone <= 30) zone else -(60 - zone)) - 3.0) * PI / 180.0
+        val l0 = (6.0 * (if (zone <= 30) zone else zone - 60) - 3.0) * PI / 180.0
         val x = northing
         val y = easting - (zone * 1e6 + 500000.0)
         val beta = x / 6367558.497

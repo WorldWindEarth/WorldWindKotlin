@@ -5,6 +5,7 @@ import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Location
 import earth.worldwind.util.format.format
 import kotlin.jvm.JvmStatic
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class GKCoord private constructor(val latitude: Angle, val longitude: Angle, val x: Double, val y: Double) {
@@ -59,7 +60,8 @@ class GKCoord private constructor(val latitude: Angle, val longitude: Angle, val
             require(tokens.size >= 2 && tokens[1].length > 6) { "Gauss-Kruger Conversion Error" }
             val x = tokens[0].toDouble()
             val y = tokens[1].toDouble()
-            return fromXY(x, y)
+            val north = xyString.count { it == '-' }.mod(2) == 0
+            return fromXY(if (north) x else -x, y)
         }
     }
 
@@ -69,6 +71,6 @@ class GKCoord private constructor(val latitude: Angle, val longitude: Angle, val
         val x = x.roundToInt()
         val y = y.roundToInt()
         val suffix = 100000
-        return "%02d-%05d, %02d-%05d".format(x / suffix, x % suffix, y / suffix, y % suffix)
+        return "%02d-%05d, %02d-%05d".format(x / suffix, abs(x % suffix), y / suffix, abs(y % suffix))
     }
 }
