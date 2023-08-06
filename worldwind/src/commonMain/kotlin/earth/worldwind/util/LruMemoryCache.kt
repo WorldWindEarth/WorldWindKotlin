@@ -79,7 +79,8 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
     open fun containsKey(key: K) = entries.containsKey(key)
 
     open fun clear() {
-        for (entry in entries.values) entryRemoved(entry.key, entry.value, null, false)
+        // NOTE Entities cleared without entryRemoved call
+        // for (entry in entries.values) entryRemoved(entry.key, entry.value, null, false)
         entries.clear()
         usedCapacity = 0
     }

@@ -44,10 +44,9 @@ actual open class RenderResourceCache(
     protected val currentRetrievals = mutableSetOf<ImageSource>()
 
     override fun clear() {
-        entries.clear() // the cache entries are invalid; clear but don't call entryRemoved
+        super.clear()
         currentRetrievals.clear()
         absentResourceList.clear()
-        usedCapacity = 0
         age = 0
     }
 

@@ -30,9 +30,8 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     val imageDecoder = ImageDecoder()
 
     override fun clear() {
-        entries.clear() // the cache entries are invalid; clear but don't call entryRemoved
+        super.clear()
         absentResourceList.clear()
-        usedCapacity = 0
         age = 0
     }
 
