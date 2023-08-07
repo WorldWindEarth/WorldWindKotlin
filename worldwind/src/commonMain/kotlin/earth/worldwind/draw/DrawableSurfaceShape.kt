@@ -165,6 +165,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_DEPTH_TEST)
             dc.gl.lineWidth(1f)
+            dc.resolveToTexture()
         }
         return shapeCount
     }
@@ -174,7 +175,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         try {
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return  // terrain vertex attribute failed to bind
             if (!terrain.useVertexTexCoordAttrib(dc, 1 /*vertexTexCoord*/)) return  // terrain vertex attribute failed to bind
-            val colorAttachment = dc.scratchFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
+            val colorAttachment = dc.resolveFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
             if (!colorAttachment.bindTexture(dc)) return  // framebuffer texture failed to bind
 
             // Configure the program to draw texture fragments unmodified and aligned with the terrain.

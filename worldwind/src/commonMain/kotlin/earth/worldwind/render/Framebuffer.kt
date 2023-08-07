@@ -4,7 +4,7 @@ import earth.worldwind.draw.DrawContext
 import earth.worldwind.util.kgl.*
 
 open class Framebuffer : RenderResource {
-    protected var framebufferName = KglFramebuffer.NONE
+    var framebufferName = KglFramebuffer.NONE
     protected val attachedTextures = mutableMapOf<Int,Texture>()
 
     override fun release(dc: DrawContext) {

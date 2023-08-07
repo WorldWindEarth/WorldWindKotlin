@@ -32,6 +32,7 @@ open class DrawContext(val gl: Kgl) {
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
+    private var resolveFramebufferCache: Framebuffer? = null
     private var unitSquareBufferCache: FloatBufferObject? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
@@ -77,6 +78,20 @@ open class DrawContext(val gl: Kgl) {
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
         attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
     }.also { scratchFramebufferCache = it }
+
+    val resolveFramebuffer get() = resolveFramebufferCache ?: Framebuffer().apply {
+        val colorAttachment = Texture(1024, 1024, GL_RGBA, GL_UNSIGNED_BYTE)
+        attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
+    }.also { resolveFramebufferCache = it }
+
+    fun resolveToTexture() {
+        gl.bindFramebuffer(GL_READ_FRAMEBUFFER, scratchFramebufferCache?.framebufferName ?: KglFramebuffer.NONE)
+        gl.bindFramebuffer(GL_DRAW_FRAMEBUFFER, resolveFramebufferCache?.framebufferName ?: KglFramebuffer.NONE)
+        gl.blitFramebuffer(0, 0, 1024, 1024, 0, 0, 1024, 1024, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+        gl.bindFramebuffer(GL_READ_FRAMEBUFFER, KglFramebuffer.NONE)
+        gl.bindFramebuffer(GL_DRAW_FRAMEBUFFER, KglFramebuffer.NONE)
+    }
+
     /**
      * Returns an OpenGL buffer object containing a unit square expressed as four vertices at (0, 1), (0, 0), (1, 1) and
      * (1, 0). Each vertex is stored as two 32-bit floating point coordinates. The four vertices are in the order
@@ -120,6 +135,7 @@ open class DrawContext(val gl: Kgl) {
         arrayBuffer = KglBuffer.NONE
         elementArrayBuffer = KglBuffer.NONE
         scratchFramebufferCache = null
+        resolveFramebufferCache = null
         unitSquareBufferCache = null
         textures.fill(KglTexture.NONE)
     }

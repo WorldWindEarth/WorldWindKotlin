@@ -1,6 +1,7 @@
 package earth.worldwind.util.kgl
 
 import android.opengl.GLES20
+import android.opengl.GLES30
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
@@ -207,6 +208,12 @@ class AndroidKgl : Kgl {
 
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         GLES20.glFramebufferTexture2D(target, attachment, textarget, texture.id, level)
+
+    override fun blitFramebuffer(
+        srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int,
+        dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
+        mask: Int, filter: Int
+    ) = GLES30.glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
 
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray

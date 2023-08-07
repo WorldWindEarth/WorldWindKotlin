@@ -2,8 +2,10 @@ package earth.worldwind.render
 
 import earth.worldwind.PickedObject
 import earth.worldwind.PickedObjectList
+import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGroup
+import earth.worldwind.draw.DrawableLambda
 import earth.worldwind.draw.DrawableQueue
 import earth.worldwind.draw.DrawableTerrain
 import earth.worldwind.geom.*
@@ -323,6 +325,10 @@ open class RenderContext {
             // Use new text cache key and copy attributes on put operation to avoid cache issues on attributes modification
             put(TextCacheKey(text, TextAttributes(attributes)), it, it.byteCount)
         } else null
+    }
+
+    fun offerDrawable(groupId: DrawableGroup, order: Double, lambda: (dc: DrawContext) -> Unit) {
+        drawableQueue?.offerDrawable(DrawableLambda(lambda), groupId, order)
     }
 
     fun offerDrawable(drawable: Drawable, groupId: DrawableGroup, order: Double) {

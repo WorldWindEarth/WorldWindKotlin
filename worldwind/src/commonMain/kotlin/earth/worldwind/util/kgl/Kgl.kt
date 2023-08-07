@@ -300,6 +300,8 @@ const val GL_MEDIUM_INT = 0x8DF4
 const val GL_HIGH_INT = 0x8DF5
 const val GL_FRAMEBUFFER = 0x8D40
 const val GL_RENDERBUFFER = 0x8D41
+const val GL_READ_FRAMEBUFFER = 0x8CA8
+const val GL_DRAW_FRAMEBUFFER = 0x8CA9
 const val GL_RGBA4 = 0x8056
 const val GL_RGBA8 = 0x8058
 const val GL_BGR = 0x80e0
@@ -467,6 +469,11 @@ interface Kgl {
     fun deleteFramebuffer(framebuffer: KglFramebuffer)
     fun checkFramebufferStatus(target: Int): Int
     fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int)
+    fun blitFramebuffer(
+        srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int,
+        dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
+        mask: Int, filter: Int
+    )
 
     fun readPixels(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray)
     fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean)

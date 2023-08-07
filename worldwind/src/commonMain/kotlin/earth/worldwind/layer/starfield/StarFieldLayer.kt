@@ -129,7 +129,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
         matrix.multiplyByScale(scale, scale, scale)
 
         val program = rc.getShaderProgram { StarFieldProgram() }
-        rc.offerDrawable(DrawableLambda { dc ->
+        rc.offerDrawable(DrawableGroup.BACKGROUND, 0.0) { dc ->
             program.useProgram(dc)
             dc.gl.depthMask(false)
             try {
@@ -141,7 +141,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
             } finally {
                 dc.gl.depthMask(true)
             }
-        }, DrawableGroup.BACKGROUND, 0.0)
+        }
     }
 
     protected open fun loadStarData(rc: RenderContext) {
