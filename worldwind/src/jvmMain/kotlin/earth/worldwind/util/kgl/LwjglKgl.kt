@@ -9,6 +9,8 @@ class LwjglKgl : Kgl {
     private val arrI = IntArray(16)
     private val arrF = FloatArray(16)
 
+    override val hasMaliOOMBug = false
+
     override fun getParameteri(pname: Int): Int {
         GL33.glGetIntegerv(pname, arrI)
         return arrI[0]

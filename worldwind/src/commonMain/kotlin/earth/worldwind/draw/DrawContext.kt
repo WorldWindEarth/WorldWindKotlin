@@ -69,8 +69,8 @@ open class DrawContext(val gl: Kgl) {
      * cached buffer object.
      */
     val scratchFramebuffer get() = scratchFramebufferCache ?: Framebuffer().apply {
-        val colorAttachment = Texture(1024, 1024, GL_RGBA, GL_UNSIGNED_BYTE)
-        val depthAttachment = Texture(1024, 1024, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT)
+        val colorAttachment = Texture(1024, 1024, GL_RGBA, GL_UNSIGNED_BYTE, true)
+        val depthAttachment = Texture(1024, 1024, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true)
         // TODO consider modifying Texture's tex parameter behavior in order to make this unnecessary
         depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)

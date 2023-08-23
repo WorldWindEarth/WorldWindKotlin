@@ -9,6 +9,10 @@ class AndroidKgl : Kgl {
     private val arrI = IntArray(16)
     private val arrF = FloatArray(16)
 
+    override val hasMaliOOMBug: Boolean by lazy {
+        GLES20.glGetString(GL_RENDERER).contains("mali", true)
+    }
+
     override fun getParameteri(pname: Int): Int {
         GLES20.glGetIntegerv(pname, arrI, 0)
         return arrI[0]

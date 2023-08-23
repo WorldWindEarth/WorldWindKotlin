@@ -10,6 +10,8 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     private val arrI = IntArray(16)
     private val arrF = FloatArray(16)
 
+    override val hasMaliOOMBug = false
+
     override fun getParameteri(pname: Int): Int {
         gl.glGetIntegerv(pname, arrI, 0)
         return arrI[0]

@@ -7,7 +7,7 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.powerOfTwoCeiling
 
-open class Texture(val width: Int, val height: Int, protected val format: Int, protected val type: Int) : RenderResource {
+open class Texture(val width: Int, val height: Int, protected val format: Int, protected val type: Int, protected val isRT: Boolean = false) : RenderResource {
     companion object {
         protected fun estimateByteCount(width: Int, height: Int, format: Int, type: Int, hasMipMap: Boolean): Int {
             require(width >= 0 && height >= 0) {
@@ -100,6 +100,10 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
     }
 
     protected open fun allocTexImage(dc: DrawContext) {
+        // Following line of code is a dirty hack to disable AFBC compression on Mali GPU driver,
+        // which cause huge memory leak during surface shapes drawing on terrain textures.
+        if (isRT and dc.gl.hasMaliOOMBug) dc.gl.texImage2D(GL_TEXTURE_2D, 0, format, 1, 1, 0, format, type, null)
+
         // Allocate texture memory for the OpenGL texture 2D object. The texture memory is initialized with 0.
         dc.gl.texImage2D(
             GL_TEXTURE_2D, 0 /*level*/, format, width, height, 0 /*border*/, format, type, null /*pixels*/

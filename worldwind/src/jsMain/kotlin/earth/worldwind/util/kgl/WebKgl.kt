@@ -34,6 +34,8 @@ actual data class KglFramebuffer(val obj: WebGLFramebuffer? = null) {
 
 class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
+    override val hasMaliOOMBug = false
+
     override fun getParameteri(pname: Int): Int = gl.getParameter(pname) as Int
 
     override fun getParameterf(pname: Int): Float = gl.getParameter(pname) as Float
