@@ -547,7 +547,7 @@ open class Location(
 
     fun toDMSString(): String {
         val lat = latitude.toDMS()
-        val lon = latitude.toDMS()
+        val lon = longitude.toDMS()
         return "%s%02d°%02d′%04.1f″, %s%03d°%02d′%04.1f″".format(
             latitude.latitudeLetter, lat[1], lat[2], lat[3],
             longitude.longitudeLetter, lon[1], lon[2], lon[3]
