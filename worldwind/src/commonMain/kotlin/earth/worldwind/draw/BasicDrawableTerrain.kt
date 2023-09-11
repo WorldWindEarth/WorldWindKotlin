@@ -18,6 +18,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     val lineElementRange = Range()
     val triStripElementRange = Range()
     var vertexPoints: FloatBufferObject? = null
+    var vertexHeights: FloatBufferObject? = null
     var vertexTexCoords: FloatBufferObject? = null
     var elements: ShortBufferObject? = null
     private var pool: Pool<BasicDrawableTerrain>? = null
@@ -33,6 +34,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
 
     override fun recycle() {
         vertexPoints = null
+        vertexHeights = null
         vertexTexCoords = null
         elements = null
         pool?.release(this)
@@ -40,19 +42,25 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     }
 
     override fun useVertexPointAttrib(dc: DrawContext, attribLocation: Int): Boolean {
-        val bufferBound = vertexPoints?.bindBuffer(dc)?:false
+        val bufferBound = vertexPoints?.bindBuffer(dc) ?: false
         if (bufferBound) dc.gl.vertexAttribPointer(attribLocation, 3, GL_FLOAT, false, 0, 0)
         return bufferBound
     }
 
+    override fun useVertexHeightsAttrib(dc: DrawContext, attribLocation: Int): Boolean {
+        val bufferBound = vertexHeights?.bindBuffer(dc) ?: false
+        if (bufferBound) dc.gl.vertexAttribPointer(attribLocation, 1, GL_FLOAT, false, 0, 0)
+        return bufferBound
+    }
+
     override fun useVertexTexCoordAttrib(dc: DrawContext, attribLocation: Int): Boolean {
-        val bufferBound = vertexTexCoords?.bindBuffer(dc)?:false
+        val bufferBound = vertexTexCoords?.bindBuffer(dc) ?: false
         if (bufferBound) dc.gl.vertexAttribPointer(attribLocation, 2, GL_FLOAT, false, 0, 0)
         return bufferBound
     }
 
     override fun drawLines(dc: DrawContext): Boolean {
-        val bufferBound = elements?.bindBuffer(dc)?:false
+        val bufferBound = elements?.bindBuffer(dc) ?: false
         if (bufferBound) dc.gl.drawElements(
             GL_LINES, lineElementRange.length,
             GL_UNSIGNED_SHORT, lineElementRange.lower * 2
@@ -61,7 +69,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     }
 
     override fun drawTriangles(dc: DrawContext): Boolean {
-        val bufferBound = elements?.bindBuffer(dc)?:false
+        val bufferBound = elements?.bindBuffer(dc) ?: false
         if (bufferBound) dc.gl.drawElements(
             GL_TRIANGLE_STRIP, triStripElementRange.length,
             GL_UNSIGNED_SHORT, triStripElementRange.lower * 2

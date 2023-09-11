@@ -5,7 +5,6 @@ import earth.worldwind.MR
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.DrawableGroup
-import earth.worldwind.draw.DrawableLambda
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
@@ -24,7 +23,6 @@ import earth.worldwind.util.kgl.GL_POINTS
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
 /**
@@ -129,10 +127,10 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
         matrix.multiplyByScale(scale, scale, scale)
 
         val program = rc.getShaderProgram { StarFieldProgram() }
-        rc.offerDrawable(DrawableLambda { dc ->
-            program.useProgram(dc)
-            dc.gl.depthMask(false)
+        rc.offerDrawableLambda(DrawableGroup.BACKGROUND, 0.0) { dc ->
+            if (!program.useProgram(dc)) return@offerDrawableLambda
             try {
+                dc.gl.depthMask(false)
                 program.loadModelviewProjection(matrix)
                 // This subtraction does not work properly on the GPU due to precision loss. It must be done on the CPU.
                 program.loadNumDays((julianDate - 2451545.0).toFloat())
@@ -141,7 +139,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
             } finally {
                 dc.gl.depthMask(true)
             }
-        }, DrawableGroup.BACKGROUND, 0.0)
+        }
     }
 
     protected open fun loadStarData(rc: RenderContext) {

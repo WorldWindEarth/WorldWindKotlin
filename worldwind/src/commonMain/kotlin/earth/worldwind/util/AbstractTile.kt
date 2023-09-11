@@ -22,7 +22,7 @@ abstract class AbstractTile(
      * The tile's Cartesian bounding box.
      */
     protected val extent by lazy { BoundingBox() }
-    protected val heightLimits by lazy { FloatArray(2) }
+    protected open val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
     protected var extentExaggeration = 0.0f
 
@@ -86,8 +86,6 @@ abstract class AbstractTile(
 
     protected open fun getExtent(rc: RenderContext): BoundingBox {
         val globe = rc.globe
-        val heightLimits = heightLimits
-        val extent = extent
         val timestamp = rc.elevationModelTimestamp
         if (timestamp != heightLimitsTimestamp) {
             // initialize the heights for elevation model scan

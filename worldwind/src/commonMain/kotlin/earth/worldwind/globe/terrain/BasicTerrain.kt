@@ -5,6 +5,8 @@ import earth.worldwind.geom.Line
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.util.math.fract
+import kotlin.math.max
+import kotlin.math.min
 
 open class BasicTerrain: Terrain {
     protected val tiles = mutableListOf<TerrainTile>()
@@ -106,5 +108,17 @@ open class BasicTerrain: Terrain {
 
         // No tile was found that contains the location.
         return false
+    }
+
+    override fun heightLimits(levelNumberDepth: Int, result: FloatArray) {
+        result[0] = Float.MAX_VALUE
+        result[1] = -Float.MAX_VALUE
+        val maxLevelNumber = tiles.maxOf { it.level.levelNumber }
+        val minLevelNumber = maxLevelNumber - levelNumberDepth
+        for (tile in tiles) if (tile.level.levelNumber >= minLevelNumber) {
+            result[0] = min(result[0], tile.heightLimits[0])
+            result[1] = max(result[1], tile.heightLimits[1])
+        }
+        if (result[0] > result[1]) result.fill(0f)
     }
 }

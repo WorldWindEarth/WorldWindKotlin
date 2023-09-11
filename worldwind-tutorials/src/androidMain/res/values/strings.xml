@@ -26,6 +26,7 @@
     <string name="title_wms_layer">WMS Layer</string>
     <string name="title_wmts_layer">WMTS Layer</string>
     <string name="title_wcs_elevation_coverage">WCS Elevation Coverage</string>
+    <string name="title_elevation_heatmap">Elevation Heatmap</string>
 
     <string name="spacer" />
 

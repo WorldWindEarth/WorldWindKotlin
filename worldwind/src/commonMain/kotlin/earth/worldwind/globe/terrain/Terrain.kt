@@ -56,4 +56,12 @@ interface Terrain {
      * @return true if the geographic location is on the terrain surface, otherwise false
      */
     fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean
+
+    /**
+     * Computes minimal and maximal height from available tiles with tile level offset not more than specified depth
+     *
+     * @param levelNumberDepth Level number offset from the most detailed available tile
+     * @param result Float array containing min and max heights
+     */
+    fun heightLimits(levelNumberDepth: Int, result: FloatArray)
 }

@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Elevation Heatmap</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Elevation Heatmap</h1>
+<p>
+    Demonstrates how to create an elevation heatmap and add it to a globe to visualize a surface elevation map.
+</p>
+
+<h2>Example</h2>
+<h3>ElevationHeatmapFragment.kt</h3>
+<p>
+    The OmnidirectionSightlineFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    An OmnidirectionalSightline object with specified position and range is then created and added to the globe.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class ElevationHeatmapFragment: BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with an Elevation Heatmap
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also { ElevationHeatmapTutorial(it.engine).start() }
+}
+
+class ElevationHeatmapTutorial(private val engine: WorldWind) : AbstractTutorial() {
+
+    var elevationHeatmapLayer = ElevationHeatmapLayer();
+
+    override fun start() {
+
+        super.start()
+        engine.layers.addLayer(elevationHeatmapLayer)
+        engine.cameraFromLookAt(
+            LookAt(
+                position = Position.fromDegrees(50.4501 , 30.5234 , 0.0), // Kyiv
+                altitudeMode = AltitudeMode.ABSOLUTE, range = 1e4,
+                heading = Angle.ZERO, tilt = 0.0.degrees, roll = Angle.ZERO
+            )
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(elevationHeatmapLayer)
+    }
+
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

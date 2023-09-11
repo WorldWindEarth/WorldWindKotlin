@@ -12,19 +12,23 @@ import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
  * Represents a portion of a globe's terrain. Applications typically do not interact directly with this class.
  */
 open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Tile(sector, level, row, column) {
+    val origin = Vec3()
+    val points by lazy { FloatArray((level.tileWidth + 2) * (level.tileHeight + 2) * 3) }
+    protected val heights by lazy { FloatArray( (level.tileWidth + 2) * (level.tileHeight + 2)) }
+    protected val heightGrid by lazy { FloatArray( level.tileWidth * level.tileHeight) }
     /**
      * Minimum elevation value used by the BasicTessellator to determine the terrain mesh edge extension depth (skirt).
      * This value is scaled by the vertical exaggeration when the terrain is generated.
      */
-    val heights by lazy { FloatArray( level.tileWidth * level.tileHeight) }
-    val points by lazy { FloatArray((level.tileWidth + 2) * (level.tileHeight + 2) * 3) }
-    val origin = Vec3()
-    internal val minTerrainElevation = -Short.MAX_VALUE.toFloat()
-    internal var heightTimestamp = 0L
-    internal var verticalExaggeration = 0.0f
+    protected val minTerrainElevation = -Short.MAX_VALUE.toFloat()
+    protected var heightTimestamp = 0L
+    protected var verticalExaggeration = 0.0f
     var sortOrder = 0.0
         protected set
     private lateinit var pointBufferKey: String
+    private lateinit var heightBufferKey: String
+
+    public override val heightLimits get() = super.heightLimits
 
     open fun prepare(rc: RenderContext) {
         val globe = rc.globe
@@ -32,20 +36,21 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         val tileHeight = level.tileHeight
         val timestamp = rc.elevationModelTimestamp
         if (timestamp != heightTimestamp) {
-            val heights = heights
-            heights.fill(0f)
-            globe.elevationModel.getHeightGrid(sector, tileWidth, tileHeight, heights)
+            heightGrid.fill(0f)
+            globe.elevationModel.getHeightGrid(sector, tileWidth, tileHeight, heightGrid)
+            // Calculate height vertex buffer from height grid
+            for (r in 0 until level.tileHeight) for (c in 0 until level.tileWidth) {
+                heights[(r + 1) * (level.tileWidth + 2) + c + 1] = heightGrid[r * level.tileWidth + c]
+            }
+            updateHeightBufferKey()
         }
         val ve = rc.verticalExaggeration.toFloat()
         if (ve != verticalExaggeration || timestamp != heightTimestamp) {
-            val origin = origin
-            val heights = heights
-            val points = points
             val borderHeight = minTerrainElevation * ve
             val rowStride = (tileWidth + 2) * 3
             globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude, 0.0, origin)
             globe.geographicToCartesianGrid(
-                sector, tileWidth, tileHeight, heights, ve, origin, points, rowStride + 3, rowStride
+                sector, tileWidth, tileHeight, heightGrid, ve, origin, points, rowStride + 3, rowStride
             )
             globe.geographicToCartesianBorder(
                 sector, tileWidth + 2, tileHeight + 2, borderHeight, origin, points
@@ -57,13 +62,19 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         sortOrder = drawSortOrder(rc)
     }
 
+    fun getHeightBuffer(rc: RenderContext) = rc.getBufferObject(heightBufferKey) {
+        FloatBufferObject(GL_ARRAY_BUFFER, heights)
+    }
+
     fun getPointBuffer(rc: RenderContext) = rc.getBufferObject(pointBufferKey) {
         FloatBufferObject(GL_ARRAY_BUFFER, points)
     }
 
-    protected fun updatePointBufferKey() { pointBufferKey = "TerrainTile.points.$tileKey.${pointBufferSequence++}" }
+    protected fun updateHeightBufferKey() { heightBufferKey = "TerrainTile.heights.$tileKey.${bufferSequence++}" }
+
+    protected fun updatePointBufferKey() { pointBufferKey = "TerrainTile.points.$tileKey.${bufferSequence++}" }
 
     companion object {
-        private var pointBufferSequence = 0L // must be static to avoid cache collisions when a tile instances is destroyed and re-created
+        private var bufferSequence = 0L // Must be static to avoid cache collisions when a tile instances are re-created
     }
 }

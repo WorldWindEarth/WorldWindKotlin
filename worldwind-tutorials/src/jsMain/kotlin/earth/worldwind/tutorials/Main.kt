@@ -25,7 +25,7 @@ fun main() {
         val tutorials = mapOf (
             "Basic globe" to BasicTutorial(wwd.engine),
             "Set camera view" to CameraViewTutorial(wwd.engine),
-            "Set Look At" to LookAtViewTutorial(wwd.engine),
+            "Set \"look at\" view" to LookAtViewTutorial(wwd.engine),
             "Placemarks" to PlacemarksTutorial(wwd.engine),
             "Paths" to PathsTutorial(wwd.engine),
             "Polygons" to PolygonsTutorial(wwd.engine),
@@ -37,10 +37,11 @@ fun main() {
             "Surface image" to SurfaceImageTutorial(wwd.engine),
             "Show tessellation" to ShowTessellationTutorial(wwd.engine),
             "MGRS Graticule" to MGRSGraticuleTutorial(wwd.engine),
-            // TODO Uncomment when TIFF elevation data parsing will be implemented
-            //"WCS Elevation" to WcsElevationTutorial(wwd.engine),
             "WMS Layer" to WmsLayerTutorial(wwd.engine, wwd.mainScope),
             "WMTS Layer" to WmtsLayerTutorial(wwd.engine, wwd.mainScope),
+            // TODO Uncomment when TIFF elevation data parsing will be implemented
+            //"WCS Elevation" to WcsElevationTutorial(wwd.engine),
+            "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),
         )
         var currentTutorial: String? = null
 
