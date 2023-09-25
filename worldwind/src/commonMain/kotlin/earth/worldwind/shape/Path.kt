@@ -7,7 +7,7 @@ import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.ShortBufferObject
+import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
@@ -27,9 +27,9 @@ open class Path @JvmOverloads constructor(
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
-    protected val interiorElements = mutableListOf<Short>()
-    protected val outlineElements = mutableListOf<Short>()
-    protected val verticalElements = mutableListOf<Short>()
+    protected val interiorElements = mutableListOf<Int>()
+    protected val outlineElements = mutableListOf<Int>()
+    protected val verticalElements = mutableListOf<Int>()
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
     protected val vertexOrigin = Vec3()
@@ -93,7 +93,7 @@ open class Path @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
-            ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, (interiorElements + outlineElements + verticalElements).toShortArray())
+            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (interiorElements + outlineElements + verticalElements).toIntArray())
         }
 
         // Configure the drawable's vertex texture coordinate attribute.
@@ -118,7 +118,7 @@ open class Path @JvmOverloads constructor(
             drawState.lineWidth(activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f)
             drawState.drawElements(
                 GL_LINE_STRIP, outlineElements.size,
-                GL_UNSIGNED_SHORT, interiorElements.size * 2
+                GL_UNSIGNED_INT, interiorElements.size * Int.SIZE_BYTES
             )
         }
 
@@ -131,7 +131,7 @@ open class Path @JvmOverloads constructor(
             drawState.lineWidth(activeAttributes.outlineWidth)
             drawState.drawElements(
                 GL_LINES, verticalElements.size,
-                GL_UNSIGNED_SHORT, interiorElements.size * 2 + outlineElements.size * 2
+                GL_UNSIGNED_INT, (interiorElements.size + outlineElements.size) * Int.SIZE_BYTES
             )
         }
 
@@ -140,7 +140,7 @@ open class Path @JvmOverloads constructor(
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawState.drawElements(
                 GL_TRIANGLE_STRIP, interiorElements.size,
-                GL_UNSIGNED_SHORT, 0
+                GL_UNSIGNED_INT, 0
             )
         }
 
@@ -252,25 +252,25 @@ open class Path @JvmOverloads constructor(
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            outlineElements.add(vertex.toShort())
+            outlineElements.add(vertex)
         } else {
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            outlineElements.add(vertex.toShort())
+            outlineElements.add(vertex)
             if (isExtrude) {
                 point = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, this.point)
                 vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
                 vertexArray[vertexIndex++] = 0f /*unused*/
-                interiorElements.add(vertex.toShort())
-                interiorElements.add(vertex.inc().toShort())
+                interiorElements.add(vertex)
+                interiorElements.add(vertex.inc())
             }
             if (isExtrude && !intermediate) {
-                verticalElements.add(vertex.toShort())
-                verticalElements.add(vertex.inc().toShort())
+                verticalElements.add(vertex)
+                verticalElements.add(vertex.inc())
             }
         }
         return vertex

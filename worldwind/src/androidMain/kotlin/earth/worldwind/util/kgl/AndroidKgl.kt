@@ -3,6 +3,7 @@ package earth.worldwind.util.kgl
 import android.opengl.GLES20
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
+import java.nio.IntBuffer
 import java.nio.ShortBuffer
 
 class AndroidKgl : Kgl {
@@ -80,7 +81,8 @@ class AndroidKgl : Kgl {
 
     override fun bufferData(target: Int, size: Int, sourceData: ShortArray, usage: Int, offset: Int) =
         GLES20.glBufferData(target, size, ShortBuffer.wrap(sourceData, offset, size / 2), usage)
-
+    override fun bufferData(target: Int, size: Int, sourceData: IntArray, usage: Int, offset: Int) =
+        GLES20.glBufferData(target, size, IntBuffer.wrap(sourceData, offset, size / 4), usage)
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray, usage: Int, offset: Int) =
         GLES20.glBufferData(target, size, FloatBuffer.wrap(sourceData, offset, size / 4), usage)
 
