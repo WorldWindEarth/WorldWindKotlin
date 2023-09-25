@@ -93,6 +93,9 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun bufferData(target: Int, size: Int, sourceData: ShortArray, usage: Int, offset: Int) =
         gl.glBufferData(target, size.toLong(), ShortBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
 
+    override fun bufferData(target: Int, size: Int, sourceData: IntArray, usage: Int, offset: Int) =
+        gl.glBufferData(target, size.toLong(), IntBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
+
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray, usage: Int, offset: Int) =
         gl.glBufferData(target, size.toLong(), FloatBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
 
