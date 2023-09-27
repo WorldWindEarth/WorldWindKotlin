@@ -92,6 +92,12 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
         gl.bufferData(target, if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len), usage)
     }
 
+    override fun bufferData(target: Int, size: Int, sourceData: IntArray, usage: Int, offset: Int) {
+        val arr = sourceData.unsafeCast<Int32Array>()
+        val len = size / 4
+        gl.bufferData(target, if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len), usage)
+    }
+
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray, usage: Int, offset: Int) {
         val arr = sourceData.unsafeCast<Float32Array>()
         val len = size / 4

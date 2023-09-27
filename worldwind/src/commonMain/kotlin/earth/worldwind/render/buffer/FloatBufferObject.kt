@@ -3,7 +3,8 @@ package earth.worldwind.render.buffer
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.util.kgl.GL_STATIC_DRAW
 
-open class FloatBufferObject(target: Int, array: FloatArray, size: Int = array.size) : AbstractBufferObject(target, size * 4) {
+open class FloatBufferObject(target: Int, array: FloatArray, size: Int = array.size)
+    : AbstractBufferObject(target, size * Float.SIZE_BYTES) {
     protected var array: FloatArray? = array
 
     override fun release(dc: DrawContext) {

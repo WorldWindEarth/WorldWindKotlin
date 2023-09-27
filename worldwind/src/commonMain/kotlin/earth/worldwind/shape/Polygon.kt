@@ -8,7 +8,7 @@ import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.ShortBufferObject
+import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
@@ -30,10 +30,10 @@ open class Polygon @JvmOverloads constructor(
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
-    protected val topElements = mutableListOf<Short>()
-    protected val sideElements = mutableListOf<Short>()
-    protected val outlineElements = mutableListOf<Short>()
-    protected val verticalElements = mutableListOf<Short>()
+    protected val topElements = mutableListOf<Int>()
+    protected val sideElements = mutableListOf<Int>()
+    protected val outlineElements = mutableListOf<Int>()
+    protected val verticalElements = mutableListOf<Int>()
     protected var vertexBufferKey = nextCacheKey()
     protected var elementBufferKey = nextCacheKey()
     protected val vertexOrigin = Vec3()
@@ -163,8 +163,8 @@ open class Polygon @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
-            ShortBufferObject(
-                GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements + outlineElements + verticalElements).toShortArray()
+            IntBufferObject(
+                GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements + outlineElements + verticalElements).toIntArray()
             )
         }
         if (isSurfaceShape || activeAttributes.interiorColor.alpha >= 1.0) {
@@ -204,12 +204,12 @@ open class Polygon @JvmOverloads constructor(
         // Configure the drawable to display the shape's interior top.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
-        drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_SHORT, 0 /*offset*/)
+        drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_INT, 0 /*offset*/)
 
         // Configure the drawable to display the shape's interior sides.
         if (isExtrude) {
             drawState.texture(null)
-            drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_SHORT, topElements.size * 2 /*offset*/)
+            drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, topElements.size * Int.SIZE_BYTES /*offset*/)
         }
     }
 
@@ -232,7 +232,7 @@ open class Polygon @JvmOverloads constructor(
         drawState.texCoordAttrib(1 /*size*/, 20 /*offset in bytes*/)
         drawState.drawElements(
             GL_LINES, outlineElements.size,
-            GL_UNSIGNED_SHORT, topElements.size * 2 + sideElements.size * 2 /*offset*/
+            GL_UNSIGNED_INT, (topElements.size + sideElements.size) * Int.SIZE_BYTES /*offset*/
         )
 
         // Configure the drawable to display the shape's extruded verticals.
@@ -242,7 +242,7 @@ open class Polygon @JvmOverloads constructor(
             drawState.texture(null)
             drawState.drawElements(
                 GL_LINES, verticalElements.size,
-                GL_UNSIGNED_SHORT, topElements.size * 2 + sideElements.size * 2 + outlineElements.size * 2 /*offset*/
+                GL_UNSIGNED_INT, (topElements.size + sideElements.size + outlineElements.size) * Int.SIZE_BYTES /*offset*/
             )
         }
     }
@@ -396,8 +396,8 @@ open class Polygon @JvmOverloads constructor(
                 vertexArray[vertexIndex++] = 0f /*unused*/
             }
             if (isExtrude && type == VERTEX_ORIGINAL) {
-                verticalElements.add(vertex.toShort())
-                verticalElements.add(vertex.inc().toShort())
+                verticalElements.add(vertex)
+                verticalElements.add(vertex.inc())
             }
         }
         return vertex
@@ -440,9 +440,9 @@ open class Polygon @JvmOverloads constructor(
         } else {
             tessVertexCount = 0 // reset the vertex count and process one triangle
         }
-        val v0 = tessVertices[0].toShort()
-        val v1 = tessVertices[1].toShort()
-        val v2 = tessVertices[2].toShort()
+        val v0 = tessVertices[0]
+        val v1 = tessVertices[1]
+        val v2 = tessVertices[2]
         topElements.add(v0)
         topElements.add(v1)
         topElements.add(v2)

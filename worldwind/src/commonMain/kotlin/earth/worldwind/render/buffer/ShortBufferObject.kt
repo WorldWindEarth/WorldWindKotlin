@@ -3,7 +3,8 @@ package earth.worldwind.render.buffer
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.util.kgl.GL_STATIC_DRAW
 
-open class ShortBufferObject(target: Int, array: ShortArray, size: Int = array.size) : AbstractBufferObject(target, size * 2) {
+open class ShortBufferObject(target: Int, array: ShortArray, size: Int = array.size)
+    : AbstractBufferObject(target, size * Short.SIZE_BYTES) {
     protected var array: ShortArray? = array
 
     override fun release(dc: DrawContext) {
