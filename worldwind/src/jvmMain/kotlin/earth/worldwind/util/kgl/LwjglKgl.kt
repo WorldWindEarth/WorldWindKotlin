@@ -3,6 +3,7 @@ package earth.worldwind.util.kgl
 import org.lwjgl.opengl.GL33
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
+import java.nio.IntBuffer
 import java.nio.ShortBuffer
 
 class LwjglKgl : Kgl {
@@ -75,6 +76,9 @@ class LwjglKgl : Kgl {
 
     override fun bufferData(target: Int, size: Int, sourceData: ShortArray, usage: Int, offset: Int) =
         GL33.glBufferData(target, ShortBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
+
+    override fun bufferData(target: Int, size: Int, sourceData: IntArray, usage: Int, offset: Int) =
+        GL33.glBufferData(target, IntBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
 
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray, usage: Int, offset: Int) =
         GL33.glBufferData(target, FloatBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
