@@ -72,6 +72,7 @@ open class DrawableShape protected constructor(): Drawable {
         for (idx in 0 until drawState.primCount) {
             val prim = drawState.prims[idx]
             program.loadColor(prim.color)
+            program.loadOpacity(prim.opacity)
             if (prim.texture?.bindTexture(dc) == true) {
                 program.loadTexCoordMatrix(prim.texCoordMatrix)
                 program.enableTexture(true)

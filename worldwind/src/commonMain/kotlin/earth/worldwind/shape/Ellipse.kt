@@ -311,6 +311,7 @@ open class Ellipse @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's interior.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
         drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
         val top = drawState.elementBuffer!!.ranges[TOP_RANGE]!!
         drawState.drawElements(GL_TRIANGLE_STRIP, top.length, GL_UNSIGNED_SHORT, top.lower * 2 /*offset*/)
@@ -336,6 +337,7 @@ open class Ellipse @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's outline.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
         drawState.lineWidth(activeAttributes.outlineWidth)
         drawState.texCoordAttrib(1 /*size*/, 20 /*offset in bytes*/)
         val outline = drawState.elementBuffer!!.ranges[OUTLINE_RANGE]!!
@@ -343,6 +345,7 @@ open class Ellipse @JvmOverloads constructor(
         if (activeAttributes.isDrawVerticals && isExtrude) {
             val side = drawState.elementBuffer!!.ranges[SIDE_RANGE]!!
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
             drawState.texture(null)
             drawState.drawElements(GL_LINES, side.length, GL_UNSIGNED_SHORT, side.lower * 2)

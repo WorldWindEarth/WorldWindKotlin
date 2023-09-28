@@ -12,6 +12,7 @@ import kotlin.jvm.JvmStatic
 open class DrawableSurfaceTexture protected constructor(): Drawable {
     val sector = Sector()
     val color = Color()
+    var opacity = 1.0f
     val texCoordMatrix = Matrix3()
     var texture: Texture? = null
     var program: SurfaceTextureProgram? = null
@@ -31,6 +32,7 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
     ) = apply {
         if (sector != null) this.sector.copy(sector) else this.sector.setEmpty()
         this.color.set(1f, 1f, 1f, 1f)
+        this.opacity = 1f
         if (texCoordMatrix != null) this.texCoordMatrix.copy(texCoordMatrix) else this.texCoordMatrix.setToIdentity()
         this.texture = texture
         this.program = program
@@ -123,6 +125,9 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
 
                 // Use the surface texture's RGBA color.
                 program.loadColor(texture.color)
+
+                // Use the surface texture's opacity.
+                program.loadOpacity(texture.opacity)
 
                 // Draw the terrain as triangles.
                 terrain.drawTriangles(dc)

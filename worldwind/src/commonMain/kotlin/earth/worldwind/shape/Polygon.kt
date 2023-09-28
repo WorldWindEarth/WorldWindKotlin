@@ -203,6 +203,7 @@ open class Polygon @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's interior top.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
         drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
         drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_INT, 0 /*offset*/)
 
@@ -228,6 +229,7 @@ open class Polygon @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's outline.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
         drawState.lineWidth(activeAttributes.outlineWidth)
         drawState.texCoordAttrib(1 /*size*/, 20 /*offset in bytes*/)
         drawState.drawElements(
@@ -238,6 +240,7 @@ open class Polygon @JvmOverloads constructor(
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawVerticals && isExtrude) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
             drawState.texture(null)
             drawState.drawElements(

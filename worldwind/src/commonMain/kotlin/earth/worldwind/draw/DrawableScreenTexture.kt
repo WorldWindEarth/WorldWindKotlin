@@ -14,6 +14,7 @@ import kotlin.jvm.JvmStatic
 open class DrawableScreenTexture protected constructor(): Drawable {
     val unitSquareTransform = Matrix4()
     val color = Color()
+    var opacity = 1.0f
     var enableDepthTest = true
     var program: BasicShaderProgram? = null
     var texture: Texture? = null
@@ -76,6 +77,7 @@ open class DrawableScreenTexture protected constructor(): Drawable {
 
         // Use the drawable's color.
         program.loadColor(drawable.color)
+        program.loadOpacity(drawable.opacity)
 
         // Attempt to bind the drawable's texture, configuring the shader program appropriately if there is no texture
         // or if the texture failed to bind.
