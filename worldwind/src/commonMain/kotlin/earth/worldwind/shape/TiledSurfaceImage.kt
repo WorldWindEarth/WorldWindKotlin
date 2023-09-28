@@ -164,12 +164,14 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         if (texture != null) { // use the tile's own texture
             val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
             val drawable = DrawableSurfaceTexture.obtain(pool).set(activeProgram, tile.sector, texture, texture.coordTransform)
+            drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
         } else if (ancestorTile != null && ancestorTexture != null) { // use the ancestor tile's texture, transformed to fill the tile sector
             ancestorTexCoordMatrix.copy(ancestorTexture.coordTransform)
             ancestorTexCoordMatrix.multiplyByTileTransform(tile.sector, ancestorTile.sector)
             val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
             val drawable = DrawableSurfaceTexture.obtain(pool).set(activeProgram, tile.sector, ancestorTexture, ancestorTexCoordMatrix)
+            drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
         }
     }

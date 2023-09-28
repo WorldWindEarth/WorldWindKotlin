@@ -23,6 +23,7 @@ open class DrawShapeState internal constructor() {
     var enableDepthWrite = true
     var depthOffset = 0.0
     protected val color = Color()
+    protected var opacity = 1.0f
     protected var lineWidth = 1f
     protected var texture: Texture? = null
     protected val texCoordMatrix = Matrix3()
@@ -40,6 +41,7 @@ open class DrawShapeState internal constructor() {
         enableDepthTest = true
         depthOffset = 0.0
         color.set(1f, 1f, 1f, 1f)
+        opacity = 1.0f
         lineWidth = 1f
         texture = null
         texCoordMatrix.setToIdentity()
@@ -50,6 +52,8 @@ open class DrawShapeState internal constructor() {
     }
 
     fun color(color: Color) = apply { this.color.copy(color) }
+
+    fun opacity(opacity: Float) = apply { this.opacity = opacity }
 
     fun lineWidth(width: Float) = apply { lineWidth = width }
 
@@ -69,6 +73,7 @@ open class DrawShapeState internal constructor() {
         prim.type = type
         prim.offset = offset
         prim.color.copy(color)
+        prim.opacity = opacity
         prim.lineWidth = lineWidth
         prim.texture = texture
         prim.texCoordMatrix.copy(texCoordMatrix)
@@ -82,6 +87,7 @@ open class DrawShapeState internal constructor() {
         var type = 0
         var offset = 0
         val color = Color()
+        var opacity = 1.0f
         var lineWidth = 0f
         var texture: Texture? = null
         val texCoordMatrix = Matrix3()

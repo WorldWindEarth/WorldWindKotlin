@@ -14,6 +14,7 @@ open class DrawableLines protected constructor(): Drawable {
     var vertexPoints: FloatBufferObject? = null
     val mvpMatrix = Matrix4()
     val color = Color()
+    var opacity = 1.0f
     var lineWidth = 1f
     var enableDepthTest = true
     var program: BasicShaderProgram? = null
@@ -50,6 +51,9 @@ open class DrawableLines protected constructor(): Drawable {
 
         // Use the leader's color.
         program.loadColor(color)
+
+        // Use the leader's opacity.
+        program.loadOpacity(opacity)
 
         // Use the leader's modelview-projection matrix.
         program.loadModelviewProjection(mvpMatrix)

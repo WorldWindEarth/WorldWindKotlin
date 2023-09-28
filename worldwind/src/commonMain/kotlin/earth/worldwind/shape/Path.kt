@@ -115,6 +115,7 @@ open class Path @JvmOverloads constructor(
         // drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
         if (activeAttributes.isDrawOutline) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f)
             drawState.drawElements(
                 GL_LINE_STRIP, outlineElements.size,
@@ -128,6 +129,7 @@ open class Path @JvmOverloads constructor(
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
             drawState.drawElements(
                 GL_LINES, verticalElements.size,
@@ -138,6 +140,7 @@ open class Path @JvmOverloads constructor(
         // Configure the drawable to display the shape's extruded interior.
         if (activeAttributes.isDrawInterior && isExtrude) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.drawElements(
                 GL_TRIANGLE_STRIP, interiorElements.size,
                 GL_UNSIGNED_INT, 0

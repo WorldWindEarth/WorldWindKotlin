@@ -413,6 +413,7 @@ open class Placemark @JvmOverloads constructor(
         // the active attributes' image source and its associated tex coord transform. If the texture is not specified
         // or not available, draw a simple colored square.
         drawable.color.copy(if (rc.isPickMode) pickColor else activeAttributes.imageColor)
+        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.texture = activeTexture
         drawable.enableDepthTest = activeAttributes.isDepthTest
     }
@@ -437,6 +438,7 @@ open class Placemark @JvmOverloads constructor(
         // color for drawing, specifying white for normal drawing ensures the color multiplication in the shader results
         // in the texture's color.
         if (rc.isPickMode) drawable.color.copy(pickColor) else drawable.color.set(1f, 1f, 1f, 1f)
+        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.texture = labelTexture
         drawable.enableDepthTest = activeAttributes.labelAttributes.isDepthTest
     }
@@ -475,6 +477,7 @@ open class Placemark @JvmOverloads constructor(
         // Configure the drawable according to the placemark's active leader attributes. Use a color appropriate for the
         // pick mode. When picking use a unique color associated with the picked object ID.
         drawable.color.copy(if (rc.isPickMode) pickColor else activeAttributes.leaderAttributes.outlineColor)
+        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.lineWidth = activeAttributes.leaderAttributes.outlineWidth
         drawable.enableDepthTest = activeAttributes.leaderAttributes.isDepthTest
     }

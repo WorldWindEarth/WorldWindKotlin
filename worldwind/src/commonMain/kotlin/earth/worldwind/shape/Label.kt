@@ -125,9 +125,7 @@ open class Label @JvmOverloads constructor(
         val drawableCount = rc.drawableCount
         if (rc.isPickMode) {
             renderData.pickedObjectId = rc.nextPickedObjectId()
-            PickedObject.identifierToUniqueColor(
-                renderData.pickedObjectId, renderData.pickColor
-            )
+            PickedObject.identifierToUniqueColor(renderData.pickedObjectId, renderData.pickColor)
         }
 
         // Enqueue drawables for processing on the OpenGL thread.
@@ -200,6 +198,7 @@ open class Label @JvmOverloads constructor(
         // in the texture's color.
         if (rc.isPickMode) drawable.color.copy(renderData.pickColor)
         else drawable.color.set(1f, 1f, 1f, 1f)
+        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.texture = texture
         drawable.enableDepthTest = activeAttributes.isDepthTest
 

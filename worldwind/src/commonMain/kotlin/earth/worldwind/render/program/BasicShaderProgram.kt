@@ -34,6 +34,7 @@ open class BasicShaderProgram : AbstractShaderProgram() {
             uniform bool enablePickMode;
             uniform bool enableTexture;
             uniform vec4 color;
+            uniform float opacity;
             uniform sampler2D texSampler;
 
             varying vec2 texCoord;
@@ -47,10 +48,10 @@ open class BasicShaderProgram : AbstractShaderProgram() {
                     gl_FragColor = color * texMask;
                 } else if (!enablePickMode && enableTexture) {
                     /* Modulate the RGBA color with the 2D texture's RGBA color. */
-                    gl_FragColor = color * texture2D(texSampler, texCoord);
+                    gl_FragColor = color * texture2D(texSampler, texCoord) * opacity;
                 } else {
                     /* Return the RGBA color as-is. */
-                    gl_FragColor = color;
+                    gl_FragColor = color * opacity;
                 }
             }
         """.trimIndent()
@@ -62,12 +63,14 @@ open class BasicShaderProgram : AbstractShaderProgram() {
     protected val mvpMatrix = Matrix4()
     protected val texCoordMatrix = Matrix3()
     protected val color = Color()
+    protected var opacity = 1.0f
     protected var enablePickModeId = KglUniformLocation.NONE
     protected var enableTextureId = KglUniformLocation.NONE
     protected var mvpMatrixId = KglUniformLocation.NONE
     protected var texCoordMatrixId = KglUniformLocation.NONE
     protected var texSamplerId = KglUniformLocation.NONE
     protected var colorId = KglUniformLocation.NONE
+    protected var opacityId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -85,6 +88,8 @@ open class BasicShaderProgram : AbstractShaderProgram() {
         colorId = gl.getUniformLocation(program, "color")
         val alpha = color.alpha
         gl.uniform4f(colorId, color.red * alpha, color.green * alpha, color.blue * alpha, alpha)
+        opacityId = gl.getUniformLocation(program, "opacity")
+        gl.uniform1f(opacityId, opacity)
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
     }
@@ -122,6 +127,13 @@ open class BasicShaderProgram : AbstractShaderProgram() {
             this.color.copy(color)
             val alpha = color.alpha
             gl.uniform4f(colorId, color.red * alpha, color.green * alpha, color.blue * alpha, alpha)
+        }
+    }
+
+    fun loadOpacity(opacity: Float) {
+        if (this.opacity != opacity) {
+            this.opacity = opacity
+            gl.uniform1f(opacityId, opacity)
         }
     }
 }

@@ -45,6 +45,7 @@ open class SurfaceTextureProgram : AbstractShaderProgram() {
             uniform bool enablePickMode;
             uniform bool enableTexture;
             uniform vec4 color;
+            uniform float opacity;
             uniform sampler2D texSampler;
 
             varying vec2 texCoord;
@@ -65,10 +66,10 @@ open class SurfaceTextureProgram : AbstractShaderProgram() {
                 } else if (!enablePickMode && enableTexture) {
                     /* Using the first texture coordinate, modulate the RGBA color with the 2D texture's RGBA color. Finally,
                        modulate by the tile mask to suppress fragments outside the surface tile. */
-                    gl_FragColor = color * texture2D(texSampler, texCoord) * tileMask;
+                    gl_FragColor = color * texture2D(texSampler, texCoord) * opacity * tileMask;
                 } else {
                     /* Modulate the RGBA color by the tile mask to suppress fragments outside the surface tile. */
-                    gl_FragColor = color * tileMask;
+                    gl_FragColor = color * opacity * tileMask;
                 }
             }
         """.trimIndent()
@@ -83,9 +84,11 @@ open class SurfaceTextureProgram : AbstractShaderProgram() {
     protected var texCoordMatrixId = KglUniformLocation.NONE
     protected var texSamplerId = KglUniformLocation.NONE
     protected var colorId = KglUniformLocation.NONE
+    protected var opacityId = KglUniformLocation.NONE
     private val mvpMatrixArray = FloatArray(16)
     private val texCoordMatrixArray = FloatArray(9 * 2)
     private val color = Color()
+    private var opacity = 1.0f
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
@@ -103,6 +106,8 @@ open class SurfaceTextureProgram : AbstractShaderProgram() {
         colorId = gl.getUniformLocation(program, "color")
         color.set(1f, 1f, 1f, 1f) // opaque white
         gl.uniform4f(colorId, color.red, color.green, color.blue, color.alpha)
+        opacityId = gl.getUniformLocation(program, "opacity")
+        gl.uniform1f(opacityId, opacity)
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
     }
@@ -123,10 +128,17 @@ open class SurfaceTextureProgram : AbstractShaderProgram() {
     }
 
     fun loadColor(color: Color) {
-        if (this.color != color) { // suppress unnecessary writes to GLSL uniform variables
+        if (this.color != color) {
             this.color.copy(color)
-            val a: Float = color.alpha
-            gl.uniform4f(colorId, color.red * a, color.green * a, color.blue * a, a)
+            val alpha = color.alpha
+            gl.uniform4f(colorId, color.red * alpha, color.green * alpha, color.blue * alpha, alpha)
+        }
+    }
+
+    fun loadOpacity(opacity: Float) {
+        if (this.opacity != opacity) {
+            this.opacity = opacity
+            gl.uniform1f(opacityId, opacity)
         }
     }
 }
