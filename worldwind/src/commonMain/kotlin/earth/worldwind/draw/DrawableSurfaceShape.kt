@@ -16,6 +16,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     private val textureMvpMatrix = Matrix4()
     private val identityMatrix3 = Matrix3()
     private val color = Color()
+    private var opacity = 1.0f
 
     companion object {
         @JvmStatic
@@ -138,6 +139,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 for (primIdx in 0 until shape.drawState.primCount) {
                     val prim = shape.drawState.prims[primIdx]
                     program.loadColor(prim.color)
+                    program.loadOpacity(prim.opacity)
                     if (prim.texture?.bindTexture(dc) == true) {
                         program.loadTexCoordMatrix(prim.texCoordMatrix)
                         program.enableTexture(true)
@@ -184,6 +186,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             program.enableTexture(true)
             program.loadTexCoordMatrix(identityMatrix3)
             program.loadColor(color)
+            program.loadOpacity(opacity)
 
             // Use the draw context's modelview projection matrix, transformed to terrain local coordinates.
             val terrainOrigin = terrain.vertexOrigin
