@@ -15,12 +15,12 @@ open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractS
     override fun doRender(rc: RenderContext) {
         if (sector.isEmpty || !rc.terrain.sector.intersects(sector) || !getExtent(rc).intersectsFrustum(rc.frustum)) return
         val texture = rc.getTexture(imageSource, imageOptions) ?: return // no texture to draw
+        val opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
 
         // Enqueue a drawable surface texture for processing on the OpenGL thread.
         val program = getShaderProgram(rc)
         val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
-        val drawable = DrawableSurfaceTexture.obtain(pool).set(program, sector, texture, texture.coordTransform)
-        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        val drawable = DrawableSurfaceTexture.obtain(pool).set(program, sector, opacity, texture, texture.coordTransform)
         rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
 
         // Enqueue a picked object that associates the drawable surface texture with this surface image.

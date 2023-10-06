@@ -28,12 +28,12 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
     }
 
     fun set(
-        program: SurfaceTextureProgram?, sector: Sector?, texture: Texture?, texCoordMatrix: Matrix3?
+        program: SurfaceTextureProgram?, sector: Sector, opacity: Float, texture: Texture, texCoordMatrix: Matrix3
     ) = apply {
-        if (sector != null) this.sector.copy(sector) else this.sector.setEmpty()
+        this.sector.copy(sector)
         this.color.set(1f, 1f, 1f, 1f)
-        this.opacity = 1f
-        if (texCoordMatrix != null) this.texCoordMatrix.copy(texCoordMatrix) else this.texCoordMatrix.setToIdentity()
+        this.opacity = opacity
+        this.texCoordMatrix.copy(texCoordMatrix)
         this.texture = texture
         this.program = program
     }
