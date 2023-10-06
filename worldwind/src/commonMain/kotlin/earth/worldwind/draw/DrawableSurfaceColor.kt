@@ -8,6 +8,7 @@ import kotlin.jvm.JvmStatic
 
 open class DrawableSurfaceColor protected constructor(): Drawable {
     val color = Color()
+    var opacity = 1.0f
     var program: BasicShaderProgram? = null
     private var pool: Pool<DrawableSurfaceColor>? = null
     private val mvpMatrix = Matrix4()
@@ -34,6 +35,7 @@ open class DrawableSurfaceColor protected constructor(): Drawable {
         // Configure the program to draw the specified color.
         program.enableTexture(false)
         program.loadColor(color)
+        program.loadOpacity(opacity)
         for (idx in 0 until dc.drawableTerrainCount) {
             // Get the drawable terrain associated with the draw context.
             val terrain = dc.getDrawableTerrain(idx)

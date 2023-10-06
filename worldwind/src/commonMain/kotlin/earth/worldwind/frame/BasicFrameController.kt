@@ -39,6 +39,7 @@ open class BasicFrameController: FrameController {
         val pool = rc.getDrawablePool<DrawableSurfaceColor>()
         val drawable = obtain(pool)
         identifierToUniqueColor(pickedObjectId, drawable.color)
+        drawable.opacity = 1.0f // Just to be sure to reset opacity
         drawable.program = rc.getShaderProgram { BasicShaderProgram() }
         rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
 
