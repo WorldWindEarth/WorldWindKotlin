@@ -18,7 +18,7 @@ class ShowTessellationLayer: AbstractLayer("Terrain Tessellation") {
         // Use WorldWind's basic GLSL program.
         val program = rc.getShaderProgram { BasicShaderProgram() }
         val pool = rc.getDrawablePool<DrawableTessellation>()
-        val drawable = DrawableTessellation.obtain(pool).set(program, color)
+        val drawable = DrawableTessellation.obtain(pool).set(program, color, opacity)
         rc.offerSurfaceDrawable(drawable, 1.0 /*z-order after surface textures*/)
     }
 }

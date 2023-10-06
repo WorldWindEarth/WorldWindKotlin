@@ -8,6 +8,7 @@ import kotlin.jvm.JvmStatic
 
 open class DrawableTessellation protected constructor(): Drawable {
     val color = Color()
+    var opacity = 1.0f
     var program: BasicShaderProgram? = null
     private var pool: Pool<DrawableTessellation>? = null
     private val mvpMatrix = Matrix4()
@@ -22,9 +23,10 @@ open class DrawableTessellation protected constructor(): Drawable {
         }
     }
 
-    fun set(program: BasicShaderProgram?, color: Color?) = apply {
-        if (color != null) this.color.copy(color) else this.color.set(1f, 1f, 1f, 1f)
+    fun set(program: BasicShaderProgram, color: Color, opacity: Float) = apply {
         this.program = program
+        this.color.copy(color)
+        this.opacity = opacity
     }
 
     override fun recycle() {
@@ -43,6 +45,7 @@ open class DrawableTessellation protected constructor(): Drawable {
         // Configure the program to draw the specified color.
         program.enableTexture(false)
         program.loadColor(color)
+        program.loadOpacity(opacity)
 
         // Suppress writes to the OpenGL depth buffer.
         dc.gl.depthMask(false)
