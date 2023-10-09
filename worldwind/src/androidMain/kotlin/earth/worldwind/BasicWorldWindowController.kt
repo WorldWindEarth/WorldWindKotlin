@@ -15,32 +15,32 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
     protected val lookAt = LookAt()
     protected val beginLookAt = LookAt()
     protected var activeGestures = 0
-    protected val panRecognizer = PanRecognizer()
-    protected val pinchRecognizer = PinchRecognizer()
-    protected val rotationRecognizer = RotationRecognizer()
-    protected val tiltRecognizer = PanRecognizer()
-    protected val mouseTiltRecognizer = MousePanRecognizer()
+    protected val panRecognizer: GestureRecognizer = PanRecognizer().also {
+        it.addListener(this)
+        it.maxNumberOfPointers = 1 // Do not pan during tilt
+        it.interpretDistance = wwd.context.resources.getDimension(R.dimen.pan_interpret_distance)
+    }
+    protected val pinchRecognizer: GestureRecognizer = PinchRecognizer().also {
+        it.addListener(this)
+        it.interpretDistance = wwd.context.resources.getDimension(R.dimen.pinch_interpret_distance)
+    }
+    protected val rotationRecognizer: GestureRecognizer = RotationRecognizer().also {
+        it.addListener(this)
+        it.interpretAngle = 20f
+    }
+    protected val tiltRecognizer: GestureRecognizer = PanRecognizer().also {
+        it.addListener(this)
+        it.minNumberOfPointers = 2 // Use two fingers for tilt gesture
+        it.interpretDistance = wwd.context.resources.getDimension(R.dimen.tilt_interpret_distance)
+    }
+    protected val mouseTiltRecognizer: GestureRecognizer = MousePanRecognizer().also {
+        it.addListener(this)
+        it.buttonState = MotionEvent.BUTTON_SECONDARY
+        it.interpretDistance = wwd.context.resources.getDimension(R.dimen.tilt_interpret_distance)
+    }
     protected val allRecognizers = listOf(
         panRecognizer, pinchRecognizer, rotationRecognizer, tiltRecognizer, mouseTiltRecognizer
     )
-
-    init {
-        panRecognizer.addListener(this)
-        pinchRecognizer.addListener(this)
-        rotationRecognizer.addListener(this)
-        tiltRecognizer.addListener(this)
-        mouseTiltRecognizer.addListener(this)
-        panRecognizer.maxNumberOfPointers = 1 // Do not pan during tilt
-        tiltRecognizer.minNumberOfPointers = 2 // Use two fingers for tilt gesture
-        mouseTiltRecognizer.buttonState = MotionEvent.BUTTON_SECONDARY
-
-        // Set interpret distance based on screen density
-        panRecognizer.interpretDistance = wwd.context.resources.getDimension(R.dimen.pan_interpret_distance)
-        pinchRecognizer.interpretDistance = wwd.context.resources.getDimension(R.dimen.pinch_interpret_distance)
-        rotationRecognizer.interpretAngle = 20f
-        tiltRecognizer.interpretDistance = wwd.context.resources.getDimension(R.dimen.tilt_interpret_distance)
-        mouseTiltRecognizer.interpretDistance = wwd.context.resources.getDimension(R.dimen.tilt_interpret_distance)
-    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         var handled = false

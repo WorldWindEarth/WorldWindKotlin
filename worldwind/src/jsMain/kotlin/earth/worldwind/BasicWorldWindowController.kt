@@ -14,17 +14,17 @@ import kotlin.math.sin
  * This class provides the default window controller for WorldWind for controlling the globe via user interaction.
  */
 open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(wwd) {
-    val primaryDragRecognizer = DragRecognizer(wwd.canvas).also { it.addListener(this) }
-    val secondaryDragRecognizer = DragRecognizer(wwd.canvas).also {
+    val primaryDragRecognizer: GestureRecognizer = DragRecognizer(wwd.canvas).also { it.addListener(this) }
+    val secondaryDragRecognizer: GestureRecognizer = DragRecognizer(wwd.canvas).also {
         it.addListener(this)
         it.button = 2 // secondary mouse button
     }
-    val panRecognizer = PanRecognizer(wwd.canvas).also { it.addListener(this) }
-    val pinchRecognizer = PinchRecognizer(wwd.canvas).also { it.addListener(this) }
-    val rotationRecognizer = RotationRecognizer(wwd.canvas).also { it.addListener(this) }
-    val tiltRecognizer = TiltRecognizer(wwd.canvas).also { it.addListener(this) }
-//    val tapRecognizer = TapRecognizer(wwd.canvas).also { it.addListener(this) }
-//    val clickRecognizer = ClickRecognizer(wwd.canvas).also { it.addListener(this) }
+    val panRecognizer: GestureRecognizer = PanRecognizer(wwd.canvas).also { it.addListener(this) }
+    val pinchRecognizer: GestureRecognizer = PinchRecognizer(wwd.canvas).also { it.addListener(this) }
+    val rotationRecognizer: GestureRecognizer = RotationRecognizer(wwd.canvas).also { it.addListener(this) }
+    val tiltRecognizer: GestureRecognizer = TiltRecognizer(wwd.canvas).also { it.addListener(this) }
+//    val tapRecognizer: GestureRecognizer = TapRecognizer(wwd.canvas).also { it.addListener(this) }
+//    val clickRecognizer: GestureRecognizer = ClickRecognizer(wwd.canvas).also { it.addListener(this) }
     /**
      * A copy of the viewing parameters at the start of a gesture as a look at view.
      */
@@ -68,8 +68,8 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         when(recognizer) {
             primaryDragRecognizer, panRecognizer -> handlePanOrDrag(recognizer)
             secondaryDragRecognizer -> handleSecondaryDrag(recognizer)
-            pinchRecognizer -> handlePinch(recognizer as PinchRecognizer)
-            rotationRecognizer -> handleRotation(recognizer as RotationRecognizer)
+            pinchRecognizer -> handlePinch(recognizer)
+            rotationRecognizer -> handleRotation(recognizer)
             tiltRecognizer -> handleTilt(recognizer)
 //            clickRecognizer, tapRecognizer -> handleClickOrTap(recognizer)
         }
@@ -182,9 +182,9 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         }
     }
 
-    protected open fun handlePinch(recognizer: PinchRecognizer) {
+    protected open fun handlePinch(recognizer: GestureRecognizer) {
         val state = recognizer.state
-        val scale = recognizer.scaleWithOffset
+        val scale = (recognizer as PinchRecognizer).scaleWithOffset
 
         when(state) {
             BEGAN -> gestureDidBegin()
@@ -198,9 +198,9 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         }
     }
 
-    protected open fun handleRotation(recognizer: RotationRecognizer) {
+    protected open fun handleRotation(recognizer: GestureRecognizer) {
         val state = recognizer.state
-        val rotation = recognizer.rotationWithOffset
+        val rotation = (recognizer as RotationRecognizer).rotationWithOffset
 
         when (state) {
             BEGAN -> {
