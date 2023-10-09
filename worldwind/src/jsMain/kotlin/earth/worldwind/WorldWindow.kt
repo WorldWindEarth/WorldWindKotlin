@@ -286,6 +286,9 @@ open class WorldWindow(
         // Enable WebGL depth texture extension to be able to use GL_DEPTH_COMPONENT texture format
         gl.getExtension("WEBGL_depth_texture")
 
+        // Enable WebGL support for gl.UNSIGNED_INT types to WebGLRenderingContext.drawElements()
+        gl.getExtension("OES_element_index_uint")
+
         // Subscribe on events from WorldWind's global event bus.
         mainScope.launch {
             WorldWind.events.collect {
