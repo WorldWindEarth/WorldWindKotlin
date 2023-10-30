@@ -11,7 +11,6 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
@@ -34,8 +33,6 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         absentResourceList.clear()
         age = 0
     }
-
-    actual fun cancel() = mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
 
     actual fun incAge() { ++age }
 

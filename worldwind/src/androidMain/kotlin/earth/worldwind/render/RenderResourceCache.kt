@@ -17,7 +17,10 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import io.ktor.client.network.sockets.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -66,8 +69,6 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         absentResourceList.clear()
         age = 0
     }
-
-    actual fun cancel() = mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
 
     actual fun incAge() { ++age }
 

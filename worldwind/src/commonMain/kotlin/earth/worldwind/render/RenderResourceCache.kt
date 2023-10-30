@@ -11,7 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 expect class RenderResourceCache: LruMemoryCache<Any, RenderResource> {
     val mainScope: CoroutineScope
     val absentResourceList: AbsentResourceList<Int>
-    fun cancel()
     fun incAge()
     fun releaseEvictedResources(dc: DrawContext)
     fun retrieveTextFile(fileResource: FileResource, result: (String) -> Unit)

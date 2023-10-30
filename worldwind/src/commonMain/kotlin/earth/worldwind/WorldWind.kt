@@ -131,9 +131,6 @@ open class WorldWind @JvmOverloads constructor(
      * Reset internal WorldWind state to initial values.
      */
     open fun reset() {
-        // Cancel all async jobs
-        renderResourceCache.cancel()
-
         // Clear the render resource cache; it's entries are now invalid.
         renderResourceCache.clear()
 

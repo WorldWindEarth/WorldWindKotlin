@@ -14,7 +14,6 @@ import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import org.w3c.dom.Image
 import org.w3c.dom.url.URL
@@ -49,8 +48,6 @@ actual open class RenderResourceCache(
         absentResourceList.clear()
         age = 0
     }
-
-    actual fun cancel() = mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
 
     actual fun incAge() { ++age }
 

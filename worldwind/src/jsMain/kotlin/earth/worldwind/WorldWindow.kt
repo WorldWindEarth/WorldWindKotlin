@@ -12,6 +12,7 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.WebKgl
 import kotlinx.browser.window
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import org.khronos.webgl.WebGLContextAttributes
 import org.khronos.webgl.WebGLContextEvent
@@ -264,6 +265,9 @@ open class WorldWindow(
     protected open fun contextLost() {
         // Stop the rendering animation frame loop, resuming only if the WebGL context is restored.
         window.cancelAnimationFrame(redrawRequestId)
+
+        // Cancel all async jobs but keep scope reusable
+        mainScope.coroutineContext.cancelChildren()
 
         // Remove all cached WebGL resources, which are now invalid.
         engine.reset()

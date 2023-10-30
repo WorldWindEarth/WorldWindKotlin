@@ -108,6 +108,24 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     }
 
     /**
+     * Resets this WorldWindow to its initial internal state.
+     */
+    protected fun reset() {
+        // Reset any state associated with navigator events.
+        navigatorEvents.reset()
+
+        // Reset WorldWind rendering model state
+        engine.reset()
+
+        // Clear the frame queue and recycle pending frames back into the frame pool.
+        clearFrameQueue()
+
+        // Cancel any outstanding request redraw messages.
+        Choreographer.getInstance().removeFrameCallback(this)
+        isWaitingForRedraw = false
+    }
+
+    /**
      * Determines the WorldWind shapes displayed in a screen rectangle. The screen rectangle is interpreted as
      * coordinates in Android screen pixels relative to this view.
      *
@@ -346,18 +364,26 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         super.surfaceDestroyed(holder)
 
-        // Reset any state associated with navigator events.
-        navigatorEvents.reset()
+        // Cancel all async jobs but keep scope reusable
+        mainScope.coroutineContext.cancelChildren()
 
-        // Reset WorldWind rendering model state
-        engine.reset()
+        // Reset the WorldWindow's internal state.
+        reset()
+    }
 
-        // Clear the frame queue and recycle pending frames back into the frame pool.
-        clearFrameQueue()
+    /**
+     * Called when the activity is paused. Calling this method will pause the rendering thread, cause any outstanding
+     * pick operations to return an empty pick list, and prevent subsequent calls to pick and requestRedraw to return
+     * without performing any action.
+     */
+    override fun onPause() {
+        super.onPause()
 
-        // Cancel any outstanding request redraw messages.
-        Choreographer.getInstance().removeFrameCallback(this)
-        isWaitingForRedraw = false
+        // Reset the WorldWindow's internal state. The OpenGL thread is paused, so frames in the queue will not be
+        // processed. Clear the frame queue and recycle pending frames back into the frame pool. We also don't know
+        // whether the render resources are valid, so we reset and let the GLSurfaceView establish the new
+        // EGL context and viewport.
+        reset()
     }
 
     override fun onAttachedToWindow() {
