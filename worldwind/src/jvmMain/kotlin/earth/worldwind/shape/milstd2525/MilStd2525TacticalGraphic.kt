@@ -138,6 +138,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                 val textAttributes = TextAttributes().apply {
                     textColor = Color(mss.lineColor.rgb)
                     font = Font(rs.mpLabelFont)
+                    isOutlineEnabled = false
                 }
                 val point = ipc.PixelsToGeo(shape.modifierStringPosition ?: shape.glyphPosition)
                 val position = Position.fromDegrees(point.y, point.x, 0.0)
