@@ -153,7 +153,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                         Typeface.create(rs.mpModifierFontName, rs.mpModifierFontType),
                         rs.mpModifierFontSize.toFloat()
                     )
-                    isOutlineEnabled = false
+                    outlineWidth = MilStd2525.graphicsOutlineWidth
                 }
                 val point = ipc.PixelsToGeo(shape.modifierStringPosition ?: shape.glyphPosition)
                 val position = Position.fromDegrees(point.y, point.x, 0.0)
