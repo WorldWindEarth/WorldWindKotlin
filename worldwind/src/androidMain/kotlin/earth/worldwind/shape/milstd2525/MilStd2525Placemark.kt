@@ -37,7 +37,7 @@ actual open class MilStd2525Placemark actual constructor(
         symbolCode: String, position: Position, symbolModifiers: SparseArray<String>? = null,
         symbolAttributes: SparseArray<String>? = null
     ) : this(
-        symbolCode, position, MilStd2525.symbolModifiersFromSparseArray(symbolModifiers),
+        symbolCode, position, MilStd2525.modifiersFromSparseArray(symbolCode, symbolModifiers),
         MilStd2525.attributesFromSparseArray(symbolAttributes)
     )
 
@@ -70,7 +70,7 @@ actual open class MilStd2525Placemark actual constructor(
         fun getPlacemarkAttributes(
             symbolCode: String, symbolModifiers: SparseArray<String>? = null, symbolAttributes: SparseArray<String>? = null
         ) = getPlacemarkAttributes(
-            symbolCode, MilStd2525.symbolModifiersFromSparseArray(symbolModifiers),
+            symbolCode, MilStd2525.modifiersFromSparseArray(symbolCode, symbolModifiers),
             MilStd2525.attributesFromSparseArray(symbolAttributes)
         )
 

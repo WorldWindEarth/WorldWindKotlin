@@ -60,6 +60,16 @@ actual object MilStd2525 {
     }
 
     @JvmStatic
+    fun modifiersToSparseArray(symbolCode: String, modifiers: Map<String, String>?) =
+        if (SymbolUtilities.isTacticalGraphic(symbolCode)) graphicModifiersToSparseArray(modifiers)
+        else symbolModifiersToSparseArray(modifiers)
+
+    @JvmStatic
+    fun modifiersFromSparseArray(symbolCode: String, modifiers: SparseArray<String>?) =
+        if (SymbolUtilities.isTacticalGraphic(symbolCode)) graphicModifiersFromSparseArray(modifiers)
+        else symbolModifiersFromSparseArray(modifiers)
+
+    @JvmStatic
     fun symbolModifiersToSparseArray(modifiers: Map<String, String>?): SparseArray<String> {
         val modifiersArray = SparseArray<String>()
         modifiers?.entries?.forEach { (key, value) -> modifiersArray.put(ModifiersUnits.getModifierKey(key), value) }
@@ -115,7 +125,7 @@ actual object MilStd2525 {
      */
     @JvmStatic
     fun renderImage(symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?): ImageInfo? =
-        renderer.RenderIcon(symbolCode, symbolModifiersToSparseArray(modifiers), attributesToSparseArray(attributes))
+        renderer.RenderIcon(symbolCode, modifiersToSparseArray(symbolCode, modifiers), attributesToSparseArray(attributes))
 
     /**
      * Get symbol text description and hierarchy reference.
