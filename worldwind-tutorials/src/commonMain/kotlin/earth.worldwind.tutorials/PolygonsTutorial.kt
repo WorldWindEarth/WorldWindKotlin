@@ -105,7 +105,7 @@ class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
         // Create an extruded polygon with an inner hole and custom attributes that display the extruded vertical lines,
         // make the extruded interior 50% transparent, and increase the polygon line with.
         addRenderable(
-            Polygon(emptyList()).apply {
+            Polygon().apply {
                 attributes.apply {
                     isDrawVerticals = true // display the extruded verticals
                     interiorColor = Color(1f, 1f, 1f, 0.5f) // 50% transparent white

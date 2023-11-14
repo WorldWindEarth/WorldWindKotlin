@@ -4,7 +4,7 @@ import earth.worldwind.geom.*
 import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
-import earth.worldwind.shape.Highlightable
+import earth.worldwind.shape.*
 import earth.worldwind.util.Logger
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
@@ -28,8 +28,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
         }
     private var minScale = 0.0
     private var maxScale = 0.0
-    private val lodBuffer = mutableMapOf<Int,MutableList<Renderable>>()
-    private var shapes: MutableList<Renderable>? = null
+    private val lodBuffer = mutableMapOf<Int, List<Renderable>>()
 
     protected companion object {
         const val MAX_WIDTH_DP = 0.0005
@@ -78,23 +77,17 @@ abstract class AbstractMilStd2525TacticalGraphic(
     override fun doRender(rc: RenderContext) {
         val terrainSector = rc.terrain.sector
         if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
-            // Use shapes from previous frame during pick
-            if (!rc.isPickMode) {
-                // Get current map scale based on observation range.
-                var currentScale = computeScale(rc)
-                // Limit scale based on clipping sector diagonal size
-                if (currentScale < minScale) currentScale = minScale
-                else if (currentScale > maxScale) currentScale = maxScale
-                // Get renderables for current LoD
-                val equatorialRadius = rc.globe.equatorialRadius
-                val lod = computeNearestLoD(equatorialRadius, currentScale)
-                shapes = lodBuffer[lod] ?: mutableListOf<Renderable>().also {
-                    lodBuffer[lod] = it
-                    makeRenderables(computeLoDScale(equatorialRadius, lod), it)
-                }
-            }
+            // Get current map scale based on observation range.
+            var currentScale = computeScale(rc)
+            // Limit scale based on clipping sector diagonal size
+            if (currentScale < minScale) currentScale = minScale
+            else if (currentScale > maxScale) currentScale = maxScale
+            // Get renderables for current LoD
+            val equatorialRadius = rc.globe.equatorialRadius
+            val lod = computeNearestLoD(equatorialRadius, currentScale)
+            val shapes = lodBuffer[lod] ?: makeRenderables(computeLoDScale(equatorialRadius, lod)).also { lodBuffer[lod] = it }
             // Draw available shapes
-            shapes?.forEach { renderable ->
+            for (renderable in shapes) {
                 if (renderable is Highlightable) renderable.isHighlighted = isHighlighted
                 renderable.render(rc)
             }
@@ -110,11 +103,25 @@ abstract class AbstractMilStd2525TacticalGraphic(
         maxScale = diagonalDistance / MIN_WIDTH_DP
     }
 
-    protected open fun reset() {
-        lodBuffer.clear()
-        shapes = null
-    }
+    protected open fun reset() = lodBuffer.clear()
 
     abstract fun transformLocations(locations: List<Location>)
-    abstract fun makeRenderables(scale: Double, shapes: MutableList<Renderable>)
+    abstract fun makeRenderables(scale: Double): List<Renderable>
+
+    protected fun applyShapeAttributes(shape: AbstractShape) = shape.apply {
+        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+        isFollowTerrain = true
+        maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
+        highlightAttributes = ShapeAttributes(attributes).apply {
+            outlineWidth *= HIGHLIGHT_FACTOR
+        }
+        pickDelegate = this@AbstractMilStd2525TacticalGraphic
+    }
+
+    protected fun applyLabelAttributes(label: Label, angle: Angle) = label.apply {
+        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+        rotation = angle
+        rotationMode = OrientationMode.RELATIVE_TO_GLOBE
+        pickDelegate = this@AbstractMilStd2525TacticalGraphic
+    }
 }

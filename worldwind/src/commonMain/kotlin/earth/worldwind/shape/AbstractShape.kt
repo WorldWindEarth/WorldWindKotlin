@@ -10,9 +10,7 @@ import earth.worldwind.render.Texture
 import kotlin.jvm.JvmOverloads
 import kotlin.math.sqrt
 
-abstract class AbstractShape @JvmOverloads constructor(
-    override var attributes: ShapeAttributes = ShapeAttributes()
-): AbstractRenderable(), Attributable, Highlightable {
+abstract class AbstractShape(override var attributes: ShapeAttributes): AbstractRenderable(), Attributable, Highlightable {
     companion object {
         const val NEAR_ZERO_THRESHOLD = 1.0e-10
     }

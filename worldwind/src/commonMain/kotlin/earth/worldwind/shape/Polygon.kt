@@ -23,7 +23,7 @@ import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmOverloads
 
 open class Polygon @JvmOverloads constructor(
-    positions: List<Position> = listOf(), attributes: ShapeAttributes = ShapeAttributes()
+    positions: List<Position> = emptyList(), attributes: ShapeAttributes = ShapeAttributes()
 ): AbstractShape(attributes) {
     protected val boundaries = mutableListOf(positions)
     val boundaryCount get() = boundaries.size

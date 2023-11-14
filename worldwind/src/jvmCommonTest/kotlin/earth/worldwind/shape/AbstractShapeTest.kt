@@ -8,10 +8,7 @@ class AbstractShapeTest {
     /**
      * A simple concrete implementation of AbstractShape for testing.
      */
-    private class AbstractShapeImpl : AbstractShape {
-        constructor() : super()
-        constructor(attributes: ShapeAttributes) : super(attributes)
-
+    private class AbstractShapeImpl(attributes: ShapeAttributes = ShapeAttributes()) : AbstractShape(attributes) {
         override fun reset() {}
         override fun makeDrawable(rc: RenderContext) {}
     }

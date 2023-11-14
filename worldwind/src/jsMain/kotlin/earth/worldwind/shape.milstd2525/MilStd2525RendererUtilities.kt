@@ -46,7 +46,7 @@ open external class ShapeInfo {
     fun getFillColor(): Color?
     fun getPolylines(): java.util.ArrayList<java.util.ArrayList<armyc2.c2sd.graphics2d.Point2D>>
     fun getModifierStringPosition(): armyc2.c2sd.graphics2d.Point2D?
-    fun getGlyphPosition(): armyc2.c2sd.graphics2d.Point2D
+    fun getGlyphPosition(): armyc2.c2sd.graphics2d.Point2D?
     fun getModifierString(): String
     fun getModifierStringAngle(): Number
     fun getStroke(): armyc2.c2sd.graphics2d.Stroke?

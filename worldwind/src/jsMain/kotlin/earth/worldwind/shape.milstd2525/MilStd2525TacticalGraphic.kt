@@ -1,6 +1,5 @@
 package earth.worldwind.shape.milstd2525
 
-import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Position
@@ -52,7 +51,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         pointUL.setLocation(left, top)
     }
 
-    override fun makeRenderables(scale: Double, shapes: MutableList<Renderable>) {
+    override fun makeRenderables(scale: Double): List<Renderable> {
         val ipc = PointConverter3D(pointUL.getX(), pointUL.getY(), scale * 96.0 * 39.3700787)
 
 //        // Calculate clipping rectangle
@@ -81,20 +80,23 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         armyc2.c2sd.JavaRendererServer.RenderMultipoints.clsRenderer.renderWithPolylines(mss, ipc, null /*rect*/)
 
         // Create Renderables based on Poly-lines and Modifiers from Renderer
-        for (i in 0 until mss.getSymbolShapes().size()) convertShapeToRenderables(mss.getSymbolShapes().get(i)!!, mss, ipc, shapes)
-        for (i in 0 until mss.getModifierShapes().size()) convertShapeToRenderables(mss.getModifierShapes().get(i)!!, mss, ipc, shapes)
+        val shapes = mutableListOf<Renderable>()
+        val outlines = mutableListOf<Renderable>()
+        for (i in 0 until mss.getSymbolShapes().size()) convertShapeToRenderables(mss.getSymbolShapes().get(i)!!, mss, ipc, shapes, outlines)
+        for (i in 0 until mss.getModifierShapes().size()) convertShapeToRenderables(mss.getModifierShapes().get(i)!!, mss, ipc, shapes, outlines)
         invalidateExtent() // Regenerate extent in next frame due to sector may be extended by real shape measures
+        return outlines + shapes
     }
 
     protected open fun convertShapeToRenderables(
-        shape: ShapeInfo, mss: MilStdSymbol, ipc: IPointConversion, shapes: MutableList<Renderable>
+        si: ShapeInfo, mss: MilStdSymbol, ipc: IPointConversion, shapes: MutableList<Renderable>, outlines: MutableList<Renderable>
     ) {
-        when (shape.getShapeType()) {
-            ShapeInfo.SHAPE_TYPE_POLYLINE -> {
+        when (si.getShapeType()) {
+            ShapeInfo.SHAPE_TYPE_POLYLINE, ShapeInfo.SHAPE_TYPE_FILL -> {
                 val shapeAttributes = ShapeAttributes().apply {
                     outlineWidth = MilStd2525.graphicsLineWidth
-                    shape.getLineColor()?.let { outlineColor = convertColor(it) }
-                    shape.getFillColor()?.let { interiorColor = convertColor(it) }
+                    (si.getLineColor() ?: si.getFillColor())?.let { outlineColor = convertColor(it) } ?: return
+                    (si.getFillColor() ?: si.getLineColor())?.let { interiorColor = convertColor(it) } ?: return
                     // TODO Fill dash pattern
 //                    val stroke = shape.getStroke()
 //                    if (stroke is armyc2.c2sd.graphics2d.BasicStroke) {
@@ -107,16 +109,14 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                 }
                 val hasOutline = MilStd2525.graphicsOutlineWidth != 0f
                 val outlineAttributes = if (hasOutline) ShapeAttributes(shapeAttributes).apply {
-                    shape.getLineColor()?.let {
+                    (si.getLineColor() ?: si.getFillColor())?.let {
                         val hexString = RendererUtilities.getIdealOutlineColor(it.toHexString(false), true)
                         outlineColor = earth.worldwind.render.Color.fromHexString(hexString).apply { alpha = 0.5f }
                     }
                     outlineWidth += MilStd2525.graphicsOutlineWidth * 2f
                 } else shapeAttributes
-                val lines = mutableListOf<Renderable>()
-                val outlines = mutableListOf<Renderable>()
-                for (idx in 0 until shape.getPolylines().size()) {
-                    val polyline = shape.getPolylines().get(idx)!!
+                for (idx in 0 until si.getPolylines().size()) {
+                    val polyline = si.getPolylines().get(idx)!!
                     val positions = mutableListOf<Position>()
                     for (p in 0 until polyline.size()) {
                         val geoPoint = ipc.PixelsToGeo(polyline.get(p)!!)
@@ -125,24 +125,19 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                         sector.union(position) // Extend bounding box by real graphics measures
                     }
                     for (i in 0..1) {
-                        val path = Path(positions, if (i == 0) shapeAttributes else outlineAttributes).apply {
-                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                            isFollowTerrain = true
-                            maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
-                            highlightAttributes = ShapeAttributes(attributes).apply {
-                                outlineWidth *= HIGHLIGHT_FACTOR
-                            }
-                            pickDelegate = this@MilStd2525TacticalGraphic
+                        val shape = if (si.getShapeType() == ShapeInfo.SHAPE_TYPE_FILL) {
+                            Polygon(positions, if (i == 0) shapeAttributes else outlineAttributes)
+                        } else {
+                            Path(positions, if (i == 0) shapeAttributes else outlineAttributes)
                         }
-                        if (i == 0) lines += path else outlines += path
+                        applyShapeAttributes(shape)
+                        if (i == 0) shapes += shape else outlines += shape
                         if (!hasOutline) break
                     }
                 }
-                shapes += outlines
-                shapes += lines
             }
 
-            ShapeInfo.SHAPE_TYPE_MODIFIER_FILL -> {
+            ShapeInfo.SHAPE_TYPE_MODIFIER, ShapeInfo.SHAPE_TYPE_MODIFIER_FILL -> {
                 val textAttributes = TextAttributes().apply {
                     val fontInfo = RendererSettings.getMPFontInfo()
                     textColor = convertColor(mss.getLineColor())
@@ -153,15 +148,11 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     )
                     outlineWidth = MilStd2525.graphicsOutlineWidth
                 }
-                val point = ipc.PixelsToGeo(shape.getModifierStringPosition() ?: shape.getGlyphPosition())
+                val point = ipc.PixelsToGeo(si.getModifierStringPosition() ?: si.getGlyphPosition() ?: return)
                 val position = Position.fromDegrees(point.getY().toDouble(), point.getX().toDouble(), 0.0)
                 sector.union(position) // Extend bounding box by real graphics measures
-                val label = Label(position, shape.getModifierString(), textAttributes).apply {
-                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                    rotation = shape.getModifierStringAngle().toDouble().degrees
-                    rotationMode = OrientationMode.RELATIVE_TO_GLOBE
-                    pickDelegate = this@MilStd2525TacticalGraphic
-                }
+                val label = Label(position, si.getModifierString(), textAttributes)
+                applyLabelAttributes(label, si.getModifierStringAngle().toDouble().degrees)
                 shapes += label
             }
             else -> Logger.logMessage(Logger.ERROR, "MilStd2525TacticalGraphic", "convertShapeToRenderables", "unknownShapeType")

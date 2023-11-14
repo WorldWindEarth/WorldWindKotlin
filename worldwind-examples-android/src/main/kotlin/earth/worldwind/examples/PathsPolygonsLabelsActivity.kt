@@ -256,21 +256,22 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                         val featureBegin = line.indexOf(wktStart) + wktStart.length
                         val featureEnd = line.indexOf(wktEnd, featureBegin) + wktEnd.length
                         val feature = line.substring(featureBegin, featureEnd)
-                        val attributes = line.substring(featureEnd + 1)
-                        val fields = attributes.split(",")
-                        val polygon = Polygon()
-                        polygon.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                        polygon.pathType = PathType.LINEAR
-                        polygon.isFollowTerrain = true // essential for preventing long segments from intercepting ellipsoid.
-                        polygon.displayName = fields[1]
-                        polygon.attributes = ShapeAttributes(commonAttrs)
-                        polygon.attributes.interiorColor = Color(
-                            red = random.nextFloat(),
-                            green = random.nextFloat(),
-                            blue = random.nextFloat(),
-                            alpha = 0.3f
-                        )
-                        polygon.highlightAttributes = highlightAttrs
+                        val fields = line.substring(featureEnd + 1).split(",")
+                        val polygon = Polygon().apply {
+                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                            pathType = PathType.LINEAR
+                            isFollowTerrain = true // essential for preventing long segments from intercepting ellipsoid.
+                            displayName = fields[1]
+                            attributes = ShapeAttributes(commonAttrs).apply {
+                                interiorColor = Color(
+                                    red = random.nextFloat(),
+                                    green = random.nextFloat(),
+                                    blue = random.nextFloat(),
+                                    alpha = 0.3f
+                                )
+                            }
+                            highlightAttributes = highlightAttrs
+                        }
 
                         // Process all the polygons within this feature by creating "boundaries" for each.
                         // Individual polygons are bounded by "(" and ")"
