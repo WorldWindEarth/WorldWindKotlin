@@ -65,7 +65,7 @@ The globe uses the default navigation gestures:
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
             wwd.mainScope.launch(Dispatchers.IO) {
                 try {
-                    configureCache(File(cacheDir, "cache.gpkg").absolutePath, "SRTM")
+                    configureCache(File(cacheDir, "cache.gpkg").absolutePath, "NASADEM")
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

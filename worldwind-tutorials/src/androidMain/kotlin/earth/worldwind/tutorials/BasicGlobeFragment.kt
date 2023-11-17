@@ -48,7 +48,7 @@ open class BasicGlobeFragment: Fragment() {
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
             wwd.mainScope.launch(Dispatchers.IO) {
                 try {
-                    configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+                    configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "NASADEM")
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

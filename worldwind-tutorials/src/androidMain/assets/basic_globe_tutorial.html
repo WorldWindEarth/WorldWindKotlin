@@ -47,7 +47,7 @@ wwd.engine.layers.apply {
 wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
     wwd.mainScope.launch(Dispatchers.IO) {
         try {
-            configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+            configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "NASADEM")
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -84,7 +84,7 @@ open class BasicGlobeFragment: Fragment() {
         }
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "SRTM")
+            configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "NASADEM")
         })
         return wwd
     }
