@@ -34,7 +34,7 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sec
         shouldCreateRenderables = false
     }
 
-    fun subdivide(div: Int): List<Sector> {
+    fun subdivide(div: Int, sector: Sector = this.sector): List<Sector> {
         val dLat = sector.deltaLatitude.inDegrees / div
         val dLon = sector.deltaLongitude.inDegrees / div
         val sectors = mutableListOf<Sector>()

@@ -287,6 +287,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/mgrs_graticule_tutorial.html",
                 R.string.title_mgrs_graticule
             )
+            R.id.nav_gk_graticule_activity -> loadTutorial(
+                GKGraticuleFragment::class.java,
+                "file:///android_asset/sk42_graticule_tutorial.html",
+                R.string.title_gk_graticule
+            )            
             R.id.nav_surface_image_activity -> loadTutorial(
                 SurfaceImageFragment::class.java,
                 "file:///android_asset/surface_image_tutorial.html",

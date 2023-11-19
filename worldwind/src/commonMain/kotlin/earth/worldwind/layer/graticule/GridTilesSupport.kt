@@ -11,6 +11,7 @@ internal class GridTilesSupport(private val callback: Callback, private val rows
         fun getGridSector(row: Int, col: Int): Sector
         fun getGridColumn(longitude: Angle): Int
         fun getGridRow(latitude: Angle): Int
+        fun getProjectedSector(sector: Sector) = sector
     }
 
     private val gridTiles = Array(rows) { arrayOfNulls<AbstractGraticuleTile>(cols) }
@@ -35,7 +36,7 @@ internal class GridTilesSupport(private val callback: Callback, private val rows
 
     private fun getVisibleTiles(rc: RenderContext): List<AbstractGraticuleTile> {
         val tileList = mutableListOf<AbstractGraticuleTile>()
-        val vs = rc.terrain.sector
+        val vs = callback.getProjectedSector(rc.terrain.sector)
         val gridRectangle = getGridRectangleForSector(vs)
         for (row in gridRectangle.y..gridRectangle.height) {
             for (col in gridRectangle.x..gridRectangle.width) {
