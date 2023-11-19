@@ -6,8 +6,11 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.util.AbstractTile
 
 abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sector: Sector) : AbstractTile(sector) {
-    var gridElements: MutableList<GridElement>? = null
-        private set
+    val gridElements = mutableListOf<GridElement>()
+    /**
+     * Flag to avoid recursive renderables creation if tile should not have elements by design
+     */
+    private var shouldCreateRenderables = true
 
     open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain.sector) && intersectsFrustum(rc)
 
@@ -19,16 +22,16 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sec
     }
 
     open fun selectRenderables(rc: RenderContext) {
-        gridElements ?: createRenderables()
+        if (shouldCreateRenderables && gridElements.isEmpty()) createRenderables()
     }
 
     open fun clearRenderables() {
-        gridElements?.clear()
-        gridElements = null
+        gridElements.clear()
+        shouldCreateRenderables = true
     }
 
     open fun createRenderables() {
-        gridElements = mutableListOf()
+        shouldCreateRenderables = false
     }
 
     fun subdivide(div: Int): List<Sector> {

@@ -111,7 +111,7 @@ abstract class AbstractUTMGraticuleLayer(name: String, scaleModulo: Int, maxReso
     fun createSquaresGrid(
         utmZone: Int, hemisphere: Hemisphere, utmZoneSector: Sector,
         minEasting: Double, maxEasting: Double, minNorthing: Double, maxNorthing: Double
-    ): MutableList<UTMSquareZone> {
+    ): List<UTMSquareZone> {
         val squares = mutableListOf<UTMSquareZone>()
         val startEasting = floor(minEasting / ONEHT) * ONEHT
         val startNorthing = floor(minNorthing / ONEHT) * ONEHT

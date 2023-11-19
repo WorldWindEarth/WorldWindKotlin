@@ -38,7 +38,7 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
         private set
 
     // 5 levels 100km to 10m
-    private var extremes: Array<UTMExtremes>? = null
+    private lateinit var extremes: Array<UTMExtremes>
 
     fun computeZone(rc: RenderContext) {
         try {
@@ -63,7 +63,7 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
     fun computeMetricScaleExtremes(UTMZone: Int, hemisphere: Hemisphere, ge: GridElement, size: Double) {
         if (UTMZone != zone) return
         if (size < 1 || size > maxResolution) return
-        val levelExtremes = extremes!![log10(size).toInt() - 1]
+        val levelExtremes = extremes[log10(size).toInt() - 1]
         if (ge.type == TYPE_LINE_EASTING || ge.type == TYPE_LINE_EAST || ge.type == TYPE_LINE_WEST) {
             levelExtremes.minX = ge.value.inDegrees.coerceAtMost(levelExtremes.minX)
             levelExtremes.maxX = ge.value.inDegrees.coerceAtLeast(levelExtremes.maxX)
@@ -84,7 +84,6 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
     }
 
     fun selectRenderables(rc: RenderContext) {
-        val extremes = extremes ?: return
         if (!layer.hasLookAtPos(rc)) return
 
         // Compute easting and northing label offsets
@@ -179,7 +178,7 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
             sb.append("level ")
             sb.append(i)
             sb.append(" : ")
-            val levelExtremes = extremes!![i]
+            val levelExtremes = extremes[i]
             if (levelExtremes.minX < levelExtremes.maxX ||
                 !(levelExtremes.maxYHemisphere == Hemisphere.S && levelExtremes.maxY == 0.0)
             ) {

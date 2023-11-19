@@ -105,14 +105,14 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS Graticule", 10000
         }
         // Poles
         if (vs.maxLatitude.inDegrees > 84) {
-            // North pole
+            // North Pole
             if (poleZones[2] == null) poleZones[2] = MGRSGridZone(this, fromDegrees(84.0, -180.0, 6.0, 180.0)) // Y
             if (poleZones[3] == null) poleZones[3] = MGRSGridZone(this, fromDegrees(84.0, 0.0, 6.0, 180.0)) // Z
             zoneList.add(poleZones[2]!!)
             zoneList.add(poleZones[3]!!)
         }
         if (vs.minLatitude.inDegrees < -80) {
-            // South pole
+            // South Pole
             if (poleZones[0] == null) poleZones[0] = MGRSGridZone(this, fromDegrees(-90.0, -180.0, 10.0, 180.0)) // B
             if (poleZones[1] == null) poleZones[1] = MGRSGridZone(this, fromDegrees(-90.0, 0.0, 10.0, 180.0)) // A
             zoneList.add(poleZones[0]!!)

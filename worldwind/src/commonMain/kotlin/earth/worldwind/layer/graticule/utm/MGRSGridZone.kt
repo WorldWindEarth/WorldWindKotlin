@@ -24,7 +24,7 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
     private var name: String
     private var hemisphere: Hemisphere
     private var zone: Int
-    private var squares: MutableList<UTMSquareZone>? = null
+    private var squares: List<UTMSquareZone>? = null
     override val layer get() = super.layer as MGRSGraticuleLayer
 
     init {
@@ -44,7 +44,7 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
     override fun selectRenderables(rc: RenderContext) {
         super.selectRenderables(rc)
         val graticuleType = layer.getTypeFor(MGRS_GRID_ZONE_RESOLUTION)
-        for (ge in gridElements!!) if (ge.isInView(rc)) {
+        for (ge in gridElements) if (ge.isInView(rc)) {
             if (ge.type == TYPE_LINE_NORTH && layer.isNorthNeighborInView(this, rc)) continue
             if (ge.type == TYPE_LINE_EAST && layer.isEastNeighborInView(this, rc)) continue
             layer.addRenderable(ge.renderable, graticuleType)
@@ -52,16 +52,13 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
         if (rc.camera.position.altitude > SQUARE_MAX_ALTITUDE) return
 
         // Select 100km squares elements
-        squares ?: if (isUPS) createSquaresUPS() else createSquaresUTM()
-        for (sz in squares!!) if (sz.isInView(rc)) sz.selectRenderables(rc) else sz.clearRenderables()
+        val squares = squares ?: (if (isUPS) createSquaresUPS() else createSquaresUTM()).also { squares = it }
+        for (sz in squares) if (sz.isInView(rc)) sz.selectRenderables(rc) else sz.clearRenderables()
     }
 
     override fun clearRenderables() {
         super.clearRenderables()
-        squares?.run {
-            for (sz in this) sz.clearRenderables()
-            clear()
-        }.also { squares = null }
+        squares?.forEach { it.clearRenderables() }.also { squares = null }
     }
 
     override fun createRenderables() {
@@ -74,7 +71,7 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
         var lineSector = Sector(
             sector.minLatitude, sector.maxLatitude, sector.minLongitude, sector.minLongitude
         )
-        gridElements!!.add(GridElement(lineSector, polyline, GridElement.TYPE_LINE_WEST))
+        gridElements.add(GridElement(lineSector, polyline, GridElement.TYPE_LINE_WEST))
         if (!isUPS) {
             // right meridian segment
             positions.clear()
@@ -84,7 +81,7 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
             lineSector = Sector(
                 sector.minLatitude, sector.maxLatitude, sector.maxLongitude, sector.maxLongitude
             )
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_EAST))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_EAST))
 
             // bottom parallel segment
             positions.clear()
@@ -94,7 +91,7 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
             lineSector = Sector(
                 sector.minLatitude, sector.minLatitude, sector.minLongitude, sector.maxLongitude
             )
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_SOUTH))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_SOUTH))
 
             // top parallel segment
             positions.clear()
@@ -104,17 +101,17 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
             lineSector = Sector(
                 sector.maxLatitude, sector.maxLatitude, sector.minLongitude, sector.maxLongitude
             )
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH))
         }
 
         // Label
         val text = layer.createTextRenderable(
             Position(sector.centroidLatitude, sector.centroidLongitude, 0.0), name, 10e6
         )
-        gridElements!!.add(GridElement(sector, text, GridElement.TYPE_GRIDZONE_LABEL))
+        gridElements.add(GridElement(sector, text, GridElement.TYPE_GRIDZONE_LABEL))
     }
 
-    private fun createSquaresUTM() {
+    private fun createSquaresUTM(): List<UTMSquareZone> {
         // Find grid zone easting and northing boundaries
         var utm = UTMCoord.fromLatLon(sector.minLatitude, sector.centroidLongitude)
         val minNorthing = utm.northing
@@ -132,12 +129,12 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
         if (name == "31X") maxEasting += ONEHT // catch GA and GV in 31X
 
         // Create squares
-        squares = layer.createSquaresGrid(zone, hemisphere, sector, minEasting, maxEasting, minNorthing, maxNorthing)
-        setSquareNames()
+        return layer.createSquaresGrid(zone, hemisphere, sector, minEasting, maxEasting, minNorthing, maxNorthing).also {
+            for (square in it) setSquareName(square)
+        }
     }
 
-    private fun createSquaresUPS() {
-        squares = mutableListOf()
+    private fun createSquaresUPS(): List<UTMSquareZone> {
         val minEasting: Double
         val maxEasting: Double
         val minNorthing: Double
@@ -155,12 +152,9 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
         }
 
         // Create squares
-        squares = layer.createSquaresGrid(zone, hemisphere, sector, minEasting, maxEasting, minNorthing, maxNorthing)
-        setSquareNames()
-    }
-
-    private fun setSquareNames() {
-        for (sz in squares!!) setSquareName(sz)
+        return layer.createSquaresGrid(zone, hemisphere, sector, minEasting, maxEasting, minNorthing, maxNorthing).also {
+            for (square in it) setSquareName(square)
+        }
     }
 
     private fun setSquareName(sz: UTMSquareZone) {
