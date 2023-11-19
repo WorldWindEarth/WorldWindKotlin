@@ -43,7 +43,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
         @JvmStatic
         fun defaultBoundingSector(locations: List<Location>) = Sector().apply { locations.forEach { l -> union(l) } }
 
-        private fun computeScale(rc: RenderContext) = if (rc.hasUserProperty(SCALE_PROPERTY)) rc.getUserProperty(SCALE_PROPERTY) as Double else {
+        private fun computeScale(rc: RenderContext) = rc.getUserProperty(SCALE_PROPERTY) ?: run {
             // Get camera viewing vector
             //rc.modelview.extractEyePoint(forwardRay.origin)
             forwardRay.origin.copy(rc.cameraPoint)

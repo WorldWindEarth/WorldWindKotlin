@@ -87,7 +87,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // De-highlight any previously highlighted renderables which is not selected or picked
         for (highlighted in oldHighlighted)
             if (!newHighlighted.contains(highlighted)
-                && highlighted is Renderable && highlighted.getUserProperty(HIGHLIGHT_LOCKED_KEY) != true) {
+                && highlighted is Renderable && highlighted.getUserProperty<Boolean>(HIGHLIGHT_LOCKED_KEY) != true) {
                 highlighted.isHighlighted = false
                 oldHighlighted.remove(highlighted)
                 redrawRequired = true

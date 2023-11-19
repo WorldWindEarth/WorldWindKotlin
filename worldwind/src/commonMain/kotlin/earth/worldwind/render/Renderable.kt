@@ -5,7 +5,7 @@ interface Renderable {
     var isEnabled: Boolean
     var isPickEnabled: Boolean
     var pickDelegate: Any?
-    fun getUserProperty(key: Any): Any?
+    fun <T> getUserProperty(key: Any): T?
     fun putUserProperty(key: Any, value: Any): Any?
     fun removeUserProperty(key: Any): Any?
     fun hasUserProperty(key: Any): Boolean

@@ -52,8 +52,8 @@ open class PathsExampleActivity: GeneralGlobeActivity() {
             for (idx in 0 until flightPathLayer.count) {
                 // Identify the departure airport and destination airport associated with each flight path.
                 val path = flightPathLayer.getRenderable(idx) as Path
-                val dept = path.getUserProperty("dept") as Airport?
-                val dest = path.getUserProperty("dest") as Airport?
+                val dept = path.getUserProperty<Airport>("dept")
+                val dest = path.getUserProperty<Airport>("dest")
                 if (dept == null || dest == null) continue
 
                 // Compute the location on the great circle path between the departure and the destination that

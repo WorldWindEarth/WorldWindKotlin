@@ -115,10 +115,10 @@ open class PlacemarksSelectDragActivity: GeneralGlobeActivity() {
                     args.putString("title", "Select the " + selectedObject.displayName + "'s type")
                     if (selectedObject.hasUserProperty(AIRCRAFT_TYPE)) {
                         args.putString("vehicleKey", AIRCRAFT_TYPE)
-                        args.putString("vehicleValue", selectedObject.getUserProperty(AIRCRAFT_TYPE) as String?)
+                        args.putString("vehicleValue", selectedObject.getUserProperty(AIRCRAFT_TYPE))
                     } else if (selectedObject.hasUserProperty(AUTOMOTIVE_TYPE)) {
                         args.putString("vehicleKey", AUTOMOTIVE_TYPE)
-                        args.putString("vehicleValue", selectedObject.getUserProperty(AUTOMOTIVE_TYPE) as String?)
+                        args.putString("vehicleValue", selectedObject.getUserProperty(AUTOMOTIVE_TYPE))
                     }
 
                     // The VehicleTypeDialog calls onFinished
@@ -238,7 +238,7 @@ open class PlacemarksSelectDragActivity: GeneralGlobeActivity() {
             val activity = requireActivity() as PlacemarksSelectDragActivity
             val selectedObject = activity.selectedObject
             if (selectedObject is Placemark) {
-                val currentType = selectedObject.getUserProperty(vehicleKey) as String?
+                val currentType = selectedObject.getUserProperty<String>(vehicleKey)
                 if (vehicleType == currentType) return
                 // Update the placemark's icon attributes and vehicle type property.
                 val resId = vehicleIcons[vehicleType]

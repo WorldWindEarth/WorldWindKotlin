@@ -8,7 +8,8 @@ abstract class AbstractRenderable @JvmOverloads constructor(override var display
     override var pickDelegate: Any? = null
     private var userProperties: MutableMap<Any, Any>? = null
 
-    override fun getUserProperty(key: Any) = userProperties?.get(key)
+    @Suppress("UNCHECKED_CAST")
+    override fun <T> getUserProperty(key: Any) = userProperties?.get(key) as? T
 
     override fun putUserProperty(key: Any, value: Any): Any? {
         val userProperties = userProperties ?: mutableMapOf<Any, Any>().also { userProperties = it }

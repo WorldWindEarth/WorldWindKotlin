@@ -1,6 +1,7 @@
 package earth.worldwind.layer.graticule
 
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.normalizeLatitude
 import earth.worldwind.geom.Angle.Companion.normalizeLongitude
 import earth.worldwind.geom.Angle.Companion.toDegrees
@@ -75,7 +76,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     protected abstract fun initRenderingParams()
 
     /**
-     * Returns whether or not graticule lines will be rendered.
+     * Returns whether graticule lines will be rendered.
      *
      * @param key the rendering parameters key.
      *
@@ -84,7 +85,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     fun isDrawGraticule(key: String) = getRenderingParams(key).isDrawLines
 
     /**
-     * Sets whether or not graticule lines will be rendered.
+     * Sets whether graticule lines will be rendered.
      *
      * @param drawGraticule true to render graticule lines; false to disable rendering.
      * @param key           the rendering parameters key.
@@ -144,7 +145,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
 //    fun setGraticuleLineStyle(lineStyle: String, key: String) { getRenderingParams(key).lineStyle = lineStyle }
 
     /**
-     * Returns whether or not graticule labels will be rendered.
+     * Returns whether graticule labels will be rendered.
      *
      * @param key the rendering parameters key.
      *
@@ -153,7 +154,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     fun isDrawLabels(key: String) = getRenderingParams(key).isDrawLabels
 
     /**
-     * Sets whether or not graticule labels will be rendered.
+     * Sets whether graticule labels will be rendered.
      *
      * @param drawLabels true to render graticule labels; false to disable rendering.
      * @param key        the rendering parameters key.
@@ -320,27 +321,27 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
 
     fun hasLookAtPos(rc: RenderContext): Boolean {
         calculateLookAtProperties(rc)
-        return rc.getUserProperty(LOOK_AT_LATITUDE_PROPERTY) != null && rc.getUserProperty(LOOK_AT_LONGITUDE_PROPERTY) != null
+        return rc.hasUserProperty(LOOK_AT_LATITUDE_PROPERTY) && rc.hasUserProperty(LOOK_AT_LONGITUDE_PROPERTY)
     }
 
     fun getLookAtLatitude(rc: RenderContext): Angle {
         calculateLookAtProperties(rc)
-        return rc.getUserProperty(LOOK_AT_LATITUDE_PROPERTY) as Angle
+        return rc.getUserProperty(LOOK_AT_LATITUDE_PROPERTY) ?: ZERO
     }
 
     fun getLookAtLongitude(rc: RenderContext): Angle {
         calculateLookAtProperties(rc)
-        return rc.getUserProperty(LOOK_AT_LONGITUDE_PROPERTY) as Angle
+        return rc.getUserProperty(LOOK_AT_LONGITUDE_PROPERTY) ?: ZERO
     }
 
     fun getPixelSize(rc: RenderContext): Double {
         calculateLookAtProperties(rc)
-        return rc.getUserProperty(GRATICULE_PIXEL_SIZE_PROPERTY) as Double
+        return rc.getUserProperty(GRATICULE_PIXEL_SIZE_PROPERTY) ?: 0.0
     }
 
     private fun getLabelOffset(rc: RenderContext): Double {
         calculateLookAtProperties(rc)
-        return rc.getUserProperty(GRATICULE_LABEL_OFFSET_PROPERTY) as Double
+        return rc.getUserProperty(GRATICULE_LABEL_OFFSET_PROPERTY) ?: 0.0
     }
 
     fun getSurfacePoint(rc: RenderContext, latitude: Angle, longitude: Angle): Vec3 {

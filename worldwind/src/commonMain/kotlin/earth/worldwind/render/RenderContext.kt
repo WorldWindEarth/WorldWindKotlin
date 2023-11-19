@@ -364,7 +364,8 @@ open class RenderContext {
         return pickedObjectId
     }
 
-    fun getUserProperty(key: Any) = userProperties[key]
+    @Suppress("UNCHECKED_CAST")
+    fun <T> getUserProperty(key: Any) = userProperties[key] as? T
 
     fun putUserProperty(key: Any, value: Any) = userProperties.put(key, value)
 

@@ -364,8 +364,8 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
             val amount = frameCount++ / ANIMATION_FRAMES.toDouble() // fractional amount along path
             for (aircraft in aircraftPositions.keys) {
                 // Move the aircraft placemark along its great circle flight path.
-                val origin = aircraft.getUserProperty("origin") as Position?
-                val destination = aircraft.getUserProperty("destination") as Position?
+                val origin = aircraft.getUserProperty<Position>("origin")
+                val destination = aircraft.getUserProperty<Position>("destination")
                 val currentPosition = aircraftPositions[aircraft]
                 if (origin == null || destination == null || currentPosition == null) continue
 

@@ -34,7 +34,7 @@ class NavigatorEventFragment : BasicGlobeFragment() {
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         // Let the super class (BasicGlobeFragment) create the view and the WorldWindow
         val rootView = super.onCreateView(inflater, container, savedInstanceState)!!
 
