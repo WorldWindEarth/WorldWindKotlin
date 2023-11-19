@@ -32,7 +32,7 @@ class UTMSquareZone(
         super.selectRenderables(rc)
         val drawMetricLabels = getSizeInPixels(rc) > MIN_CELL_SIZE_PIXELS * 2
         val graticuleType = layer.getTypeFor(size)
-        for (ge in gridElements!!) {
+        for (ge in gridElements) {
             if (ge.isInView(rc)) {
                 if (ge.type == TYPE_LINE_NORTH && isNorthNeighborInView(rc)) continue
                 if (ge.type == TYPE_LINE_EAST && isEastNeighborInView(rc)) continue
@@ -75,9 +75,7 @@ class UTMSquareZone(
             val p2 = positions[1]
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
-            gridElements!!.add(
-                GridElement(lineSector, polyline, TYPE_LINE_WEST, SWEasting.degrees)
-            )
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_WEST, SWEasting.degrees))
         }
 
         // right segment
@@ -93,7 +91,7 @@ class UTMSquareZone(
             val p2 = positions[1]
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_EAST, (SWEasting + size).degrees))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_EAST, (SWEasting + size).degrees))
         }
 
         // bottom segment
@@ -109,7 +107,7 @@ class UTMSquareZone(
             val p2 = positions[1]
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_SOUTH, SWNorthing.degrees))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_SOUTH, SWNorthing.degrees))
         }
 
         // top segment
@@ -125,11 +123,11 @@ class UTMSquareZone(
             val p2 = positions[1]
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val lineSector = boundingSector(p1, p2)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH, (SWNorthing + size).degrees))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH, (SWNorthing + size).degrees))
         }
 
         // Label
-        if (name != null) {
+        name?.let { name ->
             // Only add a label to squares above some dimension
             if (boundingSector.deltaLongitude.inDegrees * cos(centroid.latitude.inRadians) > .2
                 && boundingSector.deltaLatitude.inDegrees > .2
@@ -141,9 +139,9 @@ class UTMSquareZone(
                 else null
                 if (labelPos != null) {
                     val text = layer.createTextRenderable(
-                        Position(labelPos.latitude, labelPos.longitude, 0.0), name!!, size * 10
+                        Position(labelPos.latitude, labelPos.longitude, 0.0), name, size * 10
                     )
-                    gridElements!!.add(GridElement(boundingSector, text, TYPE_GRIDZONE_LABEL))
+                    gridElements.add(GridElement(boundingSector, text, TYPE_GRIDZONE_LABEL))
                 }
             }
         }

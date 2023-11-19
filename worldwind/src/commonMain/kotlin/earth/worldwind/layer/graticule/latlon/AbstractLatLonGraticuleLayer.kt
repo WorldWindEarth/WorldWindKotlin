@@ -79,7 +79,7 @@ abstract class AbstractLatLonGraticuleLayer(name: String): AbstractGraticuleLaye
                 val dms = angle.toDMS()
                 if (dms[2] < epsilon && dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d°".format(dms[1].toInt())
                 else if (dms[3] < epsilon) "${if (dms[0] < 0) "-" else ""}%d° %2d’".format(dms[1].toInt(), dms[2].toInt())
-                else angle.toDMSString(0)
+                else angle.toDMSString()
             }
         } else if (angleFormat == AngleFormat.DM) {
             if (resolution >= 1) angle.toDDString(0)

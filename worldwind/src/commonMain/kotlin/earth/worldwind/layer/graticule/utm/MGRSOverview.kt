@@ -18,7 +18,7 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
     override fun selectRenderables(rc: RenderContext) {
         super.selectRenderables(rc)
         val labelPos = layer.computeLabelOffset(rc)
-        for (ge in gridElements!!) {
+        for (ge in gridElements) {
             if (ge.isInView(rc)) {
                 if (ge.renderable is Label) {
                     val gt = ge.renderable
@@ -68,7 +68,7 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
             positions.add(fromDegrees(maxLat.toDouble(), longitude, 10e3))
             val polyline = layer.createLineRenderable(positions.toList(), PathType.GREAT_CIRCLE)
             var sector = fromDegrees(-80.0, longitude, maxLat + 80.0, 1E-15)
-            gridElements!!.add(GridElement(sector, polyline, TYPE_LINE))
+            gridElements.add(GridElement(sector, polyline, TYPE_LINE))
 
             // Zone label
             val text = layer.createTextRenderable(
@@ -76,7 +76,7 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
                 zoneNumber.toString(), 10e6
             )
             sector = fromDegrees(-90.0, longitude + 3.0, 180.0, 1E-15)
-            gridElements!!.add(GridElement(sector, text, TYPE_LONGITUDE_LABEL))
+            gridElements.add(GridElement(sector, text, TYPE_LONGITUDE_LABEL))
 
             // Increase longitude and zone number
             lon += 6
@@ -93,7 +93,7 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
             positions.add(fromDegrees(latitude2, longitude, 10e3))
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
             val sector = fromDegrees(latitude1, longitude, latitude2 - latitude1, 1E-15)
-            gridElements!!.add(GridElement(sector, polyline, TYPE_LINE))
+            gridElements.add(GridElement(sector, polyline, TYPE_LINE))
         }
 
         // Generate parallels - no exceptions
@@ -111,7 +111,7 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
                 positions.add(fromDegrees(latitude, longitude + 90, 10e3))
                 val polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
                 val sector = fromDegrees(latitude, longitude, 1E-15, 90.0)
-                gridElements!!.add(GridElement(sector, polyline, TYPE_LINE))
+                gridElements.add(GridElement(sector, polyline, TYPE_LINE))
             }
             // Latitude band label
             if (i < 20) {
@@ -120,7 +120,7 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
                     LAT_BANDS[i].toString(), 10e6
                 )
                 val sector = fromDegrees(latitude + 4, -180.0, 1E-15, 360.0)
-                gridElements!!.add(GridElement(sector, text, TYPE_LATITUDE_LABEL))
+                gridElements.add(GridElement(sector, text, TYPE_LATITUDE_LABEL))
             }
 
             // Increase latitude

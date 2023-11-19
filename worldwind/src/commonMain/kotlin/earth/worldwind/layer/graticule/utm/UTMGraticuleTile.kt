@@ -16,7 +16,7 @@ import earth.worldwind.shape.PathType
 
 internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, private val zone: Int): AbstractGraticuleTile(layer, sector) {
     private val hemisphere = if (sector.centroidLatitude.inDegrees > 0) Hemisphere.N else Hemisphere.S
-    private var squares: MutableList<UTMSquareZone>? = null
+    private var squares: List<UTMSquareZone>? = null
     override val layer get() = super.layer as UTMGraticuleLayer
 
     override fun selectRenderables(rc: RenderContext) {
@@ -24,23 +24,20 @@ internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, privat
 
         // Select tile grid elements
         val graticuleType = layer.getTypeFor(UTM_ZONE_RESOLUTION)
-        for (ge in gridElements!!) if (ge.isInView(rc)) layer.addRenderable(ge.renderable, graticuleType)
+        for (ge in gridElements) if (ge.isInView(rc)) layer.addRenderable(ge.renderable, graticuleType)
         if (getSizeInPixels(rc) / 10 < MIN_CELL_SIZE_PIXELS * 2) return
 
         // Select child elements
-        squares ?: createSquares()
-        for (sz in squares!!) if (sz.isInView(rc)) sz.selectRenderables(rc) else sz.clearRenderables()
+        val squares = squares ?: createSquares().also { squares = it }
+        for (sz in squares) if (sz.isInView(rc)) sz.selectRenderables(rc) else sz.clearRenderables()
     }
 
     override fun clearRenderables() {
         super.clearRenderables()
-        squares?.run {
-            for (sz in this) sz.clearRenderables()
-            clear()
-        }.also { squares = null }
+        squares?.forEach { it.clearRenderables() }.also { squares = null }
     }
 
-    private fun createSquares() {
+    private fun createSquares(): List<UTMSquareZone> {
         // Find grid zone easting and northing boundaries
         var utm = UTMCoord.fromLatLon(sector.minLatitude, sector.centroidLongitude)
         val minNorthing = utm.northing
@@ -54,7 +51,7 @@ internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, privat
         val maxEasting = 1e6 - minEasting
 
         // Create squares
-        squares = layer.createSquaresGrid(zone, hemisphere, sector, minEasting, maxEasting, minNorthing, maxNorthing)
+        return layer.createSquaresGrid(zone, hemisphere, sector, minEasting, maxEasting, minNorthing, maxNorthing)
     }
 
     override fun createRenderables() {
@@ -65,26 +62,26 @@ internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, privat
         )
         var polyline = layer.createLineRenderable(positions.toList(), PathType.LINEAR)
         var lineSector = Sector(sector.minLatitude, sector.maxLatitude, sector.minLongitude, sector.minLongitude)
-        gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE, sector.minLongitude))
+        gridElements.add(GridElement(lineSector, polyline, TYPE_LINE, sector.minLongitude))
 
-        // Generate south parallel at south pole and equator
+        // Generate south parallel at the South Pole and equator
         if (sector.minLatitude.inDegrees == UTM_MIN_LATITUDE || sector.minLatitude.inDegrees == 0.0) {
             positions.clear()
             positions.add(Position(sector.minLatitude, sector.minLongitude, 0.0))
             positions.add(Position(sector.minLatitude, sector.maxLongitude, 0.0))
             polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
             lineSector = Sector(sector.minLatitude, sector.minLatitude, sector.minLongitude, sector.maxLongitude)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE, sector.minLatitude))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE, sector.minLatitude))
         }
 
-        // Generate north parallel at north pole
+        // Generate north parallel at North Pole
         if (sector.maxLatitude.inDegrees == UTM_MAX_LATITUDE) {
             positions.clear()
             positions.add(Position(sector.maxLatitude, sector.minLongitude, 0.0))
             positions.add(Position(sector.maxLatitude, sector.maxLongitude, 0.0))
             polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
             lineSector = Sector(sector.maxLatitude, sector.maxLatitude, sector.minLongitude, sector.maxLongitude)
-            gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE, sector.maxLatitude))
+            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE, sector.maxLatitude))
         }
 
         // Add label
@@ -93,7 +90,7 @@ internal class UTMGraticuleTile(layer: UTMGraticuleLayer, sector: Sector, privat
                 Position(sector.centroidLatitude, sector.centroidLongitude, 0.0),
                 zone.toString() + hemisphere, 10e6
             )
-            gridElements!!.add(GridElement(sector, text, TYPE_GRIDZONE_LABEL))
+            gridElements.add(GridElement(sector, text, TYPE_GRIDZONE_LABEL))
         }
     }
 

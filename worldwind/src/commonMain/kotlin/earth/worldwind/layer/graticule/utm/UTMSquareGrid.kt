@@ -17,7 +17,7 @@ internal class UTMSquareGrid(
     layer: AbstractUTMGraticuleLayer, UTMZone: Int, hemisphere: Hemisphere, UTMZoneSector: Sector,
     SWEasting: Double, SWNorthing: Double, size: Double
 ): UTMSquareSector(layer, UTMZone, hemisphere, UTMZoneSector, SWEasting, SWNorthing, size) {
-    private var subGrids: MutableList<UTMSquareGrid>? = null
+    private var subGrids: List<UTMSquareGrid>? = null
 
     override fun isInView(rc: RenderContext): Boolean {
         return super.isInView(rc) && getSizeInPixels(rc) > MIN_CELL_SIZE_PIXELS * 4
@@ -27,7 +27,7 @@ internal class UTMSquareGrid(
         super.selectRenderables(rc)
         val drawMetricLabels = getSizeInPixels(rc) > MIN_CELL_SIZE_PIXELS * 4 * 1.7
         val graticuleType = layer.getTypeFor(size / 10)
-        for (ge in gridElements!!) {
+        for (ge in gridElements) {
             if (ge.isInView(rc)) {
                 if (drawMetricLabels) layer.computeMetricScaleExtremes(UTMZone, hemisphere, ge, size)
                 layer.addRenderable(ge.renderable, graticuleType)
@@ -36,29 +36,27 @@ internal class UTMSquareGrid(
         if (getSizeInPixels(rc) <= MIN_CELL_SIZE_PIXELS * 4 * 2) return
 
         // Select sub grids renderables
-        subGrids ?: createSubGrids()
-        for (sg in subGrids!!) if (sg.isInView(rc)) sg.selectRenderables(rc) else sg.clearRenderables()
+        val subGrids = subGrids ?: createSubGrids().also { subGrids = it }
+        for (sg in subGrids) if (sg.isInView(rc)) sg.selectRenderables(rc) else sg.clearRenderables()
     }
 
     override fun clearRenderables() {
         super.clearRenderables()
-        subGrids?.run {
-            for (sg in this) sg.clearRenderables()
-            clear()
-        }.also { subGrids = null }
+        subGrids?.forEach { it.clearRenderables() }.also { subGrids = null }
     }
 
-    private fun createSubGrids() {
-        subGrids = mutableListOf()
+    private fun createSubGrids(): List<UTMSquareGrid> {
+        val subGrids = mutableListOf<UTMSquareGrid>()
         val gridStep = size / 10
         for (i in 0..9) {
             val easting = SWEasting + gridStep * i
             for (j in 0..9) {
                 val northing = SWNorthing + gridStep * j
                 val sg = UTMSquareGrid(layer, UTMZone, hemisphere, UTMZoneSector, easting, northing, gridStep)
-                if (!sg.isOutsideGridZone) subGrids!!.add(sg)
+                if (!sg.isOutsideGridZone) subGrids.add(sg)
             }
         }
+        return subGrids
     }
 
     override fun createRenderables() {
@@ -83,7 +81,7 @@ internal class UTMSquareGrid(
                 p2 = positions[1]
                 val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
                 val lineSector = boundingSector(p1, p2)
-                gridElements!!.add(
+                gridElements.add(
                     GridElement(lineSector, polyline, TYPE_LINE_EASTING, easting.degrees)
                 )
             }
@@ -105,7 +103,7 @@ internal class UTMSquareGrid(
                 p2 = positions[1]
                 val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
                 val lineSector = boundingSector(p1, p2)
-                gridElements!!.add(GridElement(lineSector, polyline, TYPE_LINE_NORTHING, northing.degrees))
+                gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_NORTHING, northing.degrees))
             }
         }
     }

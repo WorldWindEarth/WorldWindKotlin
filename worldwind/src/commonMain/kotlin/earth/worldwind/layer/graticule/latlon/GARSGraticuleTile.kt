@@ -68,7 +68,7 @@ internal class GARSGraticuleTile(
         }
     }
 
-    private var subTiles: MutableList<GARSGraticuleTile>? = null
+    private var subTiles: List<GARSGraticuleTile>? = null
     override val layer get() = super.layer as GARSGraticuleLayer
 
     override fun isInView(rc: RenderContext) =
@@ -79,7 +79,7 @@ internal class GARSGraticuleTile(
         var graticuleType = layer.getTypeFor(sector.deltaLatitude.inDegrees)
         if (level == 0 && rc.camera.position.altitude > THRESHOLDS[0]) {
             val labelOffset = layer.computeLabelOffset(rc)
-            for (ge in gridElements!!) {
+            for (ge in gridElements) {
                 if (ge.isInView(rc)) {
                     // Add level zero bounding lines and labels
                     if (ge.type == TYPE_LINE_SOUTH || ge.type == TYPE_LINE_NORTH || ge.type == TYPE_LINE_WEST) {
@@ -100,32 +100,30 @@ internal class GARSGraticuleTile(
         if (level == 0 && eyeDistance <= THRESHOLDS[0] || level == 1 && eyeDistance <= THRESHOLDS[1] || level == 2) {
             val resolution = sector.deltaLatitude.inDegrees / divisions
             graticuleType = layer.getTypeFor(resolution)
-            for (ge in gridElements!!) if (ge.isInView(rc)) layer.addRenderable(ge.renderable, graticuleType)
+            for (ge in gridElements) if (ge.isInView(rc)) layer.addRenderable(ge.renderable, graticuleType)
         }
         if (level == 0 && eyeDistance > THRESHOLDS[1]) return
         else if (level == 1 && eyeDistance > THRESHOLDS[2]) return
         else if (level == 2) return
 
         // Select child elements
-        subTiles ?: createSubTiles()
-        for (gt in subTiles!!) if (gt.isInView(rc)) gt.selectRenderables(rc) else gt.clearRenderables()
+        val subTiles = subTiles ?: createSubTiles().also { subTiles = it }
+        for (gt in subTiles) if (gt.isInView(rc)) gt.selectRenderables(rc) else gt.clearRenderables()
     }
 
     override fun clearRenderables() {
         super.clearRenderables()
-        subTiles?.run {
-            for (gt in this) gt.clearRenderables()
-            clear()
-        }.also { subTiles = null }
+        subTiles?.forEach { it.clearRenderables() }.also { subTiles = null }
     }
 
-    private fun createSubTiles() {
-        subTiles = mutableListOf()
-        val sectors = subdivide(divisions)
+    private fun createSubTiles(): List<GARSGraticuleTile> {
         val nextLevel = level + 1
-        var subDivisions = 10
-        if (nextLevel == 1) subDivisions = 2 else if (nextLevel == 2) subDivisions = 3
-        for (s in sectors) subTiles!!.add(GARSGraticuleTile(layer, s, subDivisions, nextLevel))
+        val subDivisions = when (nextLevel) {
+            1 -> 2
+            2 -> 3
+            else -> 10
+        }
+        return subdivide(divisions).map { GARSGraticuleTile(layer, it, subDivisions, nextLevel) }
     }
 
     override fun createRenderables() {
@@ -142,7 +140,7 @@ internal class GARSGraticuleTile(
             val line = layer.createLineRenderable(positions, PathType.LINEAR)
             val lineSector = Sector(sector.minLatitude, sector.maxLatitude, lon, lon)
             val lineType = if (lon == sector.minLongitude) TYPE_LINE_WEST else TYPE_LINE
-            gridElements!!.add(GridElement(lineSector, line, lineType, lon))
+            gridElements.add(GridElement(lineSector, line, lineType, lon))
 
             // Increase longitude
             lon = lon.plusDegrees(step)
@@ -157,7 +155,7 @@ internal class GARSGraticuleTile(
             val line = layer.createLineRenderable(positions, PathType.LINEAR)
             val lineSector = Sector(lat, lat, sector.minLongitude, sector.maxLongitude)
             val lineType = if (lat == sector.minLatitude) TYPE_LINE_SOUTH else TYPE_LINE
-            gridElements!!.add(GridElement(lineSector, line, lineType, lat))
+            gridElements.add(GridElement(lineSector, line, lineType, lat))
 
             // Increase latitude
             lat = lat.plusDegrees(step)
@@ -170,7 +168,7 @@ internal class GARSGraticuleTile(
             )
             val line = layer.createLineRenderable(positions, PathType.LINEAR)
             val lineSector = Sector(POS90, POS90, sector.minLongitude, sector.maxLongitude)
-            gridElements!!.add(GridElement(lineSector, line, TYPE_LINE_NORTH, POS90))
+            gridElements.add(GridElement(lineSector, line, TYPE_LINE_NORTH, POS90))
         }
         var resolution = sector.deltaLatitude.inDegrees / divisions
         when (level) {
@@ -214,6 +212,6 @@ internal class GARSGraticuleTile(
         val text = layer.createTextRenderable(
             Position(sector.centroidLatitude, sector.centroidLongitude, 0.0), label, resolution
         )
-        gridElements!!.add(GridElement(sector, text, TYPE_GRIDZONE_LABEL))
+        gridElements.add(GridElement(sector, text, TYPE_GRIDZONE_LABEL))
     }
 }
