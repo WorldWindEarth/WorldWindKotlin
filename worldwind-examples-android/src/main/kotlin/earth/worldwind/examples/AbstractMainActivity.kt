@@ -234,7 +234,6 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
             R.id.nav_basic_stress_test_activity -> startActivity(Intent(applicationContext, BasicStressTestActivity::class.java))
             R.id.nav_day_night_cycle_activity -> startActivity(Intent(applicationContext, DayNightCycleActivity::class.java))
             R.id.nav_general_globe_activity -> startActivity(Intent(applicationContext, GeneralGlobeActivity::class.java))
-            R.id.nav_mgrs_graticule_activity -> startActivity(Intent(applicationContext, MGRSGraticuleActivity::class.java))
             R.id.nav_multi_globe_activity -> startActivity(Intent(applicationContext, MultiGlobeActivity::class.java))
             R.id.nav_omnidirectional_sightline_activity -> startActivity(Intent(applicationContext, OmnidirectionalSightlineActivity::class.java))
             R.id.nav_paths_example -> startActivity(Intent(applicationContext, PathsExampleActivity::class.java))
