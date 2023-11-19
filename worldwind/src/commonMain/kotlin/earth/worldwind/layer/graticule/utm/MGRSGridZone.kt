@@ -1,4 +1,4 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Position
@@ -6,10 +6,12 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.coords.Hemisphere
 import earth.worldwind.geom.coords.MGRSCoord
 import earth.worldwind.geom.coords.UTMCoord
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_EAST
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_NORTH
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_SOUTH
-import earth.worldwind.layer.graticule.MGRSGraticuleLayer.Companion.MGRS_GRID_ZONE_RESOLUTION
+import earth.worldwind.layer.graticule.utm.MGRSGraticuleLayer.Companion.MGRS_GRID_ZONE_RESOLUTION
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.PathType
 

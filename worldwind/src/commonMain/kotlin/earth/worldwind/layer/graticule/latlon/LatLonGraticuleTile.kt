@@ -1,15 +1,17 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.latlon
 
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
-import earth.worldwind.layer.graticule.AbstractLatLonGraticuleLayer.AngleFormat
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LATITUDE_LABEL
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_NORTH
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_SOUTH
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_WEST
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LONGITUDE_LABEL
+import earth.worldwind.layer.graticule.latlon.AbstractLatLonGraticuleLayer.AngleFormat
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.PathType
 

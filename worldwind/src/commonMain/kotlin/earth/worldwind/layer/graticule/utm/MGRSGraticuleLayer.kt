@@ -1,9 +1,10 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.geom.Viewport
+import earth.worldwind.layer.graticule.GraticuleRenderingParams
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_DRAW_LABELS
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_COLOR
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_FONT
@@ -14,7 +15,7 @@ import earth.worldwind.render.FontWeight
 import earth.worldwind.render.RenderContext
 import kotlin.math.floor
 
-open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS graticule", 100000, 1e5) {
+open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS Graticule", 100000, 1e5) {
     private val gridZones = Array(20) { arrayOfNulls<MGRSGridZone>(60) } // row/col
     private val poleZones = arrayOfNulls<MGRSGridZone>(4) // North x2 + South x2
     private val overview = MGRSOverview(this)

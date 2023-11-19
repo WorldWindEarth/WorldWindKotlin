@@ -1,13 +1,15 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LATITUDE_LABEL
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LONGITUDE_LABEL
-import earth.worldwind.layer.graticule.MGRSGraticuleLayer.Companion.MGRS_OVERVIEW_RESOLUTION
+import earth.worldwind.layer.graticule.utm.MGRSGraticuleLayer.Companion.MGRS_OVERVIEW_RESOLUTION
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.PathType

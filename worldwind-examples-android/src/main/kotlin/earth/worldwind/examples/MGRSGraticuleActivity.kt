@@ -1,7 +1,7 @@
 package earth.worldwind.examples
 
 import android.os.Bundle
-import earth.worldwind.layer.graticule.MGRSGraticuleLayer
+import earth.worldwind.layer.graticule.utm.MGRSGraticuleLayer
 
 open class MGRSGraticuleActivity: GeneralGlobeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

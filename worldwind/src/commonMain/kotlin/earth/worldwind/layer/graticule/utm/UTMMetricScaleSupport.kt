@@ -1,18 +1,19 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Vec3
 import earth.worldwind.geom.coords.Hemisphere
 import earth.worldwind.geom.coords.UPSCoord
 import earth.worldwind.geom.coords.UTMCoord
-import earth.worldwind.layer.graticule.AbstractUTMGraticuleLayer.Companion.UTM_MAX_LATITUDE
-import earth.worldwind.layer.graticule.AbstractUTMGraticuleLayer.Companion.UTM_MIN_LATITUDE
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_EAST
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_EASTING
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_NORTH
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_NORTHING
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_SOUTH
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_WEST
+import earth.worldwind.layer.graticule.utm.AbstractUTMGraticuleLayer.Companion.UTM_MAX_LATITUDE
+import earth.worldwind.layer.graticule.utm.AbstractUTMGraticuleLayer.Companion.UTM_MIN_LATITUDE
 import earth.worldwind.render.RenderContext
 import kotlin.math.log10
 import kotlin.math.pow

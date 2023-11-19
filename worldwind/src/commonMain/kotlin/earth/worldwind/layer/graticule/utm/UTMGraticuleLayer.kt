@@ -1,11 +1,14 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
+import earth.worldwind.layer.graticule.GraticuleRenderingParams
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_COLOR
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_FONT
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LINE_COLOR
+import earth.worldwind.layer.graticule.GridTilesSupport
 import earth.worldwind.render.Color
 import earth.worldwind.render.Font
 import earth.worldwind.render.FontWeight

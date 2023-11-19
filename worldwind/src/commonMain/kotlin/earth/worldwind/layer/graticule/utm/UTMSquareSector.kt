@@ -1,4 +1,4 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Angle.Companion.NEG180
 import earth.worldwind.geom.Angle.Companion.NEG90
@@ -8,6 +8,7 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.coords.Hemisphere
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
 import earth.worldwind.render.RenderContext
 import kotlin.math.abs
 import kotlin.math.sign

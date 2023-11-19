@@ -1,14 +1,16 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.coords.Hemisphere
 import earth.worldwind.geom.coords.UTMCoord
-import earth.worldwind.layer.graticule.AbstractUTMGraticuleLayer.Companion.UTM_MAX_LATITUDE
-import earth.worldwind.layer.graticule.AbstractUTMGraticuleLayer.Companion.UTM_MIN_LATITUDE
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_GRIDZONE_LABEL
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE
-import earth.worldwind.layer.graticule.UTMGraticuleLayer.Companion.UTM_ZONE_RESOLUTION
+import earth.worldwind.layer.graticule.utm.AbstractUTMGraticuleLayer.Companion.UTM_MAX_LATITUDE
+import earth.worldwind.layer.graticule.utm.AbstractUTMGraticuleLayer.Companion.UTM_MIN_LATITUDE
+import earth.worldwind.layer.graticule.utm.UTMGraticuleLayer.Companion.UTM_ZONE_RESOLUTION
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.PathType
 

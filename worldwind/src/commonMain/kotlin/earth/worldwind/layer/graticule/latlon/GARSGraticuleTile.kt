@@ -1,8 +1,10 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.latlon
 
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_GRIDZONE_LABEL
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LATITUDE_LABEL
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE

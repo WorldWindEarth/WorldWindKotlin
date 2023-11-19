@@ -1,10 +1,13 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.latlon
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
+import earth.worldwind.layer.graticule.AbstractGraticuleLayer
+import earth.worldwind.layer.graticule.GridElement
+import earth.worldwind.layer.graticule.GridTilesSupport
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.format.format
 import kotlin.math.floor

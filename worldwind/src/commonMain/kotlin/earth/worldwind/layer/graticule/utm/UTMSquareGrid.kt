@@ -1,9 +1,10 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.coords.Hemisphere
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_EASTING
 import earth.worldwind.layer.graticule.GridElement.Companion.TYPE_LINE_NORTHING
 import earth.worldwind.render.RenderContext

@@ -1,6 +1,8 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.latlon
 
 import earth.worldwind.geom.Sector
+import earth.worldwind.layer.graticule.AbstractGraticuleTile
+import earth.worldwind.layer.graticule.GraticuleRenderingParams
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_COLOR
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_FONT
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LINE_COLOR

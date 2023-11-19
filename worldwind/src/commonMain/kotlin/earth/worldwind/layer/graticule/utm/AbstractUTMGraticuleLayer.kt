@@ -1,13 +1,16 @@
-package earth.worldwind.layer.graticule
+package earth.worldwind.layer.graticule.utm
 
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.coords.Hemisphere
 import earth.worldwind.geom.coords.UPSCoord.Companion.fromUPS
 import earth.worldwind.geom.coords.UTMCoord.Companion.fromUTM
+import earth.worldwind.layer.graticule.AbstractGraticuleLayer
+import earth.worldwind.layer.graticule.GraticuleRenderingParams
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_COLOR
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_FONT
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LINE_COLOR
+import earth.worldwind.layer.graticule.GridElement
 import earth.worldwind.render.Color
 import earth.worldwind.render.Font
 import earth.worldwind.render.FontWeight
