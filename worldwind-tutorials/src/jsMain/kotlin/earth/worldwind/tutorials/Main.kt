@@ -37,6 +37,7 @@ fun main() {
             "Surface image" to SurfaceImageTutorial(wwd.engine),
             "Show tessellation" to ShowTessellationTutorial(wwd.engine),
             "MGRS Graticule" to MGRSGraticuleTutorial(wwd.engine),
+            "Gauss-Kruger Graticule" to GKGraticuleTutorial(wwd.engine),
             "WMS Layer" to WmsLayerTutorial(wwd.engine, wwd.mainScope),
             "WMTS Layer" to WmtsLayerTutorial(wwd.engine, wwd.mainScope),
             // TODO Uncomment when TIFF elevation data parsing will be implemented

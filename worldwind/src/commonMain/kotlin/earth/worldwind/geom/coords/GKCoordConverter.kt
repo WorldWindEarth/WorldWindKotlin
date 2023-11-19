@@ -32,14 +32,14 @@ internal class GKCoordConverter {
      *
      * @param lat Latitude in radians
      * @param lon Longitude in radians
+     * @param zone optional zone to force coordinates conversion in it
      *
      * @return error code
      */
     @Suppress("NAME_SHADOWING")
-    fun convertGeodeticToGK(lat: Double, lon: Double): Int {
-        val lon = if (lon < 0.0) lon + 2 * PI else lon
-        val zone = (lon * 180.0 / PI / 6.0 + 1).toInt()
-
+    fun convertGeodeticToGK(lat: Double, lon: Double, zone: Int = 0): Int {
+        val lon = if (lon < 0.0) lon + 2.0 * PI else lon
+        val zone = if (zone != 0) zone else (lon * 180.0 / PI).toInt() / 6 + 1
         val a = ellipsoid.semiMajorAxis
         val b = ellipsoid.semiMinorAxis
         val e2 = (a * a - b * b) / (a * a)
@@ -90,7 +90,7 @@ internal class GKCoordConverter {
 
     fun convertGKToGeodetic(easting: Double, northing: Double): Int {
         val zone = (easting / 1e6).toInt()
-        val l0 = (6.0 * (if (zone <= 30) zone else zone - 60) - 3.0) * PI / 180.0
+        val l0 = (6 * (if (zone <= 30) zone else zone - 60) - 3) * PI / 180.0
         val x = northing
         val y = easting - (zone * 1e6 + 500000.0)
         val beta = x / 6367558.497

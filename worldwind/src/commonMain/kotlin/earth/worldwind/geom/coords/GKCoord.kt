@@ -21,9 +21,23 @@ class GKCoord private constructor(val latitude: Angle, val longitude: Angle, val
          * @throws IllegalArgumentException if the conversion to GK coordinates fails.
          */
         @JvmStatic
-        fun fromLatLon(latitude: Angle, longitude: Angle): GKCoord {
+        fun fromLatLon(latitude: Angle, longitude: Angle) = fromLatLon(latitude, longitude, 0)
+
+        /**
+         * Create a set of Gauss-Kruger coordinates from a pair of latitude and longitude.
+         *
+         * @param latitude  the latitude.
+         * @param longitude the longitude.
+         * @param zone      optional zone to force coordinates conversion in it.
+         *
+         * @return the corresponding [GKCoord].
+         *
+         * @throws IllegalArgumentException if the conversion to GK coordinates fails.
+         */
+        @JvmStatic
+        fun fromLatLon(latitude: Angle, longitude: Angle, zone: Int): GKCoord {
             val converter = GKCoordConverter()
-            val err = converter.convertGeodeticToGK(latitude.inRadians, longitude.inRadians)
+            val err = converter.convertGeodeticToGK(latitude.inRadians, longitude.inRadians, zone)
             require(err == GKCoordConverter.NO_ERROR) { "Gauss-Kruger Conversion Error" }
             return GKCoord(latitude, longitude, converter.northing, converter.easting)
         }

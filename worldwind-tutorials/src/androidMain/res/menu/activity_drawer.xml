@@ -85,5 +85,9 @@
             android:id="@+id/nav_mgrs_graticule_activity"
             android:icon="@android:drawable/ic_menu_manage"
             android:title="@string/title_mgrs_graticule"/>
+        <item
+            android:id="@+id/nav_gk_graticule_activity"
+            android:icon="@android:drawable/ic_menu_manage"
+            android:title="@string/title_gk_graticule"/>
     </group>
 </menu>
