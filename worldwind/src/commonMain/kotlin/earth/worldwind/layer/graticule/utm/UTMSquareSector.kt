@@ -112,6 +112,6 @@ abstract class UTMSquareSector(
     }
 
     companion object {
-        const val MIN_CELL_SIZE_PIXELS = 50
+        const val MIN_CELL_SIZE_PIXELS = 100
     }
 }
