@@ -99,6 +99,6 @@ open class WmsTileFactory(
                 "${minLongitude.inDegrees},${minLatitude.inDegrees},${maxLongitude.inDegrees},${maxLatitude.inDegrees}"
             })
         }
-        timeString?.let{ appendQueryParameter("TIME", it) }
+        timeString?.let { appendQueryParameter("TIME", it) }
     }.build().toString()
 }

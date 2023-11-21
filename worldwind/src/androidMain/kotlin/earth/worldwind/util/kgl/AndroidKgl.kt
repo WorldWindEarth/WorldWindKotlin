@@ -181,7 +181,7 @@ class AndroidKgl : Kgl {
 
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
-    ) = GLES20.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let{ ByteBuffer.wrap(it) })
+    ) = GLES20.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { ByteBuffer.wrap(it) })
 
     override fun activeTexture(texture: Int) = GLES20.glActiveTexture(texture)
 

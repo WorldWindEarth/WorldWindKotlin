@@ -26,7 +26,7 @@ open class ImageDecoder: Closeable {
             imageSource.isFile -> decodeFile(imageSource.asFile())
             imageSource.isUrl -> decodeUrl(imageSource.asUrl())
             else -> decodeUnrecognized(imageSource)
-        }?.let{
+        }?.let {
             // Apply image transformation if required
             imageSource.imagePostprocessor?.process(it) ?: it
         }

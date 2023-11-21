@@ -46,7 +46,7 @@ internal class GraticuleSupport {
     fun getRenderingParams(key: String): GraticuleRenderingParams {
         return namedParams[key] ?: GraticuleRenderingParams().also { params ->
             initRenderingParams(params)
-            defaultParams?.let{ params.putAll(it) }
+            defaultParams?.let { params.putAll(it) }
             namedParams[key] = params
         }
     }

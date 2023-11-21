@@ -85,7 +85,7 @@ open class BasicTessellator: Tessellator, TileFactory {
     }
 
     protected open fun createTopLevelTiles() {
-        levelSet.firstLevel?.let{ Tile.assembleTilesForLevel(it, this, topLevelTiles) }
+        levelSet.firstLevel?.let { Tile.assembleTilesForLevel(it, this, topLevelTiles) }
     }
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: TerrainTile) {

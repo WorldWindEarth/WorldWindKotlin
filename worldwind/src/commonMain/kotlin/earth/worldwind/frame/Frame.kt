@@ -41,7 +41,7 @@ open class Frame {
 //        infiniteProjection.setToIdentity()
         drawableQueue.clearDrawables()
         drawableTerrain.clearDrawables()
-        pickedObjects?.let{ pickDeferred?.complete(it) } // Complete deferred pick if available
+        pickedObjects?.let { pickDeferred?.complete(it) } // Complete deferred pick if available
         pickedObjects = null
         pickDeferred = null
         pickViewport = null

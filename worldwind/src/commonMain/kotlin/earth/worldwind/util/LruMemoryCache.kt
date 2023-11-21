@@ -30,7 +30,7 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
         }
     }
 
-    open operator fun get(key: K) = entries[key]?.run{
+    open operator fun get(key: K) = entries[key]?.run {
         lastUsed = age
         value
     }

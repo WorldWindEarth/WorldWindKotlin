@@ -167,7 +167,7 @@ class LwjglKgl : Kgl {
 
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
-    ) = GL33.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let{ByteBuffer.wrap(it)})
+    ) = GL33.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { ByteBuffer.wrap(it) })
 
     override fun activeTexture(texture: Int) = GL33.glActiveTexture(texture)
 

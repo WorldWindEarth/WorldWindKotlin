@@ -61,7 +61,7 @@ abstract class AbstractGeoPackage(pathName: String, val isReadOnly: Boolean) {
         min: Double? = null, max: Double? = null, mean: Double? = null, stdDev: Double? = null
     ) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
-        readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.let{ tileUserData ->
+        readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.let { tileUserData ->
             val griddedTile = readGriddedTile(tiles.tableName, tileUserData.id)?.also {
                 it.scale = scale
                 it.offset = offset

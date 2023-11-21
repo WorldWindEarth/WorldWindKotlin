@@ -14,7 +14,7 @@ open class IntBufferObject(
     }
 
     override fun bindBuffer(dc: DrawContext): Boolean {
-        array?.let{ loadBuffer(dc) }.also { array = null }
+        array?.let { loadBuffer(dc) }.also { array = null }
         return super.bindBuffer(dc)
     }
 

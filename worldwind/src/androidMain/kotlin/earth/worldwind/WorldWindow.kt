@@ -325,7 +325,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         // Process and display the Drawables accumulated in the last frame taken from the front of the queue. This frame
         // may be drawn multiple times if the OpenGL thread executes more often than the WorldWindow enqueues frames.
         try {
-            currentFrame?.let{ engine.drawFrame(it) }
+            currentFrame?.let { engine.drawFrame(it) }
         } catch (e: Exception) {
             logMessage(
                 ERROR, "WorldWindow", "onDrawFrame",

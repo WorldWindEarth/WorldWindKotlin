@@ -11,7 +11,7 @@ data class GmlIntegerList(
     private val integers: String
 ) {
     val values get() = try {
-        integers.split(" ").let{ tokens -> IntArray(tokens.size) { tokens[it].toInt() } }
+        integers.split(" ").let { tokens -> IntArray(tokens.size) { tokens[it].toInt() } }
     } catch (e: NumberFormatException) {
         logMessage(ERROR, "GmlIntegerList", "values", "exceptionParsingText", e)
         throw e

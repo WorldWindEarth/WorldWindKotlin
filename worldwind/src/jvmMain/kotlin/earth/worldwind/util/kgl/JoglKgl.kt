@@ -180,7 +180,7 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
-    ) = gl.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let{ByteBuffer.wrap(it)})
+    ) = gl.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { ByteBuffer.wrap(it) })
 
     override fun activeTexture(texture: Int) = gl.glActiveTexture(texture)
 

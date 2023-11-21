@@ -80,7 +80,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         drawable.atmosphereAltitude = rc.atmosphereAltitude
 
         // Use this layer's night image when the light location is different from the eye location.
-        drawable.nightTexture = time?.run{ rc.getTexture(nightImageSource, nightImageOptions) }
+        drawable.nightTexture = time?.run { rc.getTexture(nightImageSource, nightImageOptions) }
         rc.offerSurfaceDrawable(drawable, Double.POSITIVE_INFINITY)
     }
 

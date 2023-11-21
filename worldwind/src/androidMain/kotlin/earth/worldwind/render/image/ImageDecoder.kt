@@ -29,7 +29,7 @@ open class ImageDecoder(val context: Context): Closeable {
         imageSource.isFile -> decodeFile(imageSource.asFile(), imageOptions)
         imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageOptions)
         else -> decodeUnrecognized(imageSource)
-    }?.let{
+    }?.let {
         // Apply bitmap transformation if required
         imageSource.bitmapPostprocessor?.process(it) ?: it
     }
