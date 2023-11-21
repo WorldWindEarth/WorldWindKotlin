@@ -25,7 +25,7 @@ actual open class MercatorImageTile actual constructor(
 ): AbstractMercatorImageTile(sector, level, row, column) {
     companion object {
         val srcCanvas = document.createElement("canvas") as HTMLCanvasElement
-        val srcCtx = srcCanvas.getContext("2d") as CanvasRenderingContext2D
+        val srcCtx = srcCanvas.getContext("2d", js("{ willReadFrequently: true }")) as CanvasRenderingContext2D
         val dstCanvas = document.createElement("canvas") as HTMLCanvasElement
         val dstCtx = dstCanvas.getContext("2d") as CanvasRenderingContext2D
     }
