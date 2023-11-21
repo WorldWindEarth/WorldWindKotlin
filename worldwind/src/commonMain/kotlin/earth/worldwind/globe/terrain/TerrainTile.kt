@@ -25,8 +25,8 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     protected var verticalExaggeration = 0.0f
     var sortOrder = 0.0
         protected set
-    private lateinit var pointBufferKey: String
-    private lateinit var heightBufferKey: String
+    private var pointBufferKey = this::class.simpleName + ".points.default" // This key will be replaced on prepare of each tile
+    private var heightBufferKey = this::class.simpleName + ".heights.default" // Use the same height buffer for all tiles by default
 
     public override val heightLimits get() = super.heightLimits
 
@@ -70,11 +70,15 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         FloatBufferObject(GL_ARRAY_BUFFER, points)
     }
 
-    protected fun updateHeightBufferKey() { heightBufferKey = "TerrainTile.heights.$tileKey.${bufferSequence++}" }
+    protected fun updateHeightBufferKey() {
+        heightBufferKey = this::class.simpleName + ".heights.$tileKey.${bufferSequence++}"
+    }
 
-    protected fun updatePointBufferKey() { pointBufferKey = "TerrainTile.points.$tileKey.${bufferSequence++}" }
+    protected fun updatePointBufferKey() {
+        pointBufferKey = this::class.simpleName + ".points.$tileKey.${bufferSequence++}"
+    }
 
     companion object {
-        private var bufferSequence = 0L // Must be static to avoid cache collisions when a tile instances are re-created
+        private var bufferSequence = 0L // Must be static to avoid cache collisions when a tile instance is re-created
     }
 }

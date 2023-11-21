@@ -31,7 +31,7 @@ open class Tile protected constructor(
     /**
      * A key that uniquely identifies this tile within a level set. Tile keys are not unique to a specific level set.
      */
-    val tileKey = level.levelNumber.toString() + '.' + row + '.' + column
+    val tileKey = "${level.levelNumber}.$row.$column"
     /**
      * A factor expressing the size of a pixel or elevation cell at the center of this tile, in radians per pixel (or
      * cell).
