@@ -20,7 +20,7 @@ open class GpkgElevationCoverage(pathName: String, tableName: String) : TiledEle
                 val metadata = geoPackage.griddedCoverages.firstOrNull { gc -> gc.tileMatrixSetName == tableName }
                 requireNotNull(metadata) { "Missing gridded coverage metadata for '$tableName'" }
                 tileMatrixSet = geoPackage.buildTileMatrixSet(content)
-                tileFactory = GpkgElevationTileFactory(content, metadata.datatype == "float")
+                elevationSourceFactory = GpkgElevationSourceFactory(content, metadata.datatype == "float")
                 WorldWind.requestRedraw()
             } catch (logged: Throwable) {
                 logMessage(

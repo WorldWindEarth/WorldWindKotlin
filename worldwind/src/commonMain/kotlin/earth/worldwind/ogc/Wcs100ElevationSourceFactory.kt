@@ -3,12 +3,12 @@ package earth.worldwind.ogc
 import com.eygraber.uri.Uri
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.globe.elevation.ElevationSource
-import earth.worldwind.globe.elevation.ElevationTileFactory
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 
 /**
  * Factory for constructing WCS version 1.0.0 URLs associated with WCS Get Coverage requests.
  */
-open class Wcs100TileFactory(
+open class Wcs100ElevationSourceFactory(
     /**
      * The WCS service address use to build Get Coverage URLs.
      */
@@ -21,7 +21,7 @@ open class Wcs100TileFactory(
      * Required WCS source output format
      */
     protected val outputFormat: String
-): ElevationTileFactory {
+): ElevationSourceFactory {
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         val urlString = urlForTile(tileMatrix, row, column)
         return ElevationSource.fromUrlString(urlString)

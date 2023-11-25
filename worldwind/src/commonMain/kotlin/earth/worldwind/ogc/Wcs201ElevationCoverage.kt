@@ -55,7 +55,7 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
      */
     constructor(serviceAddress: String, coverage: String, outputFormat: String, sector: Sector, resolution: Angle): super(
         TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
-        Wcs201TileFactory(serviceAddress, coverage, outputFormat)
+        Wcs201ElevationSourceFactory(serviceAddress, coverage, outputFormat)
     )
 
     /**
@@ -86,7 +86,7 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
                         "WCS coverage axis labels are undefined: $coverage"
                     )
                 }
-                tileFactory = Wcs201TileFactory(serviceAddress, coverage, outputFormat, axisLabels)
+                elevationSourceFactory = Wcs201ElevationSourceFactory(serviceAddress, coverage, outputFormat, axisLabels)
                 tileMatrixSet = tileMatrixSetFromCoverageDescription(coverageDescription)
                 WorldWind.requestRedraw()
             } catch (logged: Throwable) {

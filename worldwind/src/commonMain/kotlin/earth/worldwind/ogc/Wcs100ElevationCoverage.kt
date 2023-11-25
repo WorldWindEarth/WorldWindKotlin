@@ -17,5 +17,5 @@ class Wcs100ElevationCoverage(
     serviceAddress: String, coverage: String, outputFormat: String, sector: Sector, resolution: Angle
 ): TiledElevationCoverage(
     TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
-    Wcs100TileFactory(serviceAddress, coverage, outputFormat)
+    Wcs100ElevationSourceFactory(serviceAddress, coverage, outputFormat)
 )

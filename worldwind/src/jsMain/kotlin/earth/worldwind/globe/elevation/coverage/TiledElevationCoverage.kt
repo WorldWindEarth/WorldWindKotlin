@@ -3,7 +3,7 @@ package earth.worldwind.globe.elevation.coverage
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSource.Companion.fromUnrecognized
-import earth.worldwind.globe.elevation.ElevationTileFactory
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
@@ -19,14 +19,14 @@ import org.khronos.webgl.Uint8Array
 import kotlin.math.roundToInt
 
 actual open class TiledElevationCoverage actual constructor(
-    tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory
-) : AbstractTiledElevationCoverage(tileMatrixSet, tileFactory) {
+    tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
+) : AbstractTiledElevationCoverage(tileMatrixSet, elevationSourceFactory) {
     protected actual val mainScope = MainScope()
 
     /**
-     * This is a dummy workaround for asynchronously defined TileFactory
+     * This is a dummy workaround for asynchronously defined ElevationSourceFactory
      */
-    actual constructor(): this(TileMatrixSet(), object : ElevationTileFactory {
+    actual constructor(): this(TileMatrixSet(), object : ElevationSourceFactory {
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
@@ -36,7 +36,7 @@ actual open class TiledElevationCoverage actual constructor(
     }
 
     override fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
-        val elevationSource = tileFactory.createElevationSource(tileMatrix, row, column)
+        val elevationSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
         if (elevationSource.isUrl) mainScope.launch {
             val url = elevationSource.asUrl()
             try {

@@ -3,9 +3,9 @@ package earth.worldwind.ogc
 import com.eygraber.uri.Uri
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.globe.elevation.ElevationSource
-import earth.worldwind.globe.elevation.ElevationTileFactory
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 
-open class Wcs201TileFactory(
+open class Wcs201ElevationSourceFactory(
     /**
      * The WCS service address use to build Get Coverage URLs.
      */
@@ -22,7 +22,7 @@ open class Wcs201TileFactory(
      * Axis labels from coverage description
      */
     protected val axisLabels: List<String> = listOf("Lat", "Long")
-): ElevationTileFactory {
+): ElevationSourceFactory {
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         val urlString = urlForTile(tileMatrix, row, column)
         return ElevationSource.fromUrlString(urlString)
