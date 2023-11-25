@@ -485,14 +485,4 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         connection.openDatabase().use { database -> database.execSQL("DROP TABLE IF EXISTS $tableName") }
     }
 
-    companion object {
-        private const val SPATIAL_REF_SYS = "gpkg_spatial_ref_sys"
-        private const val CONTENTS = "gpkg_contents"
-        private const val TILE_MATRIX_SET = "gpkg_tile_matrix_set"
-        private const val TILE_MATRIX = "gpkg_tile_matrix"
-        private const val EXTENSIONS = "gpkg_extensions"
-        private const val GRIDDED_COVERAGE_ANCILLARY = "gpkg_2d_gridded_coverage_ancillary"
-        private const val GRIDDED_TILE_ANCILLARY = "gpkg_2d_gridded_tile_ancillary"
-    }
-
 }
