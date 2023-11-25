@@ -5,7 +5,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
-import earth.worldwind.globe.elevation.ElevationTileFactory
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.util.*
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
@@ -17,18 +17,18 @@ import kotlin.math.floor
 import kotlin.time.Duration.Companion.seconds
 
 abstract class AbstractTiledElevationCoverage(
-    tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory,
+    tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory,
 ): AbstractElevationCoverage() {
     companion object {
         protected const val GET_HEIGHT_LIMIT_SAMPLES = 32
     }
 
-    var tileMatrixSet: TileMatrixSet = tileMatrixSet
+    var tileMatrixSet = tileMatrixSet
         set(value) {
             field = value
             invalidateTiles()
         }
-    var tileFactory: ElevationTileFactory = tileFactory
+    var elevationSourceFactory = elevationSourceFactory
         set(value) {
             field = value
             invalidateTiles()

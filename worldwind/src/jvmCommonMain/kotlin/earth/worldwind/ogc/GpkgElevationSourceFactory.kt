@@ -2,10 +2,10 @@ package earth.worldwind.ogc
 
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.globe.elevation.ElevationSource
-import earth.worldwind.globe.elevation.ElevationTileFactory
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.ogc.gpkg.GpkgContent
 
-open class GpkgElevationTileFactory(protected val tiles: GpkgContent, protected val isFloat: Boolean) : ElevationTileFactory {
+open class GpkgElevationSourceFactory(protected val tiles: GpkgContent, protected val isFloat: Boolean) : ElevationSourceFactory {
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         // Convert the WorldWind tile row to the equivalent GeoPackage tile row.
         val gpkgRow = tileMatrix.matrixHeight - row - 1

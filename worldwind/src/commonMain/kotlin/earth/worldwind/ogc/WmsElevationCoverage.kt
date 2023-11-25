@@ -5,7 +5,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSource
-import earth.worldwind.globe.elevation.ElevationTileFactory
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 
 /**
@@ -20,7 +20,7 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 open class WmsElevationCoverage(
     serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, resolution: Angle
 ): TiledElevationCoverage(
-    buildTileMatrixSet(sector, resolution), buildTileFactory(serviceAddress, coverage, imageFormat)
+    buildTileMatrixSet(sector, resolution), buildElevationSourceFactory(serviceAddress, coverage, imageFormat)
 ) {
     companion object {
         /**
@@ -33,10 +33,10 @@ open class WmsElevationCoverage(
             sector, 4, 2, 256, 256, resolution
         )
 
-        private fun buildTileFactory(serviceAddress: String, coverage: String, imageFormat: String): ElevationTileFactory {
+        private fun buildElevationSourceFactory(serviceAddress: String, coverage: String, imageFormat: String): ElevationSourceFactory {
             val layerConfig = WmsLayerConfig(serviceAddress, coverage).apply { this.imageFormat = imageFormat }
             val wmsTileFactory = WmsTileFactory(layerConfig)
-            return object : ElevationTileFactory {
+            return object : ElevationSourceFactory {
                 override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
                     val tileSector = tileMatrix.tileSector(row, column)
                     val urlString = wmsTileFactory.urlForTile(tileSector, tileMatrix.tileWidth, tileMatrix.tileHeight)

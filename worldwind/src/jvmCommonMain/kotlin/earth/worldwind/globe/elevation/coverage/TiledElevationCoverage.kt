@@ -7,9 +7,9 @@ import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationDecoder
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.globe.elevation.ElevationSource.Companion.fromUnrecognized
-import earth.worldwind.globe.elevation.ElevationTileFactory
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.ogc.GpkgElevationFactory
-import earth.worldwind.ogc.GpkgElevationTileFactory
+import earth.worldwind.ogc.GpkgElevationSourceFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.util.Logger.DEBUG
@@ -24,23 +24,23 @@ import java.net.SocketTimeoutException
 import kotlin.time.Duration.Companion.seconds
 
 actual open class TiledElevationCoverage actual constructor(
-    tileMatrixSet: TileMatrixSet, tileFactory: ElevationTileFactory,
-): AbstractTiledElevationCoverage(tileMatrixSet, tileFactory) {
+    tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory,
+): AbstractTiledElevationCoverage(tileMatrixSet, elevationSourceFactory) {
     /**
-     * This is a dummy workaround for asynchronously defined TileFactory
+     * This is a dummy workaround for asynchronously defined ElevationSourceFactory
      */
-    actual constructor(): this(TileMatrixSet(), object : ElevationTileFactory {
+    actual constructor(): this(TileMatrixSet(), object : ElevationSourceFactory {
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
     protected actual val mainScope = MainScope()
     protected val elevationDecoder = ElevationDecoder()
-    protected var cacheTileFactory: ElevationTileFactory? = null
+    protected var cacheSourceFactory: ElevationSourceFactory? = null
     protected var cacheContent: GpkgContent? = null
     /**
      * Checks if cache is successfully configured
      */
-    val isCacheConfigured get() = cacheTileFactory != null
+    val isCacheConfigured get() = cacheSourceFactory != null
     /**
      * Configures tiled elevation coverage to work with cache source only
      */
@@ -92,7 +92,7 @@ actual open class TiledElevationCoverage actual constructor(
         } ?: geoPackage.setupGriddedCoverageContent(tableName, displayName ?: tableName, tileMatrixSet, isFloat)
 
         cacheContent = content
-        cacheTileFactory = GpkgElevationTileFactory(content, isFloat)
+        cacheSourceFactory = GpkgElevationSourceFactory(content, isFloat)
     }
 
     /**
@@ -100,7 +100,7 @@ actual open class TiledElevationCoverage actual constructor(
      */
     fun disableCache() {
         cacheContent = null
-        cacheTileFactory = null
+        cacheSourceFactory = null
     }
 
     /**
@@ -142,7 +142,7 @@ actual open class TiledElevationCoverage actual constructor(
     fun makeLocal(
         sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
-        val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
+        val cacheTileFactory = cacheSourceFactory ?: error("Cache not configured")
         require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }
         return scope.launch(Dispatchers.IO) {
             // Prepare tile list for download, based on specified sector and resolution
@@ -164,7 +164,7 @@ actual open class TiledElevationCoverage actual constructor(
                         // TODO If retrieved cache source is outdated, then retrieve original tile source to refresh cache
                         val success = elevationDecoder.run {
                             decodeElevation(cacheSource) ?: decodeElevation(
-                                tileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
+                                elevationSourceFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
                                     // Assign buffer postprocessor to save retrieved online tile to cache
                                     val source = cacheSource.asUnrecognized()
                                     if (source is GpkgElevationFactory) it.postprocessor = source
@@ -201,7 +201,7 @@ actual open class TiledElevationCoverage actual constructor(
     override fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         mainScope.launch(Dispatchers.IO) {
             // Determine cache source, if cache tile factory is specified
-            val cacheSource = cacheTileFactory?.createElevationSource(tileMatrix, row, column)
+            val cacheSource = cacheSourceFactory?.createElevationSource(tileMatrix, row, column)
             try {
                 // Try to retrieve cache source first
                 cacheSource?.let {
@@ -213,7 +213,7 @@ actual open class TiledElevationCoverage actual constructor(
                 // Check if online source is enabled. Cache source must exist to be able to disable online source.
                 if (!useCacheOnly || cacheSource == null) {
                     // Determine online source
-                    val onlineSource = tileFactory.createElevationSource(tileMatrix, row, column)
+                    val onlineSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
                     // Assign buffer postprocessor to save retrieved online tile to cache
                     val source = cacheSource?.asUnrecognized()
                     if (source is GpkgElevationFactory) onlineSource.postprocessor = source
