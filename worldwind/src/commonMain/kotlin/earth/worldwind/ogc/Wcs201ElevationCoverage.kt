@@ -23,7 +23,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
-import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
 import nl.adaptivity.xmlutil.serialization.XML
 
 /**
@@ -38,7 +37,6 @@ import nl.adaptivity.xmlutil.serialization.XML
  * http://www.opengis.net/def/axis/OGC/1/i and http://www.opengis.net/def/axis/OGC/1/j
  */
 open class Wcs201ElevationCoverage: TiledElevationCoverage {
-    @OptIn(ExperimentalXmlUtilApi::class)
     protected val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
 
     /**
@@ -138,7 +136,7 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
         )
         val tileWidth = 256
         val tileHeight = 256
-        val resolution = boundingSector.deltaLatitude.div((gridHigh[1] - gridLow[1]).toDouble())
+        val resolution = boundingSector.deltaLatitude.div(gridHigh[1] - gridLow[1])
         return TileMatrixSet.fromTilePyramid(
             boundingSector, if (boundingSector.isFullSphere) 2 else 1, 1, tileWidth, tileHeight, resolution
         )

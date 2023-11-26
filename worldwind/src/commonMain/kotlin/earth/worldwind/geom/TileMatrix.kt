@@ -6,7 +6,7 @@ import kotlin.math.ceil
 open class TileMatrix internal constructor(
     val sector: Sector, val ordinal: Int, val matrixWidth: Int, val matrixHeight: Int, val tileWidth: Int, val tileHeight: Int
 ) {
-    val degreesPerPixel get() = sector.deltaLatitude.inDegrees / (matrixHeight * tileHeight)
+    val resolution get() = sector.deltaLatitude.div(matrixHeight * tileHeight)
 
     fun tileKey(row: Int, column: Int): Long {
         val lOrd = (ordinal and 0xFF).toLong() // 8 bits

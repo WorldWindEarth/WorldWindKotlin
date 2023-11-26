@@ -97,7 +97,7 @@ abstract class AbstractTiledElevationCoverage(
 
     override fun doGetHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         if (!tileMatrixSet.sector.intersects(gridSector)) return  // no coverage in the specified sector
-        val targetPixelSpan = gridSector.deltaLatitude.inDegrees / gridHeight
+        val targetPixelSpan = gridSector.deltaLatitude.div(gridHeight)
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)
         val tileBlock = TileBlock()
         for (idx in targetIdx downTo 0) {
@@ -113,7 +113,7 @@ abstract class AbstractTiledElevationCoverage(
 
     override fun doGetHeightLimits(sector: Sector, result: FloatArray) {
         if (!tileMatrixSet.sector.intersects(sector)) return  // no coverage in the specified sector
-        val targetPixelSpan = sector.deltaLatitude.inDegrees / GET_HEIGHT_LIMIT_SAMPLES
+        val targetPixelSpan = sector.deltaLatitude.div(GET_HEIGHT_LIMIT_SAMPLES)
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)
         val tileBlock = TileBlock()
         for (idx in targetIdx downTo 0) {
@@ -389,7 +389,7 @@ abstract class AbstractTiledElevationCoverage(
 
     protected open fun assembleTilesList(sector: Sector, resolution: Angle): List<Tile> {
         val result = mutableListOf<Tile>()
-        val targetIdx = tileMatrixSet.indexOfMatrixNearest(resolution.inDegrees)
+        val targetIdx = tileMatrixSet.indexOfMatrixNearest(resolution)
         for (idx in 0..targetIdx) {
             val tileMatrix = tileMatrixSet.entries[idx]
             val deltaLat = tileMatrix.sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
