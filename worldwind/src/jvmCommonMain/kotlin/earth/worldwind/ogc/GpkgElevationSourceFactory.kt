@@ -9,6 +9,6 @@ open class GpkgElevationSourceFactory(protected val tiles: GpkgContent, protecte
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         // Convert the WorldWind tile row to the equivalent GeoPackage tile row.
         val gpkgRow = tileMatrix.matrixHeight - row - 1
-        return ElevationSource.fromElevationFactory(GpkgElevationFactory(tiles, tileMatrix.ordinal, column, gpkgRow, isFloat))
+        return ElevationSource.fromElevationDataFactory(GpkgElevationDataFactory(tiles, tileMatrix.ordinal, column, gpkgRow, isFloat))
     }
 }

@@ -24,7 +24,7 @@ open class ElevationDecoder: Closeable {
     override fun close() = httpClient.close()
 
     open suspend fun decodeElevation(elevationSource: ElevationSource) = when {
-        elevationSource.isElevationFactory -> decodeBuffer(elevationSource.asElevationFactory().fetchTileData())
+        elevationSource.isElevationDataFactory -> decodeBuffer(elevationSource.asElevationDataFactory().fetchElevationData())
         elevationSource.isFile -> decodeFile(elevationSource.asFile(), elevationSource.bufferPostprocessor)
         elevationSource.isUrl -> decodeUrl(elevationSource.asUrl(), elevationSource.bufferPostprocessor)
         else -> decodeUnrecognized(elevationSource)

@@ -8,14 +8,14 @@ import earth.worldwind.util.ResourcePostprocessor
 import java.nio.*
 
 // TODO Add support of greyscale PNG encoding for 16-bit integer data and TIFF encoding for 32-bit floating point data
-open class GpkgElevationFactory(
+open class GpkgElevationDataFactory(
     protected val tiles: GpkgContent,
     protected val zoomLevel: Int,
     protected val tileColumn: Int,
     protected val tileRow: Int,
     protected val isFloat: Boolean
-): ElevationSource.ElevationFactory, ResourcePostprocessor<Buffer> {
-    override suspend fun fetchTileData(): Buffer? {
+): ElevationSource.ElevationDataFactory, ResourcePostprocessor<Buffer> {
+    override suspend fun fetchElevationData(): Buffer? {
         // Attempt to read the GeoPackage tile user data
         val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
 
@@ -73,7 +73,7 @@ open class GpkgElevationFactory(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is GpkgElevationFactory) return false
+        if (other !is GpkgElevationDataFactory) return false
         if (tiles.tableName != other.tiles.tableName) return false
         if (zoomLevel != other.zoomLevel) return false
         if (tileColumn != other.tileColumn) return false
