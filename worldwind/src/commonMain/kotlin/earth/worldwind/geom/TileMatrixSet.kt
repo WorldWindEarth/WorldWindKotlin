@@ -26,17 +26,19 @@ open class TileMatrixSet(val sector: Sector, val entries: List<TileMatrix>) {
                 tileMatrices.add(matrix)
                 width *= 2
                 height *= 2
-            } while (matrix.degreesPerPixel > resolution.inDegrees)
+            } while (matrix.resolution.inDegrees > resolution.inDegrees)
             return TileMatrixSet(sector, tileMatrices)
         }
     }
 
-    fun indexOfMatrixNearest(degreesPerPixel: Double): Int {
+    val maxResolution get() = entries[entries.size - 1].resolution // entries.maxOf { it.resolution }
+
+    fun indexOfMatrixNearest(resolution: Angle): Int {
         var nearestIdx = -1
         var nearestDelta2 = Double.POSITIVE_INFINITY
         for (idx in entries.indices) {
-            val delta = entries[idx].degreesPerPixel - degreesPerPixel
-            val delta2 = delta * delta
+            val delta = entries[idx].resolution - resolution
+            val delta2 = delta.inDegrees * delta.inDegrees
             if (nearestDelta2 > delta2) {
                 nearestDelta2 = delta2
                 nearestIdx = idx

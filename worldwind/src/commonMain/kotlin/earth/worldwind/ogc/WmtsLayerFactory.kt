@@ -23,7 +23,6 @@ import io.ktor.utils.io.core.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
-import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
 import nl.adaptivity.xmlutil.serialization.XML
 import kotlin.math.abs
 
@@ -35,7 +34,6 @@ object WmtsLayerFactory {
         "urn:ogc:def:crs:EPSG::4326",
         "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
     )
-    @OptIn(ExperimentalXmlUtilApi::class)
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
 
     suspend fun createLayer(serviceAddress: String, layerIdentifier: String): TiledImageLayer {

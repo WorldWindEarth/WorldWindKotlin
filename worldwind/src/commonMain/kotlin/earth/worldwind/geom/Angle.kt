@@ -748,11 +748,11 @@ value class Angle private constructor(
      *
      * @return this angle's degrees divided by divisor.
      */
-    operator fun div(divisor: Double): Angle {
+    operator fun div(divisor: Number): Angle {
         require(divisor != 0.0) {
             logMessage(ERROR, "Angle", "div", "divideByZero")
         }
-        return fromDegrees(inDegrees / divisor)
+        return fromDegrees(inDegrees / divisor.toDouble())
     }
 
     /**

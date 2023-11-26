@@ -98,7 +98,7 @@ open class LevelSet {
         this.tileWidth = tileWidth
         this.tileHeight = tileHeight
         this.levels = Array(numLevels) {
-            val divisor = (1 shl it).toDouble()
+            val divisor = 1 shl it
             Level(this, it, Location(firstLevelDelta.latitude / divisor, firstLevelDelta.longitude / divisor))
         }
     }
