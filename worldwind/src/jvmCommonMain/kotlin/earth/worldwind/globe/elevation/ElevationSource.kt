@@ -15,7 +15,7 @@ import java.nio.Buffer
  * ElevationSource supports following source types:
  * - Uniform Resource Locator [URL]
  * - Local image [File]
- * - WorldWind [ElevationSource.ElevationFactory]
+ * - WorldWind [ElevationSource.ElevationDataFactory]
  * <br>
  * ElevationSource instances are intended to be used as a key into a cache or other data structure that enables sharing
  * of loaded elevation resources. File paths and URLs with the same string representation considered equals.
@@ -23,14 +23,14 @@ import java.nio.Buffer
 actual open class ElevationSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
         /**
-         * Constructs an elevation source with a [ElevationFactory].
+         * Constructs an elevation source with a [ElevationDataFactory].
          *
-         * @param factory the [ElevationFactory] to use as an elevation source
+         * @param factory the [ElevationDataFactory] to use as an elevation source
          *
          * @return the new elevation source
          */
         @JvmStatic
-        fun fromElevationFactory(factory: ElevationFactory) = ElevationSource(factory)
+        fun fromElevationDataFactory(factory: ElevationDataFactory) = ElevationSource(factory)
 
         /**
          * Constructs an elevation source with a [File].
@@ -92,7 +92,7 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
          */
         @JvmStatic
         actual fun fromUnrecognized(source: Any) = when(source) {
-            is ElevationFactory -> fromElevationFactory(source)
+            is ElevationDataFactory -> fromElevationDataFactory(source)
             is File -> fromFile(source)
             is URL -> fromUrl(source)
             else -> ElevationSource(source)
@@ -107,7 +107,7 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
     /**
      * Indicates whether this elevation source is an elevation factory.
      */
-    val isElevationFactory get() = source is ElevationFactory
+    val isElevationDataFactory get() = source is ElevationDataFactory
     /**
      * Indicates whether this elevation source is a [File].
      */
@@ -118,10 +118,10 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
     val isUrl get() = source is URL
 
     /**
-     * @return the source [ElevationFactory]. Call isElevationFactory to determine whether the source is an elevation
+     * @return the source [ElevationDataFactory]. Call isElevationFactory to determine whether the source is an elevation
      * factory.
      */
-    fun asElevationFactory() = source as ElevationFactory
+    fun asElevationDataFactory() = source as ElevationDataFactory
 
     /**
      * @return the source [File]. Call [isFile] to determine whether the source is a [File].
@@ -134,19 +134,19 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
     fun asUrl() = source as URL
 
     override fun toString() = when (source) {
-        is ElevationFactory -> "Factory: $source"
+        is ElevationDataFactory -> "Factory: $source"
         is File -> "File: $source"
         is URL -> "URL: $source"
         else -> super.toString()
     }
 
     /**
-     * Factory for delegating construction of elevation tile data.
+     * Factory for delegating construction of elevation data.
      */
-    interface ElevationFactory {
+    interface ElevationDataFactory {
         /**
-         * @return the elevation tile data associated with this factory
+         * @return the elevation data associated with this factory
          */
-        suspend fun fetchTileData(): Buffer?
+        suspend fun fetchElevationData(): Buffer?
     }
 }

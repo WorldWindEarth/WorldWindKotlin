@@ -8,7 +8,7 @@ import earth.worldwind.globe.elevation.ElevationDecoder
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.globe.elevation.ElevationSource.Companion.fromUnrecognized
 import earth.worldwind.globe.elevation.ElevationSourceFactory
-import earth.worldwind.ogc.GpkgElevationFactory
+import earth.worldwind.ogc.GpkgElevationDataFactory
 import earth.worldwind.ogc.GpkgElevationSourceFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
@@ -167,7 +167,7 @@ actual open class TiledElevationCoverage actual constructor(
                                 elevationSourceFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
                                     // Assign buffer postprocessor to save retrieved online tile to cache
                                     val source = cacheSource.asUnrecognized()
-                                    if (source is GpkgElevationFactory) it.postprocessor = source
+                                    if (source is GpkgElevationDataFactory) it.postprocessor = source
                                 }
                             )
                         }?.let {
@@ -216,7 +216,7 @@ actual open class TiledElevationCoverage actual constructor(
                     val onlineSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
                     // Assign buffer postprocessor to save retrieved online tile to cache
                     val source = cacheSource?.asUnrecognized()
-                    if (source is GpkgElevationFactory) onlineSource.postprocessor = source
+                    if (source is GpkgElevationDataFactory) onlineSource.postprocessor = source
                     try {
                         // Try to retrieve online source
                         elevationDecoder.decodeElevation(onlineSource)?.also { retrievalSucceeded(key, onlineSource, it) }
