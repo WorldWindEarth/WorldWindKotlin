@@ -19,19 +19,14 @@ internal class UTMSquareGrid(
 ): UTMSquareSector(layer, UTMZone, hemisphere, UTMZoneSector, SWEasting, SWNorthing, size) {
     private var subGrids: List<UTMSquareGrid>? = null
 
-    override fun isInView(rc: RenderContext): Boolean {
-        return super.isInView(rc) && getSizeInPixels(rc) > MIN_CELL_SIZE_PIXELS * 4
-    }
+    override fun isInView(rc: RenderContext) = super.isInView(rc) && getSizeInPixels(rc) > MIN_CELL_SIZE_PIXELS * 4
 
     override fun selectRenderables(rc: RenderContext) {
         super.selectRenderables(rc)
-        val drawMetricLabels = getSizeInPixels(rc) > MIN_CELL_SIZE_PIXELS * 4 * 1.7
         val graticuleType = layer.getTypeFor(size / 10)
-        for (ge in gridElements) {
-            if (ge.isInView(rc)) {
-                if (drawMetricLabels) layer.computeMetricScaleExtremes(UTMZone, hemisphere, ge, size)
-                layer.addRenderable(ge.renderable, graticuleType)
-            }
+        for (ge in gridElements) if (ge.isInView(rc)) {
+            layer.computeMetricScaleExtremes(UTMZone, hemisphere, ge, size)
+            layer.addRenderable(ge.renderable, graticuleType)
         }
         if (getSizeInPixels(rc) <= MIN_CELL_SIZE_PIXELS * 4 * 2) return
 

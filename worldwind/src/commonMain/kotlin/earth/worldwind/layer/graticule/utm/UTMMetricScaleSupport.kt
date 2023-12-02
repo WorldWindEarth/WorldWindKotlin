@@ -127,10 +127,11 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
                         val lon = labelPos.longitude
                         val surfacePoint = layer.getSurfacePoint(rc, lat, lon)
                         if (viewFrustum.containsPoint(surfacePoint) && isPointInRange(rc, surfacePoint)) {
-                            val text = (easting % scaleModulo).toInt().toString()
+                            val text = (easting % scaleModulo / gridStep).toInt().toString()
                             val gt = layer.createTextRenderable(
                                 Position(lat, lon, 0.0), text, gridStepTimesTen
                             )
+                            gt.attributes.isOutlineEnabled = false
                             layer.addRenderable(gt, graticuleType)
                         }
                     }
@@ -149,10 +150,11 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
                         val lon = labelPos.longitude
                         val surfacePoint = layer.getSurfacePoint(rc, lat, lon)
                         if (viewFrustum.containsPoint(surfacePoint) && isPointInRange(rc, surfacePoint)) {
-                            val text: String = (northing % scaleModulo).toInt().toString()
+                            val text = (northing % scaleModulo / gridStep).toInt().toString()
                             val gt = layer.createTextRenderable(
                                 Position(lat, lon, 0.0), text, gridStepTimesTen
                             )
+                            gt.attributes.isOutlineEnabled = false
                             layer.addRenderable(gt, graticuleType)
                         }
                         if (currentHemisphere != levelExtremes.maxYHemisphere && northing >= 10e6 - gridStep) {
@@ -202,6 +204,6 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
     companion object {
         private const val OFFSET_FACTOR_X = -.5
         private const val OFFSET_FACTOR_Y = -.5
-        private const val VISIBLE_DISTANCE_FACTOR = 10.0
+        private const val VISIBLE_DISTANCE_FACTOR = 5.0
     }
 }

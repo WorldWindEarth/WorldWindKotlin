@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>MGRS Graticule Tutorial</title>
+    <title>Gauss-Kruger Graticule Tutorial</title>
     <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
@@ -10,32 +10,32 @@
     <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
 </head>
 <body>
-<h1>MGRS Graticule Tutorial</h1>
+<h1>Gauss-Kruger Graticule Tutorial</h1>
 <p>
-    Demonstrates the MGRS Graticule capability.
+    Demonstrates the Gauss-Kruger Graticule capability.
 </p>
 <p>
-    This example adds a layer to the basic globe that shows the MGRS Graticule.
+    This example adds a layer to the basic globe that shows the Gauss-Kruger Graticule.
 </p>
 
 <h2>Example</h2>
-<h3>MGRSGraticuleFragment.kt</h3>
+<h3>GKGraticuleFragment.kt</h3>
 <p>
-    The MGRSGraticuleFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
-    Here we simply add an additional MGRSGraticuleLayer to the globe.
+    The GKGraticuleFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we simply add an additional GKGraticuleLayer to the globe.
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-class MGRSGraticuleFragment : BasicGlobeFragment() {
+class GKGraticuleFragment : BasicGlobeFragment() {
     /**
-     * Creates a new WorldWindow with a MGRS Graticule layer.
+     * Creates a new WorldWindow with a Gauss-Kruger Graticule layer.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { MGRSGraticuleTutorial(it.engine).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also { GKGraticuleTutorial(it.engine).start() }
 }
 
-class MGRSGraticuleTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class GKGraticuleTutorial(private val engine: WorldWind) : AbstractTutorial() {
     // Create a layer that displays the globe's tessellation geometry.
-    private val layer = MGRSGraticuleLayer()
+    private val layer = GKGraticuleLayer()
 
     override fun start() {
         super.start()

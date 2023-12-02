@@ -305,19 +305,17 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         } else rc.camera.position
     }
 
-    fun createLineRenderable(positions: List<Position>, pathType: PathType) =
-        Path(positions).apply {
-            this.pathType = pathType
-            isFollowTerrain = true
-            // terrainConformance = 1.0 // TODO Why not terrainConformance?
-            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-        }
+    fun createLineRenderable(positions: List<Position>, pathType: PathType) = Path(positions).apply {
+        this.pathType = pathType
+        isFollowTerrain = true
+        // terrainConformance = 1.0 // TODO Why not terrainConformance?
+        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+    }
 
-    fun createTextRenderable(position: Position, label: String, resolution: Double) =
-        Label(position, label).apply {
-            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-            // priority = resolution * 1e6 // TODO Implement priority
-        }
+    fun createTextRenderable(position: Position, label: String, resolution: Double) = Label(position, label).apply {
+        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+        // priority = resolution * 1e6 // TODO Implement priority
+    }
 
     fun hasLookAtPos(rc: RenderContext): Boolean {
         calculateLookAtProperties(rc)

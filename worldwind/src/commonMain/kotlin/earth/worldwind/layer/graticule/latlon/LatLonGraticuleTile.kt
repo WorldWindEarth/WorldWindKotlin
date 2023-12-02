@@ -28,6 +28,7 @@ internal class LatLonGraticuleTile(
         super.selectRenderables(rc)
         val labelOffset = layer.computeLabelOffset(rc)
         var graticuleType = layer.getTypeFor(sector.deltaLatitude.inDegrees)
+        val sizeInPixels = getSizeInPixels(rc)
         if (level == 0) {
             for (ge in gridElements) {
                 if (ge.isInView(rc)) {
@@ -40,7 +41,7 @@ internal class LatLonGraticuleTile(
                     }
                 }
             }
-            if (getSizeInPixels(rc) / divisions < MIN_CELL_SIZE_PIXELS) return
+            if (sizeInPixels / divisions < MIN_CELL_SIZE_PIXELS) return
         }
 
         // Select tile grid elements
@@ -55,7 +56,7 @@ internal class LatLonGraticuleTile(
                 }
             }
         }
-        if (getSizeInPixels(rc) / divisions < MIN_CELL_SIZE_PIXELS * 2) return
+        if (sizeInPixels / divisions < MIN_CELL_SIZE_PIXELS * 2) return
 
         // Select child elements
         val subTiles = subTiles ?: createSubTiles().also { subTiles = it }

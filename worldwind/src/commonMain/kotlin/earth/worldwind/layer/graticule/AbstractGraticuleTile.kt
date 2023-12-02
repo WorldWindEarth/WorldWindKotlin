@@ -2,6 +2,7 @@ package earth.worldwind.layer.graticule
 
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
+import earth.worldwind.geom.Vec3
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.AbstractTile
 
@@ -11,8 +12,9 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sec
      * Flag to avoid recursive renderables creation if tile should not have elements by design
      */
     private var shouldCreateRenderables = true
+    private val scratchVector = Vec3()
 
-    open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain.sector) && intersectsFrustum(rc)
+    open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain.sector) && intersectsFrustum(rc) && isFacingCamera(rc)
 
     open fun getSizeInPixels(rc: RenderContext): Double {
         val centerPoint = layer.getSurfacePoint(rc, sector.centroidLatitude, sector.centroidLongitude)
@@ -47,5 +49,12 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sec
             }
         }
         return sectors
+    }
+
+    protected open fun isFacingCamera(rc: RenderContext) = if (rc.globe.is2D) true else {
+        val viewingVector = nearestPoint(rc).subtract(rc.cameraPoint)
+        val normalVector = rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
+        val dot = viewingVector.dot(normalVector)
+        dot / (viewingVector.magnitude * normalVector.magnitude) < 0.0
     }
 }

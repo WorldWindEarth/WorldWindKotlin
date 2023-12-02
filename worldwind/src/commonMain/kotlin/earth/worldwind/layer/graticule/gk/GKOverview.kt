@@ -39,9 +39,8 @@ internal class GKOverview(layer: GKGraticuleLayer): AbstractGraticuleTile(layer,
         val positions = mutableListOf<Position>()
 
         // Generate meridians and zone labels
-        var longitude = -180.0
-        var zoneNumber = 1
-        for (i in 0..60) {
+        for (zoneNumber in 1 .. 60) {
+            val longitude = -180.0 + zoneNumber * 6.0
             // Meridian
             positions.clear()
             positions.add(fromDegrees(-88.0, longitude, 0.0))
@@ -55,28 +54,23 @@ internal class GKOverview(layer: GKGraticuleLayer): AbstractGraticuleTile(layer,
             var sector = fromDegrees(-88.0, longitude,  176.0, 30.0)
             gridElements.add(GridElement(sector, polyline, TYPE_LINE))
             // Zone label
-            if(i < 60) {
-                val text = layer.createTextRenderable(
-                    fromDegrees(0.0, longitude + 3.0, 0.0), zoneNumber.toString(), 10e6
-                )
-                text.attributes.isOutlineEnabled = false
-                sector = fromDegrees(-90.0, longitude + 3.0, 180.0, 1E-15)
-                gridElements.add(GridElement(sector, text, TYPE_LONGITUDE_LABEL))
-            }
-            // Increase longitude and zone number
-            longitude += 6.0
-            zoneNumber++
+            val text = layer.createTextRenderable(
+                fromDegrees(0.0, longitude - 3.0, 0.0), zoneNumber.toString(), 10e6
+            )
+            text.attributes.isOutlineEnabled = false
+            sector = fromDegrees(-90.0, longitude - 3.0, 180.0, 0.0)
+            gridElements.add(GridElement(sector, text, TYPE_LONGITUDE_LABEL))
         }
 
         // Generate parallels
-        var latitude = -92.0
         for (i in 0..45) {
+            val latitude = -92.0 + i * 4.0
             // don't need parallel for firs and last
             if(i != 0 || i != 46 ) {
                 for (j in 0..3) {
                     // Each parallel is divided into four 90 degrees segments
                     positions.clear()
-                    longitude = -180.0 + j * 90.0
+                    val longitude = -180.0 + j * 90.0
                     positions.add(fromDegrees(latitude, longitude, 0.0))
                     positions.add(fromDegrees(latitude, longitude + 30.0, 0.0))
                     positions.add(fromDegrees(latitude, longitude + 60.0, 0.0))
@@ -95,8 +89,6 @@ internal class GKOverview(layer: GKGraticuleLayer): AbstractGraticuleTile(layer,
             text.attributes.isOutlineEnabled = false
             val sector = fromDegrees(latitude + 2, -180.0, 3.0, 360.0)
             gridElements.add(GridElement(sector, text, TYPE_LATITUDE_LABEL))
-            // Increase latitude
-            latitude += 4.0
         }
     }
 }

@@ -15,16 +15,13 @@ abstract class AbstractTile(
     val sector: Sector
 ) {
     /**
-     * The nearest point on the tile to the camera. Altitude value is based on the minimum height for the tile.
-     */
-    protected val nearestPoint = Vec3()
-    /**
      * The tile's Cartesian bounding box.
      */
     protected val extent by lazy { BoundingBox() }
     protected open val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
     protected var extentExaggeration = 0.0f
+    private val nearestPoint = Vec3()
 
     /**
      * Indicates whether this tile's Cartesian extent intersects a frustum.
@@ -64,6 +61,7 @@ abstract class AbstractTile(
 
     /**
      * Calculates nearest point of this tile to the camera position associated with the specified render context.
+     * Altitude value is based on the minimum height for the tile.
      *
      * @param rc the render context which provides the current camera point
      *

@@ -45,8 +45,6 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
         super.selectRenderables(rc)
         val graticuleType = layer.getTypeFor(MGRS_GRID_ZONE_RESOLUTION)
         for (ge in gridElements) if (ge.isInView(rc)) {
-            if (ge.type == TYPE_LINE_NORTH && layer.isNorthNeighborInView(this, rc)) continue
-            if (ge.type == TYPE_LINE_EAST && layer.isEastNeighborInView(this, rc)) continue
             layer.addRenderable(ge.renderable, graticuleType)
         }
         if (rc.camera.position.altitude > SQUARE_MAX_ALTITUDE) return
@@ -74,14 +72,16 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
         gridElements.add(GridElement(lineSector, polyline, GridElement.TYPE_LINE_WEST))
         if (!isUPS) {
             // right meridian segment
-            positions.clear()
-            positions.add(Position(sector.minLatitude, sector.maxLongitude, 10e3))
-            positions.add(Position(sector.maxLatitude, sector.maxLongitude, 10e3))
-            polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
-            lineSector = Sector(
-                sector.minLatitude, sector.maxLatitude, sector.maxLongitude, sector.maxLongitude
-            )
-            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_EAST))
+            if (name.startsWith("60")) {
+                positions.clear()
+                positions.add(Position(sector.minLatitude, sector.maxLongitude, 10e3))
+                positions.add(Position(sector.maxLatitude, sector.maxLongitude, 10e3))
+                polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
+                lineSector = Sector(
+                    sector.minLatitude, sector.maxLatitude, sector.maxLongitude, sector.maxLongitude
+                )
+                gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_EAST))
+            }
 
             // bottom parallel segment
             positions.clear()
@@ -94,14 +94,16 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
             gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_SOUTH))
 
             // top parallel segment
-            positions.clear()
-            positions.add(Position(sector.maxLatitude, sector.minLongitude, 10e3))
-            positions.add(Position(sector.maxLatitude, sector.maxLongitude, 10e3))
-            polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
-            lineSector = Sector(
-                sector.maxLatitude, sector.maxLatitude, sector.minLongitude, sector.maxLongitude
-            )
-            gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH))
+            if (name.endsWith("X")) {
+                positions.clear()
+                positions.add(Position(sector.maxLatitude, sector.minLongitude, 10e3))
+                positions.add(Position(sector.maxLatitude, sector.maxLongitude, 10e3))
+                polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
+                lineSector = Sector(
+                    sector.maxLatitude, sector.maxLatitude, sector.minLongitude, sector.maxLongitude
+                )
+                gridElements.add(GridElement(lineSector, polyline, TYPE_LINE_NORTH))
+            }
         }
 
         // Label
@@ -187,6 +189,6 @@ class MGRSGridZone(layer: MGRSGraticuleLayer, sector: Sector) : AbstractGraticul
     companion object {
         private const val ONEHT = 100e3
         private const val TWOMIL = 2e6
-        private const val SQUARE_MAX_ALTITUDE = 3000e3
+        private const val SQUARE_MAX_ALTITUDE = 1e6
     }
 }

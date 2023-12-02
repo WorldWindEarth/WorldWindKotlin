@@ -40,11 +40,8 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
         val positions = mutableListOf<Position>()
 
         // Generate meridians and zone labels
-        var lon = -180
-        var zoneNumber = 1
-        var maxLat: Int
-        for (i in 0..59) {
-            val longitude = lon.toDouble()
+        for (zoneNumber in 1 .. 60) {
+            val longitude = -180.0 + zoneNumber * 6.0
             // Meridian
             positions.clear()
             positions.add(fromDegrees(-80.0, longitude, 10e3))
@@ -52,35 +49,31 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
             positions.add(fromDegrees(-30.0, longitude, 10e3))
             positions.add(fromDegrees(0.0, longitude, 10e3))
             positions.add(fromDegrees(30.0, longitude, 10e3))
-            if (lon < 6 || lon > 36) {
+            val maxLat = if (longitude < 6.0 || longitude > 36.0) {
                 // 'regular' UTM meridians
-                maxLat = 84
                 positions.add(fromDegrees(60.0, longitude, 10e3))
+                84.0
             } else {
                 // Exceptions: shorter meridians around and north-east of Norway
-                if (lon == 6) {
-                    maxLat = 56
+                if (longitude == 6.0) {
+                    56.0
                 } else {
-                    maxLat = 72
                     positions.add(fromDegrees(60.0, longitude, 10e3))
+                    72.0
                 }
             }
-            positions.add(fromDegrees(maxLat.toDouble(), longitude, 10e3))
+            positions.add(fromDegrees(maxLat, longitude, 10e3))
             val polyline = layer.createLineRenderable(positions.toList(), PathType.GREAT_CIRCLE)
-            var sector = fromDegrees(-80.0, longitude, maxLat + 80.0, 1E-15)
+            var sector = fromDegrees(-80.0, longitude, maxLat + 80.0, 0.0)
             gridElements.add(GridElement(sector, polyline, TYPE_LINE))
 
             // Zone label
             val text = layer.createTextRenderable(
-                fromDegrees(0.0, longitude + 3.0, 0.0),
+                fromDegrees(0.0, longitude - 3.0, 0.0),
                 zoneNumber.toString(), 10e6
             )
-            sector = fromDegrees(-90.0, longitude + 3.0, 180.0, 1E-15)
+            sector = fromDegrees(-90.0, longitude - 3.0, 180.0, 0.0)
             gridElements.add(GridElement(sector, text, TYPE_LONGITUDE_LABEL))
-
-            // Increase longitude and zone number
-            lon += 6
-            zoneNumber++
         }
 
         // Generate special meridian segments for exceptions around and north-east of Norway
@@ -92,39 +85,37 @@ internal class MGRSOverview(layer: MGRSGraticuleLayer): AbstractGraticuleTile(la
             positions.add(fromDegrees(latitude1, longitude, 10e3))
             positions.add(fromDegrees(latitude2, longitude, 10e3))
             val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
-            val sector = fromDegrees(latitude1, longitude, latitude2 - latitude1, 1E-15)
+            val sector = fromDegrees(latitude1, longitude, latitude2 - latitude1, 0.0)
             gridElements.add(GridElement(sector, polyline, TYPE_LINE))
         }
 
         // Generate parallels - no exceptions
-        var lat = -80
+        var latitude = -80.0
         for (i in 0..20) {
-            val latitude = lat.toDouble()
             for (j in 0..3) {
                 // Each parallel is divided into four 90 degrees segments
                 positions.clear()
-                lon = -180 + j * 90
-                val longitude = lon.toDouble()
+                val longitude = -180.0 + j * 90.0
                 positions.add(fromDegrees(latitude, longitude, 10e3))
-                positions.add(fromDegrees(latitude, longitude + 30, 10e3))
-                positions.add(fromDegrees(latitude, longitude + 60, 10e3))
-                positions.add(fromDegrees(latitude, longitude + 90, 10e3))
+                positions.add(fromDegrees(latitude, longitude + 30.0, 10e3))
+                positions.add(fromDegrees(latitude, longitude + 60.0, 10e3))
+                positions.add(fromDegrees(latitude, longitude + 90.0, 10e3))
                 val polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)
-                val sector = fromDegrees(latitude, longitude, 1E-15, 90.0)
+                val sector = fromDegrees(latitude, longitude, 0.0, 90.0)
                 gridElements.add(GridElement(sector, polyline, TYPE_LINE))
             }
             // Latitude band label
             if (i < 20) {
                 val text = layer.createTextRenderable(
-                    fromDegrees(latitude + 4, 0.0, 0.0),
+                    fromDegrees(latitude + 4.0, 0.0, 0.0),
                     LAT_BANDS[i].toString(), 10e6
                 )
-                val sector = fromDegrees(latitude + 4, -180.0, 1E-15, 360.0)
+                val sector = fromDegrees(latitude + 4.0, -180.0, 0.0, 360.0)
                 gridElements.add(GridElement(sector, text, TYPE_LATITUDE_LABEL))
             }
 
             // Increase latitude
-            lat += if (lat < 72) 8 else 12
+            latitude += if (latitude < 72.0) 8.0 else 12.0
         }
     }
 

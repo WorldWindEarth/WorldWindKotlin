@@ -181,22 +181,6 @@ open class MGRSGraticuleLayer: AbstractUTMGraticuleLayer("MGRS Graticule", 10000
         return fromDegrees(minLat.toDouble(), minLon.toDouble(), (maxLat - minLat).toDouble(), (maxLon - minLon).toDouble())
     }
 
-    fun isNorthNeighborInView(gz: MGRSGridZone, rc: RenderContext): Boolean {
-        if (gz.isUPS) return true
-        val row = getGridRow(gz.sector.centroidLatitude)
-        val col = getGridColumn(gz.sector.centroidLongitude)
-        val neighbor = if (row + 1 <= 19) gridZones[row + 1][col] else null
-        return neighbor?.isInView(rc) == true
-    }
-
-    fun isEastNeighborInView(gz: MGRSGridZone, rc: RenderContext): Boolean {
-        if (gz.isUPS) return true
-        val row = getGridRow(gz.sector.centroidLatitude)
-        val col = getGridColumn(gz.sector.centroidLongitude)
-        val neighbor = if (col + 1 <= 59) gridZones[row][col + 1] else null
-        return neighbor?.isInView(rc) == true
-    }
-
     companion object {
         const val MGRS_OVERVIEW_RESOLUTION = 1e6
         const val MGRS_GRID_ZONE_RESOLUTION = 5e5

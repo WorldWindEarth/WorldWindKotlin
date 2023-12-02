@@ -30,17 +30,11 @@ class UTMSquareZone(
 
     override fun selectRenderables(rc: RenderContext) {
         super.selectRenderables(rc)
-        val drawMetricLabels = getSizeInPixels(rc) > MIN_CELL_SIZE_PIXELS * 2
         val graticuleType = layer.getTypeFor(size)
-        for (ge in gridElements) {
-            if (ge.isInView(rc)) {
-                if (ge.type == TYPE_LINE_NORTH && isNorthNeighborInView(rc)) continue
-                if (ge.type == TYPE_LINE_EAST && isEastNeighborInView(rc)) continue
-                if (drawMetricLabels) layer.computeMetricScaleExtremes(
-                    UTMZone, hemisphere, ge, size * 10
-                )
-                layer.addRenderable(ge.renderable, graticuleType)
-            }
+        for (ge in gridElements) if (ge.isInView(rc)) {
+            if (ge.type == TYPE_LINE_NORTH && isNorthNeighborInView(rc)) continue
+            if (ge.type == TYPE_LINE_EAST && isEastNeighborInView(rc)) continue
+            layer.addRenderable(ge.renderable, graticuleType)
         }
         if (getSizeInPixels(rc) <= MIN_CELL_SIZE_PIXELS * 2) return
 
