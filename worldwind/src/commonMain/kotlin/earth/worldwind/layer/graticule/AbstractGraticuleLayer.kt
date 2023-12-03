@@ -312,6 +312,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun createTextRenderable(position: Position, label: String, resolution: Double) = Label(position, label).apply {
         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
         // priority = resolution * 1e6 // TODO Implement priority

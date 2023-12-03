@@ -84,6 +84,7 @@ actual open class MilStd2525Placemark actual constructor(
          *
          * @return A new [PlacemarkAttributes] bundle representing the MIL-STD-2525 symbol.
          */
+        @JvmStatic
         actual fun getPlacemarkAttributes(
             symbolCode: String, symbolModifiers: Map<String, String>?, symbolAttributes: Map<String, String>?
         ): PlacemarkAttributes {

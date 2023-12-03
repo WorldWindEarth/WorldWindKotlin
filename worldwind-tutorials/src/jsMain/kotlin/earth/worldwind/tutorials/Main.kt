@@ -1,4 +1,5 @@
 @file:JsExport
+@file:Suppress("OPT_IN_USAGE", "NON_EXPORTABLE_TYPE")
 
 package earth.worldwind.tutorials
 

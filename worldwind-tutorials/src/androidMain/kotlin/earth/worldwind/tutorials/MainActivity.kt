@@ -321,7 +321,7 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
     private fun loadTutorial(globeFragment: Class<out Fragment>, url: String, titleId: Int) {
         try {
             setTitle(titleId)
-            val globe = globeFragment.newInstance()
+            val globe = globeFragment.getDeclaredConstructor().newInstance()
             supportFragmentManager
                 .beginTransaction()
                 .replace(R.id.globe_container, globe) // replace (destroy) existing fragment (if any)

@@ -541,7 +541,8 @@ open class Matrix3 private constructor(
      *
      * @return this matrix set to the inverse of the specified matrix
      */
-    fun invertMatrix(matrix: Matrix3): Matrix3 { 
+    @Suppress("UNUSED_PARAMETER")
+    fun invertMatrix(matrix: Matrix3): Matrix3 {
         TODO("Matrix3.invertMatrix is not implemented")
     }
 

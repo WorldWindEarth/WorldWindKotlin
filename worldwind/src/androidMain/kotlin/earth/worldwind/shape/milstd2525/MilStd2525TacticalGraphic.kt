@@ -18,7 +18,7 @@ import earth.worldwind.shape.*
 import earth.worldwind.util.Logger
 import kotlin.math.roundToInt
 
-actual open class MilStd2525TacticalGraphic actual constructor(
+actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
     sidc: String, locations: List<Location>,
     boundingSector: Sector, modifiers: Map<String, String>?, attributes: Map<String, String>?
 ) : AbstractMilStd2525TacticalGraphic(sidc, locations, boundingSector, modifiers, attributes) {

@@ -1,15 +1,11 @@
 package earth.worldwind.util
 
-import kotlin.jvm.JvmOverloads
-import kotlin.jvm.JvmStatic
-
 expect object Logger {
     val ERROR: Int
     val WARN: Int
     val INFO: Int
     val DEBUG: Int
 
-    @JvmStatic
     fun isLoggable(priority: Int): Boolean
 
     /**
@@ -20,14 +16,9 @@ expect object Logger {
      * @param message The message to log. Nothing is logged if the message is null or undefined.
      * @param tr Optional exception
      */
-    @JvmStatic
-    @JvmOverloads
     fun log(priority: Int, message: String, tr: Throwable? = null)
 
-    @JvmStatic
-    @JvmOverloads
     fun logMessage(level: Int, className: String, methodName: String, message: String, tr: Throwable? = null): String
 
-    @JvmStatic
     fun makeMessage(className: String, methodName: String, message: String): String
 }
