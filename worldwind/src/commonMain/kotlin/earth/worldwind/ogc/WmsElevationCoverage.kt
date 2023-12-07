@@ -7,22 +7,28 @@ import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
+import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 
 /**
  * Generates elevations from OGC Web Map Service (WMS) version 1.3.0.
  *
  * @param serviceAddress OGC Web Map Service (WMS) server address
- * @param coverage comma-separated coverage names
- * @param imageFormat required image format
+ * @param coverageName comma-separated coverage names
+ * @param outputFormat required image format
  * @param sector bounding sector
  * @param resolution the target resolution in angular value of latitude per texel
  */
 open class WmsElevationCoverage(
-    serviceAddress: String, coverage: String, imageFormat: String, sector: Sector, resolution: Angle
+    override val serviceAddress: String, override val coverageName: String, override  val outputFormat: String,
+    sector: Sector, resolution: Angle
 ): TiledElevationCoverage(
-    buildTileMatrixSet(sector, resolution), buildElevationSourceFactory(serviceAddress, coverage, imageFormat)
-) {
+    buildTileMatrixSet(sector, resolution), buildElevationSourceFactory(serviceAddress, coverageName, outputFormat)
+), WebElevationCoverage {
+    override val serviceType = SERVICE_TYPE
+
     companion object {
+        const val SERVICE_TYPE = "WMS"
+
         /**
          * 4x2 top level matrix equivalent to 90 degree top level tiles
          *

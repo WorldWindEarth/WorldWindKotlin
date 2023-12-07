@@ -11,6 +11,8 @@ import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.Closeable
 import java.io.File
 import java.io.FileInputStream
@@ -23,11 +25,13 @@ open class ElevationDecoder: Closeable {
 
     override fun close() = httpClient.close()
 
-    open suspend fun decodeElevation(elevationSource: ElevationSource) = when {
-        elevationSource.isElevationDataFactory -> decodeBuffer(elevationSource.asElevationDataFactory().fetchElevationData())
-        elevationSource.isFile -> decodeFile(elevationSource.asFile(), elevationSource.bufferPostprocessor)
-        elevationSource.isUrl -> decodeUrl(elevationSource.asUrl(), elevationSource.bufferPostprocessor)
-        else -> decodeUnrecognized(elevationSource)
+    open suspend fun decodeElevation(elevationSource: ElevationSource) = withContext(Dispatchers.IO) {
+        when {
+            elevationSource.isElevationDataFactory -> decodeBuffer(elevationSource.asElevationDataFactory().fetchElevationData())
+            elevationSource.isFile -> decodeFile(elevationSource.asFile(), elevationSource.postprocessor)
+            elevationSource.isUrl -> decodeUrl(elevationSource.asUrl(), elevationSource.postprocessor)
+            else -> decodeUnrecognized(elevationSource)
+        }
     }
 
     protected open fun decodeBuffer(buffer: Buffer?) = when (buffer) {
@@ -36,8 +40,8 @@ open class ElevationDecoder: Closeable {
         else -> null
     }
 
-    protected open suspend fun decodeFile(file: File, postprocessor: ResourcePostprocessor<Buffer>?) =
-        when(file.name.substring(file.name.lastIndexOf('.') + 1)) {
+    protected open suspend fun decodeFile(file: File, postprocessor: ResourcePostprocessor?) =
+        when(file.name.substring(file.name.lastIndexOf('.') + 1).lowercase()) {
             "tiff" -> "image/tiff"
             "bil16" -> "application/bil16"
             "bil32" -> "application/bil32"
@@ -46,7 +50,7 @@ open class ElevationDecoder: Closeable {
             logMessage(ERROR, "ElevationDecoder", "decodeFile", "Unknown mime-type")
         )
 
-    protected open suspend fun decodeUrl(url: URL, postprocessor: ResourcePostprocessor<Buffer>?) = httpClient.get(url).let {
+    protected open suspend fun decodeUrl(url: URL, postprocessor: ResourcePostprocessor?) = httpClient.get(url).let {
         if (it.status == HttpStatusCode.OK) {
             decodeBytes(it.readBytes(), it.contentType().toString(), postprocessor)
         } else null // Result is not an elevation data, access denied or server error
@@ -57,7 +61,7 @@ open class ElevationDecoder: Closeable {
         return null
     }
 
-    protected open suspend fun decodeBytes(bytes: ByteArray, contentType: String?, postprocessor: ResourcePostprocessor<Buffer>?) = decodeBuffer(
+    protected open suspend fun decodeBytes(bytes: ByteArray, contentType: String?, postprocessor: ResourcePostprocessor?) = decodeBuffer(
         when {
             contentType.equals("image/bil", true) ||
             contentType.equals("application/bil", true) ||

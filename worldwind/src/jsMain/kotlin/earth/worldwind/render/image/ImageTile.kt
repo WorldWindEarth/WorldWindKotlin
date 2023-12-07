@@ -9,12 +9,17 @@ import org.w3c.dom.events.Event
 
 actual open class ImageTile actual constructor(
     sector: Sector, level: Level, row: Int, column: Int
-): Tile(sector, level, row, column), ResourcePostprocessor<Image> {
+): Tile(sector, level, row, column), ResourcePostprocessor {
     actual var imageSource: ImageSource? = null
     actual var cacheSource: ImageSource? = null
 
     /**
      * Repeat image.onLoad event defined in RenderResourceCache to continue retrieval of original unprocessed image
      */
-    override suspend fun process(resource: Image) = resource.also { resource.onload?.invoke(Event("load")) as Unit }
+    override suspend fun <Resource> process(resource: Resource): Resource {
+        if (resource is Image) {
+            resource.onload?.invoke(Event("load"))
+        }
+        return resource
+    }
 }

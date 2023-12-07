@@ -139,7 +139,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         val retrievalQueueSize = if (imageSource.isUrl) urlRetrievalQueueSize else localRetrievalQueueSize
         if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)) {
             currentRetrievals += imageSource
-            mainScope.launch(Dispatchers.IO) {
+            mainScope.launch {
                 try {
                     imageDecoder.decodeImage(imageSource, options)?.also {
                         if (it.isRecycled) retrievalFailed(imageSource)
@@ -149,7 +149,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
                     retrievalFailed(imageSource, logged)
                 }
                 finally {
-                    launch(Dispatchers.Main) { currentRetrievals -= imageSource }
+                    currentRetrievals -= imageSource
                 }
             }
         }
@@ -169,7 +169,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         return texture
     }
 
-    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, bitmap: Bitmap) = mainScope.launch {
+    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, bitmap: Bitmap) {
         val texture = createTexture(options, bitmap)
         put(source, texture, texture.byteCount)
         absentResourceList.unmarkResourceAbsent(source.hashCode())
@@ -177,14 +177,14 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         if (isLoggable(DEBUG)) log(DEBUG, "Image retrieval succeeded '$source'")
     }
 
-    protected open fun retrievalFailed(source: ImageSource, ex: Throwable? = null) = mainScope.launch {
+    protected open fun retrievalFailed(source: ImageSource, ex: Throwable? = null) {
         absentResourceList.markResourceAbsent(source.hashCode(), !source.isUrl) // All local resources marked as absent permanently
-        WorldWind.requestRedraw() // Try to load alternate image source
+        WorldWind.requestRedraw() // Try to load an alternate image source
         when {
-            // log socket timeout exceptions while suppressing the stack trace
+            // log "socket timeout" exceptions while suppressing the stack trace
             ex is ConnectTimeoutException -> log(WARN, "Connect timeout retrieving image '$source'")
             ex is SocketTimeoutException -> log(WARN, "Socket timeout retrieving image '$source'")
-            // log file not found exceptions while suppressing the stack trace
+            // log "file not found" exceptions while suppressing the stack trace
             ex is FileNotFoundException -> log(WARN, "Image not found '$source'")
             // log checked exceptions with the entire stack trace
             ex != null -> log(WARN, "Image retrieval failed with exception '$source'", ex)

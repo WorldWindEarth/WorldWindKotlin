@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
 
 object GpkgLayerFactory {
 
-    suspend fun createLayer(pathName: String, layerNames: List<String> = emptyList()): RenderableLayer {
+    suspend fun createLayer(pathName: String, layerNames: List<String>? = null): RenderableLayer {
         val layer = createGeoPackageLayer(pathName, layerNames)
         require(!layer.isEmpty()) {
             makeMessage("GpkgLayerFactory", "createLayer", "Unsupported GeoPackage contents")
@@ -22,23 +22,25 @@ object GpkgLayerFactory {
         return layer
     }
 
-    private suspend fun createGeoPackageLayer(pathName: String, layerNames: List<String>) = withContext(Dispatchers.IO) {
+    private suspend fun createGeoPackageLayer(pathName: String, layerNames: List<String>?) = withContext(Dispatchers.IO) {
         RenderableLayer().apply {
             isPickEnabled = false // Disable picking for the tiled image layer
             val geoPackage = GeoPackage(pathName)
-            for (content in geoPackage.content) if (layerNames.isEmpty() || layerNames.contains(content.tableName)) {
-                try {
-                    val tileFactory = GpkgTileFactory(content)
-                    val levelSet = LevelSet(geoPackage.buildLevelSetConfig(content))
-                    val surfaceImage = if (content.srsId == AbstractGeoPackage.EPSG_3857) {
-                        MercatorTiledSurfaceImage(tileFactory, levelSet)
-                    } else {
-                        TiledSurfaceImage(tileFactory, levelSet)
+            for (content in geoPackage.content.values) {
+                if (content.dataType.equals("tiles", true) && layerNames?.contains(content.tableName) != false) {
+                    try {
+                        val tileFactory = GpkgTileFactory(content)
+                        val levelSet = LevelSet(geoPackage.buildLevelSetConfig(content))
+                        val surfaceImage = if (content.srsId == AbstractGeoPackage.EPSG_3857) {
+                            MercatorTiledSurfaceImage(tileFactory, levelSet)
+                        } else {
+                            TiledSurfaceImage(tileFactory, levelSet)
+                        }
+                        surfaceImage.displayName = content.identifier
+                        addRenderable(surfaceImage)
+                    } catch (e: IllegalArgumentException) {
+                        logMessage(WARN, "GpkgLayerFactory", "createGeoPackageLayer", e.message!!)
                     }
-                    surfaceImage.displayName = content.identifier
-                    addRenderable(surfaceImage)
-                } catch (e: IllegalArgumentException) {
-                    logMessage(WARN, "GpkgLayerFactory", "createGeoPackageLayer", e.message!!)
                 }
             }
         }

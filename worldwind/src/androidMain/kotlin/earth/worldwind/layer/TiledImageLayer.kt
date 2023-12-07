@@ -1,48 +1,20 @@
 package earth.worldwind.layer
 
 import android.content.Context
-import android.graphics.Bitmap.CompressFormat
-import android.os.Build
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
-import earth.worldwind.ogc.GpkgTileFactory
 import earth.worldwind.render.image.ImageDecoder
-import kotlinx.coroutines.*
-import java.io.File
+import earth.worldwind.shape.TiledSurfaceImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 
-actual abstract class TiledImageLayer actual constructor(name: String): AbstractTiledImageLayer(name) {
-    /**
-     * Configures current tiled image layer to use GeoPackage database file as a cache provider.
-     *
-     * @param pathName Full path to GeoPackage database file. If not exists, it will be created.
-     * @param tableName Name of content table inside GeoPackage database file.
-     * @param readOnly Do not create GeoPackage database file and do not save newly downloaded tiles to it. Read existing tiles only.
-     * @param format Tile image compression format
-     * @param quality Tile image compression quality
-     *
-     * @return Cache configured successfully
-     * @throws IllegalArgumentException In case of incompatible level set configured in cache content.
-     * @throws IllegalStateException In case of new content creation required on read-only database.
-     */
-    @JvmOverloads
-    @Throws(IllegalArgumentException::class, IllegalStateException::class)
-    suspend fun configureCache(
-        pathName: String, tableName: String, readOnly: Boolean = false, format: CompressFormat = CompressFormat.PNG, quality: Int = 100
-    ) {
-        if (readOnly && !File(pathName).exists()) return // Avid exception if cache file does not exist in read-only mode
-        val isWebp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            format == CompressFormat.WEBP_LOSSLESS || format == CompressFormat.WEBP_LOSSY
-        } else {
-            @Suppress("DEPRECATION")
-            format == CompressFormat.WEBP
-        }
-        val content = getOrSetupTilesContent(pathName, tableName, readOnly, isWebp).also { cacheContent = it }
-        tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content).also {
-            it.format = format
-            it.quality = quality
-        }
-    }
+actual open class TiledImageLayer actual constructor(
+    name: String, tiledSurfaceImage: TiledSurfaceImage?
+): AbstractTiledImageLayer(name, tiledSurfaceImage), CacheableImageLayer {
+    override var contentKey: String? = null
 
     /**
      * Start a new coroutine Job that downloads all imagery for a given sector and resolution,
@@ -53,14 +25,14 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
      *
      * @param sector     the sector to download data for.
      * @param resolution the desired resolution in angular value of latitude per pixel.
-     * @param cache      render resource cache to access absent resource list
+     * @param context    context to decode images.
      * @param scope      custom coroutine scope for better job management. Global scope by default.
      * @param onProgress an optional retrieval listener, indication successful, failed and total tiles amount.
      *
      * @return the coroutine Job executing the retrieval or `null` if the specified sector does
-     * not intersect the layer bounding sector.
+     * not intersect the layer-bounding sector.
      *
-     * @throws IllegalStateException if tiled surface image is not initialized or cache is not configured.
+     * @throws IllegalStateException if a tiled surface image is not initialized or cache is not configured.
      * @throws IllegalArgumentException if sector does not intersect tiled surface image sector
      */
     @OptIn(DelicateCoroutinesApi::class)
@@ -69,15 +41,16 @@ actual abstract class TiledImageLayer actual constructor(name: String): Abstract
         sector: Sector, resolution: Angle, context: Context, scope: CoroutineScope = GlobalScope,
         onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
+        require(isCacheWritable) { "Layer cache is read-only" }
         val imageDecoder = ImageDecoder(context)
-        return launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->
+        return tiledSurfaceImage?.launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->
             // Check if tile exists in cache. If cache retrieval fail, then image source will be requested.
             // TODO If retrieved cache source is outdated, then retrieve original image source to refresh cache
             imageDecoder.run { decodeImage(cacheSource, options) ?: decodeImage(imageSource, options) }?.let {
-                // Un-mark cache source from absent list
+                // Un-mark cache source from an absent list
                 WorldWind.unmarkResourceAbsent(cacheSource.hashCode())
                 true
             } ?: false
-        }
+        } ?: error("Tiled surface image not found")
     }
 }

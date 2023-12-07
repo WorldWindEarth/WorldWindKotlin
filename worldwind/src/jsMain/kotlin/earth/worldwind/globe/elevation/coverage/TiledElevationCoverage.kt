@@ -9,10 +9,7 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
 import io.ktor.client.fetch.*
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.await
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.launch
 import org.khronos.webgl.*
 import org.khronos.webgl.ArrayBufferView
 import org.khronos.webgl.Uint8Array
@@ -21,8 +18,6 @@ import kotlin.math.roundToInt
 actual open class TiledElevationCoverage actual constructor(
     tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
 ) : AbstractTiledElevationCoverage(tileMatrixSet, elevationSourceFactory) {
-    protected actual val mainScope = MainScope()
-
     /**
      * This is a dummy workaround for asynchronously defined ElevationSourceFactory
      */
@@ -30,14 +25,9 @@ actual open class TiledElevationCoverage actual constructor(
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
-    override fun invalidateTiles() {
-        mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
-        super.invalidateTiles()
-    }
-
-    override fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
+    override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         val elevationSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
-        if (elevationSource.isUrl) mainScope.launch {
+        if (elevationSource.isUrl) {
             val url = elevationSource.asUrl()
             try {
                 // Ktor JS Client cannot be used here, because it is not able to return ArrayBuffer directly.
@@ -61,7 +51,7 @@ actual open class TiledElevationCoverage actual constructor(
                             message = "Elevations retrieval failed (Unexpected content type $contentType): $url"
                             null
                         }
-                    }?.let { elevationSource.bufferPostprocessor?.process(it) ?: it } // Apply buffer transformations
+                    }?.let { elevationSource.postprocessor?.process(it) ?: it } // Apply buffer transformations
                     decodeBuffer(buffer)?.let {
                         retrievalSucceeded(key, it, "Elevation retrieval succeeded: $url")
                     } ?: retrievalFailed(key, message ?: "Elevations retrieval failed: $url")

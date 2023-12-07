@@ -7,7 +7,6 @@ import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.util.ResourcePostprocessor
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
@@ -176,11 +175,6 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         }
     }
 
-    /**
-     * Bitmap post-processing routine.
-     */
-    @Suppress("UNCHECKED_CAST")
-    val bitmapPostprocessor get() = postprocessor as ResourcePostprocessor<Bitmap>?
     /**
      * Indicates whether this image source is an Android or multi-platform resource.
      */

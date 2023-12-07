@@ -25,6 +25,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         TODO("Not yet implemented")
     }
 
+    override suspend fun writeWebService(service: GpkgWebService) {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun writeMatrixSet(matrixSet: GpkgTileMatrixSet) {
         TODO("Not yet implemented")
     }
@@ -54,6 +58,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readContent() {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun readWebService() {
         TODO("Not yet implemented")
     }
 
@@ -102,6 +110,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun deleteGriddedTiles(tableName: String) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun deleteWebService(service: GpkgWebService) {
         TODO("Not yet implemented")
     }
 

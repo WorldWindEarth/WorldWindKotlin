@@ -1,42 +1,24 @@
 package earth.worldwind.ogc
 
 import android.graphics.Bitmap
-import earth.worldwind.geom.Sector
-import earth.worldwind.layer.mercator.MercatorImageTile
-import earth.worldwind.layer.mercator.MercatorSector
+import android.os.Build
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.render.image.ImageTile
-import earth.worldwind.util.Level
-import earth.worldwind.util.TileFactory
 
-actual open class GpkgTileFactory actual constructor(protected val tiles: GpkgContent): TileFactory {
-    protected val levelOffset = tiles.container.getTileMatrix(tiles.tableName)?.keys?.sorted()?.get(0) ?: 0
-    var format = Bitmap.CompressFormat.PNG
-    var quality = 100
-
-    override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
-        buildTile(sector, level, row, column).apply { imageSource = getImageSource(level, row, column) }
-
-    protected open fun buildTile(sector: Sector, level: Level, row: Int, column: Int) = if (sector is MercatorSector) {
-        MercatorImageTile(sector, level, row, column)
-    } else {
-        ImageTile(sector, level, row, column)
-    }
-
-    protected open fun getImageSource(level: Level, row: Int, column: Int): ImageSource? {
-        val tileMatrixByZoomLevel = tiles.container.getTileMatrix(tiles.tableName) ?: return null
-
-        // Attempt to find the GeoPackage tile matrix associated with the WorldWind level.
-        val zoomLevel = level.levelNumber + levelOffset
-        tileMatrixByZoomLevel[zoomLevel]?.let { tileMatrix ->
-            // Convert the WorldWind tile row to the equivalent GeoPackage tile row.
-            val gpkgRow = level.levelHeight / level.tileHeight - row - 1
-            if (column < tileMatrix.matrixWidth && gpkgRow < tileMatrix.matrixHeight) {
-                // Configure the tile with a bitmap factory that reads directly from the GeoPackage.
-                return ImageSource.fromBitmapFactory(GpkgBitmapFactory(tiles, zoomLevel, column, gpkgRow, format, quality))
-            }
+/**
+ * Configure the tile with a bitmap factory that reads directly from the GeoPackage.
+ */
+actual fun buildImageSource(tiles: GpkgContent, zoomLevel: Int, column: Int, gpkgRow: Int, imageFormat: String?): ImageSource {
+    val format = when {
+        imageFormat.equals("image/jpeg", true) -> Bitmap.CompressFormat.JPEG
+        imageFormat.equals("image/png", true) -> Bitmap.CompressFormat.PNG
+        imageFormat.equals("image/webp", true) -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Bitmap.CompressFormat.WEBP_LOSSLESS
+        } else {
+            @Suppress("DEPRECATION")
+            Bitmap.CompressFormat.WEBP
         }
-        return null
+        else -> Bitmap.CompressFormat.PNG
     }
+    return ImageSource.fromBitmapFactory(GpkgBitmapFactory(tiles, zoomLevel, column, gpkgRow, format))
 }

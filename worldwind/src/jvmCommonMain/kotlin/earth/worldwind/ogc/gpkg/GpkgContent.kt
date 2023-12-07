@@ -12,4 +12,11 @@ class GpkgContent(
     val maxX: Double?,
     val maxY: Double?,
     val srsId: Int?
-): GpkgEntry()
+): GpkgEntry() {
+    /**
+     * Preserves this content from being modified
+     * Content is read-only also in case of whole container is read-only
+     */
+    var isReadOnly = true
+        get() = field || container.isReadOnly
+}

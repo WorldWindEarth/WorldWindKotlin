@@ -16,7 +16,7 @@ import earth.worldwind.util.Level
 actual open class MercatorImageTile actual constructor(
     sector: MercatorSector, level: Level, row: Int, column: Int
 ): AbstractMercatorImageTile(sector, level, row, column) {
-    override suspend fun process(resource: Bitmap): Bitmap {
+    override suspend fun <Resource> process(resource: Resource) = if (resource is Bitmap) {
         // Re-project mercator tile to equirectangular projection
         val pixels = IntArray(resource.width * resource.height)
         val result = IntArray(resource.width * resource.height)
@@ -31,6 +31,7 @@ actual open class MercatorImageTile actual constructor(
             val iy = (dy * (resource.height - 1)).toInt()
             for (x in 0 until resource.width) result[x + y * resource.width] = pixels[x + iy * resource.width]
         }
-        return super.process(Bitmap.createBitmap(result, resource.width, resource.height, resource.config)).also { resource.recycle() }
-    }
+        @Suppress("UNCHECKED_CAST")
+        super.process(Bitmap.createBitmap(result, resource.width, resource.height, resource.config) as Resource).also { resource.recycle() }
+    } else resource
 }

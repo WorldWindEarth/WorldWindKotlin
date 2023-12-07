@@ -8,7 +8,7 @@ import earth.worldwind.gesture.SelectDragCallback
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
-import earth.worldwind.layer.mercator.google.GoogleLayer
+import earth.worldwind.layer.mercator.MercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
@@ -49,7 +49,11 @@ fun main() {
         // Add some image layers to the WorldWindow's globe.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
-            addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE))
+            addLayer(MercatorLayerFactory.createLayer(
+                name = "Google Satellite",
+                urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+                imageFormat = "image/jpeg"
+            ))
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
         }

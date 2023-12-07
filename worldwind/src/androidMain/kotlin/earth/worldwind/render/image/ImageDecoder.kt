@@ -13,6 +13,8 @@ import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.Closeable
 import java.io.File
 import java.net.URL
@@ -22,16 +24,18 @@ open class ImageDecoder(val context: Context): Closeable {
 
     override fun close() = httpClient.close()
 
-    open suspend fun decodeImage(imageSource: ImageSource, imageOptions: ImageOptions?) = when {
-        imageSource.isBitmap -> imageSource.asBitmap()
-        imageSource.isBitmapFactory -> imageSource.asBitmapFactory().createBitmap()
-        imageSource.isResource -> decodeResource(imageSource.asResource(), imageOptions)
-        imageSource.isFile -> decodeFile(imageSource.asFile(), imageOptions)
-        imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageOptions)
-        else -> decodeUnrecognized(imageSource)
-    }?.let {
-        // Apply bitmap transformation if required
-        imageSource.bitmapPostprocessor?.process(it) ?: it
+    open suspend fun decodeImage(imageSource: ImageSource, imageOptions: ImageOptions?) = withContext(Dispatchers.IO) {
+        when {
+            imageSource.isBitmap -> imageSource.asBitmap()
+            imageSource.isBitmapFactory -> imageSource.asBitmapFactory().createBitmap()
+            imageSource.isResource -> decodeResource(imageSource.asResource(), imageOptions)
+            imageSource.isFile -> decodeFile(imageSource.asFile(), imageOptions)
+            imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageOptions)
+            else -> decodeUnrecognized(imageSource)
+        }?.let {
+            // Apply bitmap transformation if required
+            imageSource.postprocessor?.process(it) ?: it
+        }
     }
 
     protected open fun decodeResource(id: Int, imageOptions: ImageOptions?) =

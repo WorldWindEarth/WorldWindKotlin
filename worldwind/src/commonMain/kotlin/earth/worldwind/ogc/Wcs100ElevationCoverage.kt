@@ -4,6 +4,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
+import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 
 /**
  * Generates elevations from OGC Web Coverage Service (WCS) version 1.0.0.
@@ -14,8 +15,15 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
  * coordinate system parameters detailed here.
  */
 class Wcs100ElevationCoverage(
-    serviceAddress: String, coverage: String, outputFormat: String, sector: Sector, resolution: Angle
+    override val serviceAddress: String, override val coverageName: String, override val outputFormat: String,
+    sector: Sector, resolution: Angle
 ): TiledElevationCoverage(
     TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
-    Wcs100ElevationSourceFactory(serviceAddress, coverage, outputFormat)
-)
+    Wcs100ElevationSourceFactory(serviceAddress, coverageName, outputFormat)
+), WebElevationCoverage {
+    override val serviceType = SERVICE_TYPE
+
+    companion object {
+        const val SERVICE_TYPE = "WCS 1.0.0"
+    }
+}

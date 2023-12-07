@@ -8,12 +8,12 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
 import earth.worldwind.render.image.ImageOptions
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.render.program.SurfaceTextureProgram
-import earth.worldwind.util.LevelSet
-import earth.worldwind.util.LruMemoryCache
-import earth.worldwind.util.Tile
-import earth.worldwind.util.TileFactory
+import earth.worldwind.util.*
+import kotlinx.coroutines.*
+import kotlin.time.Duration.Companion.seconds
 
 open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): AbstractRenderable("Tiled Surface Image") {
     /**
@@ -51,17 +51,23 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     /**
      * Define cache tiles factory implementation.
      */
-    var cacheTileFactory: TileFactory? = null
+    var cacheTileFactory: CacheTileFactory? = null
     /**
-     * Configures tiled surface image to work only with cache source.
+     * Configures tiled surface image to retrieve only the cache source.
      */
-    var useCacheOnly = false
-    protected val topLevelTiles = mutableListOf<Tile>()
-
-    companion object {
-        // Retrieve top level tiles to avoid black holes when navigating and zooming out camera
-        private const val RETRIEVE_TOP_LEVEL_TILES = true
-    }
+    var isCacheOnly = false
+    /**
+     * Number of reties of bulk tile retrieval before long timeout
+     */
+    var makeLocalRetries = 3
+    /**
+     * Short timeout on bulk tile retrieval failed
+     */
+    var makeLocalTimeoutShort = 5.seconds
+    /**
+     * Long timeout on bulk tile retrieval failed
+     */
+    var makeLocalTimeoutLong = 15.seconds
 
     /**
      * Memory cache for this layer's subdivision tiles. Each entry contains an array of four image tiles corresponding
@@ -73,6 +79,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     protected var ancestorTile: ImageTile? = null
     protected var ancestorTexture: Texture? = null
     protected val ancestorTexCoordMatrix = Matrix3()
+    protected val topLevelTiles = mutableListOf<Tile>()
 
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
@@ -90,14 +97,58 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         ancestorTexture = null
     }
 
+    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+    open fun launchBulkRetrieval(
+        scope: CoroutineScope, sector: Sector, resolution: Angle, onProgress: ((Int, Int, Int) -> Unit)?,
+        retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Boolean
+    ): Job {
+        val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
+        require(sector.intersect(levelSet.sector)) { "Sector does not intersect tiled surface image sector" }
+        return scope.launch(Dispatchers.Default) {
+            // Prepare a tile list for download, based on specified sector and resolution
+            val processingList = assembleTilesList(sector, resolution)
+            var downloaded = 0
+            var skipped = 0
+            // Try to download each tile in a list
+            for (tile in processingList) {
+                var attempt = 0
+                // Retry download attempts till success or 404 not fond or job canceled
+                while(true) {
+                    // Check if a job canceled
+                    ensureActive()
+                    // No image source indicates an empty level or an image missing from the tiled data store
+                    val imageSource = tile.imageSource ?: break
+                    // If cache tile factory is specified, then create a cache source and store it in tile
+                    val cacheSource = tile.cacheSource
+                        ?: (cacheTileFactory.createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile)
+                            .imageSource?.also { tile.cacheSource = it } ?: break
+                    // Attempt to download tile
+                    try {
+                        ++attempt
+                        if (retrieveTile(imageSource, cacheSource, imageOptions)) {
+                            // Tile successfully downloaded
+                            onProgress?.invoke(++downloaded, skipped, processingList.size)
+                        } else {
+                            // Received data cannot be decoded as image
+                            onProgress?.invoke(downloaded, ++skipped, processingList.size)
+                        }
+                        break // Continue downloading the next tile
+                    } catch (throwable: Throwable) {
+                        delay(if (attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
+                    }
+                }
+            }
+        }
+    }
+
     /**
-     * Determine list of tiles which fit specified sector and maximum resolution.
+     * Determine the list of tiles which fit the specified sector and maximum resolution.
      *
      * @param sector     the bounding sector.
      * @param resolution the desired resolution in angular value of latitude per pixel.
      * @return List of tiles which fit specified sector and maximum resolution.
      */
-    open fun assembleTilesList(sector: Sector, resolution: Angle): List<ImageTile> {
+    protected open fun assembleTilesList(sector: Sector, resolution: Angle): List<ImageTile> {
         val result = mutableListOf<ImageTile>()
         val lastLevelNumber = levelSet.levelForResolution(resolution).levelNumber
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
@@ -179,19 +230,24 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     protected open fun getTexture(rc: RenderContext, tile: ImageTile, retrieve: Boolean = true): Texture? {
         // No image source indicates an empty level or an image missing from the tiled data store
         val imageSource = tile.imageSource ?: return null
-        // If cache tile factory is specified, then create cache source and store it in tile
+        // If cache tile factory is specified, then create a cache source and store it in tile
         val cacheSource = tile.cacheSource ?: cacheTileFactory?.run {
             (createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile).imageSource?.also { tile.cacheSource = it }
         }
-        // If cache source is not absent, then retrieve it instead of original image source
+        // If a cache source is not absent, then retrieve it instead of an original image source
         val isCacheAbsent = cacheSource == null || rc.renderResourceCache.absentResourceList.isResourceAbsent(cacheSource.hashCode())
         return rc.getTexture(
-            if (isCacheAbsent) imageSource else cacheSource!!, imageOptions, retrieve && (!useCacheOnly || !isCacheAbsent)
+            if (isCacheAbsent) imageSource else cacheSource!!, imageOptions, retrieve && (!isCacheOnly || !isCacheAbsent)
         )
     }
 
     protected open fun invalidateTiles() {
         topLevelTiles.clear()
         tileCache.clear()
+    }
+
+    companion object {
+        // Retrieve top level tiles to avoid black holes when navigating and zooming out camera
+        private const val RETRIEVE_TOP_LEVEL_TILES = true
     }
 }

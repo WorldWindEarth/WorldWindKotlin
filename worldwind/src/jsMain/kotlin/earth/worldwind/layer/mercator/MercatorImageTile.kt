@@ -30,51 +30,53 @@ actual open class MercatorImageTile actual constructor(
         val dstCtx = dstCanvas.getContext("2d") as CanvasRenderingContext2D
     }
 
-    override suspend fun process(resource: Image): Image {
-        val width = resource.width
-        val height = resource.height
-        val widthDouble = resource.width.toDouble()
-        val heightDouble = resource.height.toDouble()
+    override suspend fun <Resource> process(resource: Resource): Resource {
+        if (resource is Image) {
+            val width = resource.width
+            val height = resource.height
+            val widthDouble = resource.width.toDouble()
+            val heightDouble = resource.height.toDouble()
 
-        // Get source image data
-        srcCanvas.width = width
-        srcCanvas.height = height
-        srcCtx.drawImage(resource, 0.0, 0.0, widthDouble, heightDouble)
-        val srcData = srcCtx.getImageData(0.0, 0.0, widthDouble, heightDouble)
+            // Get source image data
+            srcCanvas.width = width
+            srcCanvas.height = height
+            srcCtx.drawImage(resource, 0.0, 0.0, widthDouble, heightDouble)
+            val srcData = srcCtx.getImageData(0.0, 0.0, widthDouble, heightDouble)
 
-        // Prepare destination image data
-        dstCanvas.width = width
-        dstCanvas.height = height
-        val dstData = dstCtx.createImageData(widthDouble, heightDouble)
+            // Prepare destination image data
+            dstCanvas.width = width
+            dstCanvas.height = height
+            val dstData = dstCtx.createImageData(widthDouble, heightDouble)
 
-        // Re-project mercator tile to equirectangular projection
-        val sector = sector as MercatorSector
-        val miny = sector.minLatPercent
-        val maxy = sector.maxLatPercent
-        for (y in 0 until height) {
-            val sy = 1.0 - y / (height - 1.0)
-            val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
-            val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
-            val srcRow = floor(dy * (height - 1)).toInt()
-            for (x in 0 until width) {
-                val src = 4 * (x + srcRow * width)
-                val dst = 4 * (x + y * width)
-                dstData.data[dst] = srcData.data[src]
-                dstData.data[dst + 1] = srcData.data[src + 1]
-                dstData.data[dst + 2] = srcData.data[src + 2]
-                dstData.data[dst + 3] = srcData.data[src + 3]
+            // Re-project mercator tile to equirectangular projection
+            val sector = sector as MercatorSector
+            val miny = sector.minLatPercent
+            val maxy = sector.maxLatPercent
+            for (y in 0 until height) {
+                val sy = 1.0 - y / (height - 1.0)
+                val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
+                val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
+                val srcRow = floor(dy * (height - 1)).toInt()
+                for (x in 0 until width) {
+                    val src = 4 * (x + srcRow * width)
+                    val dst = 4 * (x + y * width)
+                    dstData.data[dst] = srcData.data[src]
+                    dstData.data[dst + 1] = srcData.data[src + 1]
+                    dstData.data[dst + 2] = srcData.data[src + 2]
+                    dstData.data[dst + 3] = srcData.data[src + 3]
+                }
             }
-        }
 
-        // Replace image source with transformed canvas image data
-        dstCtx.putImageData(dstData, 0.0, 0.0)
-        //resource.src = dstCanvas.toDataURL() // This approach is performance ineffective thus replaced by toBlob()
-        dstCanvas.toBlob({
-            // Setting new src will call onLoad or onError in RenderResourceCache and continue image retrieval process
-            if (it != null) resource.src = URL.createObjectURL(it)
-            // Call image.onError in RenderResourceCache to fail retrieval and mark resource as absent
-            else resource.onerror?.invoke("Error saving canvas to Blob", "", 0, 0, null) as Unit
-        })
+            // Replace image source with transformed canvas image data
+            dstCtx.putImageData(dstData, 0.0, 0.0)
+            //resource.src = dstCanvas.toDataURL() // This approach is performance ineffective thus replaced by toBlob()
+            dstCanvas.toBlob({
+                // Setting new src will call onLoad or onError in RenderResourceCache and continue image retrieval process
+                if (it != null) resource.src = URL.createObjectURL(it)
+                // Call image.onError in RenderResourceCache to fail retrieval and mark resource as absent
+                else resource.onerror?.invoke("Error saving canvas to Blob", "", 0, 0, null) as Unit
+            })
+        }
         return resource // Do not call super.process to prevnt unnecessary onLoad event processing
     }
 }

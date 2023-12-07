@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.util.ResourcePostprocessor
 import java.io.ByteArrayOutputStream
 
 open class GpkgBitmapFactory(
@@ -12,8 +13,8 @@ open class GpkgBitmapFactory(
     protected val tileColumn: Int,
     protected val tileRow: Int,
     protected val format: Bitmap.CompressFormat,
-    protected val quality: Int
-): ImageSource.BitmapFactory {
+    protected val quality: Int = 100
+): ImageSource.BitmapFactory, ResourcePostprocessor {
     override suspend fun createBitmap(): Bitmap? {
         // Attempt to read the GeoPackage tile user data
         val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
@@ -22,12 +23,13 @@ open class GpkgBitmapFactory(
         return BitmapFactory.decodeByteArray(tileUserData.tileData, 0, tileUserData.tileData.size)
     }
 
-    suspend fun saveBitmap(bitmap: Bitmap) {
-        if (!tiles.container.isReadOnly) {
+    override suspend fun <Resource> process(resource: Resource): Resource {
+        if (resource is Bitmap && !tiles.isReadOnly) {
             val stream = ByteArrayOutputStream()
-            bitmap.compress(format, quality, stream)
+            resource.compress(format, quality, stream)
             tiles.container.writeTileUserData(tiles, zoomLevel, tileColumn, tileRow, stream.toByteArray())
         }
+        return resource
     }
 
     override fun equals(other: Any?): Boolean {

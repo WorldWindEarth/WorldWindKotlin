@@ -28,16 +28,19 @@ The globe uses the default navigation gestures:
     <textarea id="kotlin-snippet" cols="80" rows="5">
 // Create the WorldWindow (a GLSurfaceView) which displays the globe.
 wwd = WorldWindow(requireContext())
+// Define cache content manager
+val contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache.gpkg").absolutePath)
 // Setting up the WorldWindow's layers.
 wwd.engine.layers.apply {
     addLayer(BackgroundLayer())
-    addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-        wwd.mainScope.launch(Dispatchers.IO) {
-            try {
-                configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+    addLayer(MercatorLayerFactory.createLayer(
+        name = "Google Satellite",
+        urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+        imageFormat = "image/jpeg"
+    ).apply {
+        wwd.mainScope.launch {
+            configureCache(contentManager, "GSat")
+            isCacheWritable = true
         }
     })
     addLayer(StarFieldLayer())
@@ -45,12 +48,9 @@ wwd.engine.layers.apply {
 }
 // Setting up the WorldWindow's elevation coverages.
 wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-    wwd.mainScope.launch(Dispatchers.IO) {
-        try {
-            configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "NASADEM")
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    wwd.mainScope.launch {
+        configureCache(contentManager, "NASADEM")
+        isCacheWritable = true
     }
 })
     </textarea>

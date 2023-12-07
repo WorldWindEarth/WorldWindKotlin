@@ -3,8 +3,6 @@ package earth.worldwind.globe.elevation
 import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.util.ResourcePostprocessor
-import org.khronos.webgl.ArrayBufferView
 import org.w3c.dom.url.URL
 
 /**
@@ -56,11 +54,6 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
         }
     }
 
-    /**
-     * Buffer post-processing routine.
-     */
-    @Suppress("UNCHECKED_CAST")
-    val bufferPostprocessor get() = postprocessor as ResourcePostprocessor<ArrayBufferView>?
     /**
      * Indicates whether this elevation source is an [URL] string.
      */

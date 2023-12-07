@@ -4,7 +4,6 @@ import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.util.ResourcePostprocessor
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
@@ -157,11 +156,6 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         }
     }
 
-    /**
-     * Image post-processing routine.
-     */
-    @Suppress("UNCHECKED_CAST")
-    val imagePostprocessor get() = postprocessor as ResourcePostprocessor<BufferedImage>?
     /**
      * Indicates whether this image source is a multi-platform resource.
      */

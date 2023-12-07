@@ -6,6 +6,7 @@ import earth.worldwind.geom.Angle.Companion.NEG90
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Location
 import earth.worldwind.layer.TiledImageLayer
+import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.ogc.wmts.WmtsCapabilities
 import earth.worldwind.ogc.wmts.WmtsLayer
 import earth.worldwind.shape.TiledSurfaceImage
@@ -28,6 +29,7 @@ import kotlin.math.abs
 
 object WmtsLayerFactory {
 
+    const val SERVICE_TYPE = "WMTS"
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
     private val compatibleCoordinateSystems = listOf(
         "urn:ogc:def:crs:OGC:1.3:CRS84",
@@ -47,8 +49,12 @@ object WmtsLayerFactory {
         requireNotNull(wmtsLayer) {
             makeMessage("WmtsLayerFactory", "createLayer", "The layer identifier specified was not found")
         }
-        return object : TiledImageLayer(wmtsLayer.title ?: layerIdentifier) {
-            init { tiledSurfaceImage = createWmtsSurfaceImage(wmtsLayer) }
+        return object : TiledImageLayer(wmtsLayer.title ?: layerIdentifier, createWmtsSurfaceImage(wmtsLayer)), WebImageLayer {
+            override val serviceType = SERVICE_TYPE
+            override val serviceAddress = serviceAddress
+            override val layerName = layerIdentifier
+            override val imageFormat = (tiledSurfaceImage?.tileFactory as? WmtsTileFactory)?.imageFormat ?: "image/png"
+            override val isTransparent = true // WMTS has no transparency data available
         }
     }
 
@@ -85,7 +91,7 @@ object WmtsLayerFactory {
             val template = resourceUrl.template
                 .replace("{style}", wmtsLayer.styles[0].identifier)
                 .replace("{TileMatrixSet}", compatibleTileMatrixSet.tileMatrixSetId)
-            return WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices)
+            return WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices, resourceUrl.format)
         }
 
         // Second choice is if the server supports KVP
@@ -98,7 +104,7 @@ object WmtsLayerFactory {
             val template = buildWmtsKvpTemplate(
                 baseUrl, wmtsLayer.identifier, imageFormat, styleIdentifier, compatibleTileMatrixSet.tileMatrixSetId
             )
-            WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices)
+            WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices, imageFormat)
         } else error(makeMessage("WmtsLayerFactory", "getWmtsTileFactory", "No KVP Get Support"))
     }
 

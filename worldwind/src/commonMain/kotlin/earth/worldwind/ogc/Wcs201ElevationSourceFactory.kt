@@ -11,9 +11,9 @@ open class Wcs201ElevationSourceFactory(
      */
     protected val serviceAddress: String,
     /**
-     * The coverage id of the desired WCS coverage.
+     * The coverage name of the desired WCS coverage.
      */
-    protected val coverageId: String,
+    protected val coverageName: String,
     /**
      * Required WCS source output format
      */
@@ -21,7 +21,11 @@ open class Wcs201ElevationSourceFactory(
     /**
      * Axis labels from coverage description
      */
-    protected val axisLabels: List<String> = listOf("Lat", "Long")
+    protected val axisLabels: List<String> = listOf("Lat", "Long"),
+    /**
+     * The coordinate reference system to use in Get Coverage URLs. Defaults to EPSG:4326.
+     */
+    protected val coordinateSystem: String = "EPSG:4326"
 ): ElevationSourceFactory {
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         val urlString = urlForTile(tileMatrix, row, column)
@@ -34,7 +38,8 @@ open class Wcs201ElevationSourceFactory(
             .appendQueryParameter("VERSION", "2.0.1")
             .appendQueryParameter("SERVICE", "WCS")
             .appendQueryParameter("REQUEST", "GetCoverage")
-            .appendQueryParameter("COVERAGEID", coverageId)
+            .appendQueryParameter("COVERAGEID", coverageName)
+            .appendQueryParameter("OUTPUTCRS", coordinateSystem)
             .appendQueryParameter("FORMAT", outputFormat)
             .appendQueryParameter("SUBSET", sector.run { "${axisLabels[0]}(${minLatitude.inDegrees},${maxLatitude.inDegrees})" })
             .appendQueryParameter("SUBSET", sector.run { "${axisLabels[1]}(${minLongitude.inDegrees},${maxLongitude.inDegrees})" })
