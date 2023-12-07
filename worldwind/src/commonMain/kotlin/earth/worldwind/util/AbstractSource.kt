@@ -8,7 +8,7 @@ abstract class AbstractSource protected constructor(protected val source: Any) {
     /**
      * Resource post-processing routine.
      */
-    var postprocessor: ResourcePostprocessor<*>? = null
+    var postprocessor: ResourcePostprocessor? = null
 
     /**
      * @return generic image source as unrecognized object.

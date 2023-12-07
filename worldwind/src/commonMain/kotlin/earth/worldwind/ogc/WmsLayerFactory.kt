@@ -4,6 +4,7 @@ import com.eygraber.uri.Uri
 import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.TiledImageLayer
+import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.ogc.wms.WmsCapabilities
 import earth.worldwind.ogc.wms.WmsLayer
 import earth.worldwind.shape.TiledSurfaceImage
@@ -24,6 +25,7 @@ import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
 
+    const val SERVICE_TYPE = "WMS"
     private const val DEFAULT_WMS_NUM_LEVELS = 20
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
@@ -41,8 +43,12 @@ object WmsLayerFactory {
             makeMessage("WmsLayerFactory", "createLayer", "Provided layers did not match available layers")
         }
         // Collect WMS Layer Titles to set the Layer Display Name
-        return object : TiledImageLayer(wmsLayers.joinToString(",") { lc -> lc.title }) {
-            init { tiledSurfaceImage = createWmsSurfaceImage(wmsLayers) }
+        return object : TiledImageLayer(wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)), WebImageLayer {
+            override val serviceType = SERVICE_TYPE
+            override val serviceAddress = serviceAddress
+            override val layerName = layerNames.joinToString(",")
+            override val imageFormat = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.imageFormat ?: "image/png"
+            override val isTransparent = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.isTransparent ?: true
         }
     }
 

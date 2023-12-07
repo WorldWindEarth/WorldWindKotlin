@@ -7,6 +7,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
+import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.ogc.gml.GmlRectifiedGrid
 import earth.worldwind.ogc.gml.serializersModule
 import earth.worldwind.ogc.wcs.Wcs201CoverageDescription
@@ -36,14 +37,18 @@ import nl.adaptivity.xmlutil.serialization.XML
  * <br></br>
  * http://www.opengis.net/def/axis/OGC/1/i and http://www.opengis.net/def/axis/OGC/1/j
  */
-open class Wcs201ElevationCoverage: TiledElevationCoverage {
+open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage {
+    final override val serviceType = SERVICE_TYPE
+    final override val serviceAddress: String
+    final override val coverageName: String
+    final override val outputFormat: String
     protected val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
 
     /**
      * Constructs a Web Coverage Service (WCS) elevation coverage with specified WCS configuration values.
      *
      * @param serviceAddress the WCS service address
-     * @param coverage       the WCS coverage name
+     * @param coverageName   the WCS coverage name
      * @param outputFormat   the WCS source data format
      * @param sector         the coverage's geographic bounding sector
      * @param resolution     the target resolution in angular value of latitude per texel
@@ -51,10 +56,14 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
      *
      * @throws IllegalArgumentException If any argument is null or if the number of levels is less than 0
      */
-    constructor(serviceAddress: String, coverage: String, outputFormat: String, sector: Sector, resolution: Angle): super(
+    constructor(serviceAddress: String, coverageName: String, outputFormat: String, sector: Sector, resolution: Angle): super(
         TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
-        Wcs201ElevationSourceFactory(serviceAddress, coverage, outputFormat)
-    )
+        Wcs201ElevationSourceFactory(serviceAddress, coverageName, outputFormat)
+    ) {
+        this.serviceAddress = serviceAddress
+        this.coverageName = coverageName
+        this.outputFormat = outputFormat
+    }
 
     /**
      * Attempts to construct a Web Coverage Service (WCS) elevation coverage with the provided service address and
@@ -63,34 +72,37 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
      * available coverages or there is another error, no data will be provided and the error will be logged.
      *
      * @param serviceAddress the WCS service address
-     * @param coverage       the WCS coverage name
+     * @param coverageName   the WCS coverage name
      * @param outputFormat   the WCS source data format
      */
-    constructor(serviceAddress: String, coverage: String, outputFormat: String) {
+    constructor(serviceAddress: String, coverageName: String, outputFormat: String) {
+        this.serviceAddress = serviceAddress
+        this.coverageName = coverageName
+        this.outputFormat = outputFormat
         mainScope.launch {
             try {
                 // Fetch the DescribeCoverage document and determine the bounding box and number of levels
-                val coverageDescriptions = describeCoverage(serviceAddress, coverage)
-                val coverageDescription = coverageDescriptions.getCoverageDescription(coverage) ?: error(
+                val coverageDescriptions = describeCoverage(serviceAddress, coverageName)
+                val coverageDescription = coverageDescriptions.getCoverageDescription(coverageName) ?: error(
                     makeMessage(
                         "Wcs201ElevationCoverage", "constructor",
-                        "WCS coverage is undefined: $coverage"
+                        "WCS coverage is undefined: $coverageName"
                     )
                 )
                 val axisLabels = coverageDescription.boundedBy.envelope.axisLabelsList
                 require(axisLabels.size >= 2) {
                     makeMessage(
                         "Wcs201ElevationCoverage", "constructor",
-                        "WCS coverage axis labels are undefined: $coverage"
+                        "WCS coverage axis labels are undefined: $coverageName"
                     )
                 }
-                elevationSourceFactory = Wcs201ElevationSourceFactory(serviceAddress, coverage, outputFormat, axisLabels)
+                elevationSourceFactory = Wcs201ElevationSourceFactory(serviceAddress, coverageName, outputFormat, axisLabels)
                 tileMatrixSet = tileMatrixSetFromCoverageDescription(coverageDescription)
                 WorldWind.requestRedraw()
             } catch (logged: Throwable) {
                 logMessage(
                     ERROR, "Wcs201ElevationCoverage", "constructor",
-                    "Exception initializing WCS coverage serviceAddress:$serviceAddress coverage:$coverage", logged
+                    "Exception initializing WCS coverage serviceAddress:$serviceAddress coverage:$coverageName", logged
                 )
             }
         }
@@ -157,5 +169,9 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage {
             if (status == HttpStatusCode.OK) xml.decodeFromString<Wcs201CoverageDescriptions>(xmlText)
             else throw OwsException(xml.decodeFromString(xmlText))
         }
+    }
+
+    companion object {
+        const val SERVICE_TYPE = "WCS 2.0.1"
     }
 }

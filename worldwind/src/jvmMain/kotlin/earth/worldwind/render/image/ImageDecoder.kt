@@ -6,6 +6,8 @@ import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.Closeable
@@ -18,7 +20,7 @@ open class ImageDecoder: Closeable {
 
     override fun close() = httpClient.close()
 
-    open suspend fun decodeImage(imageSource: ImageSource, imageOptions: ImageOptions?): BufferedImage? {
+    open suspend fun decodeImage(imageSource: ImageSource, imageOptions: ImageOptions?) = withContext(Dispatchers.IO) {
         val image = when {
             imageSource.isResource -> imageSource.asResource().image
             imageSource.isImage -> imageSource.asImage()
@@ -28,15 +30,15 @@ open class ImageDecoder: Closeable {
             else -> decodeUnrecognized(imageSource)
         }?.let {
             // Apply image transformation if required
-            imageSource.imagePostprocessor?.process(it) ?: it
+            imageSource.postprocessor?.process(it) ?: it
         }
-        // Convert image to required type
+        // Convert image to a required type
         val type = when (imageOptions?.imageConfig) {
             ImageConfig.RGB_565 -> BufferedImage.TYPE_INT_RGB
             ImageConfig.RGBA_8888 -> BufferedImage.TYPE_INT_ARGB
             else -> null
         }
-        return if (image != null && type != null && image.type != type) {
+        if (image != null && type != null && image.type != type) {
             val convertedImage = BufferedImage(image.width, image.height, type)
             convertedImage.graphics.drawImage(image, 0, 0, null)
             convertedImage

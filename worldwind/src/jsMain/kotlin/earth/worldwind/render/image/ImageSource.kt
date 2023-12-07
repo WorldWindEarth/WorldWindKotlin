@@ -4,7 +4,6 @@ import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.util.ResourcePostprocessor
 import org.w3c.dom.*
 import org.w3c.dom.url.URL
 import kotlinx.browser.document
@@ -121,11 +120,6 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         }
     }
 
-    /**
-     * Image post-processing routine.
-     */
-    @Suppress("UNCHECKED_CAST")
-    val imagePostprocessor get() = postprocessor as ResourcePostprocessor<Image>?
     /**
      * Indicates whether this image source is a multi-platform resource.
      */

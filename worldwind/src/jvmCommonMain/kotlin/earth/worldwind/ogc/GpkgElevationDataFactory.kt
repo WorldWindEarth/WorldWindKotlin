@@ -14,7 +14,7 @@ open class GpkgElevationDataFactory(
     protected val tileColumn: Int,
     protected val tileRow: Int,
     protected val isFloat: Boolean
-): ElevationSource.ElevationDataFactory, ResourcePostprocessor<Buffer> {
+): ElevationSource.ElevationDataFactory, ResourcePostprocessor {
     override suspend fun fetchElevationData(): Buffer? {
         // Attempt to read the GeoPackage tile user data
         val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
@@ -24,9 +24,9 @@ open class GpkgElevationDataFactory(
         return if (isFloat) buffer.asFloatBuffer() else buffer.asShortBuffer()
     }
 
-    override suspend fun process(resource: Buffer): Buffer {
+    override suspend fun <Resource> process(resource: Resource): Resource {
         // Attempt to write tile user data only if container is not read-only
-        if (!tiles.container.isReadOnly) {
+        if (resource is Buffer && !tiles.isReadOnly) {
             when (resource) {
                 is FloatBuffer -> {
                     if (isFloat) {

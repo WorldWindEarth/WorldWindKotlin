@@ -10,9 +10,9 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
-import earth.worldwind.layer.mercator.google.GoogleLayer
+import earth.worldwind.layer.mercator.MercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
-import kotlinx.coroutines.Dispatchers
+import earth.worldwind.ogc.GpkgContentManager
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -29,16 +29,19 @@ open class BasicGlobeFragment: Fragment() {
     open fun createWorldWindow(): WorldWindow {
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
         wwd = WorldWindow(requireContext())
+        // Define cache content manager
+        val contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache.gpkg").absolutePath)
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
-            addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-                wwd.mainScope.launch(Dispatchers.IO) {
-                    try {
-                        configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "GSat")
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+            addLayer(MercatorLayerFactory.createLayer(
+                name = "Google Satellite",
+                urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+                imageFormat = "image/jpeg"
+            ).apply {
+                wwd.mainScope.launch {
+                    configureCache(contentManager, "GSat")
+                    isCacheWritable = true
                 }
             })
             addLayer(StarFieldLayer())
@@ -46,12 +49,9 @@ open class BasicGlobeFragment: Fragment() {
         }
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            wwd.mainScope.launch(Dispatchers.IO) {
-                try {
-                    configureCache(File(requireContext().cacheDir, "cache.gpkg").absolutePath, "NASADEM")
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+            wwd.mainScope.launch {
+                configureCache(contentManager, "NASADEM")
+                isCacheWritable = true
             }
         })
         return wwd

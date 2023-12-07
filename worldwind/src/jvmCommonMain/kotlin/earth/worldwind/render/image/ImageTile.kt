@@ -1,21 +1,18 @@
 package earth.worldwind.render.image
 
-import android.graphics.Bitmap
 import earth.worldwind.geom.Sector
-import earth.worldwind.ogc.GpkgBitmapFactory
 import earth.worldwind.util.Level
 import earth.worldwind.util.ResourcePostprocessor
 import earth.worldwind.util.Tile
 
 actual open class ImageTile actual constructor(
     sector: Sector, level: Level, row: Int, column: Int
-): Tile(sector, level, row, column), ResourcePostprocessor<Bitmap> {
+): Tile(sector, level, row, column), ResourcePostprocessor {
     actual var imageSource: ImageSource? = null
     actual var cacheSource: ImageSource? = null
 
-    override suspend fun process(resource: Bitmap): Bitmap {
+    override suspend fun <Resource> process(resource: Resource): Resource {
         val source = cacheSource?.asUnrecognized()
-        if (source is GpkgBitmapFactory) source.saveBitmap(resource)
-        return resource
+        return if (source is ResourcePostprocessor) source.process(resource) else resource
     }
 }

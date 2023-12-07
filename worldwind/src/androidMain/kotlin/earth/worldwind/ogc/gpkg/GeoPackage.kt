@@ -5,7 +5,7 @@ import android.database.SQLException
 import android.database.sqlite.SQLiteDatabase.*
 import java.util.concurrent.TimeUnit
 
-// TODO parameterize column names as constants or use ORMLite
+// TODO parameterize column names as constants or use some ORM
 actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Boolean): AbstractGeoPackage(pathName, isReadOnly) {
     private lateinit var connection: SQLiteConnection
 
@@ -76,6 +76,16 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                     definition TEXT NOT NULL,
                     scope TEXT NOT NULL,
                     UNIQUE (table_name, column_name, extension_name)
+                )
+            """.trimIndent())
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS $WEB_SERVICE (
+                    table_name TEXT NOT NULL PRIMARY KEY,
+                    type TEXT NOT NULL,
+                    address TEXT NOT NULL,
+                    layer_name TEXT,
+                    output_format TEXT NOT NULL,
+                    is_transparent SMALLINT DEFAULT 0
                 )
             """.trimIndent())
         }
@@ -167,6 +177,23 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("srs_id", srsId)
             }
             if (database.insert(CONTENTS, null, values) >= 0) addContent(this)
+        } }
+    }
+
+    override suspend fun writeWebService(service: GpkgWebService) {
+        connection.openDatabase().use { database -> service.run {
+            val values = ContentValues().apply {
+                put("table_name", tableName)
+                put("type", type)
+                put("address", address)
+                put("layer_name", layerName)
+                put("output_format", outputFormat)
+                put("is_transparent", isTransparent)
+            }
+            if (database.insert(WEB_SERVICE, null, values) >= 0 ||
+                database.update(WEB_SERVICE, values, "table_name=?", arrayOf(service.tableName)) > 0) {
+                addWebService(this)
+            }
         } }
     }
 
@@ -293,6 +320,25 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                             this@GeoPackage, getString(0), getString(1), getString(2),
                             getString(3), getString(4), getDouble(5), getDouble(6),
                             getDouble(7), getDouble(8), getInt(9)
+                        )
+                    )
+                } }
+            } catch (_: SQLException) {
+                // Skip exception. Table will be created later
+            }
+        }
+    }
+
+    override suspend fun readWebService() {
+        connection.openDatabase().use { database ->
+            try {
+                database.rawQuery("""
+                    SELECT table_name, type, address, layer_name, output_format, is_transparent FROM '$WEB_SERVICE'
+                """.trimIndent(), null).use { it.run {
+                    while (moveToNext()) addWebService(
+                        GpkgWebService(
+                            this@GeoPackage, getString(0), getString(1), getString(2),
+                            getString(3), getString(4), getInt(5) != 0
                         )
                     )
                 } }
@@ -465,6 +511,16 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         connection.openDatabase().use { database ->
             try {
                 database.delete(GRIDDED_TILE_ANCILLARY, "tpudt_name=?", arrayOf(tableName))
+            } catch (_: SQLException) {
+                // Skip exception.
+            }
+        }
+    }
+
+    override suspend fun deleteWebService(service: GpkgWebService) {
+        connection.openDatabase().use { database ->
+            try {
+                database.delete(WEB_SERVICE, "table_name=?", arrayOf(service.tableName))
             } catch (_: SQLException) {
                 // Skip exception.
             }

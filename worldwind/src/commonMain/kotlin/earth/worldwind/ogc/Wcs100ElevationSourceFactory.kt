@@ -16,11 +16,15 @@ open class Wcs100ElevationSourceFactory(
     /**
      * The coverage name of the desired WCS coverage.
      */
-    protected val coverage: String,
+    protected val coverageName: String,
     /**
      * Required WCS source output format
      */
-    protected val outputFormat: String
+    protected val outputFormat: String,
+    /**
+     * The coordinate reference system to use in Get Coverage URLs. Defaults to EPSG:4326.
+     */
+    protected val coordinateSystem: String = "EPSG:4326"
 ): ElevationSourceFactory {
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         val urlString = urlForTile(tileMatrix, row, column)
@@ -31,8 +35,8 @@ open class Wcs100ElevationSourceFactory(
         .appendQueryParameter("VERSION", "1.0.0")
         .appendQueryParameter("SERVICE", "WCS")
         .appendQueryParameter("REQUEST", "GetCoverage")
-        .appendQueryParameter("COVERAGE", coverage)
-        .appendQueryParameter("CRS", "EPSG:4326")
+        .appendQueryParameter("COVERAGE", coverageName)
+        .appendQueryParameter("CRS", coordinateSystem)
         .appendQueryParameter("BBOX", tileMatrix.tileSector(row, col).run {
             "${minLongitude.inDegrees},${minLatitude.inDegrees},${maxLongitude.inDegrees},${maxLatitude.inDegrees}"
         })

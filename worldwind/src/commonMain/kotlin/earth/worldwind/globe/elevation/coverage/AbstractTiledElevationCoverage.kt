@@ -12,12 +12,15 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.format.format
 import earth.worldwind.util.math.fract
 import earth.worldwind.util.math.mod
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.time.Duration.Companion.seconds
 
 abstract class AbstractTiledElevationCoverage(
-    tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory,
+    tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
 ): AbstractElevationCoverage() {
     companion object {
         protected const val GET_HEIGHT_LIMIT_SAMPLES = 32
@@ -44,6 +47,7 @@ abstract class AbstractTiledElevationCoverage(
     protected var coverageCache = LruMemoryCache<Long, ShortArray>(1024 * 1024 * 64)
     protected var isRetrievalEnabled = false
     protected val absentResourceList = AbsentResourceList<Long>(3, 5.seconds)
+    protected val mainScope = MainScope()
 
     init { log(INFO, "Coverage cache initialized %.0f KB".format(coverageCache.capacity / 1024.0)) }
 
@@ -55,6 +59,7 @@ abstract class AbstractTiledElevationCoverage(
     }
 
     override fun invalidateTiles() {
+        mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
         currentRetrievals.clear()
         coverageCache.clear()
         absentResourceList.clear()
@@ -251,13 +256,13 @@ abstract class AbstractTiledElevationCoverage(
             if (isRetrievalEnabled && currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(key)
                 && !absentResourceList.isResourceAbsent(key)) {
                 currentRetrievals += key
-                retrieveTileArray(key, tileMatrix, row, column)
+                mainScope.launch { retrieveTileArray(key, tileMatrix, row, column) }
             }
             null
         }
     }
 
-    protected abstract fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int)
+    protected abstract suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int)
 
     protected fun retrievalSucceeded(key: Long, value: ShortArray) {
         coverageCache.put(key, value, value.size * 2)
