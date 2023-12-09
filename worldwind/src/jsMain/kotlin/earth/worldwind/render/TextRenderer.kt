@@ -1,7 +1,7 @@
 package earth.worldwind.render
 
 import earth.worldwind.geom.Vec2
-import earth.worldwind.render.image.CanvasTexture
+import earth.worldwind.render.image.ImageTexture
 import earth.worldwind.shape.TextAttributes
 import kotlinx.browser.document
 import org.w3c.dom.*
@@ -18,7 +18,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
      * @returns A texture for the specified text string.
      */
     actual fun renderText(text: String?, attributes: TextAttributes): Texture? =
-        if (text?.isNotEmpty() == true) CanvasTexture(drawText(text, attributes)) else null
+        if (text?.isNotEmpty() == true) ImageTexture(drawText(text, attributes)) else null
 
     /**
      * Creates a 2D Canvas for a specified text string while considering current TextRenderer state regarding outline

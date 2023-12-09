@@ -1,7 +1,7 @@
 package earth.worldwind.render.image
 
 import android.graphics.Bitmap
-import android.graphics.Color.argb
+import android.graphics.Color
 import androidx.annotation.DrawableRes
 import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
@@ -265,27 +265,20 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
 
     protected open class LineStippleBitmapFactory(protected val factor: Int, protected val pattern: Short): BitmapFactory {
         override suspend fun createBitmap(): Bitmap {
-            val transparent = argb(0, 0, 0, 0)
-            val white = argb(255, 255, 255, 255)
-            return if (factor <= 0) {
-                val width = 16
-                val pixels = IntArray(width)
-                pixels.fill(white)
-                val bitmap = Bitmap.createBitmap(width, 1 /*height*/, Bitmap.Config.ARGB_8888)
-                bitmap.setPixels(pixels, 0 /*offset*/, width /*stride*/, 0 /*x*/, 0 /*y*/, width, 1 /*height*/)
-                bitmap
+            val pixels = if (factor <= 0) {
+                IntArray(16) { Color.WHITE }
             } else {
-                val width = factor * 16
-                val pixels = IntArray(width)
-                var pixel = 0
-                for (bi in 0..15) {
-                    val bit = pattern.toInt() and (1 shl bi)
-                    val color = if (bit == 0) transparent else white
-                    for (fi in 0 until factor) pixels[pixel++] = color
+                IntArray(factor * 16).also { pixels ->
+                    var pixel = 0
+                    for (bi in 0..15) {
+                        val bit = pattern.toInt() and (1 shl bi)
+                        val color = if (bit == 0) Color.TRANSPARENT else Color.WHITE
+                        for (fi in 0 until factor) pixels[pixel++] = color
+                    }
                 }
-                val bitmap = Bitmap.createBitmap(width, 1 /*height*/, Bitmap.Config.ARGB_8888)
-                bitmap.setPixels(pixels, 0 /*offset*/, width /*stride*/, 0 /*x*/, 0 /*y*/, width, 1 /*height*/)
-                bitmap
+            }
+            return Bitmap.createBitmap(pixels.size, 1, Bitmap.Config.ARGB_8888).apply {
+                setPixels(pixels, 0, pixels.size, 0, 0, pixels.size, 1)
             }
         }
 

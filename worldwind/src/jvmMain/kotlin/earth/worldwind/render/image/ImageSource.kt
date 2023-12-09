@@ -5,6 +5,7 @@ import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.ResourcePostprocessor
+import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
 import java.net.MalformedURLException
@@ -27,6 +28,8 @@ import java.net.URL
  */
 actual open class ImageSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
+        protected val lineStippleFactories = mutableMapOf<Any, ImageFactory>()
+
         /**
          * Constructs an image source with a multi-platform resource identifier.
          *
@@ -126,7 +129,13 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          */
         @JvmStatic
         actual fun fromLineStipple(factor: Int, pattern: Short): ImageSource {
-            TODO("Not yet implemented")
+            val lFactor = factor.toLong() and 0xFFFFFFFFL
+            val lPattern = pattern.toLong() and 0xFFFFL
+            val key = lFactor shl 32 or lPattern
+            val factory = lineStippleFactories[key] ?: LineStippleImageFactory(factor, pattern).also {
+                lineStippleFactories[key] = it
+            }
+            return ImageSource(factory)
         }
 
         /**
@@ -228,5 +237,27 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          * @return the image associated with this factory
          */
         suspend fun createImage(): BufferedImage?
+    }
+
+    protected open class LineStippleImageFactory(protected val factor: Int, protected val pattern: Short): ImageFactory {
+        override suspend fun createImage(): BufferedImage {
+            val pixels = if (factor <= 0) {
+                IntArray(16) { Color.WHITE.rgb }
+            } else {
+                IntArray(factor * 16).also { pixels ->
+                    var pixel = 0
+                    for (bi in 0..15) {
+                        val bit = pattern.toInt() and (1 shl bi)
+                        val color = if (bit == 0) 0 else Color.WHITE.rgb
+                        for (fi in 0 until factor) pixels[pixel++] = color
+                    }
+                }
+            }
+            return BufferedImage(pixels.size, 1, BufferedImage.TYPE_INT_ARGB).apply {
+                setRGB(0, 0, pixels.size, 1, pixels, 0, pixels.size)
+            }
+        }
+
+        override fun toString() = "LineStippleBitmapFactory factor=$factor, pattern=" + (pattern.toInt() and 0xFFFF).toString(16).uppercase()
     }
 }

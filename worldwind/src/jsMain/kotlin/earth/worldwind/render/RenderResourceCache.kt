@@ -15,6 +15,9 @@ import earth.worldwind.util.kgl.*
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import org.khronos.webgl.TexImageSource
+import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.Image
 import org.w3c.dom.url.URL
 import kotlin.time.Duration.Companion.seconds
@@ -59,14 +62,14 @@ actual open class RenderResourceCache(
         when {
             imageSource.isImage -> {
                 // Following type of image sources is already in memory, so a texture may be created and put into the cache immediately.
-                return createTexture(options, imageSource.asImage()).also { put(imageSource, it, it.byteCount) }
+                return createTexture(options, imageSource.asImage())?.also { put(imageSource, it, it.byteCount) }
             }
             imageSource.isImageFactory -> {
                 val factory = imageSource.asImageFactory()
                 if (factory.isRunBlocking) {
                     // Image factory makes easy operations, so a texture may be created and put into the cache immediately.
-                    return factory.createImage()?.let { bitmap ->
-                        createTexture(options, bitmap).also { put(imageSource, it, it.byteCount) }
+                    return factory.createImage()?.let { image ->
+                        createTexture(options, image)?.also { put(imageSource, it, it.byteCount) }
                     }
                 }
             }
@@ -122,25 +125,31 @@ actual open class RenderResourceCache(
         image.src = src
     }
 
-    protected open fun createTexture(options: ImageOptions?, image: Image): Texture {
+    protected open fun createTexture(options: ImageOptions?, image: TexImageSource): Texture? {
+        var (width, height) = when (image) {
+            is HTMLImageElement -> image.width to image.height
+            is HTMLCanvasElement -> image.width to image.height
+            else -> return null
+        }
+
         // Process initialWidth and initialHeight if specified
-        if (image.width == 0 || image.height == 0) {
+        if (width == 0 || height == 0) {
             // If source image has dimensions, then resize it proportionally to fit initial size restrictions
-            val ratioW = if (options != null && options.initialWidth > 0) image.width / options.initialWidth else 0
-            val ratioH = if (options != null && options.initialHeight > 0) image.height / options.initialHeight else 0
+            val ratioW = if (options != null && options.initialWidth > 0) width / options.initialWidth else 0
+            val ratioH = if (options != null && options.initialHeight > 0) height / options.initialHeight else 0
             val ratio = if (ratioH > ratioW) ratioH else ratioW
             if (ratio > 0) {
-                image.width = image.width / ratio
-                image.height = image.height / ratio
+                width /= ratio
+                height /= ratio
             }
         } else if (options != null && options.initialWidth > 0 && options.initialHeight > 0) {
             // If source image has no dimensions (e.g. SVG image), then set initial size of image
-            image.width = options.initialWidth
-            image.height = options.initialHeight
+            width = options.initialWidth
+            height = options.initialHeight
         }
 
         // Create image texture and apply texture parameters
-        val texture = ImageTexture(image)
+        val texture = ImageTexture(image, width, height)
         if (options?.resamplingMode == ResamplingMode.NEAREST_NEIGHBOR) {
             texture.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             texture.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
@@ -152,10 +161,9 @@ actual open class RenderResourceCache(
         return texture
     }
 
-    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, image: Image) {
+    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, image: TexImageSource) {
         // Create texture and put it into cache.
-        val texture = createTexture(options, image)
-        put(source, texture, texture.byteCount)
+        createTexture(options, image)?.let { put(source, it, it.byteCount) }
         currentRetrievals -= source
         absentResourceList.unmarkResourceAbsent(source.hashCode())
         WorldWind.requestRedraw()

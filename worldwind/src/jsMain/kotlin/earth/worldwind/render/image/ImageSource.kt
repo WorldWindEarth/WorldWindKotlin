@@ -5,8 +5,10 @@ import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.ResourcePostprocessor
-import org.w3c.dom.Image
+import org.w3c.dom.*
 import org.w3c.dom.url.URL
+import kotlinx.browser.document
+import org.khronos.webgl.TexImageSource
 
 /**
  * Provides a mechanism for specifying images from a variety of sources. ImageSource retains the image source on behalf
@@ -23,6 +25,7 @@ import org.w3c.dom.url.URL
  */
 actual open class ImageSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
+        protected val lineStippleFactories = mutableMapOf<Any, ImageFactory>()
         /**
          * Constructs an image source with a multi-platform resource identifier.
          *
@@ -91,7 +94,13 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          * @return the new image source
          */
         actual fun fromLineStipple(factor: Int, pattern: Short): ImageSource {
-            TODO("Not yet implemented")
+            val lFactor = factor.toLong() and 0xFFFFFFFFL
+            val lPattern = pattern.toLong() and 0xFFFFL
+            val key = lFactor shl 32 or lPattern
+            val factory = lineStippleFactories[key] ?: LineStippleImageFactory(factor, pattern).also {
+                lineStippleFactories[key] = it
+            }
+            return ImageSource(factory)
         }
 
         /**
@@ -182,6 +191,36 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          *
          * @return the image associated with this factory
          */
-        fun createImage(): Image?
+        fun createImage(): TexImageSource?
     }
+
+    protected open class LineStippleImageFactory(protected val factor: Int, protected val pattern: Short): ImageFactory {
+        override fun createImage(): TexImageSource {
+            val canvas = document.createElement("canvas") as HTMLCanvasElement
+            canvas.width = if (factor <= 0) 16 else factor * 16
+            canvas.height = 1
+            val ctx2D = canvas.getContext("2d") as CanvasRenderingContext2D
+            ctx2D.strokeStyle = "white"
+            ctx2D.beginPath()
+            if (factor <= 0) {
+                ctx2D.moveTo(0.0, 0.5)
+                ctx2D.lineTo(canvas.width.toDouble(), 0.5)
+            } else {
+                var offset = 0
+                for (bi in 0..15) {
+                    val bit = pattern.toInt() and (1 shl bi)
+                    if (bit != 0) {
+                        ctx2D.moveTo(offset.toDouble(), 0.5)
+                        ctx2D.lineTo((offset + factor).toDouble(), 0.5)
+                    }
+                    offset += factor
+                }
+            }
+            ctx2D.stroke()
+            return canvas
+        }
+
+        override fun toString() = "LineStippleCanvasFactory factor=$factor, pattern=" + (pattern.toInt() and 0xFFFF).toString(16).uppercase()
+    }
+
 }

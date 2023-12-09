@@ -31,8 +31,7 @@ fun main() {
             "Paths" to PathsTutorial(wwd.engine),
             "Polygons" to PolygonsTutorial(wwd.engine),
             "Ellipses" to EllipsesTutorial(wwd.engine),
-            // TODO Uncomment when ImageSource.fromLineStipple will be implemented
-            //"Dash and fill" to ShapeDashAndFillTutorial(wwd.engine),
+            "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
             "Labels" to LabelsTutorial(wwd.engine),
             "Sight line" to SightlineTutorial(wwd.engine),
             "Surface image" to SurfaceImageTutorial(wwd.engine),

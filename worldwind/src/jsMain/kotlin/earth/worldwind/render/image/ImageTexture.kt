@@ -9,12 +9,18 @@ import earth.worldwind.util.kgl.GL_TEXTURE_2D
 import earth.worldwind.util.kgl.GL_UNSIGNED_BYTE
 import earth.worldwind.util.kgl.WebKgl
 import earth.worldwind.util.math.isPowerOfTwo
+import org.khronos.webgl.TexImageSource
 import org.khronos.webgl.WebGLRenderingContext.Companion.UNPACK_PREMULTIPLY_ALPHA_WEBGL
-import org.w3c.dom.Image
+import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.HTMLImageElement
 
-open class ImageTexture(image: Image) : Texture(image.width, image.height, GL_RGBA, GL_UNSIGNED_BYTE) {
-    protected var image: Image? = image
-    override val hasMipMap = isPowerOfTwo(image.width) && isPowerOfTwo(image.height)
+open class ImageTexture(image: TexImageSource, width: Int, height: Int) : Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE) {
+    protected var image: TexImageSource? = image
+    override val hasMipMap = isPowerOfTwo(width) && isPowerOfTwo(height)
+
+    constructor(image: HTMLImageElement) : this(image, image.width, image.height)
+
+    constructor(image: HTMLCanvasElement) : this(image, image.width, image.height)
 
     init {
         coordTransform.setToVerticalFlip()
