@@ -31,8 +31,9 @@ actual open class MilStd2525Placemark actual constructor(
     symbolCode: String,
     position: Position,
     symbolModifiers: Map<String, String>?,
-    symbolAttributes: Map<String, String>?
-) : AbstractMilStd2525Placemark(symbolCode, position, symbolModifiers, symbolAttributes) {
+    symbolAttributes: Map<String, String>?,
+    lodSelector: LevelOfDetailSelector
+) : AbstractMilStd2525Placemark(symbolCode, position, symbolModifiers, symbolAttributes, lodSelector) {
     constructor(
         symbolCode: String, position: Position, symbolModifiers: SparseArray<String>? = null,
         symbolAttributes: SparseArray<String>? = null

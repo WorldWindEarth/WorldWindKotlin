@@ -7,7 +7,8 @@ expect open class MilStd2525Placemark(
     symbolCode: String,
     position: Position,
     symbolModifiers: Map<String, String>? = null,
-    symbolAttributes: Map<String, String>? = null
+    symbolAttributes: Map<String, String>? = null,
+    lodSelector: LevelOfDetailSelector = MilStd2525LevelOfDetailSelector()
 ) : AbstractMilStd2525Placemark {
     companion object {
         fun clearSymbolCache()

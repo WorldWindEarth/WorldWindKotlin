@@ -3,10 +3,6 @@ package earth.worldwind.shape.milstd2525
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.PlacemarkAttributes
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import kotlin.time.Duration.Companion.days
-import kotlin.time.Duration.Companion.hours
 
 /**
  * The [MilStd2525LevelOfDetailSelector] determines which set of [PlacemarkAttributes] to use for a [MilStd2525Placemark].
@@ -14,45 +10,6 @@ import kotlin.time.Duration.Companion.hours
  * [Placemark.LevelOfDetailSelector.selectLevelOfDetail] in its [Placemark.doRender] method.
  */
 open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
-    companion object {
-        protected const val NORMAL_SCALE = 1.0
-        protected const val HIGHLIGHTED_SCALE = 1.3
-        protected const val LOW_LEVEL_OF_DETAIL = 0
-        protected const val MEDIUM_LEVEL_OF_DETAIL = 1
-        protected const val HIGH_LEVEL_OF_DETAIL = 2
-        protected const val HIGHEST_LEVEL_OF_DETAIL = 3
-
-        /**
-         * Controls the symbol modifiers visibility threshold
-         */
-        var modifiersThreshold = 5e4
-
-        /**
-         * Duration after which placemark becomes slightly transparent
-         */
-        var firstAgingThreshold = 1.hours
-
-        /**
-         * Fist level of transparency
-         */
-        var firstAgingAlpha = 0.75f
-
-        /**
-         * Duration after which placemark becomes moderate transparent
-         */
-        var secondAgingThreshold = 1.days
-
-        /**
-         * Second level of transparency
-         */
-        var secondAgingAlpha = 0.5f
-    }
-
-    /**
-     * Base time to calculate transparency of aging Placemarks
-     */
-    var baseAgingTime = Instant.DISTANT_FUTURE
-
     protected var lastLevelOfDetail = -1
     protected var isHighlighted = false
     protected var isInvalidateRequested = false
@@ -119,16 +76,20 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         placemark.attributes.isDrawLeader = lastLevelOfDetail >= MEDIUM_LEVEL_OF_DETAIL
         placemark.attributes.imageScale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
 
-        if (baseAgingTime != Instant.DISTANT_FUTURE) {
-            val agingTime = Clock.System.now() - baseAgingTime
-            // Make placemark translucent with time
-            placemark.attributes.imageColor.alpha = when {
-                !isHighlighted && agingTime > secondAgingThreshold -> secondAgingAlpha
-                !isHighlighted && agingTime > firstAgingThreshold -> firstAgingAlpha
-                else -> 1.0f // Opaque placemark by default
-            }
-        }
-
         return true
+    }
+
+    companion object {
+        protected const val NORMAL_SCALE = 1.0
+        protected const val HIGHLIGHTED_SCALE = 1.3
+        protected const val LOW_LEVEL_OF_DETAIL = 0
+        protected const val MEDIUM_LEVEL_OF_DETAIL = 1
+        protected const val HIGH_LEVEL_OF_DETAIL = 2
+        protected const val HIGHEST_LEVEL_OF_DETAIL = 3
+
+        /**
+         * Controls the symbol modifiers visibility threshold
+         */
+        var modifiersThreshold = 5e4
     }
 }

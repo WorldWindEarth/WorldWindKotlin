@@ -23,8 +23,9 @@ actual open class MilStd2525Placemark actual constructor(
     symbolCode: String,
     position: Position,
     symbolModifiers: Map<String, String>?,
-    symbolAttributes: Map<String, String>?
-) : AbstractMilStd2525Placemark(symbolCode, position, symbolModifiers, symbolAttributes) {
+    symbolAttributes: Map<String, String>?,
+    lodSelector: LevelOfDetailSelector
+) : AbstractMilStd2525Placemark(symbolCode, position, symbolModifiers, symbolAttributes, lodSelector) {
     actual companion object {
         /**
          * A cache of PlacemarkAttribute bundles containing MIL-STD-2525 symbols. Using a cache is essential for memory

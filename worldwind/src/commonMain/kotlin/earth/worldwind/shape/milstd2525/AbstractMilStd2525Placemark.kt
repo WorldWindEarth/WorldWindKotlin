@@ -14,10 +14,11 @@ import earth.worldwind.shape.Placemark
  * transmit a tactical symbol between MIL-STD-2525 compliant systems.
  * @param symbolModifiers An optional collection of unit or tactical graphic modifiers.
  * @param symbolAttributes An optional collection of rendering attributes.
+ * @param lodSelector Level of detail selector
  */
 abstract class AbstractMilStd2525Placemark(
     val symbolCode: String, position: Position,
-    symbolModifiers: Map<String, String>?, symbolAttributes: Map<String, String>?
+    symbolModifiers: Map<String, String>?, symbolAttributes: Map<String, String>?, lodSelector: LevelOfDetailSelector
 ) : Placemark(position, name = symbolCode) {
 
     protected companion object {
@@ -53,7 +54,7 @@ abstract class AbstractMilStd2525Placemark(
         }
 
     init {
-        levelOfDetailSelector = MilStd2525LevelOfDetailSelector()
+        levelOfDetailSelector = lodSelector
         isLeaderPickingEnabled = true
         isBillboardingEnabled = true
     }
