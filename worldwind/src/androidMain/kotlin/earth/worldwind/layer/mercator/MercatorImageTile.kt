@@ -31,6 +31,6 @@ actual open class MercatorImageTile actual constructor(
             val iy = (dy * (resource.height - 1)).toInt()
             for (x in 0 until resource.width) result[x + y * resource.width] = pixels[x + iy * resource.width]
         }
-        return super.process(Bitmap.createBitmap(result, resource.width, resource.height, resource.config))
+        return super.process(Bitmap.createBitmap(result, resource.width, resource.height, resource.config)).also { resource.recycle() }
     }
 }
