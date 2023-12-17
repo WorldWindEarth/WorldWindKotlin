@@ -519,6 +519,12 @@ open class Location(
         return result
     }
 
+    fun equals(other: Location, tolerance: Double): Boolean {
+        if (this === other) return true
+        return abs(latitude.inDegrees - other.latitude.inDegrees) < tolerance
+                && abs(longitude.inDegrees - other.longitude.inDegrees) < tolerance
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Location) return false

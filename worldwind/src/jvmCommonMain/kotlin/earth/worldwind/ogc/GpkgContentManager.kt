@@ -66,9 +66,9 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
         val content = geoPackage.content[contentKey]?.also {
             // Check if the current layer fits cache content
             val config = geoPackage.buildLevelSetConfig(it)
-            require(config.sector == levelSet.sector) { "Invalid sector" }
-            require(config.tileOrigin == levelSet.tileOrigin) { "Invalid tile origin" }
-            require(config.firstLevelDelta == levelSet.firstLevelDelta) { "Invalid first level delta" }
+            require(config.sector.equals(levelSet.sector, TOLERANCE)) { "Invalid sector" }
+            require(config.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) { "Invalid tile origin" }
+            require(config.firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) { "Invalid first level delta" }
             require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
             require(geoPackage.tileMatrix[contentKey]?.keys?.sorted()?.get(0) == 0) { "Invalid level offset" }
             if (imageFormat.equals("image/webp", true)) requireNotNull(geoPackage.extensions.firstOrNull { e ->
@@ -135,7 +135,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
         val content = geoPackage.content[contentKey]?.also {
             // Check if the current layer fits cache content
             val matrixSet = geoPackage.buildTileMatrixSet(it)
-            require(matrixSet.sector == coverage.tileMatrixSet.sector) { "Invalid sector" }
+            require(matrixSet.sector.equals(coverage.tileMatrixSet.sector, TOLERANCE)) { "Invalid sector" }
             requireNotNull(geoPackage.griddedCoverages[contentKey]?.datatype == if (isFloat) "float" else "integer") { "Invalid data type" }
             // Check and update web service config
             if (coverage is WebElevationCoverage) {
@@ -151,5 +151,9 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
 
         coverage.contentKey = contentKey
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(content, isFloat)
+    }
+
+    companion object {
+        private const val TOLERANCE = 1e-6
     }
 }

@@ -163,7 +163,7 @@ actual open class TiledElevationCoverage actual constructor(
             // log "file not found" exceptions while suppressing the stack trace
             ex is FileNotFoundException -> log(WARN, "Coverage not found '$source'")
             // log checked exceptions with the entire stack trace
-            ex != null -> log(WARN, "Coverage retrieval failed with exception '$source'", ex)
+            ex != null -> log(WARN, "Coverage retrieval failed with exception '$source': ${ex.message}")
             else -> log(WARN, "Coverage retrieval failed '$source'")
         }
     }

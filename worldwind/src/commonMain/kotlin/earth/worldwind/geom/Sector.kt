@@ -15,6 +15,7 @@ import earth.worldwind.geom.Angle.Companion.min
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.jvm.JvmStatic
+import kotlin.math.abs
 
 /**
  * Geographic rectangular region.
@@ -421,6 +422,15 @@ open class Sector(
         maxLatitude = maxLatitude.plusDegrees(deltaLatitudeDegrees)
         minLongitude = minLongitude.plusDegrees(deltaLongitudeDegrees)
         maxLongitude = maxLongitude.plusDegrees(deltaLongitudeDegrees)
+    }
+
+    fun equals(other: Sector, tolerance: Double): Boolean {
+        // if (this === other) return true // Empty sector is not equal self
+        if (isEmpty && other.isEmpty) return false // Two empty sectors are not equal
+        return abs(minLatitude.inDegrees - other.minLatitude.inDegrees) < tolerance
+                && abs(maxLatitude.inDegrees - other.maxLatitude.inDegrees) < tolerance
+                && abs(minLongitude.inDegrees - other.minLongitude.inDegrees) < tolerance
+                && abs(maxLongitude.inDegrees - other.maxLongitude.inDegrees) < tolerance
     }
 
     override fun equals(other: Any?): Boolean {
