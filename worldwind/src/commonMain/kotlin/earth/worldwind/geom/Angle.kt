@@ -728,7 +728,7 @@ value class Angle private constructor(
      *
      * @return a new angle whose size equals this angle's size multiplied by `multiplier`.
      */
-    operator fun times(multiplier: Double) = fromDegrees(inDegrees * multiplier)
+    operator fun times(multiplier: Number) = fromDegrees(inDegrees * multiplier.toDouble())
 
     /**
      * Divides this angle by another angle.

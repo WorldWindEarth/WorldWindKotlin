@@ -34,6 +34,10 @@ open class LevelSetConfig {
      */
     var numLevels = 1
     /**
+     * Determines how many levels to skip from retrieving texture during tile pyramid subdivision.
+     */
+    var levelOffset = 0
+    /**
      * The width in pixels of images associated with tiles in the level set, or the number of sample points in the
      * longitudinal direction of elevation tiles associated with the level set.
      */

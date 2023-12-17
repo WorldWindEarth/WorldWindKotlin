@@ -84,9 +84,7 @@ open class BasicTessellator: Tessellator, TileFactory {
         levelSetElementBuffer = null
     }
 
-    protected open fun createTopLevelTiles() {
-        levelSet.firstLevel?.let { Tile.assembleTilesForLevel(it, this, topLevelTiles) }
-    }
+    protected open fun createTopLevelTiles() = Tile.assembleTilesForLevel(levelSet.firstLevel, this, topLevelTiles)
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: TerrainTile) {
         // ignore the tile and its descendants if it's not needed or not visible

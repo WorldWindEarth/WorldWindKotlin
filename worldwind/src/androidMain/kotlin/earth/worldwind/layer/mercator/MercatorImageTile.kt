@@ -16,22 +16,24 @@ import earth.worldwind.util.Level
 actual open class MercatorImageTile actual constructor(
     sector: MercatorSector, level: Level, row: Int, column: Int
 ): AbstractMercatorImageTile(sector, level, row, column) {
-    override suspend fun <Resource> process(resource: Resource) = if (resource is Bitmap) {
-        // Re-project mercator tile to equirectangular projection
-        val pixels = IntArray(resource.width * resource.height)
-        val result = IntArray(resource.width * resource.height)
-        resource.getPixels(pixels, 0, resource.width, 0, 0, resource.width, resource.height)
-        sector as MercatorSector
-        val miny = sector.minLatPercent
-        val maxy = sector.maxLatPercent
-        for (y in 0 until resource.height) {
-            val sy = 1.0 - y / (resource.height - 1.0)
-            val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
-            val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
-            val iy = (dy * (resource.height - 1)).toInt()
-            for (x in 0 until resource.width) result[x + y * resource.width] = pixels[x + iy * resource.width]
-        }
-        @Suppress("UNCHECKED_CAST")
-        super.process(Bitmap.createBitmap(result, resource.width, resource.height, resource.config) as Resource).also { resource.recycle() }
-    } else resource
+    override suspend fun <Resource> process(resource: Resource) = super.process(resource).let { bitmap ->
+        if (bitmap is Bitmap) {
+            // Re-project mercator tile to equirectangular projection
+            val pixels = IntArray(bitmap.width * bitmap.height)
+            val result = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+            sector as MercatorSector
+            val miny = sector.minLatPercent
+            val maxy = sector.maxLatPercent
+            for (y in 0 until bitmap.height) {
+                val sy = 1.0 - y / (bitmap.height - 1.0)
+                val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
+                val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
+                val iy = (dy * (bitmap.height - 1)).toInt()
+                for (x in 0 until bitmap.width) result[x + y * bitmap.width] = pixels[x + iy * bitmap.width]
+            }
+            @Suppress("UNCHECKED_CAST")
+            (Bitmap.createBitmap(result, bitmap.width, bitmap.height, bitmap.config) as Resource).also { bitmap.recycle() }
+        } else bitmap
+    }
 }

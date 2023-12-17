@@ -36,6 +36,10 @@ open class LevelSet {
      */
     val tileHeight: Int
     /**
+     * Determines how many levels to skip from retrieving tile data during tile pyramid subdivision.
+     */
+    val levelOffset: Int
+    /**
      * The hierarchical levels, sorted from lowest to highest resolution.
      */
     protected val levels: Array<Level>
@@ -46,11 +50,11 @@ open class LevelSet {
     /**
      * Returns the first level (the lowest resolution) of this level set.
      */
-    val firstLevel get() = if (levels.isNotEmpty()) levels[0] else null
+    val firstLevel get() = levels.first()
     /**
      * Returns the last level (the highest resolution) of this level set.
      */
-    val lastLevel get() = if (levels.isNotEmpty()) levels[levels.size - 1] else null
+    val lastLevel get() = levels.last()
 
     /**
      * Constructs an empty level set with no levels. The methods `level`, `levelForResolution`,
@@ -62,6 +66,7 @@ open class LevelSet {
         firstLevelDelta = Location()
         tileWidth = 0
         tileHeight = 0
+        levelOffset = 0
         levels = emptyArray()
     }
 
@@ -77,11 +82,12 @@ open class LevelSet {
      * sample points in the longitudinal direction of elevation tiles associate with this leve set
      * @param tileHeight      the height in pixels of images associated with tiles in this level set, or the number of
      * sample points in the latitudinal direction of elevation tiles associate with this level set
+     * @param levelOffset     determines how many levels to skip from retrieving texture during tile pyramid subdivision
      *
      * @throws IllegalArgumentException If any dimension is zero
      */
     constructor(
-        sector: Sector, tileOrigin: Location, firstLevelDelta: Location, numLevels: Int, tileWidth: Int, tileHeight: Int
+        sector: Sector, tileOrigin: Location, firstLevelDelta: Location, numLevels: Int, tileWidth: Int, tileHeight: Int, levelOffset: Int = 0
     ) {
         require(firstLevelDelta.latitude.inDegrees > 0.0 && firstLevelDelta.longitude.inDegrees > 0.0) {
             logMessage(ERROR, "LevelSet", "constructor", "invalidTileDelta")
@@ -97,6 +103,7 @@ open class LevelSet {
         this.firstLevelDelta = firstLevelDelta
         this.tileWidth = tileWidth
         this.tileHeight = tileHeight
+        this.levelOffset = levelOffset
         this.levels = Array(numLevels) {
             val divisor = 1 shl it
             Level(this, it, Location(firstLevelDelta.latitude / divisor, firstLevelDelta.longitude / divisor))
@@ -116,7 +123,8 @@ open class LevelSet {
         config.firstLevelDelta,
         config.numLevels,
         config.tileWidth,
-        config.tileHeight
+        config.tileHeight,
+        config.levelOffset
     )
 
     /**

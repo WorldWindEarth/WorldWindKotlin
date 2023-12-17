@@ -45,10 +45,6 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
      */
     var detailControl = 1.0
     /**
-     * Determines how many levels to skip from retrieving texture during tile pyramid subdivision.
-     */
-    var levelOffset = 0
-    /**
      * Define cache tiles factory implementation.
      */
     var cacheTileFactory: CacheTileFactory? = null
@@ -159,7 +155,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     protected open fun addAndSubdivideTile(tile: ImageTile, sector: Sector, lastLevelNumber: Int, result: MutableList<ImageTile>) {
         if (!tile.intersectsSector(sector)) return // Ignore tiles and its descendants outside the specified sector
         // Skip tiles with level less than specified offset from the result list
-        if (tile.level.levelNumber >= levelOffset) result.add(tile)
+        if (tile.level.levelNumber >= levelSet.levelOffset) result.add(tile)
         // Do not subdivide if specified level or last available level reached
         if (tile.level.levelNumber < lastLevelNumber && !tile.level.isLastLevel) {
             tile.subdivide(tileFactory).forEach {
@@ -183,13 +179,13 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     }
 
     protected open fun createTopLevelTiles() {
-        levelSet.firstLevel?.let { Tile.assembleTilesForLevel(it, tileFactory, topLevelTiles) }
+        Tile.assembleTilesForLevel(levelSet.firstLevel, tileFactory, topLevelTiles)
     }
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
         // ignore the tile and its descendants if it's not needed or not visible
         if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc)) return
-        val retrieveCurrentLevel = tile.level.levelNumber >= levelOffset
+        val retrieveCurrentLevel = tile.level.levelNumber >= levelSet.levelOffset
         if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
             if (retrieveCurrentLevel) addTile(rc, tile)
             return  // use the tile if it does not need to be subdivided

@@ -1,9 +1,9 @@
 package earth.worldwind.ogc.gpkg
 
-import earth.worldwind.geom.Location.Companion.fromDegrees
+import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Sector.Companion.fromDegrees
-import earth.worldwind.geom.TileMatrix
-import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
@@ -12,6 +12,7 @@ import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import kotlinx.coroutines.runBlocking
+import kotlin.math.*
 
 // TODO verify its a GeoPackage container
 abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean) {
@@ -89,19 +90,29 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         val zoomLevels = tileMatrix.keys.sorted()
         val minZoom = zoomLevels.first()
         val maxZoom = zoomLevels.last()
+        val min: Location
+        val max: Location
+        if (srs.organizationCoordSysId == EPSG_3857) {
+            min = fromEPSG3857(tileMatrixSet.minX, tileMatrixSet.minY)
+            max = fromEPSG3857(tileMatrixSet.maxX, tileMatrixSet.maxY)
+        } else {
+            min = Location(tileMatrixSet.minY.degrees, tileMatrixSet.minX.degrees)
+            max = Location(tileMatrixSet.maxY.degrees, tileMatrixSet.maxX.degrees)
+        }
         // Create layer config based on tile matrix set bounding box and available matrix zoom range
         return LevelSetConfig().apply {
-            sector.setDegrees(
-                tileMatrixSet.minY, tileMatrixSet.minX,
-                tileMatrixSet.maxY - tileMatrixSet.minY,
-                tileMatrixSet.maxX - tileMatrixSet.minX
+            sector.set(
+                min.latitude, min.longitude,
+                max.latitude - min.latitude,
+                max.longitude - min.longitude
             )
-            tileOrigin.setDegrees(tileMatrixSet.minY, tileMatrixSet.minX)
-            firstLevelDelta = fromDegrees(
-                (tileMatrixSet.maxY - tileMatrixSet.minY) / tileMatrix[minZoom]!!.matrixHeight,
-                (tileMatrixSet.maxX - tileMatrixSet.minX) / tileMatrix[minZoom]!!.matrixWidth
+            tileOrigin.set(min.latitude, min.longitude)
+            firstLevelDelta = Location(
+                (max.latitude - min.latitude) / tileMatrix[minZoom]!!.matrixHeight * (1 shl minZoom),
+                (max.longitude - min.longitude) / tileMatrix[minZoom]!!.matrixWidth * (1 shl minZoom)
             )
-            numLevels = maxZoom - minZoom + 1
+            levelOffset = minZoom
+            numLevels = maxZoom + 1
         }
     }
 
@@ -111,18 +122,20 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
         writeDefaultSpatialReferenceSystems()
+        val min: Vec2
+        val max: Vec2
         val srsId = if (levelSet.sector is MercatorSector) {
             writeEPSG3857SpatialReferenceSystem()
+            min = toEPSG3857(levelSet.sector.minLatitude, levelSet.sector.minLongitude)
+            max = toEPSG3857(levelSet.sector.maxLatitude, levelSet.sector.maxLongitude)
             EPSG_3857
         } else {
             writeEPSG4326SpatialReferenceSystem()
+            min = Vec2(levelSet.sector.minLongitude.inDegrees, levelSet.sector.minLatitude.inDegrees)
+            max = Vec2(levelSet.sector.maxLongitude.inDegrees, levelSet.sector.maxLatitude.inDegrees)
             EPSG_4326
         }
-        val minX = levelSet.sector.minLongitude.inDegrees
-        val minY = levelSet.sector.minLatitude.inDegrees
-        val maxX = levelSet.sector.maxLongitude.inDegrees
-        val maxY = levelSet.sector.maxLatitude.inDegrees
-        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, minX, minY, maxX, maxY))
+        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, min.x, min.y, max.x, max.y))
         setupTileMatrices(tableName, levelSet)
         createTilesTable(tableName)
         if (layer is WebImageLayer && layer.imageFormat.equals("image/webp", true)) writeExtension(
@@ -132,7 +145,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
             )
         )
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
-        val content = GpkgContent(this, tableName, "tiles", layer.displayName ?: tableName, "", "", minX, minY, maxX, maxY, srsId)
+        val content = GpkgContent(this, tableName, "tiles", layer.displayName ?: tableName, "", "", min.x, min.y, max.x, max.y, srsId)
         writeContent(content)
         if (layer is WebImageLayer) setupWebLayer(layer, tableName)
         return content
@@ -142,12 +155,16 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     suspend fun setupTileMatrices(tableName: String, levelSet: LevelSet) {
         if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
         createRequiredTables()
+        val tms = tileMatrixSet[tableName] ?: error("Matrix set not found")
+        val deltaX = tms.maxX - tms.minX
+        val deltaY = tms.maxY - tms.minY
+        val tm = tileMatrix[tableName]
         for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
-            tileMatrix[tableName]?.get(levelNumber) ?: run {
+            tm?.get(levelNumber) ?: run {
                 val matrixWidth = levelWidth / tileWidth
                 val matrixHeight = levelHeight / tileHeight
-                val pixelXSize = levelSet.sector.deltaLongitude.inDegrees / levelWidth
-                val pixelYSize = levelSet.sector.deltaLatitude.inDegrees / levelHeight
+                val pixelXSize = deltaX / levelWidth
+                val pixelYSize = deltaY / levelHeight
                 writeMatrix(
                     GpkgTileMatrix(
                         this@AbstractGeoPackage, tableName, levelNumber,
@@ -164,7 +181,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         createRequiredTables()
         writeWebService(
             GpkgWebService(
-                this, tableName, layer.serviceType, layer.serviceAddress, layer.layerName, layer.imageFormat, layer.isTransparent
+                this, tableName, layer.serviceType, layer.serviceAddress, layer.layerName,
+                layer.imageFormat, layer.isTransparent
             )
         )
     }
@@ -195,17 +213,20 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
 
     // TODO What if data already exists?
     @Throws(IllegalStateException::class)
-    suspend fun setupGriddedCoverageContent(coverage: CacheableElevationCoverage, tableName: String, isFloat: Boolean = false): GpkgContent {
+    suspend fun setupGriddedCoverageContent(
+        coverage: CacheableElevationCoverage, tableName: String, isFloat: Boolean = false
+    ): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
         createGriddedCoverageTables()
         writeDefaultSpatialReferenceSystems()
         writeEPSG4326SpatialReferenceSystem()
         val srsId = EPSG_4326
-        val minX = coverage.tileMatrixSet.sector.minLongitude.inDegrees
-        val minY = coverage.tileMatrixSet.sector.minLatitude.inDegrees
-        val maxX = coverage.tileMatrixSet.sector.maxLongitude.inDegrees
-        val maxY = coverage.tileMatrixSet.sector.maxLatitude.inDegrees
+        val sector = coverage.tileMatrixSet.sector
+        val minX = sector.minLongitude.inDegrees
+        val minY = sector.minLatitude.inDegrees
+        val maxX = sector.maxLongitude.inDegrees
+        val maxY = sector.maxLatitude.inDegrees
         writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, minX, minY, maxX, maxY))
         setupTileMatrices(tableName, coverage.tileMatrixSet)
         createTilesTable(tableName)
@@ -246,10 +267,17 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     suspend fun setupTileMatrices(tableName: String, tileMatrixSet: TileMatrixSet) {
         if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
         createRequiredTables()
-        for (tileMatrix in tileMatrixSet.entries) tileMatrix.run {
-            val pixelXSize = tileMatrixSet.sector.deltaLongitude.inDegrees / matrixWidth / tileWidth
-            val pixelYSize = tileMatrixSet.sector.deltaLatitude.inDegrees / matrixHeight / tileHeight
-            writeMatrix(GpkgTileMatrix(this@AbstractGeoPackage, tableName, ordinal, matrixWidth, matrixHeight, tileWidth, tileHeight, pixelXSize, pixelYSize))
+        val tms = this.tileMatrixSet[tableName] ?: error("Matrix set not found")
+        val deltaX = tms.maxX - tms.minX
+        val deltaY = tms.maxY - tms.minY
+        val tm = this.tileMatrix[tableName]
+        for (tileMatrix in tileMatrixSet.entries) tm?.get(tileMatrix.ordinal) ?: tileMatrix.run {
+            val pixelXSize = deltaX / matrixWidth / tileWidth
+            val pixelYSize = deltaY / matrixHeight / tileHeight
+            writeMatrix(GpkgTileMatrix(
+                this@AbstractGeoPackage, tableName, ordinal, matrixWidth, matrixHeight,
+                tileWidth, tileHeight, pixelXSize, pixelYSize
+            ))
         }
     }
 
@@ -378,6 +406,18 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     }
 
     protected open fun addWebService(service: GpkgWebService) { webServices[service.tableName] = service }
+
+    protected open fun toEPSG3857(lat: Angle, lon: Angle): Vec2 {
+        val x = lon.inRadians * Ellipsoid.WGS84.semiMajorAxis
+        val y = ln(tan(PI / 4.0 + lat.inRadians / 2.0)) * Ellipsoid.WGS84.semiMajorAxis
+        return Vec2(x, y)
+    }
+
+    protected open fun fromEPSG3857(x: Double, y: Double): Location {
+        val lat = atan(exp(y / Ellipsoid.WGS84.semiMajorAxis)) * 2.0 - PI / 2.0
+        val lon = x / Ellipsoid.WGS84.semiMajorAxis
+        return Location(lat.radians, lon.radians)
+    }
 
     protected abstract suspend fun initConnection(pathName: String, isReadOnly: Boolean)
 

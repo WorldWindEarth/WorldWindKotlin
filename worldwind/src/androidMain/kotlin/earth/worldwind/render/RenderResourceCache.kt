@@ -187,7 +187,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
             // log "file not found" exceptions while suppressing the stack trace
             ex is FileNotFoundException -> log(WARN, "Image not found '$source'")
             // log checked exceptions with the entire stack trace
-            ex != null -> log(WARN, "Image retrieval failed with exception '$source'", ex)
+            ex != null -> log(WARN, "Image retrieval failed with exception '$source': ${ex.message}")
             else -> log(WARN, "Image retrieval failed '$source'")
         }
     }

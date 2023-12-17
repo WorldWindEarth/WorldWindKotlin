@@ -63,7 +63,7 @@ open class Tile protected constructor(
         val nearestPoint = nearestPoint(rc)
         val distanceToCamera = nearestPoint.distanceTo(rc.cameraPoint)
         // Accelerate the degradation of tile details depending on the viewing angle to tile normal
-        val cos = if (level.tileDelta.latitude.inDegrees <= 5.625) {
+        val cos = if (isAccelerateDegradation && level.tileDelta.latitude.inDegrees <= 5.625) {
             val viewingVector = nearestPoint.subtract(rc.cameraPoint)
             val normalVector =
                 rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
@@ -136,6 +136,12 @@ open class Tile protected constructor(
     ) = cache[tileKey] ?: subdivide(tileFactory).also { cache.put(tileKey, it, cacheSize) }
 
     companion object {
+        /**
+         * Accelerate the degradation of tile details depending on the viewing angle to tile normal.
+         * This option dramatically increases performance, but degrades scene background level of details.
+         */
+        var isAccelerateDegradation = true
+
         /**
          * Computes a row number for a tile within a level given the tile's latitude.
          *

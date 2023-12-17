@@ -29,11 +29,11 @@ abstract class MercatorTiledImageLayer(
         val sector = MercatorSector(-1.0, 1.0, NEG180, POS180)
         val tileOrigin = Location(sector.minLatitude, sector.minLongitude)
         val firstLevelDelta = Location(sector.deltaLatitude, sector.deltaLongitude)
-        val levelSet = LevelSet(sector, tileOrigin, firstLevelDelta, numLevels, tileSize, tileSize)
+        // Skip 1 topmost level with bad resolution from processing
+        val levelSet = LevelSet(sector, tileOrigin, firstLevelDelta, numLevels, tileSize, tileSize, 1)
         tiledSurfaceImage = MercatorTiledSurfaceImage(tileFactory, levelSet).apply {
             // Reduce memory usage by using a 16-bit configuration with no alpha
             if (!isTransparent) imageOptions = ImageOptions(ImageConfig.RGB_565)
-            levelOffset = 1 // Skip topmost level with bad resolution from processing
         }
     }
 
