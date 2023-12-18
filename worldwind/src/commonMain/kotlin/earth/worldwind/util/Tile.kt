@@ -63,7 +63,7 @@ open class Tile protected constructor(
         val nearestPoint = nearestPoint(rc)
         val distanceToCamera = nearestPoint.distanceTo(rc.cameraPoint)
         // Accelerate the degradation of tile details depending on the viewing angle to tile normal
-        val cos = if (rc.camera.position.altitude < rc.globe.equatorialRadius / 10.0) {
+        val cos = if (level.tileDelta.latitude.inDegrees <= 5.625) {
             val viewingVector = nearestPoint.subtract(rc.cameraPoint)
             val normalVector =
                 rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
