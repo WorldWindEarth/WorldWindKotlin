@@ -46,7 +46,7 @@ The globe uses the default navigation gestures:
         globeLayout.addView(wwd)
 
         // Define cache content manager
-        val contentManager = GpkgContentManager(File(cacheDir, "cache.gpkg").absolutePath)
+        val contentManager = GpkgContentManager(File(cacheDir, "content.gpkg").absolutePath)
 
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
