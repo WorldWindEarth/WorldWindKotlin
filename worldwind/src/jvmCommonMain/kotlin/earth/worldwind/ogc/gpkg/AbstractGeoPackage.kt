@@ -53,10 +53,13 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         writeTileUserData(tiles.tableName, tileUserData)
     }
 
+    suspend fun readGriddedTile(tiles: GpkgContent, tileUserData: GpkgTileUserData) =
+        readGriddedTile(tiles.tableName, tileUserData.id)
+
     @Throws(IllegalStateException::class)
     suspend fun writeGriddedTile(
-        tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, scale: Double = 1.0, offset: Double = 0.0,
-        min: Double? = null, max: Double? = null, mean: Double? = null, stdDev: Double? = null
+        tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, scale: Float = 1.0f, offset: Float = 0.0f,
+        min: Float? = null, max: Float? = null, mean: Float? = null, stdDev: Float? = null
     ) {
         if (tiles.isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.let { tileUserData ->
@@ -235,7 +238,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
                 container = this,
                 tileMatrixSetName = tableName,
                 datatype = if (isFloat) "float" else "integer",
-                dataNull = if (isFloat) 3.40282346638529e+38 else 65535.0
+                dataNull = if (isFloat) Float.MAX_VALUE else Short.MIN_VALUE.toFloat()
             )
         )
         writeExtension(

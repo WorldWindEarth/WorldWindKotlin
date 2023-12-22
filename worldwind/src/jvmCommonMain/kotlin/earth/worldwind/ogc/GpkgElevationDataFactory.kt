@@ -1,13 +1,14 @@
 package earth.worldwind.ogc
 
+import earth.worldwind.globe.elevation.ElevationDecoder
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.ogc.gpkg.GpkgContent
-import earth.worldwind.util.Logger.ERROR
-import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.ResourcePostprocessor
-import java.nio.*
+import java.nio.Buffer
+import java.nio.FloatBuffer
+import java.nio.ShortBuffer
+import kotlin.math.roundToInt
 
-// TODO Add support of greyscale PNG encoding for 16-bit integer data and TIFF encoding for 32-bit floating point data
 open class GpkgElevationDataFactory(
     protected val tiles: GpkgContent,
     protected val zoomLevel: Int,
@@ -15,60 +16,59 @@ open class GpkgElevationDataFactory(
     protected val tileRow: Int,
     protected val isFloat: Boolean
 ): ElevationSource.ElevationDataFactory, ResourcePostprocessor {
-    override suspend fun fetchElevationData(): Buffer? {
-        // Attempt to read the GeoPackage tile user data
-        val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
+    protected val elevationDecoder = ElevationDecoder()
 
-        // Decode the tile user data either as application/bil32 or application/bil16
-        val buffer = ByteBuffer.wrap(tileUserData.tileData).order(ByteOrder.LITTLE_ENDIAN)
-        return if (isFloat) buffer.asFloatBuffer() else buffer.asShortBuffer()
+    override suspend fun fetchElevationData(): Buffer? {
+        // Attempt to read the GeoPackage tile user data and gridded tile metadata
+        val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
+        val griddedTile = tiles.container.readGriddedTile(tiles, tileUserData) ?: return null
+        val griddedCoverage = tiles.container.griddedCoverages[tiles.tableName] ?: return null
+
+        // Decode the tile user data either as TIFF32 or PNG16
+        return if (isFloat) elevationDecoder.decodeTiff(tileUserData.tileData)
+        else elevationDecoder.decodePng(
+            tileUserData.tileData, griddedTile.scale, griddedTile.offset,
+            griddedCoverage.scale, griddedCoverage.offset, griddedCoverage.dataNull?.roundToInt()?.toShort()
+        )
     }
 
     override suspend fun <Resource> process(resource: Resource): Resource {
         // Attempt to write tile user data only if container is not read-only
-        if (resource is Buffer && !tiles.isReadOnly) {
-            when (resource) {
-                is FloatBuffer -> {
-                    if (isFloat) {
-                        // Encode data as application/bil32
-                        val byteBuffer = ByteBuffer.allocate(resource.remaining() * 4).order(ByteOrder.LITTLE_ENDIAN)
-                        byteBuffer.asFloatBuffer().put(resource)
-                        resource.clear()
-                        byteBuffer.array()
-                    } else {
-                        logMessage(
-                            ERROR, "GpkgElevationFactory", "process",
-                            "Invalid data type configuration! Expected float type."
-                        )
-                        null // Do not save tile with incorrect datatype
-                    }
-                }
-                is ShortBuffer -> {
-                    if (!isFloat) {
-                        // Encode data as application/bil16
-                        val byteBuffer = ByteBuffer.allocate(resource.remaining() * 2).order(ByteOrder.LITTLE_ENDIAN)
-                        byteBuffer.asShortBuffer().put(resource)
-                        resource.clear()
-                        byteBuffer.array()
-                    } else {
-                        logMessage(
-                            ERROR, "GpkgElevationFactory", "process",
-                            "Invalid data type configuration! Expected integer type."
-                        )
-                        null // Do not save tile with incorrect datatype
-                    }
-                }
-                else -> {
-                    logMessage(ERROR, "GpkgElevationFactory", "process", "Invalid buffer type")
-                    null // Do not save tile with incorrect datatype
-                }
-            }?.let {
-                tiles.container.writeTileUserData(tiles, zoomLevel, tileColumn, tileRow, it)
-                // TODO Calculate and save gridded tile meta data, such as min and max altitude, scale and offset...
-                tiles.container.writeGriddedTile(tiles, zoomLevel, tileColumn, tileRow)
-            }
+        if (resource is Buffer && !tiles.isReadOnly) encodeToImage(resource)?.let {
+            tiles.container.writeTileUserData(tiles, zoomLevel, tileColumn, tileRow, it)
+            // TODO Calculate and save gridded tile meta data, such as min and max altitude...
+            tiles.container.writeGriddedTile(tiles, zoomLevel, tileColumn, tileRow)
         }
         return resource
+    }
+
+    protected open fun encodeToImage(resource: Buffer): ByteArray? {
+        val matrix = tiles.container.tileMatrix[tiles.tableName]?.get(zoomLevel) ?: return null
+        val tileWidth = matrix.tileWidth
+        val tileHeight = matrix.tileHeight
+        return when (resource) {
+            is FloatBuffer -> if (isFloat) {
+                elevationDecoder.encodeTiff(resource, tileWidth, tileHeight)
+            } else {
+                elevationDecoder.encodePng(ShortBuffer.wrap(
+                    ShortArray(resource.remaining()) {
+                        val value = resource.get()
+                        // Consider converting null value from float to short
+                        if (value == Float.MAX_VALUE) Short.MIN_VALUE else value.roundToInt().toShort()
+                    }.also { resource.clear() }
+                ), tileWidth, tileHeight)
+            }
+
+            is ShortBuffer -> if (isFloat) {
+                elevationDecoder.encodeTiff(FloatBuffer.wrap(
+                    FloatArray(resource.remaining()) { resource.get().toFloat() }.also { resource.clear() }
+                ), tileWidth, tileHeight)
+            } else {
+                elevationDecoder.encodePng(resource, tileWidth, tileHeight)
+            }
+
+            else -> null // Do not save tile with incorrect datatype
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -89,5 +89,5 @@ open class GpkgElevationDataFactory(
         return result
     }
 
-    override fun toString() = "GpkgElevationFactory(tableName=${tiles.tableName}, zoomLevel=$zoomLevel, tileColumn=$tileColumn, tileRow=$tileRow)"
+    override fun toString() = "GpkgElevationDataFactory(tableName=${tiles.tableName}, zoomLevel=$zoomLevel, tileColumn=$tileColumn, tileRow=$tileRow)"
 }
