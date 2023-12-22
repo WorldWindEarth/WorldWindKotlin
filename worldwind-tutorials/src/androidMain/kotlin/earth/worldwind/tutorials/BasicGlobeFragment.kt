@@ -30,7 +30,7 @@ open class BasicGlobeFragment: Fragment() {
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
         wwd = WorldWindow(requireContext())
         // Define cache content manager
-        val contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache.gpkg").absolutePath)
+        val contentManager = GpkgContentManager(File(requireContext().cacheDir, "content.gpkg").absolutePath)
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
