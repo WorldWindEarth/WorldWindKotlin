@@ -47,6 +47,8 @@ kotlin {
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.github.pdvrieze.xmlutil:serialization:0.85.0")
                 implementation("com.eygraber:uri-kmp:0.0.11")
+                implementation("ar.com.hjg:pngj:2.1.0")
+                implementation("mil.nga:tiff:3.0.0")
                 api("dev.icerock.moko:resources:$mokoVersion")
             }
         }

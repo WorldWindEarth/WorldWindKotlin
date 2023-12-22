@@ -5,7 +5,7 @@ class GpkgContent(
     val tableName: String,
     val dataType: String,
     val identifier: String,
-    val description: String,
+    val description: String = "",
     val lastChange: String,
     val minX: Double?,
     val minY: Double?,

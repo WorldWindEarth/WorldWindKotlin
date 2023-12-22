@@ -416,7 +416,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                     while (moveToNext()) addGriddedCoverage(
                         GpkgGriddedCoverage(
                             this@GeoPackage, getInt(0), getString(1), getString(2),
-                            getDouble(3), getDouble(4), getDouble(5), getDouble(6),
+                            getFloat(3), getFloat(4), getFloat(5), getFloat(6),
                             getString(7), getString(8), getString(9), getString(10)
                         )
                     )
@@ -435,8 +435,8 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             """.trimIndent(), arrayOf(tableName, tileId.toString())).use { it.run {
                 if (moveToNext()) GpkgGriddedTile(
                     this@GeoPackage, getInt(0), getString(1), getInt(2),
-                    getDouble(3), getDouble(4), getDouble(5), getDouble(6),
-                    getDouble(7), getDouble(8)
+                    getFloat(3), getFloat(4), getFloat(5), getFloat(6),
+                    getFloat(7), getFloat(8)
                 ) else null
             } }
         }

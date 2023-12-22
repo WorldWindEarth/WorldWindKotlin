@@ -5,10 +5,10 @@ class GpkgGriddedTile(
     val id: Int,
     val tpudtName: String,
     val tpudtId: Int,
-    var scale: Double,
-    var offset: Double,
-    var min: Double?,
-    var max: Double?,
-    var mean: Double?,
-    var stdDev: Double?
+    var scale: Float = 1.0f,
+    var offset: Float = 0.0f,
+    var min: Float?,
+    var max: Float?,
+    var mean: Float?,
+    var stdDev: Float?
 ): GpkgEntry()
