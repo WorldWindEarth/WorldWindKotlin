@@ -5,8 +5,10 @@ import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_DR
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_COLOR
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LABEL_FONT
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LINE_COLOR
+import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LINE_STYLE
 import earth.worldwind.layer.graticule.GraticuleRenderingParams.Companion.KEY_LINE_WIDTH
 import earth.worldwind.render.*
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.ShapeAttributes
@@ -60,7 +62,7 @@ internal class GraticuleSupport {
         if (params[KEY_DRAW_LINES] == null) params[KEY_DRAW_LINES] = true
         if (params[KEY_LINE_COLOR] == null) params[KEY_LINE_COLOR] = Color(255, 255, 255) // White
         if (params[KEY_LINE_WIDTH] == null) params[KEY_LINE_WIDTH] = .5f
-//        if (params[KEY_LINE_STYLE] == null) params[KEY_LINE_STYLE] = GraticuleRenderingParams.VALUE_LINE_STYLE_SOLID
+        if (params[KEY_LINE_STYLE] == null) params[KEY_LINE_STYLE] = LineStyle.SOLID
         if (params[KEY_DRAW_LABELS] == null) params[KEY_DRAW_LABELS] = true
         if (params[KEY_LABEL_COLOR] == null) params[KEY_LABEL_COLOR] = Color(255, 255, 255) // White
         if (params[KEY_LABEL_FONT] == null) params[KEY_LABEL_FONT] = Font("arial", FontWeight.BOLD, 12)
@@ -98,27 +100,14 @@ internal class GraticuleSupport {
         attrs.isDrawOutline = true
 
         // Apply "line" properties.
-        val o = params[KEY_LINE_COLOR]
-        if (o is Color) attrs.outlineColor = applyOpacity(o, opacity)
-        val lineWidth = params.getFloatValue(KEY_LINE_WIDTH)
-        if (lineWidth != null) attrs.outlineWidth = lineWidth
-//        val s = params.getStringValue(KEY_LINE_STYLE)
-//        when {
-//            VALUE_LINE_STYLE_SOLID.equals(s, true) -> {
-//                attrs.outlineStipplePattern = 0xAAAA.toShort()
-//                attrs.outlineStippleFactor = 0
-//            }
-//            VALUE_LINE_STYLE_DASHED.equals(s, true) -> {
-//                val baseFactor = lineWidth?.roundToInt() ?: 1
-//                attrs.outlineStipplePattern = 0xAAAA.toShort()
-//                attrs.outlineStippleFactor = 3 * baseFactor
-//            }
-//            VALUE_LINE_STYLE_DOTTED.equals(s, true) -> {
-//                val baseFactor = lineWidth?.roundToInt() ?: 1
-//                attrs.outlineStipplePattern =0xAAAA.toShort()
-//                attrs.outlineStippleFactor = baseFactor
-//            }
-//        }
+        val color = params[KEY_LINE_COLOR]
+        if (color is Color) attrs.outlineColor = applyOpacity(color, opacity)
+        val lineWidth = params[KEY_LINE_WIDTH]
+        if (lineWidth is Float) attrs.outlineWidth = lineWidth
+        val style = params[KEY_LINE_STYLE]
+        if (style is LineStyle && style.factor > 0) {
+            attrs.outlineImageSource = ImageSource.fromLineStipple(style.factor, style.pattern)
+        }
         return attrs
     }
 
