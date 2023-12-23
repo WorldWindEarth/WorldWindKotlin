@@ -7,7 +7,7 @@ import earth.worldwind.util.Logger.logMessage
 import kotlin.math.*
 
 /*
- * GeographicProjection implementing coordinate transformations based on the WGS 84 reference system (aka WGS 1984,
+ * GeographicProjection implementing coordinate transformations based on the WGS-84 reference system (aka WGS 1984,
  * EPSG:4326).
  *
  * The WGS 84 projection defines a Cartesian coordinate system whose origin is at the globe's center. It's Y axis points
@@ -15,12 +15,10 @@ import kotlin.math.*
  * completes a right-handed coordinate system, is in the equatorial plane and 90 degrees East of the Z axis.
  */
 open class Wgs84Projection: GeographicProjection {
+    override val displayName = "WGS84"
     private val scratchPos = Position()
 
-    override val displayName = "WGS84"
-    override val is2D = false
-
-    override fun geographicToCartesian(globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, result: Vec3): Vec3 {
+    override fun geographicToCartesian(globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, offset: Double, result: Vec3): Vec3 {
         val cosLat = cos(latitude.inRadians)
         val sinLat = sin(latitude.inRadians)
         val cosLon = cos(longitude.inRadians)
@@ -122,7 +120,7 @@ open class Wgs84Projection: GeographicProjection {
 
     override fun geographicToCartesianGrid(
         globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
-        origin: Vec3?, result: FloatArray, offset: Int, rowStride: Int
+        origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
     ): FloatArray {
         require(numLat >= 1 && numLon >= 1) {
             logMessage(
@@ -160,7 +158,7 @@ open class Wgs84Projection: GeographicProjection {
 
         // Iterate over the latitude and longitude coordinates in the specified sector, computing the Cartesian
         // point corresponding to each latitude and longitude.
-        var rowIndex = offset
+        var rowIndex = rowOffset
         val stride = if (rowStride == 0) numLon * 3 else rowStride
         var lat = minLat
         for (latIndex in 0 until numLat) {
@@ -184,7 +182,7 @@ open class Wgs84Projection: GeographicProjection {
     }
 
     override fun geographicToCartesianBorder(
-        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3?, result: FloatArray
+        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3?, offset: Double, result: FloatArray
     ): FloatArray {
         require(numLat >= 1 && numLon >= 1) {
             logMessage(
@@ -243,7 +241,7 @@ open class Wgs84Projection: GeographicProjection {
         return result
     }
 
-    override fun cartesianToGeographic(globe: Globe, x: Double, y: Double, z: Double, result: Position): Position {
+    override fun cartesianToGeographic(globe: Globe, x: Double, y: Double, z: Double, offset: Double, result: Position): Position {
         // According to H. Vermeille,
         // "An analytical method to transform geocentric into geodetic coordinates"
         // http://www.springerlink.com/content/3t6837t27t351227/fulltext.pdf
@@ -308,7 +306,7 @@ open class Wgs84Projection: GeographicProjection {
     }
 
     override fun cartesianToLocalTransform(globe: Globe, x: Double, y: Double, z: Double, result: Matrix4): Matrix4 {
-        val pos = cartesianToGeographic(globe, x, y, z, scratchPos)
+        val pos = cartesianToGeographic(globe, x, y, z, 0.0, scratchPos)
         val cosLat = cos(pos.latitude.inRadians)
         val sinLat = sin(pos.latitude.inRadians)
         val cosLon = cos(pos.longitude.inRadians)

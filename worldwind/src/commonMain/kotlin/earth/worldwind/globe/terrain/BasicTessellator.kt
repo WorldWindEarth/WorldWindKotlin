@@ -7,6 +7,7 @@ import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Range
 import earth.worldwind.geom.Sector
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.buffer.ShortBufferObject
@@ -15,7 +16,6 @@ import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 
 open class BasicTessellator: Tessellator, TileFactory {
-    override val lastTerrain = BasicTerrain()
     /**
      * Default level set is configured to ~0.6 meter resolution
      */
@@ -36,7 +36,8 @@ open class BasicTessellator: Tessellator, TileFactory {
      */
     protected var tileCache = LruMemoryCache<String, Array<Tile>>(300)
     protected val topLevelTiles = mutableListOf<Tile>()
-    protected val currentTerrain = BasicTerrain()
+    protected val currentTiles = mutableListOf<TerrainTile>()
+    protected val currentSector = Sector()
     protected var levelSetVertexTexCoords: FloatArray? = null
     protected var levelSetLineElements: ShortArray? = null
     protected var levelSetTriStripElements: ShortArray? = null
@@ -46,7 +47,7 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected var levelSetElementBuffer: ShortBufferObject? = null
     protected var levelSetVertexTexCoordKey = this::class.simpleName + ".vertexTexCoordKey"
     protected var levelSetElementKey = this::class.simpleName + ".elementKey"
-
+    protected var lastGlobeState: Globe.State? = null
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
      */
@@ -54,21 +55,20 @@ open class BasicTessellator: Tessellator, TileFactory {
         tileCache = LruMemoryCache(capacity, lowWater)
     }
 
-    override fun tessellate(rc: RenderContext) {
-        assembleTiles(rc)
-        rc.terrain = currentTerrain
-        if (!rc.isPickMode) lastTerrain.copy(currentTerrain)
+    override fun tessellate(rc: RenderContext): Terrain {
+        checkGlobeState(rc)
+        return assembleTerrain(rc)
     }
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) = TerrainTile(sector, level, row, column)
 
-    protected open fun assembleTiles(rc: RenderContext) {
+    protected open fun assembleTerrain(rc: RenderContext): Terrain {
         // Clear previous terrain tiles
-        currentTerrain.clear()
+        currentTiles.clear()
+        currentSector.setEmpty()
 
         // Assemble the terrain buffers and OpenGL buffer objects associated with the level set.
         assembleLevelSetBuffers(rc)
-        currentTerrain.triStripElements = levelSetTriStripElements
 
         // Assemble the tessellator's top level terrain tiles, which we keep permanent references to.
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
@@ -77,16 +77,20 @@ open class BasicTessellator: Tessellator, TileFactory {
         for (i in topLevelTiles.indices) addTileOrDescendants(rc, topLevelTiles[i] as TerrainTile)
 
         // Sort terrain tiles by L1 distance on cylinder from camera
-        currentTerrain.sort()
+        currentTiles.sortBy { it.sortOrder }
 
         // Release references to render resources acquired while assembling tiles.
         levelSetVertexTexCoordBuffer = null
         levelSetElementBuffer = null
+
+        return BasicTerrain(currentTiles, currentSector, levelSetTriStripElements)
     }
 
     protected open fun createTopLevelTiles() = Tile.assembleTilesForLevel(levelSet.firstLevel, this, topLevelTiles)
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: TerrainTile) {
+        // ignore tiles which soes not fit projection limits
+        if (rc.globe.projectionLimits?.let { tile.intersectsSector(it) } == false) return
         // ignore the tile and its descendants if it's not needed or not visible
         if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc)) return
         if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
@@ -100,7 +104,8 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected open fun addTile(rc: RenderContext, tile: TerrainTile) {
         // Prepare the terrain tile and add it.
         tile.prepare(rc)
-        currentTerrain.addTile(tile)
+        currentTiles.add(tile)
+        currentSector.union(tile.sector)
 
         // Prepare a drawable for the terrain tile for processing on the OpenGL thread.
         val pool = rc.getDrawablePool<BasicDrawableTerrain>()
@@ -109,10 +114,18 @@ open class BasicTessellator: Tessellator, TileFactory {
         rc.offerDrawableTerrain(drawable, tile.sortOrder)
     }
 
+    protected open fun checkGlobeState(rc: RenderContext) {
+        // Invalidate tiles cache when globe state changes
+        if (rc.globeState != lastGlobeState) {
+            invalidateTiles()
+            lastGlobeState = rc.globeState
+        }
+    }
+
     protected open fun invalidateTiles() {
         topLevelTiles.clear()
-        currentTerrain.clear()
-        lastTerrain.clear()
+        currentTiles.clear()
+        currentSector.setEmpty()
         tileCache.clear()
         levelSetVertexTexCoords = null
         levelSetLineElements = null
@@ -120,6 +133,9 @@ open class BasicTessellator: Tessellator, TileFactory {
     }
 
     protected open fun prepareDrawableTerrain(rc: RenderContext, tile: TerrainTile, drawable: BasicDrawableTerrain) {
+        // Remember globe offset to be able to identify own surface drawables.
+        drawable.offset = rc.globe.offset
+
         // Assemble the drawable's geographic sector and Cartesian vertex origin.
         drawable.sector.copy(tile.sector)
         drawable.vertexOrigin.copy(tile.origin)

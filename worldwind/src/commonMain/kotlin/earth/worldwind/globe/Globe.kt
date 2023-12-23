@@ -3,6 +3,8 @@ package earth.worldwind.globe
 import earth.worldwind.geom.*
 import earth.worldwind.globe.elevation.ElevationModel
 import earth.worldwind.globe.projection.GeographicProjection
+import earth.worldwind.globe.projection.Wgs84Projection
+import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -14,12 +16,12 @@ open class Globe(
     /**
      * The globe's reference ellipsoid defining the globe's equatorial radius and polar radius.
      */
-    var ellipsoid: Ellipsoid,
+    var ellipsoid: Ellipsoid = Ellipsoid.WGS84,
     /**
      * Indicates the geographic projection used by this globe. The projection specifies this globe's Cartesian
      * coordinate system.
      */
-    var projection: GeographicProjection
+    var projection: GeographicProjection = Wgs84Projection()
 ) {
     /**
      * Represents the elevations for an area, often but not necessarily the whole globe.
@@ -42,6 +44,43 @@ open class Globe(
      * Indicates whether this is a 2D globe.
      */
     val is2D get() = projection.is2D
+    /**
+     * Indicates whether this projection is continuous with itself horizontally.
+     */
+    val isContinuous get() = projection.isContinuous
+    /**
+     * Indicates the geographic limits of this projection.
+     */
+    val projectionLimits get() = projection.projectionLimits
+    /**
+     * Current globe state.
+     */
+    val state get() = State(ellipsoid, projection.displayName)
+    /**
+     * The globe offset in 2D continuous projection. Center is the default for 3D.
+     */
+    var offset = Offset.Center
+        set (value) {
+            field = value
+            // Calculate horizontal projection offset in meters
+            offsetValue = when (value) {
+                Offset.Center -> 0.0
+                Offset.Right -> 2.0 * PI * equatorialRadius
+                Offset.Left -> -2.0 * PI * equatorialRadius
+            }
+        }
+    protected var offsetValue = 0.0
+
+    /**
+     * An offset to apply to this globe when translating between Geographic positions and Cartesian points.
+     * Used during scrolling to position points appropriately.
+     */
+    enum class Offset { Center, Right, Left }
+
+    /**
+     * Used to compare states during rendering to determine whether globe-state dependent cached values must be updated.
+     */
+    data class State(private val ellipsoid: Ellipsoid, private val projectionName: String)
 
     /**
      * Indicates the radius in meters of the globe's ellipsoid at a specified location.
@@ -75,7 +114,7 @@ open class Globe(
      * @return the result argument, set to the computed Cartesian coordinates
      */
     fun geographicToCartesian(latitude: Angle, longitude: Angle, altitude: Double, result: Vec3) =
-        projection.geographicToCartesian(this, latitude, longitude, altitude, result)
+        projection.geographicToCartesian(this, latitude, longitude, altitude, offsetValue, result)
 
     fun geographicToCartesianNormal(latitude: Angle, longitude: Angle, result: Vec3) =
         projection.geographicToCartesianNormal(this, latitude, longitude, result)
@@ -85,15 +124,15 @@ open class Globe(
 
     fun geographicToCartesianGrid(
         sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
-        origin: Vec3?, result: FloatArray, offset: Int, rowStride: Int
+        origin: Vec3?, result: FloatArray, rowOffset: Int = 0, rowStride: Int = 0
     ) = projection.geographicToCartesianGrid(
         this, sector, numLat, numLon, height, verticalExaggeration,
-        origin, result, offset, rowStride
+        origin, offsetValue, result, rowOffset, rowStride
     )
 
     fun geographicToCartesianBorder(
         sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3, result: FloatArray
-    ) = projection.geographicToCartesianBorder(this, sector, numLat, numLon, height, origin, result)
+    ) = projection.geographicToCartesianBorder(this, sector, numLat, numLon, height, origin, offsetValue, result)
 
     /**
      * Converts a Cartesian point to a geographic position. This globe's projection specifies the Cartesian coordinate
@@ -107,7 +146,9 @@ open class Globe(
      * @return the result argument, set to the computed geographic position
      */
     fun cartesianToGeographic(x: Double, y: Double, z: Double, result: Position) =
-        projection.cartesianToGeographic(this, x, y, z, result)
+        projection.cartesianToGeographic(this, x, y, z, offsetValue, result).also {
+            if (is2D) result.longitude = result.longitude.normalize180()
+        }
 
     fun cartesianToLocalTransform(x: Double, y: Double, z: Double, result: Matrix4) =
         projection.cartesianToLocalTransform(this, x, y, z, result)

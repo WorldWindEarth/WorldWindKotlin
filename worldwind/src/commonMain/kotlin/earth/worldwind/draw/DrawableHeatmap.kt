@@ -1,5 +1,6 @@
 package earth.worldwind.draw
 
+import earth.worldwind.globe.Globe
 import earth.worldwind.layer.heatmap.ElevationHeatmapProgram
 import earth.worldwind.render.Color
 import earth.worldwind.util.Pool
@@ -9,6 +10,7 @@ open class DrawableHeatmap protected constructor(): Drawable {
     val heightLimits = FloatArray(2)
     val colors = Array(5) { Color() }
     var opacity = 1.0f
+    var offset = Globe.Offset.Center
     var program: ElevationHeatmapProgram? = null
     private var pool: Pool<DrawableHeatmap>? = null
 
@@ -41,6 +43,7 @@ open class DrawableHeatmap protected constructor(): Drawable {
             for (idx in 0 until dc.drawableTerrainCount) {
                 // Get the drawable terrain associated with the draw context.
                 val terrain = dc.getDrawableTerrain(idx)
+                if (terrain.offset != offset) continue
 
                 // Get the terrain's attributes, and keep a flag to ensure we apply the terrain's attributes at most once.
                 val terrainOrigin = terrain.vertexOrigin

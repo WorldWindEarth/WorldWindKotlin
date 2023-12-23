@@ -1,7 +1,6 @@
 package earth.worldwind.geom
 
 import earth.worldwind.globe.Globe
-import earth.worldwind.globe.projection.Wgs84Projection
 import kotlin.test.*
 
 class FrustumTest {
@@ -10,7 +9,7 @@ class FrustumTest {
     @BeforeTest
     fun setUp() {
         // Create the globe object used by the test
-        globe = Globe(Ellipsoid.WGS84, Wgs84Projection())
+        globe = Globe()
     }
 
     @Test

@@ -1,11 +1,12 @@
 package earth.worldwind.layer.graticule
 
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.ZERO
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.normalizeLatitude
 import earth.worldwind.geom.Angle.Companion.normalizeLongitude
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Angle.Companion.toRadians
+import earth.worldwind.globe.Globe
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.Color
 import earth.worldwind.render.Font
@@ -22,31 +23,15 @@ import kotlin.math.sign
  */
 abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     override var isPickEnabled = false
-
-    // Helper variables to avoid memory leaks
-    private val surfacePoint = Vec3()
-    private val forwardRay = Line()
-    private val lookAtPoint = Vec3()
-    private val lookAtPos = Position()
     private val graticuleSupport = GraticuleSupport()
-
-    // Update reference states
+    private val surfacePoint = Vec3()
     private val lastCameraPoint = Vec3()
     private var lastCameraHeading = 0.0
     private var lastCameraTilt = 0.0
     private var lastFOV = 0.0
     private var lastVerticalExaggeration = 0.0
-
-//    private var lastGlobe: Globe? = null
-//    private var lastProjection: GeographicProjection? = null
-//    private var frameTimeStamp = Instant.DISTANT_PAST // used only for 2D continuous globes to determine whether render is in same frame
-
-    companion object {
-        private const val LOOK_AT_LATITUDE_PROPERTY = "look_at_latitude"
-        private const val LOOK_AT_LONGITUDE_PROPERTY = "look_at_longitude"
-        private const val GRATICULE_PIXEL_SIZE_PROPERTY = "graticule_pixel_size"
-        private const val GRATICULE_LABEL_OFFSET_PROPERTY = "graticule_label_offset"
-    }
+    private var lastGlobeState: Globe.State? = null
+    private var lastGlobeOffset: Globe.Offset? = null
 
     init {
         this.initRenderingParams()
@@ -185,23 +170,14 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     private fun removeAllRenderables() { graticuleSupport.removeAllRenderables() }
 
     public override fun doRender(rc: RenderContext) {
-//        if (rc.isContinuous2DGlobe) {
-//            if (needsToUpdate(rc)) {
-//                clear(rc)
-//                selectRenderables(rc)
-//            }
-//
-//            // If the frame time stamp is the same, then this is the second or third pass of the same frame. We continue
-//            // selecting renderables in these passes.
-//            if (rc.frameTimeStamp === frameTimeStamp) selectRenderables(rc)
-//
-//            frameTimeStamp = rc.frameTimeStamp
-//        } else {
         if (needsToUpdate(rc)) {
             clear(rc)
             selectRenderables(rc)
+        } else if (rc.globe.offset != lastGlobeOffset) {
+            // Continue selecting renderables for additional globe offsets.
+            selectRenderables(rc)
         }
-//        }
+        lastGlobeOffset = rc.globe.offset
 
         // Render
         graticuleSupport.render(rc, opacity)
@@ -218,7 +194,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
 
     /**
      * Determines whether the grid should be updated. It returns true if:   * the eye has moved more than 1% of its
-     * altitude above ground  * the view FOV, heading or pitch have changed more than 1 degree  * vertical
+     * altitude above ground * the view FOV, heading or pitch have changed more than 1 degree  * vertical
      * exaggeration has changed  `RenderContext`.
      *
      * @return true if the graticule should be updated.
@@ -228,13 +204,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         if (abs(lastCameraHeading - rc.camera.heading.inDegrees) > 1) return true
         if (abs(lastCameraTilt - rc.camera.tilt.inDegrees) > 1) return true
         if (abs(lastFOV - rc.camera.fieldOfView.inDegrees) > 1) return true
-        return rc.cameraPoint.distanceTo(lastCameraPoint) > computeAltitudeAboveGround(rc) / 100
-
-        // We must test the globe and its projection to see if either changed. We can't simply use the globe state
-        // key for this because we don't want a 2D globe offset change to cause an update. Offset changes don't
-        // invalidate the current set of renderables.
-//        if (rc.globe != lastGlobe) return true
-//        if (rc.is2DGlobe) if ((rc.globe as Globe2D).projection != lastProjection) return true
+        if (rc.cameraPoint.distanceTo(lastCameraPoint) > computeAltitudeAboveGround(rc) / 100) return true
+        if (rc.globeState != lastGlobeState) return true
+        return false
     }
 
     protected open fun clear(rc: RenderContext) {
@@ -244,23 +216,17 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         lastCameraHeading = rc.camera.heading.inDegrees
         lastCameraTilt = rc.camera.tilt.inDegrees
         lastVerticalExaggeration = rc.verticalExaggeration
-//        lastGlobe = rc.globe
-//        if (rc.is2DGlobe) lastProjection = (rc.globe as Globe2D).projection
+        lastGlobeState = rc.globeState
     }
 
     fun computeLabelOffset(rc: RenderContext): Location {
-        return if (hasLookAtPos(rc)) {
-            val labelOffsetDegrees = getLabelOffset(rc)
-            val labelPos = Location(
-                getLookAtLatitude(rc).minusDegrees(labelOffsetDegrees),
-                getLookAtLongitude(rc).minusDegrees(labelOffsetDegrees)
+        return rc.lookAtPosition?.let {
+            val labelOffset = toDegrees(rc.pixelSize / rc.globe.equatorialRadius * rc.viewport.width / 4)
+            Location(
+                it.latitude.minusDegrees(labelOffset).normalizeLatitude().coerceIn(MIN_LAT, MAX_LAT),
+                it.longitude.minusDegrees(labelOffset).normalizeLongitude()
             )
-            labelPos.setDegrees(
-                normalizeLatitude(labelPos.latitude.inDegrees).coerceIn(-70.0, 70.0),
-                normalizeLongitude(labelPos.longitude.inDegrees)
-            )
-            labelPos
-        } else rc.camera.position
+        } ?: rc.camera.position
     }
 
     fun createLineRenderable(positions: List<Position>, pathType: PathType) = Path(positions).apply {
@@ -273,31 +239,6 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     fun createTextRenderable(position: Position, label: String, resolution: Double) = Label(position, label).apply {
         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
         // priority = resolution * 1e6 // TODO Implement priority
-    }
-
-    fun hasLookAtPos(rc: RenderContext): Boolean {
-        calculateLookAtProperties(rc)
-        return rc.hasUserProperty(LOOK_AT_LATITUDE_PROPERTY) && rc.hasUserProperty(LOOK_AT_LONGITUDE_PROPERTY)
-    }
-
-    fun getLookAtLatitude(rc: RenderContext): Angle {
-        calculateLookAtProperties(rc)
-        return rc.getUserProperty(LOOK_AT_LATITUDE_PROPERTY) ?: ZERO
-    }
-
-    fun getLookAtLongitude(rc: RenderContext): Angle {
-        calculateLookAtProperties(rc)
-        return rc.getUserProperty(LOOK_AT_LONGITUDE_PROPERTY) ?: ZERO
-    }
-
-    fun getPixelSize(rc: RenderContext): Double {
-        calculateLookAtProperties(rc)
-        return rc.getUserProperty(GRATICULE_PIXEL_SIZE_PROPERTY) ?: 0.0
-    }
-
-    private fun getLabelOffset(rc: RenderContext): Double {
-        calculateLookAtProperties(rc)
-        return rc.getUserProperty(GRATICULE_LABEL_OFFSET_PROPERTY) ?: 0.0
     }
 
     fun getSurfacePoint(rc: RenderContext, latitude: Angle, longitude: Angle): Vec3 {
@@ -436,27 +377,8 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         return if (deltaLon < 180) deltaLon else 360 - deltaLon
     }
 
-    private fun calculateLookAtProperties(rc: RenderContext) {
-        if (!rc.hasUserProperty(LOOK_AT_LATITUDE_PROPERTY) || !rc.hasUserProperty(LOOK_AT_LONGITUDE_PROPERTY)) {
-            //rc.modelview.extractEyePoint(forwardRay.origin)
-            forwardRay.origin.copy(rc.cameraPoint)
-            rc.modelview.extractForwardVector(forwardRay.direction)
-            val range = if (rc.terrain.intersect(forwardRay, lookAtPoint)) {
-                rc.globe.cartesianToGeographic(lookAtPoint.x, lookAtPoint.y, lookAtPoint.z, lookAtPos)
-                rc.putUserProperty(LOOK_AT_LATITUDE_PROPERTY, lookAtPos.latitude)
-                rc.putUserProperty(LOOK_AT_LONGITUDE_PROPERTY, lookAtPos.longitude)
-                lookAtPoint.distanceTo(rc.cameraPoint)
-            } else {
-                rc.removeUserProperty(LOOK_AT_LATITUDE_PROPERTY)
-                rc.removeUserProperty(LOOK_AT_LONGITUDE_PROPERTY)
-                rc.horizonDistance
-            }
-            val pixelSizeMeters = rc.pixelSizeAtDistance(range)
-            rc.putUserProperty(GRATICULE_PIXEL_SIZE_PROPERTY, pixelSizeMeters)
-            val pixelSizeDegrees = toDegrees(pixelSizeMeters / rc.globe.equatorialRadius)
-            rc.putUserProperty(
-                GRATICULE_LABEL_OFFSET_PROPERTY, pixelSizeDegrees * rc.viewport.width / 4
-            )
-        }
+    companion object {
+        private val MIN_LAT = (-70.0).degrees
+        private val MAX_LAT = 70.0.degrees
     }
 }

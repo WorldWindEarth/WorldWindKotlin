@@ -6,6 +6,8 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWindow
 import earth.worldwind.gesture.SelectDragCallback
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
+import earth.worldwind.globe.projection.MercatorProjection
+import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.MercatorLayerFactory
@@ -21,7 +23,8 @@ fun main() {
     window.onload = {
         // Create a WorldWindow for the canvas.
         val wwd = WorldWindow(document.getElementById("WorldWindow") as HTMLCanvasElement)
-        val select = document.getElementById("Tutorials") as HTMLSelectElement
+        val tutorialSelect = document.getElementById("Tutorials") as HTMLSelectElement
+        val projectionSelect = document.getElementById("Projections") as HTMLSelectElement
         val actionsContainer = document.getElementById("Actions") as HTMLDivElement
         val tutorials = mapOf (
             "Basic globe" to BasicTutorial(wwd.engine),
@@ -43,6 +46,10 @@ fun main() {
             // TODO Uncomment when TIFF elevation data parsing will be implemented
             //"WCS Elevation" to WcsElevationTutorial(wwd.engine),
             "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),
+        )
+        val projections = mapOf (
+            "WGS84 Projection" to Wgs84Projection(),
+            "Mercator Projection" to MercatorProjection()
         )
         var currentTutorial: String? = null
 
@@ -90,15 +97,28 @@ fun main() {
             wwd.requestRedraw()
         }
 
+        fun selectProjection(projectionName: String) {
+            wwd.engine.globe.projection = projections[projectionName]!!
+            wwd.requestRedraw()
+        }
+
         tutorials.keys.forEach {
             (document.createElement("option") as HTMLOptionElement).apply {
                 value = it
                 innerHTML = it
-                select.append(this)
+                tutorialSelect.append(this)
             }
         }
-        select.onchange = { event -> selectTutorial((event.target as HTMLSelectElement).value) }
-
+        projections.keys.forEach {
+            (document.createElement("option") as HTMLOptionElement).apply {
+                value = it
+                innerHTML = it
+                projectionSelect.append(this)
+            }
+        }
+        tutorialSelect.onchange = { event -> selectTutorial((event.target as HTMLSelectElement).value) }
+        projectionSelect.onchange = { event -> selectProjection((event.target as HTMLSelectElement).value)}
         selectTutorial(tutorials.keys.first())
+        selectProjection(projections.keys.first())
     }
 }

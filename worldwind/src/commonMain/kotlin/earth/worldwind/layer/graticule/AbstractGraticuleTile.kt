@@ -14,7 +14,8 @@ abstract class AbstractGraticuleTile(open val layer: AbstractGraticuleLayer, sec
     private var shouldCreateRenderables = true
     private val scratchVector = Vec3()
 
-    open fun isInView(rc: RenderContext) = intersectsSector(rc.terrain.sector) && intersectsFrustum(rc) && isFacingCamera(rc)
+    open fun isInView(rc: RenderContext) = rc.globe.projectionLimits?.let { intersectsSector(it) } != false &&
+            intersectsSector(rc.terrain.sector) && intersectsFrustum(rc) && isFacingCamera(rc)
 
     open fun getSizeInPixels(rc: RenderContext): Double {
         val centerPoint = layer.getSurfacePoint(rc, sector.centroidLatitude, sector.centroidLongitude)

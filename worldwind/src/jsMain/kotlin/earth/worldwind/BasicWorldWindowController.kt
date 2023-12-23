@@ -2,6 +2,7 @@ package earth.worldwind
 
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Vec2
+import earth.worldwind.geom.Vec3
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
 import org.w3c.dom.events.Event
@@ -29,11 +30,11 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
      * A copy of the viewing parameters at the start of a gesture as a look at view.
      */
     protected val beginLookAt = LookAt()
+    protected val beginLookAtPoint = Vec3()
     /**
      * The current state of the viewing parameters during a gesture as a look at view.
      */
     protected val lookAt = LookAt()
-    protected val beginPoint = Vec2()
     protected val lastPoint = Vec2()
     protected var lastRotation = 0.0
     protected var lastWheelEvent = 0
@@ -133,25 +134,31 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
 
     protected open fun handlePanOrDrag2D(recognizer: GestureRecognizer) {
         val state = recognizer.state
-        val x = recognizer.clientX.toDouble()
-        val y = recognizer.clientY.toDouble()
         val tx = recognizer.translationX
         val ty = recognizer.translationY
 
         when (state) {
             BEGAN -> {
                 gestureDidBegin()
-                beginPoint.set(x, y)
-                lastPoint.set(x, y)
+                wwd.engine.globe.geographicToCartesian(
+                    beginLookAt.position.latitude,
+                    beginLookAt.position.longitude,
+                    beginLookAt.position.altitude,
+                    beginLookAtPoint
+                )
             }
             CHANGED -> {
-                val x1 = lastPoint.x
-                val y1 = lastPoint.y
-                val x2 = beginPoint.x + tx
-                val y2 = beginPoint.y + ty
-                lastPoint.set(x2, y2)
-                // Transform the original view's modelview matrix to account for the gesture's change.
-                wwd.engine.moveLookAt(lookAt, wwd.canvasCoordinates(x1, y1), wwd.canvasCoordinates(x2, y2))
+                val metersPerPixel = wwd.engine.pixelSizeAtDistance(lookAt.range) * wwd.engine.densityFactor
+                val forwardMeters = ty * metersPerPixel
+                val sideMeters = - tx * metersPerPixel
+
+                // Adjust the change in latitude and longitude based on observation point heading.
+                val heading = lookAt.heading
+                val sinHeading = sin(heading.inRadians)
+                val cosHeading = cos(heading.inRadians)
+                val x = beginLookAtPoint.x + forwardMeters * sinHeading + sideMeters * cosHeading
+                val y = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
+                wwd.engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()

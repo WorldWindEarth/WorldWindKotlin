@@ -2,6 +2,7 @@ package earth.worldwind
 
 import android.view.MotionEvent
 import earth.worldwind.geom.LookAt
+import earth.worldwind.geom.Vec3
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
 import kotlin.math.cos
@@ -14,6 +15,7 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
     protected var lastRotation = 0f
     protected val lookAt = LookAt()
     protected val beginLookAt = LookAt()
+    protected val beginLookAtPoint = Vec3()
     protected var activeGestures = 0
     protected val panRecognizer: GestureRecognizer = PanRecognizer().also {
         it.addListener(this)
@@ -68,6 +70,10 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
     }
 
     protected open fun handlePan(recognizer: GestureRecognizer) {
+        if (wwd.engine.globe.is2D) handlePan2D(recognizer) else handlePan3D(recognizer)
+    }
+
+    protected open fun handlePan3D(recognizer: GestureRecognizer) {
         val state = recognizer.state
         val dx = recognizer.translationX
         val dy = recognizer.translationY
@@ -81,11 +87,10 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
                 // Get observation point position.
                 var lat = lookAt.position.latitude
                 var lon = lookAt.position.longitude
-                val rng = lookAt.range
 
                 // Convert the translation from screen coordinates to degrees. Use observation point range as a metric for
                 // converting screen pixels to meters, and use the globe's radius for converting from meters to arc degrees.
-                val metersPerPixel = wwd.engine.pixelSizeAtDistance(rng)
+                val metersPerPixel = wwd.engine.pixelSizeAtDistance(lookAt.range)
                 val forwardMeters = (dy - lastY) * metersPerPixel
                 val sideMeters = -(dx - lastX) * metersPerPixel
                 lastX = dx
@@ -114,6 +119,40 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
                     lookAt.position.latitude = lat
                     lookAt.position.longitude = lon
                 }
+                applyChanges()
+            }
+            ENDED, CANCELLED -> gestureDidEnd()
+            else -> {}
+        }
+    }
+
+    protected open fun handlePan2D(recognizer: GestureRecognizer) {
+        val state = recognizer.state
+        val tx = recognizer.translationX
+        val ty = recognizer.translationY
+
+        when (state) {
+            BEGAN -> {
+                gestureDidBegin()
+                wwd.engine.globe.geographicToCartesian(
+                    beginLookAt.position.latitude,
+                    beginLookAt.position.longitude,
+                    beginLookAt.position.altitude,
+                    beginLookAtPoint
+                )
+            }
+            CHANGED -> {
+                val metersPerPixel = wwd.engine.pixelSizeAtDistance(lookAt.range)
+                val forwardMeters = ty * metersPerPixel
+                val sideMeters = - tx * metersPerPixel
+
+                // Adjust the change in latitude and longitude based on observation point heading.
+                val heading = lookAt.heading
+                val sinHeading = sin(heading.inRadians)
+                val cosHeading = cos(heading.inRadians)
+                val x = beginLookAtPoint.x + forwardMeters * sinHeading + sideMeters * cosHeading
+                val y = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
+                wwd.engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()

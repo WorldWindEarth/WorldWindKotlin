@@ -36,26 +36,12 @@ abstract class AbstractMilStd2525TacticalGraphic(
         const val MIN_WIDTH_DP = 0.000015
         const val HIGHLIGHT_FACTOR = 2f
 
-        private const val SCALE_PROPERTY = "scale"
         private const val ZERO_LEVEL_PX = 256
         private val forwardRay = Line()
         private val lookAtPoint = Vec3()
 
         @JvmStatic
         fun defaultBoundingSector(locations: List<Location>) = Sector().apply { locations.forEach { l -> union(l) } }
-
-        private fun computeScale(rc: RenderContext) = rc.getUserProperty(SCALE_PROPERTY) ?: run {
-            // Get camera viewing vector
-            //rc.modelview.extractEyePoint(forwardRay.origin)
-            forwardRay.origin.copy(rc.cameraPoint)
-            rc.modelview.extractForwardVector(forwardRay.direction)
-
-            // Calculate range to viewing vector intersection point with globe model or to horizon if no intersection
-            val range = if (rc.globe.intersect(forwardRay, lookAtPoint)) lookAtPoint.distanceTo(rc.cameraPoint) else rc.horizonDistance
-
-            // Calculate map scale based on viewing range taking screen density into account
-            rc.pixelSizeAtDistance(range) * rc.densityFactor
-        }.also { rc.putUserProperty(SCALE_PROPERTY, it) }
 
         private fun computeNearestLoD(equatorialRadius: Double, scale: Double) =
             (ln(2 * PI * equatorialRadius / ZERO_LEVEL_PX / scale) / ln(2.0)).roundToInt()
@@ -78,8 +64,8 @@ abstract class AbstractMilStd2525TacticalGraphic(
     override fun doRender(rc: RenderContext) {
         val terrainSector = rc.terrain.sector
         if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
-            // Get current map scale based on observation range.
-            val currentScale = computeScale(rc)
+            // Get the current map scale based on observation range.
+            val currentScale = rc.pixelSize * rc.densityFactor
             // Limit scale based on clipping sector diagonal size
             val limitedScale = currentScale.coerceIn(minScale, maxScale)
             // Get renderables for current LoD

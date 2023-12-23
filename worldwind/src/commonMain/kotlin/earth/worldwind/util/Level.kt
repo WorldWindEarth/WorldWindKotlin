@@ -28,20 +28,24 @@ open class Level internal constructor(
      * The width in pixels of the image represented by all tiles in this level set, or the number of sample points in
      * the longitudinal direction of this level set.
      */
-    val levelWidth: Int
+    val levelWidth = (parent.tileWidth * parent.sector.deltaLongitude.inDegrees / tileDelta.longitude.inDegrees).roundToInt()
     /**
      * The height in pixels of the image represented by all tiles in this level set, or the number of sample points in
      * the latitudinal direction of this level set.
      */
-    val levelHeight: Int
+    val levelHeight = (parent.tileHeight * parent.sector.deltaLatitude.inDegrees / tileDelta.latitude.inDegrees).roundToInt()
     /**
      * The parent LevelSet's tileWidth.
      */
-    val tileWidth: Int
+    val tileWidth = parent.tileWidth
     /**
      * The parent LevelSet's tileHeight.
      */
-    val tileHeight: Int
+    val tileHeight = parent.tileHeight
+    /**
+     * The size of pixels or elevation cells within this level, in radians per pixel or per cell.
+     */
+    val texelSize = tileDelta.longitude.inRadians / parent.tileWidth
     /**
      * Indicates whether this level is the lowest resolution level (level 0) within the parent level set.
      */
@@ -60,19 +64,6 @@ open class Level internal constructor(
      * this is the last level.
      */
     val nextLevel get() = parent.level(levelNumber + 1)
-
-    /**
-     * Constructs a Level within a LevelSet. Applications typically do not interact with this class.
-     */
-    init {
-        require(tileDelta.latitude.inDegrees > 0.0 && tileDelta.longitude.inDegrees > 0.0) {
-            logMessage(ERROR, "Level", "constructor", "The tile delta is zero")
-        }
-        levelWidth = (parent.tileWidth * parent.sector.deltaLongitude.inDegrees / tileDelta.longitude.inDegrees).roundToInt()
-        levelHeight = (parent.tileHeight * parent.sector.deltaLatitude.inDegrees / tileDelta.latitude.inDegrees).roundToInt()
-        tileWidth = parent.tileWidth
-        tileHeight = parent.tileHeight
-    }
 
     /**
      * Calculates amount of tiles, which fit specified sector

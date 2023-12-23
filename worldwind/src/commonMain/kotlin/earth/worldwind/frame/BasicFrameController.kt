@@ -6,8 +6,9 @@ import earth.worldwind.PickedObject.Companion.uniqueColorToIdentifier
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.DrawableSurfaceColor
 import earth.worldwind.draw.DrawableSurfaceColor.Companion.obtain
-import earth.worldwind.geom.Position
-import earth.worldwind.geom.Vec3
+import earth.worldwind.geom.*
+import earth.worldwind.globe.Globe
+import earth.worldwind.globe.terrain.Terrain
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.BasicShaderProgram
@@ -18,15 +19,58 @@ import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
 import kotlin.math.roundToInt
 
 open class BasicFrameController: FrameController {
-    private var pickColor = Color()
+    override val lastTerrains = mutableMapOf<Globe.Offset, Terrain>()
+    private val pickColor = Color()
     private val pickPoint = Vec3()
     private val pickPos = Position()
+    private val boundingBox = BoundingBox()
+    private val fullSphere = Sector().setFullSphere()
+    private val scratchPoint = Vec3()
+    private val scratchRay = Line()
 
     override fun renderFrame(rc: RenderContext) {
-        rc.terrainTessellator.tessellate(rc)
-        if (rc.isPickMode) renderTerrainPickedObject(rc)
-        rc.layers.render(rc)
+        if (!rc.isPickMode) lastTerrains.clear()
+        if (rc.globe.is2D && rc.globe.isContinuous) {
+            // Tessellate and render all visible globe offsets of 2D continuous terrain
+            renderGlobeOffset(rc, Globe.Offset.Center)
+            renderGlobeOffset(rc, Globe.Offset.Right)
+            renderGlobeOffset(rc, Globe.Offset.Left)
+            // Reset globe offset for correct projection calculations after frame rendered
+            rc.globe.offset = Globe.Offset.Center
+        } else {
+            // Tessellate and render single 3D terrain
+            renderGlobeOffset(rc, Globe.Offset.Center)
+        }
         rc.sortDrawables()
+    }
+
+    protected open fun renderGlobeOffset(rc: RenderContext, globeOffset: Globe.Offset) {
+        rc.globe.offset = globeOffset
+
+        // Check if 2D globe offset intersects current frustum
+        if (rc.globe.is2D && !boundingBox.setToSector(fullSphere, rc.globe, 0f, 0f).intersectsFrustum(rc.frustum)) return
+
+        // Prepare terrain for specified globe offset
+        rc.terrain = rc.terrainTessellator.tessellate(rc)
+
+        // Compute viewing distance and pixel size based on available terrain
+        if (!rc.globe.is2D) adjustViewingParameters(rc)
+
+        // Render the terrain picked object or remember the last terrain for future intersect operations
+        if (rc.isPickMode) renderTerrainPickedObject(rc) else lastTerrains[globeOffset] = rc.terrain
+
+        // Render all layers on specified globe offset
+        rc.layers.render(rc)
+    }
+
+    protected open fun adjustViewingParameters(rc: RenderContext) {
+        scratchRay.origin.copy(rc.cameraPoint)
+        rc.modelview.extractForwardVector(scratchRay.direction)
+        rc.viewingDistance = if (rc.terrain.intersect(scratchRay, scratchPoint)) {
+            rc.lookAtPosition = rc.globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, Position())
+            scratchPoint.distanceTo(rc.cameraPoint)
+        } else rc.horizonDistance
+        rc.pixelSize = rc.pixelSizeAtDistance(rc.viewingDistance)
     }
 
     protected open fun renderTerrainPickedObject(rc: RenderContext) {

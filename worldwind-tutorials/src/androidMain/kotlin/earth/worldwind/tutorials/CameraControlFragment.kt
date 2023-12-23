@@ -1,6 +1,7 @@
 package earth.worldwind.tutorials
 
 import earth.worldwind.BasicWorldWindowController
+import earth.worldwind.WorldWind
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
@@ -185,7 +186,7 @@ class CameraControlFragment: BasicGlobeFragment() {
             position.altitude = position.altitude.coerceIn(minAltitude, maxAltitude)
 
             // Check if camera altitude is not under the surface
-            val elevation = wwd.engine.globe.getElevation(
+            val elevation = if (wwd.engine.globe.is2D) COLLISION_THRESHOLD else wwd.engine.globe.getElevation(
                 position.latitude, position.longitude
             ) * wwd.engine.verticalExaggeration + COLLISION_THRESHOLD
             if (elevation > position.altitude) position.altitude = elevation

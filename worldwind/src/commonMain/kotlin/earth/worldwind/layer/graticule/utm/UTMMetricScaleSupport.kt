@@ -42,11 +42,9 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
 
     fun computeZone(rc: RenderContext) {
         try {
-            if (layer.hasLookAtPos(rc)) {
-                val latitude = layer.getLookAtLatitude(rc)
-                val longitude = layer.getLookAtLongitude(rc)
-                zone = if (latitude.inDegrees in UTM_MIN_LATITUDE..UTM_MAX_LATITUDE) {
-                    val utm = UTMCoord.fromLatLon(latitude, longitude)
+            rc.lookAtPosition?.let {
+                zone = if (it.latitude.inDegrees in UTM_MIN_LATITUDE..UTM_MAX_LATITUDE) {
+                    val utm = UTMCoord.fromLatLon(it.latitude, it.longitude)
                     utm.zone
                 } else 0
             }
@@ -84,18 +82,17 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
     }
 
     fun selectRenderables(rc: RenderContext) {
-        if (!layer.hasLookAtPos(rc)) return
+        val lookAtPosition = rc.lookAtPosition ?: return
 
         // Compute easting and northing label offsets
-        val pixelSize = layer.getPixelSize(rc)
-        val eastingOffset = rc.viewport.width * pixelSize * OFFSET_FACTOR_X / 2
-        val northingOffset = rc.viewport.height * pixelSize * OFFSET_FACTOR_Y / 2
+        val eastingOffset = rc.viewport.width * rc.pixelSize * OFFSET_FACTOR_X / 2
+        val northingOffset = rc.viewport.height * rc.pixelSize * OFFSET_FACTOR_Y / 2
         // Derive labels center pos from the view center
         val labelEasting: Double
         var labelNorthing: Double
         var labelHemisphere: Hemisphere
         if (zone > 0) {
-            val utm = UTMCoord.fromLatLon(layer.getLookAtLatitude(rc), layer.getLookAtLongitude(rc))
+            val utm = UTMCoord.fromLatLon(lookAtPosition.latitude, lookAtPosition.longitude)
             labelEasting = utm.easting + eastingOffset
             labelNorthing = utm.northing + northingOffset
             labelHemisphere = utm.hemisphere
@@ -104,7 +101,7 @@ internal class UTMMetricScaleSupport(private val layer: AbstractUTMGraticuleLaye
                 labelHemisphere = Hemisphere.S
             }
         } else {
-            val ups = UPSCoord.fromLatLon(layer.getLookAtLatitude(rc), layer.getLookAtLongitude(rc))
+            val ups = UPSCoord.fromLatLon(lookAtPosition.latitude, lookAtPosition.longitude)
             labelEasting = ups.easting + eastingOffset
             labelNorthing = ups.northing + northingOffset
             labelHemisphere = ups.hemisphere

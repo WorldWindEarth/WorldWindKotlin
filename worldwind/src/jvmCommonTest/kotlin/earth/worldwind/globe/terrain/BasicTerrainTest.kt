@@ -3,13 +3,11 @@ package earth.worldwind.globe.terrain
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.fromDegrees
-import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
-import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.util.LevelSet
 import kotlin.math.cos
 import kotlin.math.sin
@@ -59,15 +57,12 @@ class BasicTerrainTest {
     @BeforeTest
     fun setUp() {
         // Create the globe object used by the test
-        val globe = Globe(Ellipsoid.WGS84, Wgs84Projection())
-
-        // Create the terrain object used by the test
-        terrain = BasicTerrain()
+        val globe = Globe()
 
         // Add a terrain tile used to the mocked terrain
         val levelSet = LevelSet(Sector().setFullSphere(), fromDegrees(-90.0, -180.0), fromDegrees(1.0, 1.0), 1, 5, 5) // tiles with 5x5 vertices
         val tile = TerrainTile(fromDegrees(0.0, 0.0, 1.0, 1.0), levelSet.firstLevel, 90, 180)
-        (terrain as BasicTerrain).addTile(tile)
+        terrain = BasicTerrain(listOf(tile), tile.sector, null)
 
         // Populate the terrain tile's geometry
         val tileWidth = tile.level.tileWidth

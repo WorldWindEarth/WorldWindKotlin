@@ -3,12 +3,14 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.Color
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
 
 open class DrawableSurfaceShape protected constructor(): Drawable {
+    var offset = Globe.Offset.Center
     val sector = Sector()
     val drawState = DrawShapeState()
     private var pool: Pool<DrawableSurfaceShape>? = null
@@ -117,7 +119,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             for (element in scratchList) {
                 // Get the shape.
                 val shape = element as DrawableSurfaceShape
-                if (!shape.sector.intersectsOrNextTo(terrainSector)) continue
+                if (shape.offset != terrain.offset || !shape.sector.intersectsOrNextTo(terrainSector)) continue
                 if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) continue  // vertex buffer unspecified or failed to bind
                 if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) continue  // element buffer unspecified or failed to bind
 

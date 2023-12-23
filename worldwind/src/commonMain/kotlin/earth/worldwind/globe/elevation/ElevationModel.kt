@@ -57,15 +57,11 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
 
     fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         // coverages composite from coarse to fine
-        for (i in coverages.indices) {
-            coverages[i].getHeightGrid(gridSector, gridWidth, gridHeight, result)
-        }
+        for (i in coverages.indices) coverages[i].getHeightGrid(gridSector, gridWidth, gridHeight, result)
     }
 
     fun getHeightLimits(sector: Sector, result: FloatArray) {
         // coverage order is irrelevant
-        for (i in coverages.indices) {
-            coverages[i].getHeightLimits(sector, result)
-        }
+        for (i in coverages.indices) coverages[i].getHeightLimits(sector, result)
     }
 }

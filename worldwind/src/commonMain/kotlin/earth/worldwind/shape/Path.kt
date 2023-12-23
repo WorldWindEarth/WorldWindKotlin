@@ -33,7 +33,6 @@ open class Path @JvmOverloads constructor(
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
     protected val vertexOrigin = Vec3()
-    protected var isSurfaceShape = false
     protected var texCoord1d = 0.0
     private val point = Vec3()
     private val prevPoint = Vec3()
@@ -51,6 +50,7 @@ open class Path @JvmOverloads constructor(
     }
 
     override fun reset() {
+        super.reset()
         vertexArray = FloatArray(0)
         interiorElements.clear()
         outlineElements.clear()
@@ -75,6 +75,7 @@ open class Path @JvmOverloads constructor(
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
+            drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
             val pool = rc.getDrawablePool<DrawableShape>()
@@ -162,9 +163,6 @@ open class Path @JvmOverloads constructor(
     protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty()
 
     protected open fun assembleGeometry(rc: RenderContext) {
-        // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
-        isSurfaceShape = altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
-
         // Determine the number of vertexes
         val vertexCount = if (maximumIntermediatePoints <= 0 || pathType == LINEAR) positions.size
         else if(positions.isNotEmpty()) positions.size + (positions.size - 1) * maximumIntermediatePoints else 0

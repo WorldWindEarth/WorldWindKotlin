@@ -2,6 +2,7 @@ package earth.worldwind.globe.terrain
 
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.util.Level
@@ -23,6 +24,8 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     protected val minTerrainElevation = -Short.MAX_VALUE.toFloat()
     protected var heightTimestamp = 0L
     protected var verticalExaggeration = 0.0f
+    protected var globeState: Globe.State? = null
+    protected var globeOffset: Globe.Offset? = null
     var sortOrder = 0.0
         protected set
     private var pointBufferKey = this::class.simpleName + ".points.default" // This key will be replaced on prepare of each tile
@@ -42,10 +45,16 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
             for (r in 0 until level.tileHeight) for (c in 0 until level.tileWidth) {
                 heights[(r + 1) * (level.tileWidth + 2) + c + 1] = heightGrid[r * level.tileWidth + c]
             }
+            if (rc.globe.is2D) {
+                heightGrid.fill(0f) // Do not show terrain in 2D, but keep height values in vertex for heatmap
+                calcHeightLimits(globe) // Force calculate height limits for heatmap
+            }
             updateHeightBufferKey()
         }
         val ve = rc.verticalExaggeration.toFloat()
-        if (ve != verticalExaggeration || timestamp != heightTimestamp) {
+        val state = rc.globeState
+        val offset = rc.globe.offset
+        if (timestamp != heightTimestamp || ve != verticalExaggeration || state != globeState || offset != globeOffset) {
             val borderHeight = minTerrainElevation * ve
             val rowStride = (tileWidth + 2) * 3
             globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude, 0.0, origin)
@@ -59,6 +68,8 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         }
         heightTimestamp = timestamp
         verticalExaggeration = ve
+        globeState = state
+        globeOffset = offset
         sortOrder = drawSortOrder(rc)
     }
 

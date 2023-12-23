@@ -1,9 +1,12 @@
 package earth.worldwind.examples
 
 import android.os.Bundle
+import android.widget.CheckBox
 import android.widget.FrameLayout
 import earth.worldwind.WorldWindow
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
+import earth.worldwind.globe.projection.MercatorProjection
+import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.MercatorLayerFactory
@@ -42,8 +45,13 @@ The globe uses the default navigation gestures:
         wwd = WorldWindow(this)
 
         // Add the WorldWindow view object to the layout that was reserved for the globe.
-        val globeLayout = findViewById<FrameLayout>(R.id.globe)
-        globeLayout.addView(wwd)
+        findViewById<FrameLayout>(R.id.globe).addView(wwd)
+
+        // Change projection by toolbar checkbox
+        findViewById<CheckBox>(R.id.is2d).setOnCheckedChangeListener { _, checked ->
+            wwd.engine.globe.projection = if (checked) MercatorProjection() else Wgs84Projection()
+            wwd.requestRedraw()
+        }
 
         // Define cache content manager
         val contentManager = GpkgContentManager(File(cacheDir, "content.gpkg").absolutePath)

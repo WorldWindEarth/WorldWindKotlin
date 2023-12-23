@@ -41,6 +41,10 @@ open class RenderContext {
     var verticalExaggeration = 1.0
     var horizonDistance = 0.0
     var atmosphereAltitude = 0.0
+    var viewingDistance = 0.0
+    var pixelSize = 0.0
+    var lookAtPosition: Position? = null
+    var globeState: Globe.State? = null
     var elevationModelTimestamp = 0L
     var cameraPoint = Vec3()
     val viewport = Viewport()
@@ -73,6 +77,10 @@ open class RenderContext {
         verticalExaggeration = 1.0
         horizonDistance = 0.0
         atmosphereAltitude = 0.0
+        viewingDistance = 0.0
+        pixelSize = 0.0
+        lookAtPosition = null
+        globeState = null
         elevationModelTimestamp = 0L
         cameraPoint.set(0.0, 0.0, 0.0)
         viewport.setEmpty()
