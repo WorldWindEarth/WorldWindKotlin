@@ -40,29 +40,8 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
 //    private var lastGlobe: Globe? = null
 //    private var lastProjection: GeographicProjection? = null
 //    private var frameTimeStamp = Instant.DISTANT_PAST // used only for 2D continuous globes to determine whether render is in same frame
-//    private var terrainConformance = 50.0
 
     companion object {
-//        /**
-//         * Solid line rendering style. This style specifies that a line will be drawn without any breaks. <br></br>
-//         * <pre>`_________`</pre>
-//         * <br></br> is an example of a solid line.
-//         */
-//        val LINE_STYLE_SOLID = GraticuleRenderingParams.VALUE_LINE_STYLE_SOLID
-//        /**
-//         * Dashed line rendering style. This style specifies that a line will be drawn as a series of long strokes, with
-//         * space in between. <br></br>
-//         * <pre>`- - - - -`</pre>
-//         * <br></br> is an example of a dashed line.
-//         */
-//        val LINE_STYLE_DASHED = GraticuleRenderingParams.VALUE_LINE_STYLE_DASHED
-//        /**
-//         * Dotted line rendering style. This style specifies that a line will be drawn as a series of evenly spaced "square"
-//         * dots. <br></br>
-//         * <pre>`. . . . .`</pre>
-//         * is an example of a dotted line.
-//         */
-//        val LINE_STYLE_DOTTED = GraticuleRenderingParams.VALUE_LINE_STYLE_DOTTED
         private const val LOOK_AT_LATITUDE_PROPERTY = "look_at_latitude"
         private const val LOOK_AT_LONGITUDE_PROPERTY = "look_at_longitude"
         private const val GRATICULE_PIXEL_SIZE_PROPERTY = "graticule_pixel_size"
@@ -124,25 +103,25 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
      * @param lineWidth width of the graticule lines.
      * @param key       the rendering parameters key.
      */
-    fun setGraticuleLineWidth(lineWidth: Double, key: String) { getRenderingParams(key).lineWidth = lineWidth }
+    fun setGraticuleLineWidth(lineWidth: Float, key: String) { getRenderingParams(key).lineWidth = lineWidth }
 
-//    /**
-//     * Returns the graticule line rendering style.
-//     *
-//     * @param key the rendering parameters key.
-//     *
-//     * @return rendering style of the graticule lines.
-//     */
-//    fun getGraticuleLineStyle(key: String) = getRenderingParams(key).lineStyle
-//
-//    /**
-//     * Sets the graticule line rendering style.
-//     *
-//     * @param lineStyle rendering style of the graticule lines. One of LINE_STYLE_SOLID, LINE_STYLE_DASHED, or
-//     * LINE_STYLE_DOTTED.
-//     * @param key       the rendering parameters key.
-//     */
-//    fun setGraticuleLineStyle(lineStyle: String, key: String) { getRenderingParams(key).lineStyle = lineStyle }
+    /**
+     * Returns the graticule line rendering style.
+     *
+     * @param key the rendering parameters key.
+     *
+     * @return rendering style of the graticule lines.
+     */
+    fun getGraticuleLineStyle(key: String) = getRenderingParams(key).lineStyle
+
+    /**
+     * Sets the graticule line rendering style.
+     *
+     * @param lineStyle rendering style of the graticule lines.
+     * One of [LineStyle.SOLID], [LineStyle.DASHED], [LineStyle.DOTTED] or [LineStyle.DASH_DOTTED].
+     * @param key the rendering parameters key.
+     */
+    fun setGraticuleLineStyle(lineStyle: LineStyle, key: String) { getRenderingParams(key).lineStyle = lineStyle }
 
     /**
      * Returns whether graticule labels will be rendered.
@@ -267,28 +246,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         lastVerticalExaggeration = rc.verticalExaggeration
 //        lastGlobe = rc.globe
 //        if (rc.is2DGlobe) lastProjection = (rc.globe as Globe2D).projection
-//        terrainConformance = computeTerrainConformance(rc)
-//        applyTerrainConformance()
     }
-
-//    private fun computeTerrainConformance(rc: RenderContext): Double {
-//        var value = 100
-//        val alt = rc.camera.position.altitude
-//        when {
-//            alt < 10e3 -> value = 20
-//            alt < 50e3 -> value = 30
-//            alt < 100e3 -> value = 40
-//            alt < 1000e3 -> value = 60
-//        }
-//        return value.toDouble()
-//    }
-//
-//    private fun applyTerrainConformance() {
-//        val graticuleType = getOrderedTypes()
-//        for (type in graticuleType) {
-//            getRenderingParams(type)[GraticuleRenderingParams.KEY_LINE_CONFORMANCE] = terrainConformance
-//        }
-//    }
 
     fun computeLabelOffset(rc: RenderContext): Location {
         return if (hasLookAtPos(rc)) {
@@ -307,9 +265,8 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
 
     fun createLineRenderable(positions: List<Position>, pathType: PathType) = Path(positions).apply {
         this.pathType = pathType
-        isFollowTerrain = true
-        // terrainConformance = 1.0 // TODO Why not terrainConformance?
         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+        isFollowTerrain = true
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -360,9 +317,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     fun computeTruncatedSegment(p1: Position, p2: Position, sector: Sector, positions: MutableList<Position>) {
         val p1In = sector.contains(p1.latitude, p1.longitude)
         val p2In = sector.contains(p2.latitude, p2.longitude)
-        if (!p1In && !p2In) return  // whole segment is (likely) outside
+        if (!p1In && !p2In) return  // the whole segment is (likely) outside
         if (p1In && p2In) {
-            // whole segment is (likely) inside
+            // the whole segment is (likely) inside
             positions.add(p1)
             positions.add(p2)
         } else {
@@ -422,7 +379,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         val deltaLon = getDeltaLongitude(p1, p2.longitude)
         if (getDeltaLongitude(p1, longitude) < deltaLon && getDeltaLongitude(p2, longitude) < deltaLon) {
             var count = 0
-            val precision = 1.0 / 6378137.0 // 1m angle in radians
+            val precision = 1.0 / Ellipsoid.WGS84.semiMajorAxis // 1m angle in radians
             var a = p1
             var b = p2
             var midPoint = greatCircleMidPoint(a, b)
@@ -451,7 +408,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         var pos: Location? = null
         if (sign(p1.latitude.inDegrees - latitude.inDegrees) != sign(p2.latitude.inDegrees - latitude.inDegrees)) {
             var count = 0
-            val precision = 1.0 / 6378137.0 // 1m angle in radians
+            val precision = 1.0 / Ellipsoid.WGS84.semiMajorAxis // 1m angle in radians
             var a = p1
             var b = p2
             var midPoint = greatCircleMidPoint(a, b)
