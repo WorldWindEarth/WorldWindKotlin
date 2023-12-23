@@ -4,6 +4,7 @@ import earth.worldwind.draw.DrawableSurfaceTexture
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Sector
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
@@ -76,6 +77,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     protected var ancestorTexture: Texture? = null
     protected val ancestorTexCoordMatrix = Matrix3()
     protected val topLevelTiles = mutableListOf<Tile>()
+    protected var lastGlobeState: Globe.State? = null
 
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
@@ -85,7 +87,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     }
 
     override fun doRender(rc: RenderContext) {
-        if (rc.terrain.sector.isEmpty) return  // no terrain surface to render on
+        if (rc.terrain.sector.isEmpty) return // no terrain surface to render on
+        checkGlobeState(rc)
         determineActiveProgram(rc)
         assembleTiles(rc)
         activeProgram = null // clear the active program to avoid leaking render resources
@@ -183,6 +186,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     }
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
+        // ignore tiles which soes not fit projection limits
+        if (rc.globe.projectionLimits?.let { tile.intersectsSector(it) } == false) return
         // ignore the tile and its descendants if it's not needed or not visible
         if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc)) return
         val retrieveCurrentLevel = tile.level.levelNumber >= levelSet.levelOffset
@@ -211,13 +216,17 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         if (texture != null) { // use the tile's own texture
             val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
-            val drawable = DrawableSurfaceTexture.obtain(pool).set(activeProgram, tile.sector, opacity, texture, texture.coordTransform)
+            val drawable = DrawableSurfaceTexture.obtain(pool).set(
+                activeProgram, tile.sector, opacity, texture, texture.coordTransform, rc.globe.offset
+            )
             rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
         } else if (ancestorTile != null && ancestorTexture != null) { // use the ancestor tile's texture, transformed to fill the tile sector
             ancestorTexCoordMatrix.copy(ancestorTexture.coordTransform)
             ancestorTexCoordMatrix.multiplyByTileTransform(tile.sector, ancestorTile.sector)
             val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
-            val drawable = DrawableSurfaceTexture.obtain(pool).set(activeProgram, tile.sector, opacity, ancestorTexture, ancestorTexCoordMatrix)
+            val drawable = DrawableSurfaceTexture.obtain(pool).set(
+                activeProgram, tile.sector, opacity, ancestorTexture, ancestorTexCoordMatrix, rc.globe.offset
+            )
             rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
         }
     }
@@ -235,6 +244,14 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         return rc.getTexture(
             if (isCacheAbsent) imageSource else cacheSource!!, imageOptions, retrieve && (!isCacheOnly || !isCacheAbsent)
         )
+    }
+
+    protected open fun checkGlobeState(rc: RenderContext) {
+        // Invalidate tiles cache when globe state changes
+        if (rc.globeState != lastGlobeState) {
+            invalidateTiles()
+            lastGlobeState = rc.globeState
+        }
     }
 
     protected open fun invalidateTiles() {

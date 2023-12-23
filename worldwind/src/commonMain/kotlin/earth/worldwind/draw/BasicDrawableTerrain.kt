@@ -3,6 +3,7 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Range
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.buffer.ShortBufferObject
 import earth.worldwind.util.Pool
@@ -13,6 +14,7 @@ import earth.worldwind.util.kgl.GL_UNSIGNED_SHORT
 import kotlin.jvm.JvmStatic
 
 open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
+    override var offset = Globe.Offset.Center
     override val sector = Sector()
     override val vertexOrigin = Vec3()
     val lineElementRange = Range()

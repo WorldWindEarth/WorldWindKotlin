@@ -8,7 +8,9 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
+import android.view.View.VISIBLE
+import android.widget.CheckBox
+import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +23,8 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
 import earth.worldwind.WorldWindow
 import earth.worldwind.frame.BasicFrameMetrics
+import earth.worldwind.globe.projection.MercatorProjection
+import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.cancelChildren
@@ -51,17 +55,22 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         onCreateDrawer()
-        if (findViewById<View?>(R.id.code_container) != null) {
+        if (findViewById<FrameLayout>(R.id.code_container) != null) {
             // The code container view will be present only in the
             // large-screen layouts (res/values-w900dp).
             // If this view is present, then the
             // activity should be in two-pane mode.
             twoPaneView = true
         }
+        findViewById<CheckBox>(R.id.is2d).setOnCheckedChangeListener { _, checked ->
+            val currentFragment = supportFragmentManager.fragments[0] as BasicGlobeFragment
+            currentFragment.wwd.engine.globe.projection = if (checked) MercatorProjection() else Wgs84Projection()
+            currentFragment.wwd.requestRedraw()
+        }
         if (!twoPaneView) {
             val codeViewButton = findViewById<FloatingActionButton>(R.id.fab)
-            codeViewButton.visibility = View.VISIBLE // is set to GONE in layout
-            codeViewButton.setOnClickListener { view: View ->
+            codeViewButton.visibility = VISIBLE // is set to GONE in layout
+            codeViewButton.setOnClickListener { view ->
                 val context = view.context
                 val intent = Intent(context, CodeActivity::class.java)
                 val bundle = Bundle()
@@ -315,6 +324,7 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
         }
         val drawer = findViewById<DrawerLayout>(R.id.drawer_layout)
         drawer.closeDrawer(GravityCompat.START)
+        findViewById<CheckBox>(R.id.is2d).isChecked = false
         return true
     }
 

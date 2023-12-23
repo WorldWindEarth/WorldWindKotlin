@@ -32,7 +32,7 @@ class GKGraticuleTile(
         if (GKLayerHelper.getZone(gkSector.centroidLongitude) == 30) return
 
         super.selectRenderables(rc)
-        val distanceToTile = nearestPoint(rc).distanceTo(rc.cameraPoint)
+        val distanceToTile = if (rc.globe.is2D) rc.viewingDistance else nearestPoint(rc).distanceTo(rc.cameraPoint)
         val appropriateType = layer.getTypeFor(distanceToTile)
         enableRenderingForChildTile(appropriateType, distanceToTile)
         for (ge in gridElements) {

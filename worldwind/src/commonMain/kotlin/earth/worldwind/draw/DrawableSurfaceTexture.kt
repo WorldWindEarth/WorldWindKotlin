@@ -2,6 +2,7 @@ package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Sector
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.program.SurfaceTextureProgram
@@ -10,7 +11,9 @@ import earth.worldwind.util.kgl.GL_TEXTURE0
 import kotlin.jvm.JvmStatic
 
 open class DrawableSurfaceTexture protected constructor(): Drawable {
-    val sector = Sector()
+    var offset = Globe.Offset.Center
+    val textureSector = Sector()
+    val terrainSector = Sector()
     val color = Color()
     var opacity = 1.0f
     val texCoordMatrix = Matrix3()
@@ -28,9 +31,12 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
     }
 
     fun set(
-        program: SurfaceTextureProgram?, sector: Sector, opacity: Float, texture: Texture, texCoordMatrix: Matrix3
+        program: SurfaceTextureProgram?, textureSector: Sector, opacity: Float, texture: Texture,
+        texCoordMatrix: Matrix3, offset: Globe.Offset, terrainSector: Sector = textureSector
     ) = apply {
-        this.sector.copy(sector)
+        this.offset = offset
+        this.textureSector.copy(textureSector)
+        this.terrainSector.copy(terrainSector)
         this.color.set(1f, 1f, 1f, 1f)
         this.opacity = opacity
         this.texCoordMatrix.copy(texCoordMatrix)
@@ -98,9 +104,9 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
             for (element in scratchList) {
                 // Get the surface texture and its sector.
                 val texture = element as DrawableSurfaceTexture
-                val textureSector = texture.sector
-                if (!textureSector.intersects(terrainSector)) continue  // texture does not intersect the terrain
-                if (!texture.bindTexture(dc)) continue  // texture failed to bind
+                val textureSector = texture.textureSector
+                if (texture.offset != terrain.offset || !texture.terrainSector.intersects(terrainSector)) continue
+                if (!texture.bindTexture(dc)) continue // texture failed to bind
 
                 // Use the terrain's vertex point attribute and vertex tex coord attribute.
                 if (!usingTerrainAttrs &&

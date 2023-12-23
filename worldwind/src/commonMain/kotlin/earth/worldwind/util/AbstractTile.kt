@@ -4,6 +4,7 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.BoundingBox
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import kotlin.math.abs
 import kotlin.math.min
@@ -21,6 +22,8 @@ abstract class AbstractTile(
     protected open val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
     protected var extentExaggeration = 0.0f
+    protected var extentGlobeState: Globe.State? = null
+    protected var extentGlobeOffset: Globe.Offset? = null
     private val nearestPoint = Vec3()
 
     /**
@@ -86,21 +89,30 @@ abstract class AbstractTile(
         val globe = rc.globe
         val timestamp = rc.elevationModelTimestamp
         if (timestamp != heightLimitsTimestamp) {
-            // initialize the heights for elevation model scan
-            heightLimits[0] = Float.MAX_VALUE
-            heightLimits[1] = -Float.MAX_VALUE
-            globe.elevationModel.getHeightLimits(sector, heightLimits)
-            // check for valid height limits
-            if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
+            if (globe.is2D) heightLimits.fill(0f) else calcHeightLimits(globe)
         }
         val ve = rc.verticalExaggeration.toFloat()
-        if (ve != extentExaggeration || timestamp != heightLimitsTimestamp) {
+        val state = rc.globeState
+        val offset = rc.globe.offset
+        if (timestamp != heightLimitsTimestamp || ve != extentExaggeration
+            || state != extentGlobeState || offset != extentGlobeOffset) {
             val minHeight = heightLimits[0] * ve
             val maxHeight = heightLimits[1] * ve
             extent.setToSector(sector, globe, minHeight, maxHeight)
         }
         heightLimitsTimestamp = timestamp
         extentExaggeration = ve
+        extentGlobeState = state
+        extentGlobeOffset = offset
         return extent
+    }
+
+    protected open fun calcHeightLimits(globe: Globe) {
+        // initialize the heights for elevation model scan
+        heightLimits[0] = Float.MAX_VALUE
+        heightLimits[1] = -Float.MAX_VALUE
+        globe.elevationModel.getHeightLimits(sector, heightLimits)
+        // check for valid height limits
+        if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
     }
 }

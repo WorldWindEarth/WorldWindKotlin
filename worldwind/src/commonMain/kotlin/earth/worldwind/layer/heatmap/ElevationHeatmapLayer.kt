@@ -35,6 +35,7 @@ open class ElevationHeatmapLayer: AbstractLayer("Elevation Heatmap") {
         if (autoHeightLimits) rc.terrain.heightLimits(levelNumberDepth, heightLimits)
 
         val program = rc.getShaderProgram { ElevationHeatmapProgram() }
+        val offset = rc.globe.offset
         rc.offerDrawableLambda(DrawableGroup.SURFACE, 0.0) { dc ->
             if (!program.useProgram(dc)) return@offerDrawableLambda // program failed to build
 
@@ -48,6 +49,7 @@ open class ElevationHeatmapLayer: AbstractLayer("Elevation Heatmap") {
                 for (idx in 0 until dc.drawableTerrainCount) {
                     // Get the drawable terrain associated with the draw context.
                     val terrain = dc.getDrawableTerrain(idx)
+                    if (terrain.offset != offset) continue
 
                     // Get the terrain's attributes, and keep a flag to ensure we apply the terrain's attributes at most once.
                     val terrainOrigin = terrain.vertexOrigin

@@ -32,6 +32,8 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     }
 
     override fun doRender(rc: RenderContext) {
+        if (rc.globe.is2D) return // Atmosphere layer is not applicable for 2D globe
+
         // Compute the currently active light direction.
         determineLightDirection(rc)
 
@@ -90,7 +92,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         altitudes.fill(altitude)
         val points = FloatArray(count * 3)
         rc.globe.geographicToCartesianGrid(
-            fullSphereSector, numLat, numLon, altitudes, 1.0f, null, points, 0, 0
+            fullSphereSector, numLat, numLon, altitudes, 1.0f, null, points
         )
         return FloatBufferObject(GL_ARRAY_BUFFER, points)
     }

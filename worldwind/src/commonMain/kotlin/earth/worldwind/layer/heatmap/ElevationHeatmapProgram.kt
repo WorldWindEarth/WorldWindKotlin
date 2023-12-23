@@ -93,8 +93,8 @@ open class ElevationHeatmapProgram : AbstractShaderProgram() {
 
     fun setLimits(limits: FloatArray) {
         val delta = limits[1] - limits[0]
-        gl.uniform1f(scaleId, 1.0f / delta)
-        gl.uniform1f(offsetId, -limits[0] / delta)
+        gl.uniform1f(scaleId, if (delta != 0.0f) 1.0f / delta else 0.0f)
+        gl.uniform1f(offsetId, if (delta != 0.0f) -limits[0] / delta else 0.0f)
     }
 
     fun setColors(colors: Array<Color>) {

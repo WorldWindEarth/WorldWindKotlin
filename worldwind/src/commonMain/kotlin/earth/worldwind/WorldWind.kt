@@ -6,10 +6,10 @@ import earth.worldwind.frame.Frame
 import earth.worldwind.frame.FrameController
 import earth.worldwind.frame.FrameMetrics
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.globe.Globe
-import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.globe.terrain.BasicTessellator
 import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.LayerList
@@ -39,7 +39,7 @@ open class WorldWind @JvmOverloads constructor(
     /**
      * Planet or celestial object approximated by a reference ellipsoid and elevation models.
      */
-    var globe: Globe = Globe(Ellipsoid.WGS84, Wgs84Projection()),
+    var globe: Globe = Globe(),
     /**
      * Terrain model tessellator.
      */
@@ -212,39 +212,6 @@ open class WorldWind @JvmOverloads constructor(
     }
 
     /**
-     * Translate the original view's modelview matrix to account for the gesture's change.
-     *
-     * @param lookAt the look at position, orientation and range to be modified by translation.
-     * @param fromPoint the start point of translation.
-     * @param toPoint the finish point of translation.
-     */
-    open fun moveLookAt(lookAt: LookAt, fromPoint: Vec2, toPoint: Vec2) {
-        // Convert screen points to points on the globe ellipsoid. Do not transform if any point is outside the globe.
-        val from = Vec3()
-        if (!rayThroughScreenPoint(fromPoint.x, fromPoint.y, scratchRay) || !globe.intersect(scratchRay, from)) return
-        val to = Vec3()
-        if (!rayThroughScreenPoint(toPoint.x, toPoint.y, scratchRay) || !globe.intersect(scratchRay, to)) return
-
-        // Transform the original modelview matrix according to specified points.
-        lookAtToViewingTransform(lookAt, scratchModelview)
-        scratchModelview.multiplyByTranslation(to.x - from.x, to.y - from.y, to.z - from.z)
-
-        // Compute the globe point at the screen center from the perspective of the transformed view.
-        scratchModelview.extractEyePoint(scratchRay.origin)
-        scratchModelview.extractForwardVector(scratchRay.direction)
-        if (!globe.intersect(scratchRay, scratchPoint)) return
-        globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, lookAt.position)
-
-        // Convert the transformed modelview matrix to view properties.
-        globe.cartesianToLocalTransform(scratchPoint.x, scratchPoint.y, scratchPoint.z, scratchProjection)
-        scratchModelview.multiplyByMatrix(scratchProjection)
-        lookAt.range = -scratchModelview.m[11]
-        lookAt.heading = scratchModelview.extractHeading(lookAt.roll) // disambiguate heading and roll
-        lookAt.tilt = scratchModelview.extractTilt()
-        lookAt.roll = lookAt.roll // roll passes straight through
-    }
-
-    /**
      * Set camera position and orientation, based on look at position, orientation and range
      *
      * @param lookAt Look at position, orientation and range
@@ -263,7 +230,7 @@ open class WorldWind @JvmOverloads constructor(
 
         // Check if camera altitude is not under the surface
         val position = camera.position
-        val elevation = globe.getElevation(
+        val elevation = if (globe.is2D) COLLISION_THRESHOLD else globe.getElevation(
             position.latitude, position.longitude
         ) * verticalExaggeration + COLLISION_THRESHOLD
         if (elevation > position.altitude) {
@@ -294,7 +261,9 @@ open class WorldWind @JvmOverloads constructor(
      * @return true if the screen point could be converted; false if the screen point is not on the terrain
      */
     open fun pickTerrainPosition(x: Double, y: Double, result: Position) =
-        if (rayThroughScreenPoint(x, y, scratchRay) && tessellator.lastTerrain.intersect(scratchRay, scratchPoint)) {
+        if (rayThroughScreenPoint(x, y, scratchRay) && frameController.lastTerrains.values.any {
+            it.intersect(scratchRay, scratchPoint)
+        }) {
             globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, result)
             true
         } else false
@@ -457,6 +426,12 @@ open class WorldWind @JvmOverloads constructor(
         val pickMode = frame.isPickMode
         if (!pickMode) frameMetrics?.beginRendering(rc)
 
+        // Restrict camera tilt and roll in 2D
+        if (globe.is2D) {
+            camera.tilt = ZERO
+            camera.roll = ZERO
+        }
+
         // Set up the render context according to the WorldWindow's current state.
         rc.globe = globe
         rc.terrainTessellator = tessellator
@@ -471,6 +446,7 @@ open class WorldWind @JvmOverloads constructor(
         rc.verticalExaggeration = verticalExaggeration
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude
+        rc.globeState = globe.state
         rc.elevationModelTimestamp = globe.elevationModel.timestamp
 
         // Configure the frame's Cartesian modelview matrix and eye coordinate projection matrix.
@@ -484,6 +460,17 @@ open class WorldWind @JvmOverloads constructor(
         rc.modelviewProjection.setToMultiply(frame.projection, frame.modelview)
         if (pickMode) rc.frustum.setToModelviewProjection(frame.projection, frame.modelview, frame.viewport, frame.pickViewport!!)
         else rc.frustum.setToModelviewProjection(frame.projection, frame.modelview, frame.viewport)
+
+        // Compute viewing distance and pixel size (for 3D view it will be done after terrain tessellation)
+        if (globe.is2D) {
+            scratchRay.origin.copy(rc.cameraPoint)
+            rc.modelview.extractForwardVector(scratchRay.direction)
+            rc.viewingDistance = if (globe.intersect(scratchRay, scratchPoint)) {
+                rc.lookAtPosition = globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, Position())
+                scratchPoint.distanceTo(rc.cameraPoint)
+            } else rc.horizonDistance
+            rc.pixelSize = rc.pixelSizeAtDistance(rc.viewingDistance)
+        }
 
         // Accumulate the Drawables in the frame's drawable queue and drawable terrain data structures.
         rc.drawableQueue = frame.drawableQueue
@@ -567,7 +554,7 @@ open class WorldWind @JvmOverloads constructor(
         var near = far / (maxDepthValue / (1 - farResolution / far) - maxDepthValue + 1)
 
         // Prevent the near clip plane from intersecting the terrain.
-        val distanceToSurface = eyeAltitude - globe.getElevation(
+        val distanceToSurface = if (globe.is2D) eyeAltitude else eyeAltitude - globe.getElevation(
             camera.position.latitude, camera.position.longitude
         ) * verticalExaggeration
         if (distanceToSurface > 0) {
@@ -659,7 +646,8 @@ open class WorldWind @JvmOverloads constructor(
             lookAt.range = lookAt.range.coerceIn(1.0, 2.0 * PI * globe.equatorialRadius)
 
             // Force tilt to 0 when in 2D mode to keep the viewer looking straight down.
-            lookAt.tilt = Angle.ZERO
+            lookAt.tilt = ZERO
+            lookAt.roll = ZERO
         }
     }
 

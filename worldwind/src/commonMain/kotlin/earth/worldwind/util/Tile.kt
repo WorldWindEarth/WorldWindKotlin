@@ -32,22 +32,6 @@ open class Tile protected constructor(
      * A key that uniquely identifies this tile within a level set. Tile keys are not unique to a specific level set.
      */
     val tileKey = "${level.levelNumber}.$row.$column"
-    /**
-     * A factor expressing the size of a pixel or elevation cell at the center of this tile, in radians per pixel (or
-     * cell).
-     * <br>
-     * Texel size in meters is computed as `(tileDelta / tileWidth) * cos(lat) * R`, where lat is the
-     * centroid latitude and R is the globe's equatorial radius. This is derived by considering that texels are laid out
-     * continuously on the arc of constant latitude connecting the tile's east and west edges and passing through its
-     * centroid. The radii for the corresponding circle of constant latitude is `cos(lat) * R`, and the arc
-     * length is therefore `tileDelta * cos(lat) * R`. The size of a texel along this arc is then found by
-     * dividing by the number of texels along that arc, defined by the property Level.tileWidth.
-     * <br>
-     * This property stores the constant part of the texel size computation, `(tileDelta / tileWidth) *
-     * cos(lat)`, leaving the globe-dependant variable `R` to be incorporated by the globe attached to
-     * the RenderContext.
-     */
-    protected val texelSizeFactor = level.tileDelta.longitude.inRadians / level.tileWidth * cos(sector.centroidLatitude.inRadians)
     private val scratchVector = Vec3()
 
     /**
@@ -60,18 +44,29 @@ open class Tile protected constructor(
      * @return true if the tile should be subdivided, otherwise false
      */
     open fun mustSubdivide(rc: RenderContext, detailFactor: Double): Boolean {
-        val nearestPoint = nearestPoint(rc)
-        val distanceToCamera = nearestPoint.distanceTo(rc.cameraPoint)
-        // Accelerate the degradation of tile details depending on the viewing angle to tile normal
-        val cos = if (isAccelerateDegradation && level.tileDelta.latitude.inDegrees <= 5.625) {
-            val viewingVector = nearestPoint.subtract(rc.cameraPoint)
-            val normalVector =
-                rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
-            val dot = viewingVector.dot(normalVector)
-            abs(dot / (viewingVector.magnitude * normalVector.magnitude))
-        } else 1.0
-        val texelSize = texelSizeFactor * rc.globe.equatorialRadius * cos
-        val pixelSize = rc.pixelSizeAtDistance(distanceToCamera)
+        var texelSize = level.texelSize * rc.globe.equatorialRadius // Compute texel size in meters
+
+        val pixelSize = if (rc.globe.is2D) rc.pixelSize else {
+            // Consider that texels are laid out continuously on the arc of constant latitude connecting the tile's
+            // east and west edges and passing through its centroid.
+            texelSize *= cos(sector.centroidLatitude.inRadians)
+
+            // Get distance from nearest tile point to camera
+            val nearestPoint = nearestPoint(rc)
+            val distanceToCamera = nearestPoint.distanceTo(rc.cameraPoint)
+
+            // Accelerate the degradation of tile details depending on the viewing angle to tile normal
+            if (isAccelerateDegradation && level.tileDelta.latitude.inDegrees <= 5.625) {
+                val viewingVector = nearestPoint.subtract(rc.cameraPoint)
+                val normalVector =
+                    rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
+                val dot = viewingVector.dot(normalVector)
+                texelSize *= abs(dot / (viewingVector.magnitude * normalVector.magnitude))
+            }
+
+            // Use individual pixel size based on tile distance to camera
+            rc.pixelSizeAtDistance(distanceToCamera)
+        }
 
         // Adjust the subdivision factory when the display density is low.
         return texelSize > pixelSize * detailFactor * rc.densityFactor

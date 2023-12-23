@@ -92,7 +92,7 @@ open class DrawContext(val gl: Kgl) {
      * Returns a scratch list suitable for accumulating entries during drawing. The list is cleared before each frame,
      * otherwise its contents are undefined.
      */
-    val scratchList = mutableListOf<Any>()
+    val scratchList = mutableListOf<Drawable>()
 
     fun reset() {
         eyePoint.set(0.0, 0.0, 0.0)

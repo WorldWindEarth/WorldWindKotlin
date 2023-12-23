@@ -3,11 +3,11 @@ package earth.worldwind.shape
 import earth.worldwind.PickedObject
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
-import kotlin.jvm.JvmOverloads
 import kotlin.math.sqrt
 
 abstract class AbstractShape(override var attributes: ShapeAttributes): AbstractRenderable(), Attributable, Highlightable {
@@ -45,6 +45,8 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     override var isHighlighted = false
     var maximumIntermediatePoints = 10
     protected lateinit var activeAttributes: ShapeAttributes
+    protected var isSurfaceShape = false
+    protected var lastGlobeState: Globe.State? = null
     protected var pickedObjectId = 0
     protected val pickColor = Color()
     protected val boundingSector = Sector()
@@ -52,6 +54,9 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     private val scratchPoint = Vec3()
 
     override fun doRender(rc: RenderContext) {
+        checkGlobeState(rc)
+        if (!isWithinProjectionLimits(rc)) return
+
         // Don't render anything if the shape is not visible.
         if (!intersectsFrustum(rc)) return
 
@@ -65,6 +70,9 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
             PickedObject.identifierToUniqueColor(pickedObjectId, pickColor)
         }
 
+        // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
+        isSurfaceShape = rc.globe.is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
+
         // Enqueue drawables for processing on the OpenGL thread.
         makeDrawable(rc)
 
@@ -73,6 +81,14 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
             rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
         }
     }
+
+    /**
+     * Indicates whether this shape is within the current globe's projection limits. Subclasses may implement
+     * this method to perform the test. The default implementation returns true.
+     * @param rc The current render context.
+     * @returns true if this shape is within or intersects the current globe's projection limits, otherwise false.
+     */
+    protected open fun isWithinProjectionLimits(rc: RenderContext) = true
 
     protected open fun intersectsFrustum(rc: RenderContext) = boundingBox.isUnitBox || boundingBox.intersectsFrustum(rc.frustum)
 
@@ -119,7 +135,17 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
         return texCoordMatrix
     }
 
-    protected abstract fun reset()
+    protected open fun checkGlobeState(rc: RenderContext) {
+        if (rc.globeState != lastGlobeState) {
+            reset()
+            lastGlobeState = rc.globeState
+        }
+    }
+
+    protected open fun reset() {
+        boundingBox.setToUnitBox()
+        boundingSector.setEmpty()
+    }
 
     protected abstract fun makeDrawable(rc: RenderContext)
 }

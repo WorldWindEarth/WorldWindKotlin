@@ -140,7 +140,6 @@ open class Ellipse @JvmOverloads constructor(
     protected var vertexIndex = 0
     protected var vertexBufferKey = Any()
     protected val vertexOrigin = Vec3()
-    protected var isSurfaceShape = false
     protected var texCoord1d = 0.0
     protected val texCoord2d = Vec3()
     protected val texCoordMatrix = Matrix3()
@@ -258,6 +257,7 @@ open class Ellipse @JvmOverloads constructor(
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
+            drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
         } else {
@@ -342,7 +342,7 @@ open class Ellipse @JvmOverloads constructor(
         drawState.texCoordAttrib(1 /*size*/, 20 /*offset in bytes*/)
         val outline = drawState.elementBuffer!!.ranges[OUTLINE_RANGE]!!
         drawState.drawElements(GL_LINE_LOOP, outline.length, GL_UNSIGNED_SHORT, outline.lower * 2 /*offset*/)
-        if (activeAttributes.isDrawVerticals && isExtrude) {
+        if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
             val side = drawState.elementBuffer!!.ranges[SIDE_RANGE]!!
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
@@ -363,9 +363,6 @@ open class Ellipse @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
-        // Determine whether the shape geometry must be assembled as Cartesian geometry or as goegraphic geometry.
-        isSurfaceShape = altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
-
         // Compute a matrix that transforms from Cartesian coordinates to shape texture coordinates.
         determineModelToTexCoord(rc)
 
@@ -518,5 +515,8 @@ open class Ellipse @JvmOverloads constructor(
         return PI * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
     }
 
-    override fun reset() { vertexArray = FloatArray(0) }
+    override fun reset() {
+        super.reset()
+        vertexArray = FloatArray(0)
+    }
 }

@@ -15,7 +15,16 @@ interface GeographicProjection {
     /**
      * Indicates whether this projection is a 2D projection.
      */
-    val is2D: Boolean
+    val is2D: Boolean get() = false
+    /**
+     * Indicates whether this projection is continuous with itself horizontally.
+     */
+    val isContinuous: Boolean get() = false
+    /**
+     * Indicates the geographic limits of this projection.
+     * May be null to indicate the full range of latitude and longitude.
+     */
+    val projectionLimits: Sector? get() = null // Sector().setFullSphere()
 
     /**
      * Converts a geographic position to Cartesian coordinates.
@@ -24,11 +33,12 @@ interface GeographicProjection {
      * @param latitude  the position's latitude
      * @param longitude the position's longitude
      * @param altitude  the position's altitude in meters
+     * @param offset    the horizontal offset in 2D projection
      * @param result    a pre-allocated [Vec3] in which to store the computed X, Y and Z Cartesian coordinates
      *
      * @return the result argument, set to the computed Cartesian coordinates
      */
-    fun geographicToCartesian(globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, result: Vec3): Vec3
+    fun geographicToCartesian(globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, offset: Double, result: Vec3): Vec3
 
     fun geographicToCartesianNormal(globe: Globe, latitude: Angle, longitude: Angle, result: Vec3): Vec3
 
@@ -38,11 +48,11 @@ interface GeographicProjection {
 
     fun geographicToCartesianGrid(
         globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?,
-        verticalExaggeration: Float, origin: Vec3?, result: FloatArray, offset: Int, rowStride: Int
+        verticalExaggeration: Float, origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
     ): FloatArray
 
     fun geographicToCartesianBorder(
-        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3?, result: FloatArray
+        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3?, offset: Double, result: FloatArray
     ): FloatArray
 
     /**
@@ -52,11 +62,12 @@ interface GeographicProjection {
      * @param x      the Cartesian point's X component
      * @param y      the Cartesian point's Y component
      * @param z      the Cartesian point's Z component
+     * @param offset the horizontal offset in 2D projection
      * @param result a pre-allocated [Position] in which to store the computed geographic position
      *
      * @return the result argument, set to the computed geographic position
      */
-    fun cartesianToGeographic(globe: Globe, x: Double, y: Double, z: Double, result: Position): Position
+    fun cartesianToGeographic(globe: Globe, x: Double, y: Double, z: Double, offset: Double, result: Position): Position
 
     fun cartesianToLocalTransform(globe: Globe, x: Double, y: Double, z: Double, result: Matrix4): Matrix4
 

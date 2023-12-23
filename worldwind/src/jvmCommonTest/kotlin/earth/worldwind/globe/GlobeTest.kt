@@ -4,8 +4,6 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.NEG90
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Ellipsoid
-import earth.worldwind.globe.projection.Wgs84Projection
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -55,7 +53,7 @@ class GlobeTest {
     @BeforeTest
     fun setUp() {
         // Create the globe object used by the test
-        globe = Globe(Ellipsoid.WGS84, Wgs84Projection())
+        globe = Globe()
     }
 
     @Test

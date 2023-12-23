@@ -37,7 +37,6 @@ open class Polygon @JvmOverloads constructor(
     protected var vertexBufferKey = nextCacheKey()
     protected var elementBufferKey = nextCacheKey()
     protected val vertexOrigin = Vec3()
-    protected var isSurfaceShape = false
     protected var cameraDistance = 0.0
     protected var texCoord1d = 0.0
     protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
@@ -121,6 +120,7 @@ open class Polygon @JvmOverloads constructor(
     }
 
     override fun reset() {
+        super.reset()
         vertexArray = FloatArray(0)
         topElements.clear()
         sideElements.clear()
@@ -145,6 +145,7 @@ open class Polygon @JvmOverloads constructor(
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
+            drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
             val pool = rc.getDrawablePool<DrawableShape>()
@@ -253,9 +254,6 @@ open class Polygon @JvmOverloads constructor(
     protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty()
 
     protected open fun assembleGeometry(rc: RenderContext) {
-        // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
-        isSurfaceShape = altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
-
         // Determine the number of vertexes
         val noIntermediatePoints = maximumIntermediatePoints <= 0 || pathType == LINEAR
         val vertexCount = boundaries.sumOf { p ->

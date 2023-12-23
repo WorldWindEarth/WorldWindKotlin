@@ -11,16 +11,20 @@ import earth.worldwind.render.program.SurfaceTextureProgram
 
 open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractSurfaceRenderable(sector, "Surface Image") {
     var imageOptions: ImageOptions? = null
+    protected val terrainSector = Sector()
 
     override fun doRender(rc: RenderContext) {
-        if (sector.isEmpty || !rc.terrain.sector.intersects(sector) || !getExtent(rc).intersectsFrustum(rc.frustum)) return
+        terrainSector.copy(sector)
+        if (terrainSector.isEmpty || !terrainSector.intersect(rc.terrain.sector) || !getExtent(rc).intersectsFrustum(rc.frustum)) return
         val texture = rc.getTexture(imageSource, imageOptions) ?: return // no texture to draw
         val opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
 
         // Enqueue a drawable surface texture for processing on the OpenGL thread.
         val program = getShaderProgram(rc)
         val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
-        val drawable = DrawableSurfaceTexture.obtain(pool).set(program, sector, opacity, texture, texture.coordTransform)
+        val drawable = DrawableSurfaceTexture.obtain(pool).set(
+            program, sector, opacity, texture, texture.coordTransform, rc.globe.offset, terrainSector
+        )
         rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
 
         // Enqueue a picked object that associates the drawable surface texture with this surface image.

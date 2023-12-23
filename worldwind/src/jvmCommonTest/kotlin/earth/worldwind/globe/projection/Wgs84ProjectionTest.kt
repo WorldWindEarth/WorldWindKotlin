@@ -39,13 +39,11 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testGeographicToCartesian() {
-        val wgs84 = Wgs84Projection()
         val stations = stations
         for ((key, value) in stations) {
             val p = value[0] as Position
             val v = value[1] as Vec3
-            val result = Vec3()
-            wgs84.geographicToCartesian(globe, p.latitude, p.longitude, p.altitude, result)
+            val result = globe.projection.geographicToCartesian(globe, p.latitude, p.longitude, p.altitude, 0.0, Vec3())
 
             // Note: we must rotate the axis to match the WW coord system to the WGS coord system
             // WW: Y is polar axis, X and Z line on the equatorial plane with X +/-90 and Z +/-180
@@ -61,14 +59,11 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testGeographicToCartesian_Reciprocal() {
-        val wgs84 = Wgs84Projection()
         val lat = 34.2.degrees
         val lon = (-119.2).degrees
         val alt = 1000.0
-        val vec = Vec3()
-        val pos = Position()
-        wgs84.geographicToCartesian(globe, lat, lon, alt, vec)
-        wgs84.cartesianToGeographic(globe, vec.x, vec.y, vec.z, pos)
+        val vec = globe.projection.geographicToCartesian(globe, lat, lon, alt, 0.0, Vec3())
+        val pos = globe.projection.cartesianToGeographic(globe, vec.x, vec.y, vec.z, 0.0, Position())
         assertEquals(lat.inDegrees, pos.latitude.inDegrees, 1e-6, "lat")
         assertEquals(lon.inDegrees, pos.longitude.inDegrees, 1e-6, "lon")
         assertEquals(alt, pos.altitude, 1e-6, "alt")
@@ -79,10 +74,9 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testGeographicToCartesianNormal() {
-        val wgs84 = Wgs84Projection()
         val lat = 34.2.degrees
         val lon = (-119.2).degrees
-        val result = wgs84.geographicToCartesianNormal(globe, lat, lon, Vec3())
+        val result = globe.projection.geographicToCartesianNormal(globe, lat, lon, Vec3())
         val theta = toDegrees(asin(result.y))
         val lambda = toDegrees(atan2(result.x, result.z))
         assertEquals(theta, lat.inDegrees, 1e-6, "latitude: ")
@@ -98,7 +92,6 @@ class Wgs84ProjectionTest {
         // coordinate system is perpendicular to the geodetic tangent plane
         // at the position. So the Z axes points along the normal to the
         // ellipsoid -- the vector Rn in diagrams.
-        val wgs84 = Wgs84Projection()
         val lat = 34.2.degrees
         val lon = (-119.2).degrees
         val alt = 0.0
@@ -119,17 +112,14 @@ class Wgs84ProjectionTest {
         expected.multiplyByTranslation(0.0, -delta, 0.0)
         expected.multiplyByRotation(1.0, 0.0, 0.0, -lat)
         expected.multiplyByTranslation(0.0, 0.0, rn)
-        val result = wgs84.geographicToCartesianTransform(globe, lat, lon, alt, Matrix4())
+        val result = globe.projection.geographicToCartesianTransform(globe, lat, lon, alt, Matrix4())
         //assertContentEquals(expected.m, result.m)
-        for (i in result.m.indices) {
-            assertEquals(expected.m[i], result.m[i], 1e-6)
-        }
+        for (i in result.m.indices) assertEquals(expected.m[i], result.m[i], 1e-6)
     }
 
     @Ignore // Not implemented yet.
     @Test
     fun testGeographicToCartesianGrid() {
-        val wgs84 = Wgs84Projection()
         val stride = 5
         val numLat = 17
         val numLon = 33
@@ -139,7 +129,7 @@ class Wgs84ProjectionTest {
         val sector = Sector()
         val referencePoint = Vec3()
         val result = FloatArray(count)
-        wgs84.geographicToCartesianGrid(globe, sector, numLat, numLon, elevations, verticalExaggeration, referencePoint, result, stride, 0)
+        globe.projection.geographicToCartesianGrid(globe, sector, numLat, numLon, elevations, verticalExaggeration, referencePoint, 0.0, result, stride, 0)
         fail("The test case is a stub.")
     }
 
@@ -149,7 +139,6 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testCartesianToGeographic() {
-        val wgs84 = Wgs84Projection()
         val stations = stations
         for ((key, value) in stations) {
             val p = value[0] as Position
@@ -158,7 +147,7 @@ class Wgs84ProjectionTest {
 
             // Note: we must rotate the axis to match the WW coord system to the WGS ECEF coord system
             // WW: Y is polar axis, X and Z line on the equatorial plane with X coincident with +/-90 and Z +/-180
-            wgs84.cartesianToGeographic(globe, v.x, v.y, v.z, result)
+            globe.projection.cartesianToGeographic(globe, v.x, v.y, v.z, 0.0, result)
             assertEquals(p.latitude.normalizeLatitude().inDegrees, result.latitude.inDegrees, 1e-6, key)
             assertEquals(p.longitude.normalizeLongitude().inDegrees, result.longitude.inDegrees, 1e-6, key)
             assertEquals(p.altitude, result.altitude, 1e-3, key)
@@ -170,14 +159,11 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testCartesianToGeographic_Reciprocal() {
-        val wgs84 = Wgs84Projection()
         val x = -4610466.9131683465 // KOXR airport
         val y = 3565379.0227454384
         val z = -2576702.8642047923
-        val vec = Vec3()
-        val pos = Position()
-        wgs84.cartesianToGeographic(globe, x, y, z, pos)
-        wgs84.geographicToCartesian(globe, pos.latitude, pos.longitude, pos.altitude, vec)
+        val pos = globe.projection.cartesianToGeographic(globe, x, y, z, 0.0, Position())
+        val vec = globe.projection.geographicToCartesian(globe, pos.latitude, pos.longitude, pos.altitude, 0.0, Vec3())
         assertEquals(x, vec.x, 1e-6, "x")
         assertEquals(y, vec.y, 1e-6, "y")
         assertEquals(z, vec.z, 1e-6, "z")
@@ -189,9 +175,8 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testEmpBackwardInstance() {
-        val wgs84 = Wgs84Projection()
         val ray = Line(Vec3(990474.8037403631, 3007310.9566306924, 5583923.602748461), Vec3(-0.1741204769506282, 0.9711294099374702, -0.16306357245254538))
-        val intersection = wgs84.intersect(globe, ray, Vec3())
+        val intersection = globe.projection.intersect(globe, ray, Vec3())
         assertFalse(intersection, "EMP backward intersection")
     }
 
@@ -200,12 +185,11 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testSimpleBackwardsIntersection() {
-        val wgs84 = Wgs84Projection()
         val mockedGlobe = mockk<Globe>(relaxed = true)
         every { mockedGlobe.equatorialRadius } returns 1.0
         every { mockedGlobe.polarRadius } returns 1.0
         val ray = Line(Vec3(0.8, 0.8, 0.0), Vec3(0.0, 1.0, 0.0))
-        val intersection = wgs84.intersect(mockedGlobe, ray, Vec3())
+        val intersection = globe.projection.intersect(mockedGlobe, ray, Vec3())
         assertFalse(intersection, "simple backwards intersection")
     }
 
@@ -214,12 +198,11 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testSimpleIntersection() {
-        val wgs84 = Wgs84Projection()
         val mockedGlobe = mockk<Globe>(relaxed = true)
         every { mockedGlobe.equatorialRadius } returns 1.0
         every { mockedGlobe.polarRadius } returns 1.0
         val ray = Line(Vec3(0.8, 0.8, 0.0), Vec3(0.0, -1.0, 0.0))
-        val intersection = wgs84.intersect(mockedGlobe, ray, Vec3())
+        val intersection = globe.projection.intersect(mockedGlobe, ray, Vec3())
         assertTrue(intersection, "simple intersection")
     }
 
@@ -229,14 +212,13 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testSimpleTwoIntersection() {
-        val wgs84 = Wgs84Projection()
         val mockedGlobe = mockk<Globe>(relaxed = true)
         every { mockedGlobe.equatorialRadius } returns 1.0
         every { mockedGlobe.polarRadius } returns 1.0
         val ray = Line(Vec3(-1.0, 2.0, 0.0), Vec3(1.0, -1.0, 0.0).normalize())
         val result = Vec3()
         val errorThreshold = 1e-9
-        val intersection = wgs84.intersect(mockedGlobe, ray, result)
+        val intersection = globe.projection.intersect(mockedGlobe, ray, result)
         assertTrue(intersection, "simple intersection")
         assertEquals(0.0, result.x, errorThreshold, "nearest calculated intersection x")
         assertEquals(1.0, result.y, errorThreshold, "nearest calculated intersection y")
@@ -247,27 +229,16 @@ class Wgs84ProjectionTest {
      */
     @Test
     fun testSimpleTwoIntersectionInternal() {
-        val wgs84 = Wgs84Projection()
         val mockedGlobe = mockk<Globe>(relaxed = true)
         every { mockedGlobe.equatorialRadius } returns 1.0
         every { mockedGlobe.polarRadius } returns 1.0
         val ray = Line(Vec3(-0.8, 0.0, 0.0), Vec3(1.0, 0.0, 0.0).normalize())
         val result = Vec3()
         val errorThreshold = 1e-9
-        val intersection = wgs84.intersect(mockedGlobe, ray, result)
+        val intersection = globe.projection.intersect(mockedGlobe, ray, result)
         assertTrue(intersection, "simple internal intersection")
         assertEquals(1.0, result.x, errorThreshold, "forward calculated intersection x")
         assertEquals(0.0, result.y, errorThreshold, "forward calculated intersection y")
-    }
-
-    //////////////////////////////////////////
-    //           Helper Methods
-    //////////////////////////////////////////
-    fun radiusOfPrimeVeritcal(geographicLat: Double): Double {
-        val a = globe.equatorialRadius
-        val e2 = globe.eccentricitySquared
-        val sinSquared = sin(toRadians(geographicLat)).pow(2.0)
-        return a / sqrt(1 - e2 * sinSquared)
     }
 
     companion object {

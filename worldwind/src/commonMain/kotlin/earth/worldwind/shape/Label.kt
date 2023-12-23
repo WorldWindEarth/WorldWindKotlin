@@ -103,12 +103,16 @@ open class Label @JvmOverloads constructor(
     override fun doRender(rc: RenderContext) {
         if (text?.isEmpty() != false) return  // no text to render
 
+        // Filter out renderable outside projection limits.
+        if (rc.globe.projectionLimits?.contains(position) == false) return
+
         // Compute the label's Cartesian model point.
+        val altitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
         rc.geographicToCartesian(position, altitudeMode, renderData.placePoint)
 
         // Compute the camera distance to the place point, the value which is used for ordering the label drawable and
         // determining the amount of depth offset to apply.
-        renderData.cameraDistance = if (isAlwaysOnTop) 0.0 else rc.cameraPoint.distanceTo(renderData.placePoint)
+        renderData.cameraDistance = if (isAlwaysOnTop) 0.0 else if (rc.globe.is2D) rc.viewingDistance else rc.cameraPoint.distanceTo(renderData.placePoint)
 
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0

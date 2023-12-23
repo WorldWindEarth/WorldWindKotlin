@@ -79,11 +79,11 @@ class GKMetricLabels(private val layer: GKGraticuleLayer) {
         (yLabel / 1E6).toInt() != GKLayerHelper.getZone(point.longitude)
 
     private fun labelLineIntersectionPoint(rc: RenderContext): Pair<Double, Double> {
-        val pixelSize = layer.getPixelSize(rc)
-        val eastingOffset = rc.viewport.width * pixelSize / 4
-        val northOffset = rc.viewport.height * pixelSize / 4
+        val eastingOffset = rc.viewport.width * rc.pixelSize / 4
+        val northOffset = rc.viewport.height * rc.pixelSize / 4
+        val lookAtPosition = rc.lookAtPosition ?: rc.camera.position
         val centerGK = layer.transformFromWGS(
-            Position(layer.getLookAtLatitude(rc), layer.getLookAtLongitude(rc), 0.0)
+            Position(lookAtPosition.latitude, lookAtPosition.longitude, 0.0)
         )
         val centerXY = GKCoord.fromLatLon(centerGK.latitude, centerGK.longitude)
         return Pair(centerXY.x - northOffset, centerXY.y - eastingOffset)

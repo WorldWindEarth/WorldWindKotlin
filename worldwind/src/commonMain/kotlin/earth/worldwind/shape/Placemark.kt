@@ -191,16 +191,20 @@ open class Placemark @JvmOverloads constructor(
      * @param rc the current render context
      */
     override fun doRender(rc: RenderContext) {
+        // Filter out renderable outside projection limits.
+        if (rc.globe.projectionLimits?.contains(position) == false) return
+
         // Compute the placemark's Cartesian model point and corresponding distance to the eye point. If the placemark's
         // position is terrain-dependent but off the terrain, then compute it ABSOLUTE so that we have a point for the
         // placemark and are thus able to draw it. Otherwise, its image and label portion that are potentially over the
         // terrain won't get drawn, and would disappear as soon as there is no terrain at the placemark's position. This
         // can occur at the window edges.
+        val altitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
         rc.geographicToCartesian(position, altitudeMode, placePoint)
 
         // Compute the camera distance to the place point, the value which is used for ordering the placemark drawable
         // and determining the amount of depth offset to apply.
-        cameraDistance = if (isAlwaysOnTop) 0.0 else rc.cameraPoint.distanceTo(placePoint)
+        cameraDistance = if (isAlwaysOnTop) 0.0 else if (rc.globe.is2D) rc.viewingDistance else rc.cameraPoint.distanceTo(placePoint)
 
         // Allow the placemark to adjust the level of detail based on distance to the camera
         if (levelOfDetailSelector?.selectLevelOfDetail(rc, this, cameraDistance) == false) return // skip rendering
@@ -495,7 +499,8 @@ open class Placemark @JvmOverloads constructor(
      * @return True if leader-line directive is enabled and there are valid leader-line attributes.
      */
     protected open fun mustDrawLeader(rc: RenderContext) =
-        activeAttributes.isDrawLeader && (isLeaderPickingEnabled || !rc.isPickMode) && altitudeMode != AltitudeMode.CLAMP_TO_GROUND
+        activeAttributes.isDrawLeader && (isLeaderPickingEnabled || !rc.isPickMode) &&
+                altitudeMode != AltitudeMode.CLAMP_TO_GROUND && !rc.globe.is2D
 
     companion object {
         /**

@@ -8,31 +8,12 @@ import earth.worldwind.util.math.fract
 import kotlin.math.max
 import kotlin.math.min
 
-open class BasicTerrain: Terrain {
-    protected val tiles = mutableListOf<TerrainTile>()
-    override val sector = Sector()
-    var triStripElements: ShortArray? = null
+open class BasicTerrain(
+    tiles: List<TerrainTile>, sector: Sector, protected val triStripElements: ShortArray?
+): Terrain {
+    protected val tiles = tiles.toList()
+    override val sector = Sector(sector)
     private val intersectPoint = Vec3()
-
-    open fun addTile(tile: TerrainTile) {
-        tiles.add(tile)
-        sector.union(tile.sector)
-    }
-
-    open fun clear() {
-        triStripElements = null
-        tiles.clear()
-        sector.setEmpty()
-    }
-
-    open fun copy(terrain: BasicTerrain) {
-        tiles.clear()
-        tiles.addAll(terrain.tiles)
-        sector.copy(terrain.sector)
-        triStripElements = terrain.triStripElements
-    }
-
-    open fun sort() = tiles.sortBy { it.sortOrder }
 
     override fun intersect(line: Line, result: Vec3): Boolean {
         var found = false

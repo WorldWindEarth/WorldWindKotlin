@@ -170,7 +170,7 @@ open class BoundingBox {
         heights[6] = minHeight
         heights[8] = minHeight
         val points = scratchPoints
-        globe.geographicToCartesianGrid(sector, NUM_LAT, NUM_LON, heights, 1.0f, null, points, 0, 0)
+        globe.geographicToCartesianGrid(sector, NUM_LAT, NUM_LON, heights, 1.0f, null, points)
 
         // Compute the local coordinate axes. Since we know this box is bounding a geographic sector, we use the
         // local coordinate axes at its centroid as the box axes. Using these axes results in a box that has +-10%
