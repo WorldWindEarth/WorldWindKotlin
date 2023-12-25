@@ -3,12 +3,14 @@ package earth.worldwind.globe.projection
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.toDegrees
-import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.globe.Globe
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.math.*
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.test.*
 
 class Wgs84ProjectionTest {

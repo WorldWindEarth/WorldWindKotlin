@@ -1,9 +1,14 @@
 package earth.worldwind.util
 
-import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Sector
+import earth.worldwind.geom.Vec3
 import earth.worldwind.render.RenderContext
 import kotlin.jvm.JvmStatic
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.cos
+import kotlin.math.floor
 
 /**
  * Geographically rectangular tile within a [LevelSet], typically representing terrain or imagery. Provides a base

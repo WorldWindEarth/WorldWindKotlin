@@ -2,8 +2,6 @@ package earth.worldwind.layer.graticule
 
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
-import earth.worldwind.geom.Angle.Companion.normalizeLatitude
-import earth.worldwind.geom.Angle.Companion.normalizeLongitude
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.globe.Globe
