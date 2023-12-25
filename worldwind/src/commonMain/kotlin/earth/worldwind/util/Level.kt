@@ -2,8 +2,6 @@ package earth.worldwind.util
 
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
-import earth.worldwind.util.Logger.ERROR
-import earth.worldwind.util.Logger.logMessage
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 

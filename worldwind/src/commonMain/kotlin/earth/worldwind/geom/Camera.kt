@@ -1,7 +1,6 @@
 package earth.worldwind.geom
 
 import earth.worldwind.geom.AltitudeMode.ABSOLUTE
-import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.util.Logger.ERROR

@@ -4,10 +4,14 @@ import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import org.w3c.dom.*
-import org.w3c.dom.url.URL
 import kotlinx.browser.document
 import org.khronos.webgl.TexImageSource
+import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.Image
+import org.w3c.dom.url.URL
+import kotlin.collections.mutableMapOf
+import kotlin.collections.set
 
 /**
  * Provides a mechanism for specifying images from a variety of sources. ImageSource retains the image source on behalf

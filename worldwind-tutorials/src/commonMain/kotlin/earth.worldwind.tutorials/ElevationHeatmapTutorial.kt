@@ -1,8 +1,11 @@
 package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWind
-import earth.worldwind.geom.*
+import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.LookAt
+import earth.worldwind.geom.Position
 import earth.worldwind.layer.heatmap.ElevationHeatmapLayer
 
 class ElevationHeatmapTutorial(private val engine: WorldWind) : AbstractTutorial() {

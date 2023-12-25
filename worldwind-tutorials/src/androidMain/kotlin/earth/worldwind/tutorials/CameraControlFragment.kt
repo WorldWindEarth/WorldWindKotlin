@@ -1,7 +1,6 @@
 package earth.worldwind.tutorials
 
 import earth.worldwind.BasicWorldWindowController
-import earth.worldwind.WorldWind
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
