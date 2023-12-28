@@ -59,7 +59,9 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
             }
     }
 
-    override suspend fun setupImageLayerCache(layer: CacheableImageLayer, contentKey: String) = withContext(Dispatchers.IO) {
+    override suspend fun setupImageLayerCache(
+        layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean
+    ) = withContext(Dispatchers.IO) {
         val tiledSurfaceImage = layer.tiledSurfaceImage ?: error("Surface image not defined")
         val levelSet = tiledSurfaceImage.levelSet
         val imageFormat = (layer as? WebImageLayer)?.imageFormat ?: "image/png"
@@ -80,11 +82,11 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                 require(serviceType == null || serviceType == layer.serviceType) { "Invalid service type" }
                 val outputFormat = geoPackage.webServices[contentKey]?.outputFormat
                 require(outputFormat == null || outputFormat == layer.imageFormat) { "Invalid image format" }
-                if (!geoPackage.isReadOnly) geoPackage.setupWebLayer(layer, contentKey)
+                if (setupWebLayer && !geoPackage.isReadOnly) geoPackage.setupWebLayer(layer, contentKey)
             }
             // Verify if all required tile matrices created
             if (!geoPackage.isReadOnly && config.numLevels < levelSet.numLevels) geoPackage.setupTileMatrices(contentKey, levelSet)
-        } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet)
+        } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, setupWebLayer)
 
         layer.contentKey = contentKey
         layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, imageFormat)
@@ -130,7 +132,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
     }
 
     override suspend fun setupElevationCoverageCache(
-        coverage: CacheableElevationCoverage, contentKey: String, isFloat: Boolean
+        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean, isFloat: Boolean
     ) = withContext(Dispatchers.IO) {
         val content = geoPackage.content[contentKey]?.also {
             // Check if the current layer fits cache content
@@ -141,13 +143,13 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
             if (coverage is WebElevationCoverage) {
                 val serviceType = geoPackage.webServices[contentKey]?.type
                 require(serviceType == null || serviceType == coverage.serviceType) { "Invalid service type" }
-                if (!geoPackage.isReadOnly) geoPackage.setupWebElevationCoverage(coverage, contentKey)
+                if (setupWebCoverage && !geoPackage.isReadOnly) geoPackage.setupWebCoverage(coverage, contentKey)
             }
             // Verify if all required tile matrices created
             if (!geoPackage.isReadOnly && matrixSet.entries.size < coverage.tileMatrixSet.entries.size) {
                 geoPackage.setupTileMatrices(contentKey, coverage.tileMatrixSet)
             }
-        } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, isFloat)
+        } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, setupWebCoverage, isFloat)
 
         coverage.contentKey = contentKey
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(content, isFloat)
