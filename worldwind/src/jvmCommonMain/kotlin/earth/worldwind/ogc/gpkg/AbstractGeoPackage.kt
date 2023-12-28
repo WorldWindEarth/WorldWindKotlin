@@ -116,7 +116,9 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
 
     // TODO What if data already exists?
     @Throws(IllegalStateException::class)
-    suspend fun setupTilesContent(layer: CacheableImageLayer, tableName: String, levelSet: LevelSet): GpkgContent {
+    suspend fun setupTilesContent(
+        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, setupWebLayer: Boolean
+    ): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
         writeDefaultSpatialReferenceSystems()
@@ -151,7 +153,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
         val content = GpkgContent(this, tableName, "tiles", layer.displayName ?: tableName, "", "", minX, minY, maxX, maxY, srsId)
         writeContent(content)
-        if (layer is WebImageLayer) setupWebLayer(layer, tableName)
+        if (setupWebLayer && layer is WebImageLayer) setupWebLayer(layer, tableName)
         return content
     }
 
@@ -218,7 +220,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     // TODO What if data already exists?
     @Throws(IllegalStateException::class)
     suspend fun setupGriddedCoverageContent(
-        coverage: CacheableElevationCoverage, tableName: String, isFloat: Boolean = false
+        coverage: CacheableElevationCoverage, tableName: String, setupWebCoverage: Boolean, isFloat: Boolean
     ): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
@@ -263,7 +265,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
         val content = GpkgContent(this, tableName, "2d-gridded-coverage", coverage.displayName ?: tableName, "", "", minX, minY, maxX, maxY, srsId)
         writeContent(content)
-        if (coverage is WebElevationCoverage) setupWebElevationCoverage(coverage, tableName)
+        if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, tableName)
         return content
     }
 
@@ -286,7 +288,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     }
 
     @Throws(IllegalStateException::class)
-    suspend fun setupWebElevationCoverage(coverage: WebElevationCoverage, tableName: String) {
+    suspend fun setupWebCoverage(coverage: WebElevationCoverage, tableName: String) {
         if (isReadOnly) error("WebService $tableName cannot be updated. GeoPackage is read-only!")
         createRequiredTables()
         writeWebService(

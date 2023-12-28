@@ -19,9 +19,10 @@ interface ContentManager {
      *
      * @param layer Image layer to set up cache
      * @param contentKey Unique key of this layer in cache content
+     * @param setupWebLayer Add online source metadata into the cache config to be able to download additional tiles
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
-    suspend fun setupImageLayerCache(layer: CacheableImageLayer, contentKey: String)
+    suspend fun setupImageLayerCache(layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean = true)
 
     /**
      * Get elevation coverages available in this content manager
@@ -36,8 +37,11 @@ interface ContentManager {
      *
      * @param coverage Elevation coverage to set up cache
      * @param contentKey Unique key of this coverage in cache content
+     * @param setupWebCoverage Add online source metadata into the cache config to be able to download additional tiles
      * @param isFloat If true, then elevation data would be stored in Float32 format
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
-    suspend fun setupElevationCoverageCache(coverage: CacheableElevationCoverage, contentKey: String, isFloat: Boolean = false)
+    suspend fun setupElevationCoverageCache(
+        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean = true, isFloat: Boolean = false
+    )
 }
