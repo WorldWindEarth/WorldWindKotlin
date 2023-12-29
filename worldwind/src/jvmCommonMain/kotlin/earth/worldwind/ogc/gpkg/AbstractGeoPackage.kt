@@ -47,7 +47,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
 
     @Throws(IllegalStateException::class)
     suspend fun writeTileUserData(tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray) {
-        if (tiles.isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
+        if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         val tileUserData = readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.also { it.tileData = tileData }
             ?: GpkgTileUserData(this, -1, zoomLevel, tileColumn, tileRow, tileData)
         writeTileUserData(tiles.tableName, tileUserData)
@@ -61,7 +61,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         tiles: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, scale: Float = 1.0f, offset: Float = 0.0f,
         min: Float? = null, max: Float? = null, mean: Float? = null, stdDev: Float? = null
     ) {
-        if (tiles.isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
+        if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.let { tileUserData ->
             val griddedTile = readGriddedTile(tiles.tableName, tileUserData.id)?.also {
                 it.scale = scale

@@ -10,10 +10,6 @@ import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.Level
 
 open class GpkgTileFactory(protected val tiles: GpkgContent, protected val imageFormat: String? = null): CacheTileFactory {
-    override var isWritable: Boolean
-        get() = !tiles.isReadOnly
-        set(value) { tiles.isReadOnly = !value }
-
     @Throws(IllegalStateException::class)
     override suspend fun clearContent(deleteMetadata: Boolean) = if (deleteMetadata) {
         tiles.container.deleteContent(tiles.tableName)

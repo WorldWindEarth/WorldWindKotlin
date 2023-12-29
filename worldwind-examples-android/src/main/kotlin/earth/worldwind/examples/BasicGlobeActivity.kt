@@ -64,10 +64,7 @@ The globe uses the default navigation gestures:
                 urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
                 imageFormat = "image/jpeg"
             ).apply {
-                wwd.mainScope.launch {
-                    configureCache(contentManager, "GSat")
-                    isCacheWritable = true
-                }
+                wwd.mainScope.launch { configureCache(contentManager, "GSat") }
             })
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
@@ -75,10 +72,7 @@ The globe uses the default navigation gestures:
 
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            wwd.mainScope.launch {
-                configureCache(contentManager, "NASADEM")
-                isCacheWritable = true
-            }
+            wwd.mainScope.launch { configureCache(contentManager, "NASADEM") }
         })
     }
 

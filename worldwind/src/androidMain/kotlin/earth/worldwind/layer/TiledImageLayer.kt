@@ -41,7 +41,6 @@ actual open class TiledImageLayer actual constructor(
         sector: Sector, resolution: Angle, context: Context, scope: CoroutineScope = GlobalScope,
         onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
-        require(isCacheWritable) { "Layer cache is read-only" }
         val imageDecoder = ImageDecoder(context)
         return tiledSurfaceImage?.launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->
             // Check if tile exists in cache. If cache retrieval fail, then image source will be requested.

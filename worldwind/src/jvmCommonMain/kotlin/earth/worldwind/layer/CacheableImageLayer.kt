@@ -17,12 +17,6 @@ interface CacheableImageLayer : Layer {
      */
     val isCacheConfigured get() = tiledSurfaceImage?.cacheTileFactory != null
     /**
-     * Allows saving new content to cache
-     */
-    var isCacheWritable: Boolean
-        get() = tiledSurfaceImage?.cacheTileFactory?.isWritable ?: false
-        set(value) { tiledSurfaceImage?.cacheTileFactory?.isWritable = value }
-    /**
      * Configures tiled image layer to retrieve a cache source only
      */
     var isCacheOnly: Boolean

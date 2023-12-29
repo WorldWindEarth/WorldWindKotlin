@@ -5,11 +5,6 @@ package earth.worldwind.util
  */
 interface CacheTileFactory : TileFactory {
     /**
-     * Allows saving new content to cache
-     */
-    var isWritable: Boolean
-
-    /**
      * Deletes all tiles from current cache content.
      *
      * @param deleteMetadata also delete cache metadata

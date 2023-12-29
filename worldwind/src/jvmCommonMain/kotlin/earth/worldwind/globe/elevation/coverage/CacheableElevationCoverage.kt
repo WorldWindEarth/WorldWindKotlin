@@ -22,12 +22,6 @@ interface CacheableElevationCoverage : ElevationCoverage {
      */
     val isCacheConfigured get() = cacheSourceFactory != null
     /**
-     * Allows saving new content to cache
-     */
-    var isCacheWritable: Boolean
-        get() = cacheSourceFactory?.isWritable ?: false
-        set(value) { cacheSourceFactory?.isWritable = value }
-    /**
      * Configures tiled elevation coverage to retrieve a cache source only
      */
     var isCacheOnly: Boolean

@@ -24,7 +24,7 @@ open class GpkgBitmapFactory(
     }
 
     override suspend fun <Resource> process(resource: Resource): Resource {
-        if (resource is Bitmap && !tiles.isReadOnly) {
+        if (resource is Bitmap && !tiles.container.isReadOnly) {
             val stream = ByteArrayOutputStream()
             resource.compress(format, quality, stream)
             tiles.container.writeTileUserData(tiles, zoomLevel, tileColumn, tileRow, stream.toByteArray())
