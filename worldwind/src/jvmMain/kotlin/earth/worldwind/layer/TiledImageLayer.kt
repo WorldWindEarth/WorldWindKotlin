@@ -23,7 +23,7 @@ actual open class TiledImageLayer actual constructor(
      * meters divided by the globe radius.
      *
      * @param sector     the sector to download data for.
-     * @param resolution the desired resolution in angular value of latitude per pixel.
+     * @param resolution the desired resolution range in angular value of latitude per pixel.
      * @param scope      custom coroutine scope for better job management. Global scope by default.
      * @param onProgress an optional retrieval listener, indication successful, failed and total tiles amount.
      *
@@ -36,7 +36,7 @@ actual open class TiledImageLayer actual constructor(
     @OptIn(DelicateCoroutinesApi::class)
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
-        sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
+        sector: Sector, resolution: ClosedRange<Angle>, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
         val imageDecoder = ImageDecoder()
         return tiledSurfaceImage?.launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->

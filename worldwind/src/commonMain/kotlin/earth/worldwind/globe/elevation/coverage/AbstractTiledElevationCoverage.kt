@@ -392,10 +392,11 @@ abstract class AbstractTiledElevationCoverage(
         }
     }
 
-    protected open fun assembleTilesList(sector: Sector, resolution: Angle): List<Tile> {
+    protected open fun assembleTilesList(sector: Sector, resolution: ClosedRange<Angle>): List<Tile> {
         val result = mutableListOf<Tile>()
-        val targetIdx = tileMatrixSet.indexOfMatrixNearest(resolution)
-        for (idx in 0..targetIdx) {
+        val startIdx = tileMatrixSet.indexOfMatrixNearest(resolution.endInclusive)
+        val endIdx = tileMatrixSet.indexOfMatrixNearest(resolution.start)
+        for (idx in startIdx..endIdx) {
             val tileMatrix = tileMatrixSet.entries[idx]
             val deltaLat = tileMatrix.sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
             val deltaLon = tileMatrix.sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
