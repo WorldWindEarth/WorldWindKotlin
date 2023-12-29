@@ -71,7 +71,6 @@ actual open class TiledElevationCoverage actual constructor(
         sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
         val cacheTileFactory = cacheSourceFactory ?: error("Cache not configured")
-        require(isCacheWritable) { "Coverage cache is read-only" }
         require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }
         return scope.launch(Dispatchers.Default) {
             // Prepare a tile list for download, based on specified sector and resolution

@@ -6,10 +6,6 @@ import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.ogc.gpkg.GpkgContent
 
 open class GpkgElevationSourceFactory(protected val tiles: GpkgContent, protected val isFloat: Boolean) : CacheSourceFactory {
-    override var isWritable: Boolean
-        get() = !tiles.isReadOnly
-        set(value) { tiles.isReadOnly = !value }
-
     @Throws(IllegalStateException::class)
     override suspend fun clearContent(deleteMetadata: Boolean) = if (deleteMetadata) {
         tiles.container.deleteContent(tiles.tableName)

@@ -34,7 +34,7 @@ open class GpkgElevationDataFactory(
 
     override suspend fun <Resource> process(resource: Resource): Resource {
         // Attempt to write tile user data only if container is not read-only
-        if (resource is Buffer && !tiles.isReadOnly) encodeToImage(resource)?.let {
+        if (resource is Buffer && !tiles.container.isReadOnly) encodeToImage(resource)?.let {
             tiles.container.writeTileUserData(tiles, zoomLevel, tileColumn, tileRow, it)
             // TODO Calculate and save gridded tile meta data, such as min and max altitude...
             tiles.container.writeGriddedTile(tiles, zoomLevel, tileColumn, tileRow)
