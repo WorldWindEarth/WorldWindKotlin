@@ -22,6 +22,7 @@ allprojects {
         set("minSdk", 21)
         set("targetSdk", 34)
         set("versionCode", 8)
+        set("javaVersion", JavaVersion.VERSION_1_8)
     }
 
     repositories {

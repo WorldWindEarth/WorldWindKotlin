@@ -22,7 +22,9 @@ kotlin {
         }
     }
     android {
-
+        compilations.all {
+            kotlinOptions.jvmTarget = extra["javaVersion"].toString()
+        }
     }
     sourceSets {
         val commonMain by getting {
@@ -34,9 +36,9 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation("androidx.appcompat:appcompat:1.6.1")
-                implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
-                implementation("com.google.android.material:material:1.9.0")
+                implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+                implementation("com.google.android.material:material:1.11.0")
             }
         }
     }
@@ -65,11 +67,11 @@ android {
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = extra["javaVersion"] as JavaVersion
+        targetCompatibility = extra["javaVersion"] as JavaVersion
     }
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
