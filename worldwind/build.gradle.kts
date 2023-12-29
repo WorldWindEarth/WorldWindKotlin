@@ -17,7 +17,7 @@ multiplatformResources {
 kotlin {
     jvm {
         compilations.all {
-            kotlinOptions.jvmTarget = "1.8"
+            kotlinOptions.jvmTarget = extra["javaVersion"].toString()
         }
         testRuns["test"].executionTask.configure {
             useJUnit()
@@ -34,19 +34,22 @@ kotlin {
     }
     android {
         publishLibraryVariants("release")
+        compilations.all {
+            kotlinOptions.jvmTarget = extra["javaVersion"].toString()
+        }
     }
     sourceSets {
-        val mockkVersion = "1.13.3"
+        val mockkVersion = "1.13.4"
         val mokoVersion = "0.23.0"
-        val ktorVersion = "2.2.4"
+        val ktorVersion = "2.3.4"
         val commonMain by getting {
             dependencies {
-                api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+                api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.github.pdvrieze.xmlutil:serialization:0.85.0")
-                implementation("com.eygraber:uri-kmp:0.0.11")
+                implementation("io.github.pdvrieze.xmlutil:serialization:0.86.1")
+                implementation("com.eygraber:uri-kmp:0.0.12")
                 implementation("ar.com.hjg:pngj:2.1.0")
                 implementation("mil.nga:tiff:3.0.0")
                 api("dev.icerock.moko:resources:$mokoVersion")
@@ -79,7 +82,7 @@ kotlin {
                 implementation("org.jogamp.gluegen:gluegen-rt:$joglVersion")
                 implementation("org.jogamp.jogl:jogl-all:$joglVersion")
 
-                val lwjglVersion = "3.3.1"
+                val lwjglVersion = "3.3.3"
                 implementation("org.lwjgl:lwjgl:$lwjglVersion")
                 implementation("org.lwjgl:lwjgl-assimp:$lwjglVersion")
                 implementation("org.lwjgl:lwjgl-glfw:$lwjglVersion")
@@ -106,7 +109,7 @@ kotlin {
         val androidMain by getting {
             dependsOn(jvmCommonMain)
             dependencies {
-                implementation("androidx.annotation:annotation:1.6.0")
+                implementation("androidx.annotation:annotation:1.7.1")
                 implementation("androidx.appcompat:appcompat-resources:1.6.1")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.54")
             }
@@ -146,13 +149,13 @@ android {
     }
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = extra["javaVersion"] as JavaVersion
+        targetCompatibility = extra["javaVersion"] as JavaVersion
     }
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
 // Do not generate Intrinsics runtime assertion for performance reasons
