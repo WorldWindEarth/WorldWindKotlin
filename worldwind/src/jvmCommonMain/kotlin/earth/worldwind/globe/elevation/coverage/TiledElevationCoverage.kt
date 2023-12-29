@@ -55,7 +55,7 @@ actual open class TiledElevationCoverage actual constructor(
      * meters divided by the globe radius.
      *
      * @param sector     the sector to download data for.
-     * @param resolution the target resolution in angular value of latitude per texel.
+     * @param resolution the desired resolution range in angular value of latitude per texel.
      * @param scope      custom coroutine scope for better job management. Global scope by default.
      * @param onProgress an optional retrieval listener, indication successful, failed and total tiles amount.
      *
@@ -68,7 +68,7 @@ actual open class TiledElevationCoverage actual constructor(
     @OptIn(DelicateCoroutinesApi::class)
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
-        sector: Sector, resolution: Angle, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
+        sector: Sector, resolution: ClosedRange<Angle>, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
         val cacheTileFactory = cacheSourceFactory ?: error("Cache not configured")
         require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }

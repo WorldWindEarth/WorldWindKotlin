@@ -98,7 +98,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
 
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     open fun launchBulkRetrieval(
-        scope: CoroutineScope, sector: Sector, resolution: Angle, onProgress: ((Int, Int, Int) -> Unit)?,
+        scope: CoroutineScope, sector: Sector, resolution: ClosedRange<Angle>, onProgress: ((Int, Int, Int) -> Unit)?,
         retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Boolean
     ): Job {
         val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
@@ -144,26 +144,28 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
      * Determine the list of tiles which fit the specified sector and maximum resolution.
      *
      * @param sector     the bounding sector.
-     * @param resolution the desired resolution in angular value of latitude per pixel.
+     * @param resolution the desired resolution range in angular value of latitude per pixel.
      * @return List of tiles which fit specified sector and maximum resolution.
      */
-    protected open fun assembleTilesList(sector: Sector, resolution: Angle): List<ImageTile> {
+    protected open fun assembleTilesList(sector: Sector, resolution: ClosedRange<Angle>): List<ImageTile> {
         val result = mutableListOf<ImageTile>()
-        val lastLevelNumber = levelSet.levelForResolution(resolution).levelNumber
+        val firstLevelNumber = levelSet.levelForResolution(resolution.endInclusive).levelNumber
+        val lastLevelNumber = levelSet.levelForResolution(resolution.start).levelNumber
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
-        topLevelTiles.forEach { addAndSubdivideTile(it as ImageTile, sector, lastLevelNumber, result) }
+        topLevelTiles.forEach { addAndSubdivideTile(it as ImageTile, sector, firstLevelNumber..lastLevelNumber, result) }
         return result
     }
 
-    protected open fun addAndSubdivideTile(tile: ImageTile, sector: Sector, lastLevelNumber: Int, result: MutableList<ImageTile>) {
+    protected open fun addAndSubdivideTile(
+        tile: ImageTile, sector: Sector, levelRange: ClosedRange<Int>, result: MutableList<ImageTile>
+    ) {
         if (!tile.intersectsSector(sector)) return // Ignore tiles and its descendants outside the specified sector
+        val levelNumber = tile.level.levelNumber
         // Skip tiles with level less than specified offset from the result list
-        if (tile.level.levelNumber >= levelSet.levelOffset) result.add(tile)
+        if (levelNumber >= levelRange.start && levelNumber >= levelSet.levelOffset) result.add(tile)
         // Do not subdivide if specified level or last available level reached
-        if (tile.level.levelNumber < lastLevelNumber && !tile.level.isLastLevel) {
-            tile.subdivide(tileFactory).forEach {
-                addAndSubdivideTile(it as ImageTile, sector, lastLevelNumber, result)
-            }
+        if (levelNumber < levelRange.endInclusive && !tile.level.isLastLevel) {
+            tile.subdivide(tileFactory).forEach { addAndSubdivideTile(it as ImageTile, sector, levelRange, result) }
         }
     }
 
