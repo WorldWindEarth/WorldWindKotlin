@@ -1,9 +1,11 @@
 package earth.worldwind.util
 
+import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.TiledImageLayer
+import kotlinx.datetime.Instant
 
 interface ContentManager {
     /**
@@ -19,10 +21,13 @@ interface ContentManager {
      *
      * @param layer Image layer to set up cache
      * @param contentKey Unique key of this layer in cache content
+     * @param boundingSector Optional content sector, if null, then coverage tile matrix set sector will be used
      * @param setupWebLayer Add online source metadata into the cache config to be able to download additional tiles
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
-    suspend fun setupImageLayerCache(layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean = true)
+    suspend fun setupImageLayerCache(
+        layer: CacheableImageLayer, contentKey: String, boundingSector: Sector? = null, setupWebLayer: Boolean = true
+    )
 
     /**
      * Get elevation coverages available in this content manager
@@ -37,11 +42,27 @@ interface ContentManager {
      *
      * @param coverage Elevation coverage to set up cache
      * @param contentKey Unique key of this coverage in cache content
+     * @param boundingSector Optional content sector, if null, then coverage tile matrix set sector will be used
      * @param setupWebCoverage Add online source metadata into the cache config to be able to download additional tiles
      * @param isFloat If true, then elevation data would be stored in Float32 format
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun setupElevationCoverageCache(
-        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean = true, isFloat: Boolean = false
+        coverage: CacheableElevationCoverage, contentKey: String, boundingSector: Sector? = null,
+        setupWebCoverage: Boolean = true, isFloat: Boolean = false
     )
+
+    /**
+     * Returns last update date of specified content
+     *
+     * @return Last update date or null, if content does not exist
+     */
+    fun getLastUpdateDate(contentKey: String): Instant?
+
+    /**
+     * Gets bounding sector of specified content
+     *
+     * @return Bounding sector of specified content or null, if content does not exist or bounding box not specified
+     */
+    fun getBoundingSector(contentKey: String): Sector?
 }

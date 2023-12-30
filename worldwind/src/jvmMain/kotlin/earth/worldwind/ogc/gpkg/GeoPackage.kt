@@ -13,6 +13,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         TODO("Not yet implemented")
     }
 
+    override suspend fun createWebServiceTable() {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun createTilesTable(tableName: String) {
         TODO("Not yet implemented")
     }
@@ -50,6 +54,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeTileUserData(tableName: String, userData: GpkgTileUserData) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updateContentsLastChangeDate(content: GpkgContent) {
         TODO("Not yet implemented")
     }
 

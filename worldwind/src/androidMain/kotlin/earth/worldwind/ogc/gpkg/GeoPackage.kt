@@ -3,6 +3,8 @@ package earth.worldwind.ogc.gpkg
 import android.content.ContentValues
 import android.database.SQLException
 import android.database.sqlite.SQLiteDatabase.*
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import java.util.concurrent.TimeUnit
 
 // TODO parameterize column names as constants or use some ORM
@@ -78,16 +80,6 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                     UNIQUE (table_name, column_name, extension_name)
                 )
             """.trimIndent())
-            database.execSQL("""
-                CREATE TABLE IF NOT EXISTS $WEB_SERVICE (
-                    table_name TEXT NOT NULL PRIMARY KEY,
-                    type TEXT NOT NULL,
-                    address TEXT NOT NULL,
-                    layer_name TEXT,
-                    output_format TEXT NOT NULL,
-                    is_transparent SMALLINT DEFAULT 0
-                )
-            """.trimIndent())
         }
     }
 
@@ -123,6 +115,21 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                     std_dev REAL DEFAULT NULL,
                     CONSTRAINT fk_g2dgtat_name FOREIGN KEY (tpudt_name) REFERENCES gpkg_contents(table_name),
                     UNIQUE (tpudt_name, tpudt_id)
+                )
+            """.trimIndent())
+        }
+    }
+
+    override suspend fun createWebServiceTable() {
+        connection.openDatabase().use { database ->
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS $WEB_SERVICE (
+                    table_name TEXT NOT NULL PRIMARY KEY,
+                    type TEXT NOT NULL,
+                    address TEXT NOT NULL,
+                    layer_name TEXT,
+                    output_format TEXT NOT NULL,
+                    is_transparent SMALLINT DEFAULT 0
                 )
             """.trimIndent())
         }
@@ -169,14 +176,17 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                 put("data_type", dataType)
                 put("identifier", identifier)
                 put("description", description)
-                put("last_change", lastChange)
+                put("last_change", lastChange.toString())
                 put("min_x", minX)
                 put("min_y", minY)
                 put("max_x", maxX)
                 put("max_y", maxY)
                 put("srs_id", srsId)
             }
-            if (database.insert(CONTENTS, null, values) >= 0) addContent(this)
+            if (database.insert(CONTENTS, null, values) >= 0 ||
+                database.update(CONTENTS, values, "table_name=?", arrayOf(content.tableName)) > 0) {
+                addContent(this)
+            }
         } }
     }
 
@@ -288,6 +298,15 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         } }
     }
 
+    override suspend fun updateContentsLastChangeDate(content: GpkgContent) {
+        connection.openDatabase().use { database ->
+            val values = ContentValues().apply {
+                put("last_change", content.lastChange.toString())
+            }
+            database.update(CONTENTS, values, "table_name=?", arrayOf(content.tableName))
+        }
+    }
+
     override suspend fun readSpatialReferenceSystem() {
         connection.openDatabase().use { database ->
             try {
@@ -318,8 +337,8 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
                     while (moveToNext()) addContent(
                         GpkgContent(
                             this@GeoPackage, getString(0), getString(1), getString(2),
-                            getString(3), getString(4), getDouble(5), getDouble(6),
-                            getDouble(7), getDouble(8), getInt(9)
+                            getString(3), runCatching { Instant.parse(getString(4)) }.getOrNull() ?: Clock.System.now(),
+                            getDouble(5), getDouble(6), getDouble(7), getDouble(8), getInt(9)
                         )
                     )
                 } }
@@ -540,5 +559,4 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     override suspend fun dropTilesTable(tableName: String) {
         connection.openDatabase().use { database -> database.execSQL("DROP TABLE IF EXISTS $tableName") }
     }
-
 }

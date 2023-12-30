@@ -7,8 +7,8 @@ class GpkgGriddedTile(
     val tpudtId: Int,
     var scale: Float = 1.0f,
     var offset: Float = 0.0f,
-    var min: Float?,
-    var max: Float?,
-    var mean: Float?,
-    var stdDev: Float?
+    var min: Float? = null,
+    var max: Float? = null,
+    var mean: Float? = null,
+    var stdDev: Float? = null
 ): GpkgEntry()

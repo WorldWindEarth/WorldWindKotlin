@@ -1,5 +1,6 @@
 package earth.worldwind.layer
 
+import earth.worldwind.geom.Sector
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.ContentManager
 
@@ -28,13 +29,17 @@ interface CacheableImageLayer : Layer {
      *
      * @param contentManager Cache content manager
      * @param contentKey Content key inside the specified content manager
+     * @param boundingSector Optional content sector, if null, then coverage tile matrix set sector will be used
+     * @param setupWebLayer Add online source metadata into the cache config to be able to download additional tiles
      *
      * @throws IllegalArgumentException In case of incompatible level set configured in cache content
      * @throws IllegalStateException In the case of cache configuration requested on a read-only content
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
-    suspend fun configureCache(contentManager: ContentManager, contentKey: String) {
-        contentManager.setupImageLayerCache(this, contentKey)
+    suspend fun configureCache(
+        contentManager: ContentManager, contentKey: String, boundingSector: Sector? = null, setupWebLayer: Boolean = true
+    ) {
+        contentManager.setupImageLayerCache(this, contentKey, boundingSector, setupWebLayer)
     }
 
     /**
