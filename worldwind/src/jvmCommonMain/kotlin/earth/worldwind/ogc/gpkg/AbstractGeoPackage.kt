@@ -3,7 +3,6 @@ package earth.worldwind.ogc.gpkg
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
-import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
@@ -12,6 +11,7 @@ import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
 import kotlin.math.*
 
 // TODO verify its a GeoPackage container
@@ -51,6 +51,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         val tileUserData = readTileUserData(tiles.tableName, zoomLevel, tileColumn, tileRow)?.also { it.tileData = tileData }
             ?: GpkgTileUserData(this, -1, zoomLevel, tileColumn, tileRow, tileData)
         writeTileUserData(tiles.tableName, tileUserData)
+        tiles.lastChange = Clock.System.now()
+        updateContentsLastChangeDate(tiles)
     }
 
     suspend fun readGriddedTile(tiles: GpkgContent, tileUserData: GpkgTileUserData) =
@@ -85,29 +87,23 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
                 && (srs.organizationCoordSysId == EPSG_3857 || srs.organizationCoordSysId == EPSG_4326)) {
             "Unsupported GeoPackage spatial reference system: " + (srs?.srsName ?: "undefined")
         }
-        val tileMatrixSet = tileMatrixSet[content.tableName]
-        require(tileMatrixSet != null && tileMatrixSet.srsId == content.srsId) { "Unsupported GeoPackage tile matrix set" }
-        val tileMatrix = tileMatrix[content.tableName]
-        require(!tileMatrix.isNullOrEmpty()) { "Unsupported GeoPackage tile matrix" }
+        val tms = tileMatrixSet[content.tableName]
+        require(tms != null && tms.srsId == content.srsId) { "Unsupported GeoPackage tile matrix set" }
+        val tm = tileMatrix[content.tableName]
+        require(!tm.isNullOrEmpty()) { "Unsupported GeoPackage tile matrix" }
         // Determine tile matrix zoom range. Not the same as tile metrics min and max zoom level!
-        val zoomLevels = tileMatrix.keys.sorted()
+        val zoomLevels = tm.keys.sorted()
         val minZoom = zoomLevels.first()
         val maxZoom = zoomLevels.last()
-        val minTileMatrix = tileMatrix[minZoom]!!
-        val extent = if (srs.organizationCoordSysId == EPSG_3857) MercatorSector.fromSector(Sector(
-            latFromEPSG3857(tileMatrixSet.minY), latFromEPSG3857(tileMatrixSet.maxY),
-            lonFromEPSG3857(tileMatrixSet.minX), lonFromEPSG3857(tileMatrixSet.maxX)
-        )) else Sector(
-            tileMatrixSet.minY.degrees, tileMatrixSet.maxY.degrees,
-            tileMatrixSet.minX.degrees, tileMatrixSet.maxX.degrees
-        )
+        val minTileMatrix = tm[minZoom]!!
+        val tmsSector = buildSector(tms.minX, tms.minY, tms.maxX, tms.maxY, tms.srsId)
         // Create layer config based on tile matrix set bounding box and available matrix zoom range
         return LevelSetConfig().apply {
-            sector.copy(extent)
-            tileOrigin.set(extent.minLatitude, extent.minLongitude)
+            sector.copy(tmsSector)
+            tileOrigin.set(tmsSector.minLatitude, tmsSector.minLongitude)
             firstLevelDelta = Location(
-                extent.deltaLatitude / minTileMatrix.matrixHeight * (1 shl minZoom),
-                extent.deltaLongitude / minTileMatrix.matrixWidth * (1 shl minZoom)
+                tmsSector.deltaLatitude / minTileMatrix.matrixHeight * (1 shl minZoom),
+                tmsSector.deltaLongitude / minTileMatrix.matrixWidth * (1 shl minZoom)
             )
             levelOffset = minZoom
             numLevels = maxZoom + 1
@@ -117,31 +113,20 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     // TODO What if data already exists?
     @Throws(IllegalStateException::class)
     suspend fun setupTilesContent(
-        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, setupWebLayer: Boolean
+        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, boundingSector: Sector?, setupWebLayer: Boolean
     ): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
         writeDefaultSpatialReferenceSystems()
-        val minX: Double
-        val minY: Double
-        val maxX: Double
-        val maxY: Double
         val srsId = if (levelSet.sector is MercatorSector) {
             writeEPSG3857SpatialReferenceSystem()
-            minX = lonToEPSG3857(levelSet.sector.minLongitude)
-            minY = latToEPSG3857(levelSet.sector.minLatitude)
-            maxX = lonToEPSG3857(levelSet.sector.maxLongitude)
-            maxY = latToEPSG3857(levelSet.sector.maxLatitude)
             EPSG_3857
         } else {
             writeEPSG4326SpatialReferenceSystem()
-            minX = levelSet.sector.minLongitude.inDegrees
-            minY = levelSet.sector.minLatitude.inDegrees
-            maxX = levelSet.sector.maxLongitude.inDegrees
-            maxY = levelSet.sector.maxLatitude.inDegrees
             EPSG_4326
         }
-        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, minX, minY, maxX, maxY))
+        var box = buildBoundingBox(levelSet.sector, srsId)
+        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, box[0], box[1], box[2], box[3]))
         setupTileMatrices(tableName, levelSet)
         createTilesTable(tableName)
         if (layer is WebImageLayer && layer.imageFormat.equals("image/webp", true)) writeExtension(
@@ -151,7 +136,18 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
             )
         )
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
-        val content = GpkgContent(this, tableName, "tiles", layer.displayName ?: tableName, "", "", minX, minY, maxX, maxY, srsId)
+        if (boundingSector != null) box = buildBoundingBox(boundingSector, srsId)
+        val content = GpkgContent(
+            container = this,
+            tableName = tableName,
+            dataType = "tiles",
+            identifier = layer.displayName ?: tableName,
+            minX = box[0],
+            minY = box[1],
+            maxX = box[2],
+            maxY = box[3],
+            srsId = srsId
+        )
         writeContent(content)
         if (setupWebLayer && layer is WebImageLayer) setupWebLayer(layer, tableName)
         return content
@@ -160,7 +156,6 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     @Throws(IllegalStateException::class)
     suspend fun setupTileMatrices(tableName: String, levelSet: LevelSet) {
         if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
-        createRequiredTables()
         val tms = tileMatrixSet[tableName] ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
         val deltaY = tms.maxY - tms.minY
@@ -184,7 +179,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     @Throws(IllegalStateException::class)
     suspend fun setupWebLayer(layer: WebImageLayer, tableName: String) {
         if (isReadOnly) error("WebService $tableName cannot be updated. GeoPackage is read-only!")
-        createRequiredTables()
+        createWebServiceTable()
         writeWebService(
             GpkgWebService(
                 this, tableName, layer.serviceType, layer.serviceAddress, layer.layerName,
@@ -202,16 +197,12 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         require(srs != null && srs.organization.equals("EPSG", true) && srs.organizationCoordSysId == EPSG_4326) {
             "Unsupported GeoPackage spatial reference system: " + (srs?.srsName ?: "undefined")
         }
-        val tileMatrixSet = tileMatrixSet[content.tableName]
-        require(tileMatrixSet != null && tileMatrixSet.srsId == content.srsId) { "Unsupported GeoPackage tile matrix set" }
-        val tileMatrix = tileMatrix[content.tableName]
-        require(!tileMatrix.isNullOrEmpty()) { "Unsupported GeoPackage tile matrix" }
-        val sector = fromDegrees(
-            tileMatrixSet.minY, tileMatrixSet.minX,
-            tileMatrixSet.maxY - tileMatrixSet.minY,
-            tileMatrixSet.maxX - tileMatrixSet.minX
-        )
-        val tileMatrixList = tileMatrix.values.sortedBy { m -> m.zoomLevel }.map { m ->
+        val tms = tileMatrixSet[content.tableName]
+        require(tms != null && tms.srsId == content.srsId) { "Unsupported GeoPackage tile matrix set" }
+        val tm = tileMatrix[content.tableName]
+        require(!tm.isNullOrEmpty()) { "Unsupported GeoPackage tile matrix" }
+        val sector = buildSector(tms.minX, tms.minY, tms.maxX, tms.maxY, tms.srsId)
+        val tileMatrixList = tm.values.sortedBy { m -> m.zoomLevel }.map { m ->
             TileMatrix(sector, m.zoomLevel, m.matrixWidth, m.matrixHeight, m.tileWidth, m.tileHeight)
         }.toList()
         return TileMatrixSet(sector, tileMatrixList)
@@ -220,7 +211,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     // TODO What if data already exists?
     @Throws(IllegalStateException::class)
     suspend fun setupGriddedCoverageContent(
-        coverage: CacheableElevationCoverage, tableName: String, setupWebCoverage: Boolean, isFloat: Boolean
+        coverage: CacheableElevationCoverage, tableName: String, boundingSector: Sector?, setupWebCoverage: Boolean, isFloat: Boolean
     ): GpkgContent {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         createRequiredTables()
@@ -228,12 +219,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         writeDefaultSpatialReferenceSystems()
         writeEPSG4326SpatialReferenceSystem()
         val srsId = EPSG_4326
-        val sector = coverage.tileMatrixSet.sector
-        val minX = sector.minLongitude.inDegrees
-        val minY = sector.minLatitude.inDegrees
-        val maxX = sector.maxLongitude.inDegrees
-        val maxY = sector.maxLatitude.inDegrees
-        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, minX, minY, maxX, maxY))
+        var box = buildBoundingBox(coverage.tileMatrixSet.sector, srsId)
+        writeMatrixSet(GpkgTileMatrixSet(this, tableName, srsId, box[0], box[1], box[2], box[3]))
         setupTileMatrices(tableName, coverage.tileMatrixSet)
         createTilesTable(tableName)
         writeGriddedCoverage(
@@ -263,7 +250,18 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
             )
         )
         // Content bounding box can be smaller than matrix set bounding box and describes selected area on the lowest level
-        val content = GpkgContent(this, tableName, "2d-gridded-coverage", coverage.displayName ?: tableName, "", "", minX, minY, maxX, maxY, srsId)
+        if (boundingSector != null) box = buildBoundingBox(boundingSector, srsId)
+        val content = GpkgContent(
+            container = this,
+            tableName = tableName,
+            dataType = "2d-gridded-coverage",
+            identifier = coverage.displayName ?: tableName,
+            minX = box[0],
+            minY = box[1],
+            maxX = box[2],
+            maxY = box[3],
+            srsId = srsId
+        )
         writeContent(content)
         if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, tableName)
         return content
@@ -272,7 +270,6 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     @Throws(IllegalStateException::class)
     suspend fun setupTileMatrices(tableName: String, tileMatrixSet: TileMatrixSet) {
         if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
-        createRequiredTables()
         val tms = this.tileMatrixSet[tableName] ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
         val deltaY = tms.maxY - tms.minY
@@ -290,7 +287,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     @Throws(IllegalStateException::class)
     suspend fun setupWebCoverage(coverage: WebElevationCoverage, tableName: String) {
         if (isReadOnly) error("WebService $tableName cannot be updated. GeoPackage is read-only!")
-        createRequiredTables()
+        createWebServiceTable()
         writeWebService(
             GpkgWebService(
                 this, tableName, coverage.serviceType, coverage.serviceAddress, coverage.coverageName, coverage.outputFormat
@@ -350,6 +347,15 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
 
         // Remove web service settings if exists
         webServices.remove(tableName)?.let { deleteWebService(it) }
+    }
+
+    fun getBoundingSector(contentKey: String) = content[contentKey]?.let { content ->
+        val minX = content.minX ?: return@let null
+        val minY = content.minY ?: return@let null
+        val maxX = content.maxX ?: return@let null
+        val maxY = content.maxY ?: return@let null
+        val srsId = content.srsId ?: return@let null
+        buildSector(minX, minY, maxX, maxY, srsId)
     }
 
     /**
@@ -419,12 +425,27 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
 
     protected open fun latFromEPSG3857(y: Double) = (atan(exp(y / Ellipsoid.WGS84.semiMajorAxis)) * 2.0 - PI / 2.0).radians
 
+    protected open fun buildSector(
+        minX: Double, minY: Double, maxX: Double, maxY: Double, srsId: Int
+    ) = if (srsId == EPSG_3857) MercatorSector.fromSector(Sector(
+        latFromEPSG3857(minY), latFromEPSG3857(maxY), lonFromEPSG3857(minX), lonFromEPSG3857(maxX)
+    )) else Sector(minY.degrees, maxY.degrees, minX.degrees, maxX.degrees)
+
+    protected open fun buildBoundingBox(sector: Sector, srsId: Int) = if (srsId == EPSG_3857) arrayOf(
+        lonToEPSG3857(sector.minLongitude), latToEPSG3857(sector.minLatitude),
+        lonToEPSG3857(sector.maxLongitude), latToEPSG3857(sector.maxLatitude)
+    ) else arrayOf(
+        sector.minLongitude.inDegrees, sector.minLatitude.inDegrees,
+        sector.maxLongitude.inDegrees, sector.maxLatitude.inDegrees
+    )
+
     protected open fun lonFromEPSG3857(x: Double) = (x / Ellipsoid.WGS84.semiMajorAxis).radians
 
     protected abstract suspend fun initConnection(pathName: String, isReadOnly: Boolean)
 
     protected abstract suspend fun createRequiredTables()
     protected abstract suspend fun createGriddedCoverageTables()
+    protected abstract suspend fun createWebServiceTable()
     protected abstract suspend fun createTilesTable(tableName: String)
 
     protected abstract suspend fun writeSpatialReferenceSystem(srs: GpkgSpatialReferenceSystem)
@@ -436,6 +457,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     protected abstract suspend fun writeGriddedCoverage(griddedCoverage: GpkgGriddedCoverage)
     protected abstract suspend fun writeGriddedTile(griddedTile: GpkgGriddedTile)
     protected abstract suspend fun writeTileUserData(tableName: String, userData: GpkgTileUserData)
+
+    protected abstract suspend fun updateContentsLastChangeDate(content: GpkgContent)
 
     protected abstract suspend fun readSpatialReferenceSystem()
     protected abstract suspend fun readContent()

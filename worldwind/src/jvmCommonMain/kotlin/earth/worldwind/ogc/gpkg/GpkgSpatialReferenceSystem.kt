@@ -7,5 +7,5 @@ class GpkgSpatialReferenceSystem(
     val organization: String,
     val organizationCoordSysId: Int,
     val definition: String,
-    val description: String?
+    val description: String? = null
 ): GpkgEntry()

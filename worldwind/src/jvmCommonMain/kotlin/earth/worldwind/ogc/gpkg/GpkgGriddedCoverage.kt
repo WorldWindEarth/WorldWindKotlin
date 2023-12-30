@@ -8,7 +8,7 @@ class GpkgGriddedCoverage(
     val scale: Float = 1.0f,
     val offset: Float = 0.0f,
     val precision: Float = 1.0f,
-    val dataNull: Float?,
+    val dataNull: Float? = null,
     val gridCellEncoding: String = "grid-value-is-center",
     val uom: String? = null,
     val fieldName: String = "Height",

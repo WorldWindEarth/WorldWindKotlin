@@ -1,5 +1,6 @@
 package earth.worldwind.globe.elevation.coverage
 
+import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.CacheSourceFactory
 import earth.worldwind.util.ContentManager
@@ -31,14 +32,19 @@ interface CacheableElevationCoverage : ElevationCoverage {
      *
      * @param contentManager Cache content manager
      * @param contentKey Content key inside the specified content manager
+     * @param boundingSector Optional content sector, if null, then coverage tile matrix set sector will be used
+     * @param setupWebCoverage Add online source metadata into the cache config to be able to download additional tiles
      * @param isFloat If true, then cache will be stored in Float32 format, else Int16
      *
      * @throws IllegalArgumentException In the case of incompatible matrix set configured in cache content
      * @throws IllegalStateException In the case of cache configuration requested on a read-only content
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
-    suspend fun configureCache(contentManager: ContentManager, contentKey: String, isFloat: Boolean = false) {
-        contentManager.setupElevationCoverageCache(this, contentKey, isFloat)
+    suspend fun configureCache(
+        contentManager: ContentManager, contentKey: String, boundingSector: Sector? = null,
+        setupWebCoverage: Boolean = true, isFloat: Boolean = false
+    ) {
+        contentManager.setupElevationCoverageCache(this, contentKey, boundingSector, setupWebCoverage, isFloat)
     }
 
     /**

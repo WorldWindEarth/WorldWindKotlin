@@ -1,5 +1,6 @@
 package earth.worldwind.ogc
 
+import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
@@ -60,7 +61,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
     }
 
     override suspend fun setupImageLayerCache(
-        layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean
+        layer: CacheableImageLayer, contentKey: String, boundingSector: Sector?, setupWebLayer: Boolean
     ) = withContext(Dispatchers.IO) {
         val tiledSurfaceImage = layer.tiledSurfaceImage ?: error("Surface image not defined")
         val levelSet = tiledSurfaceImage.levelSet
@@ -86,7 +87,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
             }
             // Verify if all required tile matrices created
             if (!geoPackage.isReadOnly && config.numLevels < levelSet.numLevels) geoPackage.setupTileMatrices(contentKey, levelSet)
-        } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, setupWebLayer)
+        } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, boundingSector, setupWebLayer)
 
         layer.contentKey = contentKey
         layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, imageFormat)
@@ -132,7 +133,8 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
     }
 
     override suspend fun setupElevationCoverageCache(
-        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean, isFloat: Boolean
+        coverage: CacheableElevationCoverage, contentKey: String, boundingSector: Sector?,
+        setupWebCoverage: Boolean, isFloat: Boolean
     ) = withContext(Dispatchers.IO) {
         val content = geoPackage.content[contentKey]?.also {
             // Check if the current layer fits cache content
@@ -149,11 +151,15 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
             if (!geoPackage.isReadOnly && matrixSet.entries.size < coverage.tileMatrixSet.entries.size) {
                 geoPackage.setupTileMatrices(contentKey, coverage.tileMatrixSet)
             }
-        } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, setupWebCoverage, isFloat)
+        } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, boundingSector, setupWebCoverage, isFloat)
 
         coverage.contentKey = contentKey
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(content, isFloat)
     }
+
+    override fun getLastUpdateDate(contentKey: String) = geoPackage.content[contentKey]?.lastChange
+
+    override fun getBoundingSector(contentKey: String) = geoPackage.getBoundingSector(contentKey)
 
     companion object {
         private const val TOLERANCE = 1e-6
