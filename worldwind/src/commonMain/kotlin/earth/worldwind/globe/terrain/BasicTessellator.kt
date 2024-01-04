@@ -17,9 +17,9 @@ import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 open class BasicTessellator: Tessellator, TileFactory {
     override val lastTerrain = BasicTerrain()
     /**
-     * Default level set is configured to ~10 meter resolution
+     * Default level set is configured to ~0.6 meter resolution
      */
-    var levelSet = LevelSet(Sector().setFullSphere(), Location(NEG90, NEG180), Location(POS90, POS90), 16, 32, 32)
+    var levelSet = LevelSet(Sector().setFullSphere(), Location(NEG90, NEG180), Location(POS90, POS90), 20, 32, 32)
         set(value) {
             field = value
             invalidateTiles()
