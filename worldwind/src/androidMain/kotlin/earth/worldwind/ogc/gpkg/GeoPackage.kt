@@ -474,6 +474,12 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             } }
         }
 
+    override suspend fun readTilesDataSize(tableName: String): Long = connection.openDatabase().use { database ->
+        database.rawQuery("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'", emptyArray()).use { it.run {
+            if (moveToNext()) getLong(0) else 0L
+        } }
+    }
+
     override suspend fun deleteContent(content: GpkgContent) {
         connection.openDatabase().use { database ->
             try {

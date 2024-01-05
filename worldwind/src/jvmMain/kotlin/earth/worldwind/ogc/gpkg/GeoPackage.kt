@@ -97,6 +97,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         TODO("Not yet implemented")
     }
 
+    override suspend fun readTilesDataSize(tableName: String): Long {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun deleteContent(content: GpkgContent) {
         TODO("Not yet implemented")
     }

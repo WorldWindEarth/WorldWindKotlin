@@ -349,13 +349,13 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         webServices.remove(tableName)?.let { deleteWebService(it) }
     }
 
-    fun getBoundingSector(contentKey: String) = content[contentKey]?.let { content ->
-        val minX = content.minX ?: return@let null
-        val minY = content.minY ?: return@let null
-        val maxX = content.maxX ?: return@let null
-        val maxY = content.maxY ?: return@let null
-        val srsId = content.srsId ?: return@let null
-        buildSector(minX, minY, maxX, maxY, srsId)
+    fun getBoundingSector(content: GpkgContent): Sector? {
+        val minX = content.minX ?: return null
+        val minY = content.minY ?: return null
+        val maxX = content.maxX ?: return null
+        val maxY = content.maxY ?: return null
+        val srsId = content.srsId ?: return null
+        return buildSector(minX, minY, maxX, maxY, srsId)
     }
 
     /**
@@ -425,6 +425,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
 
     protected open fun latFromEPSG3857(y: Double) = (atan(exp(y / Ellipsoid.WGS84.semiMajorAxis)) * 2.0 - PI / 2.0).radians
 
+    protected open fun lonFromEPSG3857(x: Double) = (x / Ellipsoid.WGS84.semiMajorAxis).radians
+
     protected open fun buildSector(
         minX: Double, minY: Double, maxX: Double, maxY: Double, srsId: Int
     ) = if (srsId == EPSG_3857) MercatorSector.fromSector(Sector(
@@ -438,8 +440,6 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         sector.minLongitude.inDegrees, sector.minLatitude.inDegrees,
         sector.maxLongitude.inDegrees, sector.maxLatitude.inDegrees
     )
-
-    protected open fun lonFromEPSG3857(x: Double) = (x / Ellipsoid.WGS84.semiMajorAxis).radians
 
     protected abstract suspend fun initConnection(pathName: String, isReadOnly: Boolean)
 
@@ -469,6 +469,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     protected abstract suspend fun readGriddedCoverage()
     protected abstract suspend fun readGriddedTile(tableName: String, tileId: Int): GpkgGriddedTile?
     protected abstract suspend fun readTileUserData(tableName: String, zoom: Int, column: Int, row: Int): GpkgTileUserData?
+
+    abstract suspend fun readTilesDataSize(tableName: String): Long
 
     protected abstract suspend fun deleteContent(content: GpkgContent)
     protected abstract suspend fun deleteMatrixSet(matrixSet: GpkgTileMatrixSet)

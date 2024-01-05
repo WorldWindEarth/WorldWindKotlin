@@ -11,21 +11,29 @@ interface CacheableElevationCoverage : ElevationCoverage {
      */
     val tileMatrixSet: TileMatrixSet
     /**
+     * Configures tiled elevation coverage to retrieve a cache source only
+     */
+    var isCacheOnly: Boolean
+    /**
      * Source factory responsible for cache elevation source generation and cache data management
      */
     var cacheSourceFactory: CacheSourceFactory?
-    /**
-     * Unique key of this coverage in the cache
-     */
-    var contentKey: String?
     /**
      * Checks if cache is successfully configured
      */
     val isCacheConfigured get() = cacheSourceFactory != null
     /**
-     * Configures tiled elevation coverage to retrieve a cache source only
+     * Unique key of this coverage in the cache
      */
-    var isCacheOnly: Boolean
+    val contentKey get() = cacheSourceFactory?.contentKey
+    /**
+     * Bounding sector of cache content or null, if cache is not configured or bounding measures are not specified
+     */
+    val boundingSector get() = cacheSourceFactory?.boundingSector
+    /**
+     * Last update date of cache content or null, if cache is not configured
+     */
+    val lastUpdateDate get() = cacheSourceFactory?.lastUpdateDate
 
     /**
      * Configures elevation coverage to use specified cache provider
@@ -46,6 +54,11 @@ interface CacheableElevationCoverage : ElevationCoverage {
     ) {
         contentManager.setupElevationCoverageCache(this, contentKey, boundingSector, setupWebCoverage, isFloat)
     }
+
+    /**
+     * Estimated cache content size in bytes
+     */
+    suspend fun cacheContentSize() = cacheSourceFactory?.contentSize() ?: 0L
 
     /**
      * Deletes all tiles from current cache storage
