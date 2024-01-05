@@ -53,7 +53,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                         } else {
                             TiledSurfaceImage(GpkgTileFactory(content), LevelSet(config))
                         })
-                    }.also { if (it is CacheableImageLayer) it.contentKey = content.tableName }
+                    }
                 }.onFailure {
                     Logger.logMessage(Logger.WARN, "GpkgContentManager", "getTiledImageLayers", it.message!!)
                 }.getOrNull()
@@ -89,7 +89,6 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
             if (!geoPackage.isReadOnly && config.numLevels < levelSet.numLevels) geoPackage.setupTileMatrices(contentKey, levelSet)
         } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, boundingSector, setupWebLayer)
 
-        layer.contentKey = contentKey
         layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, imageFormat)
     }
 
@@ -125,7 +124,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                         ).apply { cacheSourceFactory = factory }
 
                         else -> TiledElevationCoverage(matrixSet, factory)
-                    }.apply { contentKey = content.tableName }
+                    }
                 }.onFailure {
                     Logger.logMessage(Logger.WARN, "GpkgContentManager", "getTiledElevationCoverages", it.message!!)
                 }.getOrNull()
@@ -153,13 +152,8 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
             }
         } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, boundingSector, setupWebCoverage, isFloat)
 
-        coverage.contentKey = contentKey
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(content, isFloat)
     }
-
-    override fun getLastUpdateDate(contentKey: String) = geoPackage.content[contentKey]?.lastChange
-
-    override fun getBoundingSector(contentKey: String) = geoPackage.getBoundingSector(contentKey)
 
     companion object {
         private const val TOLERANCE = 1e-6

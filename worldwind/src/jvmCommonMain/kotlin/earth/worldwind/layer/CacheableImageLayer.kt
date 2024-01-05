@@ -10,19 +10,27 @@ interface CacheableImageLayer : Layer {
      */
     val tiledSurfaceImage: TiledSurfaceImage?
     /**
-     * Unique key of this layer in the cache
-     */
-    var contentKey: String?
-    /**
-     * Checks if cache is successfully configured
-     */
-    val isCacheConfigured get() = tiledSurfaceImage?.cacheTileFactory != null
-    /**
      * Configures tiled image layer to retrieve a cache source only
      */
     var isCacheOnly: Boolean
         get() = tiledSurfaceImage?.isCacheOnly ?: false
         set(value) { tiledSurfaceImage?.isCacheOnly = value }
+    /**
+     * Checks if cache is successfully configured
+     */
+    val isCacheConfigured get() = tiledSurfaceImage?.cacheTileFactory != null
+    /**
+     * Unique key of this layer in the cache or null, if cache is not configured
+     */
+    val contentKey get() = tiledSurfaceImage?.cacheTileFactory?.contentKey
+    /**
+     * Bounding sector of cache content or null, if cache is not configured or bounding measures are not specified
+     */
+    val boundingSector get() = tiledSurfaceImage?.cacheTileFactory?.boundingSector
+    /**
+     * Last update date of cache content or null, if cache is not configured
+     */
+    val lastUpdateDate get() = tiledSurfaceImage?.cacheTileFactory?.lastUpdateDate
 
     /**
      * Configures image layer to use specified cache provider
@@ -41,6 +49,11 @@ interface CacheableImageLayer : Layer {
     ) {
         contentManager.setupImageLayerCache(this, contentKey, boundingSector, setupWebLayer)
     }
+
+    /**
+     * Estimated cache content size in bytes
+     */
+    suspend fun cacheContentSize() = tiledSurfaceImage?.cacheTileFactory?.contentSize() ?: 0L
 
     /**
      * Deletes all tiles from current cache storage

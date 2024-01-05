@@ -51,18 +51,4 @@ interface ContentManager {
         coverage: CacheableElevationCoverage, contentKey: String, boundingSector: Sector? = null,
         setupWebCoverage: Boolean = true, isFloat: Boolean = false
     )
-
-    /**
-     * Returns last update date of specified content
-     *
-     * @return Last update date or null, if content does not exist
-     */
-    fun getLastUpdateDate(contentKey: String): Instant?
-
-    /**
-     * Gets bounding sector of specified content
-     *
-     * @return Bounding sector of specified content or null, if content does not exist or bounding box not specified
-     */
-    fun getBoundingSector(contentKey: String): Sector?
 }

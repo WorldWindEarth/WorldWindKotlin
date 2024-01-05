@@ -32,7 +32,6 @@ actual open class TiledElevationCoverage actual constructor(
 
     protected val elevationDecoder = ElevationDecoder()
     override var cacheSourceFactory: CacheSourceFactory? = null
-    override var contentKey: String? = null
     override var isCacheOnly = false
     /**
      * Number of reties of bulk tile retrieval before long timeout
