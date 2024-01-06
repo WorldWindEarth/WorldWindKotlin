@@ -220,7 +220,7 @@ open class Tile protected constructor(
          * @return the result argument populated with the tiles for the specified level
          */
         @JvmStatic
-        fun assembleTilesForLevel(level: Level, tileFactory: TileFactory, result: MutableList<Tile>): MutableList<Tile> {
+        fun assembleTilesForLevel(level: Level, tileFactory: TileFactory, result: MutableList<Tile>): List<Tile> {
             val sector = level.parent.sector
             val tileOrigin = level.parent.tileOrigin
             val tileDelta = level.tileDelta

@@ -5,7 +5,6 @@ import earth.worldwind.util.LevelSet
 import earth.worldwind.util.TileFactory
 
 open class MercatorTiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet) : TiledSurfaceImage(tileFactory, levelSet) {
-    override fun createTopLevelTiles() {
+    override fun createTopLevelTiles() =
         AbstractMercatorImageTile.assembleMercatorTilesForLevel(levelSet.firstLevel, tileFactory, topLevelTiles)
-    }
 }
