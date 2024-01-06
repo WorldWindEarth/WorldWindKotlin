@@ -74,7 +74,19 @@ open class BasicTessellator: Tessellator, TileFactory {
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
 
         // Subdivide the top level tiles until the desired resolution is achieved in each part of the scene.
-        for (i in topLevelTiles.indices) addTileOrDescendants(rc, topLevelTiles[i] as TerrainTile)
+        val stack = ArrayDeque<Tile>()
+        for (tile in topLevelTiles) stack.addLast(tile)
+        while (!stack.isEmpty()) {
+            val tile = stack.removeLast()
+            // ignore the tile and its descendants if it's not needed or not visible
+            if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc)) continue
+            if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
+                addTile(rc, tile as TerrainTile)
+                continue  // use the tile if it does not need to be subdivided
+            }
+            val children = tile.subdivideToCache(this, tileCache, 4)
+            for (i in children.indices) stack.addLast(children[i])
+        }
 
         // Sort terrain tiles by L1 distance on cylinder from camera
         currentTiles.sortBy { it.sortOrder }
@@ -87,19 +99,6 @@ open class BasicTessellator: Tessellator, TileFactory {
     }
 
     protected open fun createTopLevelTiles() = Tile.assembleTilesForLevel(levelSet.firstLevel, this, topLevelTiles)
-
-    protected open fun addTileOrDescendants(rc: RenderContext, tile: TerrainTile) {
-        // ignore tiles which soes not fit projection limits
-        if (rc.globe.projectionLimits?.let { tile.intersectsSector(it) } == false) return
-        // ignore the tile and its descendants if it's not needed or not visible
-        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc)) return
-        if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
-            addTile(rc, tile)
-            return  // use the tile if it does not need to be subdivided
-        }
-        val childs = tile.subdivideToCache(this, tileCache, 4) // each tile has a cached size of 1
-        for (i in childs.indices) addTileOrDescendants(rc, childs[i] as TerrainTile) // recursively process the tile's children
-    }
 
     protected open fun addTile(rc: RenderContext, tile: TerrainTile) {
         // Prepare the terrain tile and add it.

@@ -73,8 +73,6 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
      */
     protected var tileCache = LruMemoryCache<String, Array<Tile>>(1200)
     protected var activeProgram: SurfaceTextureProgram? = null
-    protected var ancestorTile: ImageTile? = null
-    protected var ancestorTexture: Texture? = null
     protected val ancestorTexCoordMatrix = Matrix3()
     protected val topLevelTiles = mutableListOf<Tile>()
     protected var lastGlobeState: Globe.State? = null
@@ -92,8 +90,6 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         determineActiveProgram(rc)
         assembleTiles(rc)
         activeProgram = null // clear the active program to avoid leaking render resources
-        ancestorTile = null // clear the ancestor tile and texture
-        ancestorTexture = null
     }
 
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
@@ -180,39 +176,35 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         // the texture is actually requested Could the tile-based operations done here be implicit on level/row/column,
         // or use transient pooled tile objects not tied to an image source?
         if (topLevelTiles.isEmpty()) createTopLevelTiles()
-        for (i in topLevelTiles.indices) addTileOrDescendants(rc, topLevelTiles[i] as ImageTile)
+        val stack = ArrayDeque<StackImageTile>()
+        for (tile in topLevelTiles) stack.addLast(StackImageTile(tile as ImageTile))
+        while (!stack.isEmpty()) {
+            val stackTile = stack.removeLast()
+            // ignore the tile and its descendants if it's not needed or not visible
+            if (!stackTile.tile.intersectsSector(levelSet.sector)
+                || !stackTile.tile.intersectsSector(rc.terrain.sector)
+                || !stackTile.tile.intersectsFrustum(rc)) continue
+            val retrieveCurrentLevel = stackTile.tile.level.levelNumber >= levelSet.levelOffset
+            if (stackTile.tile.level.isLastLevel || !stackTile.tile.mustSubdivide(rc, detailControl)) {
+                if (retrieveCurrentLevel) addTile(rc, stackTile.tile, stackTile.ancestorTile, stackTile.ancestorTexture)
+                continue  // use the tile if it does not need to be subdivided
+            }
+            var ancestorTexture = getTexture(rc, stackTile.tile, RETRIEVE_TOP_LEVEL_TILES && retrieveCurrentLevel)
+            var ancestorTile: ImageTile?  = stackTile.tile
+            if (ancestorTexture == null) {
+                ancestorTile = stackTile.ancestorTile
+                ancestorTexture = stackTile.ancestorTexture
+            }
+            val children = stackTile.tile.subdivideToCache(tileFactory, tileCache, 4)
+            for (i in children.indices) stack.addLast(StackImageTile(children[i] as ImageTile, ancestorTile, ancestorTexture))
+        }
+
     }
 
     protected open fun createTopLevelTiles() = Tile.assembleTilesForLevel(levelSet.firstLevel, tileFactory, topLevelTiles)
 
-    protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
-        // ignore tiles which soes not fit projection limits
-        if (rc.globe.projectionLimits?.let { tile.intersectsSector(it) } == false) return
-        // ignore the tile and its descendants if it's not needed or not visible
-        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc)) return
-        val retrieveCurrentLevel = tile.level.levelNumber >= levelSet.levelOffset
-        if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
-            if (retrieveCurrentLevel) addTile(rc, tile)
-            return  // use the tile if it does not need to be subdivided
-        }
-        val currentAncestorTile = ancestorTile
-        val currentAncestorTexture = ancestorTexture
-        getTexture(rc, tile, RETRIEVE_TOP_LEVEL_TILES && retrieveCurrentLevel)?.let { tileTexture ->
-            // tile has a texture; use it as a fallback tile for descendants
-            ancestorTile = tile
-            ancestorTexture = tileTexture
-        }
-        // each tile has a cached size of 1, recursively process the tile's children
-        val children = tile.subdivideToCache(tileFactory, tileCache, 4)
-        for (i in children.indices) addTileOrDescendants(rc, children[i] as ImageTile)
-        ancestorTile = currentAncestorTile // restore the last fallback tile, even if it was null
-        ancestorTexture = currentAncestorTexture
-    }
-
-    protected open fun addTile(rc: RenderContext, tile: ImageTile) {
+    protected open fun addTile(rc: RenderContext, tile: ImageTile, ancestorTile: ImageTile?, ancestorTexture: Texture? ) {
         val texture = getTexture(rc, tile)
-        val ancestorTile = ancestorTile
-        val ancestorTexture = ancestorTexture
         val opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         if (texture != null) { // use the tile's own texture
             val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
@@ -258,6 +250,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         topLevelTiles.clear()
         tileCache.clear()
     }
+
+    data class StackImageTile(val tile: ImageTile, val ancestorTile: ImageTile? = null, val ancestorTexture: Texture? = null)
 
     companion object {
         // Retrieve top level tiles to avoid black holes when navigating and zooming out camera
