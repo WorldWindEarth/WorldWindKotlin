@@ -29,7 +29,7 @@ abstract class AbstractMercatorImageTile(
          * @param result      a pre-allocated Collection in which to store the results
          */
         @JvmStatic
-        fun assembleMercatorTilesForLevel(level: Level, tileFactory: TileFactory, result: MutableList<Tile>) {
+        fun assembleMercatorTilesForLevel(level: Level, tileFactory: TileFactory, result: MutableList<Tile>): List<Tile> {
             val sector = fromSector(level.parent.sector)
             val tileOrigin = level.parent.tileOrigin
             val dLat = level.tileDelta.latitude
@@ -52,6 +52,7 @@ abstract class AbstractMercatorImageTile(
                 }
                 d1 = d2
             }
+            return result
         }
     }
 

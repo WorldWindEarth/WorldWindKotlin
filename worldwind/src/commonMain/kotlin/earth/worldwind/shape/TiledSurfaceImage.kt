@@ -183,9 +183,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         for (i in topLevelTiles.indices) addTileOrDescendants(rc, topLevelTiles[i] as ImageTile)
     }
 
-    protected open fun createTopLevelTiles() {
-        Tile.assembleTilesForLevel(levelSet.firstLevel, tileFactory, topLevelTiles)
-    }
+    protected open fun createTopLevelTiles() = Tile.assembleTilesForLevel(levelSet.firstLevel, tileFactory, topLevelTiles)
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
         // ignore tiles which soes not fit projection limits
