@@ -8,9 +8,13 @@ import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
+import earth.worldwind.formats.geotiff.GeoTiffReader
 import io.ktor.client.fetch.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.await
+import kotlinx.coroutines.withContext
 import org.khronos.webgl.*
+import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.ArrayBufferView
 import org.khronos.webgl.Uint8Array
 import kotlin.math.roundToInt
@@ -41,7 +45,7 @@ actual open class TiledElevationCoverage actual constructor(
                         contentType.equals("application/bil", true) ||
                         contentType.equals("application/bil16", true) -> Int16Array(arrayBuffer)
                         contentType.equals("application/bil32", true) -> Float32Array(arrayBuffer)
-                        contentType.equals("image/tiff", true) -> TODO("Implement Tiff parsing for JS")
+                        contentType.equals("image/tiff", true) -> decodeTiffImage(arrayBuffer)
                         contentType.equals("text/xml", true) -> {
                             message = "Elevations retrieval failed (${response.statusText}): $url.\n"
                             +String.asDynamic().fromCharCode.apply(null, Uint8Array(arrayBuffer))
@@ -62,6 +66,10 @@ actual open class TiledElevationCoverage actual constructor(
                 retrievalFailed(key, "Elevations retrieval failed (${e.message}): $url")
             }
         } else retrievalFailed(key, "Unsupported elevation source type")
+    }
+
+    private suspend fun decodeTiffImage(arrayBuffer: ArrayBuffer) = withContext(Dispatchers.Default) {
+        GeoTiffReader(arrayBuffer).createTypedElevationArray()
     }
 
     protected open fun decodeBuffer(buffer: ArrayBufferView?) = when (buffer) {

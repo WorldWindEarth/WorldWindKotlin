@@ -43,8 +43,7 @@ fun main() {
             "Gauss-Kruger Graticule" to GKGraticuleTutorial(wwd.engine),
             "WMS Layer" to WmsLayerTutorial(wwd.engine, wwd.mainScope),
             "WMTS Layer" to WmtsLayerTutorial(wwd.engine, wwd.mainScope),
-            // TODO Uncomment when TIFF elevation data parsing will be implemented
-            //"WCS Elevation" to WcsElevationTutorial(wwd.engine),
+            "WCS Elevation" to WcsElevationTutorial(wwd.engine),
             "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),
         )
         val projections = mapOf (
