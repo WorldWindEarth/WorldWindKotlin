@@ -7,7 +7,7 @@ import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
-import earth.worldwind.layer.mercator.MercatorLayerFactory
+import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
 import earth.worldwind.ogc.gpkg.AbstractGeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage
@@ -41,7 +41,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                             tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, service.outputFormat)
                         }
 
-                        MercatorLayerFactory.SERVICE_TYPE -> MercatorLayerFactory.createLayer(
+                        WebMercatorLayerFactory.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
                             content.identifier, service.address, service.outputFormat, service.isTransparent,
                             config.numLevels, config.tileHeight
                         ).apply {

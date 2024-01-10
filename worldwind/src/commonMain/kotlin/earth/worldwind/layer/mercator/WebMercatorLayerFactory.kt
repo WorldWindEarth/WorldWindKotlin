@@ -1,10 +1,11 @@
 package earth.worldwind.layer.mercator
 
+import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.locale.language
 import kotlin.random.Random
 
-object MercatorLayerFactory {
+object WebMercatorLayerFactory {
     const val SERVICE_TYPE = "XYZ"
     private const val OPEN_BRACKET = '{'
     private const val CLOSED_BRACKET = '}'
@@ -16,15 +17,18 @@ object MercatorLayerFactory {
     private const val RAND_PREFIX = "{rand="
 
     fun createLayer(
-        name: String, urlTemplate: String, imageFormat: String = "image/png", transparent: Boolean = false, numLevels: Int = 22, tileSize: Int = 256
+        name: String, urlTemplate: String, imageFormat: String = "image/png", transparent: Boolean = false,
+        numLevels: Int = 22, tileSize: Int = 256, levelOffset: Int = 1
     ): MercatorTiledImageLayer {
         val urlParts = parseUrl(urlTemplate)
         val randomValue = urlParts.find { it.startsWith(RAND_PREFIX) }
         val randomValues = randomValue?.removeSurrounding(RAND_PREFIX, "}")?.split(",")
 
-        return object : MercatorTiledImageLayer(name, numLevels, tileSize, imageFormat, transparent) {
+        return object : MercatorTiledImageLayer(name, numLevels, tileSize, transparent, levelOffset), WebImageLayer {
             override val serviceType = SERVICE_TYPE
             override val serviceAddress = urlTemplate
+            override val imageFormat = imageFormat
+            override val isTransparent = transparent
             private val resultServerUrl = StringBuilder()
 
             override fun getImageSource(x: Int, y: Int, z: Int): ImageSource {

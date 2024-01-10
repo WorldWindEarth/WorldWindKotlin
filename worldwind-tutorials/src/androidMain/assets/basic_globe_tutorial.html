@@ -33,7 +33,7 @@ val contentManager = GpkgContentManager(File(requireContext().cacheDir, "content
 // Setting up the WorldWindow's layers.
 wwd.engine.layers.apply {
     addLayer(BackgroundLayer())
-    addLayer(MercatorLayerFactory.createLayer(
+    addLayer(WebMercatorLayerFactory.createLayer(
         name = "Google Satellite",
         urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
         imageFormat = "image/jpeg"
