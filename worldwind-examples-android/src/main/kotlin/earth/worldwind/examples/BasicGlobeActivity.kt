@@ -9,7 +9,7 @@ import earth.worldwind.globe.projection.MercatorProjection
 import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
-import earth.worldwind.layer.mercator.MercatorLayerFactory
+import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.GpkgContentManager
 import kotlinx.coroutines.launch
@@ -59,7 +59,7 @@ The globe uses the default navigation gestures:
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
-            addLayer(MercatorLayerFactory.createLayer(
+            addLayer(WebMercatorLayerFactory.createLayer(
                 name = "Google Satellite",
                 urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
                 imageFormat = "image/jpeg"

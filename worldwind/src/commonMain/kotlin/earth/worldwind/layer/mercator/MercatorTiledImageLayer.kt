@@ -5,7 +5,6 @@ import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.TiledImageLayer
-import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.render.image.ImageConfig
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
@@ -14,8 +13,8 @@ import earth.worldwind.util.LevelSet
 import earth.worldwind.util.TileFactory
 
 abstract class MercatorTiledImageLayer(
-    name: String, numLevels: Int, tileSize: Int, override val imageFormat: String, override val isTransparent: Boolean
-): TiledImageLayer(name), WebImageLayer {
+    name: String, numLevels: Int = 22, tileSize: Int = 256, transparent: Boolean = false, levelOffset: Int = 1
+): TiledImageLayer(name) {
     private val tileFactory = object : TileFactory {
         override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
             MercatorImageTile(sector as MercatorSector, level, row, column).apply {
@@ -30,10 +29,10 @@ abstract class MercatorTiledImageLayer(
         val tileOrigin = Location(sector.minLatitude, sector.minLongitude)
         val firstLevelDelta = Location(sector.deltaLatitude, sector.deltaLongitude)
         // Skip 1 topmost level with bad resolution from processing
-        val levelSet = LevelSet(sector, tileOrigin, firstLevelDelta, numLevels, tileSize, tileSize, 1)
+        val levelSet = LevelSet(sector, tileOrigin, firstLevelDelta, numLevels, tileSize, tileSize, levelOffset)
         tiledSurfaceImage = MercatorTiledSurfaceImage(tileFactory, levelSet).apply {
             // Reduce memory usage by using a 16-bit configuration with no alpha
-            if (!isTransparent) imageOptions = ImageOptions(ImageConfig.RGB_565)
+            if (!transparent) imageOptions = ImageOptions(ImageConfig.RGB_565)
         }
     }
 

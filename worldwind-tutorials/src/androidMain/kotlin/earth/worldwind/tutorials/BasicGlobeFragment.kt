@@ -10,7 +10,7 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
-import earth.worldwind.layer.mercator.MercatorLayerFactory
+import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.GpkgContentManager
 import kotlinx.coroutines.launch
@@ -34,7 +34,7 @@ open class BasicGlobeFragment: Fragment() {
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
-            addLayer(MercatorLayerFactory.createLayer(
+            addLayer(WebMercatorLayerFactory.createLayer(
                 name = "Google Satellite",
                 urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
                 imageFormat = "image/jpeg"
