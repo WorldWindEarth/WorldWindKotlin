@@ -7,7 +7,7 @@ plugins {
 }
 
 multiplatformResources {
-    multiplatformResourcesPackage = "${project.group}.tutorials"
+    resourcesPackage.set("${project.group}.tutorials")
 }
 
 kotlin {
@@ -21,7 +21,7 @@ kotlin {
             }
         }
     }
-    android {
+    androidTarget {
         compilations.all {
             kotlinOptions.jvmTarget = extra["javaVersion"].toString()
         }
@@ -32,13 +32,24 @@ kotlin {
                 implementation(project(":worldwind"))
             }
         }
-        val jsMain by getting
+        val jsMain by getting {
+            dependsOn(commonMain)
+        }
         val androidMain by getting {
+            dependsOn(commonMain)
             dependencies {
                 implementation("androidx.appcompat:appcompat:1.6.1")
-                implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+                implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
                 implementation("com.google.android.material:material:1.11.0")
+            }
+        }
+        all {
+            languageSettings {
+                @Suppress("OPT_IN_USAGE")
+                compilerOptions {
+                    freeCompilerArgs.add("-Xexpect-actual-classes")
+                }
             }
         }
     }

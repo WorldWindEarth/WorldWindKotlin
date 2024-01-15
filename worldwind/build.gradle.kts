@@ -11,7 +11,7 @@ plugins {
 }
 
 multiplatformResources {
-    multiplatformResourcesPackage = project.group.toString()
+    resourcesPackage.set(project.group.toString())
 }
 
 kotlin {
@@ -32,24 +32,24 @@ kotlin {
             }
         }
     }
-    android {
+    androidTarget {
         publishLibraryVariants("release")
         compilations.all {
             kotlinOptions.jvmTarget = extra["javaVersion"].toString()
         }
     }
     sourceSets {
-        val mockkVersion = "1.13.4"
-        val mokoVersion = "0.23.0"
-        val ktorVersion = "2.3.4"
+        val mockkVersion = "1.13.9"
+        val mokoVersion = "0.24.0-alpha-1"
+        val ktorVersion = "2.3.7"
         val commonMain by getting {
             dependencies {
-                api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
+                api("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.github.pdvrieze.xmlutil:serialization:0.86.1")
-                implementation("com.eygraber:uri-kmp:0.0.12")
+                implementation("io.github.pdvrieze.xmlutil:serialization:0.86.3")
+                implementation("com.eygraber:uri-kmp:0.0.15")
                 implementation("ar.com.hjg:pngj:2.1.0")
                 implementation("mil.nga:tiff:3.0.0")
                 api("dev.icerock.moko:resources:$mokoVersion")
@@ -64,8 +64,7 @@ kotlin {
         val jvmCommonMain by creating {
             dependsOn(commonMain)
             dependencies {
-                // TODO Migrate to CIO engine when issue with connection timeouts on emulator will be solved
-                implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
+                implementation("io.ktor:ktor-client-cio:$ktorVersion")
             }
         }
         val jvmCommonTest by creating {
@@ -97,11 +96,13 @@ kotlin {
             dependsOn(jvmCommonTest)
         }
         val jsMain by getting {
+            dependsOn(commonMain)
             dependencies {
                 implementation("io.ktor:ktor-client-js:$ktorVersion")
             }
         }
         val jsTest by getting {
+            dependsOn(commonTest)
             dependencies {
                 implementation(kotlin("test-js"))
             }
@@ -123,6 +124,14 @@ kotlin {
                 implementation("io.mockk:mockk-android:$mockkVersion")
                 implementation("androidx.test.ext:junit:1.1.5")
                 implementation("androidx.test:rules:1.5.0")
+            }
+        }
+        all {
+            languageSettings {
+                @Suppress("OPT_IN_USAGE")
+                compilerOptions {
+                    freeCompilerArgs.add("-Xexpect-actual-classes")
+                }
             }
         }
     }
@@ -236,4 +245,10 @@ signing {
         System.getenv("GPG_PRIVATE_PASSWORD")
     )
     sign(publishing.publications)
+}
+
+// https://github.com/gradle/gradle/issues/26091
+tasks.withType<AbstractPublishToMaven>().configureEach {
+    val signingTasks = tasks.withType<Sign>()
+    mustRunAfter(signingTasks)
 }
