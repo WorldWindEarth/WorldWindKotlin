@@ -29,7 +29,7 @@ class WmsLayerTutorial(private val engine: WorldWind, private val scope: Corouti
                     }
                 }
                 Logger.log(Logger.INFO, "WMS layer creation succeeded")
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "WMS layer creation failed", e)
             }
         }

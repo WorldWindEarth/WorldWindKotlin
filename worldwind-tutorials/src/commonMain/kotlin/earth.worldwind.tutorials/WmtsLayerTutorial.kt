@@ -28,7 +28,7 @@ class WmtsLayerTutorial(private val engine: WorldWind, private val scope: Corout
                     }
                 }
                 Logger.log(Logger.INFO, "WMTS layer creation succeeded")
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "WMTS layer creation failed", e)
             }
         }

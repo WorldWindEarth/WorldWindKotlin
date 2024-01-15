@@ -43,12 +43,13 @@ object WmsLayerFactory {
             makeMessage("WmsLayerFactory", "createLayer", "Provided layers did not match available layers")
         }
         // Collect WMS Layer Titles to set the Layer Display Name
+        val layerName = layerNames.joinToString(",")
         return object : TiledImageLayer(wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)), WebImageLayer {
             override val serviceType = SERVICE_TYPE
             override val serviceAddress = serviceAddress
-            override val layerName = layerNames.joinToString(",")
-            override val imageFormat = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.imageFormat ?: "image/png"
-            override val isTransparent = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.isTransparent ?: true
+            override val layerName = layerName
+            override val imageFormat get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.imageFormat ?: "image/png"
+            override val isTransparent get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.isTransparent ?: true
         }
     }
 
@@ -58,7 +59,8 @@ object WmsLayerFactory {
             .appendQueryParameter("SERVICE", "WMS")
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
+        runCatching { httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText() }
+            .getOrElse { error("Unable to open connection and read from service address") }
     }.let { xmlText ->
         withContext(Dispatchers.Default) { xml.decodeFromString<WmsCapabilities>(xmlText) }
     }
