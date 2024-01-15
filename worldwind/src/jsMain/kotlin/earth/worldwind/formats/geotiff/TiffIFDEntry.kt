@@ -25,7 +25,7 @@ class TiffIFDEntry(
         require(type == TiffConstants.Type.ASCII) {
             logMessage(ERROR, "TiffIFDEntry", "getIFDEntryValue","Invalid Key Type - ASCII required.")
         }
-        return getIFDEntryValue(true).map { it.toChar() }.joinToString("")
+        return getIFDEntryValue(true).map { it.toInt().toChar() }.joinToString("")
     }
 
     private fun getIFDTypeLength() = when (type) {
