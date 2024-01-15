@@ -38,22 +38,22 @@ object WmtsLayerFactory {
     )
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
 
-    suspend fun createLayer(serviceAddress: String, layerIdentifier: String): TiledImageLayer {
+    suspend fun createLayer(serviceAddress: String, layerName: String): TiledImageLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingServiceAddress")
         }
-        require(layerIdentifier.isNotEmpty()) {
+        require(layerName.isNotEmpty()) {
             logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val wmtsLayer = retrieveWmtsCapabilities(serviceAddress).getLayer(layerIdentifier)
+        val wmtsLayer = retrieveWmtsCapabilities(serviceAddress).getLayer(layerName)
         requireNotNull(wmtsLayer) {
-            makeMessage("WmtsLayerFactory", "createLayer", "The layer identifier specified was not found")
+            makeMessage("WmtsLayerFactory", "createLayer", "Specified layer name was not found")
         }
-        return object : TiledImageLayer(wmtsLayer.title ?: layerIdentifier, createWmtsSurfaceImage(wmtsLayer)), WebImageLayer {
+        return object : TiledImageLayer(wmtsLayer.title ?: layerName, createWmtsSurfaceImage(wmtsLayer)), WebImageLayer {
             override val serviceType = SERVICE_TYPE
             override val serviceAddress = serviceAddress
-            override val layerName = layerIdentifier
-            override val imageFormat = (tiledSurfaceImage?.tileFactory as? WmtsTileFactory)?.imageFormat ?: "image/png"
+            override val layerName = layerName
+            override val imageFormat get() = (tiledSurfaceImage?.tileFactory as? WmtsTileFactory)?.imageFormat ?: "image/png"
             override val isTransparent = true // WMTS has no transparency data available
         }
     }
@@ -64,7 +64,8 @@ object WmtsLayerFactory {
             .appendQueryParameter("SERVICE", "WMTS")
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
+        runCatching { httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText() }
+            .getOrElse { error("Unable to open connection and read from service address") }
     }.let { xmlText ->
         withContext(Dispatchers.Default) { xml.decodeFromString<WmtsCapabilities>(xmlText) }
     }
