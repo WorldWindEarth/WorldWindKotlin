@@ -9,7 +9,7 @@ import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
-import earth.worldwind.ogc.gpkg.AbstractGeoPackage
+import earth.worldwind.ogc.gpkg.AbstractGeoPackage.Companion.EPSG_3857
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.ContentManager
@@ -25,38 +25,41 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
         geoPackage.content.values
             .filter { it.dataType.equals("tiles", true) && contentKeys?.contains(it.tableName) != false }
             .mapNotNull { content ->
-                runCatching {
-                    val service = geoPackage.webServices[content.tableName]
-                    val config = geoPackage.buildLevelSetConfig(content)
-                    when (service?.type) {
-                        WmsLayerFactory.SERVICE_TYPE -> WmsLayerFactory.createLayer(
-                            service.address, service.layerName?.split(",") ?: error("Layer name is absent")
-                        ).apply {
-                            tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, service.outputFormat)
-                        }
+                // Try to build the level set. It may fail due to unsupported projection or other requirements.
+                runCatching { geoPackage.buildLevelSetConfig(content) }.onFailure {
+                    Logger.logMessage(Logger.WARN, "GpkgContentManager", "getImageLayers", it.message!!)
+                }.getOrNull()?.let { config ->
+                    // Check if WEB service config available and try to create a Web Layer
+                    geoPackage.webServices[content.tableName]?.let { service ->
+                        runCatching {
+                            when (service.type) {
+                                WmsLayerFactory.SERVICE_TYPE -> WmsLayerFactory.createLayer(
+                                    service.address, service.layerName?.split(",") ?: error("Layer name is absent")
+                                )
 
-                        WmtsLayerFactory.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
-                            service.address, service.layerName ?: error("Layer name is absent")
-                        ).apply {
-                            tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, service.outputFormat)
-                        }
+                                WmtsLayerFactory.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
+                                    service.address, service.layerName ?: error("Layer name is absent")
+                                )
 
-                        WebMercatorLayerFactory.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
-                            content.identifier, service.address, service.outputFormat, service.isTransparent,
-                            config.numLevels, config.tileHeight
-                        ).apply {
-                            tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, service.outputFormat)
-                        }
+                                WebMercatorLayerFactory.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
+                                    content.identifier, service.address, service.outputFormat, service.isTransparent,
+                                    config.numLevels, config.tileHeight
+                                )
 
-                        else -> TiledImageLayer(content.identifier, if (content.srsId == AbstractGeoPackage.EPSG_3857) {
-                            MercatorTiledSurfaceImage(GpkgTileFactory(content), LevelSet(config))
-                        } else {
-                            TiledSurfaceImage(GpkgTileFactory(content), LevelSet(config))
-                        })
-                    }
-                }.onFailure {
-                    Logger.logMessage(Logger.WARN, "GpkgContentManager", "getTiledImageLayers", it.message!!)
-                }.getOrNull()
+                                else -> null // It is not a known Web Layer type
+                            }?.apply {
+                                // Configure cache for Web Layer
+                                tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, service.outputFormat)
+                            }
+                        }.onFailure {
+                            Logger.logMessage(Logger.WARN, "GpkgContentManager", "getImageLayers", it.message!!)
+                        }.getOrNull()
+                    } ?: TiledImageLayer(content.identifier, if (content.srsId == EPSG_3857) {
+                        MercatorTiledSurfaceImage(GpkgTileFactory(content), LevelSet(config))
+                    } else {
+                        TiledSurfaceImage(GpkgTileFactory(content), LevelSet(config))
+                    })
+                }
             }
     }
 
@@ -126,7 +129,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                         else -> TiledElevationCoverage(matrixSet, factory)
                     }
                 }.onFailure {
-                    Logger.logMessage(Logger.WARN, "GpkgContentManager", "getTiledElevationCoverages", it.message!!)
+                    Logger.logMessage(Logger.WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
                 }.getOrNull()
             }
     }
