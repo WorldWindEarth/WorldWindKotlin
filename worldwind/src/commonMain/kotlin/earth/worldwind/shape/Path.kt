@@ -249,7 +249,9 @@ open class Path @JvmOverloads constructor(
         }
         prevPoint.copy(point)
         if (isSurfaceShape) {
-            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] =
+                if (isCross180Meridian(longitude , vertexOrigin.x)) getLongitudeDiff(longitude , vertexOrigin.x)
+                else (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
@@ -276,4 +278,27 @@ open class Path @JvmOverloads constructor(
         }
         return vertex
     }
+
+    /**
+     * Determines the difference in longitude across the meridian.
+     *
+     * @param longitude The current longitude value.
+     * @param prevLongitude The previous longitude value.
+     * @return The difference in longitude across the meridian.
+     */
+    private fun getLongitudeDiff(longitude: Angle, prevLongitude: Double) =
+        if (prevLongitude >= 0.0 && longitude.inDegrees < 0.0)
+                (360.0 + longitude.inDegrees - prevLongitude).toFloat()
+        else (prevLongitude - longitude.inDegrees - 360.0).toFloat()
+
+
+    /**
+     * Determines whether the given longitude crosses the 180th meridian.
+     *
+     * @param longitude The longitude to check.
+     * @param prevLongitude The previous longitude value.
+     * @return true if the longitude crosses the 180th meridian, false otherwise.
+     */
+    private fun isCross180Meridian(longitude: Angle, prevLongitude: Double) =
+        prevLongitude >= 0.0 && longitude.inDegrees < 0.0 || prevLongitude < 0.0 && longitude.inDegrees >= 0.0
 }
