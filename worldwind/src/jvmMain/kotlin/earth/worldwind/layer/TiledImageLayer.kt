@@ -11,7 +11,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 
 actual open class TiledImageLayer actual constructor(
-    name: String, tiledSurfaceImage: TiledSurfaceImage?
+    name: String?, tiledSurfaceImage: TiledSurfaceImage?
 ): AbstractTiledImageLayer(name, tiledSurfaceImage), CacheableImageLayer {
     /**
      * Start a new coroutine Job that downloads all imagery for a given sector and resolution,

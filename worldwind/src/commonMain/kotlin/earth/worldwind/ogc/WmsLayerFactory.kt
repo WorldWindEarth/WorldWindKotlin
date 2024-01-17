@@ -21,6 +21,7 @@ import io.ktor.utils.io.core.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
@@ -30,27 +31,28 @@ object WmsLayerFactory {
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
 
-    suspend fun createLayer(serviceAddress: String, layerNames: List<String>): TiledImageLayer {
+    /**
+     * Create tiled image layer based on WMS layer metadata retrieved from server capabilities or decoded from parameter
+     *
+     * @param serviceAddress WMS service address
+     * @param layerNames Optional list of WMS layer names to be requested and combined into the resulting image layer
+     * @param layerMetadata Optional layer metadata to avoid online capabilities request
+     */
+    suspend fun createLayer(serviceAddress: String, layerNames: List<String>? = null, layerMetadata: String? = null): TiledImageLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingServiceAddress")
         }
-        require(layerNames.isNotEmpty()) {
-            logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingLayerNames")
-        }
-        val wmsCapabilities = retrieveWmsCapabilities(serviceAddress)
-        val wmsLayers = layerNames.mapNotNull { layerName -> wmsCapabilities.getNamedLayer(layerName) }
+        val wmsLayers = if (layerMetadata != null) decodeWmsLayers(layerMetadata)
+        else if (layerNames != null) retrieveWmsCapabilities(serviceAddress).getNamedLayers(layerNames)
+        else error(logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingLayerNames"))
         require(wmsLayers.isNotEmpty()) {
-            makeMessage("WmsLayerFactory", "createLayer", "Provided layers did not match available layers")
+            makeMessage("WmsLayerFactory", "createLayer", "Provided layer names did not match available layers")
         }
-        // Collect WMS Layer Titles to set the Layer Display Name
-        val layerName = layerNames.joinToString(",")
-        return object : TiledImageLayer(wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)), WebImageLayer {
-            override val serviceType = SERVICE_TYPE
-            override val serviceAddress = serviceAddress
-            override val layerName = layerName
-            override val imageFormat get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.imageFormat ?: "image/png"
-            override val isTransparent get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.isTransparent ?: true
-        }
+        return createWmsImageLayer(serviceAddress, wmsLayers)
+    }
+
+    private suspend fun decodeWmsLayers(xmlText: String) = withContext(Dispatchers.Default) {
+        xml.decodeFromString<List<WmsLayer>>(xmlText)
     }
 
     private suspend fun retrieveWmsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
@@ -63,6 +65,19 @@ object WmsLayerFactory {
             .getOrElse { error("Unable to open connection and read from service address") }
     }.let { xmlText ->
         withContext(Dispatchers.Default) { xml.decodeFromString<WmsCapabilities>(xmlText) }
+    }
+
+    private fun createWmsImageLayer(
+        serviceAddress: String, wmsLayers: List<WmsLayer>
+    ): TiledImageLayer = object : TiledImageLayer(
+        wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)
+    ), WebImageLayer {
+        override val serviceType = SERVICE_TYPE
+        override val serviceAddress = serviceAddress
+        override val layerName = wmsLayers.mapNotNull { lc -> lc.name }.joinToString(",")
+        override val layerMetadata get() = xml.encodeToString(wmsLayers)
+        override val imageFormat get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.imageFormat ?: "image/png"
+        override val isTransparent get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.isTransparent ?: true
     }
 
     private fun createWmsSurfaceImage(wmsLayers: List<WmsLayer>): TiledSurfaceImage {

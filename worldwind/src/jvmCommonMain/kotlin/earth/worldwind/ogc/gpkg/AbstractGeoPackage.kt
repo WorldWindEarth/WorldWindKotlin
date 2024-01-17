@@ -183,7 +183,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         writeWebService(
             GpkgWebService(
                 this, tableName, layer.serviceType, layer.serviceAddress, layer.layerName,
-                layer.imageFormat, layer.isTransparent
+                layer.layerMetadata, layer.imageFormat, layer.isTransparent
             )
         )
     }
@@ -290,7 +290,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         createWebServiceTable()
         writeWebService(
             GpkgWebService(
-                this, tableName, coverage.serviceType, coverage.serviceAddress, coverage.coverageName, coverage.outputFormat
+                this, tableName, coverage.serviceType, coverage.serviceAddress, coverage.coverageName,
+                coverage.coverageMetadata, coverage.outputFormat
             )
         )
     }

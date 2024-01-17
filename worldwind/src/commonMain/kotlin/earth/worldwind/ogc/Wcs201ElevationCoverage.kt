@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 /**
@@ -41,6 +42,8 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
     final override val serviceType = SERVICE_TYPE
     final override val serviceAddress: String
     final override val coverageName: String
+    final override var coverageMetadata: String? = null
+        private set
     final override val outputFormat: String
     protected val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
 
@@ -71,19 +74,21 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
      * the information provided to determine a suitable Sector and level count. If the coverage id doesn't match the
      * available coverages or there is another error, no data will be provided and the error will be logged.
      *
-     * @param serviceAddress the WCS service address
-     * @param coverageName   the WCS coverage name
-     * @param outputFormat   the WCS source data format
+     * @param serviceAddress   the WCS service address
+     * @param coverageName     the WCS coverage name
+     * @param outputFormat     the WCS source data format
+     * @param coverageMetadata optional coverage metadata to avoid online capabilities request
      */
-    constructor(serviceAddress: String, coverageName: String, outputFormat: String) {
+    constructor(serviceAddress: String, coverageName: String, outputFormat: String, coverageMetadata: String? = null) {
         this.serviceAddress = serviceAddress
         this.coverageName = coverageName
         this.outputFormat = outputFormat
+        this.coverageMetadata = coverageMetadata
         mainScope.launch {
             try {
                 // Fetch the DescribeCoverage document and determine the bounding box and number of levels
-                val coverageDescriptions = describeCoverage(serviceAddress, coverageName)
-                val coverageDescription = coverageDescriptions.getCoverageDescription(coverageName) ?: error(
+                val coverageDescription = if (coverageMetadata != null) decodeCoverage(coverageMetadata)
+                else describeCoverage(serviceAddress, coverageName).getCoverageDescription(coverageName) ?: error(
                     makeMessage(
                         "Wcs201ElevationCoverage", "constructor",
                         "WCS coverage is undefined: $coverageName"
@@ -98,6 +103,7 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
                 }
                 elevationSourceFactory = Wcs201ElevationSourceFactory(serviceAddress, coverageName, outputFormat, axisLabels)
                 tileMatrixSet = tileMatrixSetFromCoverageDescription(coverageDescription)
+                this@Wcs201ElevationCoverage.coverageMetadata = coverageMetadata ?: xml.encodeToString(coverageDescription)
                 WorldWind.requestRedraw()
             } catch (logged: Throwable) {
                 logMessage(
@@ -152,6 +158,10 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
         return TileMatrixSet.fromTilePyramid(
             boundingSector, if (boundingSector.isFullSphere) 2 else 1, 1, tileWidth, tileHeight, resolution
         )
+    }
+
+    protected open suspend fun decodeCoverage(xmlText: String) = withContext(Dispatchers.Default) {
+        xml.decodeFromString<Wcs201CoverageDescription>(xmlText)
     }
 
     @Throws(OwsException::class)

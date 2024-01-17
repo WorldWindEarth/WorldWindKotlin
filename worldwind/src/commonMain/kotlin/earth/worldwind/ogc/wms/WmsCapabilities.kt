@@ -30,4 +30,6 @@ data class WmsCapabilities(
     }
 
     fun getNamedLayer(name: String) = namedLayers.firstOrNull { layer -> layer.name == name }
+
+    fun getNamedLayers(names: List<String>) = namedLayers.filter { layer -> names.contains(layer.name) }
 }
