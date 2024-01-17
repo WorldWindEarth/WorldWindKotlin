@@ -14,6 +14,10 @@ interface WebElevationCoverage : ElevationCoverage {
      */
     val coverageName: String
     /**
+     * Descriptive information from service about this coverage
+     */
+    val coverageMetadata: String? get() = null
+    /**
      * Expected data output format
      */
     val outputFormat: String

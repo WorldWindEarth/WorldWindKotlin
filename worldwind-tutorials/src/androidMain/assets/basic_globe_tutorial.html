@@ -29,7 +29,7 @@ The globe uses the default navigation gestures:
 // Create the WorldWindow (a GLSurfaceView) which displays the globe.
 wwd = WorldWindow(requireContext())
 // Define cache content manager
-val contentManager = GpkgContentManager(File(requireContext().cacheDir, "content.gpkg").absolutePath)
+val contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache_content.gpkg").absolutePath)
 // Setting up the WorldWindow's layers.
 wwd.engine.layers.apply {
     addLayer(BackgroundLayer())
@@ -68,18 +68,22 @@ open class BasicGlobeFragment: Fragment() {
     open fun createWorldWindow(): WorldWindow {
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
         wwd = WorldWindow(requireContext())
+        // Define cache content manager
+        val contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache_content.gpkg").absolutePath)
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
-            addLayer(GoogleLayer(GoogleLayer.Type.SATELLITE).apply {
-                configureCache(File(requireContext().cacheDir, "content.gpkg").absolutePath, "GSat")
-            })
+            addLayer(WebMercatorLayerFactory.createLayer(
+        		name = "Google Satellite",
+        		urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+        		imageFormat = "image/jpeg"
+   			).apply {
+        		wwd.mainScope.launch { configureCache(contentManager, "GSat") }
+    		})
             addLayer(AtmosphereLayer())
         }
         // Setting up the WorldWindow's elevation coverages.
-        wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            configureCache(File(requireContext().cacheDir, "content.gpkg").absolutePath, "NASADEM")
-        })
+        wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply { configureCache(contentManager, "NASADEM") })
         return wwd
     }
 

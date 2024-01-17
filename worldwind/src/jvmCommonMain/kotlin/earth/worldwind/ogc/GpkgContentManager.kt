@@ -34,11 +34,11 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                         runCatching {
                             when (service.type) {
                                 WmsLayerFactory.SERVICE_TYPE -> WmsLayerFactory.createLayer(
-                                    service.address, service.layerName?.split(",") ?: error("Layer name is absent")
+                                    service.address, service.layerName?.split(","), service.layerMetadata
                                 )
 
                                 WmtsLayerFactory.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
-                                    service.address, service.layerName ?: error("Layer name is absent")
+                                    service.address, service.layerName, service.layerMetadata
                                 )
 
                                 WebMercatorLayerFactory.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
@@ -116,7 +116,8 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                         Wcs201ElevationCoverage.SERVICE_TYPE -> Wcs201ElevationCoverage(
                             service.address,
                             service.layerName ?: error("Coverage not specified"),
-                            service.outputFormat
+                            service.outputFormat,
+                            service.layerMetadata
                         ).apply { cacheSourceFactory = factory }
 
                         WmsElevationCoverage.SERVICE_TYPE -> WmsElevationCoverage(

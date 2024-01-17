@@ -13,7 +13,7 @@ import earth.worldwind.util.LevelSet
 import earth.worldwind.util.TileFactory
 
 abstract class MercatorTiledImageLayer(
-    name: String, numLevels: Int = 22, tileSize: Int = 256, transparent: Boolean = false, levelOffset: Int = 1
+    name: String? = null, numLevels: Int = 22, tileSize: Int = 256, transparent: Boolean = false, levelOffset: Int = 1
 ): TiledImageLayer(name) {
     private val tileFactory = object : TileFactory {
         override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =

@@ -14,6 +14,10 @@ interface WebImageLayer : Layer {
      */
     val layerName: String? get() = null
     /**
+     * Descriptive information from service about this layer
+     */
+    val layerMetadata: String? get() = null
+    /**
      * Expected output image format
      */
     val imageFormat: String

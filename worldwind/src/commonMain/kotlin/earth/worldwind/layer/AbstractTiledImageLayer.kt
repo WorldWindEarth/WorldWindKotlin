@@ -2,7 +2,7 @@ package earth.worldwind.layer
 
 import earth.worldwind.shape.TiledSurfaceImage
 
-abstract class AbstractTiledImageLayer(name: String, tiledSurfaceImage: TiledSurfaceImage?): RenderableLayer(name) {
+abstract class AbstractTiledImageLayer(name: String?, tiledSurfaceImage: TiledSurfaceImage?): RenderableLayer(name) {
     override var isPickEnabled = false // Image layer is not pick able
 
     var tiledSurfaceImage = tiledSurfaceImage?.also { addRenderable(it) }

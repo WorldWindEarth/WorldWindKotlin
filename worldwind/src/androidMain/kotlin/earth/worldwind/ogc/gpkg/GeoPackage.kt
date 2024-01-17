@@ -125,9 +125,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             database.execSQL("""
                 CREATE TABLE IF NOT EXISTS $WEB_SERVICE (
                     table_name TEXT NOT NULL PRIMARY KEY,
-                    type TEXT NOT NULL,
-                    address TEXT NOT NULL,
+                    service_type TEXT NOT NULL,
+                    service_address TEXT NOT NULL,
                     layer_name TEXT,
+                    layer_metadata TEXT,
                     output_format TEXT NOT NULL,
                     is_transparent SMALLINT DEFAULT 0
                 )
@@ -194,9 +195,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         connection.openDatabase().use { database -> service.run {
             val values = ContentValues().apply {
                 put("table_name", tableName)
-                put("type", type)
-                put("address", address)
+                put("service_type", type)
+                put("service_address", address)
                 put("layer_name", layerName)
+                put("layer_metadata", layerMetadata)
                 put("output_format", outputFormat)
                 put("is_transparent", isTransparent)
             }
@@ -352,12 +354,13 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
         connection.openDatabase().use { database ->
             try {
                 database.rawQuery("""
-                    SELECT table_name, type, address, layer_name, output_format, is_transparent FROM '$WEB_SERVICE'
+                    SELECT table_name, service_type, service_address, layer_name, layer_metadata, output_format, is_transparent
+                    FROM '$WEB_SERVICE'
                 """.trimIndent(), null).use { it.run {
                     while (moveToNext()) addWebService(
                         GpkgWebService(
                             this@GeoPackage, getString(0), getString(1), getString(2),
-                            getString(3), getString(4), getInt(5) != 0
+                            getString(3), getString(4), getString(5),getInt(6) != 0
                         )
                     )
                 } }
