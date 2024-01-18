@@ -239,6 +239,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val cacheSource = tile.cacheSource ?: cacheTileFactory?.run {
             (createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile).imageSource?.also { tile.cacheSource = it }
         }
+        // Read cache only in case of tile factory and cache factory are the same
+        val isCacheOnly = isCacheOnly || tileFactory == cacheTileFactory
         // If a cache source is not absent, then retrieve it instead of an original image source
         val isCacheAbsent = cacheSource == null || rc.renderResourceCache.absentResourceList.isResourceAbsent(cacheSource.hashCode())
         return rc.getTexture(

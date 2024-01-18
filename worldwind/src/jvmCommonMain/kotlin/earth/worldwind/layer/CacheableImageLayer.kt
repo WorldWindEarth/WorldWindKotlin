@@ -24,6 +24,10 @@ interface CacheableImageLayer : Layer {
      */
     val contentKey get() = tiledSurfaceImage?.cacheTileFactory?.contentKey
     /**
+     * Path to cache content storage root
+     */
+    val contentPath get() = tiledSurfaceImage?.cacheTileFactory?.contentPath
+    /**
      * Bounding sector of cache content or null, if cache is not configured or bounding measures are not specified
      */
     val boundingSector get() = tiledSurfaceImage?.cacheTileFactory?.boundingSector

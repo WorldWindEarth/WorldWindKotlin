@@ -6,7 +6,9 @@ import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.ogc.gpkg.GpkgContent
 
 open class GpkgElevationSourceFactory(protected val tiles: GpkgContent, protected val isFloat: Boolean) : CacheSourceFactory {
+    override val contentType = "GPKG"
     override val contentKey get() = tiles.tableName
+    override val contentPath get() = tiles.container.pathName
     override val lastUpdateDate get() = tiles.lastChange
     override val boundingSector get() = tiles.container.getBoundingSector(tiles)
 

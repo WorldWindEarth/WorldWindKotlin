@@ -182,8 +182,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         createWebServiceTable()
         writeWebService(
             GpkgWebService(
-                this, tableName, layer.serviceType, layer.serviceAddress, layer.layerName,
-                layer.layerMetadata, layer.imageFormat, layer.isTransparent
+                this, tableName, layer.serviceType, layer.serviceAddress, layer.serviceMetadata,
+                layer.layerName, layer.imageFormat, layer.isTransparent
             )
         )
     }
@@ -290,8 +290,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         createWebServiceTable()
         writeWebService(
             GpkgWebService(
-                this, tableName, coverage.serviceType, coverage.serviceAddress, coverage.coverageName,
-                coverage.coverageMetadata, coverage.outputFormat
+                this, tableName, coverage.serviceType, coverage.serviceAddress, coverage.serviceMetadata,
+                coverage.coverageName, coverage.outputFormat
             )
         )
     }
@@ -442,7 +442,9 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         sector.maxLongitude.inDegrees, sector.maxLatitude.inDegrees
     )
 
+    abstract val isShutdown: Boolean
     protected abstract suspend fun initConnection(pathName: String, isReadOnly: Boolean)
+    abstract suspend fun shutdown()
 
     protected abstract suspend fun createRequiredTables()
     protected abstract suspend fun createGriddedCoverageTables()

@@ -1,7 +1,14 @@
 package earth.worldwind.ogc.gpkg
 
 actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Boolean): AbstractGeoPackage(pathName, isReadOnly) {
+    override val isShutdown: Boolean
+        get() = TODO("Not yet implemented")
+
     override suspend fun initConnection(pathName: String, isReadOnly: Boolean) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun shutdown() {
         TODO("Not yet implemented")
     }
 

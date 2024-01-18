@@ -27,6 +27,8 @@ actual open class TiledElevationCoverage actual constructor(
      * This is a dummy workaround for asynchronously defined ElevationSourceFactory
      */
     actual constructor(): this(TileMatrixSet(), object : ElevationSourceFactory {
+        override val contentType = "Dummy"
+
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
@@ -129,6 +131,8 @@ actual open class TiledElevationCoverage actual constructor(
         } catch (logged: Throwable) {
             null // Ignore cache decoding exceptions
         } ?: run {
+            // Read cache only in case of elevation source factory and cache factory are the same
+            val isCacheOnly = isCacheOnly || elevationSourceFactory == cacheSourceFactory
             // Check if an online source is enabled. Cache source must exist to be able to disable an online source.
             if (!isCacheOnly || cacheSource == null) {
                 // Determine online source

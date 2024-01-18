@@ -10,7 +10,9 @@ import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.Level
 
 open class GpkgTileFactory(protected val tiles: GpkgContent, protected val imageFormat: String? = null): CacheTileFactory {
+    override val contentType = "GPKG"
     override val contentKey get() = tiles.tableName
+    override val contentPath get() = tiles.container.pathName
     override val lastUpdateDate get() = tiles.lastChange
     override val boundingSector get() = tiles.container.getBoundingSector(tiles)
 

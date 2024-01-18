@@ -11,14 +11,18 @@ import java.util.concurrent.TimeUnit
 actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Boolean): AbstractGeoPackage(pathName, isReadOnly) {
     private lateinit var connection: SQLiteConnection
 
+    override val isShutdown get() = connection.isShutdown
+
     override suspend fun initConnection(pathName: String, isReadOnly: Boolean) {
         connection = SQLiteConnection(
             pathName, if (isReadOnly) OPEN_READONLY else OPEN_READWRITE or CREATE_IF_NECESSARY, 60, TimeUnit.SECONDS
         )
     }
 
+    override suspend fun shutdown() = connection.shutdown()
+
     override suspend fun createRequiredTables() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             database.execSQL("""
                 CREATE TABLE IF NOT EXISTS $SPATIAL_REF_SYS (
                     srs_name TEXT NOT NULL,
@@ -84,7 +88,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun createGriddedCoverageTables() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             database.execSQL("""
                 CREATE TABLE IF NOT EXISTS $GRIDDED_COVERAGE_ANCILLARY (
                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -121,14 +125,14 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun createWebServiceTable() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             database.execSQL("""
                 CREATE TABLE IF NOT EXISTS $WEB_SERVICE (
                     table_name TEXT NOT NULL PRIMARY KEY,
                     service_type TEXT NOT NULL,
                     service_address TEXT NOT NULL,
+                    service_metadata TEXT,
                     layer_name TEXT,
-                    layer_metadata TEXT,
                     output_format TEXT NOT NULL,
                     is_transparent SMALLINT DEFAULT 0
                 )
@@ -137,7 +141,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun createTilesTable(tableName: String) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             database.execSQL("""
                 CREATE TABLE IF NOT EXISTS "$tableName" (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,7 +156,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeSpatialReferenceSystem(srs: GpkgSpatialReferenceSystem) {
-        connection.openDatabase().use { database -> srs.run {
+        connection.openDatabase()?.use { database -> srs.run {
             val values = ContentValues().apply {
                 put("srs_name", srsName)
                 put("srs_id", srsId)
@@ -171,7 +175,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeContent(content: GpkgContent) {
-        connection.openDatabase().use { database -> content.run {
+        connection.openDatabase()?.use { database -> content.run {
             val values = ContentValues().apply {
                 put("table_name", tableName)
                 put("data_type", dataType)
@@ -192,13 +196,13 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeWebService(service: GpkgWebService) {
-        connection.openDatabase().use { database -> service.run {
+        connection.openDatabase()?.use { database -> service.run {
             val values = ContentValues().apply {
                 put("table_name", tableName)
                 put("service_type", type)
                 put("service_address", address)
+                put("service_metadata", metadata)
                 put("layer_name", layerName)
-                put("layer_metadata", layerMetadata)
                 put("output_format", outputFormat)
                 put("is_transparent", isTransparent)
             }
@@ -210,7 +214,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeMatrixSet(matrixSet: GpkgTileMatrixSet) {
-        connection.openDatabase().use { database -> matrixSet.run {
+        connection.openDatabase()?.use { database -> matrixSet.run {
             val values = ContentValues().apply {
                 put("table_name", tableName)
                 put("srs_id", srsId)
@@ -224,7 +228,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeMatrix(matrix: GpkgTileMatrix) {
-        connection.openDatabase().use { database -> matrix.run {
+        connection.openDatabase()?.use { database -> matrix.run {
             val values = ContentValues().apply {
                 put("table_name", tableName)
                 put("zoom_level", zoomLevel)
@@ -240,7 +244,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeExtension(extension: GpkgExtension) {
-        connection.openDatabase().use { database -> extension.run {
+        connection.openDatabase()?.use { database -> extension.run {
             val values = ContentValues().apply {
                 put("table_name", tableName)
                 put("column_name", columnName)
@@ -253,7 +257,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeGriddedCoverage(griddedCoverage: GpkgGriddedCoverage) {
-        connection.openDatabase().use { database -> griddedCoverage.run {
+        connection.openDatabase()?.use { database -> griddedCoverage.run {
             val values = ContentValues().apply {
                 put("tile_matrix_set_name", tileMatrixSetName)
                 put("datatype", datatype)
@@ -271,7 +275,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeGriddedTile(griddedTile: GpkgGriddedTile) {
-        connection.openDatabase().use { database -> griddedTile.run {
+        connection.openDatabase()?.use { database -> griddedTile.run {
             val values = ContentValues().apply {
                 put("tpudt_name", tpudtName)
                 put("tpudt_id", tpudtId)
@@ -288,7 +292,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun writeTileUserData(tableName: String, userData: GpkgTileUserData) {
-        connection.openDatabase().use { database -> userData.run {
+        connection.openDatabase()?.use { database -> userData.run {
             val values = ContentValues().apply {
                 put("zoom_level", zoomLevel)
                 put("tile_column", tileColumn)
@@ -301,7 +305,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun updateContentsLastChangeDate(content: GpkgContent) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             val values = ContentValues().apply {
                 put("last_change", content.lastChange.toString())
             }
@@ -310,7 +314,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readSpatialReferenceSystem() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.rawQuery("""
                     SELECT srs_name, srs_id, organization, organization_coordsys_id, definition, description 
@@ -330,7 +334,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readContent() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.rawQuery("""
                     SELECT table_name, data_type, identifier, description, last_change, min_x, min_y, max_x, max_y, srs_id
@@ -351,10 +355,10 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readWebService() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.rawQuery("""
-                    SELECT table_name, service_type, service_address, layer_name, layer_metadata, output_format, is_transparent
+                    SELECT table_name, service_type, service_address, service_metadata, layer_name, output_format, is_transparent
                     FROM '$WEB_SERVICE'
                 """.trimIndent(), null).use { it.run {
                     while (moveToNext()) addWebService(
@@ -371,7 +375,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readTileMatrixSet() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.rawQuery(
                     "SELECT table_name, srs_id, min_x, min_y, max_x, max_y FROM '$TILE_MATRIX_SET'", null
@@ -390,7 +394,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readTileMatrix() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.rawQuery("""
                     SELECT table_name, zoom_level, matrix_width, matrix_height, tile_width, tile_height, pixel_x_size, pixel_y_size 
@@ -410,7 +414,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readExtension() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.rawQuery(
                     "SELECT table_name, column_name, extension_name, definition, scope FROM '$EXTENSIONS'", null
@@ -429,7 +433,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readGriddedCoverage() {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.rawQuery("""
                     SELECT id, tile_matrix_set_name, datatype, scale, 'offset', precision, data_null, grid_cell_encoding,
@@ -450,7 +454,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun readGriddedTile(tableName: String, tileId: Int) =
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             database.rawQuery("""
                 SELECT id, tpudt_name, tpudt_id, scale, 'offset', min, max, mean, std_dev FROM '$GRIDDED_TILE_ANCILLARY' 
                 WHERE tpudt_name=? AND tpudt_id=? LIMIT 1
@@ -465,7 +469,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
 
     override suspend fun readTileUserData(tableName: String, zoom: Int, column: Int, row: Int) =
         // TODO SQLiteDatabase is ambiguous on whether the call to rawQuery and Cursor usage are thread safe
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             database.rawQuery("""
                 SELECT id, zoom_level, tile_column, tile_row, tile_data FROM '$tableName' 
                 WHERE zoom_level=? AND tile_column=? AND tile_row=? LIMIT 1
@@ -477,14 +481,14 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
             } }
         }
 
-    override suspend fun readTilesDataSize(tableName: String): Long = connection.openDatabase().use { database ->
+    override suspend fun readTilesDataSize(tableName: String): Long = connection.openDatabase()?.use { database ->
         database.rawQuery("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'", emptyArray()).use { it.run {
             if (moveToNext()) getLong(0) else 0L
         } }
-    }
+    } ?: 0L
 
     override suspend fun deleteContent(content: GpkgContent) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.delete(CONTENTS, "table_name=?", arrayOf(content.tableName))
             } catch (_: SQLException) {
@@ -494,7 +498,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun deleteMatrixSet(matrixSet: GpkgTileMatrixSet) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.delete(TILE_MATRIX_SET, "table_name=?", arrayOf(matrixSet.tableName))
             } catch (_: SQLException) {
@@ -504,7 +508,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun deleteMatrix(matrix: GpkgTileMatrix) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 val args = arrayOf(matrix.tableName, matrix.zoomLevel.toString())
                 database.delete(TILE_MATRIX, "table_name=? AND zoom_level=?", args)
@@ -515,7 +519,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun deleteExtension(extension: GpkgExtension) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.delete(EXTENSIONS, "table_name=?", arrayOf(extension.tableName))
             } catch (_: SQLException) {
@@ -525,7 +529,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun deleteGriddedCoverage(griddedCoverage: GpkgGriddedCoverage) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 val args = arrayOf(griddedCoverage.tileMatrixSetName)
                 database.delete(GRIDDED_COVERAGE_ANCILLARY, "tile_matrix_set_name=?", args)
@@ -536,7 +540,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun deleteGriddedTiles(tableName: String) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.delete(GRIDDED_TILE_ANCILLARY, "tpudt_name=?", arrayOf(tableName))
             } catch (_: SQLException) {
@@ -546,7 +550,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun deleteWebService(service: GpkgWebService) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.delete(WEB_SERVICE, "table_name=?", arrayOf(service.tableName))
             } catch (_: SQLException) {
@@ -556,7 +560,7 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun clearTilesTable(tableName: String) {
-        connection.openDatabase().use { database ->
+        connection.openDatabase()?.use { database ->
             try {
                 database.delete(tableName, "", emptyArray())
             } catch (_: SQLException) {
@@ -566,6 +570,6 @@ actual open class GeoPackage actual constructor(pathName: String, isReadOnly: Bo
     }
 
     override suspend fun dropTilesTable(tableName: String) {
-        connection.openDatabase().use { database -> database.execSQL("DROP TABLE IF EXISTS $tableName") }
+        connection.openDatabase()?.use { database -> database.execSQL("DROP TABLE IF EXISTS $tableName") }
     }
 }

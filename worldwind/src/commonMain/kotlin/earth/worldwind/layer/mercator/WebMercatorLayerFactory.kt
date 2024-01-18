@@ -25,6 +25,7 @@ object WebMercatorLayerFactory {
         val randomValues = randomValue?.removeSurrounding(RAND_PREFIX, "}")?.split(",")
 
         return object : MercatorTiledImageLayer(name, numLevels, tileSize, transparent, levelOffset), WebImageLayer {
+            override val contentType = "Web Mercator"
             override val serviceType = SERVICE_TYPE
             override val serviceAddress = urlTemplate
             override val imageFormat = imageFormat

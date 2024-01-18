@@ -16,6 +16,7 @@ import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 
 open class BasicTessellator: Tessellator, TileFactory {
+    override val contentType = "Tessellator"
     /**
      * Default level set is configured to ~0.6 meter resolution
      */

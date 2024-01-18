@@ -24,7 +24,6 @@ import io.ktor.utils.io.core.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 import kotlin.math.abs
 
@@ -44,23 +43,22 @@ object WmtsLayerFactory {
      *
      * @param serviceAddress WMTS service address
      * @param layerName Optional WMTS layer name to be requested into the resulting image layer
-     * @param layerMetadata Optional layer metadata to avoid online capabilities request
+     * @param serviceMetadata Optional WMTS capabilities XML string to avoid online capabilities request
      */
-    suspend fun createLayer(serviceAddress: String, layerName: String? = null, layerMetadata: String? = null): TiledImageLayer {
+    suspend fun createLayer(serviceAddress: String, layerName: String, serviceMetadata: String? = null): TiledImageLayer {
 		require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingServiceAddress")
         }
-        val wmtsLayer = if (layerMetadata != null) decodeWmtsLayer(layerMetadata)
-        else if (layerName != null) retrieveWmtsCapabilities(serviceAddress).getLayer(layerName)
-        else error(logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingLayerNames"))
+        require(layerName.isNotEmpty()) {
+            logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingLayerNames")
+        }
+        val wmtsCapabilitiesText = serviceMetadata ?: retrieveWmtsCapabilities(serviceAddress)
+        val wmtsCapabilities = decodeWmtsCapabilities(wmtsCapabilitiesText)
+        val wmtsLayer = wmtsCapabilities.getLayer(layerName)
         requireNotNull(wmtsLayer) {
             makeMessage("WmtsLayerFactory", "createLayer", "Specified layer name was not found")
         }
-        return createWmtsImageLayer(serviceAddress, wmtsLayer)
-    }
-
-    private suspend fun decodeWmtsLayer(xmlText: String) = withContext(Dispatchers.Default) {
-        xml.decodeFromString<WmtsLayer>(xmlText)
+        return createWmtsImageLayer(serviceAddress, wmtsCapabilitiesText, wmtsLayer)
     }
 
     private suspend fun retrieveWmtsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
@@ -71,17 +69,19 @@ object WmtsLayerFactory {
             .build()
         runCatching { httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText() }
             .getOrElse { error("Unable to open connection and read from service address") }
-    }.let { xmlText ->
-        withContext(Dispatchers.Default) { xml.decodeFromString<WmtsCapabilities>(xmlText) }
+    }
+
+    private suspend fun decodeWmtsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {
+        xml.decodeFromString<WmtsCapabilities>(xmlText)
     }
 
     private fun createWmtsImageLayer(
-        serviceAddress: String, wmtsLayer: WmtsLayer
+        serviceAddress: String, serviceMetadata: String, wmtsLayer: WmtsLayer
     ): TiledImageLayer = object : TiledImageLayer(wmtsLayer.title, createWmtsSurfaceImage(wmtsLayer)), WebImageLayer {
         override val serviceType = SERVICE_TYPE
         override val serviceAddress = serviceAddress
+        override val serviceMetadata = serviceMetadata
         override val layerName = wmtsLayer.identifier
-        override val layerMetadata get() = xml.encodeToString(wmtsLayer)
         override val imageFormat get() = (tiledSurfaceImage?.tileFactory as? WmtsTileFactory)?.imageFormat ?: "image/png"
         override val isTransparent = true // WMTS has no transparency data available
     }

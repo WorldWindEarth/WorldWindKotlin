@@ -51,4 +51,11 @@ interface ContentManager {
         coverage: CacheableElevationCoverage, contentKey: String, boundingSector: Sector? = null,
         setupWebCoverage: Boolean = true, isFloat: Boolean = false
     )
+
+    /**
+     * Delete content from cache
+     *
+     * @param contentKey Unique key of cache content
+     */
+    suspend fun deleteContent(contentKey: String)
 }

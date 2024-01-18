@@ -15,6 +15,8 @@ open class WmtsTileFactory(var template: String, var tileMatrixIdentifiers: List
         const val TILECOL_TEMPLATE = "{TileCol}"
     }
 
+    override val contentType = "WMTS 1.0.0"
+
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) = ImageTile(sector, level, row, column).apply {
         urlForTile(level.levelNumber, row, column)?.let { urlString ->
             // Assign resource post-processor to transform received resource and save it in cache if necessary
