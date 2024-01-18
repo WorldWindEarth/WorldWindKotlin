@@ -37,6 +37,10 @@ abstract class AbstractTiledElevationCoverage(
             invalidateTiles()
         }
     /**
+     * Unique identifier of the coverage type, defined by elevation source factory content type
+     */
+    val type get() = elevationSourceFactory.contentType
+    /**
      * Controls how many concurrent tile requests are allowed for this coverage.
      */
     var retrievalQueueSize = 4

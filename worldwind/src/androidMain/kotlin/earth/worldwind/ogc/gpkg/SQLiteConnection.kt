@@ -12,13 +12,16 @@ open class SQLiteConnection(val pathName: String, val flags: Int, keepAliveTime:
     protected var job: Job? = null
     protected var database: SQLiteDatabase? = null
     protected val lock = Any()
+    var isShutdown = false
+        protected set
 
     fun setKeepAliveTime(time: Long, unit: TimeUnit) {
         keepAliveTime = unit.toMillis(time)
         restartJob()
     }
 
-    fun openDatabase(): SQLiteDatabase {
+    fun openDatabase(): SQLiteDatabase? {
+        if (isShutdown) return null
         synchronized(lock) {
             val database = database ?: SQLiteDatabase.openDatabase(pathName, null, flags).also {
                 database = it
@@ -30,6 +33,13 @@ open class SQLiteConnection(val pathName: String, val flags: Int, keepAliveTime:
             restartJob()
             return database
         }
+    }
+
+    fun shutdown() {
+        isShutdown = true
+        job?.cancel()
+        job = null
+        onConnectionTimeout()
     }
 
     protected open fun onConnectionTimeout() {

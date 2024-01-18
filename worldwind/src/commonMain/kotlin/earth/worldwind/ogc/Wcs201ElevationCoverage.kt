@@ -42,7 +42,7 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
     final override val serviceType = SERVICE_TYPE
     final override val serviceAddress: String
     final override val coverageName: String
-    final override var coverageMetadata: String? = null
+    final override var serviceMetadata: String? = null
         private set
     final override val outputFormat: String
     protected val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
@@ -77,17 +77,17 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
      * @param serviceAddress   the WCS service address
      * @param coverageName     the WCS coverage name
      * @param outputFormat     the WCS source data format
-     * @param coverageMetadata optional coverage metadata to avoid online capabilities request
+     * @param serviceMetadata optional WCS coverage description XML string to avoid online coverages request
      */
-    constructor(serviceAddress: String, coverageName: String, outputFormat: String, coverageMetadata: String? = null) {
+    constructor(serviceAddress: String, coverageName: String, outputFormat: String, serviceMetadata: String? = null) {
         this.serviceAddress = serviceAddress
         this.coverageName = coverageName
         this.outputFormat = outputFormat
-        this.coverageMetadata = coverageMetadata
+        this.serviceMetadata = serviceMetadata
         mainScope.launch {
             try {
                 // Fetch the DescribeCoverage document and determine the bounding box and number of levels
-                val coverageDescription = if (coverageMetadata != null) decodeCoverage(coverageMetadata)
+                val coverageDescription = if (serviceMetadata != null) decodeCoverageDescription(serviceMetadata)
                 else describeCoverage(serviceAddress, coverageName).getCoverageDescription(coverageName) ?: error(
                     makeMessage(
                         "Wcs201ElevationCoverage", "constructor",
@@ -101,9 +101,9 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
                         "WCS coverage axis labels are undefined: $coverageName"
                     )
                 }
+                this@Wcs201ElevationCoverage.serviceMetadata = serviceMetadata ?: xml.encodeToString(coverageDescription)
                 elevationSourceFactory = Wcs201ElevationSourceFactory(serviceAddress, coverageName, outputFormat, axisLabels)
                 tileMatrixSet = tileMatrixSetFromCoverageDescription(coverageDescription)
-                this@Wcs201ElevationCoverage.coverageMetadata = coverageMetadata ?: xml.encodeToString(coverageDescription)
                 WorldWind.requestRedraw()
             } catch (logged: Throwable) {
                 logMessage(
@@ -160,10 +160,6 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
         )
     }
 
-    protected open suspend fun decodeCoverage(xmlText: String) = withContext(Dispatchers.Default) {
-        xml.decodeFromString<Wcs201CoverageDescription>(xmlText)
-    }
-
     @Throws(OwsException::class)
     protected open suspend fun describeCoverage(serviceAddress: String, coverageId: String) = DefaultHttpClient().use {
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
@@ -179,6 +175,10 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
             if (status == HttpStatusCode.OK) xml.decodeFromString<Wcs201CoverageDescriptions>(xmlText)
             else throw OwsException(xml.decodeFromString(xmlText))
         }
+    }
+
+    protected open suspend fun decodeCoverageDescription(xmlText: String) = withContext(Dispatchers.Default) {
+        xml.decodeFromString<Wcs201CoverageDescription>(xmlText)
     }
 
     companion object {

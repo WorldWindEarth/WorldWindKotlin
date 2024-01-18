@@ -9,6 +9,10 @@ interface CacheSourceFactory : ElevationSourceFactory {
      */
     val contentKey: String
     /**
+     * Path to cache content storage root
+     */
+    val contentPath: String
+    /**
      * Bounding sector of cache content or null, if it is not specified
      */
     val boundingSector: Sector?

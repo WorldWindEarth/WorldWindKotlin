@@ -43,6 +43,8 @@ open class WmsElevationCoverage(
             val layerConfig = WmsLayerConfig(serviceAddress, coverage).apply { this.imageFormat = imageFormat }
             val wmsTileFactory = WmsTileFactory(layerConfig)
             return object : ElevationSourceFactory {
+                override val contentType = "WMS 1.3.0"
+
                 override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
                     val tileSector = tileMatrix.tileSector(row, column)
                     val urlString = wmsTileFactory.urlForTile(tileSector, tileMatrix.tileWidth, tileMatrix.tileHeight)

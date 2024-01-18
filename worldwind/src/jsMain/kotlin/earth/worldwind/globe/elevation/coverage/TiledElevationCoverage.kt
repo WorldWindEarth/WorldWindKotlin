@@ -26,6 +26,8 @@ actual open class TiledElevationCoverage actual constructor(
      * This is a dummy workaround for asynchronously defined ElevationSourceFactory
      */
     actual constructor(): this(TileMatrixSet(), object : ElevationSourceFactory {
+        override val contentType = "Dummy"
+
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 

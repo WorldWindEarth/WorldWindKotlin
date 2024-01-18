@@ -7,6 +7,11 @@ import earth.worldwind.geom.Sector
  */
 interface TileFactory {
     /**
+     * Unique tile factory content type name
+     */
+    val contentType: String
+
+    /**
      * Returns a tile for a specified sector, level within a [LevelSet], and row and column within that level.
      *
      * @param sector the sector spanned by the tile

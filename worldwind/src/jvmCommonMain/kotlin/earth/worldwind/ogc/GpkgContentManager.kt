@@ -12,14 +12,25 @@ import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
 import earth.worldwind.ogc.gpkg.AbstractGeoPackage.Companion.EPSG_3857
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.shape.TiledSurfaceImage
+import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.ContentManager
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentManager {
-    private val geoPackage by lazy { GeoPackage(pathName, readOnly) }
+class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false): ContentManager {
+    private val geoPackage by lazy { GeoPackage(pathName, isReadOnly) }
+
+    /**
+     * Returns database connection state. If true, then the Content Manager cannot be used anymore.
+     */
+    val isShutdown get() = geoPackage.isShutdown
+
+    /**
+     * Shutdown GPKG database connection forever for this Content Manager instance.
+     */
+    suspend fun shutdown() = geoPackage.shutdown()
 
     override suspend fun getImageLayers(contentKeys: List<String>?) = withContext(Dispatchers.IO) {
         geoPackage.content.values
@@ -34,11 +45,15 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                         runCatching {
                             when (service.type) {
                                 WmsLayerFactory.SERVICE_TYPE -> WmsLayerFactory.createLayer(
-                                    service.address, service.layerName?.split(","), service.layerMetadata
+                                    service.address,
+                                    service.layerName?.split(",") ?: error("Layer not specified"),
+                                    service.metadata
                                 )
 
                                 WmtsLayerFactory.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
-                                    service.address, service.layerName, service.layerMetadata
+                                    service.address,
+                                    service.layerName ?: error("Layer not specified"),
+                                    service.metadata
                                 )
 
                                 WebMercatorLayerFactory.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
@@ -58,7 +73,10 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                         MercatorTiledSurfaceImage(GpkgTileFactory(content), LevelSet(config))
                     } else {
                         TiledSurfaceImage(GpkgTileFactory(content), LevelSet(config))
-                    })
+                    }).apply {
+                        // Set cache factory to be able to use cacheale layer interface
+                        tiledSurfaceImage?.cacheTileFactory = tiledSurfaceImage?.tileFactory as? CacheTileFactory
+                    }
                 }
             }
     }
@@ -117,7 +135,7 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                             service.address,
                             service.layerName ?: error("Coverage not specified"),
                             service.outputFormat,
-                            service.layerMetadata
+                            service.metadata
                         ).apply { cacheSourceFactory = factory }
 
                         WmsElevationCoverage.SERVICE_TYPE -> WmsElevationCoverage(
@@ -127,7 +145,10 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
                             matrixSet.sector, matrixSet.maxResolution
                         ).apply { cacheSourceFactory = factory }
 
-                        else -> TiledElevationCoverage(matrixSet, factory)
+                        else -> TiledElevationCoverage(matrixSet, factory).apply {
+                            // Configure cache to be able to use cacheable converage interface
+                            cacheSourceFactory = factory
+                        }
                     }
                 }.onFailure {
                     Logger.logMessage(Logger.WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
@@ -158,6 +179,8 @@ class GpkgContentManager(pathName: String, readOnly: Boolean = false): ContentMa
 
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(content, isFloat)
     }
+
+    override suspend fun deleteContent(contentKey: String) = geoPackage.deleteContent(contentKey)
 
     companion object {
         private const val TOLERANCE = 1e-6

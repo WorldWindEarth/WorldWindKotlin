@@ -27,6 +27,10 @@ interface CacheableElevationCoverage : ElevationCoverage {
      */
     val contentKey get() = cacheSourceFactory?.contentKey
     /**
+     * Path to cache content storage root
+     */
+    val contentPath get() = cacheSourceFactory?.contentPath
+    /**
      * Bounding sector of cache content or null, if cache is not configured or bounding measures are not specified
      */
     val boundingSector get() = cacheSourceFactory?.boundingSector

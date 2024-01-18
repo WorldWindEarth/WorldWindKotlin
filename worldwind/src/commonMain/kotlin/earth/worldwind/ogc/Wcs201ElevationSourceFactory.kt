@@ -27,6 +27,8 @@ open class Wcs201ElevationSourceFactory(
      */
     protected val coordinateSystem: String = "EPSG:4326"
 ): ElevationSourceFactory {
+    override val contentType = "WCS 2.0.1"
+
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource {
         val urlString = urlForTile(tileMatrix, row, column)
         return ElevationSource.fromUrlString(urlString)

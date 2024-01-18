@@ -63,6 +63,8 @@ open class WmsTileFactory(
         timeString = config.timeString
     }
 
+    override val contentType = "WMS 1.3.0"
+
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) = ImageTile(sector, level, row, column).apply {
         urlForTile(sector, level.tileWidth, level.tileHeight).let { urlString ->
             // Assign resource post-processor to transform received resource and save it in cache if necessary

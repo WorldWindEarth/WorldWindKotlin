@@ -5,8 +5,8 @@ class GpkgWebService(
     val tableName: String,
     val type: String,
     val address: String,
+    val metadata: String? = null,
     val layerName: String? = null,
-    val layerMetadata: String? = null,
     val outputFormat: String,
     val isTransparent: Boolean = false // For elevation coverages this attribute is always false
 ): GpkgEntry()

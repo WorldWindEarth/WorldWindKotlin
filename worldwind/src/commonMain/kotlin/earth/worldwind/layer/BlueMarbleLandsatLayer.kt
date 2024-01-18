@@ -18,6 +18,8 @@ import kotlin.jvm.JvmOverloads
 class BlueMarbleLandsatLayer @JvmOverloads constructor(
     serviceAddress: String = "https://worldwind25.arc.nasa.gov/wms"
 ): TiledImageLayer("Blue Marble & Landsat"), TileFactory {
+    override val contentType = "BMLS"
+
     private val blueMarbleTileFactory = WmsTileFactory(WmsLayerConfig(serviceAddress, "BlueMarble-200405").apply {
         isTransparent = false // the BlueMarble layer is opaque
     })
