@@ -19,6 +19,8 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
     companion object {
         const val EPSG_3857 = 3857
         const val EPSG_4326 = 4326
+        const val TILES = "tiles"
+        const val COVERAGE = "2d-gridded-coverage"
     }
 
     val spatialReferenceSystem = mutableMapOf<Int, GpkgSpatialReferenceSystem>()
@@ -140,7 +142,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         val content = GpkgContent(
             container = this,
             tableName = tableName,
-            dataType = "tiles",
+            dataType = TILES,
             identifier = layer.displayName ?: tableName,
             minX = box[0],
             minY = box[1],
@@ -151,6 +153,23 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         writeContent(content)
         if (setupWebLayer && layer is WebImageLayer) setupWebLayer(layer, tableName)
         return content
+    }
+
+    suspend fun updateTilesContent(layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, boundingSector: Sector?) {
+        val srsId = if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326
+        val box = buildBoundingBox(boundingSector ?: levelSet.sector, srsId)
+        val content = GpkgContent(
+            container = this,
+            tableName = tableName,
+            dataType = TILES,
+            identifier = layer.displayName ?: tableName,
+            minX = box[0],
+            minY = box[1],
+            maxX = box[2],
+            maxY = box[3],
+            srsId = srsId
+        )
+        writeContent(content)
     }
 
     @Throws(IllegalStateException::class)
@@ -254,7 +273,7 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         val content = GpkgContent(
             container = this,
             tableName = tableName,
-            dataType = "2d-gridded-coverage",
+            dataType = COVERAGE,
             identifier = coverage.displayName ?: tableName,
             minX = box[0],
             minY = box[1],
@@ -265,6 +284,23 @@ abstract class AbstractGeoPackage(val pathName: String, val isReadOnly: Boolean)
         writeContent(content)
         if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, tableName)
         return content
+    }
+
+    suspend fun updateGriddedCoverageContent(coverage: CacheableElevationCoverage, tableName: String, boundingSector: Sector?) {
+        val srsId = EPSG_4326
+        val box = buildBoundingBox(boundingSector ?: coverage.tileMatrixSet.sector, srsId)
+        val content = GpkgContent(
+            container = this,
+            tableName = tableName,
+            dataType = COVERAGE,
+            identifier = coverage.displayName ?: tableName,
+            minX = box[0],
+            minY = box[1],
+            maxX = box[2],
+            maxY = box[3],
+            srsId = srsId
+        )
+        writeContent(content)
     }
 
     @Throws(IllegalStateException::class)

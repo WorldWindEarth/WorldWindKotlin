@@ -9,7 +9,9 @@ import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
+import earth.worldwind.ogc.gpkg.AbstractGeoPackage.Companion.COVERAGE
 import earth.worldwind.ogc.gpkg.AbstractGeoPackage.Companion.EPSG_3857
+import earth.worldwind.ogc.gpkg.AbstractGeoPackage.Companion.TILES
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.CacheTileFactory
@@ -18,6 +20,8 @@ import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Instant
+import java.io.File
 
 class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false): ContentManager {
     private val geoPackage by lazy { GeoPackage(pathName, isReadOnly) }
@@ -32,9 +36,15 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
      */
     suspend fun shutdown() = geoPackage.shutdown()
 
+    override suspend fun contentSize() = File(pathName).length()
+
+    override suspend fun lastModifiedDate() = Instant.fromEpochMilliseconds(File(pathName).lastModified())
+
+    override suspend fun getImageLayersCount() = geoPackage.content.values.count { it.dataType.equals(TILES, true) }
+
     override suspend fun getImageLayers(contentKeys: List<String>?) = withContext(Dispatchers.IO) {
         geoPackage.content.values
-            .filter { it.dataType.equals("tiles", true) && contentKeys?.contains(it.tableName) != false }
+            .filter { it.dataType.equals(TILES, true) && contentKeys?.contains(it.tableName) != false }
             .mapNotNull { content ->
                 // Try to build the level set. It may fail due to unsupported projection or other requirements.
                 runCatching { geoPackage.buildLevelSetConfig(content) }.onFailure {
@@ -108,14 +118,18 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             }
             // Verify if all required tile matrices created
             if (!geoPackage.isReadOnly && config.numLevels < levelSet.numLevels) geoPackage.setupTileMatrices(contentKey, levelSet)
+            // Update content metadata
+            geoPackage.updateTilesContent(layer, contentKey, levelSet, boundingSector)
         } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, boundingSector, setupWebLayer)
 
         layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(content, imageFormat)
     }
 
+    override suspend fun getElevationCoveragesCount() = geoPackage.content.values.count { it.dataType.equals(COVERAGE, true) }
+
     override suspend fun getElevationCoverages(contentKeys: List<String>?) = withContext(Dispatchers.IO) {
         geoPackage.content.values
-            .filter { it.dataType.equals("2d-gridded-coverage", true) && contentKeys?.contains(it.tableName) != false }
+            .filter { it.dataType.equals(COVERAGE, true) && contentKeys?.contains(it.tableName) != false }
             .mapNotNull { content ->
                 runCatching {
                     val metadata = geoPackage.griddedCoverages[content.tableName]
@@ -175,6 +189,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             if (!geoPackage.isReadOnly && matrixSet.entries.size < coverage.tileMatrixSet.entries.size) {
                 geoPackage.setupTileMatrices(contentKey, coverage.tileMatrixSet)
             }
+            // Update content metadata
+            geoPackage.updateGriddedCoverageContent(coverage, contentKey, boundingSector)
         } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, boundingSector, setupWebCoverage, isFloat)
 
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(content, isFloat)
