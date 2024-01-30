@@ -9,6 +9,21 @@ import kotlinx.datetime.Instant
 
 interface ContentManager {
     /**
+     * Get the size of all content manager content
+     */
+    suspend fun contentSize(): Long
+
+    /**
+     * Last modification date of any content in this manager
+     */
+    suspend fun lastModifiedDate(): Instant
+
+    /**
+     * Number of image layers in content manager
+     */
+    suspend fun getImageLayersCount(): Int
+
+    /**
      * Get image layers available in this content manager
      *
      * @param contentKeys Optional list of layer cache content keys, if empty, than all layers will be returned
@@ -28,6 +43,11 @@ interface ContentManager {
     suspend fun setupImageLayerCache(
         layer: CacheableImageLayer, contentKey: String, boundingSector: Sector? = null, setupWebLayer: Boolean = true
     )
+
+    /**
+     * Number of elevation coverages in content manager
+     */
+    suspend fun getElevationCoveragesCount(): Int
 
     /**
      * Get elevation coverages available in this content manager
