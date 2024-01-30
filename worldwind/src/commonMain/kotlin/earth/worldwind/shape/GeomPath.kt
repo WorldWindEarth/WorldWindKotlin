@@ -33,12 +33,11 @@ open class GeomPath @JvmOverloads constructor(
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
     protected val vertexOrigin = Vec3()
-    protected var texCoord1d = 0.0
-    private val point = Vec3()
-    private val prevPoint = Vec3()
-    private val intermediateLocation = Location()
+    private val pointA = Vec3()
+    private val pointB = Vec3()
 
     companion object {
+        protected const val VERTICES_PER_POINT = 4;
         protected const val VERTEX_STRIDE = 4
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
@@ -94,18 +93,6 @@ open class GeomPath @JvmOverloads constructor(
             IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (outlineElements).toIntArray())
         }
 
-        // Configure the drawable to use the outline texture when drawing the outline.
-//        if (activeAttributes.isDrawOutline) {
-//            activeAttributes.outlineImageSource?.let { outlineImageSource ->
-//                rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-//                    val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-//                    computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-//                    drawState.texture(texture)
-//                    drawState.texCoordMatrix(texCoordMatrix)
-//                }
-//            }
-//        }
-
         // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel. Lines
         // drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
         if (activeAttributes.isDrawOutline) {
@@ -113,34 +100,13 @@ open class GeomPath @JvmOverloads constructor(
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f)
             drawState.drawElements(
-                GL_LINE_STRIP, outlineElements.size,
+                GL_TRIANGLES, outlineElements.size,
                 GL_UNSIGNED_INT, 0
             )
         }
 
         // Disable texturing for the remaining drawable primitives.
         drawState.texture(null)
-
-        // Configure the drawable to display the shape's extruded verticals.
-//        if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude) {
-//            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-//            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-//            drawState.lineWidth(activeAttributes.outlineWidth)
-//            drawState.drawElements(
-//                GL_LINES, verticalElements.size,
-//                GL_UNSIGNED_INT, (interiorElements.size + outlineElements.size) * Int.SIZE_BYTES
-//            )
-//        }
-
-        // Configure the drawable to display the shape's extruded interior.
-//        if (activeAttributes.isDrawInterior && isExtrude) {
-//            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
-//            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-//            drawState.drawElements(
-//                GL_TRIANGLE_STRIP, interiorElements.size,
-//                GL_UNSIGNED_INT, 0
-//            )
-//        }
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(vertexOrigin)
@@ -158,7 +124,7 @@ open class GeomPath @JvmOverloads constructor(
 
     protected open fun assembleGeometry(rc: RenderContext) {
         // Determine the number of vertexes
-        val vertexCount = if (maximumIntermediatePoints <= 0 || pathType == LINEAR) positions.size
+        val vertexCount = if (maximumIntermediatePoints <= 0 || pathType == LINEAR) positions.size * VERTICES_PER_POINT
         else if(positions.isNotEmpty()) positions.size + (positions.size - 1) * maximumIntermediatePoints else 0
 
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
@@ -168,16 +134,10 @@ open class GeomPath @JvmOverloads constructor(
         else FloatArray(vertexCount * VERTEX_STRIDE)
         outlineElements.clear()
 
-        // Add the first vertex.
-        var begin = positions[0]
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, false /*intermediate*/)
-
-        // Add the remaining vertices, inserting vertices along each edge as indicated by the path's properties.
-        for (idx in 1 until positions.size) {
-            val end = positions[idx]
-            addIntermediateVertices(rc, begin, end)
-            addVertex(rc, end.latitude, end.longitude, end.altitude, false /*intermediate*/)
-            begin = end
+        for (idx in 0 until positions.size - 1) {
+            val pointA = if(isSurfaceShape) Vec3(positions[idx].longitude.inDegrees, positions[idx].latitude.inDegrees, positions[idx].altitude) else rc.geographicToCartesian(positions[idx].latitude, positions[idx].longitude, positions[idx].altitude, altitudeMode, pointA)
+            val pointB = if(isSurfaceShape) Vec3(positions[idx+1].longitude.inDegrees, positions[idx+1].latitude.inDegrees, positions[idx+1].altitude) else rc.geographicToCartesian(positions[idx+1].latitude, positions[idx+1].longitude, positions[idx+1].altitude, altitudeMode, pointB)
+            addLineSegment(rc, pointA , pointB)
         }
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
@@ -193,82 +153,42 @@ open class GeomPath @JvmOverloads constructor(
         }
     }
 
-    protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
-        if (maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
-        val azimuth: Angle
-        val length: Double
-        when (pathType) {
-            GREAT_CIRCLE -> {
-                azimuth = begin.greatCircleAzimuth(end)
-                length = begin.greatCircleDistance(end)
-            }
-            RHUMB_LINE -> {
-                azimuth = begin.rhumbAzimuth(end)
-                length = begin.rhumbDistance(end)
-            }
-            else -> return  // suppress intermediate vertices when the path type is linear
-        }
-        if (length < NEAR_ZERO_THRESHOLD) return  // suppress intermediate vertices when the edge length less than a millimeter (on Earth)
-        val numSubsegments = maximumIntermediatePoints + 1
-        val deltaDist = length / numSubsegments
-        val deltaAlt = (end.altitude - begin.altitude) / numSubsegments
-        var dist = deltaDist
-        var alt = begin.altitude + deltaAlt
-        for (idx in 1 until numSubsegments) {
-            val loc = intermediateLocation
-            when (pathType) {
-                GREAT_CIRCLE -> begin.greatCircleLocation(azimuth, dist, loc)
-                RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
-                else -> {}
-            }
-            addVertex(rc, loc.latitude, loc.longitude, alt, true /*intermediate*/)
-            dist += deltaDist
-            alt += deltaAlt
-        }
-    }
-
-    protected open fun addVertex(
-        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean
+    protected open fun addLineSegment(
+        rc: RenderContext, pointA : Vec3, pointB : Vec3
     ): Int {
         val vertex = vertexIndex / VERTEX_STRIDE
-        var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertex == 0) {
-            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
-            else vertexOrigin.copy(point)
-            texCoord1d = 0.0
-        } else {
-            texCoord1d += point.distanceTo(prevPoint)
+            vertexOrigin.copy(pointA)
         }
-        prevPoint.copy(point)
-        if (isSurfaceShape) {
-            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            outlineElements.add(vertex)
-        } else {
-            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-//            vertexArray[vertexIndex++] = (point.x).toFloat()
-//            vertexArray[vertexIndex++] = (point.y).toFloat()
-//            vertexArray[vertexIndex++] = (point.z).toFloat()
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            outlineElements.add(vertex)
-//            if (isExtrude) {
-//                point = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, this.point)
-//                vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-//                vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-//                vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-//                vertexArray[vertexIndex++] = 0f /*unused*/
-//                interiorElements.add(vertex)
-//                interiorElements.add(vertex.inc())
-//            }
-//            if (isExtrude && !intermediate) {
-//                verticalElements.add(vertex)
-//                verticalElements.add(vertex.inc())
-//            }
-        }
+        val pointALocal = pointA - vertexOrigin;
+        val pointBLocal = pointB - vertexOrigin;
+        vertexArray[vertexIndex++] = pointALocal.x.toFloat()
+        vertexArray[vertexIndex++] = pointALocal.y.toFloat()
+        vertexArray[vertexIndex++] = pointALocal.z.toFloat()
+        vertexArray[vertexIndex++] = 1.0f
+
+        vertexArray[vertexIndex++] = pointALocal.x.toFloat()
+        vertexArray[vertexIndex++] = pointALocal.y.toFloat()
+        vertexArray[vertexIndex++] = pointALocal.z.toFloat()
+        vertexArray[vertexIndex++] = -1.0f
+
+        vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+        vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+        vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+        vertexArray[vertexIndex++] = 1.0f
+
+        vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+        vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+        vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+        vertexArray[vertexIndex++] = -1.0f
+
+        outlineElements.add(vertex)
+        outlineElements.add(vertex + 1)
+        outlineElements.add(vertex + 2)
+        outlineElements.add(vertex + 3)
+        outlineElements.add(vertex + 2)
+        outlineElements.add(vertex + 1)
+
         return vertex
     }
 }

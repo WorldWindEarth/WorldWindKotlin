@@ -10,12 +10,17 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             uniform mat4 mvpMatrix;
-
+            uniform float lineWidth;
             attribute vec4 vertexPoint;
+            attribute float value;
 
             void main() {
                 /* Transform the vertex position by the modelview-projection matrix. */
-                gl_Position = mvpMatrix * vertexPoint;
+                vec4 position = mvpMatrix * vertexPoint;
+                position = position / position.w;
+                vec2 yBasis = normalize(vec2(-position.y, position.x));
+                position.xy += yBasis * lineWidth * value;
+                gl_Position = position;
             }
         """.trimIndent(),
         """
@@ -35,12 +40,13 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
     override val attribBindings = arrayOf("vertexPoint")
 
     protected val mvpMatrix = Matrix4()
-    protected val texCoordMatrix = Matrix3()
     protected val color = Color()
     protected var opacity = 1.0f
+    protected var lineWidth = 1.0f;
     protected var mvpMatrixId = KglUniformLocation.NONE
     protected var colorId = KglUniformLocation.NONE
     protected var opacityId = KglUniformLocation.NONE
+    protected var lineWidthId = KglUniformLocation.NONE;
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -53,6 +59,8 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         gl.uniform4f(colorId, color.red * alpha, color.green * alpha, color.blue * alpha, alpha)
         opacityId = gl.getUniformLocation(program, "opacity")
         gl.uniform1f(opacityId, opacity)
+        lineWidthId = gl.getUniformLocation(program, "lineWidth");
+        gl.uniform1f(lineWidthId, lineWidth)
     }
 
     fun loadModelviewProjection(matrix: Matrix4) {
@@ -73,6 +81,14 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         if (this.opacity != opacity) {
             this.opacity = opacity
             gl.uniform1f(opacityId, opacity)
+        }
+    }
+
+    fun loadLineWidth(lineWidth : Float)
+    {
+        if(this.lineWidth != lineWidth) {
+            this.lineWidth = lineWidth;
+            gl.uniform1f(lineWidthId, lineWidth)
         }
     }
 }

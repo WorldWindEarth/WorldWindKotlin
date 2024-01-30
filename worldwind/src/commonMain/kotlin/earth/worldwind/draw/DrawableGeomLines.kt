@@ -63,14 +63,17 @@ open class DrawableGeomLines protected constructor(): Drawable {
         // Make multi-texture unit 0 active.
         dc.activeTextureUnit(GL_TEXTURE0)
 
+        dc.gl.enableVertexAttribArray(1 /*value*/)
         // Use the shape's vertex point attribute and vertex texture coordinate attribute.
         dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0 /*offset*/)
+        dc.gl.vertexAttribPointer(1 /*value*/, 1, GL_FLOAT, false, drawState.vertexStride, 12 /*offset*/)
 
         // Draw the specified primitives.
         for (idx in 0 until drawState.primCount) {
             val prim = drawState.prims[idx]
             program.loadColor(prim.color)
             program.loadOpacity(prim.opacity)
+            program.loadLineWidth(prim.lineWidth / dc.viewport.width);
             dc.gl.lineWidth(prim.lineWidth)
             dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
         }
@@ -81,5 +84,6 @@ open class DrawableGeomLines protected constructor(): Drawable {
         if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
         dc.gl.lineWidth(1f)
         dc.gl.enable(GL_CULL_FACE)
+        dc.gl.disableVertexAttribArray(1 /*value*/)
     }
 }

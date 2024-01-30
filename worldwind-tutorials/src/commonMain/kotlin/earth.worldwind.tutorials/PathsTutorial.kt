@@ -21,17 +21,18 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
                     Position.fromDegrees(30.0, -100.0, 1e6),
                     Position.fromDegrees(50.0, -40.0, 1e5)
                 )
-            ).apply{pathType = PathType.LINEAR}
+            ).apply{pathType = PathType.LINEAR
+                 attributes.apply {  outlineWidth = 10.0f }}
         )
-        addRenderable(
-            Path(
-                listOf(
-                    Position.fromDegrees(40.0, -180.0, 1e5),
-                    Position.fromDegrees(20.0, -100.0, 1e6),
-                    Position.fromDegrees(40.0, -40.0, 1e5)
-                )
-            )
-        )
+//        addRenderable(
+//            Path(
+//                listOf(
+//                    Position.fromDegrees(40.0, -170.0, 1e5),
+//                    Position.fromDegrees(20.0, -90.0, 1e6),
+//                    Position.fromDegrees(40.0, -30.0, 1e5)
+//                )
+//            )
+//        )
 //        // Create a basic path with the default attributes, the default altitude mode (ABSOLUTE),
 //        // and the default path type (GREAT_CIRCLE).
 //        addRenderable(
