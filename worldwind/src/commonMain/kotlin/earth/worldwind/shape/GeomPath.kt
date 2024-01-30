@@ -33,8 +33,6 @@ open class GeomPath @JvmOverloads constructor(
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
     protected val vertexOrigin = Vec3()
-    private val pointA = Vec3()
-    private val pointB = Vec3()
 
     companion object {
         protected const val VERTICES_PER_POINT = 4;
@@ -123,9 +121,9 @@ open class GeomPath @JvmOverloads constructor(
     protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty()
 
     protected open fun assembleGeometry(rc: RenderContext) {
+        val numSegments = if(pathType == LINEAR) 1 else maximumIntermediatePoints + 1
         // Determine the number of vertexes
-        val vertexCount = if (maximumIntermediatePoints <= 0 || pathType == LINEAR) positions.size * VERTICES_PER_POINT
-        else if(positions.isNotEmpty()) positions.size + (positions.size - 1) * maximumIntermediatePoints else 0
+        val vertexCount = if(positions.isNotEmpty()) (positions.size - 1) * numSegments * VERTICES_PER_POINT else 0
 
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
@@ -135,9 +133,7 @@ open class GeomPath @JvmOverloads constructor(
         outlineElements.clear()
 
         for (idx in 0 until positions.size - 1) {
-            val pointA = if(isSurfaceShape) Vec3(positions[idx].longitude.inDegrees, positions[idx].latitude.inDegrees, positions[idx].altitude) else rc.geographicToCartesian(positions[idx].latitude, positions[idx].longitude, positions[idx].altitude, altitudeMode, pointA)
-            val pointB = if(isSurfaceShape) Vec3(positions[idx+1].longitude.inDegrees, positions[idx+1].latitude.inDegrees, positions[idx+1].altitude) else rc.geographicToCartesian(positions[idx+1].latitude, positions[idx+1].longitude, positions[idx+1].altitude, altitudeMode, pointB)
-            addLineSegment(rc, pointA , pointB)
+            addLine(rc, positions[idx], positions[idx+1], numSegments)
         }
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
@@ -150,6 +146,58 @@ open class GeomPath @JvmOverloads constructor(
             boundingBox.setToPoints(vertexArray, vertexIndex, VERTEX_STRIDE)
             boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
             boundingSector.setEmpty() // Cartesian shape bounding sector is unused
+        }
+    }
+
+    protected open fun addLine(rc: RenderContext, begin: Position, end: Position, numSegments: Int) {
+        val azimuth: Angle
+        val length: Double
+        when (pathType) {
+            GREAT_CIRCLE -> {
+                azimuth = begin.greatCircleAzimuth(end)
+                length = begin.greatCircleDistance(end)
+            }
+            RHUMB_LINE -> {
+                azimuth = begin.rhumbAzimuth(end)
+                length = begin.rhumbDistance(end)
+            }
+            else ->
+            {
+                azimuth = begin.linearAzimuth(end)
+                length = begin.linearDistance(end)
+            }
+        }
+        val deltaDist = length / numSegments
+        val deltaAlt = (end.altitude - begin.altitude) / numSegments
+        var dist = deltaDist
+        var alt = begin.altitude + deltaAlt
+
+        var prevLoc = begin
+        val loc = Location()
+        for (idx in 0 until numSegments) {
+            when (pathType) {
+                GREAT_CIRCLE -> begin.greatCircleLocation(azimuth, dist, loc)
+                RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
+                else -> begin.linearLocation(azimuth, dist, loc)
+            }
+
+            var pointA = Vec3()
+            if(isSurfaceShape)
+                pointA = Vec3(prevLoc.longitude.inDegrees, prevLoc.latitude.inDegrees, prevLoc.altitude)
+            else
+                rc.geographicToCartesian(prevLoc.latitude, prevLoc.longitude, prevLoc.altitude, altitudeMode, pointA)
+
+            var pointB = Vec3()
+            if(isSurfaceShape)
+                pointB = Vec3(loc.longitude.inDegrees, loc.latitude.inDegrees, alt)
+            else
+                rc.geographicToCartesian(loc.latitude, loc.longitude, alt, altitudeMode, pointB)
+
+            addLineSegment(rc, pointA , pointB)
+
+            prevLoc = Position(loc.latitude, loc.longitude, alt)
+            dist += deltaDist
+            alt += deltaAlt
         }
     }
 
