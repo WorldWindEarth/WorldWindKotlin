@@ -21,7 +21,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
                     Position.fromDegrees(30.0, -100.0, 1e6),
                     Position.fromDegrees(50.0, -40.0, 1e5)
                 )
-            ).apply{pathType = PathType.LINEAR
+            ).apply{pathType = PathType.GREAT_CIRCLE
                  attributes.apply {  outlineWidth = 10.0f }}
         )
 //        addRenderable(
