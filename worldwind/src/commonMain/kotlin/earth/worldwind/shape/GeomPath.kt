@@ -35,8 +35,8 @@ open class GeomPath @JvmOverloads constructor(
     protected val vertexOrigin = Vec3()
 
     companion object {
-        protected const val VERTICES_PER_POINT = 4;
-        protected const val VERTEX_STRIDE = 4
+        protected const val VERTICES_PER_POINT = 2;
+        protected const val VERTEX_STRIDE = 10
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
@@ -52,7 +52,7 @@ open class GeomPath @JvmOverloads constructor(
     }
 
     override fun makeDrawable(rc: RenderContext) {
-        if (positions.isEmpty()) return  // nothing to draw
+        if (positions.size < 2) return  // nothing to draw
 
         if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
@@ -98,7 +98,7 @@ open class GeomPath @JvmOverloads constructor(
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f)
             drawState.drawElements(
-                GL_TRIANGLES, outlineElements.size,
+                GL_TRIANGLE_STRIP, outlineElements.size,
                 GL_UNSIGNED_INT, 0
             )
         }
@@ -121,9 +121,9 @@ open class GeomPath @JvmOverloads constructor(
     protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty()
 
     protected open fun assembleGeometry(rc: RenderContext) {
-        val numSegments = if(pathType == LINEAR) 1 else maximumIntermediatePoints + 1
+        val numPointsInSegmentMinusEndPoint = if(pathType == LINEAR) 1 else maximumIntermediatePoints + 1
         // Determine the number of vertexes
-        val vertexCount = if(positions.isNotEmpty()) (positions.size - 1) * numSegments * VERTICES_PER_POINT else 0
+        val vertexCount = ((positions.size - 1) * numPointsInSegmentMinusEndPoint + 1) * VERTICES_PER_POINT
 
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
@@ -132,9 +132,12 @@ open class GeomPath @JvmOverloads constructor(
         else FloatArray(vertexCount * VERTEX_STRIDE)
         outlineElements.clear()
 
-        for (idx in 0 until positions.size - 1) {
-            addLine(rc, positions[idx], positions[idx+1], numSegments)
+        var prevPos = positions[0];
+        for(idx in 0 until positions.size - 1)
+        {
+            prevPos = addIntermediateVertices(rc, prevPos, positions[idx], positions[idx + 1], numPointsInSegmentMinusEndPoint)
         }
+        addIntermediateVertices(rc, prevPos, positions.last(), positions.last(), 1)
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
         if (isSurfaceShape) {
@@ -149,7 +152,7 @@ open class GeomPath @JvmOverloads constructor(
         }
     }
 
-    protected open fun addLine(rc: RenderContext, begin: Position, end: Position, numSegments: Int) {
+    protected open fun addIntermediateVertices(rc: RenderContext, prev: Position, begin: Position, end: Position, numPointsInSegmentMinusEndPoint: Int) : Position {
         val azimuth: Angle
         val length: Double
         when (pathType) {
@@ -167,74 +170,85 @@ open class GeomPath @JvmOverloads constructor(
                 length = begin.linearDistance(end)
             }
         }
-        val deltaDist = length / numSegments
-        val deltaAlt = (end.altitude - begin.altitude) / numSegments
+        val deltaDist = length / numPointsInSegmentMinusEndPoint
+        val deltaAlt = (end.altitude - begin.altitude) / numPointsInSegmentMinusEndPoint
         var dist = deltaDist
         var alt = begin.altitude + deltaAlt
 
-        var prevLoc = begin
-        val loc = Location()
-        for (idx in 0 until numSegments) {
+        var prevPos = prev
+        var curPos = begin
+
+        for (idx in 0 until numPointsInSegmentMinusEndPoint) {
+            val tempLoc = Location()
             when (pathType) {
-                GREAT_CIRCLE -> begin.greatCircleLocation(azimuth, dist, loc)
-                RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
-                else -> begin.linearLocation(azimuth, dist, loc)
+                GREAT_CIRCLE -> begin.greatCircleLocation(azimuth, dist, tempLoc)
+                RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, tempLoc)
+                else -> begin.linearLocation(azimuth, dist, tempLoc)
             }
+            val nextPos = Position(tempLoc.latitude, tempLoc.longitude, alt)
 
             var pointA = Vec3()
             if(isSurfaceShape)
-                pointA = Vec3(prevLoc.longitude.inDegrees, prevLoc.latitude.inDegrees, prevLoc.altitude)
+                pointA = Vec3(prevPos.longitude.inDegrees, prevPos.latitude.inDegrees, prevPos.altitude)
             else
-                rc.geographicToCartesian(prevLoc.latitude, prevLoc.longitude, prevLoc.altitude, altitudeMode, pointA)
+                rc.geographicToCartesian(prevPos.latitude, prevPos.longitude, prevPos.altitude, altitudeMode, pointA)
 
             var pointB = Vec3()
             if(isSurfaceShape)
-                pointB = Vec3(loc.longitude.inDegrees, loc.latitude.inDegrees, alt)
+                pointB = Vec3(curPos.longitude.inDegrees, curPos.latitude.inDegrees, curPos.altitude)
             else
-                rc.geographicToCartesian(loc.latitude, loc.longitude, alt, altitudeMode, pointB)
+                rc.geographicToCartesian(curPos.latitude, curPos.longitude, curPos.altitude, altitudeMode, pointB)
 
-            addLineSegment(rc, pointA , pointB)
+            var pointC = Vec3()
+            if(isSurfaceShape)
+                pointC = Vec3(nextPos.longitude.inDegrees, nextPos.latitude.inDegrees, nextPos.altitude)
+            else
+                rc.geographicToCartesian(nextPos.latitude, nextPos.longitude, nextPos.altitude, altitudeMode, pointC)
 
-            prevLoc = Position(loc.latitude, loc.longitude, alt)
+            addVertex(rc, pointA, pointB, pointC);
+
+            prevPos = curPos
+            curPos = nextPos
+
             dist += deltaDist
             alt += deltaAlt
         }
+
+        return  prevPos
     }
 
-    protected open fun addLineSegment(
-        rc: RenderContext, pointA : Vec3, pointB : Vec3
-    ): Int {
+    protected open fun addVertex(rc: RenderContext, pointA: Vec3, pointB: Vec3, pointC: Vec3) : Int
+    {
         val vertex = vertexIndex / VERTEX_STRIDE
         if (vertex == 0) {
             vertexOrigin.copy(pointA)
         }
         val pointALocal = pointA - vertexOrigin;
         val pointBLocal = pointB - vertexOrigin;
+        val pointCLocal = pointC - vertexOrigin;
         vertexArray[vertexIndex++] = pointALocal.x.toFloat()
         vertexArray[vertexIndex++] = pointALocal.y.toFloat()
         vertexArray[vertexIndex++] = pointALocal.z.toFloat()
+        vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+        vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+        vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+        vertexArray[vertexIndex++] = pointCLocal.x.toFloat()
+        vertexArray[vertexIndex++] = pointCLocal.y.toFloat()
+        vertexArray[vertexIndex++] = pointCLocal.z.toFloat()
         vertexArray[vertexIndex++] = 1.0f
 
         vertexArray[vertexIndex++] = pointALocal.x.toFloat()
         vertexArray[vertexIndex++] = pointALocal.y.toFloat()
         vertexArray[vertexIndex++] = pointALocal.z.toFloat()
-        vertexArray[vertexIndex++] = -1.0f
-
         vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
         vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
         vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
-        vertexArray[vertexIndex++] = 1.0f
-
-        vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
-        vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
-        vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+        vertexArray[vertexIndex++] = pointCLocal.x.toFloat()
+        vertexArray[vertexIndex++] = pointCLocal.y.toFloat()
+        vertexArray[vertexIndex++] = pointCLocal.z.toFloat()
         vertexArray[vertexIndex++] = -1.0f
 
         outlineElements.add(vertex)
-        outlineElements.add(vertex + 1)
-        outlineElements.add(vertex + 2)
-        outlineElements.add(vertex + 3)
-        outlineElements.add(vertex + 2)
         outlineElements.add(vertex + 1)
 
         return vertex
