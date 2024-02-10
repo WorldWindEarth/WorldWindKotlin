@@ -3,6 +3,8 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec2
+import earth.worldwind.geom.Viewport
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
@@ -11,16 +13,41 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         """
             uniform mat4 mvpMatrix;
             uniform float lineWidth;
-            attribute vec4 vertexPoint;
-            attribute float value;
+            uniform vec2 screen;
+            attribute vec4 pointA;
+            attribute vec4 pointB;
+            attribute vec4 pointC;
+            attribute float corner;
 
             void main() {
                 /* Transform the vertex position by the modelview-projection matrix. */
-                vec4 position = mvpMatrix * vertexPoint;
-                position = position / position.w;
-                vec2 yBasis = normalize(vec2(-position.y, position.x));
-                position.xy += yBasis * lineWidth * value;
-                gl_Position = position;
+                vec4 pointAScreen = mvpMatrix * pointA;
+                vec4 pointBScreen = mvpMatrix * pointB;
+                vec4 pointCScreen = mvpMatrix * pointC;
+                
+                pointAScreen = pointAScreen / pointAScreen.w;
+                pointBScreen = pointBScreen / pointBScreen.w;
+                pointCScreen = pointCScreen / pointCScreen.w;
+                
+                if(all(equal(pointBScreen.xy, pointAScreen.xy)))
+                {
+                    pointAScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointCScreen.xy);
+                }
+                if(all(equal(pointBScreen.xy, pointCScreen.xy)))
+                {
+                    pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
+                }
+                
+                vec2 AB = normalize(normalize(pointBScreen.xy - pointAScreen.xy) * screen);
+                vec2 BC = normalize(normalize(pointCScreen.xy - pointBScreen.xy) * screen);
+                vec2 tangent = normalize(AB + BC);
+                
+                vec2 miter = vec2(-tangent.y, tangent.x);
+                vec2 normalA = vec2(-AB.y, AB.x);
+                float miterLength = 1.0 / dot(miter, normalA);
+                
+                gl_Position = pointBScreen;
+                gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
             }
         """.trimIndent(),
         """
@@ -42,11 +69,13 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
     protected val mvpMatrix = Matrix4()
     protected val color = Color()
     protected var opacity = 1.0f
-    protected var lineWidth = 1.0f;
+    protected var lineWidth = 1.0f
+    protected var screen = Vec2()
     protected var mvpMatrixId = KglUniformLocation.NONE
     protected var colorId = KglUniformLocation.NONE
     protected var opacityId = KglUniformLocation.NONE
-    protected var lineWidthId = KglUniformLocation.NONE;
+    protected var lineWidthId = KglUniformLocation.NONE
+    protected  var screenId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -61,6 +90,8 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         gl.uniform1f(opacityId, opacity)
         lineWidthId = gl.getUniformLocation(program, "lineWidth");
         gl.uniform1f(lineWidthId, lineWidth)
+        screenId = gl.getUniformLocation(program, "screen");
+        gl.uniform2f(screenId, screen.x.toFloat(), screen.y.toFloat())
     }
 
     fun loadModelviewProjection(matrix: Matrix4) {
@@ -89,6 +120,14 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         if(this.lineWidth != lineWidth) {
             this.lineWidth = lineWidth;
             gl.uniform1f(lineWidthId, lineWidth)
+        }
+    }
+
+    fun loadScreen(screen : Vec2)
+    {
+        if(this.screen != screen) {
+            this.screen = screen;
+            gl.uniform2f(screenId, screen.x.toFloat(), screen.y.toFloat())
         }
     }
 }

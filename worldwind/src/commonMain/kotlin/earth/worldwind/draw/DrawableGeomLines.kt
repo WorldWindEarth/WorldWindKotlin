@@ -1,6 +1,7 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec2
 import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.Pool
@@ -50,6 +51,7 @@ open class DrawableGeomLines protected constructor(): Drawable {
             drawState.vertexOrigin.z
         )
         program.loadModelviewProjection(mvpMatrix)
+        program.loadScreen(Vec2(dc.viewport.width.toDouble(), dc.viewport.height.toDouble()));
 
         // Disable triangle back face culling if requested.
         if (!drawState.enableCullFace) dc.gl.disable(GL_CULL_FACE)
@@ -64,16 +66,20 @@ open class DrawableGeomLines protected constructor(): Drawable {
         dc.activeTextureUnit(GL_TEXTURE0)
 
         dc.gl.enableVertexAttribArray(1 /*value*/)
+        dc.gl.enableVertexAttribArray(2 /*value*/)
+        dc.gl.enableVertexAttribArray(3 /*value*/)
         // Use the shape's vertex point attribute and vertex texture coordinate attribute.
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0 /*offset*/)
-        dc.gl.vertexAttribPointer(1 /*value*/, 1, GL_FLOAT, false, drawState.vertexStride, 12 /*offset*/)
+        dc.gl.vertexAttribPointer(0 /*pointA*/, 3, GL_FLOAT, false, drawState.vertexStride, 0 /*offset*/)
+        dc.gl.vertexAttribPointer(1 /*pointB*/, 3, GL_FLOAT, false, drawState.vertexStride, 12 /*offset*/)
+        dc.gl.vertexAttribPointer(2 /*pointC*/, 3, GL_FLOAT, false, drawState.vertexStride, 24 /*offset*/)
+        dc.gl.vertexAttribPointer(3 /*corner*/, 1, GL_FLOAT, false, drawState.vertexStride, 36 /*offset*/)
 
         // Draw the specified primitives.
         for (idx in 0 until drawState.primCount) {
             val prim = drawState.prims[idx]
             program.loadColor(prim.color)
             program.loadOpacity(prim.opacity)
-            program.loadLineWidth(prim.lineWidth / dc.viewport.width);
+            program.loadLineWidth(prim.lineWidth);
             dc.gl.lineWidth(prim.lineWidth)
             dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
         }
@@ -85,5 +91,7 @@ open class DrawableGeomLines protected constructor(): Drawable {
         dc.gl.lineWidth(1f)
         dc.gl.enable(GL_CULL_FACE)
         dc.gl.disableVertexAttribArray(1 /*value*/)
+        dc.gl.disableVertexAttribArray(2 /*value*/)
+        dc.gl.disableVertexAttribArray(3 /*value*/)
     }
 }
