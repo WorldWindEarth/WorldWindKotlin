@@ -10,7 +10,7 @@ plugins {
 
 buildscript {
     dependencies {
-        classpath("dev.icerock.moko:resources-generator:0.24.0-alpha-1")
+        classpath("dev.icerock.moko:resources-generator:0.24.0-alpha-4")
     }
 }
 
