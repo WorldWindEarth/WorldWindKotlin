@@ -25,6 +25,7 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
 -dontwarn org.slf4j.**
+-dontwarn javax.persistence.**
 
 # Kotlinx Serialization
 -keep,includedescriptorclasses class earth.worldwind.**$$serializer { *; }

@@ -2,8 +2,8 @@ package earth.worldwind.ogc
 
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
-import earth.worldwind.ogc.gpkg.AbstractGeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger.WARN
@@ -26,21 +26,19 @@ object GpkgLayerFactory {
         RenderableLayer().apply {
             isPickEnabled = false // Disable picking for the tiled image layer
             val geoPackage = GeoPackage(pathName)
-            for (content in geoPackage.content.values) {
-                if (content.dataType.equals("tiles", true) && layerNames?.contains(content.tableName) != false) {
-                    try {
-                        val tileFactory = GpkgTileFactory(content)
-                        val levelSet = LevelSet(geoPackage.buildLevelSetConfig(content))
-                        val surfaceImage = if (content.srsId == AbstractGeoPackage.EPSG_3857) {
-                            MercatorTiledSurfaceImage(tileFactory, levelSet)
-                        } else {
-                            TiledSurfaceImage(tileFactory, levelSet)
-                        }
-                        surfaceImage.displayName = content.identifier
-                        addRenderable(surfaceImage)
-                    } catch (e: IllegalArgumentException) {
-                        logMessage(WARN, "GpkgLayerFactory", "createGeoPackageLayer", e.message!!)
+            for (content in geoPackage.getContent(TILES, layerNames)) {
+                try {
+                    val tileFactory = GpkgTileFactory(geoPackage, content)
+                    val levelSet = LevelSet(geoPackage.buildLevelSetConfig(content))
+                    val surfaceImage = if (content.srs?.id == GeoPackage.EPSG_3857) {
+                        MercatorTiledSurfaceImage(tileFactory, levelSet)
+                    } else {
+                        TiledSurfaceImage(tileFactory, levelSet)
                     }
+                    surfaceImage.displayName = content.identifier
+                    addRenderable(surfaceImage)
+                } catch (e: IllegalArgumentException) {
+                    logMessage(WARN, "GpkgLayerFactory", "createGeoPackageLayer", e.message!!)
                 }
             }
         }

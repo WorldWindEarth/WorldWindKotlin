@@ -3,24 +3,32 @@ package earth.worldwind.ogc
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.globe.elevation.CacheSourceFactory
 import earth.worldwind.globe.elevation.ElevationSource
+import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
+import kotlinx.datetime.Instant
 
-open class GpkgElevationSourceFactory(protected val tiles: GpkgContent, protected val isFloat: Boolean) : CacheSourceFactory {
+open class GpkgElevationSourceFactory(
+    protected val geoPackage: GeoPackage,
+    protected val content: GpkgContent,
+    protected val isFloat: Boolean
+) : CacheSourceFactory {
     override val contentType = "GPKG"
-    override val contentKey get() = tiles.tableName
-    override val contentPath get() = tiles.container.pathName
-    override val lastUpdateDate get() = tiles.lastChange
-    override val boundingSector get() = tiles.container.getBoundingSector(tiles)
+    override val contentKey get() = content.tableName
+    override val contentPath get() = geoPackage.pathName
+    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(content.lastChange.time)
+    override val boundingSector get() = geoPackage.getBoundingSector(content)
 
-    override suspend fun contentSize() = tiles.container.readTilesDataSize(tiles.tableName)
+    override suspend fun contentSize() = geoPackage.readTilesDataSize(content.tableName)
 
     @Throws(IllegalStateException::class)
     override suspend fun clearContent(deleteMetadata: Boolean) = if (deleteMetadata) {
-        tiles.container.deleteContent(tiles.tableName)
+        geoPackage.deleteContent(content.tableName)
     } else {
-        tiles.container.clearContent(tiles.tableName)
+        geoPackage.clearContent(content.tableName)
     }
 
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) =
-        ElevationSource.fromElevationDataFactory(GpkgElevationDataFactory(tiles, tileMatrix.ordinal, column, row, isFloat))
+        ElevationSource.fromElevationDataFactory(
+            GpkgElevationDataFactory(geoPackage, content, tileMatrix.ordinal, column, row, isFloat)
+        )
 }

@@ -3,26 +3,32 @@ package earth.worldwind.ogc
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.mercator.MercatorImageTile
 import earth.worldwind.layer.mercator.MercatorSector
+import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.Level
+import kotlinx.datetime.Instant
 
-open class GpkgTileFactory(protected val tiles: GpkgContent, protected val imageFormat: String? = null): CacheTileFactory {
+open class GpkgTileFactory(
+    protected val geoPackage: GeoPackage,
+    protected val content: GpkgContent,
+    protected val imageFormat: String? = null
+): CacheTileFactory {
     override val contentType = "GPKG"
-    override val contentKey get() = tiles.tableName
-    override val contentPath get() = tiles.container.pathName
-    override val lastUpdateDate get() = tiles.lastChange
-    override val boundingSector get() = tiles.container.getBoundingSector(tiles)
+    override val contentKey get() = content.tableName
+    override val contentPath get() = geoPackage.pathName
+    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(content.lastChange.time)
+    override val boundingSector get() = geoPackage.getBoundingSector(content)
 
-    override suspend fun contentSize() = tiles.container.readTilesDataSize(tiles.tableName)
+    override suspend fun contentSize() = geoPackage.readTilesDataSize(content.tableName)
 
     @Throws(IllegalStateException::class)
     override suspend fun clearContent(deleteMetadata: Boolean) = if (deleteMetadata) {
-        tiles.container.deleteContent(tiles.tableName)
+        geoPackage.deleteContent(content.tableName)
     } else {
-        tiles.container.clearContent(tiles.tableName)
+        geoPackage.clearContent(content.tableName)
     }
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
@@ -36,19 +42,17 @@ open class GpkgTileFactory(protected val tiles: GpkgContent, protected val image
         ImageTile(sector, level, row, column)
     }
 
-    protected open fun getImageSource(level: Level, row: Int, column: Int): ImageSource? {
-        val tileMatrixByZoomLevel = tiles.container.tileMatrix[tiles.tableName] ?: return null
-
+    protected open fun getImageSource(level: Level, row: Int, column: Int) =
         // Attempt to find the GeoPackage tile matrix associated with the WorldWind level.
-        tileMatrixByZoomLevel[level.levelNumber]?.let { tileMatrix ->
+        content.tileMatrices?.firstOrNull { it.zoomLevel == level.levelNumber }?.let { tileMatrix ->
             // Convert the WorldWind tile row to the equivalent GeoPackage tile row.
             val gpkgRow = level.levelHeight / level.tileHeight - row - 1
             if (column < tileMatrix.matrixWidth && gpkgRow < tileMatrix.matrixHeight) {
-                return buildImageSource(tiles, level.levelNumber, column, gpkgRow, imageFormat)
-            }
+                buildImageSource(geoPackage, content, level.levelNumber, column, gpkgRow, imageFormat)
+            } else null
         }
-        return null
-    }
 }
 
-expect fun buildImageSource(tiles: GpkgContent, zoomLevel: Int, column: Int, gpkgRow: Int, imageFormat: String?): ImageSource
+expect fun buildImageSource(
+    geoPackage: GeoPackage, content: GpkgContent, zoomLevel: Int, column: Int, gpkgRow: Int, imageFormat: String?
+): ImageSource

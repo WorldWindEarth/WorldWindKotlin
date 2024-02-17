@@ -42,6 +42,7 @@ kotlin {
         val mockkVersion = "1.13.9"
         val mokoVersion = "0.24.0-alpha-4"
         val ktorVersion = "2.3.7"
+        val ormliteVersion = "6.1"
         val commonMain by getting {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
@@ -65,6 +66,7 @@ kotlin {
             dependsOn(commonMain)
             dependencies {
                 implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
+                compileOnly("com.j256.ormlite:ormlite-core:$ormliteVersion")
             }
         }
         val jvmCommonTest by creating {
@@ -90,6 +92,7 @@ kotlin {
                 implementation("org.lwjgl:lwjgl-stb:$lwjglVersion")
 
                 implementation("io.github.missioncommand:mil-sym-renderer:0.1.41")
+                implementation("com.j256.ormlite:ormlite-jdbc:$ormliteVersion")
             }
         }
         val jvmTest by getting {
@@ -113,6 +116,7 @@ kotlin {
                 implementation("androidx.annotation:annotation:1.7.1")
                 implementation("androidx.appcompat:appcompat-resources:1.6.1")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.54")
+                implementation("com.j256.ormlite:ormlite-android:$ormliteVersion")
             }
         }
         val androidUnitTest by getting {
