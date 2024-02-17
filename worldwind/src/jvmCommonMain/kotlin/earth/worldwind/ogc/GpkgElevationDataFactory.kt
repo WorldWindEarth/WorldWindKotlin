@@ -2,6 +2,7 @@ package earth.worldwind.ogc
 
 import earth.worldwind.globe.elevation.ElevationDecoder
 import earth.worldwind.globe.elevation.ElevationSource
+import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.util.ResourcePostprocessor
 import java.nio.Buffer
@@ -10,7 +11,8 @@ import java.nio.ShortBuffer
 import kotlin.math.roundToInt
 
 open class GpkgElevationDataFactory(
-    protected val tiles: GpkgContent,
+    protected val geoPackage: GeoPackage,
+    protected val content: GpkgContent,
     protected val zoomLevel: Int,
     protected val tileColumn: Int,
     protected val tileRow: Int,
@@ -20,9 +22,9 @@ open class GpkgElevationDataFactory(
 
     override suspend fun fetchElevationData(): Buffer? {
         // Attempt to read the GeoPackage tile user data and gridded tile metadata
-        val tileUserData = tiles.container.readTileUserData(tiles, zoomLevel, tileColumn, tileRow) ?: return null
-        val griddedTile = tiles.container.readGriddedTile(tiles, tileUserData) ?: return null
-        val griddedCoverage = tiles.container.griddedCoverages[tiles.tableName] ?: return null
+        val tileUserData = geoPackage.readTileUserData(content, zoomLevel, tileColumn, tileRow) ?: return null
+        val griddedTile = geoPackage.readGriddedTile(content, tileUserData) ?: return null
+        val griddedCoverage = geoPackage.getGriddedCoverage(content) ?: return null
 
         // Decode the tile user data either as TIFF32 or PNG16
         return if (isFloat) elevationDecoder.decodeTiff(tileUserData.tileData)
@@ -34,16 +36,16 @@ open class GpkgElevationDataFactory(
 
     override suspend fun <Resource> process(resource: Resource): Resource {
         // Attempt to write tile user data only if container is not read-only
-        if (resource is Buffer && !tiles.container.isReadOnly) encodeToImage(resource)?.let {
-            tiles.container.writeTileUserData(tiles, zoomLevel, tileColumn, tileRow, it)
+        if (resource is Buffer && !geoPackage.isReadOnly) encodeToImage(resource)?.let {
+            geoPackage.writeTileUserData(content, zoomLevel, tileColumn, tileRow, it)
             // TODO Calculate and save gridded tile meta data, such as min and max altitude...
-            tiles.container.writeGriddedTile(tiles, zoomLevel, tileColumn, tileRow)
+            geoPackage.writeGriddedTile(content, zoomLevel, tileColumn, tileRow)
         }
         return resource
     }
 
     protected open fun encodeToImage(resource: Buffer): ByteArray? {
-        val matrix = tiles.container.tileMatrix[tiles.tableName]?.get(zoomLevel) ?: return null
+        val matrix = content.tileMatrices?.firstOrNull { it.zoomLevel == zoomLevel } ?: return null
         val tileWidth = matrix.tileWidth
         val tileHeight = matrix.tileHeight
         return when (resource) {
@@ -74,7 +76,7 @@ open class GpkgElevationDataFactory(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is GpkgElevationDataFactory) return false
-        if (tiles.tableName != other.tiles.tableName) return false
+        if (content.tableName != other.content.tableName) return false
         if (zoomLevel != other.zoomLevel) return false
         if (tileColumn != other.tileColumn) return false
         if (tileRow != other.tileRow) return false
@@ -82,12 +84,12 @@ open class GpkgElevationDataFactory(
     }
 
     override fun hashCode(): Int {
-        var result = tiles.tableName.hashCode()
+        var result = content.tableName.hashCode()
         result = 31 * result + zoomLevel
         result = 31 * result + tileColumn
         result = 31 * result + tileRow
         return result
     }
 
-    override fun toString() = "GpkgElevationDataFactory(tableName=${tiles.tableName}, zoomLevel=$zoomLevel, tileColumn=$tileColumn, tileRow=$tileRow)"
+    override fun toString() = "GpkgElevationDataFactory(tableName=${content.tableName}, zoomLevel=$zoomLevel, tileColumn=$tileColumn, tileRow=$tileRow)"
 }
