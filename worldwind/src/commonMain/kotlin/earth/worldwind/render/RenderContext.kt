@@ -2,10 +2,8 @@ package earth.worldwind.render
 
 import earth.worldwind.PickedObject
 import earth.worldwind.PickedObjectList
-import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGroup
-import earth.worldwind.draw.DrawableLambda
 import earth.worldwind.draw.DrawableQueue
 import earth.worldwind.draw.DrawableTerrain
 import earth.worldwind.geom.*
@@ -327,8 +325,8 @@ open class RenderContext {
         } else null
     }
 
-    fun offerDrawableLambda(groupId: DrawableGroup, order: Double, lambda: (dc: DrawContext) -> Unit) {
-        drawableQueue?.offerDrawable(DrawableLambda(lambda), groupId, order)
+    fun offerBackgroundDrawable(drawable: Drawable) {
+        drawableQueue?.offerDrawable(drawable, DrawableGroup.BACKGROUND, 0.0)
     }
 
     fun offerSurfaceDrawable(drawable: Drawable, zOrder: Double) {

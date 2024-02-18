@@ -3,23 +3,15 @@ package earth.worldwind.layer.starfield
 import dev.icerock.moko.resources.FileResource
 import earth.worldwind.MR
 import earth.worldwind.WorldWind
-import earth.worldwind.draw.DrawContext
-import earth.worldwind.draw.DrawableGroup
-import earth.worldwind.geom.Matrix4
+import earth.worldwind.draw.DrawableStarField
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.Logger.ERROR
-import earth.worldwind.util.Logger.WARN
-import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SunPosition
-import earth.worldwind.util.kgl.GL_ALIASED_POINT_SIZE_RANGE
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
-import earth.worldwind.util.kgl.GL_FLOAT
-import earth.worldwind.util.kgl.GL_POINTS
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
@@ -66,7 +58,6 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
      * Display star field on a specified time point. If null, then current time will be used each frame.
      */
     var time : Instant? = null
-    protected val matrix = Matrix4() //The MVP matrix of this layer.
     protected var starsPositionsVboCacheKey = nextCacheKey() //gpu cache key for the stars vbo.
     protected var numStars = 0
     protected var starData: StarData? = null
@@ -80,7 +71,6 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
     protected val minScale = 10e6
     protected var sunPositionsCacheKey = nextCacheKey()
     protected val sunBufferView = FloatArray(4)
-    protected var MAX_GL_POINT_SIZE = 0f
 
     protected fun nextCacheKey() = Any()
 
@@ -94,52 +84,55 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
 
         loadStarData(rc)
 
-        val sunTexture = rc.getTexture(sunImageSource, null) ?: return // Sun texture is not loaded yet
         val starData = starData ?: return // Star data is not loaded yet
-        val starsPositionsBuffer = rc.getBufferObject(starsPositionsVboCacheKey) {
+        val time = time ?: Clock.System.now()
+        val pool = rc.getDrawablePool<DrawableStarField>()
+        val drawable = DrawableStarField.obtain(pool)
+
+        // Render Star Field
+        drawable.starsPositionsBuffer = rc.getBufferObject(starsPositionsVboCacheKey) {
             FloatBufferObject(GL_ARRAY_BUFFER, createStarsGeometry(starData, rc))
         }
-        val time = time ?: Clock.System.now()
         // Number of days since Greenwich noon, Terrestrial Time, on 1 January 2000 (J2000.0)
-        val julianDate = SunPosition.computeJulianDate(time)
-        val sunCelestialLocation = SunPosition.getAsCelestialLocation(time)
-
-        //.x = declination
-        //.y = right ascension
-        //.z = point size
-        //.w = magnitude
-        sunBufferView[0] = sunCelestialLocation.declination.inDegrees.toFloat()
-        sunBufferView[1] = sunCelestialLocation.rightAscension.inDegrees.toFloat()
-        sunBufferView[2] = sunSize.coerceAtMost(MAX_GL_POINT_SIZE)
-        sunBufferView[3] = 1f
-
-        val hashCode = sunBufferView.contentHashCode()
-        if (sunBufferViewHashCode != hashCode) {
-            sunBufferViewHashCode = hashCode
-            sunPositionsCacheKey = nextCacheKey()
-        }
-        val sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, sunBufferView)
-        }
-
+        drawable.julianDate = SunPosition.computeJulianDate(time)
+        drawable.minMagnitude = minMagnitude
+        drawable.maxMagnitude = maxMagnitude
+        drawable.numStars = numStars
+        drawable.matrix.copy(rc.modelviewProjection)
         val scale = (rc.camera.position.altitude * 1.5).coerceAtLeast(minScale)
-        matrix.copy(rc.modelviewProjection)
-        matrix.multiplyByScale(scale, scale, scale)
+        drawable.matrix.multiplyByScale(scale, scale, scale)
 
-        val program = rc.getShaderProgram { StarFieldProgram() }
-        rc.offerDrawableLambda(DrawableGroup.BACKGROUND, 0.0) { dc ->
-            if (!program.useProgram(dc)) return@offerDrawableLambda
-            try {
-                dc.gl.depthMask(false)
-                program.loadModelviewProjection(matrix)
-                // This subtraction does not work properly on the GPU due to precision loss. It must be done on the CPU.
-                program.loadNumDays((julianDate - 2451545.0).toFloat())
-                renderStars(dc, program, starsPositionsBuffer)
-                if (isShowSun) renderSun(dc, program, sunPositionsBuffer, sunTexture)
-            } finally {
-                dc.gl.depthMask(true)
+        // Render The Sun
+        drawable.isShowSun = isShowSun
+        if (drawable.isShowSun) {
+            drawable.sunTexture = rc.getTexture(sunImageSource, null)
+            if (drawable.sunTexture != null) {
+                drawable.sunSize = sunSize
+
+                val sunCelestialLocation = SunPosition.getAsCelestialLocation(time)
+
+                //.x = declination
+                //.y = right ascension
+                //.z = point size
+                //.w = magnitude
+                sunBufferView[0] = sunCelestialLocation.declination.inDegrees.toFloat()
+                sunBufferView[1] = sunCelestialLocation.rightAscension.inDegrees.toFloat()
+                sunBufferView[2] = sunSize.coerceAtMost(DrawableStarField.maxGlPointSize)
+                sunBufferView[3] = 1f
+
+                val hashCode = sunBufferView.contentHashCode()
+                if (sunBufferViewHashCode != hashCode) {
+                    sunBufferViewHashCode = hashCode
+                    sunPositionsCacheKey = nextCacheKey()
+                }
+                drawable.sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
+                    FloatBufferObject(GL_ARRAY_BUFFER, sunBufferView)
+                }
             }
         }
+
+        drawable.program = rc.getShaderProgram { StarFieldProgram() }
+        rc.offerBackgroundDrawable(drawable)
     }
 
     protected open fun loadStarData(rc: RenderContext) {
@@ -151,29 +144,6 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
                 WorldWind.requestRedraw()
             }
         }
-    }
-
-    protected open fun renderStars(dc: DrawContext, program: StarFieldProgram, buffer: FloatBufferObject) {
-        buffer.bindBuffer(dc)
-        dc.gl.vertexAttribPointer(0, 4, GL_FLOAT, false, 0, 0)
-        program.loadMagnitudeRange(minMagnitude, maxMagnitude)
-        program.loadTextureEnabled(false)
-        dc.gl.drawArrays(GL_POINTS, 0, numStars)
-    }
-
-    protected open fun renderSun(
-        dc: DrawContext, program: StarFieldProgram, sunBuffer: FloatBufferObject, sunTexture: Texture
-    ) {
-        if (MAX_GL_POINT_SIZE == 0f) MAX_GL_POINT_SIZE = dc.gl.getParameterfv(GL_ALIASED_POINT_SIZE_RANGE)[1]
-
-        if (sunSize > MAX_GL_POINT_SIZE)
-            log(WARN, "StarFieldLayer - sunSize is to big, max size allowed is: $MAX_GL_POINT_SIZE")
-
-        sunBuffer.bindBuffer(dc)
-        dc.gl.vertexAttribPointer(0, 4, GL_FLOAT, false, 0, 0)
-        program.loadTextureEnabled(true)
-        sunTexture.bindTexture(dc)
-        dc.gl.drawArrays(GL_POINTS, 0, 1)
     }
 
     protected open fun createStarsGeometry(starData: StarData, rc: RenderContext): FloatArray {
