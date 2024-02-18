@@ -66,7 +66,6 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
      * Display star field on a specified time point. If null, then current time will be used each frame.
      */
     var time : Instant? = null
-    protected val matrix = Matrix4() //The MVP matrix of this layer.
     protected var starsPositionsVboCacheKey = nextCacheKey() //gpu cache key for the stars vbo.
     protected var numStars = 0
     protected var starData: StarData? = null
@@ -78,8 +77,6 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
      */
     protected var loadStarted = false
     protected val minScale = 10e6
-    protected var sunPositionsCacheKey = nextCacheKey()
-    protected val sunBufferView = FloatArray(4)
     protected var MAX_GL_POINT_SIZE = 0f
 
     protected fun nextCacheKey() = Any()
@@ -108,22 +105,20 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): Abstra
         //.y = right ascension
         //.z = point size
         //.w = magnitude
+        val sunBufferView = FloatArray(4)
         sunBufferView[0] = sunCelestialLocation.declination.inDegrees.toFloat()
         sunBufferView[1] = sunCelestialLocation.rightAscension.inDegrees.toFloat()
         sunBufferView[2] = sunSize.coerceAtMost(MAX_GL_POINT_SIZE)
         sunBufferView[3] = 1f
 
         val hashCode = sunBufferView.contentHashCode()
-        if (sunBufferViewHashCode != hashCode) {
-            sunBufferViewHashCode = hashCode
-            sunPositionsCacheKey = nextCacheKey()
-        }
-        val sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
+
+        val sunPositionsBuffer = rc.getBufferObject(hashCode) {
             FloatBufferObject(GL_ARRAY_BUFFER, sunBufferView)
         }
 
         val scale = (rc.camera.position.altitude * 1.5).coerceAtLeast(minScale)
-        matrix.copy(rc.modelviewProjection)
+        val matrix = Matrix4(rc.modelviewProjection)
         matrix.multiplyByScale(scale, scale, scale)
 
         val program = rc.getShaderProgram { StarFieldProgram() }

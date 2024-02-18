@@ -29,9 +29,9 @@ open class ElevationHeatmapLayer: AbstractLayer("Elevation Heatmap") {
     /**
      * Last automatically calculated or manually specified min and max height limits
      */
-    val heightLimits = FloatArray(2)
 
     override fun doRender(rc: RenderContext) {
+        val heightLimits = FloatArray(2)
         if (autoHeightLimits) rc.terrain.heightLimits(levelNumberDepth, heightLimits)
 
         val program = rc.getShaderProgram { ElevationHeatmapProgram() }
