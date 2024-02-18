@@ -14,16 +14,16 @@ import earth.worldwind.shape.PathType
 class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
     private val layer = RenderableLayer("Paths").apply {
-        addRenderable(
-            GeomPath(
-                listOf(
-                    Position.fromDegrees(50.0, -180.0, 1e5),
-                    Position.fromDegrees(30.0, -100.0, 1e6),
-                    Position.fromDegrees(50.0, -40.0, 1e5)
-                )
-            ).apply{pathType = PathType.GREAT_CIRCLE
-                 attributes.apply {  outlineWidth = 10.0f }}
-        )
+//        addRenderable(
+//            GeomPath(
+//                listOf(
+//                    Position.fromDegrees(50.0, -180.0, 1e5),
+//                    Position.fromDegrees(30.0, -100.0, 1e6),
+//                    Position.fromDegrees(50.0, -40.0, 1e5),
+//                )
+//            ).apply{pathType = PathType.GREAT_CIRCLE
+//                 attributes.apply {  outlineWidth = 10.0f }}
+//        )
 //        addRenderable(
 //            Path(
 //                listOf(
@@ -58,9 +58,9 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
 //                isFollowTerrain = true // follow the ground between path vertices
 //            }
 //        )
-//
-//        // Create an extruded path with the default attributes, the default altitude mode (ABSOLUTE),
-//        // and the default path type (GREAT_CIRCLE).
+
+        // Create an extruded path with the default attributes, the default altitude mode (ABSOLUTE),
+        // and the default path type (GREAT_CIRCLE).
 //        addRenderable(
 //            Path(
 //                listOf(
@@ -72,9 +72,9 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
 //                isExtrude = true // extrude the path from the ground to each path position's altitude
 //            }
 //        )
-//
-//        // Create an extruded path with custom attributes that display the extruded vertical lines,
-//        // make the extruded interior 50% transparent, and increase the path line with.
+
+        // Create an extruded path with custom attributes that display the extruded vertical lines,
+        // make the extruded interior 50% transparent, and increase the path line with.
 //        addRenderable(
 //            Path(
 //                listOf(
@@ -91,6 +91,25 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
 //                isExtrude = true // extrude the path from the ground to each path position's altitude
 //            }
 //        )
+
+        // Create an extruded path with custom attributes that display the extruded vertical lines,
+        // make the extruded interior 50% transparent, and increase the path line with.
+        addRenderable(
+            GeomPath(
+                listOf(
+                    Position.fromDegrees(20.0, -180.0, 1e5),
+                    Position.fromDegrees(0.0, -100.0, 1e6),
+                    Position.fromDegrees(20.0, -40.0, 1e5)
+                )
+            ).apply {
+                attributes.apply {
+                    isDrawVerticals = true // display the extruded verticals
+                    interiorColor = Color(1f, 1f, 1f, 0.5f) // 50% transparent white
+                    outlineWidth = 5f
+                }
+                isExtrude = true // extrude the path from the ground to each path position's altitude
+            }
+        )
     }
 
     override fun start() {
