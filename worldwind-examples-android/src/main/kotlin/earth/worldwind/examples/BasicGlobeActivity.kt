@@ -58,7 +58,7 @@ The globe uses the default navigation gestures:
 
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
-            addLayer(BackgroundLayer())
+            //addLayer(BackgroundLayer())
             addLayer(WebMercatorLayerFactory.createLayer(
                 name = "Google Satellite",
                 urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",

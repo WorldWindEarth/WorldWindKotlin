@@ -190,10 +190,11 @@ open class Wgs84Projection: GeographicProjection {
                 "Number of latitude or longitude locations is less than one"
             )
         }
-        val minLat = sector.minLatitude.inRadians
-        val maxLat = sector.maxLatitude.inRadians
-        val minLon = sector.minLongitude.inRadians
-        val maxLon = sector.maxLongitude.inRadians
+        val delta = Angle.fromDegrees(1.0).inRadians
+        val minLat = sector.minLatitude.inRadians - delta
+        val maxLat = sector.maxLatitude.inRadians + delta
+        val minLon = sector.minLongitude.inRadians - delta
+        val maxLon = sector.maxLongitude.inRadians + delta
         val deltaLat = (maxLat - minLat) / if (numLat > 1) numLat - 3 else 1
         val deltaLon = (maxLon - minLon) / if (numLon > 1) numLon - 3 else 1
         var lat = minLat
