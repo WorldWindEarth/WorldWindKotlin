@@ -3,7 +3,6 @@ package earth.worldwind.shape
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGeomLines
-import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
@@ -12,7 +11,6 @@ import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
-import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.kgl.*
@@ -30,12 +28,14 @@ open class GeomPath @JvmOverloads constructor(
     protected var vertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val outlineElements = mutableListOf<Int>()
+    protected val verticalElements = mutableListOf<Int>()
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
     protected val vertexOrigin = Vec3()
+    protected val point = Vec3()
 
     companion object {
-        protected const val VERTICES_PER_POINT = 2;
+        protected const val VERTICES_PER_POINT = 2
         protected const val VERTEX_STRIDE = 10
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
@@ -49,6 +49,7 @@ open class GeomPath @JvmOverloads constructor(
         super.reset()
         vertexArray = FloatArray(0)
         outlineElements.clear()
+        verticalElements.clear()
     }
 
     override fun makeDrawable(rc: RenderContext) {
@@ -88,7 +89,7 @@ open class GeomPath @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
-            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (outlineElements).toIntArray())
+            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray())
         }
 
         // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel. Lines
@@ -100,6 +101,17 @@ open class GeomPath @JvmOverloads constructor(
             drawState.drawElements(
                 GL_TRIANGLE_STRIP, outlineElements.size,
                 GL_UNSIGNED_INT, 0
+            )
+        }
+
+        // Configure the drawable to display the shape's extruded verticals.
+        if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude) {
+            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+            drawState.lineWidth(activeAttributes.outlineWidth)
+            drawState.drawElements(
+                GL_TRIANGLES, verticalElements.size,
+                GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES
             )
         }
 
@@ -128,11 +140,12 @@ open class GeomPath @JvmOverloads constructor(
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
         vertexIndex = 0
-        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(vertexCount * 2 * VERTEX_STRIDE)
+        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray((vertexCount + positions.size * VERTICES_PER_POINT * 2) * VERTEX_STRIDE )
         else FloatArray(vertexCount * VERTEX_STRIDE)
         outlineElements.clear()
+        verticalElements.clear()
 
-        var prevPos = positions[0];
+        var prevPos = positions[0]
         for(idx in 0 until positions.size - 1)
         {
             prevPos = addIntermediateVertices(rc, prevPos, positions[idx], positions[idx + 1], numPointsInSegmentMinusEndPoint)
@@ -193,19 +206,13 @@ open class GeomPath @JvmOverloads constructor(
             else
                 rc.geographicToCartesian(prevPos.latitude, prevPos.longitude, prevPos.altitude, altitudeMode, pointA)
 
-            var pointB = Vec3()
-            if(isSurfaceShape)
-                pointB = Vec3(curPos.longitude.inDegrees, curPos.latitude.inDegrees, curPos.altitude)
-            else
-                rc.geographicToCartesian(curPos.latitude, curPos.longitude, curPos.altitude, altitudeMode, pointB)
-
             var pointC = Vec3()
             if(isSurfaceShape)
                 pointC = Vec3(nextPos.longitude.inDegrees, nextPos.latitude.inDegrees, nextPos.altitude)
             else
                 rc.geographicToCartesian(nextPos.latitude, nextPos.longitude, nextPos.altitude, altitudeMode, pointC)
 
-            addVertex(rc, pointA, pointB, pointC);
+            addVertex(rc, pointA, curPos, pointC, isExtrude && activeAttributes.isDrawVerticals && idx == 0)
 
             prevPos = curPos
             curPos = nextPos
@@ -217,15 +224,22 @@ open class GeomPath @JvmOverloads constructor(
         return  prevPos
     }
 
-    protected open fun addVertex(rc: RenderContext, pointA: Vec3, pointB: Vec3, pointC: Vec3) : Int
+    protected open fun addVertex(rc: RenderContext, pointA: Vec3, positionB: Position, pointC: Vec3, addVertical : Boolean) : Int
     {
         val vertex = vertexIndex / VERTEX_STRIDE
         if (vertex == 0) {
             vertexOrigin.copy(pointA)
         }
-        val pointALocal = pointA - vertexOrigin;
-        val pointBLocal = pointB - vertexOrigin;
-        val pointCLocal = pointC - vertexOrigin;
+
+        var pointB = Vec3()
+        if(isSurfaceShape)
+            pointB = Vec3(positionB.longitude.inDegrees, positionB.latitude.inDegrees, positionB.altitude)
+        else
+            rc.geographicToCartesian(positionB.latitude, positionB.longitude, positionB.altitude, altitudeMode, pointB)
+
+        val pointALocal = pointA - vertexOrigin
+        val pointBLocal = pointB - vertexOrigin
+        val pointCLocal = pointC - vertexOrigin
         vertexArray[vertexIndex++] = pointALocal.x.toFloat()
         vertexArray[vertexIndex++] = pointALocal.y.toFloat()
         vertexArray[vertexIndex++] = pointALocal.z.toFloat()
@@ -250,6 +264,64 @@ open class GeomPath @JvmOverloads constructor(
 
         outlineElements.add(vertex)
         outlineElements.add(vertex + 1)
+
+        if(addVertical)
+        {
+            var pointVertical = Vec3()
+            pointVertical = rc.geographicToCartesian(positionB.latitude, positionB.longitude, 0.0, altitudeMode, pointVertical)
+            val pointVerticalLocal = pointVertical - vertexOrigin
+
+            vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.z.toFloat()
+            vertexArray[vertexIndex++] = 0.0f
+
+            vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.z.toFloat()
+            vertexArray[vertexIndex++] = -1.0f
+
+            vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.z.toFloat()
+            vertexArray[vertexIndex++] = 0.0f
+
+            vertexArray[vertexIndex++] = pointBLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointBLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.z.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.x.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.y.toFloat()
+            vertexArray[vertexIndex++] = pointVerticalLocal.z.toFloat()
+            vertexArray[vertexIndex++] = -1.0f
+
+            verticalElements.add(vertex + 2)
+            verticalElements.add(vertex + 3)
+            verticalElements.add(vertex + 4)
+            verticalElements.add(vertex + 2)
+            verticalElements.add(vertex + 4)
+            verticalElements.add(vertex + 5)
+        }
 
         return vertex
     }
