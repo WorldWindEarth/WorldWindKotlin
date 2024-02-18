@@ -1,7 +1,9 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec2
 import earth.worldwind.render.program.BasicShaderProgram
+import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
 import earth.worldwind.util.kgl.GL_DEPTH_TEST
@@ -9,15 +11,15 @@ import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import kotlin.jvm.JvmStatic
 
-open class DrawableShape protected constructor(): Drawable {
+open class DrawableGeomLines protected constructor(): Drawable {
     val drawState = DrawShapeState()
-    private var pool: Pool<DrawableShape>? = null
+    private var pool: Pool<DrawableGeomLines>? = null
     private val mvpMatrix = Matrix4()
 
     companion object {
         @JvmStatic
-        fun obtain(pool: Pool<DrawableShape>): DrawableShape {
-            val instance = pool.acquire() ?: DrawableShape()
+        fun obtain(pool: Pool<DrawableGeomLines>): DrawableGeomLines {
+            val instance = pool.acquire() ?: DrawableGeomLines()
             instance.pool = pool
             return instance
         }
@@ -31,13 +33,10 @@ open class DrawableShape protected constructor(): Drawable {
 
     override fun draw(dc: DrawContext) {
         // TODO shape batching
-        val program : BasicShaderProgram = drawState.program as BasicShaderProgram ?: return // program unspecified
+        val program : GeomLinesShaderProgram = drawState.program as GeomLinesShaderProgram ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
         if (drawState.elementBuffer?.bindBuffer(dc) != true) return  // element buffer unspecified or failed to bind
-
-        // Use the draw context's pick mode.
-        program.enablePickMode(dc.isPickMode)
 
         // Use the draw context's modelview projection matrix, transformed to shape local coordinates.
         if (drawState.depthOffset != 0.0) {
@@ -52,6 +51,7 @@ open class DrawableShape protected constructor(): Drawable {
             drawState.vertexOrigin.z
         )
         program.loadModelviewProjection(mvpMatrix)
+        program.loadScreen(Vec2(dc.viewport.width.toDouble(), dc.viewport.height.toDouble()));
 
         // Disable triangle back face culling if requested.
         if (!drawState.enableCullFace) dc.gl.disable(GL_CULL_FACE)
@@ -65,29 +65,21 @@ open class DrawableShape protected constructor(): Drawable {
         // Make multi-texture unit 0 active.
         dc.activeTextureUnit(GL_TEXTURE0)
 
+        dc.gl.enableVertexAttribArray(1 /*value*/)
+        dc.gl.enableVertexAttribArray(2 /*value*/)
+        dc.gl.enableVertexAttribArray(3 /*value*/)
         // Use the shape's vertex point attribute and vertex texture coordinate attribute.
-        dc.gl.enableVertexAttribArray(1 /*vertexTexCoord*/)
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0 /*offset*/)
+        dc.gl.vertexAttribPointer(0 /*pointA*/, 3, GL_FLOAT, false, drawState.vertexStride, 0 /*offset*/)
+        dc.gl.vertexAttribPointer(1 /*pointB*/, 3, GL_FLOAT, false, drawState.vertexStride, 12 /*offset*/)
+        dc.gl.vertexAttribPointer(2 /*pointC*/, 3, GL_FLOAT, false, drawState.vertexStride, 24 /*offset*/)
+        dc.gl.vertexAttribPointer(3 /*corner*/, 1, GL_FLOAT, false, drawState.vertexStride, 36 /*offset*/)
 
         // Draw the specified primitives.
         for (idx in 0 until drawState.primCount) {
             val prim = drawState.prims[idx]
             program.loadColor(prim.color)
             program.loadOpacity(prim.opacity)
-            if (prim.texture?.bindTexture(dc) == true) {
-                program.loadTexCoordMatrix(prim.texCoordMatrix)
-                program.enableTexture(true)
-            } else {
-                program.enableTexture(false)
-            }
-            dc.gl.vertexAttribPointer(
-                1 /*vertexTexCoord*/,
-                prim.texCoordAttrib.size,
-                GL_FLOAT,
-                false,
-                drawState.vertexStride,
-                prim.texCoordAttrib.offset
-            )
+            program.loadLineWidth(prim.lineWidth);
             dc.gl.lineWidth(prim.lineWidth)
             dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
         }
@@ -98,6 +90,8 @@ open class DrawableShape protected constructor(): Drawable {
         if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
         dc.gl.lineWidth(1f)
         dc.gl.enable(GL_CULL_FACE)
-        dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/)
+        dc.gl.disableVertexAttribArray(1 /*value*/)
+        dc.gl.disableVertexAttribArray(2 /*value*/)
+        dc.gl.disableVertexAttribArray(3 /*value*/)
     }
 }
