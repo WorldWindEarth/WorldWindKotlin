@@ -23,6 +23,10 @@ import kotlin.time.Duration.Companion.seconds
 actual open class TiledElevationCoverage actual constructor(
     tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory,
 ): AbstractTiledElevationCoverage(tileMatrixSet, elevationSourceFactory), CacheableElevationCoverage {
+    override var cacheSourceFactory: CacheSourceFactory? = null
+    override var isCacheOnly = false
+    protected val elevationDecoder = ElevationDecoder()
+
     /**
      * This is a dummy workaround for asynchronously defined ElevationSourceFactory
      */
@@ -32,21 +36,10 @@ actual open class TiledElevationCoverage actual constructor(
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
-    protected val elevationDecoder = ElevationDecoder()
-    override var cacheSourceFactory: CacheSourceFactory? = null
-    override var isCacheOnly = false
     /**
-     * Number of reties of bulk tile retrieval before long timeout
+     * Makes a copy of this elevation coverage
      */
-    var makeLocalRetries = 3
-    /**
-     * Short timeout on bulk tile retrieval failed
-     */
-    var makeLocalTimeoutShort = 5.seconds
-    /**
-     * Long timeout on bulk tile retrieval failed
-     */
-    var makeLocalTimeoutLong = 15.seconds
+    actual open fun clone() = TiledElevationCoverage(tileMatrixSet, elevationSourceFactory)
 
     /**
      * Start a new coroutine Job that downloads all elevations for a given sector and resolution,
@@ -168,5 +161,20 @@ actual open class TiledElevationCoverage actual constructor(
             ex != null -> log(WARN, "Coverage retrieval failed with exception '$source': ${ex.message}")
             else -> log(WARN, "Coverage retrieval failed '$source'")
         }
+    }
+
+    companion object {
+        /**
+         * Number of reties of bulk tile retrieval before long timeout
+         */
+        var makeLocalRetries = 3
+        /**
+         * Short timeout on bulk tile retrieval failed
+         */
+        var makeLocalTimeoutShort = 5.seconds
+        /**
+         * Long timeout on bulk tile retrieval failed
+         */
+        var makeLocalTimeoutLong = 15.seconds
     }
 }

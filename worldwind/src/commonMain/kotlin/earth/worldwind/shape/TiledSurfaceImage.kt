@@ -53,18 +53,6 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
      * Configures tiled surface image to retrieve only the cache source.
      */
     var isCacheOnly = false
-    /**
-     * Number of reties of bulk tile retrieval before long timeout
-     */
-    var makeLocalRetries = 3
-    /**
-     * Short timeout on bulk tile retrieval failed
-     */
-    var makeLocalTimeoutShort = 5.seconds
-    /**
-     * Long timeout on bulk tile retrieval failed
-     */
-    var makeLocalTimeoutLong = 15.seconds
 
     /**
      * Memory cache for this layer's subdivision tiles. Each entry contains an array of four image tiles corresponding
@@ -78,6 +66,13 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     protected val ancestorTexCoordMatrix = Matrix3()
     protected val topLevelTiles = mutableListOf<Tile>()
     protected var lastGlobeState: Globe.State? = null
+
+    /**
+     * Makes a copy of this tiled surface image
+     */
+    open fun clone() = TiledSurfaceImage(tileFactory, levelSet).also {
+        it.imageOptions = imageOptions
+    }
 
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
@@ -262,7 +257,21 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     }
 
     companion object {
-        // Retrieve top level tiles to avoid black holes when navigating and zooming out camera
+        /**
+         * Number of reties of bulk tile retrieval before long timeout
+         */
+        var makeLocalRetries = 3
+        /**
+         * Short timeout on bulk tile retrieval failed
+         */
+        var makeLocalTimeoutShort = 5.seconds
+        /**
+         * Long timeout on bulk tile retrieval failed
+         */
+        var makeLocalTimeoutLong = 15.seconds
+        /**
+         * Retrieve top level tiles to avoid black holes when navigating and zooming out camera
+         */
         private const val RETRIEVE_TOP_LEVEL_TILES = true
     }
 }

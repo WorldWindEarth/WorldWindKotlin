@@ -7,4 +7,5 @@ expect open class TiledElevationCoverage(
     tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
 ): AbstractTiledElevationCoverage {
     constructor()
+    open fun clone(): TiledElevationCoverage
 }

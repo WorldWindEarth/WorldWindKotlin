@@ -31,6 +31,11 @@ actual open class TiledElevationCoverage actual constructor(
         override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
     })
 
+    /**
+     * Makes a copy of this elevation coverage
+     */
+    actual open fun clone() = TiledElevationCoverage(tileMatrixSet, elevationSourceFactory)
+
     override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         val elevationSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
         if (elevationSource.isUrl) {

@@ -23,13 +23,8 @@ object WebMercatorLayerFactory {
         val urlParts = parseUrl(urlTemplate)
         val randomValue = urlParts.find { it.startsWith(RAND_PREFIX) }
         val randomValues = randomValue?.removeSurrounding(RAND_PREFIX, "}")?.split(",")
-
-        return object : MercatorTiledImageLayer(name, numLevels, tileSize, transparent, levelOffset), WebImageLayer {
+        val tileFactory = object : MercatorTileFactory {
             override val contentType = "Web Mercator"
-            override val serviceType = SERVICE_TYPE
-            override val serviceAddress = urlTemplate
-            override val imageFormat = imageFormat
-            override val isTransparent = transparent
             private val resultServerUrl = StringBuilder()
 
             override fun getImageSource(x: Int, y: Int, z: Int): ImageSource {
@@ -49,6 +44,12 @@ object WebMercatorLayerFactory {
                 }
                 return ImageSource.fromUrlString(resultServerUrl.toString())
             }
+        }
+        return object : MercatorTiledImageLayer(tileFactory, name, numLevels, tileSize, transparent, levelOffset), WebImageLayer {
+            override val serviceType = SERVICE_TYPE
+            override val serviceAddress = urlTemplate
+            override val imageFormat = imageFormat
+            override val isTransparent = transparent
         }
     }
 

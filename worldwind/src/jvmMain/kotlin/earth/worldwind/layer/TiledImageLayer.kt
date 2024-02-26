@@ -14,6 +14,11 @@ actual open class TiledImageLayer actual constructor(
     name: String?, tiledSurfaceImage: TiledSurfaceImage?
 ): AbstractTiledImageLayer(name, tiledSurfaceImage), CacheableImageLayer {
     /**
+     * Makes a copy of this image layer
+     */
+    actual open fun clone() = TiledImageLayer(displayName, tiledSurfaceImage?.clone())
+
+    /**
      * Start a new coroutine Job that downloads all imagery for a given sector and resolution,
      * without downloading imagery that is already in the cache.
      *
