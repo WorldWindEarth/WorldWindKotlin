@@ -27,9 +27,7 @@ actual object MilStd2525 {
     actual var labelScaleThreshold = 30.0
 
     actual var graphicsLineWidth = 0f
-        private set
     var graphicsOutlineWidth = 0f
-        private set
     @JvmStatic
     var isInitialized = false
         private set
