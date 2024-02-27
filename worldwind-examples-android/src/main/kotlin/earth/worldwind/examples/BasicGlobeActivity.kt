@@ -60,9 +60,9 @@ The globe uses the default navigation gestures:
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(WebMercatorLayerFactory.createLayer(
-                name = "Google Satellite",
                 urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
-                imageFormat = "image/jpeg"
+                imageFormat = "image/jpeg",
+                name = "Google Satellite"
             ).apply {
                 wwd.mainScope.launch { configureCache(contentManager, "GSat") }
             })

@@ -11,15 +11,11 @@ import earth.worldwind.util.LevelSet
 open class MercatorTiledImageLayer(
     name: String? = null, tiledSurfaceImage: MercatorTiledSurfaceImage? = null
 ): TiledImageLayer(name, tiledSurfaceImage) {
-    constructor(
-        tileFactory: MercatorTileFactory, name: String? = null, numLevels: Int = 22, tileSize: Int = 256, transparent: Boolean = false, levelOffset: Int = 1
-    ): this(name, buildTiledSurfaceImage(tileFactory, numLevels, tileSize, transparent, levelOffset))
-
     override fun clone() = MercatorTiledImageLayer(displayName, tiledSurfaceImage?.clone() as MercatorTiledSurfaceImage)
 
     companion object {
-        private fun buildTiledSurfaceImage(
-            tileFactory: MercatorTileFactory, numLevels: Int, tileSize: Int, transparent: Boolean, levelOffset: Int
+        fun buildTiledSurfaceImage(
+            tileFactory: MercatorTileFactory, numLevels: Int = 22, tileSize: Int = 256, transparent: Boolean = false, levelOffset: Int = 1
         ): MercatorTiledSurfaceImage {
             val sector = MercatorSector(-1.0, 1.0, NEG180, POS180)
             val tileOrigin = Location(sector.minLatitude, sector.minLongitude)

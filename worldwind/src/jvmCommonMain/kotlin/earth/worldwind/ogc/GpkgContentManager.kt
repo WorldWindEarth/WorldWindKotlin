@@ -51,20 +51,18 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                     runCatching {
                         when (service.type) {
                             WmsLayerFactory.SERVICE_TYPE -> WmsLayerFactory.createLayer(
-                                service.address,
-                                service.layerName?.split(",") ?: error("Layer not specified"),
-                                service.metadata
+                                service.address, service.layerName?.split(",") ?: error("Layer not specified"),
+                                service.metadata, content.identifier
                             )
 
                             WmtsLayerFactory.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
-                                service.address,
-                                service.layerName ?: error("Layer not specified"),
-                                service.metadata
+                                service.address, service.layerName ?: error("Layer not specified"),
+                                service.metadata, content.identifier
                             )
 
                             WebMercatorLayerFactory.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
-                                content.identifier, service.address, service.outputFormat, service.isTransparent,
-                                config.numLevels, config.tileHeight
+                                service.address, service.outputFormat, service.isTransparent,
+                                content.identifier, config.numLevels, config.tileHeight, config.levelOffset
                             )
 
                             else -> null // It is not a known Web Layer type
@@ -137,31 +135,25 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 val service = geoPackage.getWebService(content)
                 when (service?.type) {
                     Wcs100ElevationCoverage.SERVICE_TYPE -> Wcs100ElevationCoverage(
-                        service.address,
-                        service.layerName ?: error("Coverage not specified"),
-                        service.outputFormat,
-                        matrixSet.sector, matrixSet.maxResolution
+                        service.address, service.layerName ?: error("Coverage not specified"),
+                        service.outputFormat, matrixSet.sector, matrixSet.maxResolution
                     ).apply { cacheSourceFactory = factory }
 
                     Wcs201ElevationCoverage.SERVICE_TYPE -> Wcs201ElevationCoverage(
-                        service.address,
-                        service.layerName ?: error("Coverage not specified"),
-                        service.outputFormat,
-                        service.metadata
+                        service.address, service.layerName ?: error("Coverage not specified"),
+                        service.outputFormat, service.metadata
                     ).apply { cacheSourceFactory = factory }
 
                     WmsElevationCoverage.SERVICE_TYPE -> WmsElevationCoverage(
-                        service.address,
-                        service.layerName ?: error("Coverage not specified"),
-                        service.outputFormat,
-                        matrixSet.sector, matrixSet.maxResolution
+                        service.address, service.layerName ?: error("Coverage not specified"),
+                        service.outputFormat, matrixSet.sector, matrixSet.maxResolution
                     ).apply { cacheSourceFactory = factory }
 
                     else -> TiledElevationCoverage(matrixSet, factory).apply {
-                        // Configure cache to be able to use cacheable converage interface
+                        // Configure cache to be able to use cacheable coverage interface
                         cacheSourceFactory = factory
                     }
-                }
+                }.apply { displayName = content.identifier }
             }.onFailure {
                 Logger.logMessage(Logger.WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
             }.getOrNull()

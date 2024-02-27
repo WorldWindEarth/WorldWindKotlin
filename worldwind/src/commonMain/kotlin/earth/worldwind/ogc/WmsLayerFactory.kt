@@ -36,8 +36,11 @@ object WmsLayerFactory {
      * @param serviceAddress WMS service address
      * @param layerNames Optional list of WMS layer names to be requested and combined into the resulting image layer
      * @param serviceMetadata Optional WMS capabilities XML string to avoid online capabilities request
+     * @param displayName Optional layer display name
      */
-    suspend fun createLayer(serviceAddress: String, layerNames: List<String>, serviceMetadata: String? = null): TiledImageLayer {
+    suspend fun createLayer(
+        serviceAddress: String, layerNames: List<String>, serviceMetadata: String? = null, displayName: String? = null
+    ): TiledImageLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingServiceAddress")
         }
@@ -50,7 +53,7 @@ object WmsLayerFactory {
         require(wmsLayers.isNotEmpty()) {
             makeMessage("WmsLayerFactory", "createLayer", "Provided layer names did not match available layers")
         }
-        return createWmsImageLayer(serviceAddress, wmsCapabilitiesText, wmsLayers)
+        return createWmsImageLayer(serviceAddress, wmsCapabilitiesText, wmsLayers, displayName)
     }
 
     private suspend fun retrieveWmsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
@@ -68,9 +71,9 @@ object WmsLayerFactory {
     }
 
     private fun createWmsImageLayer(
-        serviceAddress: String, serviceMetadata: String, wmsLayers: List<WmsLayer>
+        serviceAddress: String, serviceMetadata: String, wmsLayers: List<WmsLayer>, name: String?
     ): TiledImageLayer = object : TiledImageLayer(
-        wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)
+        name ?: wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)
     ), WebImageLayer {
         override val serviceType = SERVICE_TYPE
         override val serviceAddress = serviceAddress

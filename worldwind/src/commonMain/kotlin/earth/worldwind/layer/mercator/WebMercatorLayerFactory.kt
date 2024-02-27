@@ -1,6 +1,7 @@
 package earth.worldwind.layer.mercator
 
 import earth.worldwind.layer.WebImageLayer
+import earth.worldwind.layer.mercator.MercatorTiledImageLayer.Companion.buildTiledSurfaceImage
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.locale.language
 import kotlin.random.Random
@@ -17,8 +18,8 @@ object WebMercatorLayerFactory {
     private const val RAND_PREFIX = "{rand="
 
     fun createLayer(
-        name: String, urlTemplate: String, imageFormat: String = "image/png", transparent: Boolean = false,
-        numLevels: Int = 22, tileSize: Int = 256, levelOffset: Int = 1
+        urlTemplate: String, imageFormat: String = "image/png", transparent: Boolean = false,
+        name: String? = null, numLevels: Int = 22, tileSize: Int = 256, levelOffset: Int = 1
     ): MercatorTiledImageLayer {
         val urlParts = parseUrl(urlTemplate)
         val randomValue = urlParts.find { it.startsWith(RAND_PREFIX) }
@@ -45,7 +46,8 @@ object WebMercatorLayerFactory {
                 return ImageSource.fromUrlString(resultServerUrl.toString())
             }
         }
-        return object : MercatorTiledImageLayer(tileFactory, name, numLevels, tileSize, transparent, levelOffset), WebImageLayer {
+        val tiledSurfaceImage = buildTiledSurfaceImage(tileFactory, numLevels, tileSize, transparent, levelOffset)
+        return object : MercatorTiledImageLayer(name, tiledSurfaceImage), WebImageLayer {
             override val serviceType = SERVICE_TYPE
             override val serviceAddress = urlTemplate
             override val imageFormat = imageFormat

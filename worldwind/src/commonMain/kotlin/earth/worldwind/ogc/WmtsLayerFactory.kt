@@ -44,8 +44,11 @@ object WmtsLayerFactory {
      * @param serviceAddress WMTS service address
      * @param layerName Optional WMTS layer name to be requested into the resulting image layer
      * @param serviceMetadata Optional WMTS capabilities XML string to avoid online capabilities request
+     * @param displayName Optional layer display name
      */
-    suspend fun createLayer(serviceAddress: String, layerName: String, serviceMetadata: String? = null): TiledImageLayer {
+    suspend fun createLayer(
+        serviceAddress: String, layerName: String, serviceMetadata: String? = null, displayName: String? = null
+    ): TiledImageLayer {
 		require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingServiceAddress")
         }
@@ -58,7 +61,7 @@ object WmtsLayerFactory {
         requireNotNull(wmtsLayer) {
             makeMessage("WmtsLayerFactory", "createLayer", "Specified layer name was not found")
         }
-        return createWmtsImageLayer(serviceAddress, wmtsCapabilitiesText, wmtsLayer)
+        return createWmtsImageLayer(serviceAddress, wmtsCapabilitiesText, wmtsLayer, displayName)
     }
 
     private suspend fun retrieveWmtsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
@@ -76,8 +79,8 @@ object WmtsLayerFactory {
     }
 
     private fun createWmtsImageLayer(
-        serviceAddress: String, serviceMetadata: String, wmtsLayer: WmtsLayer
-    ): TiledImageLayer = object : TiledImageLayer(wmtsLayer.title, createWmtsSurfaceImage(wmtsLayer)), WebImageLayer {
+        serviceAddress: String, serviceMetadata: String, wmtsLayer: WmtsLayer, name: String?
+    ): TiledImageLayer = object : TiledImageLayer(name ?: wmtsLayer.title, createWmtsSurfaceImage(wmtsLayer)), WebImageLayer {
         override val serviceType = SERVICE_TYPE
         override val serviceAddress = serviceAddress
         override val serviceMetadata = serviceMetadata
