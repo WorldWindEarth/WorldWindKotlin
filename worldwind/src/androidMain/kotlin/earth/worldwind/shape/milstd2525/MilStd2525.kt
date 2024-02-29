@@ -195,19 +195,26 @@ actual object MilStd2525 {
                 if (SymbolUtilities.isMobility(sidcWithMobility)) result = sidcWithMobility
             } else {
                 // Check if HQ, TaskForce, Feint or Dummy symbol modifiers are applicable
-                val modifier = if (hq && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.S_HQ_STAFF_OR_OFFSET_INDICATOR)) "A" // Headquarters
-                else if (installation && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AC_INSTALLATION)) "H" // Installation
-                else if (taskForce && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.D_TASK_FORCE_INDICATOR)
-                    && feintDummy && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AB_FEINT_DUMMY_INDICATOR)) "D" // TaskForce/Feint/Dummy
-                else if (taskForce && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.D_TASK_FORCE_INDICATOR)) "B" // TaskForce
-                else if (feintDummy && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AB_FEINT_DUMMY_INDICATOR)) "C" // Feint/Dummy
-                else null
+                val isHQ = hq && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.S_HQ_STAFF_OR_OFFSET_INDICATOR)
+                val isTaskForce = taskForce && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.D_TASK_FORCE_INDICATOR)
+                val isDummy = feintDummy && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AB_FEINT_DUMMY_INDICATOR)
+                val isInstallation = installation && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AC_INSTALLATION)
+                val modifier = when {
+                    !isDummy && isHQ && !isTaskForce -> 'A' // HEADQUARTERS
+                    !isDummy && isHQ && isTaskForce -> 'B' // TASK FORCE + HEADQUARTERS
+                    isDummy && isHQ && !isTaskForce -> 'C' // FEINT/DUMMY + HEADQUARTERS
+                    isDummy && isHQ && isTaskForce -> 'D' // FEINT/DUMMY + TASK FORCE + HEADQUARTERS
+                    !isDummy && !isHQ && isTaskForce -> 'E' // TASK FORCE
+                    isDummy && !isHQ && !isTaskForce -> 'F' // FEINT/DUMMY
+                    isDummy && !isHQ && isTaskForce -> 'G' // FEINT/DUMMY + TASK FORCE
+                    else -> if (isInstallation) 'H' else null
+                }
                 // Apply symbol modifier
                 if (modifier != null) result = result.substring(0, 10) + modifier + result.substring(11)
                 // Fix Feint/Dummy modifier for installation
-                if (feintDummy && result.length >= 12 && SymbolUtilities.hasInstallationModifier(result)
-                    && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AB_FEINT_DUMMY_INDICATOR)
-                ) result = result.substring(0, 11) + "B" + result.substring(12)
+                if (isDummy && result.length >= 12 && SymbolUtilities.hasInstallationModifier(result)) {
+                    result = result.substring(0, 11) + "B" + result.substring(12)
+                }
             }
         }
         return result
