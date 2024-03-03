@@ -41,7 +41,7 @@ kotlin {
     sourceSets {
         val mockkVersion = "1.13.9"
         val mokoVersion = "0.24.0-alpha-5"
-        val ktorVersion = "2.3.7"
+        val ktorVersion = "2.3.8"
         val ormliteVersion = "6.1"
         val commonMain by getting {
             dependencies {
@@ -145,7 +145,6 @@ android {
     namespace = project.group.toString()
     compileSdk = extra["targetSdk"] as Int
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-    sourceSets["main"].res.srcDir(File(buildDir, "generated/moko/androidMain/res")) // Fix for Moko resources
 
     defaultConfig {
         minSdk = extra["minSdk"] as Int
@@ -183,7 +182,7 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class)
         }
     }
 
-val dokkaOutputDir = "$buildDir/dokka"
+val dokkaOutputDir = "${layout.buildDirectory}/dokka"
 tasks.getByName<org.jetbrains.dokka.gradle.DokkaTask>("dokkaHtml") {
     outputDirectory.set(file(dokkaOutputDir))
 }

@@ -269,10 +269,15 @@ open class DrawContext(val gl: Kgl) {
         // Read the fragment pixels as a tightly packed array of RGBA 8888 colors.
         val pixelCount = width * height
         val pixelBuffer = scratchBuffer(pixelCount * 4)
+        val packAlignment = gl.getParameteri(GL_PACK_ALIGNMENT)
+        gl.pixelStorei(GL_PACK_ALIGNMENT, 1) // read byte aligned
         gl.readPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixelBuffer)
+        gl.pixelStorei(GL_PACK_ALIGNMENT, packAlignment) // restore the pack alignment
         val resultSet = mutableSetOf<Color>()
         var result = Color()
-        for (idx in 0 until pixelCount step 4) {
+        for (i in 0 until pixelCount) {
+            val idx = i * 4
+
             // Convert the RGBA 8888 color to a WorldWind color.
             result.red = (pixelBuffer[idx + 0].toInt() and 0xFF) / 0xFF.toFloat()
             result.green = (pixelBuffer[idx + 1].toInt() and 0xFF) / 0xFF.toFloat()

@@ -59,7 +59,6 @@ android {
     namespace = "${project.group}.tutorials"
     compileSdk = extra["targetSdk"] as Int
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-    sourceSets["main"].res.srcDir(File(buildDir, "generated/moko/androidMain/res")) // Fix for Moko resources
 
     defaultConfig {
         applicationId = namespace
