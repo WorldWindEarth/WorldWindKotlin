@@ -90,6 +90,6 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         /**
          * Controls the symbol modifiers visibility threshold
          */
-        var modifiersThreshold = 5e4
+        var modifiersThreshold = 3.2e4
     }
 }

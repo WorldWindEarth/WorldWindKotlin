@@ -220,7 +220,7 @@ open class Placemark @JvmOverloads constructor(
 
         // Compute a camera-position proximity scaling factor, so that distant placemarks can be scaled smaller than
         // nearer placemarks.
-        var visibilityScale = if (isEyeDistanceScaling)
+        val visibilityScale = if (isEyeDistanceScaling)
             (eyeDistanceScalingThreshold / cameraDistance).coerceIn(activeAttributes.minimumImageScale, 1.0) else 1.0
 
         // Apply the icon's translation and scale according to the image size, image offset and image scale. The image
@@ -308,12 +308,7 @@ open class Placemark @JvmOverloads constructor(
         }
 
         // If there's a label, perform these same operations for the label texture.
-        if (mustDrawLabel(rc)) {
-            // Compute a camera-position proximity scaling factor, so that distant placemarks can be scaled smaller than
-            // nearer placemarks.
-            visibilityScale = if (isEyeDistanceScaling)
-                    (eyeDistanceScalingLabelThreshold / cameraDistance).coerceIn(activeAttributes.minimumImageScale, 1.0) else 1.0
-
+        if ((!isEyeDistanceScaling || cameraDistance <= eyeDistanceScalingLabelThreshold) && mustDrawLabel(rc)) {
             // Render the label's texture when the label's position is in the frustum. If the label's position is outside
             // the frustum we don't do anything. This ensures that label textures are rendered only as necessary.
             rc.getText(label, activeAttributes.labelAttributes, rc.frustum.containsPoint(placePoint))?.let { labelTexture ->
