@@ -34,7 +34,9 @@ actual open class TiledElevationCoverage actual constructor(
     /**
      * Makes a copy of this elevation coverage
      */
-    actual open fun clone() = TiledElevationCoverage(tileMatrixSet, elevationSourceFactory)
+    actual open fun clone() = TiledElevationCoverage(tileMatrixSet, elevationSourceFactory).also {
+        it.displayName = displayName
+    }
 
     override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         val elevationSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
