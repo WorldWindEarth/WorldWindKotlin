@@ -160,4 +160,12 @@ open class LevelSet {
             else -> levels[levels.size - 1] // unable to match the resolution; return the last level
         }
     }
+
+    /**
+     * Determine the min relevant level for the sector of this level set
+     *
+     * @param maxLevel Maximum available level
+     * @return Minimum relevant level number
+     */
+    fun minRelevantLevel(maxLevel: Level = lastLevel) = levels[sector.minLevelNumber(maxLevel.levelNumber)]
 }

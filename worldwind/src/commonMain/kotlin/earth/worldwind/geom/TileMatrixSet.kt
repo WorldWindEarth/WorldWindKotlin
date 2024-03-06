@@ -46,4 +46,12 @@ open class TileMatrixSet(val sector: Sector, val entries: List<TileMatrix>) {
         }
         return nearestIdx
     }
+
+    /**
+     * Determine the min relevant index of matrix for the sector of this matrix set
+     *
+     * @param maxIndex Maximum available index
+     * @return Minimum relevant index
+     */
+    fun minRelevantIndexOfMatrix(maxIndex: Int = entries.size - 1) = sector.minLevelNumber(maxIndex)
 }

@@ -424,6 +424,24 @@ open class Sector(
         maxLongitude = maxLongitude.plusDegrees(deltaLongitudeDegrees)
     }
 
+    /**
+     * Determines minimal level number relevant for sector of the specified size
+     * @param maxLevelNumber Maximum available level number
+     * @return Minimal relevant level number for sector
+     */
+    fun minLevelNumber(maxLevelNumber: Int): Int {
+        val relWidth = abs(maxLongitude.relativeLongitude - minLongitude.relativeLongitude)
+        val relHeight = abs(maxLatitude.relativeLatitude - minLatitude.relativeLatitude)
+        val delta = 0.00001
+
+        for (minLevelNumber in 0 until maxLevelNumber) {
+            val tileSize = 1.0 / (1 shl (minLevelNumber + 1))
+            if (relWidth - delta > tileSize && relHeight - delta > tileSize) return minLevelNumber
+        }
+
+        return maxLevelNumber
+    }
+
     fun equals(other: Sector, tolerance: Double): Boolean {
         // if (this === other) return true // Empty sector is not equal self
         if (isEmpty && other.isEmpty) return false // Two empty sectors are not equal

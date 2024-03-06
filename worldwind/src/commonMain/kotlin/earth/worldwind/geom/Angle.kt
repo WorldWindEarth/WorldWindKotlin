@@ -56,13 +56,21 @@ value class Angle private constructor(
      */
     val isValidLongitude get() = isValidLongitude(inDegrees)
     /**
-     * Returns North or South notation depends on sign
+     * Return North or South notation depends on sign
      */
     val latitudeLetter get() = if (inDegrees < 0.0) "S" else "N"
     /**
-     * Returns West or East notation depends on sign
+     * Return West or East notation depends on sign
      */
     val longitudeLetter get() = if (inDegrees < 0.0) "W" else "E"
+    /**
+     * Relative latitude (from wiki.openstreetmap.org)
+     */
+    val relativeLatitude get() = (1 - ln(tan(inRadians) + 1 / cos(inRadians)) / PI) / 2
+    /**
+     * Relative longitude (from wiki.openstreetmap.org)
+     */
+    val relativeLongitude get() = (inDegrees + 180.0) / 360.0
 
     companion object {
         /** Represents an angle of zero degrees  */
