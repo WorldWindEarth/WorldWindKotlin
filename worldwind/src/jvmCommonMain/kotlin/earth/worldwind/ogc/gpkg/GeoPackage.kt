@@ -276,6 +276,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val tms = tileMatrixSetDao.queryForId(content.tableName) ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
         val deltaY = tms.maxY - tms.minY
+        initializeTileMatrices(content) // Ensure foreign collection exists
         val tm = content.tileMatrices?.associateBy { it.zoomLevel }
         for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
             tm?.get(levelNumber) ?: run {
@@ -283,18 +284,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 val matrixHeight = levelHeight / tileHeight
                 val pixelXSize = deltaX / levelWidth
                 val pixelYSize = deltaY / levelHeight
-                tileMatrixDao.create(
-                    GpkgTileMatrix().also {
-                        it.content = content
-                        it.zoomLevel = levelNumber
-                        it.matrixWidth = matrixWidth
-                        it.matrixHeight = matrixHeight
-                        it.tileWidth = tileWidth
-                        it.tileHeight = tileHeight
-                        it.pixelXSize = pixelXSize
-                        it.pixelYSize = pixelYSize
-                    }
-                )
+                content.tileMatrices?.add(GpkgTileMatrix().also {
+                    it.content = content
+                    it.zoomLevel = levelNumber
+                    it.matrixWidth = matrixWidth
+                    it.matrixHeight = matrixHeight
+                    it.tileWidth = tileWidth
+                    it.tileHeight = tileHeight
+                    it.pixelXSize = pixelXSize
+                    it.pixelYSize = pixelYSize
+                })
             }
         }
     }
@@ -447,11 +446,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val tms = tileMatrixSetDao.queryForId(content.tableName) ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
         val deltaY = tms.maxY - tms.minY
+        initializeTileMatrices(content) // Ensure foreign collection exists
         val tm = content.tileMatrices?.associateBy { it.zoomLevel }
         for (tileMatrix in tileMatrixSet.entries) tm?.get(tileMatrix.ordinal) ?: tileMatrix.run {
             val pixelXSize = deltaX / matrixWidth / tileWidth
             val pixelYSize = deltaY / matrixHeight / tileHeight
-            tileMatrixDao.create(GpkgTileMatrix().also {
+            content.tileMatrices?.add(GpkgTileMatrix().also {
                 it.content = content
                 it.zoomLevel = ordinal
                 it.matrixWidth = matrixWidth
@@ -655,6 +655,13 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     ) {}.also {
         DaoManager.registerDaoWithTableConfig(connectionSource, it)
         tileUserDataDao[tableName] = it
+    }
+
+    protected open fun initializeTileMatrices(content: GpkgContent) {
+        if (content.tileMatrices == null) {
+            contentDao.assignEmptyForeignCollection(content, GpkgContent.TILE_MATRICES)
+            content.tileMatrices?.refreshCollection()
+        }
     }
 
     companion object {

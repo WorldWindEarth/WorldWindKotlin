@@ -45,7 +45,7 @@ class GpkgContent : Serializable {
     var maxY: Double? = null
     @DatabaseField(columnName = SRS, dataType = DataType.SERIALIZABLE, foreign = true)
     var srs: GpkgSpatialReferenceSystem? = null
-    @ForeignCollectionField(eager = true)
+    @ForeignCollectionField(columnName = TILE_MATRICES, eager = true)
     var tileMatrices: ForeignCollection<GpkgTileMatrix>? = null
 
     companion object {
@@ -59,5 +59,6 @@ class GpkgContent : Serializable {
         const val MAX_X = "max_x"
         const val MAX_Y = "max_y"
         const val SRS = "srs_id"
+        const val TILE_MATRICES = "tile_matrices"
     }
 }
