@@ -15,7 +15,6 @@ import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.ShowTessellationLayer
 import earth.worldwind.shape.milstd2525.MilStd2525
-import earth.worldwind.shape.milstd2525.MilStd2525LevelOfDetailSelector
 import earth.worldwind.shape.milstd2525.MilStd2525Placemark
 import java.text.SimpleDateFormat
 import java.util.*
@@ -120,7 +119,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
             // Create a Renderable layer for the placemarks and add it to the WorldWindow
             val symbolLayer = RenderableLayer("MIL-STD-2525 Symbols")
             wwd.engine.layers.addLayer(symbolLayer)
-            MilStd2525LevelOfDetailSelector.modifiersThreshold = 75e4
+            MilStd2525.modifiersThreshold = 75e4
             val unitModifiers = SparseArray<String>()
             val renderAttributes = SparseArray<String>()
             renderAttributes.put(MilStdAttributes.KeepUnitRatio, "false")

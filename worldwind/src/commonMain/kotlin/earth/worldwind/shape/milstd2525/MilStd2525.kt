@@ -1,6 +1,8 @@
 package earth.worldwind.shape.milstd2525
 
 expect object MilStd2525 {
+    var modifiersThreshold: Double
+    var labelScaleThreshold: Double
     var graphicsLineWidth: Float
         private set
     fun getSimplifiedSymbolID(sidc: String): String

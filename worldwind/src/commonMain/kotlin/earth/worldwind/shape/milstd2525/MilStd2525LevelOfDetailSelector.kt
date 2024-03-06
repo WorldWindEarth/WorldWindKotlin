@@ -3,6 +3,10 @@ package earth.worldwind.shape.milstd2525
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.PlacemarkAttributes
+import earth.worldwind.shape.milstd2525.MilStd2525.getSimplifiedSymbolID
+import earth.worldwind.shape.milstd2525.MilStd2525.isTacticalGraphic
+import earth.worldwind.shape.milstd2525.MilStd2525.modifiersThreshold
+import earth.worldwind.shape.milstd2525.MilStd2525Placemark.Companion.getPlacemarkAttributes
 
 /**
  * The [MilStd2525LevelOfDetailSelector] determines which set of [PlacemarkAttributes] to use for a [MilStd2525Placemark].
@@ -26,7 +30,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
      * @return if placemark should display or skip its rendering
      */
     override fun selectLevelOfDetail(rc: RenderContext, placemark: Placemark, cameraDistance: Double): Boolean {
-        if (placemark !is MilStd2525Placemark) return false
+        if (placemark !is MilStd2525Placemark) return true
         val isHighlightChanged = placemark.isHighlighted != isHighlighted
         isHighlighted = placemark.isHighlighted
 
@@ -34,10 +38,10 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         if (cameraDistance > placemark.eyeDistanceScalingThreshold && !placemark.isHighlighted) {
             // Low-fidelity: use a SIDC code with affiliation code only
             if (lastLevelOfDetail != LOW_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val simpleCode = if (MilStd2525.isTacticalGraphic(placemark.symbolCode))
-                    MilStd2525.getSimplifiedSymbolID(placemark.symbolCode)
+                val simpleCode = if (isTacticalGraphic(placemark.symbolCode))
+                    getSimplifiedSymbolID(placemark.symbolCode)
                 else placemark.symbolCode.substring(0, 3) + "*------*****"
-                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
+                placemark.attributes = getPlacemarkAttributes(
                     simpleCode, symbolAttributes = placemark.symbolAttributes
                 )
                 lastLevelOfDetail = LOW_LEVEL_OF_DETAIL
@@ -45,8 +49,8 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         } else if (cameraDistance > modifiersThreshold && !placemark.isHighlighted || !placemark.isModifiersVisible) {
             // Medium-fidelity: use a simplified SIDC code without status, mobility, size and text modifiers
             if (lastLevelOfDetail != MEDIUM_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val simpleCode = MilStd2525.getSimplifiedSymbolID(placemark.symbolCode)
-                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
+                val simpleCode = getSimplifiedSymbolID(placemark.symbolCode)
+                placemark.attributes = getPlacemarkAttributes(
                     simpleCode, symbolAttributes = placemark.symbolAttributes
                 )
                 lastLevelOfDetail = MEDIUM_LEVEL_OF_DETAIL
@@ -55,7 +59,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
             // High-fidelity: use the regular SIDC code without text modifiers, except unique designation (T)
             if (lastLevelOfDetail != HIGH_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val basicModifiers = placemark.symbolModifiers?.filter { (k,_) -> k == "T" }
-                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
+                placemark.attributes = getPlacemarkAttributes(
                     placemark.symbolCode, basicModifiers, placemark.symbolAttributes
                 )
                 lastLevelOfDetail = HIGH_LEVEL_OF_DETAIL
@@ -63,7 +67,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         } else {
             // Highest-fidelity: use the regular SIDC code with all available text modifiers
             if (lastLevelOfDetail != HIGHEST_LEVEL_OF_DETAIL || isInvalidateRequested || isHighlightChanged) {
-                placemark.attributes = MilStd2525Placemark.getPlacemarkAttributes(
+                placemark.attributes = getPlacemarkAttributes(
                     placemark.symbolCode, placemark.symbolModifiers, placemark.symbolAttributes
                 )
                 lastLevelOfDetail = HIGHEST_LEVEL_OF_DETAIL
@@ -86,10 +90,5 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         protected const val MEDIUM_LEVEL_OF_DETAIL = 1
         protected const val HIGH_LEVEL_OF_DETAIL = 2
         protected const val HIGHEST_LEVEL_OF_DETAIL = 3
-
-        /**
-         * Controls the symbol modifiers visibility threshold
-         */
-        var modifiersThreshold = 3.2e4
     }
 }

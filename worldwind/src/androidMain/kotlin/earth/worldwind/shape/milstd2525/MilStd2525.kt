@@ -17,6 +17,15 @@ actual object MilStd2525 {
      */
     private val renderer = MilStdIconRenderer.getInstance()
     private val rendererSettings = RendererSettings.getInstance()
+    /**
+     * Controls the symbol modifiers visibility threshold
+     */
+    actual var modifiersThreshold = 3.2e4
+    /**
+     * Controls the tactical graphics labels visibility threshold
+     */
+    actual var labelScaleThreshold = 30.0
+
     actual var graphicsLineWidth = 0f
         private set
     var graphicsOutlineWidth = 0f

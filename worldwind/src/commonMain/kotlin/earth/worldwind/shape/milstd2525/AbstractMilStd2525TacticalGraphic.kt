@@ -5,6 +5,7 @@ import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.*
+import earth.worldwind.shape.milstd2525.MilStd2525.labelScaleThreshold
 import earth.worldwind.util.Logger
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
@@ -78,18 +79,17 @@ abstract class AbstractMilStd2525TacticalGraphic(
         val terrainSector = rc.terrain.sector
         if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
             // Get current map scale based on observation range.
-            var currentScale = computeScale(rc)
+            val currentScale = computeScale(rc)
             // Limit scale based on clipping sector diagonal size
-            if (currentScale < minScale) currentScale = minScale
-            else if (currentScale > maxScale) currentScale = maxScale
+            val limitedScale = currentScale.coerceIn(minScale, maxScale)
             // Get renderables for current LoD
             val equatorialRadius = rc.globe.equatorialRadius
-            val lod = computeNearestLoD(equatorialRadius, currentScale)
+            val lod = computeNearestLoD(equatorialRadius, limitedScale)
             val shapes = lodBuffer[lod] ?: makeRenderables(computeLoDScale(equatorialRadius, lod)).also { lodBuffer[lod] = it }
             // Draw available shapes
             for (renderable in shapes) {
                 if (renderable is Highlightable) renderable.isHighlighted = isHighlighted
-                renderable.render(rc)
+                if (renderable !is Label || isHighlighted || currentScale <= labelScaleThreshold) renderable.render(rc)
             }
         }
     }

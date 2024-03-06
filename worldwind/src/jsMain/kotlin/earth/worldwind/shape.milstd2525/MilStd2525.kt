@@ -8,6 +8,14 @@ actual object MilStd2525 {
     private const val GRAPHICS_LINE_WIDTH = 3f
     private const val SYMBOL_OUTLINE_WIDTH = 1
 
+    /**
+     * Controls the symbol modifiers visibility threshold
+     */
+    actual var modifiersThreshold = 3.2e4
+    /**
+     * Controls the tactical graphics labels visibility threshold
+     */
+    actual var labelScaleThreshold = 4.0
     actual var graphicsLineWidth = GRAPHICS_LINE_WIDTH
     var graphicsOutlineWidth = SYMBOL_OUTLINE_WIDTH.toFloat()
 
