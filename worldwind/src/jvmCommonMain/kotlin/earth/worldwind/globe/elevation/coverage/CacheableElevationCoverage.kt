@@ -38,6 +38,10 @@ interface CacheableElevationCoverage : ElevationCoverage {
      * Last update date of cache content or null, if cache is not configured
      */
     val lastUpdateDate get() = cacheSourceFactory?.lastUpdateDate
+    /**
+     * Returns true if elevation coverage cache is stored in float, or false if it is in integer
+     */
+    val isFloat get() = cacheSourceFactory?.isFloat
 
     /**
      * Configures elevation coverage to use specified cache provider

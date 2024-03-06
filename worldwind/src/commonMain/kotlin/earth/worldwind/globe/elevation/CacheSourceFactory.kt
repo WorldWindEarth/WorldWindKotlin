@@ -20,6 +20,10 @@ interface CacheSourceFactory : ElevationSourceFactory {
      * Last update date of cache content
      */
     val lastUpdateDate: Instant
+    /**
+     * Returns true if elevation coverage cache is stored in float, or false if it is in integer
+     */
+    val isFloat: Boolean
 
     /**
      * Estimated cache content size in bytes

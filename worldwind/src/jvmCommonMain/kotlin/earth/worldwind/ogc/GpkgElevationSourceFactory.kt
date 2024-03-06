@@ -10,7 +10,7 @@ import kotlinx.datetime.Instant
 open class GpkgElevationSourceFactory(
     protected val geoPackage: GeoPackage,
     protected val content: GpkgContent,
-    protected val isFloat: Boolean
+    override val isFloat: Boolean
 ) : CacheSourceFactory {
     override val contentType = "GPKG"
     override val contentKey get() = content.tableName
