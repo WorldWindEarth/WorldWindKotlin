@@ -165,9 +165,6 @@ open class BasicFrameController: FrameController {
                     if (topObject?.isTerrain == false) topObject.markOnTop()
                 }
             }
-
-            // Remove all picked objects not marked as on top or terrain.
-            pickedObjects.keepTopAndTerrainObjects()
         }
     }
 }
