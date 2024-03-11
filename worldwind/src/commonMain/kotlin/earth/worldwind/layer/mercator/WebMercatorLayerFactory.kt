@@ -26,10 +26,9 @@ object WebMercatorLayerFactory {
         val randomValues = randomValue?.removeSurrounding(RAND_PREFIX, "}")?.split(",")
         val tileFactory = object : MercatorTileFactory {
             override val contentType = "Web Mercator"
-            private val resultServerUrl = StringBuilder()
 
             override fun getImageSource(x: Int, y: Int, z: Int): ImageSource {
-                resultServerUrl.clear()
+                val resultServerUrl = StringBuilder()
                 urlParts.forEach {
                     resultServerUrl.append(
                         when (it) {
