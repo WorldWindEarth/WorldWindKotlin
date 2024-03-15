@@ -2,7 +2,6 @@ package earth.worldwind.layer.mbtiles
 
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
-import com.j256.ormlite.support.ConnectionSource
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.mercator.MercatorImageTile
@@ -11,12 +10,12 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.Level
+import earth.worldwind.util.ormlite.initConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import java.io.File
 
-expect fun initConnection(pathName: String, readOnly: Boolean): ConnectionSource
 expect fun buildImageSource(
     tilesDao: Dao<MBTiles, Int>, readOnly: Boolean, contentKey: String, zoom: Int, column: Int, row: Int, imageFormat: String?
 ): ImageSource

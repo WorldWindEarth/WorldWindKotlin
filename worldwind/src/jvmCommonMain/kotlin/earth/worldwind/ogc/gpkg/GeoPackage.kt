@@ -3,7 +3,6 @@ package earth.worldwind.ogc.gpkg
 import com.j256.ormlite.dao.BaseDaoImpl
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
-import com.j256.ormlite.support.ConnectionSource
 import com.j256.ormlite.table.DatabaseTableConfig
 import com.j256.ormlite.table.TableUtils
 import earth.worldwind.geom.*
@@ -17,13 +16,12 @@ import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import earth.worldwind.util.Logger
+import earth.worldwind.util.ormlite.initConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.SQLException
 import java.util.*
 import kotlin.math.*
-
-expect fun initConnection(pathName: String, readOnly: Boolean): ConnectionSource
 
 // TODO Verify its a GeoPackage container
 open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
