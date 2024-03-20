@@ -117,7 +117,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 geoPackage.setupTileMatrices(content, levelSet)
             }
             // Update content metadata
-            geoPackage.updateTilesContent(layer, contentKey, levelSet, boundingSector)
+            geoPackage.updateTilesContent(layer, contentKey, levelSet, boundingSector, content)
         } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, boundingSector, setupWebLayer)
 
         layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(geoPackage, content, imageFormat)
@@ -179,7 +179,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 geoPackage.setupTileMatrices(content, coverage.tileMatrixSet)
             }
             // Update content metadata
-            geoPackage.updateGriddedCoverageContent(coverage, contentKey, boundingSector)
+            geoPackage.updateGriddedCoverageContent(coverage, contentKey, boundingSector, content)
         } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, boundingSector, setupWebCoverage, isFloat)
 
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(geoPackage, content, isFloat)

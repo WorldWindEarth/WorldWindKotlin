@@ -251,19 +251,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     suspend fun updateTilesContent(
-        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, boundingSector: Sector?
+        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, boundingSector: Sector?, content: GpkgContent
     ): Unit = withContext(Dispatchers.IO) {
         val srs = srsDao.queryForId(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
         val box = buildBoundingBox(boundingSector ?: levelSet.sector, srs.id)
-        val content = GpkgContent().also {
-            it.tableName = tableName
-            it.dataType = TILES
-            it.identifier = layer.displayName ?: tableName
-            it.minX = box[0]
-            it.minY = box[1]
-            it.maxX = box[2]
-            it.maxY = box[3]
-            it.srs = srs
+        with(content) {
+            identifier = layer.displayName ?: tableName
+            minX = box[0]
+            minY = box[1]
+            maxX = box[2]
+            maxY = box[3]
         }
         contentDao.update(content)
     }
@@ -421,19 +418,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     suspend fun updateGriddedCoverageContent(
-        coverage: CacheableElevationCoverage, tableName: String, boundingSector: Sector?
+        coverage: CacheableElevationCoverage, tableName: String, boundingSector: Sector?, content: GpkgContent
     ) = withContext(Dispatchers.IO) {
         val srs = srsDao.queryForId(EPSG_4326)
         val box = buildBoundingBox(boundingSector ?: coverage.tileMatrixSet.sector, srs.id)
-        val content = GpkgContent().also {
-            it.tableName = tableName
-            it.dataType = COVERAGE
-            it.identifier = coverage.displayName ?: tableName
-            it.minX = box[0]
-            it.minY = box[1]
-            it.maxX = box[2]
-            it.maxY = box[3]
-            it.srs = srs
+        with(content) {
+            identifier = coverage.displayName ?: tableName
+            minX = box[0]
+            minY = box[1]
+            maxX = box[2]
+            maxY = box[3]
         }
         contentDao.update(content)
     }
