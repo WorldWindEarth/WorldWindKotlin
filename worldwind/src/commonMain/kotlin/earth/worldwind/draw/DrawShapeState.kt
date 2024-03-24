@@ -15,6 +15,7 @@ open class DrawShapeState internal constructor() {
     }
 
     var program: AbstractShaderProgram? = null
+    var secondProgram: AbstractShaderProgram? = null
     var vertexBuffer: FloatBufferObject? = null
     var elementBuffer: AbstractBufferObject? = null
     val vertexOrigin = Vec3()
@@ -34,6 +35,7 @@ open class DrawShapeState internal constructor() {
 
     open fun reset() {
         program = null
+        secondProgram = null
         vertexBuffer = null
         elementBuffer = null
         vertexOrigin.set(0.0, 0.0, 0.0)

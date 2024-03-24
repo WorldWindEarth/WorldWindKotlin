@@ -3,6 +3,7 @@ package earth.worldwind.shape
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGeomLines
+import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
@@ -11,6 +12,7 @@ import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
+import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.kgl.*
@@ -68,9 +70,10 @@ open class GeomPath @JvmOverloads constructor(
         val drawState: DrawShapeState
         val cameraDistance: Double
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceShape>()
-            drawable = DrawableSurfaceShape.obtain(pool)
+            val pool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
+            drawable = DrawableSurfaceGeomLines.obtain(pool)
             drawState = drawable.drawState
+            drawState.secondProgram = rc.getShaderProgram { BasicShaderProgram() }
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
@@ -278,7 +281,7 @@ open class GeomPath @JvmOverloads constructor(
         outlineElements.add(vertex)
         outlineElements.add(vertex + 1)
 
-        if(isExtrude)
+        if(isExtrude && !isSurfaceShape)
         {
             var pointVertical = Vec3()
             pointVertical = rc.geographicToCartesian(positionB.latitude, positionB.longitude, 0.0, altitudeMode, pointVertical)
