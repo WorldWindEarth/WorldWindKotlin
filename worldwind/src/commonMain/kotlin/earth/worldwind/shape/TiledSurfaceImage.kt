@@ -46,6 +46,14 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
      */
     var detailControl = 1.0
     /**
+     * Retrieve top level tiles to avoid black holes when navigating and zooming out camera
+     */
+    var retrieveTopLevelTiles = true
+    /**
+     * Use ancestor tile texture as a fallback for descendants
+     */
+    var useAncestorTileTexture = true
+    /**
      * Define cache tiles factory implementation.
      */
     var cacheTileFactory: CacheTileFactory? = null
@@ -192,10 +200,12 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         }
         val currentAncestorTile = ancestorTile
         val currentAncestorTexture = ancestorTexture
-        getTexture(rc, tile, RETRIEVE_TOP_LEVEL_TILES && retrieveCurrentLevel)?.let { tileTexture ->
+        getTexture(rc, tile, retrieveTopLevelTiles && retrieveCurrentLevel)?.let { tileTexture ->
             // tile has a texture; use it as a fallback tile for descendants
-            ancestorTile = tile
-            ancestorTexture = tileTexture
+            if (useAncestorTileTexture) {
+                ancestorTile = tile
+                ancestorTexture = tileTexture
+            }
         }
         // each tile has a cached size of 1, recursively process the tile's children
         val children = tile.subdivideToCache(tileFactory, tileCache, 4)
@@ -269,9 +279,5 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
          * Long timeout on bulk tile retrieval failed
          */
         var makeLocalTimeoutLong = 15.seconds
-        /**
-         * Retrieve top level tiles to avoid black holes when navigating and zooming out camera
-         */
-        private const val RETRIEVE_TOP_LEVEL_TILES = true
     }
 }
