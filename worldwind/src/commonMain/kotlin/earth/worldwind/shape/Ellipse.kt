@@ -2,18 +2,22 @@ package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
+import earth.worldwind.draw.DrawableGeomLines
 import earth.worldwind.draw.DrawableShape
+import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
+import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.buffer.ShortBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.BasicShaderProgram
+import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.*
@@ -59,6 +63,7 @@ open class Ellipse @JvmOverloads constructor(
             field.copy(value)
             reset()
         }
+
     /**
      * The ellipse's radius perpendicular to it's heading, in meters.
      * When the ellipse's heading is 0.0, the semi-major axis points East.
@@ -73,6 +78,7 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
+
     /**
      * The ellipse's radius parallel to it's heading, in meters.
      * When the ellipse's heading is 0.0, the semi-minor axis points North.
@@ -87,6 +93,7 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
+
     /**
      * The ellipse's heading clockwise from North. When ellipse's heading is 0.0,
      * the semi-major axis points East and the semi-minor axis points North.
@@ -98,6 +105,7 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
+
     /**
      * The maximum pixels a single edge interval will span before the number of intervals is increased. Increasing this
      * value will make ellipses appear coarser.
@@ -110,6 +118,7 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
+
     /**
      * Sets the maximum number of angular intervals that may be used to approximate this ellipse's on screen.
      * <br>
@@ -131,6 +140,7 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
+
     /**
      * The number of intervals used for generating geometry. Clamped between MIN_INTERVALS and maximumIntervals.
      * Will always be even.
@@ -139,6 +149,12 @@ open class Ellipse @JvmOverloads constructor(
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
     protected var vertexBufferKey = Any()
+    protected var lineVertexArray = FloatArray(0)
+    protected var lineVertexIndex = 0
+    protected var lineVertexBufferKey = Any()
+    protected var lineElementBufferKey = Any()
+    protected val verticalElements = mutableListOf<Int>()
+    protected val outlineElements = mutableListOf<Int>()
     protected val vertexOrigin = Vec3()
     protected var texCoord1d = 0.0
     protected val texCoord2d = Vec3()
@@ -248,22 +264,41 @@ open class Ellipse @JvmOverloads constructor(
         if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
             vertexBufferKey = Any()
+            lineVertexBufferKey = Any()
+            lineElementBufferKey = Any()
         }
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
         val drawState: DrawShapeState
+        val drawableLines: Drawable
+        val drawStateLines: DrawShapeState
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
+
+            val linesPool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
+            drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
+            drawStateLines = drawableLines.drawState
+            // Use the basic GLSL program to draw the shape.
+            drawStateLines.secondProgram = rc.getShaderProgram { BasicShaderProgram() }
+
+            drawableLines.offset = rc.globe.offset
+            drawableLines.sector.copy(boundingSector)
+
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
         } else {
             val pool = rc.getDrawablePool<DrawableShape>()
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
+
+            val linesPool = rc.getDrawablePool<DrawableGeomLines>()
+            drawableLines = DrawableGeomLines.obtain(linesPool)
+            drawStateLines = drawableLines.drawState
+
             cameraDistance = boundingBox.distanceTo(rc.cameraPoint)
         }
 
@@ -273,14 +308,27 @@ open class Ellipse @JvmOverloads constructor(
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
 
+        // Use the basic GLSL program to draw the shape.
+        drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
+
+        // Assemble the drawable's OpenGL vertex buffer object.
+        drawStateLines.vertexBuffer = rc.getBufferObject(lineVertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray) }
+
+        // Assemble the drawable's OpenGL element buffer object.
+        drawStateLines.elementBuffer = rc.getBufferObject(lineElementBufferKey) {
+            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray())
+        }
+
         // Get the attributes of the element buffer
         val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) { assembleElements(activeIntervals) }
         if (isSurfaceShape) {
             drawInterior(rc, drawState)
-            drawOutline(rc, drawState)
+            //drawOutline(rc, drawState)
+            drawOutline2(rc, drawStateLines)
         } else {
-            drawOutline(rc, drawState)
+            //drawOutline(rc, drawState)
+            drawOutline2(rc, drawStateLines)
             drawInterior(rc, drawState)
         }
 
@@ -291,9 +339,23 @@ open class Ellipse @JvmOverloads constructor(
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
 
+        // Configure the drawable according to the shape's attributes.
+        drawStateLines.vertexOrigin.copy(vertexOrigin)
+        drawStateLines.vertexStride = 40 // stride in bytes
+        drawStateLines.enableCullFace = false
+        drawStateLines.enableDepthTest = activeAttributes.isDepthTest
+        drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
+
         // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
-        else rc.offerShapeDrawable(drawable, cameraDistance)
+        if (isSurfaceShape) {
+            rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
+            rc.offerSurfaceDrawable(drawableLines, 0.0 /*zOrder*/)
+
+        }
+        else {
+            rc.offerShapeDrawable(drawableLines, cameraDistance)
+            rc.offerShapeDrawable(drawable, cameraDistance)
+        }
     }
 
     protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState) {
@@ -352,6 +414,39 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
+    protected open fun drawOutline2(rc: RenderContext, drawState: DrawShapeState) {
+        if (!activeAttributes.isDrawOutline) return
+
+        // Configure the drawable to use the outline texture when drawing the outline.
+        activeAttributes.outlineImageSource?.let { outlineImageSource ->
+            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
+                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+                drawState.texture(texture)
+                drawState.texCoordMatrix(texCoordMatrix)
+            }
+        } ?: drawState.texture(null)
+
+        // Configure the drawable to display the shape's outline.
+        drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+        drawState.lineWidth(5.0f)
+        drawState.drawElements(
+            GL_TRIANGLE_STRIP, outlineElements.size,
+            GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES
+        )
+        if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
+            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+            drawState.lineWidth(5.0f)
+            drawState.texture(null)
+            drawState.drawElements(
+                GL_TRIANGLES, verticalElements.size,
+                GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES
+            )
+        }
+    }
+
     protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
         val calculatedIntervals = computeIntervals(rc)
         val sanitizedIntervals = sanitizeIntervals(calculatedIntervals)
@@ -382,6 +477,15 @@ open class Ellipse @JvmOverloads constructor(
         vertexArray = if (isExtrude && !isSurfaceShape) FloatArray((activeIntervals * 2 + spineCount) * VERTEX_STRIDE)
         else FloatArray((activeIntervals + spineCount) * VERTEX_STRIDE)
 
+
+        lineVertexIndex = 0
+        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray(((activeIntervals + 1) * 6) * 10)
+        else FloatArray(((activeIntervals + 1) * 2) * 10)
+        val outlineFloatSize = (activeIntervals + 1) * 2 * 10
+
+        verticalElements.clear()
+        outlineElements.clear()
+
         // Check if minor radius is less than major in which case we need to flip the definitions and change the phase
         val isStandardAxisOrientation = majorRadius > minorRadius
         val headingAdjustment = if (isStandardAxisOrientation) 90.0 else 0.0
@@ -406,6 +510,9 @@ open class Ellipse @JvmOverloads constructor(
         var spineIdx = 0
         val spineRadius = DoubleArray(spineCount)
 
+        var firstLoc = Location()
+        var prevLoc = Location()
+        var prevPrevLoc = Location()
         // Iterate around the ellipse to add vertices
         for (i in 0 until activeIntervals) {
             val radians = deltaRadians * i
@@ -421,7 +528,22 @@ open class Ellipse @JvmOverloads constructor(
             // Add the major arc radius for the spine points. Spine points are vertically coincident with exterior
             // points. The first and middle most point do not have corresponding spine points.
             if (i > 0 && i < activeIntervals / 2) spineRadius[spineIdx++] = x
+
+            if(i < 1)
+            {
+                firstLoc.copy(loc)
+                prevPrevLoc.copy(loc)
+                prevLoc.copy(loc)
+                continue
+            }
+            addLineVertex(rc, prevPrevLoc, prevLoc, loc, center.altitude, outlineFloatSize, isExtrude)
+
+            prevPrevLoc.copy(prevLoc)
+            prevLoc.copy(loc)
         }
+
+        addLineVertex(rc, prevPrevLoc, prevLoc, firstLoc, center.altitude,outlineFloatSize, isExtrude)
+        addLineVertex(rc, prevLoc, firstLoc, firstLoc, center.altitude, outlineFloatSize, isExtrude)
 
         // Add the interior spine point vertices
         for (i in 0 until spineCount) {
@@ -439,6 +561,103 @@ open class Ellipse @JvmOverloads constructor(
             boundingBox.setToPoints(vertexArray, vertexArray.size, VERTEX_STRIDE)
             boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
             boundingSector.setEmpty()
+        }
+    }
+
+    protected  open fun addLineVertex(rc : RenderContext, locationA: Location, locationB: Location, locationC: Location, altitude : Double, offset : Int, isExtrudedSkirt : Boolean) {
+        var offsetVertexIndex = lineVertexIndex * 2 + offset
+        val vertex = lineVertexIndex / 10
+        val verticalVertex = offsetVertexIndex / 10;
+
+        var pointA = Vec3()
+        pointA = if(isSurfaceShape) Vec3(locationA.longitude.inDegrees, locationA.latitude.inDegrees, altitude ) else rc.geographicToCartesian(locationA.latitude, locationA.longitude, altitude, altitudeMode, pointA)
+        var pointB = Vec3()
+        pointB = if(isSurfaceShape) Vec3(locationB.longitude.inDegrees, locationB.latitude.inDegrees, altitude ) else rc.geographicToCartesian(locationB.latitude, locationB.longitude, altitude, altitudeMode, pointB)
+        var pointC = Vec3()
+        pointC = if(isSurfaceShape) Vec3(locationC.longitude.inDegrees, locationC.latitude.inDegrees, altitude ) else rc.geographicToCartesian(locationC.latitude, locationC.longitude, altitude, altitudeMode, pointC)
+
+        val pointALocal = pointA - vertexOrigin
+        val pointBLocal = pointB - vertexOrigin
+        val pointCLocal = pointC - vertexOrigin
+        lineVertexArray[lineVertexIndex++] = pointALocal.x.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointALocal.y.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointALocal.z.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointBLocal.x.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointBLocal.y.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointBLocal.z.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointCLocal.x.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointCLocal.y.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointCLocal.z.toFloat()
+        lineVertexArray[lineVertexIndex++] = 1.0f
+
+        lineVertexArray[lineVertexIndex++] = pointALocal.x.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointALocal.y.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointALocal.z.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointBLocal.x.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointBLocal.y.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointBLocal.z.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointCLocal.x.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointCLocal.y.toFloat()
+        lineVertexArray[lineVertexIndex++] = pointCLocal.z.toFloat()
+        lineVertexArray[lineVertexIndex++] = -1.0f
+
+        outlineElements.add(vertex)
+        outlineElements.add(vertex + 1)
+
+        if (isExtrudedSkirt && !isSurfaceShape) {
+            var pointVertical = Vec3()
+            pointVertical = rc.geographicToCartesian(locationB.latitude, locationB.longitude, 0.0, AltitudeMode.CLAMP_TO_GROUND, pointVertical)
+            val pointVerticalLocal = pointVertical - vertexOrigin
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = 1.0f
+
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = -1.0f
+
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = 1.0f
+
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointBLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.x.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.y.toFloat()
+            lineVertexArray[offsetVertexIndex++] = pointVerticalLocal.z.toFloat()
+            lineVertexArray[offsetVertexIndex] = -1.0f
+
+            verticalElements.add(verticalVertex)
+            verticalElements.add(verticalVertex + 1)
+            verticalElements.add(verticalVertex + 2)
+            verticalElements.add(verticalVertex)
+            verticalElements.add(verticalVertex + 2)
+            verticalElements.add(verticalVertex + 3)
         }
     }
 

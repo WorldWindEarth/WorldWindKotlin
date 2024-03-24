@@ -13,6 +13,7 @@ import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.BasicShaderProgram
+import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
@@ -29,6 +30,8 @@ open class Polygon @JvmOverloads constructor(
     val boundaryCount get() = boundaries.size
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
+    protected var lineVertexArray = FloatArray(0)
+    protected var lineVertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val topElements = mutableListOf<Int>()
     protected val sideElements = mutableListOf<Int>()
@@ -36,6 +39,8 @@ open class Polygon @JvmOverloads constructor(
     protected val verticalElements = mutableListOf<Int>()
     protected var vertexBufferKey = nextCacheKey()
     protected var elementBufferKey = nextCacheKey()
+    protected var vertexLinesBufferKey = nextCacheKey()
+    protected var elementLinesBufferKey = nextCacheKey()
     protected val vertexOrigin = Vec3()
     protected var cameraDistance = 0.0
     protected var texCoord1d = 0.0
@@ -122,6 +127,7 @@ open class Polygon @JvmOverloads constructor(
     override fun reset() {
         super.reset()
         vertexArray = FloatArray(0)
+        lineVertexArray = FloatArray(0)
         topElements.clear()
         sideElements.clear()
         outlineElements.clear()
@@ -168,6 +174,9 @@ open class Polygon @JvmOverloads constructor(
                 GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements + outlineElements + verticalElements).toIntArray()
             )
         }
+
+        val drawableOutline : Drawable;
+        val drawStateOutline : DrawShapeState;
         if (isSurfaceShape || activeAttributes.interiorColor.alpha >= 1.0) {
             drawInterior(rc, drawState)
             drawOutline(rc, drawState)
@@ -214,6 +223,55 @@ open class Polygon @JvmOverloads constructor(
             drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, topElements.size * Int.SIZE_BYTES /*offset*/)
         }
     }
+    protected open fun drawOutline2(rc: RenderContext, drawState: DrawShapeState) {
+        if (!activeAttributes.isDrawOutline) return
+
+        // Configure the drawable to use the outline texture when drawing the outline.
+//        activeAttributes.outlineImageSource?.let { outlineImageSource ->
+//            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+//                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
+//                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+//                drawState.texture(texture)
+//                drawState.texCoordMatrix(texCoordMatrix)
+//            }
+//        } ?: drawState.texture(null)
+
+        drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }
+
+        // Assemble the drawable's OpenGL vertex buffer object.
+        drawState.vertexBuffer = rc.getBufferObject(vertexLinesBufferKey) {
+            FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray, lineVertexIndex)
+        }
+
+        // Assemble the drawable's OpenGL element buffer object.
+        drawState.elementBuffer = rc.getBufferObject(elementLinesBufferKey) {
+            IntBufferObject(
+                GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray()
+            )
+        }
+
+        // Configure the drawable to display the shape's outline.
+        drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+        drawState.lineWidth(activeAttributes.outlineWidth)
+        //drawState.texCoordAttrib(1 /*size*/, 20 /*offset in bytes*/)
+        drawState.drawElements(
+            GL_TRIANGLE_STRIP, outlineElements.size,
+            GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES /*offset*/
+        )
+
+        // Configure the drawable to display the shape's extruded verticals.
+        if (activeAttributes.isDrawVerticals && isExtrude) {
+            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+            drawState.lineWidth(activeAttributes.outlineWidth)
+            drawState.texture(null)
+            drawState.drawElements(
+                GL_TRIANGLES, verticalElements.size,
+                GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES /*offset*/
+            )
+        }
+    }
 
     protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
         if (!activeAttributes.isDrawOutline) return
@@ -251,7 +309,7 @@ open class Polygon @JvmOverloads constructor(
         }
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty()
+    protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty() || (isExtrude && lineVertexArray.isEmpty())
 
     protected open fun assembleGeometry(rc: RenderContext) {
         // Determine the number of vertexes
@@ -270,6 +328,8 @@ open class Polygon @JvmOverloads constructor(
         else FloatArray((vertexCount + boundaries.size) * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
         topElements.clear()
         sideElements.clear()
+
+        lineVertexIndex = 0
         outlineElements.clear()
         verticalElements.clear()
 

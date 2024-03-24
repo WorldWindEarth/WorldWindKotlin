@@ -153,6 +153,13 @@ open class Placemark @JvmOverloads constructor(
      * The distance from the camera to the placemark in meters.
      */
     protected var cameraDistance = 0.0
+    /**
+     * Leader line vertex array. Initially sized to store two xyz points.
+     */
+    protected val vertexArray = FloatArray(40)
+    protected var vertexArrayHashCode = 0
+    protected lateinit var vertexBufferKey: Any
+    protected lateinit var elementBufferKey: Any
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -286,8 +293,12 @@ open class Placemark @JvmOverloads constructor(
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
-                val pool = rc.getDrawablePool<DrawableLines>()
-                val drawable = DrawableLines.obtain(pool)
+//                val pool = rc.getDrawablePool<DrawableLines>()
+//                val drawable = DrawableLines.obtain(pool)
+//                prepareDrawableLeader(rc, drawable)
+//                rc.offerShapeDrawable(drawable, cameraDistance)
+                val pool = rc.getDrawablePool<DrawableGeomLines>()
+                val drawable = DrawableGeomLines.obtain(pool)
                 prepareDrawableLeader(rc, drawable)
                 rc.offerShapeDrawable(drawable, cameraDistance)
             }
@@ -448,12 +459,20 @@ open class Placemark @JvmOverloads constructor(
         drawable.program = rc.getShaderProgram { BasicShaderProgram() }
 
         // Compute the drawable's vertex points, in Cartesian coordinates relative to the placemark's ground point.
-        drawable.vertexPoints[0] = 0f // groundPoint.x - groundPoint.x
-        drawable.vertexPoints[1] = 0f // groundPoint.y - groundPoint.y
-        drawable.vertexPoints[2] = 0f // groundPoint.z - groundPoint.z
-        drawable.vertexPoints[3] = (placePoint.x - groundPoint.x).toFloat()
-        drawable.vertexPoints[4] = (placePoint.y - groundPoint.y).toFloat()
-        drawable.vertexPoints[5] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[0] = 0f // groundPoint.x - groundPoint.x
+        vertexArray[1] = 0f // groundPoint.y - groundPoint.y
+        vertexArray[2] = 0f // groundPoint.z - groundPoint.z
+        vertexArray[3] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[4] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[5] = (placePoint.z - groundPoint.z).toFloat()
+
+        // Regenerate vertex buffer on array change
+        val hashCode = vertexArray.contentHashCode()
+        if (vertexArrayHashCode != hashCode) {
+            vertexArrayHashCode = hashCode
+            vertexBufferKey = nextCacheKey()
+        }
+        drawable.vertexPoints = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
 
         // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.
         drawable.mvpMatrix.copy(rc.modelviewProjection)
