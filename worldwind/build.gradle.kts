@@ -115,7 +115,7 @@ kotlin {
             dependencies {
                 implementation("androidx.annotation:annotation:1.7.1")
                 implementation("androidx.appcompat:appcompat-resources:1.6.1")
-                implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.58")
+                implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.59")
                 implementation("com.j256.ormlite:ormlite-android:$ormliteVersion")
             }
         }
