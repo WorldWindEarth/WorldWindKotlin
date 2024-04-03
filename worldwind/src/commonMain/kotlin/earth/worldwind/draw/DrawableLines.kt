@@ -11,7 +11,7 @@ import earth.worldwind.util.kgl.GL_LINES
 import kotlin.jvm.JvmStatic
 
 open class DrawableLines protected constructor(): Drawable {
-    var vertexPoints: FloatBufferObject? = null
+    var vertexPoints: FloatArray = FloatArray(0)
     val mvpMatrix = Matrix4()
     val color = Color()
     var opacity = 1.0f
@@ -31,7 +31,7 @@ open class DrawableLines protected constructor(): Drawable {
 
     override fun recycle() {
         program = null
-        vertexPoints = null
+        //vertexPoints = null
         pool?.release(this)
         pool = null
     }
@@ -44,7 +44,8 @@ open class DrawableLines protected constructor(): Drawable {
     override fun draw(dc: DrawContext) {
         val program = program ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build
-        if (vertexPoints?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
+        val bindOffset = dc.bindBufferAndGetBindOffset(dc, vertexPoints)
+        if (bindOffset < 0) return  // vertex buffer unspecified or failed to bind
 
         // Disable texturing.
         program.enableTexture(false)
@@ -65,7 +66,7 @@ open class DrawableLines protected constructor(): Drawable {
         dc.gl.lineWidth(lineWidth)
 
         // Use the leader line as the vertex point attribute.
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, 0)
+        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, bindOffset)
 
         // Draw the leader line.
         dc.gl.drawArrays(GL_LINES, 0 /*first*/, 2 /*count*/)

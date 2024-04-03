@@ -467,7 +467,8 @@ open class Placemark @JvmOverloads constructor(
             vertexArrayHashCode = hashCode
             vertexBufferKey = nextCacheKey()
         }
-        drawable.vertexPoints = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
+        //drawable.vertexPoints = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
+        drawable.vertexPoints = vertexArray
 
         // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.
         drawable.mvpMatrix.copy(rc.modelviewProjection)

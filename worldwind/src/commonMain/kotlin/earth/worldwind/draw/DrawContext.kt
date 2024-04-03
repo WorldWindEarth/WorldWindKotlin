@@ -9,6 +9,7 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.FloatBufferObject
+import earth.worldwind.render.buffer.StorageBufferPool
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {
@@ -35,6 +36,9 @@ open class DrawContext(val gl: Kgl) {
     private var unitSquareBufferCache: FloatBufferObject? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
+
+    //Buffer pool for line vertex data
+    private var lineBufferPool : StorageBufferPool = StorageBufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
     /**
      * Returns count of terrain drawables in queue
      */
@@ -110,6 +114,7 @@ open class DrawContext(val gl: Kgl) {
         isPickMode = false
         scratchBuffer.fill(0)
         scratchList.clear()
+        lineBufferPool.reset();
     }
 
     fun contextLost() {
@@ -122,6 +127,7 @@ open class DrawContext(val gl: Kgl) {
         scratchFramebufferCache = null
         unitSquareBufferCache = null
         textures.fill(KglTexture.NONE)
+        lineBufferPool.free(this)
     }
 
     fun peekDrawable() = drawableQueue?.peekDrawable()
@@ -229,6 +235,10 @@ open class DrawContext(val gl: Kgl) {
         } else {
             gl.bindBuffer(target, buffer)
         }
+    }
+
+    fun bindBufferAndGetBindOffset(dc : DrawContext, dataArray: FloatArray) : Int {
+        return lineBufferPool.bindBufferAndGetBindOffset(dc, dataArray);
     }
 
     /**
