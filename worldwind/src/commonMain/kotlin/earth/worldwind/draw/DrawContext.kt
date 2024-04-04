@@ -9,7 +9,7 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.StorageBufferPool
+import earth.worldwind.render.buffer.BufferPool
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {
@@ -38,7 +38,7 @@ open class DrawContext(val gl: Kgl) {
     private val pixelArray = ByteArray(4)
 
     //Buffer pool for line vertex data
-    private var lineBufferPool : StorageBufferPool = StorageBufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
+    private var lineBufferPool : BufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
     /**
      * Returns count of terrain drawables in queue
      */

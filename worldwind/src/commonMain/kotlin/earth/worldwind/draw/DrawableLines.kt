@@ -31,7 +31,6 @@ open class DrawableLines protected constructor(): Drawable {
 
     override fun recycle() {
         program = null
-        //vertexPoints = null
         pool?.release(this)
         pool = null
     }
