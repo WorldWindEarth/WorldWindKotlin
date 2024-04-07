@@ -1,6 +1,8 @@
 package earth.worldwind.shape
 
 import earth.worldwind.PickedObject
+import earth.worldwind.draw.DrawShapeState
+import earth.worldwind.draw.DrawableGeomLines
 import earth.worldwind.draw.DrawableLines
 import earth.worldwind.draw.DrawableScreenTexture
 import earth.worldwind.geom.*
@@ -11,9 +13,14 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.FloatBufferObject
+import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.BasicShaderProgram
+import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
+import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
+import earth.worldwind.util.kgl.GL_TRIANGLES
+import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import earth.worldwind.util.math.boundingRectForUnitSquare
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -156,7 +163,7 @@ open class Placemark @JvmOverloads constructor(
     /**
      * Leader line vertex array. Initially sized to store two xyz points.
      */
-    protected val vertexArray = FloatArray(40)
+    protected val vertexArray = FloatArray(32)
     protected var vertexArrayHashCode = 0
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
@@ -484,6 +491,85 @@ open class Placemark @JvmOverloads constructor(
         drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.lineWidth = activeAttributes.leaderAttributes.outlineWidth
         drawable.enableDepthTest = activeAttributes.leaderAttributes.isDepthTest
+    }
+
+    protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableGeomLines) {
+        val drawStateLines: DrawShapeState = drawable.drawState
+        // Use the basic GLSL program to draw the placemark's leader.
+        drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
+
+        vertexArray[0] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[1] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[2] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[3] = 1f
+
+        vertexArray[4] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[5] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[6] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[7] = -1f
+
+        vertexArray[8] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[9] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[10] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[11] = 1f
+
+        vertexArray[12] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[13] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[14] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[15] = -1f
+
+        vertexArray[16] = 0.0f
+        vertexArray[17] = 0.0f
+        vertexArray[18] = 0.0f
+        vertexArray[19] = 1f
+
+        vertexArray[20] = 0.0f
+        vertexArray[21] = 0.0f
+        vertexArray[22] = 0.0f
+        vertexArray[23] = -1f
+
+        vertexArray[24] = 0.0f
+        vertexArray[25] = 0.0f
+        vertexArray[26] = 0.0f
+        vertexArray[27] = 1f
+
+        vertexArray[28] = 0.0f
+        vertexArray[29] = 0.0f
+        vertexArray[30] = 0.0f
+        vertexArray[31] = -1f
+
+        // Regenerate vertex buffer on array change
+        val hashCode = vertexArray.contentHashCode()
+        if (vertexArrayHashCode != hashCode) {
+            vertexArrayHashCode = hashCode
+            vertexBufferKey = nextCacheKey()
+            elementBufferKey = nextCacheKey()
+        }
+        drawStateLines.vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
+        val elements = IntArray(6)
+        elements[0] = 0
+        elements[1] = 1
+        elements[2] = 2
+        elements[3] = 0
+        elements[4] = 2
+        elements[5] = 3
+        drawStateLines.elementBuffer = rc.getBufferObject(elementBufferKey) { IntBufferObject(
+            GL_ELEMENT_ARRAY_BUFFER, elements) }
+        drawStateLines.vertexOrigin.copy(groundPoint)
+
+        // Configure the drawable according to the placemark's active leader attributes. Use a color appropriate for the
+        // pick mode. When picking use a unique color associated with the picked object ID.
+        drawStateLines.color((if (rc.isPickMode) pickColor else activeAttributes.leaderAttributes.outlineColor))
+        drawStateLines.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+        drawStateLines.lineWidth(activeAttributes.leaderAttributes.outlineWidth)
+        drawStateLines.enableCullFace = false
+        drawStateLines.enableDepthTest = activeAttributes.leaderAttributes.isDepthTest
+        drawStateLines.enableDepthWrite = activeAttributes.leaderAttributes.isDepthTest
+        drawStateLines.vertexStride = 40
+        drawStateLines.drawElements(
+            GL_TRIANGLES, elements.size,
+            GL_UNSIGNED_INT, 0
+        )
     }
 
     /**

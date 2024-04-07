@@ -78,8 +78,6 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
             // Restore the default WorldWind OpenGL state.
             dc.gl.disableVertexAttribArray(1 /*value*/)
             dc.gl.disableVertexAttribArray(2 /*value*/)
-            dc.gl.disableVertexAttribArray(3 /*value*/)
-            //dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/) // only vertexPoint is enabled by default
         }
     }
 
@@ -140,16 +138,11 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
 
                 dc.gl.enableVertexAttribArray(1 /*value*/)
                 dc.gl.enableVertexAttribArray(2 /*value*/)
-                dc.gl.enableVertexAttribArray(3 /*value*/)
                 // Use the shape's vertex point attribute and vertex texture coordinate attribute.
-                dc.gl.vertexAttribPointer(0 /*pointA*/, 3, GL_FLOAT, false, drawState.vertexStride, 0 /*offset*/)
-                dc.gl.vertexAttribPointer(1 /*pointB*/, 3, GL_FLOAT, false, drawState.vertexStride, 12 /*offset*/)
-                dc.gl.vertexAttribPointer(2 /*pointC*/, 3, GL_FLOAT, false, drawState.vertexStride, 24 /*offset*/)
-                dc.gl.vertexAttribPointer(3 /*corner*/, 1, GL_FLOAT, false, drawState.vertexStride, 36 /*offset*/)
                 // Use the shape's vertex point attribute.
-                //dc.gl.vertexAttribPointer(
-                //    0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0
-                //)
+                dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 0 /*offset*/)
+                dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 32 /*offset*/)
+                dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 64 /*offset*/)
 
                 // Draw the specified primitives to the framebuffer texture.
                 for (primIdx in 0 until shape.drawState.primCount) {

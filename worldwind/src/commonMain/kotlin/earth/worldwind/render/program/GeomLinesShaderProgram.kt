@@ -17,13 +17,14 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
             attribute vec4 pointA;
             attribute vec4 pointB;
             attribute vec4 pointC;
-            attribute float corner;
+            //attribute float corner;
 
             void main() {
                 /* Transform the vertex position by the modelview-projection matrix. */
-                vec4 pointAScreen = mvpMatrix * pointA;
-                vec4 pointBScreen = mvpMatrix * pointB;
-                vec4 pointCScreen = mvpMatrix * pointC;
+                vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
+                vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
+                vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
+                float corner = pointA.w;
                 
                 pointAScreen = pointAScreen / pointAScreen.w;
                 pointBScreen = pointBScreen / pointBScreen.w;
