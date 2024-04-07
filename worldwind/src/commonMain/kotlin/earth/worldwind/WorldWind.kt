@@ -142,6 +142,9 @@ open class WorldWind @JvmOverloads constructor(
 
         // Reset screen density factor.
         densityFactor = 1f
+
+        // Clear any cached OpenGL resources and state, which are now invalid.
+        dc.contextLost()
     }
 
     /**
