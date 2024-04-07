@@ -157,8 +157,6 @@ open class Placemark @JvmOverloads constructor(
      * Leader line vertex array. Initially sized to store two xyz points.
      */
     protected val vertexArray = FloatArray(6)
-    protected var vertexArrayHashCode = 0
-    protected lateinit var vertexBufferKey: Any
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -461,12 +459,6 @@ open class Placemark @JvmOverloads constructor(
         vertexArray[4] = (placePoint.y - groundPoint.y).toFloat()
         vertexArray[5] = (placePoint.z - groundPoint.z).toFloat()
 
-        // Regenerate vertex buffer on array change
-        val hashCode = vertexArray.contentHashCode()
-        if (vertexArrayHashCode != hashCode) {
-            vertexArrayHashCode = hashCode
-            vertexBufferKey = nextCacheKey()
-        }
         drawable.vertexPoints = vertexArray
 
         // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.
