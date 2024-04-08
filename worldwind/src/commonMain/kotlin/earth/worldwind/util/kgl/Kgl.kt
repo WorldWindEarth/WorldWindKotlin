@@ -411,9 +411,11 @@ interface Kgl {
 
     fun createBuffer(): KglBuffer
     fun bindBuffer(target: Int, buffer: KglBuffer)
-    fun bufferData(target: Int, size: Int, sourceData: ShortArray, usage: Int, offset: Int = 0)
-    fun bufferData(target: Int, size: Int, sourceData: IntArray, usage: Int, offset: Int = 0)
+    fun bufferData(target: Int, size: Int, sourceData: ShortArray?, usage: Int, offset: Int = 0)
+    fun bufferData(target: Int, size: Int, sourceData: IntArray?, usage: Int, offset: Int = 0)
     fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int = 0)
+    fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray)
+    fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray)
     fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray)
     fun deleteBuffer(buffer: KglBuffer)
 

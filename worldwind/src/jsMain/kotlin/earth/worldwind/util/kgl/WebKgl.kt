@@ -86,22 +86,37 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override fun bindBuffer(target: Int, buffer: KglBuffer) = gl.bindBuffer(target, buffer.obj)
 
-    override fun bufferData(target: Int, size: Int, sourceData: ShortArray, usage: Int, offset: Int) {
-        val arr = sourceData.unsafeCast<Int16Array>()
+    override fun bufferData(target: Int, size: Int, sourceData: ShortArray?, usage: Int, offset: Int) {
+        val arr = sourceData?.let {sourceData.unsafeCast<Int16Array>()}
         val len = size / 2
-        gl.bufferData(target, if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len), usage)
+        gl.bufferData(target, arr?.let { if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len)}, usage)
     }
 
-    override fun bufferData(target: Int, size: Int, sourceData: IntArray, usage: Int, offset: Int) {
+    override fun bufferData(target: Int, size: Int, sourceData: IntArray?, usage: Int, offset: Int) {
+        val arr = sourceData?.let { sourceData.unsafeCast<Int32Array>()}
+        val len = size / 4
+        gl.bufferData(target, arr?.let { if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len)}, usage)
+    }
+
+    override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) {
+        val arr = sourceData?.let {sourceData.unsafeCast<Float32Array>()}
+        val len = size / 4
+        gl.bufferData(target, arr?.let { if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len)}, usage)
+    }
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray){
+        val arr = sourceData.unsafeCast<Int16Array>()
+        gl.bufferSubData(target, offset, arr)
+    }
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray){
         val arr = sourceData.unsafeCast<Int32Array>()
-        val len = size / 4
-        gl.bufferData(target, if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len), usage)
+        gl.bufferSubData(target, offset, arr)
     }
 
-    override fun bufferData(target: Int, size: Int, sourceData: FloatArray, usage: Int, offset: Int) {
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray){
         val arr = sourceData.unsafeCast<Float32Array>()
-        val len = size / 4
-        gl.bufferData(target, if (offset == 0 && len == arr.length) arr else arr.subarray(offset, offset + len), usage)
+        gl.bufferSubData(target, offset, arr)
     }
 
     override fun deleteBuffer(buffer: KglBuffer) = gl.deleteBuffer(buffer.obj)

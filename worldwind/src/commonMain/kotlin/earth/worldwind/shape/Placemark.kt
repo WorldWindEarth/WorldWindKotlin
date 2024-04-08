@@ -153,10 +153,6 @@ open class Placemark @JvmOverloads constructor(
      * The distance from the camera to the placemark in meters.
      */
     protected var cameraDistance = 0.0
-    /**
-     * Leader line vertex array. Initially sized to store two xyz points.
-     */
-    protected val vertexArray = FloatArray(6)
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -452,14 +448,12 @@ open class Placemark @JvmOverloads constructor(
         drawable.program = rc.getShaderProgram { BasicShaderProgram() }
 
         // Compute the drawable's vertex points, in Cartesian coordinates relative to the placemark's ground point.
-        vertexArray[0] = 0f // groundPoint.x - groundPoint.x
-        vertexArray[1] = 0f // groundPoint.y - groundPoint.y
-        vertexArray[2] = 0f // groundPoint.z - groundPoint.z
-        vertexArray[3] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[4] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[5] = (placePoint.z - groundPoint.z).toFloat()
-
-        drawable.vertexPoints = vertexArray
+        drawable.vertexPoints[0] = 0f // groundPoint.x - groundPoint.x
+        drawable.vertexPoints[1] = 0f // groundPoint.y - groundPoint.y
+        drawable.vertexPoints[2] = 0f // groundPoint.z - groundPoint.z
+        drawable.vertexPoints[3] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[4] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[5] = (placePoint.z - groundPoint.z).toFloat()
 
         // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.
         drawable.mvpMatrix.copy(rc.modelviewProjection)

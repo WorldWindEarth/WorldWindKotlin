@@ -21,7 +21,7 @@ class BufferPool(private var target : Int,
         dc.gl.bindBuffer(target, id);
 
         //Only reserve memory
-        dc.gl.bufferData(target, blockSize, null, usage);
+        dc.gl.bufferData(target, blockSize, null as FloatArray?, usage);
 
         dc.gl.bindBuffer(target, KglBuffer.NONE);
 
@@ -53,18 +53,10 @@ class BufferPool(private var target : Int,
         return curOffset + sourceData.size * Float.SIZE_BYTES <= blockSize;
     }
 
-    fun free(dc: DrawContext)
+    fun free()
     {
         reset()
-
-        for (i in buffers.indices)
-        {
-            if(buffers[i].isValid())
-            {
-                dc.gl.deleteBuffer(buffers[i]);
-                buffers[i] = KglBuffer.NONE
-            }
-        }
+        buffers.fill(KglBuffer.NONE)
     }
 
     private fun appendBuffer(dc: DrawContext) : Boolean

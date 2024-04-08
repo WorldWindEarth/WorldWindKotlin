@@ -127,7 +127,7 @@ open class DrawContext(val gl: Kgl) {
         scratchFramebufferCache = null
         unitSquareBufferCache = null
         textures.fill(KglTexture.NONE)
-        lineBufferPool.free(this)
+        lineBufferPool.free()
     }
 
     fun peekDrawable() = drawableQueue?.peekDrawable()

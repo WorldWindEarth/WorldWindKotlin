@@ -2,7 +2,6 @@ package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.Color
-import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_DEPTH_TEST
@@ -11,7 +10,7 @@ import earth.worldwind.util.kgl.GL_LINES
 import kotlin.jvm.JvmStatic
 
 open class DrawableLines protected constructor(): Drawable {
-    var vertexPoints: FloatArray = FloatArray(0)
+    var vertexPoints: FloatArray = FloatArray(6)
     val mvpMatrix = Matrix4()
     val color = Color()
     var opacity = 1.0f
