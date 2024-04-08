@@ -9,6 +9,7 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.FloatBufferObject
+import earth.worldwind.render.buffer.BufferPool
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {
@@ -28,13 +29,14 @@ open class DrawContext(val gl: Kgl) {
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
     private var textureUnit = GL_TEXTURE0
-    private val textures = Array(32) {KglTexture.NONE}
+    private val textures = Array(32) { KglTexture.NONE }
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
     private var unitSquareBufferCache: FloatBufferObject? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
+    private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
     /**
      * Returns count of terrain drawables in queue
      */
@@ -110,6 +112,7 @@ open class DrawContext(val gl: Kgl) {
         isPickMode = false
         scratchBuffer.fill(0)
         scratchList.clear()
+        bufferPool.reset()
     }
 
     fun contextLost() {
@@ -122,6 +125,7 @@ open class DrawContext(val gl: Kgl) {
         scratchFramebufferCache = null
         unitSquareBufferCache = null
         textures.fill(KglTexture.NONE)
+        bufferPool.contextLost()
     }
 
     fun peekDrawable() = drawableQueue?.peekDrawable()
@@ -230,6 +234,14 @@ open class DrawContext(val gl: Kgl) {
             gl.bindBuffer(target, buffer)
         }
     }
+
+    /**
+     * Puts dynamic vertex data into the buffer pool and returns offset.
+     *
+     * @param vertexData   dynamic vertex data to be added in the buffer pool
+     * @return offset in the buffer pool
+     */
+    fun bindBufferPool(vertexData: FloatArray) = bufferPool.bindBuffer(this, vertexData)
 
     /**
      * Reads the fragment color at a screen point in the currently active OpenGL frame buffer. The X and Y components

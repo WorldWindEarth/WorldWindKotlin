@@ -79,14 +79,23 @@ class AndroidKgl : Kgl {
 
     override fun bindBuffer(target: Int, buffer: KglBuffer) = GLES20.glBindBuffer(target, buffer.id)
 
-    override fun bufferData(target: Int, size: Int, sourceData: ShortArray, usage: Int, offset: Int) =
-        GLES20.glBufferData(target, size, ShortBuffer.wrap(sourceData, offset, size / 2), usage)
+    override fun bufferData(target: Int, size: Int, sourceData: ShortArray?, usage: Int, offset: Int) =
+        GLES20.glBufferData(target, size, sourceData?.let { ShortBuffer.wrap(it, offset, size / 2) }, usage)
 
-    override fun bufferData(target: Int, size: Int, sourceData: IntArray, usage: Int, offset: Int) =
-        GLES20.glBufferData(target, size, IntBuffer.wrap(sourceData, offset, size / 4), usage)
+    override fun bufferData(target: Int, size: Int, sourceData: IntArray?, usage: Int, offset: Int) =
+        GLES20.glBufferData(target, size, sourceData?.let { IntBuffer.wrap(it, offset, size / 4) }, usage)
 
-    override fun bufferData(target: Int, size: Int, sourceData: FloatArray, usage: Int, offset: Int) =
-        GLES20.glBufferData(target, size, FloatBuffer.wrap(sourceData, offset, size / 4), usage)
+    override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
+        GLES20.glBufferData(target, size, sourceData?.let { FloatBuffer.wrap(it, offset, size / 4) }, usage)
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray?) =
+        GLES20.glBufferSubData(target, offset, size, sourceData?.let { ShortBuffer.wrap(it, 0, size / 2) })
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray?) =
+        GLES20.glBufferSubData(target, offset, size, sourceData?.let { IntBuffer.wrap(it, 0, size / 4) })
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray?) =
+        GLES20.glBufferSubData(target, offset, size, sourceData?.let { FloatBuffer.wrap(it, 0, size / 4) })
 
     override fun deleteBuffer(buffer: KglBuffer) {
         arrI[0] = buffer.id
