@@ -86,7 +86,7 @@ object WmsLayerFactory {
     private fun createWmsSurfaceImage(wmsLayers: List<WmsLayer>): TiledSurfaceImage {
         // Check if the server supports multiple layer request
         val layerLimit = wmsLayers[0].capability?.capabilities?.service?.layerLimit
-        require (layerLimit != null && layerLimit >= wmsLayers.size) {
+        require (layerLimit == null || layerLimit >= wmsLayers.size) {
             makeMessage(
                 "WmsLayerFactory", "createFromWmsAsync",
                 "The number of layers specified exceeds the services limit"
