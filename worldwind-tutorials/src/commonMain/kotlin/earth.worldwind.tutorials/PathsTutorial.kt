@@ -7,30 +7,15 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
-import earth.worldwind.shape.GeomPath
 import earth.worldwind.shape.Path
-import earth.worldwind.shape.PathType
 
 class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
     private val layer = RenderableLayer("Paths").apply {
-        addRenderable(
-            GeomPath(
-                listOf(
-                    Position.fromDegrees(40.0, -180.0, 1e5),
-                    Position.fromDegrees(20.0, -100.0, 1e6),
-                    Position.fromDegrees(40.0, -40.0, 1e5)
-                )
-            ).apply {
-                attributes.apply {
-                    outlineWidth = 3f
-                }
-            }
-        )
         // Create a basic path with the default attributes, the default altitude mode (ABSOLUTE),
         // and the default path type (GREAT_CIRCLE).
         addRenderable(
-            GeomPath(
+            Path(
                 listOf(
                     Position.fromDegrees(50.0, -180.0, 1e5),
                     Position.fromDegrees(30.0, -100.0, 1e6),
@@ -45,7 +30,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
         // Create a terrain following path with the default attributes, and the default path type (GREAT_CIRCLE).
         addRenderable(
-            GeomPath(
+            Path(
                 listOf(
                     Position.fromDegrees(40.0, -180.0, 0.0),
                     Position.fromDegrees(20.0, -100.0, 0.0),
@@ -63,7 +48,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
         // Create an extruded path with the default attributes, the default altitude mode (ABSOLUTE),
         // and the default path type (GREAT_CIRCLE).
         addRenderable(
-            GeomPath(
+            Path(
                 listOf(
                     Position.fromDegrees(30.0, -180.0, 1e5),
                     Position.fromDegrees(10.0, -100.0, 1e6),
@@ -77,7 +62,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
         // Create an extruded path with custom attributes that display the extruded vertical lines,
         // make the extruded interior 50% transparent, and increase the path line with.
         addRenderable(
-            GeomPath(
+            Path(
                 listOf(
                     Position.fromDegrees(20.0, -180.0, 1e5),
                     Position.fromDegrees(0.0, -100.0, 1e6),

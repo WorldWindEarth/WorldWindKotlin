@@ -2,8 +2,8 @@ package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
-import earth.worldwind.draw.DrawableShape
-import earth.worldwind.draw.DrawableSurfaceShape
+import earth.worldwind.draw.DrawableGeomLines
+import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
@@ -12,6 +12,7 @@ import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.BasicShaderProgram
+import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmOverloads
@@ -26,21 +27,21 @@ open class Path @JvmOverloads constructor(
         }
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
+    protected var verticalIndex = 0
+    protected var extrudeIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val interiorElements = mutableListOf<Int>()
-    protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
+    protected val outlineElements = mutableListOf<Int>()
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
     protected val vertexOrigin = Vec3()
-    protected var texCoord1d = 0.0
-    private val point = Vec3()
-    private val prevPoint = Vec3()
-    private val texCoordMatrix = Matrix3()
+    protected val point = Vec3()
     private val intermediateLocation = Location()
 
     companion object {
-        protected const val VERTEX_STRIDE = 4
+        protected const val VERTICES_PER_POINT = 2
+        protected const val VERTEX_STRIDE = 8
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
@@ -52,13 +53,13 @@ open class Path @JvmOverloads constructor(
     override fun reset() {
         super.reset()
         vertexArray = FloatArray(0)
-        interiorElements.clear()
         outlineElements.clear()
         verticalElements.clear()
+        interiorElements.clear()
     }
 
     override fun makeDrawable(rc: RenderContext) {
-        if (positions.isEmpty()) return  // nothing to draw
+        if (positions.size < 2) return  // nothing to draw
 
         if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
@@ -71,45 +72,31 @@ open class Path @JvmOverloads constructor(
         val drawState: DrawShapeState
         val cameraDistance: Double
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceShape>()
-            drawable = DrawableSurfaceShape.obtain(pool)
+            val pool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
+            drawable = DrawableSurfaceGeomLines.obtain(pool)
             drawState = drawable.drawState
+            drawState.secondProgram = rc.getShaderProgram { BasicShaderProgram() }
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
-            val pool = rc.getDrawablePool<DrawableShape>()
-            drawable = DrawableShape.obtain(pool)
+            val pool = rc.getDrawablePool<DrawableGeomLines>()
+            drawable = DrawableGeomLines.obtain(pool)
             drawState = drawable.drawState
-            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexIndex, VERTEX_STRIDE, vertexOrigin)
+            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, VERTEX_STRIDE, vertexOrigin)
         }
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram { BasicShaderProgram() }
+        drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, vertexArray, vertexIndex)
+            FloatBufferObject(GL_ARRAY_BUFFER, vertexArray, vertexArray.size)
         }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
             IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (interiorElements + outlineElements + verticalElements).toIntArray())
-        }
-
-        // Configure the drawable's vertex texture coordinate attribute.
-        drawState.texCoordAttrib(1 /*size*/, 12 /*stride in bytes*/)
-
-        // Configure the drawable to use the outline texture when drawing the outline.
-        if (activeAttributes.isDrawOutline) {
-            activeAttributes.outlineImageSource?.let { outlineImageSource ->
-                rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                    val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                    computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                    drawState.texture(texture)
-                    drawState.texCoordMatrix(texCoordMatrix)
-                }
-            }
         }
 
         // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel. Lines
@@ -119,13 +106,10 @@ open class Path @JvmOverloads constructor(
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f)
             drawState.drawElements(
-                GL_LINE_STRIP, outlineElements.size,
+                GL_TRIANGLE_STRIP, outlineElements.size,
                 GL_UNSIGNED_INT, interiorElements.size * Int.SIZE_BYTES
             )
         }
-
-        // Disable texturing for the remaining drawable primitives.
-        drawState.texture(null)
 
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude) {
@@ -133,7 +117,7 @@ open class Path @JvmOverloads constructor(
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
             drawState.drawElements(
-                GL_LINES, verticalElements.size,
+                GL_TRIANGLES, verticalElements.size,
                 GL_UNSIGNED_INT, (interiorElements.size + outlineElements.size) * Int.SIZE_BYTES
             )
         }
@@ -147,6 +131,9 @@ open class Path @JvmOverloads constructor(
                 GL_UNSIGNED_INT, 0
             )
         }
+
+        // Disable texturing for the remaining drawable primitives.
+        drawState.texture(null)
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(vertexOrigin)
@@ -170,23 +157,27 @@ open class Path @JvmOverloads constructor(
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
         vertexIndex = 0
-        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(vertexCount * 2 * VERTEX_STRIDE)
-        else FloatArray(vertexCount * VERTEX_STRIDE)
+        verticalIndex = if (isExtrude && !isSurfaceShape) (vertexCount + 2) * VERTEX_STRIDE else 0
+        extrudeIndex = if (isExtrude && !isSurfaceShape) verticalIndex + (positions.size * 4) * VERTEX_STRIDE else 0
+        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(verticalIndex + extrudeIndex + (vertexCount * 2) * VERTEX_STRIDE)
+        else FloatArray((vertexCount + 2) * VERTEX_STRIDE)
         interiorElements.clear()
         outlineElements.clear()
         verticalElements.clear()
 
         // Add the first vertex.
         var begin = positions[0]
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, false /*intermediate*/)
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, false /*intermediate*/, true)
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude,false /*intermediate*/, false)
 
         // Add the remaining vertices, inserting vertices along each edge as indicated by the path's properties.
         for (idx in 1 until positions.size) {
             val end = positions[idx]
-            addIntermediateVertices(rc, begin, end)
-            addVertex(rc, end.latitude, end.longitude, end.altitude, false /*intermediate*/)
+            addIntermediateVertices(rc, begin, end, extrudeIndex)
+            addVertex(rc, end.latitude, end.longitude, end.altitude, false /*intermediate*/, false)
             begin = end
         }
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude,false /*intermediate*/, true)
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
         if (isSurfaceShape) {
@@ -201,7 +192,7 @@ open class Path @JvmOverloads constructor(
         }
     }
 
-    protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
+    protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position, extrudeOffset : Int) {
         if (maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
         val azimuth: Angle
         val length: Double
@@ -229,51 +220,119 @@ open class Path @JvmOverloads constructor(
                 RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
                 else -> {}
             }
-            addVertex(rc, loc.latitude, loc.longitude, alt, true /*intermediate*/)
+            addVertex(rc, loc.latitude, loc.longitude, alt, true /*intermediate*/, false /*firstOrLast*/)
             dist += deltaDist
             alt += deltaAlt
         }
     }
 
     protected open fun addVertex(
-        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, firstOrLast : Boolean
     ): Int {
-        val vertex = vertexIndex / VERTEX_STRIDE
+        val vertex = (vertexIndex / VERTEX_STRIDE - 1) * 2
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertex == 0) {
             if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
             else vertexOrigin.copy(point)
-            texCoord1d = 0.0
-        } else {
-            texCoord1d += point.distanceTo(prevPoint)
         }
-        prevPoint.copy(point)
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            outlineElements.add(vertex)
+            vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = -1.0f
+            if(!firstOrLast) {
+                outlineElements.add(vertex)
+                outlineElements.add(vertex.inc())
+            }
         } else {
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            outlineElements.add(vertex)
-            if (isExtrude) {
-                point = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, this.point)
-                vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                vertexArray[vertexIndex++] = 0f /*unused*/
-                interiorElements.add(vertex)
-                interiorElements.add(vertex.inc())
+            vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = -1.0f
+            if(!firstOrLast) {
+                outlineElements.add(vertex)
+                outlineElements.add(vertex.inc())
             }
-            if (isExtrude && !intermediate) {
-                verticalElements.add(vertex)
-                verticalElements.add(vertex.inc())
+            if (isExtrude) {
+                var vertPoint = Vec3()
+                vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
+
+                val extrudeVertex =  (extrudeIndex / VERTEX_STRIDE - 1) * 2
+
+                vertexArray[extrudeIndex++] = (point.x - vertexOrigin.x).toFloat()
+                vertexArray[extrudeIndex++] = (point.y - vertexOrigin.y).toFloat()
+                vertexArray[extrudeIndex++] = (point.z - vertexOrigin.z).toFloat()
+                vertexArray[extrudeIndex++] = 0f
+
+                vertexArray[extrudeIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                vertexArray[extrudeIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                vertexArray[extrudeIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                vertexArray[extrudeIndex++] = 0f
+
+                if(!firstOrLast) {
+                    interiorElements.add(extrudeVertex)
+                    interiorElements.add(extrudeVertex.inc())
+                }
+
+                if (!intermediate && !firstOrLast) {
+                    val index =  verticalIndex / VERTEX_STRIDE * 2
+                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = 1f
+
+                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = -1f
+
+                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = 1f
+
+                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = -1f
+
+                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = 1f
+
+                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = -1f
+
+                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = 1f
+
+                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                    vertexArray[verticalIndex++] = -1f
+
+                    verticalElements.add(index)
+                    verticalElements.add(index + 1)
+                    verticalElements.add(index + 2)
+                    verticalElements.add(index)
+                    verticalElements.add(index + 2)
+                    verticalElements.add(index + 3)
+                }
             }
         }
-        return vertex
+        return 0
     }
 }
