@@ -300,10 +300,6 @@ open class Placemark @JvmOverloads constructor(
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
-//                val pool = rc.getDrawablePool<DrawableLines>()
-//                val drawable = DrawableLines.obtain(pool)
-//                prepareDrawableLeader(rc, drawable)
-//                rc.offerShapeDrawable(drawable, cameraDistance)
                 val pool = rc.getDrawablePool<DrawableGeomLines>()
                 val drawable = DrawableGeomLines.obtain(pool)
                 prepareDrawableLeader(rc, drawable)

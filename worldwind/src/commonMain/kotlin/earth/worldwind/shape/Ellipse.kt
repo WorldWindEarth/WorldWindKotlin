@@ -63,7 +63,6 @@ open class Ellipse @JvmOverloads constructor(
             field.copy(value)
             reset()
         }
-
     /**
      * The ellipse's radius perpendicular to it's heading, in meters.
      * When the ellipse's heading is 0.0, the semi-major axis points East.
@@ -78,7 +77,6 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
-
     /**
      * The ellipse's radius parallel to it's heading, in meters.
      * When the ellipse's heading is 0.0, the semi-minor axis points North.
@@ -93,7 +91,6 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
-
     /**
      * The ellipse's heading clockwise from North. When ellipse's heading is 0.0,
      * the semi-major axis points East and the semi-minor axis points North.
@@ -105,7 +102,6 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
-
     /**
      * The maximum pixels a single edge interval will span before the number of intervals is increased. Increasing this
      * value will make ellipses appear coarser.
@@ -325,11 +321,9 @@ open class Ellipse @JvmOverloads constructor(
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) { assembleElements(activeIntervals) }
         if (isSurfaceShape) {
             drawInterior(rc, drawState)
-            //drawOutline(rc, drawState)
-            drawOutline2(rc, drawStateLines)
+            drawOutline(rc, drawStateLines)
         } else {
-            //drawOutline(rc, drawState)
-            drawOutline2(rc, drawStateLines)
+            drawOutline(rc, drawStateLines)
             drawInterior(rc, drawState)
         }
 
@@ -386,46 +380,6 @@ open class Ellipse @JvmOverloads constructor(
 
     protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
         if (!activeAttributes.isDrawOutline) return
-
-        // Configure the drawable to use the outline texture when drawing the outline.
-        activeAttributes.outlineImageSource?.let { outlineImageSource ->
-            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                drawState.texture(texture)
-                drawState.texCoordMatrix(texCoordMatrix)
-            }
-        } ?: drawState.texture(null)
-
-        // Configure the drawable to display the shape's outline.
-        drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.lineWidth(activeAttributes.outlineWidth)
-        drawState.texCoordAttrib(1 /*size*/, 20 /*offset in bytes*/)
-        val outline = drawState.elementBuffer!!.ranges[OUTLINE_RANGE]!!
-        drawState.drawElements(GL_LINE_LOOP, outline.length, GL_UNSIGNED_SHORT, outline.lower * 2 /*offset*/)
-        if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
-            val side = drawState.elementBuffer!!.ranges[SIDE_RANGE]!!
-            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawState.lineWidth(activeAttributes.outlineWidth)
-            drawState.texture(null)
-            drawState.drawElements(GL_LINES, side.length, GL_UNSIGNED_SHORT, side.lower * 2)
-        }
-    }
-
-    protected open fun drawOutline2(rc: RenderContext, drawState: DrawShapeState) {
-        if (!activeAttributes.isDrawOutline) return
-
-        // Configure the drawable to use the outline texture when drawing the outline.
-        activeAttributes.outlineImageSource?.let { outlineImageSource ->
-            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                drawState.texture(texture)
-                drawState.texCoordMatrix(texCoordMatrix)
-            }
-        } ?: drawState.texture(null)
 
         // Configure the drawable to display the shape's outline.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)

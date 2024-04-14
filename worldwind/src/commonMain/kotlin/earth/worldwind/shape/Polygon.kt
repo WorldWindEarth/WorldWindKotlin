@@ -259,16 +259,6 @@ open class Polygon @JvmOverloads constructor(
     protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
         if (!activeAttributes.isDrawOutline) return
 
-        // Configure the drawable to use the outline texture when drawing the outline.
-//        activeAttributes.outlineImageSource?.let { outlineImageSource ->
-//            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-//                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-//                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-//                drawState.texture(texture)
-//                drawState.texCoordMatrix(texCoordMatrix)
-//            }
-//        } ?: drawState.texture(null)
-
         drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
@@ -287,6 +277,8 @@ open class Polygon @JvmOverloads constructor(
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
         drawState.lineWidth(activeAttributes.outlineWidth)
+
+        // Each boundary should be in separate draw call
         var offset = outlineElementOffset[0]
         for(i in 1 until outlineElementOffset.size) {
             val nextOffset = outlineElementOffset[i]

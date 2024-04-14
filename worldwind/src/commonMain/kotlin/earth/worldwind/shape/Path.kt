@@ -53,9 +53,9 @@ open class Path @JvmOverloads constructor(
     override fun reset() {
         super.reset()
         vertexArray = FloatArray(0)
+        interiorElements.clear()
         outlineElements.clear()
         verticalElements.clear()
-        interiorElements.clear()
     }
 
     override fun makeDrawable(rc: RenderContext) {
@@ -173,7 +173,7 @@ open class Path @JvmOverloads constructor(
         // Add the remaining vertices, inserting vertices along each edge as indicated by the path's properties.
         for (idx in 1 until positions.size) {
             val end = positions[idx]
-            addIntermediateVertices(rc, begin, end, extrudeIndex)
+            addIntermediateVertices(rc, begin, end)
             addVertex(rc, end.latitude, end.longitude, end.altitude, false /*intermediate*/, false)
             begin = end
         }
@@ -192,7 +192,7 @@ open class Path @JvmOverloads constructor(
         }
     }
 
-    protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position, extrudeOffset : Int) {
+    protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
         if (maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
         val azimuth: Angle
         val length: Double
