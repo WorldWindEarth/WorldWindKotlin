@@ -351,7 +351,6 @@ open class Ellipse @JvmOverloads constructor(
         if (isSurfaceShape) {
             rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
             rc.offerSurfaceDrawable(drawableLines, 0.0 /*zOrder*/)
-
         }
         else {
             rc.offerShapeDrawable(drawableLines, cameraDistance)

@@ -2,7 +2,9 @@ package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
+import earth.worldwind.draw.DrawableGeomLines
 import earth.worldwind.draw.DrawableShape
+import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -32,6 +34,7 @@ open class Polygon @JvmOverloads constructor(
     protected var vertexIndex = 0
     protected var lineVertexArray = FloatArray(0)
     protected var lineVertexIndex = 0
+    protected var outlineElementOffset = IntArray(boundaries.size)
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val topElements = mutableListOf<Int>()
     protected val sideElements = mutableListOf<Int>()
@@ -141,11 +144,15 @@ open class Polygon @JvmOverloads constructor(
             assembleGeometry(rc)
             vertexBufferKey = nextCacheKey()
             elementBufferKey = nextCacheKey()
+            vertexLinesBufferKey = nextCacheKey()
+            elementLinesBufferKey = nextCacheKey()
         }
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
         val drawState: DrawShapeState
+        val drawableLines: Drawable
+        val drawStateLines: DrawShapeState
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
@@ -153,10 +160,24 @@ open class Polygon @JvmOverloads constructor(
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
+
+            val linesPool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
+            drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
+            drawStateLines = drawableLines.drawState
+            // Use the basic GLSL program to draw the shape.
+            drawStateLines.secondProgram = rc.getShaderProgram { BasicShaderProgram() }
+
+            drawableLines.offset = rc.globe.offset
+            drawableLines.sector.copy(boundingSector)
         } else {
             val pool = rc.getDrawablePool<DrawableShape>()
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
+
+            val linesPool = rc.getDrawablePool<DrawableGeomLines>()
+            drawableLines = DrawableGeomLines.obtain(linesPool)
+            drawStateLines = drawableLines.drawState
+
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexIndex, VERTEX_STRIDE, vertexOrigin)
         }
 
@@ -171,17 +192,15 @@ open class Polygon @JvmOverloads constructor(
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
             IntBufferObject(
-                GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements + outlineElements + verticalElements).toIntArray()
+                GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements /*+ outlineElements + verticalElements*/).toIntArray()
             )
         }
 
-        val drawableOutline : Drawable;
-        val drawStateOutline : DrawShapeState;
         if (isSurfaceShape || activeAttributes.interiorColor.alpha >= 1.0) {
             drawInterior(rc, drawState)
-            drawOutline(rc, drawState)
+//            drawOutline2(rc, drawStateLines)
         } else {
-            drawOutline(rc, drawState)
+//            drawOutline2(rc, drawStateLines)
             drawInterior(rc, drawState)
         }
 
@@ -193,9 +212,22 @@ open class Polygon @JvmOverloads constructor(
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
 
+        // Configure the drawable according to the shape's attributes.
+        drawStateLines.vertexOrigin.copy(vertexOrigin)
+        drawStateLines.vertexStride = 40 // stride in bytes
+        drawStateLines.enableCullFace = false
+        drawStateLines.enableDepthTest = activeAttributes.isDepthTest
+        drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
+
         // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
-        else rc.offerShapeDrawable(drawable, cameraDistance)
+        if (isSurfaceShape) {
+            rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
+//            rc.offerSurfaceDrawable(drawableLines, 0.0 /*zOrder*/)
+        }
+        else {
+//            rc.offerShapeDrawable(drawableLines, cameraDistance)
+            rc.offerShapeDrawable(drawable, cameraDistance)
+        }
     }
 
     protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState) {
@@ -253,24 +285,32 @@ open class Polygon @JvmOverloads constructor(
         // Configure the drawable to display the shape's outline.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.lineWidth(activeAttributes.outlineWidth)
-        //drawState.texCoordAttrib(1 /*size*/, 20 /*offset in bytes*/)
-        drawState.drawElements(
-            GL_TRIANGLE_STRIP, outlineElements.size,
-            GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES /*offset*/
-        )
-
-        // Configure the drawable to display the shape's extruded verticals.
-        if (activeAttributes.isDrawVerticals && isExtrude) {
-            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawState.lineWidth(activeAttributes.outlineWidth)
-            drawState.texture(null)
+        drawState.lineWidth(5f/*activeAttributes.outlineWidth*/)
+        var offset = outlineElementOffset[0]
+        for(i in 1 until outlineElementOffset.size) {
+            val nextOffset = outlineElementOffset[i]
+            val size = nextOffset - offset
             drawState.drawElements(
-                GL_TRIANGLES, verticalElements.size,
-                GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES /*offset*/
+                GL_TRIANGLE_STRIP, size,
+                GL_UNSIGNED_INT, offset * Int.SIZE_BYTES /*offset*/
             )
+            offset = nextOffset
         }
+        drawState.drawElements(
+            GL_TRIANGLE_STRIP, outlineElements.size - offset,
+            GL_UNSIGNED_INT, offset * Int.SIZE_BYTES /*offset*/
+        )
+        // Configure the drawable to display the shape's extruded verticals.
+//        if (activeAttributes.isDrawVerticals && isExtrude) {
+//            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+//            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+//            drawState.lineWidth(activeAttributes.outlineWidth)
+//            drawState.texture(null)
+//            drawState.drawElements(
+//                GL_TRIANGLES, verticalElements.size,
+//                GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES /*offset*/
+//            )
+//        }
     }
 
     protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
@@ -319,6 +359,12 @@ open class Polygon @JvmOverloads constructor(
             else if (p.isNotEmpty() && p[0] == p[p.size - 1]) p.size + (p.size - 1) * maximumIntermediatePoints
             else p.size + p.size * maximumIntermediatePoints
         }
+        val lineVertexCount = boundaries.sumOf {
+            p ->
+            if (noIntermediatePoints) p.size+ 2
+            else if (p.isNotEmpty() && p[0] == p[p.size - 1]) 2 + p.size + (p.size) * maximumIntermediatePoints
+            else 3 + p.size + p.size * maximumIntermediatePoints
+        }
 
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
@@ -330,6 +376,8 @@ open class Polygon @JvmOverloads constructor(
         sideElements.clear()
 
         lineVertexIndex = 0
+        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray(lineVertexCount * 8)
+        else FloatArray(lineVertexCount * 8)
         outlineElements.clear()
         verticalElements.clear()
 
@@ -345,22 +393,29 @@ open class Polygon @JvmOverloads constructor(
         for (i in boundaries.indices) {
             val positions = boundaries[i]
             if (positions.isEmpty()) continue  // no boundary positions to assemble
+
+            outlineElementOffset[i] = outlineElements.size
             GLU.gluTessBeginContour(tess)
 
             // Add the boundary's first vertex.
             var begin = positions[0]
             addVertex(rc, begin.latitude, begin.longitude, begin.altitude, VERTEX_ORIGINAL /*type*/)
 
+            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, 0, true)
+            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, 0, false)
+
             // Add the remaining boundary vertices, tessellating each edge as indicated by the polygon's properties.
             for (idx in 1 until positions.size) {
                 val end = positions[idx]
                 addIntermediateVertices(rc, begin, end)
                 addVertex(rc, end.latitude, end.longitude, end.altitude, VERTEX_ORIGINAL /*type*/)
+                addLineVertex(rc, end.latitude, end.longitude, end.altitude, 0, false)
                 begin = end
             }
 
             // Tessellate the implicit closing edge if the boundary is not already closed.
             if (begin != positions[0]) addIntermediateVertices(rc, begin, positions[0])
+            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, 0, true)
             GLU.gluTessEndContour(tess)
         }
         GLU.gluTessEndPolygon(tess)
@@ -411,6 +466,7 @@ open class Polygon @JvmOverloads constructor(
                 else -> {}
             }
             addVertex(rc, loc.latitude, loc.longitude, alt, VERTEX_INTERMEDIATE /*type*/)
+            addLineVertex(rc, loc.latitude, loc.longitude, alt, 0, false)
             dist += deltaDist
             alt += deltaAlt
         }
@@ -457,11 +513,101 @@ open class Polygon @JvmOverloads constructor(
                 vertexArray[vertexIndex++] = 0f /*unused*/
             }
             if (isExtrude && type == VERTEX_ORIGINAL) {
-                verticalElements.add(vertex)
-                verticalElements.add(vertex.inc())
+//                verticalElements.add(vertex)
+//                verticalElements.add(vertex.inc())
             }
         }
         return vertex
+    }
+
+    protected open fun addLineVertex(
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset : Int, firstOrLast : Boolean
+    )
+    {
+        val vertex = (lineVertexIndex / 8 - 1) * 2
+        var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode,
+            point
+        )
+
+        if (isSurfaceShape) {
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = 1.0f
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = -1.0f
+            if(!firstOrLast) {
+                outlineElements.add(vertex)
+                outlineElements.add(vertex.inc())
+            }
+        } else {
+            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = 1.0f
+            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = -1.0f
+            if(!firstOrLast) {
+                outlineElements.add(vertex)
+                outlineElements.add(vertex.inc())
+            }
+//            if (isExtrude && !firstOrLast) {
+//                var vertPoint = Vec3()
+//                vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
+//                val index =  verticalVertexIndex / 8 * 2
+//
+//                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = 1f
+//
+//                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = -1f
+//
+//                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = 1f
+//
+//                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = -1f
+//
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = 1f
+//
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = -1f
+//
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = 1f
+//
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+//                lineVertexArray[verticalVertexIndex++] = -1f
+//
+//                verticalElements.add(index)
+//                verticalElements.add(index + 1)
+//                verticalElements.add(index + 2)
+//                verticalElements.add(index)
+//                verticalElements.add(index + 2)
+//                verticalElements.add(index + 3)
+//            }
+        }
     }
 
     protected open fun determineModelToTexCoord(rc: RenderContext) {
@@ -531,18 +677,18 @@ open class Polygon @JvmOverloads constructor(
             sideElements.add(v2.inc())
             sideElements.add(v0.inc())
         }
-        if (tessEdgeFlags[0]) {
-            outlineElements.add(v0)
-            outlineElements.add(v1)
-        }
-        if (tessEdgeFlags[1]) {
-            outlineElements.add(v1)
-            outlineElements.add(v2)
-        }
-        if (tessEdgeFlags[2]) {
-            outlineElements.add(v2)
-            outlineElements.add(v0)
-        }
+//        if (tessEdgeFlags[0]) {
+//            outlineElements.add(v0)
+//            outlineElements.add(v1)
+//        }
+//        if (tessEdgeFlags[1]) {
+//            outlineElements.add(v1)
+//            outlineElements.add(v2)
+//        }
+//        if (tessEdgeFlags[2]) {
+//            outlineElements.add(v2)
+//            outlineElements.add(v0)
+//        }
     }
 
     protected open fun tessEdgeFlag(rc: RenderContext, boundaryEdge: Boolean) { tessEdgeFlag = boundaryEdge }
