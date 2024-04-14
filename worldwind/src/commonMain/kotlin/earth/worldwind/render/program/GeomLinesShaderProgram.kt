@@ -46,6 +46,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
                 vec2 miter = vec2(-tangent.y, tangent.x);
                 vec2 normalA = vec2(-AB.y, AB.x);
                 float miterLength = 1.0 / dot(miter, normalA);
+                miterLength = min(miterLength, 5.0);
                 
                 gl_Position = pointBScreen;
                 gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
