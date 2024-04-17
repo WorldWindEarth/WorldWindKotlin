@@ -6,7 +6,6 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.AbstractBufferObject
 import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.program.AbstractShaderProgram
 import earth.worldwind.render.program.BasicShaderProgram
 
 open class DrawShapeState internal constructor() {
@@ -14,8 +13,7 @@ open class DrawShapeState internal constructor() {
         const val MAX_DRAW_ELEMENTS = 4
     }
 
-    var program: AbstractShaderProgram? = null
-    var secondProgram: AbstractShaderProgram? = null
+    var program: BasicShaderProgram? = null
     var vertexBuffer: FloatBufferObject? = null
     var elementBuffer: AbstractBufferObject? = null
     val vertexOrigin = Vec3()
@@ -35,7 +33,6 @@ open class DrawShapeState internal constructor() {
 
     open fun reset() {
         program = null
-        secondProgram = null
         vertexBuffer = null
         elementBuffer = null
         vertexOrigin.set(0.0, 0.0, 0.0)
