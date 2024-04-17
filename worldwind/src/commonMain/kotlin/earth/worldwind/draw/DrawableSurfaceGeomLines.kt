@@ -3,6 +3,7 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
+import earth.worldwind.geom.Vec2
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.Color
 import earth.worldwind.render.program.BasicShaderProgram
@@ -14,7 +15,8 @@ import kotlin.jvm.JvmStatic
 open class DrawableSurfaceGeomLines protected constructor(): Drawable {
     var offset = Globe.Offset.Center
     val sector = Sector()
-    val drawState = DrawShapeState()
+    val drawState = DrawableLinesState()
+    var projShaderProgram : BasicShaderProgram? = null
     private var pool: Pool<DrawableSurfaceGeomLines>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
@@ -90,7 +92,7 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
 
         // Keep track of the number of shapes drawn into the texture.
         var shapeCount = 0
-        val program : GeomLinesShaderProgram = drawState.program as GeomLinesShaderProgram ?: return 0
+        val program : GeomLinesShaderProgram = drawState.program ?: return 0
         if (!program.useProgram(dc)) return 0// program failed to build
         try {
             val framebuffer = dc.scratchFramebuffer
@@ -135,10 +137,10 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
                     shape.drawState.vertexOrigin.z
                 )
                 program.loadModelviewProjection(mvpMatrix)
+                program.loadScreen(Vec2(colorAttachment.width.toDouble(), colorAttachment.height.toDouble()));
 
                 dc.gl.enableVertexAttribArray(1 /*value*/)
                 dc.gl.enableVertexAttribArray(2 /*value*/)
-                // Use the shape's vertex point attribute and vertex texture coordinate attribute.
                 // Use the shape's vertex point attribute.
                 dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 0 /*offset*/)
                 dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 32 /*offset*/)
@@ -149,21 +151,7 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
                     val prim = shape.drawState.prims[primIdx]
                     program.loadColor(prim.color)
                     program.loadOpacity(prim.opacity)
-                    //if (prim.texture?.bindTexture(dc) == true) {
-                      //  program.loadTexCoordMatrix(prim.texCoordMatrix)
-                        //program.enableTexture(true)
-                    //} else {
-                      //  program.enableTexture(false)
-                    //}
-//                    dc.gl.vertexAttribPointer(
-//                        1 /*vertexTexCoord*/,
-//                        prim.texCoordAttrib.size,
-//                        GL_FLOAT,
-//                        false,
-//                        shape.drawState.vertexStride,
-//                        prim.texCoordAttrib.offset
-//                    )
-                    dc.gl.lineWidth(prim.lineWidth)
+                    program.loadLineWidth(prim.lineWidth)
                     dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
                 }
 
@@ -175,13 +163,12 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
             dc.bindFramebuffer(KglFramebuffer.NONE)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_DEPTH_TEST)
-            dc.gl.lineWidth(1f)
         }
         return shapeCount
     }
 
     protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain) {
-        val program : BasicShaderProgram = drawState.secondProgram as BasicShaderProgram ?: return
+        val program = projShaderProgram ?: return
         if (!program.useProgram(dc)) return // program failed to build
         try {
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return  // terrain vertex attribute failed to bind

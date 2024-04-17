@@ -3,6 +3,7 @@ package earth.worldwind.shape
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGeomLines
+import earth.worldwind.draw.DrawableLinesState
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.draw.DrawableSurfaceShape
@@ -153,7 +154,7 @@ open class Polygon @JvmOverloads constructor(
         val drawable: Drawable
         val drawState: DrawShapeState
         val drawableLines: Drawable
-        val drawStateLines: DrawShapeState
+        val drawStateLines: DrawableLinesState
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
@@ -166,8 +167,8 @@ open class Polygon @JvmOverloads constructor(
             drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
             drawStateLines = drawableLines.drawState
             // Use the basic GLSL program to draw the shape.
-            drawStateLines.secondProgram = rc.getShaderProgram { BasicShaderProgram() }
 
+            drawableLines.projShaderProgram = rc.getShaderProgram { BasicShaderProgram() }
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
         } else {
@@ -215,7 +216,6 @@ open class Polygon @JvmOverloads constructor(
 
         // Configure the drawable according to the shape's attributes.
         drawStateLines.vertexOrigin.copy(vertexOrigin)
-        drawStateLines.vertexStride = 40 // stride in bytes
         drawStateLines.enableCullFace = false
         drawStateLines.enableDepthTest = activeAttributes.isDepthTest
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
@@ -256,7 +256,7 @@ open class Polygon @JvmOverloads constructor(
             drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, topElements.size * Int.SIZE_BYTES /*offset*/)
         }
     }
-    protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
+    protected open fun drawOutline(rc: RenderContext, drawState: DrawableLinesState) {
         if (!activeAttributes.isDrawOutline) return
 
         drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }

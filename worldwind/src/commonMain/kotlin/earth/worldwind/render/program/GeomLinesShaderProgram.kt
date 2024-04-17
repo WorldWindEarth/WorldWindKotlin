@@ -17,7 +17,6 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
             attribute vec4 pointA;
             attribute vec4 pointB;
             attribute vec4 pointC;
-            //attribute float corner;
 
             void main() {
                 /* Transform the vertex position by the modelview-projection matrix. */

@@ -9,7 +9,7 @@ import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_LINES
 import kotlin.jvm.JvmStatic
 
-open class DrawableLines protected constructor(): Drawable {
+open class DrawableDynamicLines protected constructor(): Drawable {
     /**
      * Leader line vertex array. Initially sized to store two xyz points.
      */
@@ -20,12 +20,12 @@ open class DrawableLines protected constructor(): Drawable {
     var lineWidth = 1f
     var enableDepthTest = true
     var program: BasicShaderProgram? = null
-    private var pool: Pool<DrawableLines>? = null
+    private var pool: Pool<DrawableDynamicLines>? = null
 
     companion object {
         @JvmStatic
-        fun obtain(pool: Pool<DrawableLines>): DrawableLines {
-            val instance = pool.acquire() ?: DrawableLines()
+        fun obtain(pool: Pool<DrawableDynamicLines>): DrawableDynamicLines {
+            val instance = pool.acquire() ?: DrawableDynamicLines()
             instance.pool = pool
             return instance
         }

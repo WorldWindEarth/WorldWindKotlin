@@ -3,6 +3,7 @@ package earth.worldwind.shape
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGeomLines
+import earth.worldwind.draw.DrawableLinesState
 import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
@@ -69,20 +70,23 @@ open class Path @JvmOverloads constructor(
 
         // Obtain a drawable form the render context pool, and compute distance to the render camera.
         val drawable: Drawable
-        val drawState: DrawShapeState
+        val drawState: DrawableLinesState
         val cameraDistance: Double
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
             drawable = DrawableSurfaceGeomLines.obtain(pool)
             drawState = drawable.drawState
-            drawState.secondProgram = rc.getShaderProgram { BasicShaderProgram() }
+
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
+
+            drawable.projShaderProgram = rc.getShaderProgram { BasicShaderProgram() }
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
             val pool = rc.getDrawablePool<DrawableGeomLines>()
             drawable = DrawableGeomLines.obtain(pool)
             drawState = drawable.drawState
+
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, VERTEX_STRIDE, vertexOrigin)
         }
 
@@ -132,12 +136,8 @@ open class Path @JvmOverloads constructor(
             )
         }
 
-        // Disable texturing for the remaining drawable primitives.
-        drawState.texture(null)
-
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(vertexOrigin)
-        drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = false
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite

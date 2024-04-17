@@ -3,6 +3,7 @@ package earth.worldwind.shape
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGeomLines
+import earth.worldwind.draw.DrawableLinesState
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.draw.DrawableSurfaceShape
@@ -269,7 +270,7 @@ open class Ellipse @JvmOverloads constructor(
         val drawable: Drawable
         val drawState: DrawShapeState
         val drawableLines: Drawable
-        val drawStateLines: DrawShapeState
+        val drawStateLines: DrawableLinesState
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
@@ -281,8 +282,8 @@ open class Ellipse @JvmOverloads constructor(
             drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
             drawStateLines = drawableLines.drawState
             // Use the basic GLSL program to draw the shape.
-            drawStateLines.secondProgram = rc.getShaderProgram { BasicShaderProgram() }
 
+            drawableLines.projShaderProgram = rc.getShaderProgram { BasicShaderProgram() }
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
 
@@ -336,7 +337,6 @@ open class Ellipse @JvmOverloads constructor(
 
         // Configure the drawable according to the shape's attributes.
         drawStateLines.vertexOrigin.copy(vertexOrigin)
-        drawStateLines.vertexStride = 40 // stride in bytes
         drawStateLines.enableCullFace = false
         drawStateLines.enableDepthTest = activeAttributes.isDepthTest
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
@@ -378,7 +378,7 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
-    protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
+    protected open fun drawOutline(rc: RenderContext, drawState: DrawableLinesState) {
         if (!activeAttributes.isDrawOutline) return
 
         // Configure the drawable to display the shape's outline.
@@ -393,7 +393,6 @@ open class Ellipse @JvmOverloads constructor(
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(5.0f)
-            drawState.texture(null)
             drawState.drawElements(
                 GL_TRIANGLES, verticalElements.size,
                 GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES

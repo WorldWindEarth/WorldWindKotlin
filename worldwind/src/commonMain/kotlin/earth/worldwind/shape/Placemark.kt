@@ -1,9 +1,7 @@
 package earth.worldwind.shape
 
 import earth.worldwind.PickedObject
-import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.DrawableGeomLines
-import earth.worldwind.draw.DrawableLines
 import earth.worldwind.draw.DrawableScreenTexture
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
@@ -457,40 +455,8 @@ open class Placemark @JvmOverloads constructor(
      * @param rc       the current render context
      * @param drawable the Drawable to be prepared
      */
-    protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableLines) {
-        // Use the basic GLSL program to draw the placemark's leader.
-        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
-
-        // Compute the drawable's vertex points, in Cartesian coordinates relative to the placemark's ground point.
-        vertexArray[0] = 0f // groundPoint.x - groundPoint.x
-        vertexArray[1] = 0f // groundPoint.y - groundPoint.y
-        vertexArray[2] = 0f // groundPoint.z - groundPoint.z
-        vertexArray[3] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[4] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[5] = (placePoint.z - groundPoint.z).toFloat()
-
-        // Regenerate vertex buffer on array change
-        val hashCode = vertexArray.contentHashCode()
-        if (vertexArrayHashCode != hashCode) {
-            vertexArrayHashCode = hashCode
-            vertexBufferKey = nextCacheKey()
-        }
-        drawable.vertexPoints = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
-
-        // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.
-        drawable.mvpMatrix.copy(rc.modelviewProjection)
-        drawable.mvpMatrix.multiplyByTranslation(groundPoint.x, groundPoint.y, groundPoint.z)
-
-        // Configure the drawable according to the placemark's active leader attributes. Use a color appropriate for the
-        // pick mode. When picking use a unique color associated with the picked object ID.
-        drawable.color.copy(if (rc.isPickMode) pickColor else activeAttributes.leaderAttributes.outlineColor)
-        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
-        drawable.lineWidth = activeAttributes.leaderAttributes.outlineWidth
-        drawable.enableDepthTest = activeAttributes.leaderAttributes.isDepthTest
-    }
-
     protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableGeomLines) {
-        val drawStateLines: DrawShapeState = drawable.drawState
+        val drawStateLines = drawable.drawState
         // Use the basic GLSL program to draw the placemark's leader.
         drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
@@ -561,7 +527,6 @@ open class Placemark @JvmOverloads constructor(
         drawStateLines.enableCullFace = false
         drawStateLines.enableDepthTest = activeAttributes.leaderAttributes.isDepthTest
         drawStateLines.enableDepthWrite = activeAttributes.leaderAttributes.isDepthTest
-        drawStateLines.vertexStride = 40
         drawStateLines.drawElements(
             GL_TRIANGLES, elements.size,
             GL_UNSIGNED_INT, 0

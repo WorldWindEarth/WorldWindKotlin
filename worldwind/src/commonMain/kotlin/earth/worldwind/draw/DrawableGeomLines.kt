@@ -2,7 +2,6 @@ package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec2
-import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
@@ -12,7 +11,7 @@ import earth.worldwind.util.kgl.GL_TEXTURE0
 import kotlin.jvm.JvmStatic
 
 open class DrawableGeomLines protected constructor(): Drawable {
-    val drawState = DrawShapeState()
+    val drawState = DrawableLinesState()
     private var pool: Pool<DrawableGeomLines>? = null
     private val mvpMatrix = Matrix4()
 
@@ -33,7 +32,7 @@ open class DrawableGeomLines protected constructor(): Drawable {
 
     override fun draw(dc: DrawContext) {
         // TODO shape batching
-        val program : GeomLinesShaderProgram = drawState.program as GeomLinesShaderProgram ?: return // program unspecified
+        val program : GeomLinesShaderProgram = drawState.program ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
         if (drawState.elementBuffer?.bindBuffer(dc) != true) return  // element buffer unspecified or failed to bind
@@ -78,7 +77,6 @@ open class DrawableGeomLines protected constructor(): Drawable {
             program.loadColor(prim.color)
             program.loadOpacity(prim.opacity)
             program.loadLineWidth(prim.lineWidth);
-            dc.gl.lineWidth(prim.lineWidth)
             dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
         }
 
