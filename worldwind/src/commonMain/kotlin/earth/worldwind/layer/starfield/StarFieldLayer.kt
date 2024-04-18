@@ -30,7 +30,7 @@ import kotlinx.serialization.json.Json
  * If the star data .json file is too big, consider enabling gzip compression on your web server.
  * For more info about enabling gzip compression consult the configuration for your web server.
  */
-open class StarFieldLayer(starDataSource: FileResource = MR.files.stars): AbstractLayer("StarField") {
+open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): AbstractLayer("StarField") {
     override var isPickEnabled = false // The StarField Layer is not pickable.
     /**
      * Resource for the stars data

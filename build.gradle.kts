@@ -1,5 +1,5 @@
 plugins {
-    val kotlinVersion = "1.9.22"
+    val kotlinVersion = "1.9.23"
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("android") version kotlinVersion apply false
@@ -10,13 +10,13 @@ plugins {
 
 buildscript {
     dependencies {
-        classpath("dev.icerock.moko:resources-generator:0.24.0-alpha-5")
+        classpath("dev.icerock.moko:resources-generator:0.24.0-beta-1")
     }
 }
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.4.19"
+    version = "1.4.20"
 
     extra.apply {
         set("minSdk", 21)
