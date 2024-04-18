@@ -14,16 +14,22 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
             uniform mat4 mvpMatrix;
             uniform float lineWidth;
             uniform vec2 screen;
+            uniform bool enableTexture;
+            uniform mat3 texCoordMatrix;
+            
             attribute vec4 pointA;
             attribute vec4 pointB;
             attribute vec4 pointC;
-
+            attribute vec2 vertexTexCoord;
+            
+            varying vec2 texCoord;
+            
             void main() {
                 /* Transform the vertex position by the modelview-projection matrix. */
                 vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
                 vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
                 vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
-                float corner = pointA.w;
+                float corner =  pointB.w;
                 
                 pointAScreen = pointAScreen / pointAScreen.w;
                 pointBScreen = pointBScreen / pointBScreen.w;
@@ -49,34 +55,59 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
                 
                 gl_Position = pointBScreen;
                 gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
+                
+                /* Transform the vertex tex coord by the tex coord matrix. */
+                if (enableTexture) {
+                    texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
+                }
             }
         """.trimIndent(),
         """
             precision mediump float;
-
+            
+            uniform bool enablePickMode;
+            uniform bool enableTexture;
             uniform vec4 color;
             uniform float opacity;
-
+            uniform sampler2D texSampler;
+            
+            varying vec2 texCoord;
+            
             void main() {
-                /* TODO consolidate pickMode and enableTexture into a single textureMode */
-                /* TODO it's confusing that pickMode must be disabled during surface shape render-to-texture */
-                /* Return the RGBA color as-is. */
-                gl_FragColor = color * opacity;
+                if (enablePickMode && enableTexture) {
+                    /* Modulate the RGBA color with the 2D texture's Alpha component (rounded to 0.0 or 1.0). */
+                    float texMask = floor(texture2D(texSampler, texCoord).a + 0.5);
+                    gl_FragColor = color * texMask;
+                } else if (!enablePickMode && enableTexture) {
+                    /* Modulate the RGBA color with the 2D texture's RGBA color. */
+                    gl_FragColor = color * texture2D(texSampler, texCoord) * opacity;
+                } else {
+                    /* Return the RGBA color as-is. */
+                    gl_FragColor = color * opacity;
+                }
             }
         """.trimIndent()
     )
-    override val attribBindings = arrayOf("vertexPoint")
+    override val attribBindings = arrayOf("pointA", "pointB", "pointC", "vertexTexCoord")
 
+    protected var enablePickMode = false
+    protected var enableTexture = false
     protected val mvpMatrix = Matrix4()
+    protected val texCoordMatrix = Matrix3()
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
     protected var screen = Vec2()
+
     protected var mvpMatrixId = KglUniformLocation.NONE
     protected var colorId = KglUniformLocation.NONE
     protected var opacityId = KglUniformLocation.NONE
     protected var lineWidthId = KglUniformLocation.NONE
-    protected  var screenId = KglUniformLocation.NONE
+    protected var screenId = KglUniformLocation.NONE
+    protected var enablePickModeId = KglUniformLocation.NONE
+    protected var enableTextureId = KglUniformLocation.NONE
+    protected var texCoordMatrixId = KglUniformLocation.NONE
+    protected var texSamplerId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -93,8 +124,37 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         gl.uniform1f(lineWidthId, lineWidth)
         screenId = gl.getUniformLocation(program, "screen");
         gl.uniform2f(screenId, screen.x.toFloat(), screen.y.toFloat())
+        enablePickModeId = gl.getUniformLocation(program, "enablePickMode")
+        gl.uniform1i(enablePickModeId, if (enablePickMode) 1 else 0)
+        enableTextureId = gl.getUniformLocation(program, "enableTexture")
+        gl.uniform1i(enableTextureId, if (enableTexture) 1 else 0)
+        texCoordMatrixId = gl.getUniformLocation(program, "texCoordMatrix")
+        texCoordMatrix.transposeToArray(array, 0) // 3 x 3 identity matrix
+        gl.uniformMatrix3fv(texCoordMatrixId, 1, false, array, 0)
+        texSamplerId = gl.getUniformLocation(program, "texSampler")
+        gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
     }
 
+    fun enablePickMode(enable: Boolean) {
+        if (enablePickMode != enable) {
+            enablePickMode = enable
+            gl.uniform1i(enablePickModeId, if (enable) 1 else 0)
+        }
+    }
+
+    fun enableTexture(enable: Boolean) {
+        if (enableTexture != enable) {
+            enableTexture = enable
+            gl.uniform1i(enableTextureId, if (enable) 1 else 0)
+        }
+    }
+    fun loadTexCoordMatrix(matrix: Matrix3) {
+        if (texCoordMatrix != matrix) {
+            texCoordMatrix.copy(matrix)
+            matrix.transposeToArray(array, 0)
+            gl.uniformMatrix3fv(texCoordMatrixId, 1, false, array, 0)
+        }
+    }
     fun loadModelviewProjection(matrix: Matrix4) {
         // Don't bother testing whether mvpMatrix has changed, the common case is to load a different matrix.
         matrix.transposeToArray(array, 0)

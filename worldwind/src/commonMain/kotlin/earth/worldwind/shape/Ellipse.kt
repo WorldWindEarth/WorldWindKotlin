@@ -169,6 +169,7 @@ open class Ellipse @JvmOverloads constructor(
 
     companion object {
         protected const val VERTEX_STRIDE = 6
+        protected const val LINE_VERTEX_STRIDE = 10
         /**
          * The minimum number of intervals that will be used for geometry generation.
          */
@@ -384,7 +385,7 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to display the shape's outline.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.lineWidth(5.0f)
+        drawState.lineWidth(activeAttributes.outlineWidth)
         drawState.drawElements(
             GL_TRIANGLE_STRIP, outlineElements.size,
             GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES
@@ -392,7 +393,7 @@ open class Ellipse @JvmOverloads constructor(
         if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawState.lineWidth(5.0f)
+            drawState.lineWidth(activeAttributes.outlineWidth)
             drawState.drawElements(
                 GL_TRIANGLES, verticalElements.size,
                 GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES
@@ -431,9 +432,9 @@ open class Ellipse @JvmOverloads constructor(
         else FloatArray((activeIntervals + spineCount) * VERTEX_STRIDE)
 
         lineVertexIndex = 0
-        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray((activeIntervals + 3 + (activeIntervals + 1) * 4) * 8)
-        else FloatArray((activeIntervals + 3) * 8)
-        verticalVertexIndex = (activeIntervals + 3) * 8
+        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray((activeIntervals + 3 + (activeIntervals + 1) * 4) * LINE_VERTEX_STRIDE)
+        else FloatArray((activeIntervals + 3) * LINE_VERTEX_STRIDE)
+        verticalVertexIndex = (activeIntervals + 3) * LINE_VERTEX_STRIDE
 
         verticalElements.clear()
         outlineElements.clear()
@@ -512,7 +513,7 @@ open class Ellipse @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset : Int, firstOrLast : Boolean
     )
     {
-        val vertex = (lineVertexIndex / 8 - 1) * 2
+        val vertex = (lineVertexIndex / LINE_VERTEX_STRIDE - 1) * 2
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
 
         if (isSurfaceShape) {
@@ -520,10 +521,12 @@ open class Ellipse @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = 1.0f
+            lineVertexArray[lineVertexIndex++] = 0.0f
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = -1.0f
+            lineVertexArray[lineVertexIndex++] = 0.0f
             if(!firstOrLast) {
                 outlineElements.add(vertex)
                 outlineElements.add(vertex.inc())
@@ -533,10 +536,12 @@ open class Ellipse @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = 1.0f
+            lineVertexArray[lineVertexIndex++] = 0.0f
             lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = -1.0f
+            lineVertexArray[lineVertexIndex++] = 0.0f
             if(!firstOrLast) {
                 outlineElements.add(vertex)
                 outlineElements.add(vertex.inc())
@@ -544,47 +549,55 @@ open class Ellipse @JvmOverloads constructor(
             if (isExtrude && !firstOrLast) {
                 var vertPoint = Vec3()
                 vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
-                val index =  verticalVertexIndex / 8 * 2
+                val index =  verticalVertexIndex / LINE_VERTEX_STRIDE * 2
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = 1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = 1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = 1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = 1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                 lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = 0f
 
                 verticalElements.add(index)
                 verticalElements.add(index + 1)

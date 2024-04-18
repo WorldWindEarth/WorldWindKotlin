@@ -24,6 +24,8 @@ open class DrawableLinesState internal constructor(){
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1f
+    protected var texture: Texture? = null
+    protected val texCoordMatrix = Matrix3()
     internal var primCount = 0
     internal val prims = Array(MAX_DRAW_ELEMENTS) { DrawElements() }
 
@@ -39,6 +41,9 @@ open class DrawableLinesState internal constructor(){
         opacity = 1.0f
         lineWidth = 1f
         primCount = 0
+        texture = null
+        texCoordMatrix.setToIdentity()
+        for (idx in 0 until DrawShapeState.MAX_DRAW_ELEMENTS) prims[idx].texture = null
     }
 
     fun color(color: Color) = apply { this.color.copy(color) }
@@ -46,6 +51,10 @@ open class DrawableLinesState internal constructor(){
     fun opacity(opacity: Float) = apply { this.opacity = opacity }
 
     fun lineWidth(width: Float) = apply { lineWidth = width }
+
+    fun texture(texture: Texture?) = apply { this.texture = texture }
+
+    fun texCoordMatrix(matrix: Matrix3) = apply { texCoordMatrix.copy(matrix) }
 
     open fun drawElements(mode: Int, count: Int, type: Int, offset: Int) {
         val prim = prims[primCount++]
@@ -56,6 +65,8 @@ open class DrawableLinesState internal constructor(){
         prim.color.copy(color)
         prim.opacity = opacity
         prim.lineWidth = lineWidth
+        prim.texture = texture
+        prim.texCoordMatrix.copy(texCoordMatrix)
     }
 
     internal open class DrawElements {
@@ -66,6 +77,8 @@ open class DrawableLinesState internal constructor(){
         val color = Color()
         var opacity = 1.0f
         var lineWidth = 0f
+        var texture: Texture? = null
+        val texCoordMatrix = Matrix3()
     }
 
     internal open class VertexAttrib {

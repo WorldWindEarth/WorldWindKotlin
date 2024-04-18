@@ -32,17 +32,19 @@ open class Path @JvmOverloads constructor(
     protected var extrudeIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val interiorElements = mutableListOf<Int>()
-    protected val verticalElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
+    protected val verticalElements = mutableListOf<Int>()
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
     protected val vertexOrigin = Vec3()
-    protected val point = Vec3()
+    protected var texCoord1d = 0.0
+    private val point = Vec3()
+    private val prevPoint = Vec3()
+    private val texCoordMatrix = Matrix3()
     private val intermediateLocation = Location()
 
     companion object {
-        protected const val VERTICES_PER_POINT = 2
-        protected const val VERTEX_STRIDE = 8
+        protected const val VERTEX_STRIDE = 10
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
@@ -103,6 +105,18 @@ open class Path @JvmOverloads constructor(
             IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (interiorElements + outlineElements + verticalElements).toIntArray())
         }
 
+        // Configure the drawable to use the outline texture when drawing the outline.
+        if (activeAttributes.isDrawOutline) {
+            activeAttributes.outlineImageSource?.let { outlineImageSource ->
+                rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+                    val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
+                    computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+                    drawState.texture(texture)
+                    drawState.texCoordMatrix(texCoordMatrix)
+                }
+            }
+        }
+
         // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel. Lines
         // drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
         if (activeAttributes.isDrawOutline) {
@@ -114,6 +128,9 @@ open class Path @JvmOverloads constructor(
                 GL_UNSIGNED_INT, interiorElements.size * Int.SIZE_BYTES
             )
         }
+
+        // Disable texturing for the remaining drawable primitives.
+        drawState.texture(null)
 
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude) {
@@ -234,16 +251,22 @@ open class Path @JvmOverloads constructor(
         if (vertex == 0) {
             if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
             else vertexOrigin.copy(point)
+            texCoord1d = 0.0
+        } else {
+            texCoord1d += point.distanceTo(prevPoint)
         }
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = -1.0f
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
             if(!firstOrLast) {
                 outlineElements.add(vertex)
                 outlineElements.add(vertex.inc())
@@ -253,10 +276,12 @@ open class Path @JvmOverloads constructor(
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = -1.0f
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
             if(!firstOrLast) {
                 outlineElements.add(vertex)
                 outlineElements.add(vertex.inc())
@@ -271,10 +296,12 @@ open class Path @JvmOverloads constructor(
                 vertexArray[extrudeIndex++] = (point.y - vertexOrigin.y).toFloat()
                 vertexArray[extrudeIndex++] = (point.z - vertexOrigin.z).toFloat()
                 vertexArray[extrudeIndex++] = 0f
+                vertexArray[extrudeIndex++] = 0f
 
                 vertexArray[extrudeIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 vertexArray[extrudeIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 vertexArray[extrudeIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                vertexArray[extrudeIndex++] = 0f
                 vertexArray[extrudeIndex++] = 0f
 
                 if(!firstOrLast) {
@@ -288,41 +315,49 @@ open class Path @JvmOverloads constructor(
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                     vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
 
                     verticalElements.add(index)
                     verticalElements.add(index + 1)

@@ -37,6 +37,9 @@ open class DrawableGeomLines protected constructor(): Drawable {
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
         if (drawState.elementBuffer?.bindBuffer(dc) != true) return  // element buffer unspecified or failed to bind
 
+        // Use the draw context's pick mode.
+        program.enablePickMode(dc.isPickMode)
+
         // Use the draw context's modelview projection matrix, transformed to shape local coordinates.
         if (drawState.depthOffset != 0.0) {
             mvpMatrix.copy(dc.projection).offsetProjectionDepth(drawState.depthOffset)
@@ -66,10 +69,12 @@ open class DrawableGeomLines protected constructor(): Drawable {
 
         dc.gl.enableVertexAttribArray(1 /*value*/)
         dc.gl.enableVertexAttribArray(2 /*value*/)
+        dc.gl.enableVertexAttribArray(3 /*value*/)
         // Use the shape's vertex point attribute and vertex texture coordinate attribute.
-        dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 0 /*offset*/)
-        dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 32 /*offset*/)
-        dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 64 /*offset*/)
+        dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 0 /*offset*/)
+        dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 40 /*offset*/)
+        dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 80 /*offset*/)
+        dc.gl.vertexAttribPointer(3 /*texCoord*/, 1, GL_FLOAT, false, 20/*drawState.vertexStride*/, 56 /*offset*/)
 
         // Draw the specified primitives.
         for (idx in 0 until drawState.primCount) {
@@ -77,6 +82,12 @@ open class DrawableGeomLines protected constructor(): Drawable {
             program.loadColor(prim.color)
             program.loadOpacity(prim.opacity)
             program.loadLineWidth(prim.lineWidth);
+            if (prim.texture?.bindTexture(dc) == true) {
+                program.loadTexCoordMatrix(prim.texCoordMatrix)
+                program.enableTexture(true)
+            } else {
+                program.enableTexture(false)
+            }
             dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
         }
 
@@ -88,5 +99,6 @@ open class DrawableGeomLines protected constructor(): Drawable {
         dc.gl.enable(GL_CULL_FACE)
         dc.gl.disableVertexAttribArray(1 /*value*/)
         dc.gl.disableVertexAttribArray(2 /*value*/)
+        dc.gl.disableVertexAttribArray(3 /*value*/)
     }
 }

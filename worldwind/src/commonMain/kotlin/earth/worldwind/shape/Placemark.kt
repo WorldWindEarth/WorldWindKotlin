@@ -161,7 +161,7 @@ open class Placemark @JvmOverloads constructor(
     /**
      * Leader line vertex array. Initially sized to store two xyz points.
      */
-    protected val vertexArray = FloatArray(32)
+    protected val vertexArray = FloatArray(40)
     protected var vertexArrayHashCode = 0
     protected lateinit var vertexBufferKey: Any
     protected lateinit var elementBufferKey: Any
@@ -460,45 +460,54 @@ open class Placemark @JvmOverloads constructor(
         // Use the basic GLSL program to draw the placemark's leader.
         drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
-        vertexArray[0] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[1] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[2] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[3] = 1f
+        var vertexIndex = 0
+        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[vertexIndex++] = 1f
+        vertexArray[vertexIndex++] = 0f
 
-        vertexArray[4] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[5] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[6] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[7] = -1f
+        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[vertexIndex++] = -1f
+        vertexArray[vertexIndex++] = 0f
 
-        vertexArray[8] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[9] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[10] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[11] = 1f
+        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[vertexIndex++] = 1f
+        vertexArray[vertexIndex++] = 0f
 
-        vertexArray[12] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[13] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[14] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[15] = -1f
+        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        vertexArray[vertexIndex++] = -1f
+        vertexArray[vertexIndex++] = 0f
 
-        vertexArray[16] = 0.0f
-        vertexArray[17] = 0.0f
-        vertexArray[18] = 0.0f
-        vertexArray[19] = 1f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 1f
+        vertexArray[vertexIndex++] = 0f
 
-        vertexArray[20] = 0.0f
-        vertexArray[21] = 0.0f
-        vertexArray[22] = 0.0f
-        vertexArray[23] = -1f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = -1f
+        vertexArray[vertexIndex++] = 0f
 
-        vertexArray[24] = 0.0f
-        vertexArray[25] = 0.0f
-        vertexArray[26] = 0.0f
-        vertexArray[27] = 1f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 1f
+        vertexArray[vertexIndex++] = 0f
 
-        vertexArray[28] = 0.0f
-        vertexArray[29] = 0.0f
-        vertexArray[30] = 0.0f
-        vertexArray[31] = -1f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = 0.0f
+        vertexArray[vertexIndex++] = -1f
+        vertexArray[vertexIndex] = 0f
 
         // Regenerate vertex buffer on array change
         val hashCode = vertexArray.contentHashCode()

@@ -80,6 +80,7 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
             // Restore the default WorldWind OpenGL state.
             dc.gl.disableVertexAttribArray(1 /*value*/)
             dc.gl.disableVertexAttribArray(2 /*value*/)
+            dc.gl.disableVertexAttribArray(3 /*value*/)
         }
     }
 
@@ -105,7 +106,7 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
             dc.gl.disable(GL_DEPTH_TEST)
 
             // Use the draw context's pick mode.
-            //program.enablePickMode(dc.isPickMode)
+            program.enablePickMode(dc.isPickMode)
 
             // Compute the tile common matrix that transforms geographic coordinates to texture fragments appropriate
             // for the terrain sector.
@@ -141,10 +142,12 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
 
                 dc.gl.enableVertexAttribArray(1 /*value*/)
                 dc.gl.enableVertexAttribArray(2 /*value*/)
+                dc.gl.enableVertexAttribArray(3 /*value*/)
                 // Use the shape's vertex point attribute.
-                dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 0 /*offset*/)
-                dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 32 /*offset*/)
-                dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 16/*drawState.vertexStride*/, 64 /*offset*/)
+                dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 0 /*offset*/)
+                dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 40 /*offset*/)
+                dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 80 /*offset*/)
+                dc.gl.vertexAttribPointer(3 /*texCoord*/, 1, GL_FLOAT, false, 20/*drawState.vertexStride*/, 56 /*offset*/)
 
                 // Draw the specified primitives to the framebuffer texture.
                 for (primIdx in 0 until shape.drawState.primCount) {
@@ -152,6 +155,12 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
                     program.loadColor(prim.color)
                     program.loadOpacity(prim.opacity)
                     program.loadLineWidth(prim.lineWidth)
+                    if (prim.texture?.bindTexture(dc) == true) {
+                        program.loadTexCoordMatrix(prim.texCoordMatrix)
+                        program.enableTexture(true)
+                    } else {
+                        program.enableTexture(false)
+                    }
                     dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
                 }
 
