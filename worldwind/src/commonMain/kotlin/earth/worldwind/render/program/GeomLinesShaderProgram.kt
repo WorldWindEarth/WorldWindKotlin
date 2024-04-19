@@ -20,7 +20,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
             attribute vec4 pointA;
             attribute vec4 pointB;
             attribute vec4 pointC;
-            attribute vec2 vertexTexCoord;
+            attribute float vertexTexCoord;
             
             varying vec2 texCoord;
             
@@ -58,7 +58,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
                 
                 /* Transform the vertex tex coord by the tex coord matrix. */
                 if (enableTexture) {
-                    texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
+                    texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0, 1.0)).st;
                 }
             }
         """.trimIndent(),

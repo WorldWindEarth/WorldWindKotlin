@@ -255,6 +255,7 @@ open class Path @JvmOverloads constructor(
         } else {
             texCoord1d += point.distanceTo(prevPoint)
         }
+        prevPoint.copy(point)
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
