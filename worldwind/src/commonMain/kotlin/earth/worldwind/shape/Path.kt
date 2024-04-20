@@ -78,16 +78,13 @@ open class Path @JvmOverloads constructor(
             val pool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
             drawable = DrawableSurfaceGeomLines.obtain(pool)
             drawState = drawable.drawState
-
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
-
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
             val pool = rc.getDrawablePool<DrawableGeomLines>()
             drawable = DrawableGeomLines.obtain(pool)
             drawState = drawable.drawState
-
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, VERTEX_STRIDE, vertexOrigin)
         }
 
@@ -175,7 +172,7 @@ open class Path @JvmOverloads constructor(
         vertexIndex = 0
         verticalIndex = if (isExtrude && !isSurfaceShape) (vertexCount + 2) * VERTEX_STRIDE else 0
         extrudeIndex = if (isExtrude && !isSurfaceShape) verticalIndex + (positions.size * 4) * VERTEX_STRIDE else 0
-        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(verticalIndex + extrudeIndex + (vertexCount * 2) * VERTEX_STRIDE)
+        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(verticalIndex + extrudeIndex + (vertexCount + 2) * VERTEX_STRIDE)
         else FloatArray((vertexCount + 2) * VERTEX_STRIDE)
         interiorElements.clear()
         outlineElements.clear()
@@ -244,7 +241,7 @@ open class Path @JvmOverloads constructor(
 
     protected open fun addVertex(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, firstOrLast : Boolean
-    ): Int {
+    ) {
         val vertex = (vertexIndex / VERTEX_STRIDE - 1) * 2
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertex == 0) {
@@ -368,6 +365,5 @@ open class Path @JvmOverloads constructor(
                 }
             }
         }
-        return 0
     }
 }

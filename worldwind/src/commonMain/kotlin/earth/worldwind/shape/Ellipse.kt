@@ -679,5 +679,6 @@ open class Ellipse @JvmOverloads constructor(
     override fun reset() {
         super.reset()
         vertexArray = FloatArray(0)
+        lineVertexArray = FloatArray(0)
     }
 }

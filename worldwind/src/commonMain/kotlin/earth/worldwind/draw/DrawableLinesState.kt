@@ -40,10 +40,10 @@ open class DrawableLinesState internal constructor(){
         color.set(1f, 1f, 1f, 1f)
         opacity = 1.0f
         lineWidth = 1f
-        primCount = 0
         texture = null
         texCoordMatrix.setToIdentity()
-        for (idx in 0 until DrawShapeState.MAX_DRAW_ELEMENTS) prims[idx].texture = null
+        primCount = 0
+        for (idx in 0 until MAX_DRAW_ELEMENTS) prims[idx].texture = null
     }
 
     fun color(color: Color) = apply { this.color.copy(color) }
@@ -79,10 +79,5 @@ open class DrawableLinesState internal constructor(){
         var lineWidth = 0f
         var texture: Texture? = null
         val texCoordMatrix = Matrix3()
-    }
-
-    internal open class VertexAttrib {
-        var size = 0
-        var offset = 0
     }
 }
