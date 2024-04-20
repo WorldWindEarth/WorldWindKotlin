@@ -81,7 +81,6 @@ open class Path @JvmOverloads constructor(
 
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
 
-            drawable.projShaderProgram = rc.getShaderProgram { BasicShaderProgram() }
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {

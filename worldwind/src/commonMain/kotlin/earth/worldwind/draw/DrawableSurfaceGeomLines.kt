@@ -16,7 +16,6 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
     var offset = Globe.Offset.Center
     val sector = Sector()
     val drawState = DrawableLinesState()
-    var projShaderProgram : BasicShaderProgram? = null
     private var pool: Pool<DrawableSurfaceGeomLines>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
@@ -40,8 +39,8 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
     }
 
     override fun draw(dc: DrawContext) {
-        //val program = drawState.program ?: return // program unspecified
-        //if (!program.useProgram(dc)) return // program failed to build
+        val program = drawState.program ?: return // program unspecified
+        if (!program.useProgram(dc)) return // program failed to build
 
         // Make multi-texture unit 0 active.
         dc.activeTextureUnit(GL_TEXTURE0)
@@ -93,8 +92,7 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
 
         // Keep track of the number of shapes drawn into the texture.
         var shapeCount = 0
-        val program : GeomLinesShaderProgram = drawState.program ?: return 0
-        if (!program.useProgram(dc)) return 0// program failed to build
+        val program = drawState.program ?: return 0
         try {
             val framebuffer = dc.scratchFramebuffer
             if (!framebuffer.bindFramebuffer(dc)) return 0 // framebuffer failed to bind
@@ -107,6 +105,7 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
 
             // Use the draw context's pick mode.
             program.enablePickMode(dc.isPickMode)
+            program.enableOneVertexMode(false)
 
             // Compute the tile common matrix that transforms geographic coordinates to texture fragments appropriate
             // for the terrain sector.
@@ -177,17 +176,17 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
     }
 
     protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain) {
-        val program = projShaderProgram ?: return
-        if (!program.useProgram(dc)) return // program failed to build
+        val program = drawState.program ?: return
         try {
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return  // terrain vertex attribute failed to bind
-            if (!terrain.useVertexTexCoordAttrib(dc, 1 /*vertexTexCoord*/)) return  // terrain vertex attribute failed to bind
+            if (!terrain.useVertexTexCoordAttrib(dc, 3 /*vertexTexCoord*/)) return  // terrain vertex attribute failed to bind
             val colorAttachment = dc.scratchFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
             if (!colorAttachment.bindTexture(dc)) return  // framebuffer texture failed to bind
 
             // Configure the program to draw texture fragments unmodified and aligned with the terrain.
             // TODO consolidate pickMode and enableTexture into a single textureMode
             // TODO it's confusing that pickMode must be disabled during surface shape render-to-texture
+            program.enableOneVertexMode(true)
             program.enablePickMode(false)
             program.enableTexture(true)
             program.loadTexCoordMatrix(identityMatrix3)

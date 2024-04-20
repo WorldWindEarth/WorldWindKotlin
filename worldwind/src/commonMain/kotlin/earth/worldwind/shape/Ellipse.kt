@@ -276,7 +276,6 @@ open class Ellipse @JvmOverloads constructor(
             drawStateLines = drawableLines.drawState
 
             // Use the basic GLSL program for texture projection.
-            drawableLines.projShaderProgram = rc.getShaderProgram { BasicShaderProgram() }
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
 

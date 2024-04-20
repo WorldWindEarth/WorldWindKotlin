@@ -15,50 +15,60 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
             uniform float lineWidth;
             uniform vec2 screen;
             uniform bool enableTexture;
+            uniform bool enableOneVertexMode;
             uniform mat3 texCoordMatrix;
             
             attribute vec4 pointA;
             attribute vec4 pointB;
             attribute vec4 pointC;
-            attribute float vertexTexCoord;
+            attribute vec2 vertexTexCoord;
             
             varying vec2 texCoord;
             
             void main() {
-                /* Transform the vertex position by the modelview-projection matrix. */
-                vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
-                vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
-                vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
-                float corner =  pointB.w;
-                
-                pointAScreen = pointAScreen / pointAScreen.w;
-                pointBScreen = pointBScreen / pointBScreen.w;
-                pointCScreen = pointCScreen / pointCScreen.w;
-                
-                if(all(equal(pointBScreen.xy, pointAScreen.xy)))
+                if(enableOneVertexMode)
                 {
-                    pointAScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointCScreen.xy);
+                    /* Transform the vertex position by the modelview-projection matrix. */
+                    gl_Position = mvpMatrix * pointA;
                 }
-                if(all(equal(pointBScreen.xy, pointCScreen.xy)))
+                else
                 {
-                    pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
+                    /* Transform the vertex position by the modelview-projection matrix. */
+                    vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
+                    vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
+                    vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
+                    float corner =  pointB.w;
+                    
+                    pointAScreen = pointAScreen / pointAScreen.w;
+                    pointBScreen = pointBScreen / pointBScreen.w;
+                    pointCScreen = pointCScreen / pointCScreen.w;
+                    
+                    if(all(equal(pointBScreen.xy, pointAScreen.xy)))
+                    {
+                        pointAScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointCScreen.xy);
+                    }
+                    if(all(equal(pointBScreen.xy, pointCScreen.xy)))
+                    {
+                        pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
+                    }
+                    
+                    vec2 AB = normalize(normalize(pointBScreen.xy - pointAScreen.xy) * screen);
+                    vec2 BC = normalize(normalize(pointCScreen.xy - pointBScreen.xy) * screen);
+                    vec2 tangent = normalize(AB + BC);
+                    
+                    vec2 miter = vec2(-tangent.y, tangent.x);
+                    vec2 normalA = vec2(-AB.y, AB.x);
+                    float miterLength = 1.0 / dot(miter, normalA);
+                    miterLength = min(miterLength, 5.0);
+                    
+                    gl_Position = pointBScreen;
+                    gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
                 }
-                
-                vec2 AB = normalize(normalize(pointBScreen.xy - pointAScreen.xy) * screen);
-                vec2 BC = normalize(normalize(pointCScreen.xy - pointBScreen.xy) * screen);
-                vec2 tangent = normalize(AB + BC);
-                
-                vec2 miter = vec2(-tangent.y, tangent.x);
-                vec2 normalA = vec2(-AB.y, AB.x);
-                float miterLength = 1.0 / dot(miter, normalA);
-                miterLength = min(miterLength, 5.0);
-                
-                gl_Position = pointBScreen;
-                gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
                 
                 /* Transform the vertex tex coord by the tex coord matrix. */
-                if (enableTexture) {
-                    texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0, 1.0)).st;
+                if (enableTexture) 
+                {
+                    texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
                 }
             }
         """.trimIndent(),
@@ -92,6 +102,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
 
     protected var enablePickMode = false
     protected var enableTexture = false
+    protected var enableOneVertexMode = false
     protected val mvpMatrix = Matrix4()
     protected val texCoordMatrix = Matrix3()
     protected val color = Color()
@@ -106,6 +117,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
     protected var screenId = KglUniformLocation.NONE
     protected var enablePickModeId = KglUniformLocation.NONE
     protected var enableTextureId = KglUniformLocation.NONE
+    protected var enableOneVertexModeId = KglUniformLocation.NONE
     protected var texCoordMatrixId = KglUniformLocation.NONE
     protected var texSamplerId = KglUniformLocation.NONE
     private val array = FloatArray(16)
@@ -118,16 +130,21 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         colorId = gl.getUniformLocation(program, "color")
         val alpha = color.alpha
         gl.uniform4f(colorId, color.red * alpha, color.green * alpha, color.blue * alpha, alpha)
+
         opacityId = gl.getUniformLocation(program, "opacity")
         gl.uniform1f(opacityId, opacity)
         lineWidthId = gl.getUniformLocation(program, "lineWidth");
         gl.uniform1f(lineWidthId, lineWidth)
         screenId = gl.getUniformLocation(program, "screen");
         gl.uniform2f(screenId, screen.x.toFloat(), screen.y.toFloat())
+
         enablePickModeId = gl.getUniformLocation(program, "enablePickMode")
         gl.uniform1i(enablePickModeId, if (enablePickMode) 1 else 0)
         enableTextureId = gl.getUniformLocation(program, "enableTexture")
         gl.uniform1i(enableTextureId, if (enableTexture) 1 else 0)
+        enableOneVertexModeId = gl.getUniformLocation(program, "enableOneVertexMode")
+        gl.uniform1i(enableOneVertexModeId, if (enableOneVertexMode) 1 else 0)
+
         texCoordMatrixId = gl.getUniformLocation(program, "texCoordMatrix")
         texCoordMatrix.transposeToArray(array, 0) // 3 x 3 identity matrix
         gl.uniformMatrix3fv(texCoordMatrixId, 1, false, array, 0)
@@ -141,11 +158,16 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
             gl.uniform1i(enablePickModeId, if (enable) 1 else 0)
         }
     }
-
     fun enableTexture(enable: Boolean) {
         if (enableTexture != enable) {
             enableTexture = enable
             gl.uniform1i(enableTextureId, if (enable) 1 else 0)
+        }
+    }
+    fun enableOneVertexMode(enable: Boolean) {
+        if (enableOneVertexMode != enable) {
+            enableOneVertexMode = enable
+            gl.uniform1i(enableOneVertexModeId, if (enable) 1 else 0)
         }
     }
     fun loadTexCoordMatrix(matrix: Matrix3) {

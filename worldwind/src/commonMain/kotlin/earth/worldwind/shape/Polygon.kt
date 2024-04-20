@@ -167,9 +167,7 @@ open class Polygon @JvmOverloads constructor(
             val linesPool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
             drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
             drawStateLines = drawableLines.drawState
-            // Use the basic GLSL program to draw the shape.
 
-            drawableLines.projShaderProgram = rc.getShaderProgram { BasicShaderProgram() }
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
         } else {
