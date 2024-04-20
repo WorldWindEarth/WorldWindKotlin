@@ -1,7 +1,6 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
-import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
 import earth.worldwind.util.kgl.GL_DEPTH_TEST
