@@ -52,6 +52,7 @@ open class DrawableDynamicLines protected constructor(): Drawable {
         if (!dc.rectangleElementsBuffer.bindBuffer(dc)) return // element buffer failed to bind
         // Disable texturing.
         program.enableTexture(false)
+        program.enableOneVertexMode(false)
 
         // Use the leader's color.
         program.loadColor(color)

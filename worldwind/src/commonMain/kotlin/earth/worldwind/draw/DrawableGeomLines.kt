@@ -39,6 +39,7 @@ open class DrawableGeomLines protected constructor(): Drawable {
 
         // Use the draw context's pick mode.
         program.enablePickMode(dc.isPickMode)
+        program.enableOneVertexMode(false)
 
         // Use the draw context's modelview projection matrix, transformed to shape local coordinates.
         if (drawState.depthOffset != 0.0) {
