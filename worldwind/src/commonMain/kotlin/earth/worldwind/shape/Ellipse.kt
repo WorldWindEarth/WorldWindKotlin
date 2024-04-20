@@ -168,7 +168,7 @@ open class Ellipse @JvmOverloads constructor(
     }
 
     companion object {
-        protected const val VERTEX_STRIDE = 6
+        protected const val VERTEX_STRIDE = 5
         protected const val LINE_VERTEX_STRIDE = 10
         /**
          * The minimum number of intervals that will be used for geometry generation.
@@ -202,6 +202,7 @@ open class Ellipse @JvmOverloads constructor(
 
         private val scratchPosition = Position()
         private val scratchPoint = Vec3()
+        private val scratchVertPoint = Vec3()
 
         protected fun assembleElements(intervals: Int): ShortBufferObject {
             // Create temporary storage for elements
@@ -515,18 +516,20 @@ open class Ellipse @JvmOverloads constructor(
     {
         val vertex = (lineVertexIndex / LINE_VERTEX_STRIDE - 1) * 2
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
-
+        if (lineVertexIndex == 0) texCoord1d = 0.0
+        else texCoord1d += point.distanceTo(prevPoint)
+        prevPoint.copy(point)
         if (isSurfaceShape) {
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = 1.0f
-            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = -1.0f
-            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
             if(!firstOrLast) {
                 outlineElements.add(vertex)
                 outlineElements.add(vertex.inc())
@@ -536,19 +539,18 @@ open class Ellipse @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = 1.0f
-            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
             lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = -1.0f
-            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
             if(!firstOrLast) {
                 outlineElements.add(vertex)
                 outlineElements.add(vertex.inc())
             }
             if (isExtrude && !firstOrLast) {
-                var vertPoint = Vec3()
-                vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
+                var vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, scratchVertPoint)
                 val index =  verticalVertexIndex / LINE_VERTEX_STRIDE * 2
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
@@ -615,8 +617,6 @@ open class Ellipse @JvmOverloads constructor(
         var offsetVertexIndex = vertexIndex + offset
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
-        if (vertexIndex == 0) texCoord1d = 0.0
-        else texCoord1d += point.distanceTo(prevPoint)
         prevPoint.copy(point)
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
@@ -625,20 +625,17 @@ open class Ellipse @JvmOverloads constructor(
             // reserved for future texture coordinate use
             vertexArray[vertexIndex++] = texCoord2d.x.toFloat()
             vertexArray[vertexIndex++] = texCoord2d.y.toFloat()
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
         } else {
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = texCoord2d.x.toFloat()
             vertexArray[vertexIndex++] = texCoord2d.y.toFloat()
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
             if (isExtrudedSkirt) {
                 point = rc.geographicToCartesian(latitude, longitude, 0.0, AltitudeMode.CLAMP_TO_GROUND, scratchPoint)
                 vertexArray[offsetVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 vertexArray[offsetVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 vertexArray[offsetVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                vertexArray[offsetVertexIndex++] = 0f //unused
                 vertexArray[offsetVertexIndex++] = 0f //unused
                 vertexArray[offsetVertexIndex] = 0f //unused
             }
