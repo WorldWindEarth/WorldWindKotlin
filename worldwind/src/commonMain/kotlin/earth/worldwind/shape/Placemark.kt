@@ -495,6 +495,7 @@ open class Placemark @JvmOverloads constructor(
         drawable.vertexPoints[vertexIndex++] = -1f
         drawable.vertexPoints[vertexIndex] = 0f
 
+        // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.
         drawable.mvpMatrix.copy(rc.modelviewProjection)
         drawable.mvpMatrix.multiplyByTranslation(groundPoint.x, groundPoint.y, groundPoint.z)
 

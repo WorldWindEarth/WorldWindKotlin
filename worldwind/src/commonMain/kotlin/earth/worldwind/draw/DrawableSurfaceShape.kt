@@ -5,7 +5,6 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.Color
-import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
@@ -88,7 +87,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
         // Keep track of the number of shapes drawn into the texture.
         var shapeCount = 0
-        val program : BasicShaderProgram = drawState.program as BasicShaderProgram ?: return 0
+        val program = drawState.program ?: return 0
         try {
             val framebuffer = dc.scratchFramebuffer
             if (!framebuffer.bindFramebuffer(dc)) return 0 // framebuffer failed to bind
@@ -175,7 +174,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     }
 
     protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain) {
-        val program : BasicShaderProgram = drawState.program as BasicShaderProgram ?: return
+        val program = drawState.program ?: return
         try {
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return  // terrain vertex attribute failed to bind
             if (!terrain.useVertexTexCoordAttrib(dc, 1 /*vertexTexCoord*/)) return  // terrain vertex attribute failed to bind

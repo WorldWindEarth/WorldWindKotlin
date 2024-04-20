@@ -179,13 +179,9 @@ open class Ellipse @JvmOverloads constructor(
          */
         protected const val TOP_RANGE = 0
         /**
-         * Key for Range object in the element buffer describing the outline of the Ellipse.
-         */
-        protected const val OUTLINE_RANGE = 1
-        /**
          * Key for Range object in the element buffer describing the extruded sides of the Ellipse.
          */
-        protected const val SIDE_RANGE = 2
+        protected const val SIDE_RANGE = 1
 
         protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
         protected val defaultOutlineImageOptions = ImageOptions().apply {
@@ -232,10 +228,6 @@ open class Ellipse @JvmOverloads constructor(
             elements.add(0.toShort())
             val topRange = Range(0, elements.size)
 
-            // Generate the outline element buffer
-            for (i in 0 until intervals) elements.add(i.toShort())
-            val outlineRange = Range(topRange.upper, elements.size)
-
             // Generate the side element buffer
             for (i in 0 until intervals) {
                 elements.add(i.toShort())
@@ -243,12 +235,11 @@ open class Ellipse @JvmOverloads constructor(
             }
             elements.add(0.toShort())
             elements.add(offset.toShort())
-            val sideRange = Range(outlineRange.upper, elements.size)
+            val sideRange = Range(topRange.upper, elements.size)
 
             // Generate a buffer for the element
             val elementBuffer = ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, elements.toShortArray())
             elementBuffer.ranges[TOP_RANGE] = topRange
-            elementBuffer.ranges[OUTLINE_RANGE] = outlineRange
             elementBuffer.ranges[SIDE_RANGE] = sideRange
             return elementBuffer
         }
@@ -283,8 +274,8 @@ open class Ellipse @JvmOverloads constructor(
             val linesPool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
             drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
             drawStateLines = drawableLines.drawState
-            // Use the basic GLSL program to draw the shape.
 
+            // Use the basic GLSL program for texture projection.
             drawableLines.projShaderProgram = rc.getShaderProgram { BasicShaderProgram() }
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
@@ -322,13 +313,9 @@ open class Ellipse @JvmOverloads constructor(
         // Get the attributes of the element buffer
         val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) { assembleElements(activeIntervals) }
-        if (isSurfaceShape) {
-            drawInterior(rc, drawState)
-            drawOutline(rc, drawStateLines)
-        } else {
-            drawOutline(rc, drawStateLines)
-            drawInterior(rc, drawState)
-        }
+
+        drawInterior(rc, drawState)
+        drawOutline(rc, drawStateLines)
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(vertexOrigin)
@@ -383,6 +370,16 @@ open class Ellipse @JvmOverloads constructor(
     protected open fun drawOutline(rc: RenderContext, drawState: DrawableLinesState) {
         if (!activeAttributes.isDrawOutline) return
 
+        // Configure the drawable to use the outline texture when drawing the outline.
+        activeAttributes.outlineImageSource?.let { outlineImageSource ->
+            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
+                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+                drawState.texture(texture)
+                drawState.texCoordMatrix(texCoordMatrix)
+            }
+        } ?: drawState.texture(null)
+
         // Configure the drawable to display the shape's outline.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
@@ -395,6 +392,7 @@ open class Ellipse @JvmOverloads constructor(
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
+            drawState.texture(null)
             drawState.drawElements(
                 GL_TRIANGLES, verticalElements.size,
                 GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES

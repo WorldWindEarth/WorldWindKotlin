@@ -31,7 +31,7 @@ open class DrawableShape protected constructor(): Drawable {
 
     override fun draw(dc: DrawContext) {
         // TODO shape batching
-        val program : BasicShaderProgram = drawState.program as BasicShaderProgram ?: return // program unspecified
+        val program = drawState.program ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
         if (drawState.elementBuffer?.bindBuffer(dc) != true) return  // element buffer unspecified or failed to bind

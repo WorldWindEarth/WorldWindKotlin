@@ -199,13 +199,8 @@ open class Polygon @JvmOverloads constructor(
             )
         }
 
-        if (isSurfaceShape || activeAttributes.interiorColor.alpha >= 1.0) {
-            drawInterior(rc, drawState)
-            drawOutline(rc, drawStateLines)
-        } else {
-            drawOutline(rc, drawStateLines)
-            drawInterior(rc, drawState)
-        }
+        drawInterior(rc, drawState)
+        drawOutline(rc, drawStateLines)
 
         // Configure the drawable according to the shape's attributes. Disable triangle backface culling when we're
         // displaying a polygon without extruded sides, so we want to draw the top and the bottom.
@@ -222,7 +217,7 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
 
         // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape) {
+        if (isSurfaceShape|| activeAttributes.interiorColor.alpha >= 1.0) {
             rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
             rc.offerSurfaceDrawable(drawableLines, 0.0 /*zOrder*/)
         }
@@ -260,6 +255,16 @@ open class Polygon @JvmOverloads constructor(
     protected open fun drawOutline(rc: RenderContext, drawState: DrawableLinesState) {
         if (!activeAttributes.isDrawOutline) return
 
+        // Configure the drawable to use the outline texture when drawing the outline.
+        activeAttributes.outlineImageSource?.let { outlineImageSource ->
+            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
+                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+                drawState.texture(texture)
+                drawState.texCoordMatrix(texCoordMatrix)
+            }
+        } ?: drawState.texture(null)
+
         drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
@@ -294,11 +299,13 @@ open class Polygon @JvmOverloads constructor(
             GL_TRIANGLE_STRIP, outlineElements.size - offset,
             GL_UNSIGNED_INT, offset * Int.SIZE_BYTES /*offset*/
         )
+
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawVerticals && isExtrude) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
+            drawState.texture(null)
             drawState.drawElements(
                 GL_TRIANGLES, verticalElements.size,
                 GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES /*offset*/
