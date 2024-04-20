@@ -1,7 +1,7 @@
 package earth.worldwind.shape
 
 import earth.worldwind.PickedObject
-import earth.worldwind.draw.DrawableGeomLines
+import earth.worldwind.draw.DrawableDynamicLines
 import earth.worldwind.draw.DrawableScreenTexture
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
@@ -10,15 +10,9 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
-import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
-import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
-import earth.worldwind.util.kgl.GL_TRIANGLES
-import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import earth.worldwind.util.math.boundingRectForUnitSquare
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -158,13 +152,6 @@ open class Placemark @JvmOverloads constructor(
      * The distance from the camera to the placemark in meters.
      */
     protected var cameraDistance = 0.0
-    /**
-     * Leader line vertex array. Initially sized to store two xyz points.
-     */
-    protected val vertexArray = FloatArray(40)
-    protected var vertexArrayHashCode = 0
-    protected lateinit var vertexBufferKey: Any
-    protected lateinit var elementBufferKey: Any
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -298,8 +285,8 @@ open class Placemark @JvmOverloads constructor(
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
-                val pool = rc.getDrawablePool<DrawableGeomLines>()
-                val drawable = DrawableGeomLines.obtain(pool)
+                val pool = rc.getDrawablePool<DrawableDynamicLines>()
+                val drawable = DrawableDynamicLines.obtain(pool)
                 prepareDrawableLeader(rc, drawable)
                 rc.offerShapeDrawable(drawable, cameraDistance)
             }
@@ -455,91 +442,68 @@ open class Placemark @JvmOverloads constructor(
      * @param rc       the current render context
      * @param drawable the Drawable to be prepared
      */
-    protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableGeomLines) {
-        val drawStateLines = drawable.drawState
+    protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableDynamicLines) {
         // Use the basic GLSL program to draw the placemark's leader.
-        drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
+        drawable.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
         var vertexIndex = 0
-        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[vertexIndex++] = 1f
-        vertexArray[vertexIndex++] = 0f
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
 
-        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[vertexIndex++] = -1f
-        vertexArray[vertexIndex++] = 0f
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
 
-        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[vertexIndex++] = 1f
-        vertexArray[vertexIndex++] = 0f
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
 
-        vertexArray[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
-        vertexArray[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        vertexArray[vertexIndex++] = -1f
-        vertexArray[vertexIndex++] = 0f
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
 
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 1f
-        vertexArray[vertexIndex++] = 0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
 
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = -1f
-        vertexArray[vertexIndex++] = 0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
 
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 1f
-        vertexArray[vertexIndex++] = 0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
 
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = 0.0f
-        vertexArray[vertexIndex++] = -1f
-        vertexArray[vertexIndex] = 0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex] = 0f
 
-        // Regenerate vertex buffer on array change
-        val hashCode = vertexArray.contentHashCode()
-        if (vertexArrayHashCode != hashCode) {
-            vertexArrayHashCode = hashCode
-            vertexBufferKey = nextCacheKey()
-            elementBufferKey = nextCacheKey()
-        }
-        drawStateLines.vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
-        val elements = IntArray(6)
-        elements[0] = 0
-        elements[1] = 1
-        elements[2] = 2
-        elements[3] = 0
-        elements[4] = 2
-        elements[5] = 3
-        drawStateLines.elementBuffer = rc.getBufferObject(elementBufferKey) { IntBufferObject(
-            GL_ELEMENT_ARRAY_BUFFER, elements) }
-        drawStateLines.vertexOrigin.copy(groundPoint)
+        drawable.mvpMatrix.copy(rc.modelviewProjection)
+        drawable.mvpMatrix.multiplyByTranslation(groundPoint.x, groundPoint.y, groundPoint.z)
 
         // Configure the drawable according to the placemark's active leader attributes. Use a color appropriate for the
         // pick mode. When picking use a unique color associated with the picked object ID.
-        drawStateLines.color((if (rc.isPickMode) pickColor else activeAttributes.leaderAttributes.outlineColor))
-        drawStateLines.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawStateLines.lineWidth(activeAttributes.leaderAttributes.outlineWidth)
-        drawStateLines.enableCullFace = false
-        drawStateLines.enableDepthTest = activeAttributes.leaderAttributes.isDepthTest
-        drawStateLines.enableDepthWrite = activeAttributes.leaderAttributes.isDepthTest
-        drawStateLines.drawElements(
-            GL_TRIANGLES, elements.size,
-            GL_UNSIGNED_INT, 0
-        )
+        drawable.color.copy(if (rc.isPickMode) pickColor else activeAttributes.leaderAttributes.outlineColor)
+        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawable.lineWidth = activeAttributes.leaderAttributes.outlineWidth
+        drawable.enableDepthTest = activeAttributes.leaderAttributes.isDepthTest
     }
 
     /**

@@ -604,8 +604,8 @@ open class Ellipse @JvmOverloads constructor(
                 verticalElements.add(index)
                 verticalElements.add(index + 1)
                 verticalElements.add(index + 2)
-                verticalElements.add(index)
                 verticalElements.add(index + 2)
+                verticalElements.add(index + 1)
                 verticalElements.add(index + 3)
             }
         }

@@ -10,6 +10,7 @@ import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.buffer.BufferPool
+import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {
@@ -34,6 +35,7 @@ open class DrawContext(val gl: Kgl) {
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
     private var unitSquareBufferCache: FloatBufferObject? = null
+    private var rectangleElementsBufferCache: IntBufferObject? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
@@ -91,6 +93,23 @@ open class DrawContext(val gl: Kgl) {
         GL_ARRAY_BUFFER, floatArrayOf(0f, 1f, 0f, 0f, 1f, 1f, 1f, 0f)
     ).also { unitSquareBufferCache = it }
     /**
+     * Returns an OpenGL buffer object containing indices needed to render triangle
+     * Expected vertex data layout for this buffer is something like this
+     * 1 ---- 0
+     * |     /|
+     * |    / |
+     * |   /  |
+     * |  /   |
+     * | /    |
+     * 3 ---- 2
+     * <br>
+     * The OpenGL buffer object is created on first use and cached. Subsequent calls to this method return the cached
+     * buffer object.
+     */
+    val rectangleElementsBuffer get() = rectangleElementsBufferCache ?: IntBufferObject(
+        GL_ELEMENT_ARRAY_BUFFER, intArrayOf(0, 1, 2, 2, 1, 3)
+    ).also { rectangleElementsBufferCache = it }
+    /**
      * Returns a scratch list suitable for accumulating entries during drawing. The list is cleared before each frame,
      * otherwise its contents are undefined.
      */
@@ -124,6 +143,7 @@ open class DrawContext(val gl: Kgl) {
         elementArrayBuffer = KglBuffer.NONE
         scratchFramebufferCache = null
         unitSquareBufferCache = null
+        rectangleElementsBufferCache = null
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
     }
