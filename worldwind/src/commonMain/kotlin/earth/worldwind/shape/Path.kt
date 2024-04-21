@@ -39,6 +39,7 @@ open class Path @JvmOverloads constructor(
     protected val vertexOrigin = Vec3()
     protected var texCoord1d = 0.0
     private val point = Vec3()
+    private val verticalPoint = Vec3()
     private val prevPoint = Vec3()
     private val texCoordMatrix = Matrix3()
     private val intermediateLocation = Location()
@@ -244,7 +245,7 @@ open class Path @JvmOverloads constructor(
     ) {
         val vertex = (vertexIndex / VERTEX_STRIDE - 1) * 2
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
-        if (vertex == 0) {
+        if (vertexIndex == 0) {
             if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
             else vertexOrigin.copy(point)
             texCoord1d = 0.0
@@ -284,8 +285,7 @@ open class Path @JvmOverloads constructor(
                 outlineElements.add(vertex.inc())
             }
             if (isExtrude) {
-                var vertPoint = Vec3()
-                vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
+                var vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, verticalPoint)
 
                 val extrudeVertex =  (extrudeIndex / VERTEX_STRIDE - 1) * 2
 
