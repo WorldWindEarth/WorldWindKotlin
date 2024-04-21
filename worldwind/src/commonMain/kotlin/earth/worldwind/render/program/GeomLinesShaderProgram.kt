@@ -29,7 +29,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
                 if(enableOneVertexMode)
                 {
                     /* Transform the vertex position by the modelview-projection matrix. */
-                    gl_Position = mvpMatrix * pointA;
+                    gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
                 }
                 else
                 {
@@ -108,7 +108,8 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
-    protected var screen = Vec2()
+    protected var screenX = 0.0f
+    protected var screenY = 0.0f
 
     protected var mvpMatrixId = KglUniformLocation.NONE
     protected var colorId = KglUniformLocation.NONE
@@ -136,7 +137,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         lineWidthId = gl.getUniformLocation(program, "lineWidth");
         gl.uniform1f(lineWidthId, lineWidth)
         screenId = gl.getUniformLocation(program, "screen");
-        gl.uniform2f(screenId, screen.x.toFloat(), screen.y.toFloat())
+        gl.uniform2f(screenId, screenX, screenY)
 
         enablePickModeId = gl.getUniformLocation(program, "enablePickMode")
         gl.uniform1i(enablePickModeId, if (enablePickMode) 1 else 0)
@@ -206,11 +207,12 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         }
     }
 
-    fun loadScreen(screen : Vec2)
+    fun loadScreen(screenX : Float, screenY : Float)
     {
-        if(this.screen != screen) {
-            this.screen = screen;
-            gl.uniform2f(screenId, screen.x.toFloat(), screen.y.toFloat())
+        if((this.screenX != screenX) and (this.screenY != screenY) ) {
+            this.screenX = screenX;
+            this.screenY = screenY;
+            gl.uniform2f(screenId, this.screenX, this.screenY)
         }
     }
 }

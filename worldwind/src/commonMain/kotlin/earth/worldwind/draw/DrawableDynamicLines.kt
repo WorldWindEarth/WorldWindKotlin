@@ -64,7 +64,7 @@ open class DrawableDynamicLines protected constructor(): Drawable {
         program.loadModelviewProjection(mvpMatrix)
 
         // Use render target dimensions
-        program.loadScreen(Vec2(dc.viewport.width.toDouble(), dc.viewport.height.toDouble()));
+        program.loadScreen(dc.viewport.width.toFloat(), dc.viewport.height.toFloat());
 
         // Use the leader's line width in screen pixels.
         program.loadLineWidth(lineWidth)

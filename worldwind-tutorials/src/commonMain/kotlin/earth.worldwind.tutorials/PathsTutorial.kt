@@ -21,11 +21,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
                     Position.fromDegrees(30.0, -100.0, 1e6),
                     Position.fromDegrees(50.0, -40.0, 1e5)
                 )
-            ).apply {
-                attributes.apply {
-                    outlineWidth = 3f
-                }
-            }
+            )
         )
 
         // Create a terrain following path with the default attributes, and the default path type (GREAT_CIRCLE).
@@ -37,9 +33,6 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
                     Position.fromDegrees(40.0, -40.0, 0.0)
                 )
             ).apply {
-                attributes.apply {
-                    outlineWidth = 3f
-                }
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the path vertices to the ground
                 isFollowTerrain = true // follow the ground between path vertices
             }

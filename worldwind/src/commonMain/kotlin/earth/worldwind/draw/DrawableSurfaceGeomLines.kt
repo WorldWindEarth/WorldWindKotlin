@@ -140,7 +140,7 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
                     shape.drawState.vertexOrigin.z
                 )
                 program.loadModelviewProjection(mvpMatrix)
-                program.loadScreen(Vec2(colorAttachment.width.toDouble(), colorAttachment.height.toDouble()));
+                program.loadScreen(colorAttachment.width.toFloat(), colorAttachment.height.toFloat());
 
                 // Draw the specified primitives to the framebuffer texture.
                 for (primIdx in 0 until shape.drawState.primCount) {

@@ -197,6 +197,9 @@ open class Polygon @JvmOverloads constructor(
             )
         }
 
+        // Default 4 primitives may be insufficient as we draw each boundary in different draw call so account for that and add 3 for internal, vertical and extrude drawCalls
+        drawStateLines.maxPrimSize(boundaries.size + 3);
+
         drawInterior(rc, drawState)
         drawOutline(rc, drawStateLines)
 

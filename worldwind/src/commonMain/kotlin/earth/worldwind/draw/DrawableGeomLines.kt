@@ -54,7 +54,7 @@ open class DrawableGeomLines protected constructor(): Drawable {
             drawState.vertexOrigin.z
         )
         program.loadModelviewProjection(mvpMatrix)
-        program.loadScreen(Vec2(dc.viewport.width.toDouble(), dc.viewport.height.toDouble()));
+        program.loadScreen(dc.viewport.width.toFloat(), dc.viewport.height.toFloat());
 
         // Disable triangle back face culling if requested.
         if (!drawState.enableCullFace) dc.gl.disable(GL_CULL_FACE)
