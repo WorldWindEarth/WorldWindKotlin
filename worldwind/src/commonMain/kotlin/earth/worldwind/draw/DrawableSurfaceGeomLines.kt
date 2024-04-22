@@ -3,11 +3,8 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
-import earth.worldwind.geom.Vec2
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.Color
-import earth.worldwind.render.program.BasicShaderProgram
-import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic

@@ -197,9 +197,6 @@ open class Polygon @JvmOverloads constructor(
             )
         }
 
-        // Default 4 primitives may be insufficient as we draw each boundary in different draw call so account for that and add 3 for internal, vertical and extrude drawCalls
-        drawStateLines.maxPrimSize(boundaries.size + 3);
-
         drawInterior(rc, drawState)
         drawOutline(rc, drawStateLines)
 
@@ -314,7 +311,7 @@ open class Polygon @JvmOverloads constructor(
         }
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty() || (isExtrude && lineVertexArray.isEmpty())
+    protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty() || (isExtrude && !isSurfaceShape && lineVertexArray.isEmpty())
 
     protected open fun assembleGeometry(rc: RenderContext) {
         // Determine the number of vertexes

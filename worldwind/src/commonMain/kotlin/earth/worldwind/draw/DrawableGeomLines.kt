@@ -1,7 +1,6 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
-import earth.worldwind.geom.Vec2
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
@@ -32,7 +31,7 @@ open class DrawableGeomLines protected constructor(): Drawable {
 
     override fun draw(dc: DrawContext) {
         // TODO shape batching
-        val program : GeomLinesShaderProgram = drawState.program ?: return // program unspecified
+        val program = drawState.program ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
         if (drawState.elementBuffer?.bindBuffer(dc) != true) return  // element buffer unspecified or failed to bind

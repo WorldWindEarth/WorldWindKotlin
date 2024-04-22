@@ -9,8 +9,9 @@ import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.program.GeomLinesShaderProgram
 
 open class DrawableLinesState internal constructor(){
-    private var maxPrimSize : Int = 4
-
+    companion object {
+        const val MAX_DRAW_ELEMENTS = 12
+    }
     var program: GeomLinesShaderProgram? = null
     var vertexBuffer: FloatBufferObject? = null
     var elementBuffer: AbstractBufferObject? = null
@@ -25,7 +26,7 @@ open class DrawableLinesState internal constructor(){
     protected var texture: Texture? = null
     protected val texCoordMatrix = Matrix3()
     internal var primCount = 0
-    internal var prims = Array(maxPrimSize) { DrawElements() }
+    internal val prims = Array(MAX_DRAW_ELEMENTS) { DrawElements() }
 
     open fun reset() {
         program = null
@@ -41,12 +42,7 @@ open class DrawableLinesState internal constructor(){
         texture = null
         texCoordMatrix.setToIdentity()
         primCount = 0
-        for (idx in 0 until maxPrimSize) prims[idx].texture = null
-    }
-
-    fun maxPrimSize(maxPrimSize : Int) = apply {
-        this.maxPrimSize = maxPrimSize
-        this.prims = Array(maxPrimSize) { DrawElements() }
+        for (idx in 0 until MAX_DRAW_ELEMENTS) prims[idx].texture = null
     }
 
     fun color(color: Color) = apply { this.color.copy(color) }

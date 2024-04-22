@@ -402,7 +402,7 @@ open class Ellipse @JvmOverloads constructor(
     protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
         val calculatedIntervals = computeIntervals(rc)
         val sanitizedIntervals = sanitizeIntervals(calculatedIntervals)
-        if (vertexArray.isEmpty() || sanitizedIntervals != activeIntervals) {
+        if (vertexArray.isEmpty() || (isExtrude && !isSurfaceShape && lineVertexArray.isEmpty()) || sanitizedIntervals != activeIntervals) {
             activeIntervals = sanitizedIntervals
             return true
         }
