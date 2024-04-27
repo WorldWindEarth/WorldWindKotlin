@@ -33,7 +33,7 @@ interface CacheableElevationCoverage : ElevationCoverage {
     /**
      * Bounding sector of cache content or null, if cache is not configured or bounding measures are not specified
      */
-    val boundingSector get() = cacheSourceFactory?.boundingSector
+    val boundingSector get() = sector
     /**
      * Last update date of cache content or null, if cache is not configured
      */
@@ -60,7 +60,7 @@ interface CacheableElevationCoverage : ElevationCoverage {
         contentManager: ContentManager, contentKey: String, boundingSector: Sector? = null,
         setupWebCoverage: Boolean = true, isFloat: Boolean = false
     ) {
-        contentManager.setupElevationCoverageCache(this, contentKey, boundingSector, setupWebCoverage, isFloat)
+        contentManager.setupElevationCoverageCache(this, contentKey, setupWebCoverage, isFloat)
     }
 
     /**

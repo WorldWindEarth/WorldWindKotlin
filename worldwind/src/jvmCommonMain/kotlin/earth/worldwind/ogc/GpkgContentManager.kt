@@ -1,18 +1,17 @@
 package earth.worldwind.ogc
 
-import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
-import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
+import earth.worldwind.layer.mercator.WebMercatorLayerFactory
+import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.COVERAGE
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.EPSG_3857
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
-import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.ContentManager
@@ -87,7 +86,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         }
 
     override suspend fun setupImageLayerCache(
-        layer: CacheableImageLayer, contentKey: String, boundingSector: Sector?, setupWebLayer: Boolean
+        layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean
     ) {
         val tiledSurfaceImage = layer.tiledSurfaceImage ?: error("Surface image not defined")
         val levelSet = tiledSurfaceImage.levelSet
@@ -95,7 +94,6 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         val content = geoPackage.getContent(contentKey)?.also { content ->
             // Check if the current layer fits cache content
             val config = geoPackage.buildLevelSetConfig(content)
-            require(config.sector.equals(levelSet.sector, TOLERANCE)) { "Invalid sector" }
             require(config.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) { "Invalid tile origin" }
             require(config.firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) { "Invalid first level delta" }
             require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
@@ -117,8 +115,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 geoPackage.setupTileMatrices(content, levelSet)
             }
             // Update content metadata
-            geoPackage.updateTilesContent(layer, contentKey, levelSet, boundingSector, content)
-        } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, boundingSector, setupWebLayer)
+            geoPackage.updateTilesContent(layer, contentKey, levelSet, content)
+        } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, setupWebLayer)
 
         layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(geoPackage, content, imageFormat)
     }
@@ -153,15 +151,18 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                         // Configure cache to be able to use cacheable coverage interface
                         cacheSourceFactory = factory
                     }
-                }.apply { displayName = content.identifier }
+                }.apply {
+                    displayName = content.identifier
+                    // Apply bounding sector from content
+                    geoPackage.getBoundingSector(content)?.let { sector.copy(it) }
+                }
             }.onFailure {
                 Logger.logMessage(Logger.WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
             }.getOrNull()
         }
 
     override suspend fun setupElevationCoverageCache(
-        coverage: CacheableElevationCoverage, contentKey: String, boundingSector: Sector?,
-        setupWebCoverage: Boolean, isFloat: Boolean
+        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean, isFloat: Boolean
     ) {
         val content = geoPackage.getContent(contentKey)?.also { content ->
             // Check if the current layer fits cache content
@@ -179,8 +180,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 geoPackage.setupTileMatrices(content, coverage.tileMatrixSet)
             }
             // Update content metadata
-            geoPackage.updateGriddedCoverageContent(coverage, contentKey, boundingSector, content)
-        } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, boundingSector, setupWebCoverage, isFloat)
+            geoPackage.updateGriddedCoverageContent(coverage, contentKey, content)
+        } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, setupWebCoverage, isFloat)
 
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(geoPackage, content, isFloat)
     }

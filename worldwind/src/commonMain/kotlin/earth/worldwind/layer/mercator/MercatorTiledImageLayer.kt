@@ -1,7 +1,5 @@
 package earth.worldwind.layer.mercator
 
-import earth.worldwind.geom.Angle.Companion.NEG180
-import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Location
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.render.image.ImageConfig
@@ -17,9 +15,9 @@ open class MercatorTiledImageLayer(
         fun buildTiledSurfaceImage(
             tileFactory: MercatorTileFactory, numLevels: Int = 22, tileSize: Int = 256, transparent: Boolean = false, levelOffset: Int = 1
         ): MercatorTiledSurfaceImage {
-            val sector = MercatorSector(-1.0, 1.0, NEG180, POS180)
-            val tileOrigin = Location(sector.minLatitude, sector.minLongitude)
-            val firstLevelDelta = Location(sector.deltaLatitude, sector.deltaLongitude)
+            val sector = MercatorSector()
+            val tileOrigin = MercatorSector()
+            val firstLevelDelta = Location(tileOrigin.deltaLatitude, tileOrigin.deltaLongitude)
             // Skip 1 topmost level with bad resolution from processing
             val levelSet = LevelSet(sector, tileOrigin, firstLevelDelta, numLevels, tileSize, tileSize, levelOffset)
             return MercatorTiledSurfaceImage(tileFactory, levelSet).apply {

@@ -1,7 +1,5 @@
 package earth.worldwind.util
 
-import earth.worldwind.geom.Angle.Companion.NEG180
-import earth.worldwind.geom.Angle.Companion.NEG90
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Location
@@ -22,9 +20,9 @@ open class LevelSetConfig {
      */
     val sector = Sector().setFullSphere()
     /**
-     * Tile origin for level set
+     * Tile origin for the level set
      */
-    val tileOrigin = Location(NEG90, NEG180)
+    val tileOrigin = Sector().setFullSphere()
     /**
      * The geographic width and height of tiles in the first level (the lowest resolution) of the level set.
      */

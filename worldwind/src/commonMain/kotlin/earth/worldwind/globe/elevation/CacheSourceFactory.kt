@@ -1,6 +1,5 @@
 package earth.worldwind.globe.elevation
 
-import earth.worldwind.geom.Sector
 import kotlinx.datetime.Instant
 
 interface CacheSourceFactory : ElevationSourceFactory {
@@ -12,10 +11,6 @@ interface CacheSourceFactory : ElevationSourceFactory {
      * Path to cache content storage root
      */
     val contentPath: String
-    /**
-     * Bounding sector of cache content or null, if it is not specified
-     */
-    val boundingSector: Sector?
     /**
      * Last update date of cache content
      */

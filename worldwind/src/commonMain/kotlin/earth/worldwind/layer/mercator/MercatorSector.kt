@@ -8,7 +8,8 @@ import kotlin.jvm.JvmStatic
 import kotlin.math.*
 
 open class MercatorSector(
-    val minLatPercent: Double, val maxLatPercent: Double, minLongitude: Angle, maxLongitude: Angle
+    val minLatPercent: Double = -1.0, val maxLatPercent: Double = 1.0,
+    minLongitude: Angle = Angle.NEG180, maxLongitude: Angle = Angle.POS180
 ): Sector(gudermannian(minLatPercent), gudermannian(maxLatPercent), minLongitude, maxLongitude) {
     companion object {
         @JvmStatic

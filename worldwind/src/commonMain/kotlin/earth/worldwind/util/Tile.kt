@@ -224,12 +224,12 @@ open class Tile protected constructor(
             val sector = level.parent.sector
             val tileOrigin = level.parent.tileOrigin
             val tileDelta = level.tileDelta
-            val firstRow = computeRow(tileDelta.latitude, sector.minLatitude, tileOrigin.latitude)
-            val lastRow = computeLastRow(tileDelta.latitude, sector.maxLatitude, tileOrigin.latitude)
-            val firstCol = computeColumn(tileDelta.longitude, sector.minLongitude, tileOrigin.longitude)
-            val lastCol = computeLastColumn(tileDelta.longitude, sector.maxLongitude, tileOrigin.longitude)
-            val firstRowLat = tileOrigin.latitude.plusDegrees(firstRow * tileDelta.latitude.inDegrees)
-            val firstColLon = tileOrigin.longitude.plusDegrees(firstCol * tileDelta.longitude.inDegrees)
+            val firstRow = computeRow(tileDelta.latitude, sector.minLatitude, tileOrigin.minLatitude)
+            val lastRow = computeLastRow(tileDelta.latitude, sector.maxLatitude, tileOrigin.minLatitude)
+            val firstCol = computeColumn(tileDelta.longitude, sector.minLongitude, tileOrigin.minLongitude)
+            val lastCol = computeLastColumn(tileDelta.longitude, sector.maxLongitude, tileOrigin.minLongitude)
+            val firstRowLat = tileOrigin.minLatitude.plusDegrees(firstRow * tileDelta.latitude.inDegrees)
+            val firstColLon = tileOrigin.minLongitude.plusDegrees(firstCol * tileDelta.longitude.inDegrees)
             var minLat = firstRowLat
             for (row in firstRow..lastRow) {
                 val maxLat = minLat + tileDelta.latitude

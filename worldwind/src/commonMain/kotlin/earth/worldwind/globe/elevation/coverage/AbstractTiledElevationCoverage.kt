@@ -29,12 +29,13 @@ abstract class AbstractTiledElevationCoverage(
     var tileMatrixSet = tileMatrixSet
         set(value) {
             field = value
-            invalidateTiles()
+            sector.copy(value.sector) // Use TMS sector as bounding sector by default
+            clear()
         }
     var elevationSourceFactory = elevationSourceFactory
         set(value) {
             field = value
-            invalidateTiles()
+            clear()
         }
     /**
      * Unique identifier of the coverage type, defined by elevation source factory content type
@@ -53,7 +54,10 @@ abstract class AbstractTiledElevationCoverage(
     protected val absentResourceList = AbsentResourceList<Long>(3, 5.seconds)
     protected val mainScope = MainScope()
 
-    init { log(INFO, "Coverage cache initialized %.0f KB".format(coverageCache.capacity / 1024.0)) }
+    init {
+        sector.copy(tileMatrixSet.sector) // Use TMS sector as bounding sector by default
+        log(INFO, "Coverage cache initialized %.0f KB".format(coverageCache.capacity / 1024.0))
+    }
 
     /**
      * Setup custom coverage cache size according to device capabilities and user needs.
@@ -62,7 +66,7 @@ abstract class AbstractTiledElevationCoverage(
         coverageCache = LruMemoryCache(capacity, lowWater)
     }
 
-    override fun invalidateTiles() {
+    override fun clear() {
         mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
         currentRetrievals.clear()
         coverageCache.clear()

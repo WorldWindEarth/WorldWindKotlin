@@ -1,6 +1,5 @@
 package earth.worldwind.layer.mbtiles
 
-import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Location
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.layer.mercator.MercatorTiledImageLayer
@@ -14,11 +13,12 @@ import kotlinx.coroutines.withContext
 object MBTilesLayerFactory {
     suspend fun createLayer(pathName: String, readOnly: Boolean = true) = withContext(Dispatchers.IO) {
         val tileFactory = MBTileFactory(pathName, readOnly)
-        val sector = MercatorSector(-1.0, 1.0, Angle.NEG180, Angle.POS180)
+        val tileOrigin = MercatorSector()
+        val sector = MercatorSector().copy(tileFactory.boundingSector ?: tileOrigin)
         val levelSet = LevelSet(
             sector = sector,
-            tileOrigin = Location(sector.minLatitude, sector.minLongitude),
-            firstLevelDelta = Location(sector.deltaLatitude, sector.deltaLongitude),
+            tileOrigin = tileOrigin,
+            firstLevelDelta = Location(tileOrigin.deltaLatitude, tileOrigin.deltaLongitude),
             numLevels = tileFactory.maxZoom + 1,
             tileWidth = 256,
             tileHeight = 256,

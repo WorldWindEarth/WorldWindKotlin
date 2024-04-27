@@ -30,7 +30,7 @@ interface CacheableImageLayer : Layer {
     /**
      * Bounding sector of cache content or null, if cache is not configured or bounding measures are not specified
      */
-    val boundingSector get() = tiledSurfaceImage?.cacheTileFactory?.boundingSector
+    val boundingSector get() = tiledSurfaceImage?.levelSet?.sector
     /**
      * Last update date of cache content or null, if cache is not configured
      */
@@ -51,7 +51,7 @@ interface CacheableImageLayer : Layer {
     suspend fun configureCache(
         contentManager: ContentManager, contentKey: String, boundingSector: Sector? = null, setupWebLayer: Boolean = true
     ) {
-        contentManager.setupImageLayerCache(this, contentKey, boundingSector, setupWebLayer)
+        contentManager.setupImageLayerCache(this, contentKey, setupWebLayer)
     }
 
     /**

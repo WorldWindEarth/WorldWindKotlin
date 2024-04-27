@@ -27,7 +27,8 @@ open class MBTileFactory(final override val contentPath: String, val isReadOnly:
     protected val contentFie = File(contentPath)
     override val contentType = if (metadataDao.isTableExists && tilesDao.isTableExists) "MBTiles" else error("Not an MBTiles map file")
     override val contentKey = metadataDao.queryForId("name")?.value ?: error("Empty name!")
-    override val boundingSector = metadataDao.queryForId("bounds")?.value?.let {
+    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(contentFie.lastModified())
+    val boundingSector = metadataDao.queryForId("bounds")?.value?.let {
         val box = it.split(",")
         if (box.size < 4) return@let null
         val minLon = box[0].toDoubleOrNull() ?: return@let null
@@ -36,7 +37,6 @@ open class MBTileFactory(final override val contentPath: String, val isReadOnly:
         val maxLat = box[3].toDoubleOrNull() ?: return@let null
         Sector(minLat.degrees, maxLat.degrees, minLon.degrees, maxLon.degrees)
     }
-    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(contentFie.lastModified())
     val type = metadataDao.queryForId("type")?.value
     val version = metadataDao.queryForId("version")?.value?.toIntOrNull() ?: 0
     val minZoom = metadataDao.queryForId("minzoom")?.value?.toIntOrNull() ?: 0

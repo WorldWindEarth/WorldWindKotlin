@@ -29,7 +29,6 @@ open class ATAKTileFactory(
     protected val contentFie = File(contentPath)
     override val contentType = if (tilesDao.isTableExists && metadataDao.isTableExists) "ATAK" else error("Not an ATAK map file")
     override val contentKey = tilesDao.queryForFirst()?.provider ?: error("Empty cache file")
-    override val boundingSector: Sector? = null
     override val lastUpdateDate get() = Instant.fromEpochMilliseconds(contentFie.lastModified())
     val srid = metadataDao.queryForId("srid")?.value?.toIntOrNull()
     val isShutdown get() = !connectionSource.isOpen("")

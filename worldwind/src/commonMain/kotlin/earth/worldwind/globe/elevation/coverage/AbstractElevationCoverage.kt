@@ -6,6 +6,7 @@ import earth.worldwind.util.LruMemoryCache
 import kotlinx.datetime.Clock
 
 abstract class AbstractElevationCoverage: ElevationCoverage {
+    final override val sector = Sector().setFullSphere() // Real data availability sector can be smaller than TMS sector
     override var displayName: String? = null
     override var isEnabled = true
         set(value) {

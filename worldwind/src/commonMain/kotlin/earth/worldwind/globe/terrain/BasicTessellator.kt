@@ -1,8 +1,6 @@
 package earth.worldwind.globe.terrain
 
 import earth.worldwind.draw.BasicDrawableTerrain
-import earth.worldwind.geom.Angle.Companion.NEG180
-import earth.worldwind.geom.Angle.Companion.NEG90
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Range
@@ -20,7 +18,7 @@ open class BasicTessellator: Tessellator, TileFactory {
     /**
      * Default level set is configured to ~0.6 meter resolution
      */
-    var levelSet = LevelSet(Sector().setFullSphere(), Location(NEG90, NEG180), Location(POS90, POS90), 20, 32, 32)
+    var levelSet = LevelSet(Sector().setFullSphere(), Sector().setFullSphere(), Location(POS90, POS90), 20, 32, 32)
         set(value) {
             field = value
             invalidateTiles()

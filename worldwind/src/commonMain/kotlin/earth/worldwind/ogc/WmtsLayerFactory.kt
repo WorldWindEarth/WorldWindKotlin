@@ -1,14 +1,15 @@
 package earth.worldwind.ogc
 
 import com.eygraber.uri.Uri
-import earth.worldwind.geom.Angle.Companion.NEG180
-import earth.worldwind.geom.Angle.Companion.NEG90
-import earth.worldwind.geom.Angle.Companion.POS90
-import earth.worldwind.geom.Location
+import earth.worldwind.geom.Angle.Companion.toRadians
+import earth.worldwind.geom.Ellipsoid
+import earth.worldwind.geom.Location.Companion.fromDegrees
+import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.ogc.wmts.WmtsCapabilities
 import earth.worldwind.ogc.wmts.WmtsLayer
+import earth.worldwind.ogc.wmts.WmtsTileMatrixSet
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger.ERROR
@@ -25,17 +26,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.serialization.XML
-import kotlin.math.abs
 
 object WmtsLayerFactory {
 
     const val SERVICE_TYPE = "WMTS"
+    private const val PIXEL_SIZE = 0.28E-3 // Standardized rendering pixel size (0.28mm)
+    private const val STYLE_TEMPLATE = "{style}"
+    private const val TILE_MATRIX_SET_TEMPLATE = "{TileMatrixSet}"
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
-    private val compatibleCoordinateSystems = listOf(
-        "urn:ogc:def:crs:OGC:1.3:CRS84",
-        "urn:ogc:def:crs:EPSG::4326",
-        "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
-    )
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
 
     /**
@@ -70,8 +68,7 @@ object WmtsLayerFactory {
             .appendQueryParameter("SERVICE", "WMTS")
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        runCatching { httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText() }
-            .getOrElse { error("Unable to open connection and read from service address") }
+        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
     }
 
     private suspend fun decodeWmtsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {
@@ -90,28 +87,22 @@ object WmtsLayerFactory {
     }
 
     private fun createWmtsSurfaceImage(wmtsLayer: WmtsLayer): TiledSurfaceImage {
-        // Determine if there is a TileMatrixSet which matches our Coordinate System compatibility and tiling scheme
-        val compatibleTileMatrixSets = determineCoordSysCompatibleTileMatrixSets(wmtsLayer)
-        require(compatibleTileMatrixSets.isNotEmpty()) {
-            makeMessage("WmtsLayerFactory", "createWmtsLayer", "Coordinate Systems Not Compatible")
-        }
-
         // Search the list of coordinate system compatible tile matrix sets for compatible tiling schemes
-        val compatibleTileMatrixSet = determineCompatibleTileMatrixSet(wmtsLayer.capabilities, compatibleTileMatrixSets) ?: error(
+        val tileMatrixSet = determineCompatibleTileMatrixSet(wmtsLayer.layerSupportedTileMatrixSets) ?: error(
             makeMessage("WmtsLayerFactory", "createWmtsLayer", "Tile Schemes Not Compatible")
         )
-        val tileFactory = createWmtsTileFactory(wmtsLayer, compatibleTileMatrixSet)
-        val levelSet = createWmtsLevelSet(wmtsLayer, compatibleTileMatrixSet)
+        val tileFactory = createWmtsTileFactory(wmtsLayer, tileMatrixSet)
+        val levelSet = createWmtsLevelSet(wmtsLayer, tileMatrixSet)
         return TiledSurfaceImage(tileFactory, levelSet)
     }
 
-    private fun createWmtsTileFactory(wmtsLayer: WmtsLayer, compatibleTileMatrixSet: CompatibleTileMatrixSet): TileFactory {
+    private fun createWmtsTileFactory(wmtsLayer: WmtsLayer, tileMatrixSet: TileMatrixSet): TileFactory {
         // First choice is a ResourceURL
         for (resourceUrl in wmtsLayer.resourceUrls) if (compatibleImageFormats.contains(resourceUrl.format)) {
             val template = resourceUrl.template
-                .replace("{style}", wmtsLayer.styles[0].identifier)
-                .replace("{TileMatrixSet}", compatibleTileMatrixSet.tileMatrixSetId)
-            return WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices, resourceUrl.format)
+                .replace(STYLE_TEMPLATE, wmtsLayer.styles[0].identifier)
+                .replace(TILE_MATRIX_SET_TEMPLATE, tileMatrixSet.identifier)
+            return WmtsTileFactory(template, tileMatrixSet.tileMatrices, tileMatrixSet.matrixHeight, resourceUrl.format)
         }
 
         // Second choice is if the server supports KVP
@@ -122,29 +113,30 @@ object WmtsLayerFactory {
             )
             val styleIdentifier = wmtsLayer.styles[0].identifier
             val template = buildWmtsKvpTemplate(
-                baseUrl, wmtsLayer.identifier, imageFormat, styleIdentifier, compatibleTileMatrixSet.tileMatrixSetId
+                baseUrl, wmtsLayer.identifier, imageFormat, styleIdentifier, tileMatrixSet.identifier
             )
-            WmtsTileFactory(template, compatibleTileMatrixSet.tileMatrices, imageFormat)
+            WmtsTileFactory(template, tileMatrixSet.tileMatrices, tileMatrixSet.matrixHeight, imageFormat)
         } else error(makeMessage("WmtsLayerFactory", "getWmtsTileFactory", "No KVP Get Support"))
     }
 
-    private fun createWmtsLevelSet(wmtsLayer: WmtsLayer, compatibleTileMatrixSet: CompatibleTileMatrixSet): LevelSet {
-        val boundingBox = wmtsLayer.wgs84BoundingBox?.sector ?: error(
+    private fun createWmtsLevelSet(wmtsLayer: WmtsLayer, tileMatrixSet: TileMatrixSet) = with(tileMatrixSet) {
+        val sector = wmtsLayer.wgs84BoundingBox?.sector ?: error(
             makeMessage(
                 "WmtsLayerFactory", "createWmtsLevelSet",
                 "WGS84BoundingBox not defined for layer: " + wmtsLayer.identifier
             )
         )
-        val tileMatrixSet = wmtsLayer.capabilities.getTileMatrixSet(compatibleTileMatrixSet.tileMatrixSetId) ?: error(
-            makeMessage(
-                "WmtsLayerFactory", "createWmtsLevelSet",
-                "Compatible TileMatrixSet not found for: $compatibleTileMatrixSet"
-            )
-        )
-        val imageSize = tileMatrixSet.tileMatrices[0].tileHeight
-        return LevelSet(
-            boundingBox, Location(NEG90, NEG180), Location(POS90, POS90),
-            compatibleTileMatrixSet.tileMatrices.size, imageSize, imageSize
+        val pixelSpan = scaleDenominator / toRadians(Ellipsoid.WGS84.semiMajorAxis) * PIXEL_SIZE
+        val tileSpanX = tileWidth * pixelSpan
+        val tileSpanY = tileHeight * pixelSpan
+        val maxX = minX + tileSpanX * matrixWidth
+        val minY = maxY - tileSpanY * matrixHeight
+        val deltaX = maxX - minX
+        val deltaY = maxY - minY
+        LevelSet(
+            sector, fromDegrees(minY, minX, deltaY, deltaX),
+            fromDegrees(deltaY / matrixHeight, deltaX / matrixWidth),
+            tileMatrices.size, tileWidth, tileHeight
         )
     }
 
@@ -158,78 +150,82 @@ object WmtsLayerFactory {
         .appendQueryParameter("STYLE", styleIdentifier)
         .appendQueryParameter("FORMAT", format)
         .appendQueryParameter("TILEMATRIXSET", tileMatrixSet)
-        .appendQueryParameter("TILEMATRIX", WmtsTileFactory.TILEMATRIX_TEMPLATE)
-        .appendQueryParameter("TILEROW", WmtsTileFactory.TILEROW_TEMPLATE)
-        .appendQueryParameter("TILECOL", WmtsTileFactory.TILECOL_TEMPLATE)
+        .appendQueryParameter("TILEMATRIX", WmtsTileFactory.TILE_MATRIX_TEMPLATE)
+        .appendQueryParameter("TILEROW", WmtsTileFactory.TILE_ROW_TEMPLATE)
+        .appendQueryParameter("TILECOL", WmtsTileFactory.TILE_COL_TEMPLATE)
         .build().toString()
 
-    private fun determineCoordSysCompatibleTileMatrixSets(layer: WmtsLayer) = layer.layerSupportedTileMatrixSets
-        .filter { tileMatrixSet -> compatibleCoordinateSystems.contains(tileMatrixSet.supportedCrs) }
-        .map { tileMatrixSet -> tileMatrixSet.identifier }
-
-    private fun determineCompatibleTileMatrixSet(
-        capabilities: WmtsCapabilities, tileMatrixSetIds: List<String>
-    ): CompatibleTileMatrixSet? {
-        val compatibleSet = CompatibleTileMatrixSet()
-
+    private fun determineCompatibleTileMatrixSet(tileMatrixSets: List<WmtsTileMatrixSet>): TileMatrixSet? {
         // Iterate through each provided tile matrix set
-        for (tileMatrixSetId in tileMatrixSetIds) {
-            compatibleSet.tileMatrixSetId = tileMatrixSetId
-            compatibleSet.tileMatrices.clear()
-            val tileMatrixSet = capabilities.getTileMatrixSet(tileMatrixSetId)!!
+        for (tileMatrixSet in tileMatrixSets) {
+            // Determine if there is a TileMatrixSet that matches our Coordinate System compatibility and tiling scheme
+            val directAxisOrder = when (tileMatrixSet.supportedCrs) {
+                "urn:ogc:def:crs:OGC:1.3:CRS84", "http://www.opengis.net/def/crs/OGC/1.3/CRS84" -> true
+                "urn:ogc:def:crs:EPSG::4326" -> false
+                else -> continue // The provided tile matrix set should adhere to either EPGS:4326 or CRS84
+            }
+            val tileMatrices = mutableListOf<String>()
+            var minX = 0.0
+            var maxY = 0.0
+            var scaleDenominator = 0.0
+            var tileWidth = 0
+            var tileHeight = 0
+            var matrixWidth = 0
+            var matrixHeight = 0
             var previousHeight = 0
+            var previousWidth = 0
+            var previousCorner: String? = null
             // Walk through the associated tile matrices and check for compatibility with WWA tiling scheme
             for (tileMatrix in tileMatrixSet.tileMatrices) {
-                // Aspect and symmetry check of current matrix
-                if (2 * tileMatrix.matrixHeight != tileMatrix.matrixWidth) continue
-                // Quad division check
-                else if (tileMatrix.matrixWidth % 2 != 0 || tileMatrix.matrixHeight % 2 != 0) continue
-                // Square image check
-                else if (tileMatrix.tileHeight != tileMatrix.tileWidth) continue
-                // Minimum row check
-                else if (tileMatrix.matrixHeight < 2) continue
+                // Check and parse top left corner values
+                if (previousCorner != null && tileMatrix.topLeftCorner != previousCorner) continue
+                val topLeftCorner = tileMatrix.topLeftCorner.split("\\s+".toRegex())
+                if (topLeftCorner.size != 2) continue
 
-                // Parse top left corner values
-                val topLeftCornerValue = tileMatrix.topLeftCorner.split("\\s+".toRegex())
-                if (topLeftCornerValue.size != 2) continue
+                // Check tile size equals for all tile matrices
+                if (tileWidth != 0 && tileWidth != tileMatrix.tileWidth) continue
+                if (tileHeight != 0 && tileHeight != tileMatrix.tileHeight) continue
 
-                // Convert Values
-                val topLeftCorner = try {
-                    doubleArrayOf(topLeftCornerValue[0].toDouble(), topLeftCornerValue[1].toDouble())
-                } catch (e: Exception) {
-                    logMessage(
-                        WARN, "WmtsLayerFactory", "determineTileSchemeCompatibleTileMatrixSet",
-                        "Unable to parse TopLeftCorner values"
-                    )
-                    continue
+                // Ensure quad division behavior from previous tile matrix
+                if (previousWidth != 0 && 2 * previousWidth != tileMatrix.matrixWidth) break
+                if (previousHeight != 0 && 2 * previousHeight != tileMatrix.matrixHeight) break
+
+                // Remember the first level parameters
+                if (tileMatrices.isEmpty()) {
+                    try {
+                        if (directAxisOrder) {
+                            minX = topLeftCorner[0].toDouble()
+                            maxY = topLeftCorner[1].toDouble()
+                        } else {
+                            minX = topLeftCorner[1].toDouble()
+                            maxY = topLeftCorner[0].toDouble()
+                        }
+                    } catch (e: NumberFormatException) {
+                        logMessage(
+                            WARN, "WmtsLayerFactory", "determineTileSchemeCompatibleTileMatrixSet",
+                            "Unable to parse TopLeftCorner values"
+                        )
+                        continue
+                    }
+                    scaleDenominator = tileMatrix.scaleDenominator
+                    tileWidth = tileMatrix.tileWidth
+                    tileHeight = tileMatrix.tileWidth
+                    matrixWidth = tileMatrix.matrixWidth
+                    matrixHeight = tileMatrix.matrixHeight
                 }
 
-                // Check top left corner values
-                if (tileMatrixSet.supportedCrs == "urn:ogc:def:crs:OGC:1.3:CRS84"
-                    || tileMatrixSet.supportedCrs == "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
-                ) {
-                    if (abs(topLeftCorner[0] + 180) > 1e-9) continue
-                    else if (abs(topLeftCorner[1] - 90) > 1e-9) continue
-                } else if (tileMatrixSet.supportedCrs == "urn:ogc:def:crs:EPSG::4326") {
-                    if (abs(topLeftCorner[1] + 180) > 1e-9) continue
-                    else if (abs(topLeftCorner[0] - 90) > 1e-9) continue
-                } else {
-                    // The provided list of tile matrix set ids should adhere to either EPGS:4326 or CRS84
-                    continue
-                }
-
-                // Ensure quad division behavior from previous tile matrix and add compatible tile matrix
-                if (previousHeight == 0) {
-                    previousHeight = tileMatrix.matrixHeight
-                    compatibleSet.tileMatrices.add(tileMatrix.identifier)
-                } else if (2 * previousHeight == tileMatrix.matrixHeight) {
-                    previousHeight = tileMatrix.matrixHeight
-                    compatibleSet.tileMatrices.add(tileMatrix.identifier)
-                }
+                // And add compatible tile matrix
+                tileMatrices.add(tileMatrix.identifier)
+                previousHeight = tileMatrix.matrixHeight
+                previousWidth = tileMatrix.matrixWidth
+                previousCorner = tileMatrix.topLeftCorner
             }
 
             // Return the first compatible tile matrix set
-            if (compatibleSet.tileMatrices.size > 2) return compatibleSet
+            if (tileMatrices.isNotEmpty()) return TileMatrixSet(
+                tileMatrixSet.identifier, tileMatrices, scaleDenominator, minX, maxY,
+                tileWidth, tileHeight, matrixWidth, matrixHeight
+            )
         }
         return null
     }
@@ -257,8 +253,15 @@ object WmtsLayerFactory {
         return if (allowedValues.contains("KVP")) getMethods[0].url else null
     }
 
-    private class CompatibleTileMatrixSet {
-        lateinit var tileMatrixSetId: String
-        val tileMatrices = mutableListOf<String>()
-    }
+    private class TileMatrixSet(
+        val identifier: String,
+        val tileMatrices: List<String>,
+        val scaleDenominator: Double,
+        val minX: Double,
+        val maxY: Double,
+        val tileWidth: Int,
+        val tileHeight: Int,
+        val matrixWidth: Int,
+        val matrixHeight: Int,
+    )
 }

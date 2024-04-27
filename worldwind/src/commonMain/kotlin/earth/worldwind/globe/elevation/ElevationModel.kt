@@ -20,7 +20,7 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
 
     constructor(iterable: Iterable<ElevationCoverage>): this() { for (coverage in iterable) addCoverage(coverage) }
 
-    fun invalidate() = coverages.forEach { coverage -> coverage.invalidateTiles() }
+    fun invalidate() = coverages.forEach { coverage -> coverage.clear() }
 
     fun getCoverageNamed(name: String) = coverages.firstOrNull { coverage -> coverage.displayName == name }
 

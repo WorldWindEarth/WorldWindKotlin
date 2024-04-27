@@ -20,7 +20,7 @@ open class LevelSet {
     /**
      * Tile origin for this level set
      */
-    val tileOrigin: Location
+    val tileOrigin: Sector
     /**
      * The geographic width and height of tiles in the first level (the lowest resolution) of this level set.
      */
@@ -62,7 +62,7 @@ open class LevelSet {
      */
     constructor() {
         sector = Sector()
-        tileOrigin = Location()
+        tileOrigin = Sector()
         firstLevelDelta = Location()
         tileWidth = 0
         tileHeight = 0
@@ -87,7 +87,7 @@ open class LevelSet {
      * @throws IllegalArgumentException If any dimension is zero
      */
     constructor(
-        sector: Sector, tileOrigin: Location, firstLevelDelta: Location, numLevels: Int, tileWidth: Int, tileHeight: Int, levelOffset: Int = 0
+        sector: Sector, tileOrigin: Sector, firstLevelDelta: Location, numLevels: Int, tileWidth: Int, tileHeight: Int, levelOffset: Int = 0
     ) {
         require(firstLevelDelta.latitude.inDegrees > 0.0 && firstLevelDelta.longitude.inDegrees > 0.0) {
             logMessage(ERROR, "LevelSet", "constructor", "invalidTileDelta")

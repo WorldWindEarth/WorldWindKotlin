@@ -157,8 +157,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         require(content.dataType.equals(TILES, ignoreCase = true)) {
             "Unsupported GeoPackage content data_type: ${content.dataType}"
         }
-        val srs = content.srs
-        srsDao.refresh(srs)
+        val srs = content.srs?.also { srsDao.refresh(it) }
         require(srs != null && srs.organization.equals(EPSG, ignoreCase = true)
                 && (srs.organizationSysId == EPSG_3857 || srs.organizationSysId == EPSG_4326)) {
             "Unsupported GeoPackage spatial reference system: ${srs?.name ?: "undefined"}"
@@ -173,10 +172,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val maxZoom = zoomLevels.last()
         val minTileMatrix = tm[minZoom]!!
         val tmsSector = buildSector(tms.minX, tms.minY, tms.maxX, tms.maxY, tms.srs.id)
+        val contentSector = getBoundingSector(content) ?: tmsSector
         // Create layer config based on tile matrix set bounding box and available matrix zoom range
         LevelSetConfig().apply {
-            sector.copy(tmsSector)
-            tileOrigin.set(tmsSector.minLatitude, tmsSector.minLongitude)
+            sector.copy(contentSector)
+            tileOrigin.copy(tmsSector)
             firstLevelDelta = Location(
                 tmsSector.deltaLatitude / minTileMatrix.matrixHeight * (1 shl minZoom),
                 tmsSector.deltaLongitude / minTileMatrix.matrixWidth * (1 shl minZoom)
@@ -188,7 +188,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     @Throws(IllegalStateException::class)
     suspend fun setupTilesContent(
-        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, boundingSector: Sector?, setupWebLayer: Boolean
+        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, setupWebLayer: Boolean
     ): GpkgContent = withContext(Dispatchers.IO) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
@@ -202,8 +202,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         else writeEPSG4326SpatialReferenceSystem()
 
         // Define bounding boxes. Content bounding box can be smaller than matrix set bounding box.
-        val matrixBox = buildBoundingBox(levelSet.sector, srs.id)
-        val contentBox = if (boundingSector != null) buildBoundingBox(boundingSector, srs.id) else matrixBox
+        val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
+        val contentBox = if (levelSet.sector != levelSet.tileOrigin) buildBoundingBox(levelSet.sector, srs.id) else matrixBox
 
         // Create or update content metadata
         val content = GpkgContent().also {
@@ -251,10 +251,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     suspend fun updateTilesContent(
-        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, boundingSector: Sector?, content: GpkgContent
+        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, content: GpkgContent
     ): Unit = withContext(Dispatchers.IO) {
         val srs = srsDao.queryForId(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
-        val box = buildBoundingBox(boundingSector ?: levelSet.sector, srs.id)
+        val box = buildBoundingBox(levelSet.sector, srs.id)
         with(content) {
             identifier = layer.displayName ?: tableName
             minX = box[0]
@@ -315,8 +315,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         require(content.dataType.equals(COVERAGE, ignoreCase = true)) {
             "Unsupported GeoPackage content data_type: ${content.dataType}"
         }
-        val srs = content.srs
-        srsDao.refresh(srs)
+        val srs = content.srs?.also { srsDao.refresh(it) }
         require(srs != null && srs.organization.equals(EPSG, ignoreCase = true) && srs.organizationSysId == EPSG_4326) {
             "Unsupported GeoPackage spatial reference system: ${srs?.name ?: "undefined"}"
         }
@@ -333,7 +332,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     @Throws(IllegalStateException::class)
     suspend fun setupGriddedCoverageContent(
-        coverage: CacheableElevationCoverage, tableName: String, boundingSector: Sector?, setupWebCoverage: Boolean, isFloat: Boolean
+        coverage: CacheableElevationCoverage, tableName: String, setupWebCoverage: Boolean, isFloat: Boolean
     ) = withContext(Dispatchers.IO) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
@@ -348,7 +347,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
         // Define bounding boxes. Content bounding box can be smaller than matrix set bounding box.
         val matrixBox = buildBoundingBox(coverage.tileMatrixSet.sector, srs.id)
-        val contentBox = if (boundingSector != null) buildBoundingBox(boundingSector, srs.id) else matrixBox
+        val contentBox = if (coverage.sector != coverage.tileMatrixSet.sector)
+            buildBoundingBox(coverage.sector, srs.id) else matrixBox
 
         // Create or update content metadata
         val content = GpkgContent().also {
@@ -418,10 +418,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     suspend fun updateGriddedCoverageContent(
-        coverage: CacheableElevationCoverage, tableName: String, boundingSector: Sector?, content: GpkgContent
+        coverage: CacheableElevationCoverage, tableName: String, content: GpkgContent
     ) = withContext(Dispatchers.IO) {
         val srs = srsDao.queryForId(EPSG_4326)
-        val box = buildBoundingBox(boundingSector ?: coverage.tileMatrixSet.sector, srs.id)
+        val box = buildBoundingBox(coverage.sector, srs.id)
         with(content) {
             identifier = coverage.displayName ?: tableName
             minX = box[0]

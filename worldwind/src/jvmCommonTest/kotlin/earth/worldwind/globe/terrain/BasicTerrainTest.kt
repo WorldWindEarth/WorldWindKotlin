@@ -60,7 +60,7 @@ class BasicTerrainTest {
         val globe = Globe()
 
         // Add a terrain tile used to the mocked terrain
-        val levelSet = LevelSet(Sector().setFullSphere(), fromDegrees(-90.0, -180.0), fromDegrees(1.0, 1.0), 1, 5, 5) // tiles with 5x5 vertices
+        val levelSet = LevelSet(Sector().setFullSphere(), Sector().setFullSphere(), fromDegrees(1.0, 1.0), 1, 5, 5) // tiles with 5x5 vertices
         val tile = TerrainTile(fromDegrees(0.0, 0.0, 1.0, 1.0), levelSet.firstLevel, 90, 180)
         terrain = BasicTerrain(listOf(tile), tile.sector, null)
 

@@ -62,8 +62,7 @@ object WmsLayerFactory {
             .appendQueryParameter("SERVICE", "WMS")
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        runCatching { httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText() }
-            .getOrElse { error("Unable to open connection and read from service address") }
+        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
     }
 
     private suspend fun decodeWmsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {

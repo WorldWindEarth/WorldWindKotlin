@@ -8,13 +8,12 @@ import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.TileFactory
 
-open class WmtsTileFactory(var template: String, var tileMatrixIdentifiers: List<String>, var imageFormat: String): TileFactory {
-    companion object {
-        const val TILEMATRIX_TEMPLATE = "{TileMatrix}"
-        const val TILEROW_TEMPLATE = "{TileRow}"
-        const val TILECOL_TEMPLATE = "{TileCol}"
-    }
-
+open class WmtsTileFactory(
+    private val template: String,
+    private val tileMatrixIdentifiers: List<String>,
+    private val firstLevelHeight: Int,
+    val imageFormat: String
+): TileFactory {
     override val contentType = "WMTS 1.0.0"
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) = ImageTile(sector, level, row, column).apply {
@@ -34,9 +33,15 @@ open class WmtsTileFactory(var template: String, var tileMatrixIdentifiers: List
         }
 
         // flip the row index
-        val rowHeight = 2 shl level
+        val rowHeight = firstLevelHeight shl level
         val flipRow = rowHeight - row - 1
-        return template.replace(TILEMATRIX_TEMPLATE, tileMatrixIdentifiers[level])
-            .replace(TILEROW_TEMPLATE, flipRow.toString()).replace(TILECOL_TEMPLATE, column.toString())
+        return template.replace(TILE_MATRIX_TEMPLATE, tileMatrixIdentifiers[level])
+            .replace(TILE_ROW_TEMPLATE, flipRow.toString()).replace(TILE_COL_TEMPLATE, column.toString())
+    }
+
+    companion object {
+        const val TILE_MATRIX_TEMPLATE = "{TileMatrix}"
+        const val TILE_ROW_TEMPLATE = "{TileRow}"
+        const val TILE_COL_TEMPLATE = "{TileCol}"
     }
 }
