@@ -2,10 +2,7 @@ package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
-import earth.worldwind.draw.DrawableGeomLines
-import earth.worldwind.draw.DrawableLinesState
 import earth.worldwind.draw.DrawableShape
-import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
@@ -17,7 +14,6 @@ import earth.worldwind.render.buffer.ShortBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
-import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -263,7 +259,7 @@ open class Ellipse @JvmOverloads constructor(
         val drawable: Drawable
         val drawState: DrawShapeState
         val drawableLines: Drawable
-        val drawStateLines: DrawableLinesState
+        val drawStateLines: DrawShapeState
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
@@ -271,9 +267,9 @@ open class Ellipse @JvmOverloads constructor(
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
 
-            val linesPool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
-            drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
+            drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
+            drawStateLines.isLine = true
 
             // Use the basic GLSL program for texture projection.
             drawableLines.offset = rc.globe.offset
@@ -285,15 +281,15 @@ open class Ellipse @JvmOverloads constructor(
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
 
-            val linesPool = rc.getDrawablePool<DrawableGeomLines>()
-            drawableLines = DrawableGeomLines.obtain(linesPool)
+            drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
+            drawStateLines.isLine = true
 
             cameraDistance = boundingBox.distanceTo(rc.cameraPoint)
         }
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram { BasicShaderProgram() }
+        drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
@@ -366,7 +362,7 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
-    protected open fun drawOutline(rc: RenderContext, drawState: DrawableLinesState) {
+    protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
         if (!activeAttributes.isDrawOutline) return
 
         // Configure the drawable to use the outline texture when drawing the outline.

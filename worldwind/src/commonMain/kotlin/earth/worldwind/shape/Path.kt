@@ -2,9 +2,8 @@ package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
-import earth.worldwind.draw.DrawableGeomLines
-import earth.worldwind.draw.DrawableLinesState
-import earth.worldwind.draw.DrawableSurfaceGeomLines
+import earth.worldwind.draw.DrawableShape
+import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
@@ -12,7 +11,6 @@ import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
-import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.kgl.*
@@ -73,19 +71,21 @@ open class Path @JvmOverloads constructor(
 
         // Obtain a drawable form the render context pool, and compute distance to the render camera.
         val drawable: Drawable
-        val drawState: DrawableLinesState
+        val drawState: DrawShapeState
         val cameraDistance: Double
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
-            drawable = DrawableSurfaceGeomLines.obtain(pool)
+            val pool = rc.getDrawablePool<DrawableSurfaceShape>()
+            drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
+            drawState.isLine = true
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
-            val pool = rc.getDrawablePool<DrawableGeomLines>()
-            drawable = DrawableGeomLines.obtain(pool)
+            val pool = rc.getDrawablePool<DrawableShape>()
+            drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
+            drawState.isLine = true
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, VERTEX_STRIDE, vertexOrigin)
         }
 

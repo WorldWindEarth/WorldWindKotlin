@@ -66,8 +66,23 @@ open class DrawableShape protected constructor(): Drawable {
 
         // Use the shape's vertex point attribute and vertex texture coordinate attribute.
         dc.gl.enableVertexAttribArray(1 /*vertexTexCoord*/)
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0 /*offset*/)
+        dc.gl.enableVertexAttribArray(2 /*vertexTexCoord*/)
+        dc.gl.enableVertexAttribArray(3 /*vertexTexCoord*/)
 
+        if(drawState.isLine) {
+            program.enableOneVertexMode(false)
+            program.loadScreen(dc.viewport.width.toFloat(), dc.viewport.height.toFloat());
+            dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 0 /*offset*/)
+            dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 40 /*offset*/)
+            dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20/*drawState.vertexStride*/, 80 /*offset*/)
+            dc.gl.vertexAttribPointer(3 /*texCoord*/, 1, GL_FLOAT, false, 20/*drawState.vertexStride*/, 56 /*offset*/)
+        }
+        else {
+            program.enableOneVertexMode(true)
+            dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0)
+            dc.gl.vertexAttribPointer(1 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0)
+            dc.gl.vertexAttribPointer(2 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0)
+        }
         // Draw the specified primitives.
         for (idx in 0 until drawState.primCount) {
             val prim = drawState.prims[idx]
@@ -79,15 +94,21 @@ open class DrawableShape protected constructor(): Drawable {
             } else {
                 program.enableTexture(false)
             }
-            dc.gl.vertexAttribPointer(
-                1 /*vertexTexCoord*/,
-                prim.texCoordAttrib.size,
-                GL_FLOAT,
-                false,
-                drawState.vertexStride,
-                prim.texCoordAttrib.offset
-            )
-            dc.gl.lineWidth(prim.lineWidth)
+            if(!drawState.isLine) {
+                dc.gl.vertexAttribPointer(
+                    3 /*vertexTexCoord*/,
+                    prim.texCoordAttrib.size,
+                    GL_FLOAT,
+                    false,
+                    drawState.vertexStride,
+                    prim.texCoordAttrib.offset
+                )
+                dc.gl.lineWidth(prim.lineWidth)
+            }
+            else
+            {
+                program.loadLineWidth(prim.lineWidth)
+            }
             dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
         }
 
@@ -98,5 +119,7 @@ open class DrawableShape protected constructor(): Drawable {
         dc.gl.lineWidth(1f)
         dc.gl.enable(GL_CULL_FACE)
         dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/)
+        dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
+        dc.gl.disableVertexAttribArray(3 /*vertexTexCoord*/)
     }
 }

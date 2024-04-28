@@ -13,6 +13,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         """
             uniform mat4 mvpMatrix;
             uniform float lineWidth;
+            uniform float miterLengthCutoff;
             uniform vec2 screen;
             uniform bool enableTexture;
             uniform bool enableOneVertexMode;
@@ -59,7 +60,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
                     vec2 miter = vec2(-tangent.y, tangent.x);
                     vec2 normalA = vec2(-AB.y, AB.x);
                     float miterLength = 1.0 / dot(miter, normalA);
-                    miterLength = min(miterLength, 5.0);
+                    miterLength = min(miterLength, miterLengthCutoff);
                     
                     gl_Position = pointBScreen;
                     gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
@@ -108,6 +109,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
+    protected var miterLengthCutoff = 5.0f
     protected var screenX = 0.0f
     protected var screenY = 0.0f
 
@@ -115,6 +117,7 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
     protected var colorId = KglUniformLocation.NONE
     protected var opacityId = KglUniformLocation.NONE
     protected var lineWidthId = KglUniformLocation.NONE
+    protected var miterLengthCutoffId = KglUniformLocation.NONE
     protected var screenId = KglUniformLocation.NONE
     protected var enablePickModeId = KglUniformLocation.NONE
     protected var enableTextureId = KglUniformLocation.NONE
@@ -136,6 +139,8 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         gl.uniform1f(opacityId, opacity)
         lineWidthId = gl.getUniformLocation(program, "lineWidth");
         gl.uniform1f(lineWidthId, lineWidth)
+        miterLengthCutoffId = gl.getUniformLocation(program, "miterLengthCutoff");
+        gl.uniform1f(miterLengthCutoffId, miterLengthCutoff)
         screenId = gl.getUniformLocation(program, "screen");
         gl.uniform2f(screenId, screenX, screenY)
 
@@ -204,6 +209,14 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
         if(this.lineWidth != lineWidth) {
             this.lineWidth = lineWidth;
             gl.uniform1f(lineWidthId, lineWidth)
+        }
+    }
+
+    fun loadMiterLengthCutoff(miterLengthCutoff : Float)
+    {
+        if(this.miterLengthCutoff != miterLengthCutoff) {
+            this.miterLengthCutoff = miterLengthCutoff;
+            gl.uniform1f(miterLengthCutoffId, miterLengthCutoff)
         }
     }
 

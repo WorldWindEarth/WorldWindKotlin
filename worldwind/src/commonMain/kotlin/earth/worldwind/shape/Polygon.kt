@@ -2,10 +2,7 @@ package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
-import earth.worldwind.draw.DrawableGeomLines
-import earth.worldwind.draw.DrawableLinesState
 import earth.worldwind.draw.DrawableShape
-import earth.worldwind.draw.DrawableSurfaceGeomLines
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -15,7 +12,6 @@ import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
-import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.GeomLinesShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.Logger.ERROR
@@ -155,7 +151,7 @@ open class Polygon @JvmOverloads constructor(
         val drawable: Drawable
         val drawState: DrawShapeState
         val drawableLines: Drawable
-        val drawStateLines: DrawableLinesState
+        val drawStateLines: DrawShapeState
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
@@ -164,9 +160,9 @@ open class Polygon @JvmOverloads constructor(
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
 
-            val linesPool = rc.getDrawablePool<DrawableSurfaceGeomLines>()
-            drawableLines = DrawableSurfaceGeomLines.obtain(linesPool)
+            drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
+            drawStateLines.isLine = true
 
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
@@ -175,15 +171,15 @@ open class Polygon @JvmOverloads constructor(
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
 
-            val linesPool = rc.getDrawablePool<DrawableGeomLines>()
-            drawableLines = DrawableGeomLines.obtain(linesPool)
+            drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
+            drawStateLines.isLine = true
 
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexIndex, VERTEX_STRIDE, vertexOrigin)
         }
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram { BasicShaderProgram() }
+        drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
@@ -265,7 +261,7 @@ open class Polygon @JvmOverloads constructor(
             drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, topElements.size * Int.SIZE_BYTES /*offset*/)
         }
     }
-    protected open fun drawOutline(rc: RenderContext, drawState: DrawableLinesState) {
+    protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
         if (!activeAttributes.isDrawOutline) return
 
         // Configure the drawable to use the outline texture when drawing the outline.
@@ -284,19 +280,24 @@ open class Polygon @JvmOverloads constructor(
         drawState.lineWidth(activeAttributes.outlineWidth)
 
         // Each boundary should be in separate draw call
-        var offset = outlineElementOffset[0]
-        for(i in 1 until outlineElementOffset.size) {
-            val nextOffset = outlineElementOffset[i]
-            val size = nextOffset - offset
-            drawState.drawElements(
-                GL_TRIANGLE_STRIP, size,
-                GL_UNSIGNED_INT, offset * Int.SIZE_BYTES /*offset*/
-            )
-            offset = nextOffset
-        }
+//        var offset = outlineElementOffset[0]
+//        for(i in 1 until outlineElementOffset.size) {
+//            val nextOffset = outlineElementOffset[i]
+//            val size = nextOffset - offset
+//            drawState.drawElements(
+//                GL_TRIANGLE_STRIP, size,
+//                GL_UNSIGNED_INT, offset * Int.SIZE_BYTES /*offset*/
+//            )
+//            offset = nextOffset
+//        }
+//        drawState.drawElements(
+//            GL_TRIANGLE_STRIP, outlineElements.size - offset,
+//            GL_UNSIGNED_INT, offset * Int.SIZE_BYTES /*offset*/
+//        )
+
         drawState.drawElements(
-            GL_TRIANGLE_STRIP, outlineElements.size - offset,
-            GL_UNSIGNED_INT, offset * Int.SIZE_BYTES /*offset*/
+            GL_TRIANGLES, outlineElements.size,
+            GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES /*offset*/
         )
 
         // Configure the drawable to display the shape's extruded verticals.
@@ -387,26 +388,26 @@ open class Polygon @JvmOverloads constructor(
             var begin = positions[0]
             addVertex(rc, begin.latitude, begin.longitude, begin.altitude, VERTEX_ORIGINAL /*type*/)
 
-            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, false, true)
-            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, false, false)
+            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, true, false)
+            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, false,  false)
 
             // Add the remaining boundary vertices, tessellating each edge as indicated by the polygon's properties.
             for (idx in 1 until positions.size) {
                 val end = positions[idx]
                 addIntermediateVertices(rc, begin, end)
                 addVertex(rc, end.latitude, end.longitude, end.altitude, VERTEX_ORIGINAL /*type*/)
-                addLineVertex(rc, end.latitude, end.longitude, end.altitude, false, false)
+                addLineVertex(rc, end.latitude, end.longitude, end.altitude, false,  true)
                 begin = end
             }
 
             // Tessellate the implicit closing edge if the boundary is not already closed.
             if (begin != positions[0]){
                 addIntermediateVertices(rc, begin, positions[0])
-                addLineVertex(rc, positions[0].latitude, positions[0].longitude, positions[0].altitude, true, false)
                 addLineVertex(rc, positions[0].latitude, positions[0].longitude, positions[0].altitude, true, true)
+                addLineVertex(rc, positions[0].latitude, positions[0].longitude, positions[0].altitude, true,  false)
             }
             else {
-                addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, false, true)
+                addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, true,  false)
             }
             GLU.gluTessEndContour(tess)
         }
@@ -458,7 +459,7 @@ open class Polygon @JvmOverloads constructor(
                 else -> {}
             }
             addVertex(rc, loc.latitude, loc.longitude, alt, VERTEX_INTERMEDIATE /*type*/)
-            addLineVertex(rc, loc.latitude, loc.longitude, alt, true, false)
+            addLineVertex(rc, loc.latitude, loc.longitude, alt, true, true)
             dist += deltaDist
             alt += deltaAlt
         }
@@ -502,7 +503,7 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun addLineVertex(
-        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, isIntermediate : Boolean, firstOrLast : Boolean
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, isIntermediate : Boolean, addIndices : Boolean
     )
     {
         val vertex = (lineVertexIndex / LINE_VERTEX_STRIDE - 1) * 2
@@ -521,9 +522,13 @@ open class Polygon @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = -1.0f
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-            if(!firstOrLast) {
+            if(addIndices) {
+                outlineElements.add(vertex - 2)
+                outlineElements.add(vertex - 1)
                 outlineElements.add(vertex)
-                outlineElements.add(vertex.inc())
+                outlineElements.add(vertex)
+                outlineElements.add(vertex - 1)
+                outlineElements.add(vertex + 1)
             }
         } else {
             lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
@@ -536,11 +541,15 @@ open class Polygon @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = -1.0f
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-            if(!firstOrLast) {
+            if(addIndices) {
+                outlineElements.add(vertex - 2)
+                outlineElements.add(vertex - 1)
                 outlineElements.add(vertex)
-                outlineElements.add(vertex.inc())
+                outlineElements.add(vertex)
+                outlineElements.add(vertex - 1)
+                outlineElements.add(vertex + 1)
             }
-            if (isExtrude && !firstOrLast && !isIntermediate) {
+            if (isExtrude && !isIntermediate) {
                 var vertPoint = Vec3()
                 vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
                 val index =  verticalVertexIndex / LINE_VERTEX_STRIDE * 2
