@@ -38,17 +38,20 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
                     vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
                     vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
                     vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
-                    float corner =  pointB.w;
+                    float corner = pointB.w;
                     
                     pointAScreen = pointAScreen / pointAScreen.w;
                     pointBScreen = pointBScreen / pointBScreen.w;
                     pointCScreen = pointCScreen / pointCScreen.w;
                     
-                    if(all(equal(pointBScreen.xy, pointAScreen.xy)))
+                    vec2 eps = vec2(2.0 / screen.x, 2.0 / screen.y);
+                    eps *= 0.1;
+                    
+                    if(all(lessThanEqual(abs(pointBScreen.xy - pointAScreen.xy), eps)))
                     {
                         pointAScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointCScreen.xy);
                     }
-                    if(all(equal(pointBScreen.xy, pointCScreen.xy)))
+                    if(all(lessThanEqual(abs(pointBScreen.xy - pointCScreen.xy), eps)))
                     {
                         pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
                     }
