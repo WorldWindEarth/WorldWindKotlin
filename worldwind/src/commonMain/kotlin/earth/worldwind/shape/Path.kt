@@ -77,7 +77,6 @@ open class Path @JvmOverloads constructor(
             val pool = rc.getDrawablePool<DrawableSurfaceShape>()
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
-            drawState.isLine = true
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
@@ -85,9 +84,10 @@ open class Path @JvmOverloads constructor(
             val pool = rc.getDrawablePool<DrawableShape>()
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
-            drawState.isLine = true
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, VERTEX_STRIDE, vertexOrigin)
         }
+
+        drawState.isLine = true
 
         // Use the basic GLSL program to draw the shape.
         drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }

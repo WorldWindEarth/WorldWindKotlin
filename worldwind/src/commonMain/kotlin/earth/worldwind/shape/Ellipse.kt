@@ -269,7 +269,6 @@ open class Ellipse @JvmOverloads constructor(
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
-            drawStateLines.isLine = true
 
             // Use the basic GLSL program for texture projection.
             drawableLines.offset = rc.globe.offset
@@ -283,7 +282,6 @@ open class Ellipse @JvmOverloads constructor(
 
             drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
-            drawStateLines.isLine = true
 
             cameraDistance = boundingBox.distanceTo(rc.cameraPoint)
         }
@@ -297,6 +295,8 @@ open class Ellipse @JvmOverloads constructor(
         // Get the attributes of the element buffer
         val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) { assembleElements(activeIntervals) }
+
+        drawStateLines.isLine = true
 
         // Use the basic GLSL program to draw the shape.
         drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }

@@ -162,7 +162,6 @@ open class Polygon @JvmOverloads constructor(
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
-            drawStateLines.isLine = true
 
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
@@ -173,7 +172,6 @@ open class Polygon @JvmOverloads constructor(
 
             drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
-            drawStateLines.isLine = true
 
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexIndex, VERTEX_STRIDE, vertexOrigin)
         }
@@ -192,6 +190,8 @@ open class Polygon @JvmOverloads constructor(
                 GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements).toIntArray()
             )
         }
+
+        drawStateLines.isLine = true
 
         // Use the geom lines GLSL program to draw the shape.
         drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
