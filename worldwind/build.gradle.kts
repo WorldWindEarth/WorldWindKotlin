@@ -40,7 +40,7 @@ kotlin {
     }
     sourceSets {
         val mockkVersion = "1.13.9"
-        val mokoVersion = "0.24.0-beta-1"
+        val mokoVersion = "0.24.0-beta-2"
         val ktorVersion = "2.3.8"
         val ormliteVersion = "6.1"
         val commonMain by getting {
