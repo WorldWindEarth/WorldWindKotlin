@@ -88,14 +88,14 @@ class AndroidKgl : Kgl {
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
         GLES20.glBufferData(target, size, sourceData?.let { FloatBuffer.wrap(it, offset, size / 4) }, usage)
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray?) =
-        GLES20.glBufferSubData(target, offset, size, sourceData?.let { ShortBuffer.wrap(it, 0, size / 2) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) =
+        GLES20.glBufferSubData(target, offset, size, ShortBuffer.wrap(sourceData, 0, size / 2))
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray?) =
-        GLES20.glBufferSubData(target, offset, size, sourceData?.let { IntBuffer.wrap(it, 0, size / 4) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray) =
+        GLES20.glBufferSubData(target, offset, size, IntBuffer.wrap(sourceData, 0, size / 4))
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray?) =
-        GLES20.glBufferSubData(target, offset, size, sourceData?.let { FloatBuffer.wrap(it, 0, size / 4) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) =
+        GLES20.glBufferSubData(target, offset, size, FloatBuffer.wrap(sourceData, 0, size / 4))
 
     override fun deleteBuffer(buffer: KglBuffer) {
         arrI[0] = buffer.id

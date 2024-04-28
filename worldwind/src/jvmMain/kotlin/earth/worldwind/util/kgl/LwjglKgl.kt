@@ -75,22 +75,25 @@ class LwjglKgl : Kgl {
     override fun bindBuffer(target: Int, buffer: KglBuffer) = GL33.glBindBuffer(target, buffer.id)
 
     override fun bufferData(target: Int, size: Int, sourceData: ShortArray?, usage: Int, offset: Int) =
-        GL33.glBufferData(target, sourceData?.let { ShortBuffer.wrap(it, offset, sourceData.size - offset) }, usage)
+        if (sourceData != null) GL33.glBufferData(target, ShortBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
+        else GL33.glBufferData(target, size.toLong(), usage)
 
     override fun bufferData(target: Int, size: Int, sourceData: IntArray?, usage: Int, offset: Int) =
-        GL33.glBufferData(target, sourceData?.let { IntBuffer.wrap(it, offset, sourceData.size - offset) }, usage)
+        if (sourceData != null) GL33.glBufferData(target, IntBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
+        else GL33.glBufferData(target, size.toLong(), usage)
 
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
-        GL33.glBufferData(target, sourceData?.let { FloatBuffer.wrap(it, offset, sourceData.size - offset) }, usage)
+        if (sourceData != null) GL33.glBufferData(target, FloatBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
+        else GL33.glBufferData(target, size.toLong(), usage)
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray?) =
-        GL33.glBufferSubData(target, offset.toLong(), sourceData?.let { ShortBuffer.wrap(it, 0, size / 2) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) =
+        GL33.glBufferSubData(target, offset.toLong(), ShortBuffer.wrap(sourceData, 0, size / 2))
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray?) =
-        GL33.glBufferSubData(target, offset.toLong(), sourceData?.let { IntBuffer.wrap(it, 0, size / 4) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray) =
+        GL33.glBufferSubData(target, offset.toLong(), IntBuffer.wrap(sourceData, 0, size / 4))
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray?) =
-        GL33.glBufferSubData(target, offset.toLong(), sourceData?.let { FloatBuffer.wrap(it, 0, size / 4) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) =
+        GL33.glBufferSubData(target, offset.toLong(), FloatBuffer.wrap(sourceData, 0, size / 4))
 
     override fun deleteBuffer(buffer: KglBuffer) = GL33.glDeleteBuffers(buffer.id)
 

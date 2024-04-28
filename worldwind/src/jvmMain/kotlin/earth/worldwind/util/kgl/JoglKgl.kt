@@ -99,14 +99,14 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
         gl.glBufferData(target, size.toLong(), sourceData?.let { FloatBuffer.wrap(it, offset, sourceData.size - offset) }, usage)
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray?) =
-        gl.glBufferSubData(target, offset.toLong(), size.toLong(), sourceData?.let { ShortBuffer.wrap(it, 0, size / 2) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) =
+        gl.glBufferSubData(target, offset.toLong(), size.toLong(), ShortBuffer.wrap(sourceData, 0, size / 2))
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray?) =
-        gl.glBufferSubData(target, offset.toLong(), size.toLong(), sourceData?.let { IntBuffer.wrap(it, 0, size / 4) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray) =
+        gl.glBufferSubData(target, offset.toLong(), size.toLong(), IntBuffer.wrap(sourceData, 0, size / 4))
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray?) =
-        gl.glBufferSubData(target, offset.toLong(), size.toLong(), sourceData?.let { FloatBuffer.wrap(it, 0, size / 4) })
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) =
+        gl.glBufferSubData(target, offset.toLong(), size.toLong(), FloatBuffer.wrap(sourceData, 0, size / 4))
 
     override fun deleteBuffer(buffer: KglBuffer) {
         arrI[0] = buffer.id

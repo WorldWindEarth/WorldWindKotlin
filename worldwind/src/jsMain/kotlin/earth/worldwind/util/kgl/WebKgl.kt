@@ -107,16 +107,16 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
         if (data != null) gl.bufferData(target, data, usage) else gl.bufferData(target, size, usage)
     }
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray?) {
-        gl.bufferSubData(target, offset, sourceData?.unsafeCast<Int16Array>())
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) {
+        gl.bufferSubData(target, offset, sourceData.unsafeCast<Int16Array>())
     }
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray?) {
-        gl.bufferSubData(target, offset, sourceData?.unsafeCast<Int32Array>())
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray) {
+        gl.bufferSubData(target, offset, sourceData.unsafeCast<Int32Array>())
     }
 
-    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray?) {
-        gl.bufferSubData(target, offset, sourceData?.unsafeCast<Float32Array>())
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) {
+        gl.bufferSubData(target, offset, sourceData.unsafeCast<Float32Array>())
     }
 
     override fun deleteBuffer(buffer: KglBuffer) = gl.deleteBuffer(buffer.obj)
