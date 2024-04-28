@@ -193,7 +193,22 @@ open class Polygon @JvmOverloads constructor(
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
             IntBufferObject(
-                GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements /*+ outlineElements + verticalElements*/).toIntArray()
+                GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements).toIntArray()
+            )
+        }
+
+        // Use the geom lines GLSL program to draw the shape.
+        drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
+
+        // Assemble the drawable's OpenGL vertex buffer object.
+        drawStateLines.vertexBuffer = rc.getBufferObject(vertexLinesBufferKey) {
+            FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray)
+        }
+
+        // Assemble the drawable's OpenGL element buffer object.
+        drawStateLines.elementBuffer = rc.getBufferObject(elementLinesBufferKey) {
+            IntBufferObject(
+                GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray()
             )
         }
 
@@ -263,20 +278,6 @@ open class Polygon @JvmOverloads constructor(
             }
         } ?: drawState.texture(null)
 
-        drawState.program = rc.getShaderProgram { GeomLinesShaderProgram() }
-
-        // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexLinesBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray)
-        }
-
-        // Assemble the drawable's OpenGL element buffer object.
-        drawState.elementBuffer = rc.getBufferObject(elementLinesBufferKey) {
-            IntBufferObject(
-                GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray()
-            )
-        }
-
         // Configure the drawable to display the shape's outline.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
@@ -320,8 +321,14 @@ open class Polygon @JvmOverloads constructor(
         var vertexCount = 0
         var lineVertexCount = 0
         var verticalVertexCount = 0
+        var nonEmptyBoundariesCount = 0
         for(i in boundaries.indices) {
             val p = boundaries[i]
+
+            if(p.isEmpty())
+                continue;
+
+            ++nonEmptyBoundariesCount
             if(noIntermediatePoints) {
                 vertexCount += p.size
                 lineVertexCount += (p.size + 2)
@@ -357,14 +364,7 @@ open class Polygon @JvmOverloads constructor(
         outlineElements.clear()
         verticalElements.clear()
 
-        var nonEmptyBoundariesCount = 0
-        for(i in boundaries.indices)
-        {
-            if(boundaries[i].isNotEmpty())
-                ++nonEmptyBoundariesCount
-        }
-
-        outlineElementOffset = IntArray(nonEmptyBoundariesCount.toInt())
+        outlineElementOffset = IntArray(nonEmptyBoundariesCount)
         nonEmptyBoundariesCount = 0
 
         // Compute a matrix that transforms from Cartesian coordinates to shape texture coordinates.

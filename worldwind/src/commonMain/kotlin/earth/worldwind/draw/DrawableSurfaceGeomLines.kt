@@ -42,6 +42,9 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
         // Make multi-texture unit 0 active.
         dc.activeTextureUnit(GL_TEXTURE0)
 
+        // Set up to use vertex tex coord attributes.
+        dc.gl.enableVertexAttribArray(3 /*vertexTexCoord*/)
+
         // Accumulate shapes in the draw context's scratch list.
         // TODO accumulate in a geospatial quadtree
         val scratchList = dc.scratchList
@@ -70,6 +73,8 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
         } finally {
             // Clear the accumulated shapes.
             scratchList.clear()
+            // Restore the default WorldWind OpenGL state.
+            dc.gl.disableVertexAttribArray(3 /*vertexTexCoord*/)
         }
     }
 
@@ -96,7 +101,6 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
             // Enable vertex attributes
             dc.gl.enableVertexAttribArray(1 /*pointB*/)
             dc.gl.enableVertexAttribArray(2 /*pointC*/)
-            dc.gl.enableVertexAttribArray(3 /*vertexTexCoord*/)
 
             // Use the draw context's pick mode.
             program.enablePickMode(dc.isPickMode)
@@ -164,7 +168,6 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
             dc.gl.enable(GL_DEPTH_TEST)
             dc.gl.disableVertexAttribArray(1 /*pointB*/)
             dc.gl.disableVertexAttribArray(2 /*pointC*/)
-            dc.gl.disableVertexAttribArray(3 /*vertexTexCoord*/)
         }
         return shapeCount
     }
@@ -172,8 +175,6 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
     protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain) {
         val program = drawState.program ?: return
         try {
-            dc.gl.enableVertexAttribArray(3 /*vertexTexCoord*/)
-
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return  // terrain vertex attribute failed to bind
             if (!terrain.useVertexTexCoordAttrib(dc, 3 /*vertexTexCoord*/)) return  // terrain vertex attribute failed to bind
             val colorAttachment = dc.scratchFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
@@ -200,7 +201,6 @@ open class DrawableSurfaceGeomLines protected constructor(): Drawable {
         } finally {
             // Unbind color attachment texture to avoid feedback loop
             dc.bindTexture(KglTexture.NONE)
-            dc.gl.disableVertexAttribArray(3 /*vertexTexCoord*/)
         }
     }
 }

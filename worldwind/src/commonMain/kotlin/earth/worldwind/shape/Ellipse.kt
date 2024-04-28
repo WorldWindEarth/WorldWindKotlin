@@ -298,6 +298,10 @@ open class Ellipse @JvmOverloads constructor(
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
 
+        // Get the attributes of the element buffer
+        val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
+        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) { assembleElements(activeIntervals) }
+
         // Use the basic GLSL program to draw the shape.
         drawStateLines.program = rc.getShaderProgram { GeomLinesShaderProgram() }
 
@@ -308,10 +312,6 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.elementBuffer = rc.getBufferObject(lineElementBufferKey) {
             IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray())
         }
-
-        // Get the attributes of the element buffer
-        val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
-        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) { assembleElements(activeIntervals) }
 
         drawInterior(rc, drawState)
         drawOutline(rc, drawStateLines)
