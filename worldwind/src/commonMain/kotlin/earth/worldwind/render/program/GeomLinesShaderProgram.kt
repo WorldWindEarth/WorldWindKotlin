@@ -55,6 +55,10 @@ open class GeomLinesShaderProgram : AbstractShaderProgram() {
                     {
                         pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
                     }
+                    if(all(lessThanEqual(abs(pointAScreen.xy - pointCScreen.xy), eps)))
+                    {
+                        pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
+                    }
                     
                     vec2 AB = normalize(normalize(pointBScreen.xy - pointAScreen.xy) * screen);
                     vec2 BC = normalize(normalize(pointCScreen.xy - pointBScreen.xy) * screen);
