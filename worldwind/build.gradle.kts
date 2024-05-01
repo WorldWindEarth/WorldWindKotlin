@@ -39,18 +39,18 @@ kotlin {
         }
     }
     sourceSets {
-        val mockkVersion = "1.13.9"
+        val mockkVersion = "1.13.10"
         val mokoVersion = "0.24.0-beta-2"
-        val ktorVersion = "2.3.8"
+        val ktorVersion = "2.3.10"
         val ormliteVersion = "6.1"
         val commonMain by getting {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.github.pdvrieze.xmlutil:serialization:0.86.3")
-                implementation("com.eygraber:uri-kmp:0.0.15")
+                implementation("com.eygraber:uri-kmp:0.0.18")
                 implementation("ar.com.hjg:pngj:2.1.0")
                 implementation("mil.nga:tiff:3.0.0")
                 api("dev.icerock.moko:resources:$mokoVersion")
