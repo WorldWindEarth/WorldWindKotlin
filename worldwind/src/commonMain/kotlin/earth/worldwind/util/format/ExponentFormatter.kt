@@ -48,13 +48,13 @@ class ExponentFormatter(val value: Double) {
             }
             if (nextDigit in "56789") {
                 val (m, ovf) = roundUp(result)
-                if( !ovf ) return m
+                if (!ovf) return m
                 // overflow: exponent should grow
                 exponent++
                 // and the point position should be fixed
                 val pointPos = m.indexOf('.')
                 val mb = StringBuilder(m)
-                if( pointPos == -1 )
+                if (pointPos == -1)
                     return m // it was the last letter and was therefore removed by roundUp
                 return mb.deleteAt(pointPos).insert(pointPos - 1, '.').toString()
             }
@@ -109,7 +109,7 @@ internal fun fractionalFormat(_value: Double, width: Int, fractionPartLength: In
         rest = (rest - d) * 10
     }
     // now we might need to round it up:
-    return if( rest.toInt().absoluteValue < 5 ) result.toString() else roundUp(result, keepWidth = false).first
+    return if (rest.toInt().absoluteValue < 5) result.toString() else roundUp(result, keepWidth = false).first
 }
 
 /**

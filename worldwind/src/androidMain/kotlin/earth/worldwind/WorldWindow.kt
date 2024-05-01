@@ -162,7 +162,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
                 // if pick point is outside the WorldWindow's viewport.
                 val px = pickViewport.x + pickViewport.width / 2.0
                 val py = pickViewport.y + pickViewport.height / 2.0
-                if(viewport.contains(px, py)) {
+                if (viewport.contains(px, py)) {
                     val pickRay = Line()
                     if (engine.rayThroughScreenPoint(px, viewport.height - py, pickRay)) {
                         frame.pickPoint = Vec2(px, py)

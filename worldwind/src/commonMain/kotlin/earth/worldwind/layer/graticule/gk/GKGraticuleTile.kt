@@ -101,7 +101,7 @@ class GKGraticuleTile(
     override fun createRenderables() {
         super.createRenderables()
 
-        if(!name.startsWith("Z") && !name.startsWith("SZ")){
+        if (!name.startsWith("Z") && !name.startsWith("SZ")) {
             // TODO Fix problem with Z zone and add logic for maps under 60 parallels
             // TODO Fix problem related with transformation near the end of graticule zones
             if (shouldRenderSmallScale()) {

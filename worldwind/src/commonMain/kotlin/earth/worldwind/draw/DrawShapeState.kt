@@ -6,14 +6,14 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.AbstractBufferObject
 import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.program.BasicShaderProgram
+import earth.worldwind.render.program.TriangleShaderProgram
 
 open class DrawShapeState internal constructor() {
     companion object {
         const val MAX_DRAW_ELEMENTS = 4
     }
 
-    var program: BasicShaderProgram? = null
+    var program: TriangleShaderProgram? = null
     var vertexBuffer: FloatBufferObject? = null
     var elementBuffer: AbstractBufferObject? = null
     val vertexOrigin = Vec3()
@@ -22,6 +22,7 @@ open class DrawShapeState internal constructor() {
     var enableDepthTest = true
     var enableDepthWrite = true
     var depthOffset = 0.0
+    var isLine = false
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1f
@@ -39,6 +40,7 @@ open class DrawShapeState internal constructor() {
         vertexStride = 0
         enableCullFace = true
         enableDepthTest = true
+        isLine = false
         depthOffset = 0.0
         color.set(1f, 1f, 1f, 1f)
         opacity = 1.0f

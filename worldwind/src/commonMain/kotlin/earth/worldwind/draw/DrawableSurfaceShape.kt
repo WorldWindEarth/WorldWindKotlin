@@ -43,7 +43,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         dc.activeTextureUnit(GL_TEXTURE0)
 
         // Set up to use vertex tex coord attributes.
-        dc.gl.enableVertexAttribArray(1 /*vertexTexCoord*/) // only vertexPoint is enabled by default
+        dc.gl.enableVertexAttribArray(1 /*vertexTexCoord*/)
+        dc.gl.enableVertexAttribArray(2 /*vertexTexCoord*/)
+        dc.gl.enableVertexAttribArray(3 /*vertexTexCoord*/)
 
         // Accumulate shapes in the draw context's scratch list.
         // TODO accumulate in a geospatial quadtree
@@ -74,7 +76,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             // Clear the accumulated shapes.
             scratchList.clear()
             // Restore the default WorldWind OpenGL state.
-            dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/) // only vertexPoint is enabled by default
+            dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/)
+            dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
+            dc.gl.disableVertexAttribArray(3 /*vertexTexCoord*/)
         }
     }
 
@@ -131,12 +135,22 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                     shape.drawState.vertexOrigin.z
                 )
                 program.loadModelviewProjection(mvpMatrix)
+                if (shape.drawState.isLine) {
+                    program.enableOneVertexMode(false)
+                    program.loadScreen(colorAttachment.width.toFloat(), colorAttachment.height.toFloat())
 
-                // Use the shape's vertex point attribute.
-                dc.gl.vertexAttribPointer(
-                    0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0
-                )
+                    dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20, 0)
+                    dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20, 40)
+                    dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20, 80)
+                    dc.gl.vertexAttribPointer(3 /*vertexTexCoord*/, 1, GL_FLOAT, false, 20, 56)
+                } else {
+                    program.enableOneVertexMode(true)
 
+                    // Use the shape's vertex point attribute.
+                    dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
+                    dc.gl.vertexAttribPointer(1 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
+                    dc.gl.vertexAttribPointer(2 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
+                }
                 // Draw the specified primitives to the framebuffer texture.
                 for (primIdx in 0 until shape.drawState.primCount) {
                     val prim = shape.drawState.prims[primIdx]
@@ -148,15 +162,19 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                     } else {
                         program.enableTexture(false)
                     }
-                    dc.gl.vertexAttribPointer(
-                        1 /*vertexTexCoord*/,
-                        prim.texCoordAttrib.size,
-                        GL_FLOAT,
-                        false,
-                        shape.drawState.vertexStride,
-                        prim.texCoordAttrib.offset
-                    )
-                    dc.gl.lineWidth(prim.lineWidth)
+                    if (shape.drawState.isLine) {
+                        program.loadLineWidth(prim.lineWidth)
+                    } else {
+                        dc.gl.vertexAttribPointer(
+                            3 /*vertexTexCoord*/,
+                            prim.texCoordAttrib.size,
+                            GL_FLOAT,
+                            false,
+                            shape.drawState.vertexStride,
+                            prim.texCoordAttrib.offset
+                        )
+                        dc.gl.lineWidth(prim.lineWidth)
+                    }
                     dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
                 }
 
@@ -176,14 +194,17 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain) {
         val program = drawState.program ?: return
         try {
-            if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return  // terrain vertex attribute failed to bind
-            if (!terrain.useVertexTexCoordAttrib(dc, 1 /*vertexTexCoord*/)) return  // terrain vertex attribute failed to bind
+            if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return // terrain vertex attribute failed to bind
+            if (!terrain.useVertexPointAttrib(dc, 1 /*vertexPoint*/)) return // terrain vertex attribute failed to bind
+            if (!terrain.useVertexPointAttrib(dc, 2 /*vertexPoint*/)) return // terrain vertex attribute failed to bind
+            if (!terrain.useVertexTexCoordAttrib(dc, 3 /*vertexTexCoord*/)) return // terrain vertex attribute failed to bind
             val colorAttachment = dc.scratchFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
             if (!colorAttachment.bindTexture(dc)) return  // framebuffer texture failed to bind
 
             // Configure the program to draw texture fragments unmodified and aligned with the terrain.
             // TODO consolidate pickMode and enableTexture into a single textureMode
             // TODO it's confusing that pickMode must be disabled during surface shape render-to-texture
+            program.enableOneVertexMode(true)
             program.enablePickMode(false)
             program.enableTexture(true)
             program.loadTexCoordMatrix(identityMatrix3)

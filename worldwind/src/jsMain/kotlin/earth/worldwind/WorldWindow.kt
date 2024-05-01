@@ -244,7 +244,7 @@ open class WorldWindow(
             // if pick point is outside the WorldWindow's viewport.
             val px = pickViewport.x + pickViewport.width / 2.0
             val py = pickViewport.y + pickViewport.height / 2.0
-            if(viewport.contains(px, py)) {
+            if (viewport.contains(px, py)) {
                 val pickRay = Line()
                 if (engine.rayThroughScreenPoint(px, viewport.height - py, pickRay)) {
                     frame.pickPoint = Vec2(px, py)
@@ -334,7 +334,7 @@ open class WorldWindow(
         val isPickMode = frame.isPickMode
         try {
             // Prepare to redraw and notify redraw callbacks that a redrawn is about to occur.
-            if(!isPickMode) callRedrawCallbacks(RedrawStage.BEFORE_REDRAW)
+            if (!isPickMode) callRedrawCallbacks(RedrawStage.BEFORE_REDRAW)
             // Render frame. Propagate redraw requests submitted during rendering.
             if (engine.renderFrame(frame) || isPickMode) requestRedraw()
             // Redraw the WebGL drawing buffer.
@@ -347,7 +347,7 @@ open class WorldWindow(
             // Recycle each frame to be reused
             frame.recycle()
             // Notify redraw callbacks that a redrawn has completed.
-            if(!isPickMode) callRedrawCallbacks(RedrawStage.AFTER_REDRAW)
+            if (!isPickMode) callRedrawCallbacks(RedrawStage.AFTER_REDRAW)
         }
     }
 

@@ -10,10 +10,9 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
-import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.BasicShaderProgram
-import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
+import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.math.boundingRectForUnitSquare
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -445,15 +444,56 @@ open class Placemark @JvmOverloads constructor(
      */
     protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableLines) {
         // Use the basic GLSL program to draw the placemark's leader.
-        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { TriangleShaderProgram() }
 
-        // Compute the drawable's vertex points, in Cartesian coordinates relative to the placemark's ground point.
-        drawable.vertexPoints[0] = 0f // groundPoint.x - groundPoint.x
-        drawable.vertexPoints[1] = 0f // groundPoint.y - groundPoint.y
-        drawable.vertexPoints[2] = 0f // groundPoint.z - groundPoint.z
-        drawable.vertexPoints[3] = (placePoint.x - groundPoint.x).toFloat()
-        drawable.vertexPoints[4] = (placePoint.y - groundPoint.y).toFloat()
-        drawable.vertexPoints[5] = (placePoint.z - groundPoint.z).toFloat()
+        var vertexIndex = 0
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = 0.0f
+        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex] = 0f
 
         // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.
         drawable.mvpMatrix.copy(rc.modelviewProjection)

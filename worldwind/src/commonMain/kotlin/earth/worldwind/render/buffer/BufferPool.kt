@@ -27,9 +27,9 @@ open class BufferPool(
         if (blockSize < sourceData.size * Float.SIZE_BYTES) return -1
         if (!buffers[index].isValid() && !appendBuffer(dc)) return -1
 
-        if(!enoughSpace(sourceData)) {
+        if (!enoughSpace(sourceData)) {
             index = (index + 1) % blockCount;
-            if(!appendBuffer(dc)) return -1
+            if (!appendBuffer(dc)) return -1
         }
 
         dc.gl.bindBuffer(target, buffers[index])
@@ -40,7 +40,7 @@ open class BufferPool(
     private fun enoughSpace(sourceData: FloatArray) = offset + sourceData.size * Float.SIZE_BYTES <= blockSize
 
     private fun appendBuffer(dc: DrawContext): Boolean {
-        if(!buffers[index].isValid() && !allocNewBuffer(dc)) return false
+        if (!buffers[index].isValid() && !allocNewBuffer(dc)) return false
         offset = 0
         return true
     }

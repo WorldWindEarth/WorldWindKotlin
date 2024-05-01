@@ -44,8 +44,8 @@ actual open class Font(
     actual constructor(): this(14)
     actual constructor(family: String, weight: FontWeight, size: Int): this(
         size, family,
-        if(weight == FontWeight.BOLD) "bold" else "normal",
-        if(weight == FontWeight.ITALIC) "italic" else "normal",
+        if (weight == FontWeight.BOLD) "bold" else "normal",
+        if (weight == FontWeight.ITALIC) "italic" else "normal",
     )
 
     init {

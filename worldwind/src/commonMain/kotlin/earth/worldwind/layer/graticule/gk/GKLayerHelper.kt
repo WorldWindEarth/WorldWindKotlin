@@ -149,8 +149,8 @@ object GKLayerHelper {
 
     @JvmStatic
     private fun getMillionNameByCoord(latitude: Angle, longitude: Angle): String {
-        if(latitude.inDegrees >= Z_ZONE_LATITUDE) return GKGraticuleLayer.MILLION_COOL_NAME[45]
-        if(latitude.inDegrees < -Z_ZONE_LATITUDE) return GKGraticuleLayer.MILLION_COOL_NAME[0]
+        if (latitude.inDegrees >= Z_ZONE_LATITUDE) return GKGraticuleLayer.MILLION_COOL_NAME[45]
+        if (latitude.inDegrees < -Z_ZONE_LATITUDE) return GKGraticuleLayer.MILLION_COOL_NAME[0]
         //TODO Add for 12 and 24 grade zone.
         val col = getMillionColumnIndex(longitude.inDegrees)
         return GKGraticuleLayer.MILLION_COOL_NAME[getMillionRowIndex(latitude.inDegrees)] + "-" +

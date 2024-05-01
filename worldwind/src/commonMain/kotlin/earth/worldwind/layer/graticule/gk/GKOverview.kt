@@ -66,7 +66,7 @@ internal class GKOverview(layer: GKGraticuleLayer): AbstractGraticuleTile(layer,
         for (i in 0..45) {
             val latitude = -92.0 + i * 4.0
             // don't need parallel for firs and last
-            if(i != 0 || i != 46 ) {
+            if (i != 0 || i != 46 ) {
                 for (j in 0..3) {
                     // Each parallel is divided into four 90 degrees segments
                     positions.clear()
@@ -74,7 +74,7 @@ internal class GKOverview(layer: GKGraticuleLayer): AbstractGraticuleTile(layer,
                     positions.add(fromDegrees(latitude, longitude, 0.0))
                     positions.add(fromDegrees(latitude, longitude + 30.0, 0.0))
                     positions.add(fromDegrees(latitude, longitude + 60.0, 0.0))
-                    if(j == 3 ) positions.add(fromDegrees(latitude, 180.0, 0.0))
+                    if (j == 3 ) positions.add(fromDegrees(latitude, 180.0, 0.0))
                     else positions.add(fromDegrees(latitude, longitude + 90.0, 0.0))
 
                     val polyline = layer.createLineRenderable(ArrayList(positions), PathType.LINEAR)

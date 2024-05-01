@@ -75,7 +75,7 @@ open class GoToAnimator(
         engine.cameraAsLookAt(lookAt)
         // Capture the target position and determine its altitude.
         val targetPosition = Position(
-            position.latitude, position.longitude, if(position is Position) position.altitude else lookAt.range
+            position.latitude, position.longitude, if (position is Position) position.altitude else lookAt.range
         ).also { targetPosition = it }
 
         // Capture the start position and start time.

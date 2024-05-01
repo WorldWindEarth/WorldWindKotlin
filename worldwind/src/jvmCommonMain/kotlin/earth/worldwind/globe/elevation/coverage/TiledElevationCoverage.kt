@@ -107,7 +107,7 @@ actual open class TiledElevationCoverage actual constructor(
                         else onProgress?.invoke(downloaded, ++skipped, processingList.size)
                         break // Continue downloading the next tile
                     } catch (throwable: Throwable) {
-                        delay(if(attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
+                        delay(if (attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
                     }
                 }
             }
