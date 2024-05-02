@@ -26,12 +26,12 @@ open class Level internal constructor(
      * The width in pixels of the image represented by all tiles in this level set, or the number of sample points in
      * the longitudinal direction of this level set.
      */
-    val levelWidth = (parent.tileWidth * parent.sector.deltaLongitude.inDegrees / tileDelta.longitude.inDegrees).roundToInt()
+    val levelWidth = (parent.tileWidth * parent.tileOrigin.deltaLongitude.inDegrees / tileDelta.longitude.inDegrees).roundToInt()
     /**
      * The height in pixels of the image represented by all tiles in this level set, or the number of sample points in
      * the latitudinal direction of this level set.
      */
-    val levelHeight = (parent.tileHeight * parent.sector.deltaLatitude.inDegrees / tileDelta.latitude.inDegrees).roundToInt()
+    val levelHeight = (parent.tileHeight * parent.tileOrigin.deltaLatitude.inDegrees / tileDelta.latitude.inDegrees).roundToInt()
     /**
      * The parent LevelSet's tileWidth.
      */
