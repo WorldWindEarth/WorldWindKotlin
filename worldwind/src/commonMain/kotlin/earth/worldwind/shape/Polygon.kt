@@ -32,7 +32,6 @@ open class Polygon @JvmOverloads constructor(
     protected var lineVertexArray = FloatArray(0)
     protected var lineVertexIndex = 0
     protected var verticalVertexIndex = 0
-    protected var outlineElementOffset = IntArray(0)
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val topElements = mutableListOf<Int>()
     protected val sideElements = mutableListOf<Int>()
@@ -306,21 +305,19 @@ open class Polygon @JvmOverloads constructor(
         var vertexCount = 0
         var lineVertexCount = 0
         var verticalVertexCount = 0
-        var nonEmptyBoundariesCount = 0
         for (i in boundaries.indices) {
             val p = boundaries[i]
 
             if (p.isEmpty()) continue
 
-            ++nonEmptyBoundariesCount
             if (noIntermediatePoints) {
                 vertexCount += p.size
                 lineVertexCount += (p.size + 2)
                 verticalVertexCount += p.size
             } else if (p.isNotEmpty() && p[0] == p[p.size - 1]) {
                 vertexCount += p.size + (p.size - 1) * maximumIntermediatePoints
-                lineVertexCount += 2 + p.size + (p.size) * maximumIntermediatePoints
-                verticalVertexCount += (p.size - 1)
+                lineVertexCount += 2 + p.size + (p.size - 1) * maximumIntermediatePoints
+                verticalVertexCount += p.size
             } else {
                 vertexCount += p.size + p.size * maximumIntermediatePoints
                 lineVertexCount += 3 + p.size + p.size * maximumIntermediatePoints
@@ -342,8 +339,6 @@ open class Polygon @JvmOverloads constructor(
         else FloatArray(lineVertexCount * LINE_VERTEX_STRIDE)
         outlineElements.clear()
         verticalElements.clear()
-        outlineElementOffset = IntArray(nonEmptyBoundariesCount)
-        nonEmptyBoundariesCount = 0
 
         // Compute a matrix that transforms from Cartesian coordinates to shape texture coordinates.
         determineModelToTexCoord(rc)
@@ -358,7 +353,6 @@ open class Polygon @JvmOverloads constructor(
             val positions = boundaries[i]
             if (positions.isEmpty()) continue  // no boundary positions to assemble
 
-            outlineElementOffset[nonEmptyBoundariesCount++] = outlineElements.size
             GLU.gluTessBeginContour(tess)
 
             // Add the boundary's first vertex.
