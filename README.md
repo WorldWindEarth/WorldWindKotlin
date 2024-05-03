@@ -11,6 +11,9 @@ Provides a geographic context with high-resolution terrain, for visualizing geog
 Developers can customize the globe's terrain and imagery. Provides a collection of shapes for displaying and interacting with
 geographic data and representing a range of geometric objects.
 
+- [WorldWind Examples](https://play.google.com/store/apps/details?id=earth.worldwind.examples) a set of Android benchmarks
+- [WorldWind Tutorials](https://play.google.com/store/apps/details?id=earth.worldwind.tutorials) demonstration of Android version capabilities
+- [tutorials.worldwind.earth](https://tutorials.worldwind.earth) demonstration of Web version capabilities
 - [worldwind.earth](https://worldwind.earth) has setup instructions, developers guides, API documentation and more
 
 ## Download
@@ -22,7 +25,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'earth.worldwind:worldwind:1.5.0'
+    implementation 'earth.worldwind:worldwind:1.5.2'
 }
 ```
 
