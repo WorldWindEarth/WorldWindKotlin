@@ -90,7 +90,10 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
      */
     protected open fun isWithinProjectionLimits(rc: RenderContext) = true
 
-    protected open fun intersectsFrustum(rc: RenderContext) = boundingBox.isUnitBox || boundingBox.intersectsFrustum(rc.frustum)
+    protected open fun intersectsFrustum(rc: RenderContext) =
+        (boundingBox.isUnitBox || boundingBox.intersectsFrustum(rc.frustum)) &&
+                // This is a temporary solution. Surface shapes should also use bounding box.
+                (boundingSector.isEmpty || boundingSector.intersects(rc.terrain.sector))
 
     protected open fun determineActiveAttributes(rc: RenderContext) {
         val highlightAttributes = highlightAttributes
