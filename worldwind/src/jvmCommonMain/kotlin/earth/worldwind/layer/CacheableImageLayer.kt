@@ -41,7 +41,6 @@ interface CacheableImageLayer : Layer {
      *
      * @param contentManager Cache content manager
      * @param contentKey Content key inside the specified content manager
-     * @param boundingSector Optional content sector, if null, then coverage tile matrix set sector will be used
      * @param setupWebLayer Add online source metadata into the cache config to be able to download additional tiles
      *
      * @throws IllegalArgumentException In case of incompatible level set configured in cache content
@@ -49,7 +48,7 @@ interface CacheableImageLayer : Layer {
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun configureCache(
-        contentManager: ContentManager, contentKey: String, boundingSector: Sector? = null, setupWebLayer: Boolean = true
+        contentManager: ContentManager, contentKey: String, setupWebLayer: Boolean = true
     ) {
         contentManager.setupImageLayerCache(this, contentKey, setupWebLayer)
     }

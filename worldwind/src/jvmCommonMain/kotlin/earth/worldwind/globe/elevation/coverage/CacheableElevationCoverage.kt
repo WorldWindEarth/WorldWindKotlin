@@ -48,7 +48,6 @@ interface CacheableElevationCoverage : ElevationCoverage {
      *
      * @param contentManager Cache content manager
      * @param contentKey Content key inside the specified content manager
-     * @param boundingSector Optional content sector, if null, then coverage tile matrix set sector will be used
      * @param setupWebCoverage Add online source metadata into the cache config to be able to download additional tiles
      * @param isFloat If true, then cache will be stored in Float32 format, else Int16
      *
@@ -57,8 +56,7 @@ interface CacheableElevationCoverage : ElevationCoverage {
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun configureCache(
-        contentManager: ContentManager, contentKey: String, boundingSector: Sector? = null,
-        setupWebCoverage: Boolean = true, isFloat: Boolean = false
+        contentManager: ContentManager, contentKey: String, setupWebCoverage: Boolean = true, isFloat: Boolean = false
     ) {
         contentManager.setupElevationCoverageCache(this, contentKey, setupWebCoverage, isFloat)
     }
