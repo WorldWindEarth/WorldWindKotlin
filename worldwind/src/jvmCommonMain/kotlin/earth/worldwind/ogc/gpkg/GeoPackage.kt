@@ -484,7 +484,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
         // Remove all tiles in specified content table and gridded tile data but keep the table itself
-        tileUserDataDao[tableName]?.let { if (it.isTableExists) it.deleteBuilder()?.delete() }
+        tileUserDataDao[tableName]?.let {
+            TableUtils.dropTable(it, true)
+            TableUtils.createTable(it)
+        }
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
             where().eq(GpkgGriddedTile.CONTENT, content)
             delete()
