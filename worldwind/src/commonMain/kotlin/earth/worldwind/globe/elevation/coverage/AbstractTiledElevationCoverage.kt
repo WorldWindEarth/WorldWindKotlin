@@ -400,11 +400,8 @@ abstract class AbstractTiledElevationCoverage(
         }
     }
 
-    protected open fun assembleTilesList(sector: Sector, resolution: ClosedRange<Angle>): List<Tile> {
-        val result = mutableListOf<Tile>()
-        val startIdx = tileMatrixSet.indexOfMatrixNearest(resolution.endInclusive)
-        val endIdx = tileMatrixSet.indexOfMatrixNearest(resolution.start)
-        for (idx in startIdx..endIdx) {
+    protected open suspend fun processTiles(sector: Sector, minIdx: Int, maxIdx: Int, process: suspend (Tile) -> Unit) {
+        for (idx in minIdx..maxIdx) {
             val tileMatrix = tileMatrixSet.entries[idx]
             val deltaLat = tileMatrix.sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
             val deltaLon = tileMatrix.sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
@@ -412,9 +409,8 @@ abstract class AbstractTiledElevationCoverage(
             val maxRow = floor((tileMatrix.sector.maxLatitude.inDegrees - sector.minLatitude.inDegrees) / deltaLat).toInt()
             val minCol = floor((sector.minLongitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
             val maxCol = floor((sector.maxLongitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
-            for (row in minRow..maxRow) for (col in minCol..maxCol) result.add(Tile(tileMatrix, row, col))
+            for (row in minRow..maxRow) for (col in minCol..maxCol) process(Tile(tileMatrix, row, col))
         }
-        return result
     }
 
     protected data class Tile(val tileMatrix: TileMatrix, val row: Int, val col: Int)

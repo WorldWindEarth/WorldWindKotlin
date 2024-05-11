@@ -41,6 +41,7 @@ actual open class TiledElevationCoverage actual constructor(
      */
     actual open fun clone() = TiledElevationCoverage(tileMatrixSet, elevationSourceFactory).also {
         it.displayName = displayName
+        it.sector.copy(sector)
     }
 
     /**
@@ -69,12 +70,12 @@ actual open class TiledElevationCoverage actual constructor(
         val cacheTileFactory = cacheSourceFactory ?: error("Cache not configured")
         require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }
         return scope.launch(Dispatchers.Default) {
-            // Prepare a tile list for download, based on specified sector and resolution
-            val processingList = assembleTilesList(sector, resolution)
+            val minIdx = tileMatrixSet.indexOfMatrixNearest(resolution.endInclusive)
+            val maxIdx = tileMatrixSet.indexOfMatrixNearest(resolution.start)
+            val tileCount = tileMatrixSet.tileCount(sector, minIdx, maxIdx)
             var downloaded = 0
             var skipped = 0
-            // Try to download each tile in a list
-            for (tile in processingList) {
+            processTiles(sector, minIdx, maxIdx) { tile ->
                 var attempt = 0
                 // Retry download attempts till success or 404 not fond or job canceled
                 while(true) {
@@ -102,9 +103,9 @@ actual open class TiledElevationCoverage actual constructor(
                             true
                         } ?: false
                         // Tile successfully downloaded
-                        if (success) onProgress?.invoke(++downloaded, skipped, processingList.size)
+                        if (success) onProgress?.invoke(++downloaded, skipped, tileCount)
                         // Received data cannot be decoded as image
-                        else onProgress?.invoke(downloaded, ++skipped, processingList.size)
+                        else onProgress?.invoke(downloaded, ++skipped, tileCount)
                         break // Continue downloading the next tile
                     } catch (throwable: Throwable) {
                         delay(if (attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)

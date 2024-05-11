@@ -54,4 +54,18 @@ open class TileMatrixSet(val sector: Sector, val entries: List<TileMatrix>) {
      * @return Minimum relevant index
      */
     fun minRelevantIndexOfMatrix(maxIndex: Int = entries.size - 1) = sector.minLevelNumber(maxIndex)
+
+    /**
+     * Calculates approximate count of tiles in specified sector within specified resolution range
+     *
+     * @param sector co calculate tiles amount
+     * @param minIdx minimal required index of matrix
+     * @param maxIdx maximal required index of matrix
+     * @return tiles count
+     */
+    fun tileCount(sector: Sector, minIdx: Int, maxIdx: Int): Int {
+        var tileCount = 0
+        for (i in minIdx..maxIdx) tileCount += entries[i].tilesInSector(sector)
+        return tileCount
+    }
 }

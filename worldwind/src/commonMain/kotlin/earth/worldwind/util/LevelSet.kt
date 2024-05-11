@@ -111,6 +111,21 @@ open class LevelSet {
     }
 
     /**
+     * Constructs a level set with parameters from a specified level set.
+     *
+     * @param levelSet source level set
+     */
+    constructor(levelSet: LevelSet): this(
+        Sector(levelSet.sector),
+        Sector(levelSet.tileOrigin),
+        Location(levelSet.firstLevelDelta),
+        levelSet.numLevels,
+        levelSet.tileWidth,
+        levelSet.tileHeight,
+        levelSet.levelOffset
+    )
+
+    /**
      * Constructs a level set with parameters from a specified configuration. The configuration's sector must be
      * non-null, its first level delta must be positive, its number of levels must be 1 or more, and its tile width and
      * tile height must be 1 or greater.
@@ -168,4 +183,22 @@ open class LevelSet {
      * @return Minimum relevant level number
      */
     fun minRelevantLevel(maxLevel: Level = lastLevel) = levels[sector.minLevelNumber(maxLevel.levelNumber)]
+
+    /**
+     * Calculates approximate count of tiles in specified sector within specified resolution range
+     *
+     * @param sector co calculate tiles amount
+     * @param minLevel minimal required level
+     * @param maxLevel maximal required level
+     * @return tiles count
+     */
+    fun tileCount(sector: Sector, minLevel: Level, maxLevel: Level): Int {
+        var tileCount = 0
+        var level = minLevel
+        do {
+            tileCount += level.tilesInSector(sector)
+            level = level.nextLevel ?: break
+        } while (level.levelNumber <= maxLevel.levelNumber)
+        return tileCount
+    }
 }

@@ -36,6 +36,7 @@ actual open class TiledElevationCoverage actual constructor(
      */
     actual open fun clone() = TiledElevationCoverage(tileMatrixSet, elevationSourceFactory).also {
         it.displayName = displayName
+        it.sector.copy(sector)
     }
 
     override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {

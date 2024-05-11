@@ -1,6 +1,7 @@
 package earth.worldwind.geom
 
 import earth.worldwind.geom.Sector.Companion.fromDegrees
+import earth.worldwind.util.Tile
 import kotlin.math.ceil
 
 open class TileMatrix internal constructor(
@@ -24,16 +25,18 @@ open class TileMatrix internal constructor(
     }
 
     /**
-     * Calculates amount of tiles, which fit specified sector
+     * Calculates number of tiles, which fit specified sector
      *
      * @param sector the desired sector to check tile count
      * @return Number of tiles which fit specified sector at this level
      */
     fun tilesInSector(sector: Sector): Int {
-        val deltaLat = this.sector.deltaLatitude.inDegrees / matrixHeight
-        val deltaLon = this.sector.deltaLongitude.inDegrees / matrixWidth
-        val tilesPerLat = ceil(sector.deltaLatitude.inDegrees / deltaLat).toInt()
-        val tilesPerLon = ceil(sector.deltaLongitude.inDegrees / deltaLon).toInt()
-        return tilesPerLat * tilesPerLon
+        val deltaLat = this.sector.deltaLatitude / matrixHeight
+        val deltaLon = this.sector.deltaLongitude / matrixWidth
+        val firstRow = Tile.computeRow(deltaLat, sector.minLatitude, this.sector.minLatitude)
+        val lastRow = Tile.computeLastRow(deltaLat, sector.maxLatitude, this.sector.minLatitude)
+        val firstCol = Tile.computeColumn(deltaLon, sector.minLongitude, this.sector.minLongitude)
+        val lastCol = Tile.computeLastColumn(deltaLon, sector.maxLongitude, this.sector.minLongitude)
+        return (lastRow - firstRow + 1) * (lastCol - firstCol + 1)
     }
 }

@@ -78,7 +78,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     /**
      * Makes a copy of this tiled surface image
      */
-    open fun clone() = TiledSurfaceImage(tileFactory, levelSet).also {
+    open fun clone() = TiledSurfaceImage(tileFactory, LevelSet(levelSet)).also {
         it.imageOptions = imageOptions
     }
 
@@ -107,68 +107,55 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
         require(sector.intersect(levelSet.sector)) { "Sector does not intersect tiled surface image sector" }
         return scope.launch(Dispatchers.Default) {
-            // Prepare a tile list for download, based on specified sector and resolution
-            val processingList = assembleTilesList(sector, resolution)
+            val minLevel = levelSet.levelForResolution(resolution.endInclusive)
+            val maxLevel = levelSet.levelForResolution(resolution.start)
+            val tileCount = levelSet.tileCount(sector, minLevel, maxLevel)
             var downloaded = 0
             var skipped = 0
-            // Try to download each tile in a list
-            for (tile in processingList) {
-                var attempt = 0
-                // Retry download attempts till success or 404 not fond or job canceled
-                while(true) {
-                    // Check if a job canceled
-                    ensureActive()
-                    // No image source indicates an empty level or an image missing from the tiled data store
-                    val imageSource = tile.imageSource ?: break
-                    // If cache tile factory is specified, then create a cache source and store it in tile
-                    val cacheSource = tile.cacheSource
-                        ?: (cacheTileFactory.createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile)
-                            .imageSource?.also { tile.cacheSource = it } ?: break
-                    // Attempt to download tile
-                    try {
-                        ++attempt
-                        if (retrieveTile(imageSource, cacheSource, imageOptions)) {
-                            // Tile successfully downloaded
-                            onProgress?.invoke(++downloaded, skipped, processingList.size)
-                        } else {
-                            // Received data cannot be decoded as image
-                            onProgress?.invoke(downloaded, ++skipped, processingList.size)
+            if (topLevelTiles.isEmpty()) createTopLevelTiles()
+            topLevelTiles.forEach { topLevelTile ->
+                processAndSubdivideTile(topLevelTile as ImageTile, sector, minLevel, maxLevel) { tile ->
+                    var attempt = 0
+                    // Retry download attempts till success or 404 not fond or job canceled
+                    while(true) {
+                        // Check if a job canceled
+                        ensureActive()
+                        // No image source indicates an empty level or an image missing from the tiled data store
+                        val imageSource = tile.imageSource ?: break
+                        // If cache tile factory is specified, then create a cache source and store it in tile
+                        val cacheSource = tile.cacheSource
+                            ?: (cacheTileFactory.createTile(tile.sector, tile.level, tile.row, tile.column) as ImageTile)
+                                .imageSource?.also { tile.cacheSource = it } ?: break
+                        // Attempt to download tile
+                        try {
+                            ++attempt
+                            if (retrieveTile(imageSource, cacheSource, imageOptions)) {
+                                // Tile successfully downloaded
+                                onProgress?.invoke(++downloaded, skipped, tileCount)
+                            } else {
+                                // Received data cannot be decoded as image
+                                onProgress?.invoke(downloaded, ++skipped, tileCount)
+                            }
+                            break // Continue downloading the next tile
+                        } catch (throwable: Throwable) {
+                            delay(if (attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
                         }
-                        break // Continue downloading the next tile
-                    } catch (throwable: Throwable) {
-                        delay(if (attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
                     }
                 }
             }
         }
     }
 
-    /**
-     * Determine the list of tiles which fit the specified sector and maximum resolution.
-     *
-     * @param sector     the bounding sector.
-     * @param resolution the desired resolution range in angular value of latitude per pixel.
-     * @return List of tiles which fit specified sector and maximum resolution.
-     */
-    protected open fun assembleTilesList(sector: Sector, resolution: ClosedRange<Angle>): List<ImageTile> {
-        val result = mutableListOf<ImageTile>()
-        val firstLevelNumber = levelSet.levelForResolution(resolution.endInclusive).levelNumber
-        val lastLevelNumber = levelSet.levelForResolution(resolution.start).levelNumber
-        if (topLevelTiles.isEmpty()) createTopLevelTiles()
-        topLevelTiles.forEach { addAndSubdivideTile(it as ImageTile, sector, firstLevelNumber..lastLevelNumber, result) }
-        return result
-    }
-
-    protected open fun addAndSubdivideTile(
-        tile: ImageTile, sector: Sector, levelRange: ClosedRange<Int>, result: MutableList<ImageTile>
+    protected open suspend fun processAndSubdivideTile(
+        tile: ImageTile, sector: Sector, minLevel: Level, maxLevel: Level, process: suspend (ImageTile) -> Unit
     ) {
         if (!tile.intersectsSector(sector)) return // Ignore tiles and its descendants outside the specified sector
         val levelNumber = tile.level.levelNumber
-        // Skip tiles with level less than specified offset from the result list
-        if (levelNumber >= levelRange.start && levelNumber >= levelSet.levelOffset) result.add(tile)
+        // Skip tiles with level less than specified offset from the process
+        if (levelNumber >= minLevel.levelNumber && levelNumber >= levelSet.levelOffset) process(tile)
         // Do not subdivide if specified level or last available level reached
-        if (levelNumber < levelRange.endInclusive && !tile.level.isLastLevel) {
-            tile.subdivide(tileFactory).forEach { addAndSubdivideTile(it as ImageTile, sector, levelRange, result) }
+        if (levelNumber < maxLevel.levelNumber && !tile.level.isLastLevel) {
+            tile.subdivide(tileFactory).forEach { processAndSubdivideTile(it as ImageTile, sector, minLevel, maxLevel, process) }
         }
     }
 
