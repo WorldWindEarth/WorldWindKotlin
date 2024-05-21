@@ -76,7 +76,6 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
 
         isInvalidateRequested = false
 
-        placemark.isEyeDistanceScaling = lastLevelOfDetail == LOW_LEVEL_OF_DETAIL
         placemark.attributes.isDrawLeader = lastLevelOfDetail >= MEDIUM_LEVEL_OF_DETAIL
         placemark.attributes.imageScale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
 
