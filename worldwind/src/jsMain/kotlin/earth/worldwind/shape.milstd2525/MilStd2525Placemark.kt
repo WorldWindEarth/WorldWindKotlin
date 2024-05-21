@@ -55,11 +55,16 @@ actual open class MilStd2525Placemark actual constructor(
         ): PlacemarkAttributes {
             val key = getSymbolCacheKey(symbolCode, symbolModifiers, symbolAttributes)
             return symbolCache[key]?.deref() ?: PlacemarkAttributes().apply {
-                SymbolFactory(symbolCode, symbolModifiers, symbolAttributes) { x, y ->
-                    imageOffset.set(OffsetMode.PIXELS, x, OffsetMode.INSET_PIXELS, y)
+                SymbolFactory(symbolCode, symbolModifiers, symbolAttributes) { x, y, w, h ->
+                    imageOffset.set(OffsetMode.PIXELS, x.toDouble(), OffsetMode.INSET_PIXELS, y.toDouble())
+                    labelAttributes.textOffset.set(
+                        OffsetMode.PIXELS, -w.toDouble() / 2.0,
+                        OffsetMode.INSET_PIXELS, h.toDouble() / 2.0
+                    )
                 }.also {
                     imageSource = ImageSource.fromImageFactory(it)
                 }
+                MilStd2525.applyTextAttributes(labelAttributes)
                 leaderAttributes.outlineWidth = MilStd2525.graphicsLineWidth / 1.5f
                 minimumImageScale = MINIMUM_IMAGE_SCALE
                 symbolCache[key] = WeakRef(this)
@@ -71,7 +76,7 @@ actual open class MilStd2525Placemark actual constructor(
         private val symbolCode: String,
         private val symbolModifiers: Map<String, String>?,
         private val symbolAttributes: Map<String, String>?,
-        private val onRender: (xOffset: Double, yOffset: Double) -> Unit
+        private val onRender: (x: Number, y: Number, w: Number, h: Number) -> Unit
     ) : ImageSource.ImageFactory {
         override val isRunBlocking = true
 
@@ -79,7 +84,7 @@ actual open class MilStd2525Placemark actual constructor(
             // Apply the computed image offset after the renderer has created the image. This is essential for proper
             // placement as the offset may change depending on the level of detail, for instance, the absence or
             // presence of text modifiers.
-            onRender(it.getCenterPoint().getX().toDouble(), it.getCenterPoint().getY().toDouble())
+            onRender(it.getCenterPoint().getX(), it.getCenterPoint().getY(), it.getSymbolBounds().getWidth(), it.getSymbolBounds().getHeight())
             it.getImage()
         } ?: run {
             Logger.logMessage(

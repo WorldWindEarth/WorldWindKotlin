@@ -39,6 +39,10 @@ external object armyc2 {
                     fun getX(): Number
                     fun getY(): Number
                 }
+                open class Rectangle {
+                    fun getWidth(): Number
+                    fun getHeight(): Number
+                }
             }
 
             object MilStdIconRenderer {

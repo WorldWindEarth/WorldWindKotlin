@@ -91,11 +91,16 @@ actual open class MilStd2525Placemark actual constructor(
         ): PlacemarkAttributes {
             val key = getSymbolCacheKey(symbolCode, symbolModifiers, symbolAttributes)
             return symbolCache[key]?.get() ?: PlacemarkAttributes().apply {
-                SymbolFactory(symbolCode, symbolModifiers, symbolAttributes) { x, y ->
-                    imageOffset.set(OffsetMode.PIXELS, x, OffsetMode.INSET_PIXELS, y)
+                SymbolFactory(symbolCode, symbolModifiers, symbolAttributes) { x, y, w, h ->
+                    imageOffset.set(OffsetMode.PIXELS, x.toDouble(), OffsetMode.INSET_PIXELS, y.toDouble())
+                    labelAttributes.textOffset.set(
+                        OffsetMode.PIXELS, -w.toDouble() / 2.0,
+                        OffsetMode.INSET_PIXELS, h.toDouble() / 2.0
+                    )
                 }.also {
                     imageSource = ImageSource.fromBitmapFactory(it)
                 }
+                MilStd2525.applyTextAttributes(labelAttributes)
                 leaderAttributes.outlineWidth = MilStd2525.graphicsLineWidth / 1.5f
                 minimumImageScale = MINIMUM_IMAGE_SCALE
                 symbolCache[key] = WeakReference(this)
@@ -107,7 +112,7 @@ actual open class MilStd2525Placemark actual constructor(
         private val symbolCode: String,
         private val symbolModifiers: Map<String, String>?,
         private val symbolAttributes: Map<String, String>?,
-        private val onRender: (xOffset: Double, yOffset: Double) -> Unit
+        private val onRender: (x: Int, y: Int, w: Int, h: Int) -> Unit
     ) : ImageSource.BitmapFactory {
         override val isRunBlocking = true
 
@@ -115,7 +120,7 @@ actual open class MilStd2525Placemark actual constructor(
             // Apply the computed image offset after the renderer has created the image. This is essential for proper
             // placement as the offset may change depending on the level of detail, for instance, the absence or
             // presence of text modifiers.
-            onRender(it.centerPoint.x.toDouble(), it.centerPoint.y.toDouble())
+            onRender(it.centerPoint.x, it.centerPoint.y, it.symbolBounds.width(), it.symbolBounds.height())
             // Return a copy of bitmap to guarantee each texture will contain its own bitmap to recycle it
             Bitmap.createBitmap(it.image)//.apply { it.image.recycle() }
         } ?: run {

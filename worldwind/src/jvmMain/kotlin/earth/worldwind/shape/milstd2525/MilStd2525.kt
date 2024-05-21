@@ -2,6 +2,7 @@ package earth.worldwind.shape.milstd2525
 
 import ArmyC2.C2SD.RendererPluginInterface.ISinglePointInfo
 import ArmyC2.C2SD.Utilities.*
+import earth.worldwind.shape.TextAttributes
 import sec.web.renderer.SinglePoint2525Renderer
 import java.awt.Font
 
@@ -83,6 +84,14 @@ actual object MilStd2525 {
     @JvmStatic
     fun getUnitDef(sidc: String): UnitDef? = UnitDefTable.getInstance()
         .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
+
+    @JvmStatic
+    fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
+        font = earth.worldwind.render.Font(rendererSettings.labelFont)
+        textColor.set(rendererSettings.labelForegroundColor.rgb)
+        outlineColor.set(rendererSettings.labelBackgroundColor.rgb)
+        outlineWidth = rendererSettings.textOutlineWidth.toFloat()
+    }
 
     @JvmStatic
     actual fun getSimplifiedSymbolID(sidc: String) =

@@ -79,6 +79,8 @@ open external class ImageInfo {
      */
     fun getCenterPoint(): armyc2.c2sd.renderer.so.Point
 
+    fun getSymbolBounds(): armyc2.c2sd.renderer.so.Rectangle
+
     /**
      *
      * @returns {HTML5 canvas} HTML5 canvas
@@ -224,7 +226,19 @@ external object RendererSettings {
      * */
     fun getFriendlyGraphicFillColor(): Color
 
+    fun getLabelForegroundColor(): Number
+
+    fun getLabelBackgroundColor(): Number
+
+    fun getTextOutlineWidth(): Number
+
     fun getMPFontInfo(): dynamic
+
+    fun getModifierFontSize(): Number
+
+    fun getModifierFontName(): String
+
+    fun getModifierFontStyle(): String
 }
 
 external object SymbolUtilities {

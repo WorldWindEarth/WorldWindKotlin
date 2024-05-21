@@ -6,6 +6,8 @@ import android.util.SparseArray
 import armyc2.c2sd.renderer.MilStdIconRenderer
 import armyc2.c2sd.renderer.utilities.*
 import earth.worldwind.R
+import earth.worldwind.render.Font
+import earth.worldwind.shape.TextAttributes
 
 /**
  * This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library
@@ -147,6 +149,15 @@ actual object MilStd2525 {
     @JvmStatic
     fun getUnitDef(sidc: String): UnitDef? = UnitDefTable.getInstance()
         .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
+
+    @JvmStatic
+    fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
+        val modifierFont = rendererSettings.modiferFont
+        font = Font(modifierFont.typeface, modifierFont.textSize)
+        textColor.set(rendererSettings.labelForegroundColor)
+        outlineColor.set(rendererSettings.labelBackgroundColor)
+        outlineWidth = rendererSettings.textOutlineWidth.toFloat()
+    }
 
     @JvmStatic
     actual fun getSimplifiedSymbolID(sidc: String) =

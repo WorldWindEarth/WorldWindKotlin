@@ -1,5 +1,8 @@
 package earth.worldwind.shape.milstd2525
 
+import earth.worldwind.render.Font
+import earth.worldwind.shape.TextAttributes
+
 /**
  * This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library
  * @see <a href="https://github.com/missioncommand/mil-sym-js">https://github.com/missioncommand/mil-sym-js</a>
@@ -85,6 +88,17 @@ actual object MilStd2525 {
      */
     fun getUnitDef(sidc: String): dynamic =
         UnitDefTable.getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), RendererSettings.getSymbologyStandard())
+
+    fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
+        font = Font(
+            size = RendererSettings.getModifierFontSize().toInt(),
+            family = RendererSettings.getModifierFontName(),
+            weight = RendererSettings.getModifierFontStyle()
+        )
+        textColor.set(RendererSettings.getLabelForegroundColor().toInt())
+        outlineColor.set(RendererSettings.getLabelBackgroundColor().toInt())
+        outlineWidth =  RendererSettings.getTextOutlineWidth().toFloat()
+    }
 
     actual fun getSimplifiedSymbolID(sidc: String) =
         setAffiliation(SymbolUtilities.getBasicSymbolID(sidc), sidc.substring(1, 2))

@@ -58,11 +58,13 @@ actual open class MilStd2525Placemark actual constructor(
         ): PlacemarkAttributes {
             val key = getSymbolCacheKey(symbolCode, symbolModifiers, symbolAttributes)
             return symbolCache[key]?.get() ?: PlacemarkAttributes().apply {
-                SymbolFactory(symbolCode, symbolModifiers, symbolAttributes) { x, y ->
+                SymbolFactory(symbolCode, symbolModifiers, symbolAttributes) { x, y, w, h ->
                     imageOffset.set(OffsetMode.PIXELS, x, OffsetMode.INSET_PIXELS, y)
+                    labelAttributes.textOffset.set(OffsetMode.PIXELS, -w / 2.0, OffsetMode.INSET_PIXELS, h / 2.0)
                 }.also {
                     imageSource = ImageSource.fromImageFactory(it)
                 }
+                MilStd2525.applyTextAttributes(labelAttributes)
                 leaderAttributes.outlineWidth = MilStd2525.graphicsLineWidth / 1.5f
                 minimumImageScale = MINIMUM_IMAGE_SCALE
                 symbolCache[key] = WeakReference(this)
@@ -74,7 +76,7 @@ actual open class MilStd2525Placemark actual constructor(
         private val symbolCode: String,
         private val symbolModifiers: Map<String, String>?,
         private val symbolAttributes: Map<String, String>?,
-        private val onRender: (xOffset: Double, yOffset: Double) -> Unit
+        private val onRender: (x: Double, y: Double, w: Double, h: Double) -> Unit
     ) : ImageSource.ImageFactory {
         override val isRunBlocking = true
 
@@ -82,7 +84,7 @@ actual open class MilStd2525Placemark actual constructor(
             // Apply the computed image offset after the renderer has created the image. This is essential for proper
             // placement as the offset may change depending on the level of detail, for instance, the absence or
             // presence of text modifiers.
-            onRender(it.symbolCenterPoint.x, it.symbolCenterPoint.y)
+            onRender(it.symbolCenterPoint.x, it.symbolCenterPoint.y, it.symbolBounds.width, it.symbolBounds.height)
             it.image
         } ?: run {
             Logger.logMessage(

@@ -78,6 +78,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
 
         placemark.attributes.isDrawLeader = lastLevelOfDetail >= MEDIUM_LEVEL_OF_DETAIL
         placemark.attributes.imageScale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
+        placemark.attributes.labelAttributes.scale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
 
         return true
     }
