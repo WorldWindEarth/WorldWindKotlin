@@ -28,8 +28,8 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     protected var globeOffset: Globe.Offset? = null
     var sortOrder = 0.0
         protected set
-    private var pointBufferKey = this::class.simpleName + ".points.default" // This key will be replaced on prepare of each tile
-    private var heightBufferKey = this::class.simpleName + ".heights.default" // Use the same height buffer for all tiles by default
+    private var pointBufferKey = "TerrainTile.points.default" // This key will be replaced on prepare of each tile
+    private var heightBufferKey = "TerrainTile.heights.default" // Use the same height buffer for all tiles by default
 
     public override val heightLimits get() = super.heightLimits
 
@@ -82,11 +82,11 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     }
 
     protected fun updateHeightBufferKey() {
-        heightBufferKey = this::class.simpleName + ".heights.$tileKey.${bufferSequence++}"
+        heightBufferKey = "TerrainTile.heights.$tileKey.${bufferSequence++}"
     }
 
     protected fun updatePointBufferKey() {
-        pointBufferKey = this::class.simpleName + ".points.$tileKey.${bufferSequence++}"
+        pointBufferKey = "TerrainTile.points.$tileKey.${bufferSequence++}"
     }
 
     companion object {

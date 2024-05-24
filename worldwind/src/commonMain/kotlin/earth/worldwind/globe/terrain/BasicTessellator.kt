@@ -44,8 +44,6 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected val levelSetTriStripElementRange = Range()
     protected var levelSetVertexTexCoordBuffer: FloatBufferObject? = null
     protected var levelSetElementBuffer: ShortBufferObject? = null
-    protected var levelSetVertexTexCoordKey = this::class.simpleName + ".vertexTexCoordKey"
-    protected var levelSetElementKey = this::class.simpleName + ".elementKey"
     protected var lastGlobeState: Globe.State? = null
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
@@ -167,12 +165,12 @@ open class BasicTessellator: Tessellator, TileFactory {
         val triStripElements = levelSetTriStripElements ?: assembleTriStripElements(numLat, numLon).also { levelSetTriStripElements = it }
 
         // Retrieve or create the level set's OpenGL vertex tex coord buffer object.
-        levelSetVertexTexCoordBuffer = rc.getBufferObject(levelSetVertexTexCoordKey) {
+        levelSetVertexTexCoordBuffer = rc.getBufferObject(LEVEL_SET_VERTEX_TEX_COORD_KEY) {
             FloatBufferObject(GL_ARRAY_BUFFER, vertexTexCoords)
         }
 
         // Retrieve or create the level set's OpenGL element buffer object.
-        levelSetElementBuffer = rc.getBufferObject(levelSetElementKey) {
+        levelSetElementBuffer = rc.getBufferObject(LEVEL_SET_ELEMENT_KEY) {
             ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, lineElements + triStripElements).also {
                 levelSetLineElementRange.upper = lineElements.size
                 levelSetTriStripElementRange.lower = lineElements.size
@@ -260,5 +258,10 @@ open class BasicTessellator: Tessellator, TileFactory {
             }
         }
         return result
+    }
+
+    companion object {
+        private val LEVEL_SET_VERTEX_TEX_COORD_KEY = BasicTessellator::class.simpleName + ".vertexTexCoordKey"
+        private val LEVEL_SET_ELEMENT_KEY = BasicTessellator::class.simpleName + ".elementKey"
     }
 }
