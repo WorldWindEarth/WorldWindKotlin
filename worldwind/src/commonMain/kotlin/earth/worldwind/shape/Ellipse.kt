@@ -304,7 +304,11 @@ open class Ellipse @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getBufferObject(lineElementBufferKey) {
-            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray())
+            val array = IntArray(outlineElements.size + verticalElements.size)
+            var index = 0
+            for (element in outlineElements) array[index++] = element
+            for (element in verticalElements) array[index++] = element
+            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
         }
 
         drawInterior(rc, drawState)
@@ -502,7 +506,7 @@ open class Ellipse @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset : Int, firstOrLast : Boolean
     ) {
         val vertex = (lineVertexIndex / LINE_VERTEX_STRIDE - 1) * 2
-        var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
+        val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
         if (lineVertexIndex == 0) texCoord1d = 0.0
         else texCoord1d += point.distanceTo(prevPoint)
         prevPoint.copy(point)
@@ -537,7 +541,7 @@ open class Ellipse @JvmOverloads constructor(
                 outlineElements.add(vertex.inc())
             }
             if (isExtrude && !firstOrLast) {
-                var vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, scratchVertPoint)
+                val vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, scratchVertPoint)
                 val index =  verticalVertexIndex / LINE_VERTEX_STRIDE * 2
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()

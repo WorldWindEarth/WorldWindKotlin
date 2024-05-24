@@ -185,9 +185,11 @@ open class Polygon @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
-            IntBufferObject(
-                GL_ELEMENT_ARRAY_BUFFER, (topElements + sideElements).toIntArray()
-            )
+            val array = IntArray(topElements.size + sideElements.size)
+            var index = 0
+            for (element in topElements) array[index++] = element
+            for (element in sideElements) array[index++] = element
+            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
         }
 
         // Use triangles mode to draw lines
@@ -203,9 +205,11 @@ open class Polygon @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getBufferObject(elementLinesBufferKey) {
-            IntBufferObject(
-                GL_ELEMENT_ARRAY_BUFFER, (outlineElements + verticalElements).toIntArray()
-            )
+            val array = IntArray(outlineElements.size + verticalElements.size)
+            var index = 0
+            for (element in outlineElements) array[index++] = element
+            for (element in verticalElements) array[index++] = element
+            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
         }
 
         drawInterior(rc, drawState)

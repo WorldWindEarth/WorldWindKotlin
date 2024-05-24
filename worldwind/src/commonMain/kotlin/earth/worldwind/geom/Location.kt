@@ -147,8 +147,7 @@ open class Location(
 
         @JvmStatic
         fun fromString(coordinates: String): Location {
-            val tokens = coordinates.replace("[*'\"NSEW;°′″,]".toRegex(), " ").trim { it <= ' ' }
-                .split("\\s+".toRegex()).toTypedArray()
+            val tokens = coordinates.replace("[*'\"NSEW;°′″,]".toRegex(), " ").trim { it <= ' ' }.split("\\s+".toRegex())
             // Lat
             var lat = 0.0
             var exponent = 0

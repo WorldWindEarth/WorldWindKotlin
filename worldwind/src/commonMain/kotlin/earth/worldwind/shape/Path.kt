@@ -100,7 +100,12 @@ open class Path @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
-            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, (interiorElements + outlineElements + verticalElements).toIntArray())
+            val array = IntArray(interiorElements.size + outlineElements.size + verticalElements.size)
+            var index = 0
+            for (element in interiorElements) array[index++] = element
+            for (element in outlineElements) array[index++] = element
+            for (element in verticalElements) array[index++] = element
+            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
         }
 
         // Configure the drawable to use the outline texture when drawing the outline.
@@ -245,7 +250,7 @@ open class Path @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, firstOrLast : Boolean
     ) {
         val vertex = (vertexIndex / VERTEX_STRIDE - 1) * 2
-        var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
+        val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertexIndex == 0) {
             if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
             else vertexOrigin.copy(point)
@@ -286,7 +291,7 @@ open class Path @JvmOverloads constructor(
                 outlineElements.add(vertex.inc())
             }
             if (isExtrude) {
-                var vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, verticalPoint)
+                val vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, verticalPoint)
 
                 val extrudeVertex =  (extrudeIndex / VERTEX_STRIDE - 1) * 2
 

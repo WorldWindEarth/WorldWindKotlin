@@ -69,8 +69,7 @@ class GKCoord private constructor(val latitude: Angle, val longitude: Angle, val
          */
         @JvmStatic
         fun fromString(xyString: String): GKCoord {
-            val tokens = xyString.replace("[-.,;]".toRegex(), "").trim { it <= ' ' }
-                .split("\\s+".toRegex()).toTypedArray()
+            val tokens = xyString.replace("[-.,;]".toRegex(), "").trim { it <= ' ' }.split("\\s+".toRegex())
             require(tokens.size >= 2 && tokens[1].length > 6) { "Gauss-Kruger Conversion Error" }
             val x = tokens[0].toDouble()
             val y = tokens[1].toDouble()

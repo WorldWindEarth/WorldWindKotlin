@@ -68,8 +68,7 @@ class UTMCoord private constructor(
          */
         @JvmStatic
         fun fromString(UTMString: String): UTMCoord {
-            val separated = UTMString.trim { it <= ' ' }.replace(" +".toRegex(), " ")
-                .split(" ").toTypedArray()
+            val separated = UTMString.trim { it <= ' ' }.replace(" +".toRegex(), " ").split(" ")
              return fromUTM(
                 separated[0].toInt(),
                 if (separated[1] == "S") Hemisphere.S else Hemisphere.N, //Hemisphere.valueOf(separated[1]),

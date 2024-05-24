@@ -471,7 +471,7 @@ value class Angle private constructor(
             }
 
             // Extract degrees, minutes and seconds
-            val dmsArray = dms.split(" ").toTypedArray()
+            val dmsArray = dms.split(" ")
             val d = dmsArray[0].toInt()
             val m = if (dmsArray.size > 1) dmsArray[1].toInt() else 0
             val s = if (dmsArray.size > 2) dmsArray[2].toDouble() else 0.0
