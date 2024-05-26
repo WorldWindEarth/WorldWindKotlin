@@ -78,6 +78,10 @@ open class Label @JvmOverloads constructor(
      * Indicates whether this placemark has visual priority over other shapes in the scene.
      */
     var isAlwaysOnTop = false
+    /**
+     * Sets the eye altitude, in meters, above which this label is not displayed.
+     */
+    var visibilityThreshold = 0.0
 
     companion object {
         /**
@@ -113,6 +117,9 @@ open class Label @JvmOverloads constructor(
         // Compute the camera distance to the place point, the value which is used for ordering the label drawable and
         // determining the amount of depth offset to apply.
         renderData.cameraDistance = if (isAlwaysOnTop) 0.0 else if (rc.globe.is2D) rc.viewingDistance else rc.cameraPoint.distanceTo(renderData.placePoint)
+
+        // Do not draw labels after the specified threshold
+        if (visibilityThreshold > 0.0 && renderData.cameraDistance > visibilityThreshold) return
 
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0
