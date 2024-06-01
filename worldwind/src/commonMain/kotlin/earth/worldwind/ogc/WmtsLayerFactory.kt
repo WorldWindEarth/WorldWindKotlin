@@ -7,6 +7,9 @@ import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
+import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_COL_TEMPLATE
+import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_MATRIX_TEMPLATE
+import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_ROW_TEMPLATE
 import earth.worldwind.ogc.wmts.WmtsCapabilities
 import earth.worldwind.ogc.wmts.WmtsLayer
 import earth.worldwind.ogc.wmts.WmtsTileMatrixSet
@@ -150,10 +153,7 @@ object WmtsLayerFactory {
         .appendQueryParameter("STYLE", styleIdentifier)
         .appendQueryParameter("FORMAT", format)
         .appendQueryParameter("TILEMATRIXSET", tileMatrixSet)
-        .appendQueryParameter("TILEMATRIX", WmtsTileFactory.TILE_MATRIX_TEMPLATE)
-        .appendQueryParameter("TILEROW", WmtsTileFactory.TILE_ROW_TEMPLATE)
-        .appendQueryParameter("TILECOL", WmtsTileFactory.TILE_COL_TEMPLATE)
-        .build().toString()
+        .build().toString() + "&TILEMATRIX=$TILE_MATRIX_TEMPLATE&TILEROW=$TILE_ROW_TEMPLATE&TILECOL=$TILE_COL_TEMPLATE"
 
     private fun determineCompatibleTileMatrixSet(tileMatrixSets: List<WmtsTileMatrixSet>): TileMatrixSet? {
         // Iterate through each provided tile matrix set
