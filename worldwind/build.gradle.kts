@@ -45,7 +45,7 @@ kotlin {
         val ormliteVersion = "6.1"
         val commonMain by getting {
             dependencies {
-                api("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+                api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
@@ -113,8 +113,8 @@ kotlin {
         val androidMain by getting {
             dependsOn(jvmCommonMain)
             dependencies {
-                implementation("androidx.annotation:annotation:1.7.1")
-                implementation("androidx.appcompat:appcompat-resources:1.6.1")
+                implementation("androidx.annotation:annotation:1.8.0")
+                implementation("androidx.appcompat:appcompat-resources:1.7.0")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.60")
                 implementation("com.j256.ormlite:ormlite-android:$ormliteVersion")
             }
