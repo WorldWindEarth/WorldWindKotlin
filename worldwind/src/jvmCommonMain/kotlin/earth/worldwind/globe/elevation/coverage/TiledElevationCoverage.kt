@@ -53,6 +53,7 @@ actual open class TiledElevationCoverage actual constructor(
      *
      * @param sector     the sector to download data for.
      * @param resolution the desired resolution range in angular value of latitude per texel.
+     * @param overrideCache ignores available cache and re-downloads the whole sector from scratch
      * @param scope      custom coroutine scope for better job management. Global scope by default.
      * @param onProgress an optional retrieval listener, indication successful, failed and total tiles amount.
      *
@@ -65,7 +66,8 @@ actual open class TiledElevationCoverage actual constructor(
     @OptIn(DelicateCoroutinesApi::class)
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
-        sector: Sector, resolution: ClosedRange<Angle>, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
+        sector: Sector, resolution: ClosedRange<Angle>, overrideCache: Boolean = false,
+        scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
         val cacheTileFactory = cacheSourceFactory ?: error("Cache not configured")
         require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }
@@ -86,9 +88,8 @@ actual open class TiledElevationCoverage actual constructor(
                         ++attempt
                         val cacheSource = cacheTileFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col)
                         // Check if tile exists in cache. If cache retrieval fail, then normal tile source will be requested.
-                        // TODO If retrieved cache source is outdated, then retrieve original tile source to refresh cache
                         val success = elevationDecoder.run {
-                            decodeElevation(cacheSource) ?: decodeElevation(
+                            (if (overrideCache) null else decodeElevation(cacheSource)) ?: decodeElevation(
                                 elevationSourceFactory.createElevationSource(tile.tileMatrix, tile.row, tile.col).also {
                                     // Assign buffer postprocessor to save retrieved online tile to cache
                                     val source = cacheSource.asUnrecognized()

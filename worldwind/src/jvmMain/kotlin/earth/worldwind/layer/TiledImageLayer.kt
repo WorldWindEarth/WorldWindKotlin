@@ -27,6 +27,7 @@ actual open class TiledImageLayer actual constructor(
      *
      * @param sector     the sector to download data for.
      * @param resolution the desired resolution range in angular value of latitude per pixel.
+     * @param overrideCache ignores available cache and re-downloads the whole sector from scratch
      * @param scope      custom coroutine scope for better job management. Global scope by default.
      * @param onProgress an optional retrieval listener, indication successful, failed and total tiles amount.
      *
@@ -39,13 +40,15 @@ actual open class TiledImageLayer actual constructor(
     @OptIn(DelicateCoroutinesApi::class)
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
-        sector: Sector, resolution: ClosedRange<Angle>, scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
+        sector: Sector, resolution: ClosedRange<Angle>, overrideCache: Boolean = false,
+        scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
     ): Job {
         val imageDecoder = ImageDecoder()
         return tiledSurfaceImage?.launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->
             // Check if tile exists in cache. If cache retrieval fail, then image source will be requested.
-            // TODO If retrieved cache source is outdated, then retrieve original image source to refresh cache
-            imageDecoder.run { decodeImage(cacheSource, options) ?: decodeImage(imageSource, options) }?.let {
+            imageDecoder.run {
+                (if (overrideCache) null else decodeImage(cacheSource, options)) ?: decodeImage(imageSource, options)
+            }?.let {
                 // Un-mark cache source from an absent list
                 WorldWind.unmarkResourceAbsent(cacheSource.hashCode())
                 true
