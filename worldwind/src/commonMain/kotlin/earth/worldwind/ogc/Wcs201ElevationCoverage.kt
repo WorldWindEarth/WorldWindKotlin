@@ -5,7 +5,11 @@ import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
+import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
+import earth.worldwind.geom.TileMatrixSet.Companion.fromTilePyramid
+import earth.worldwind.globe.elevation.ElevationSource
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.ogc.gml.GmlRectifiedGrid
@@ -29,22 +33,24 @@ import nl.adaptivity.xmlutil.serialization.XML
 
 /**
  * Generates elevations from OGC Web Coverage Service (WCS) version 2.0.1.
- * <br></br>
  * Wcs201ElevationCoverage requires the WCS service address, coverage name, and coverage bounding sector. Get Coverage
  * requests generated for retrieving data use the WCS version 2.0.1 protocol and are limited to the "image/tiff" format
  * and the EPSG:4326 coordinate system. Wcs201ElevationCoverage does not perform version negotiation and assumes the
  * service supports the format and coordinate system parameters detailed here. The subset CRS is configured as EPSG:4326
  * and the axis labels are set as "Lat" and "Long". The scaling axis labels are set as:
- * <br></br>
  * http://www.opengis.net/def/axis/OGC/1/i and http://www.opengis.net/def/axis/OGC/1/j
  */
-open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage {
+open class Wcs201ElevationCoverage private constructor(
+    final override val serviceAddress: String,
+    final override val coverageName: String,
+    final override val outputFormat: String,
+    tileMatrixSet: TileMatrixSet,
+    elevationSourceFactory: ElevationSourceFactory,
+    serviceMetadata: String? = null
+): TiledElevationCoverage(tileMatrixSet, elevationSourceFactory), WebElevationCoverage {
     final override val serviceType = SERVICE_TYPE
-    final override val serviceAddress: String
-    final override val coverageName: String
-    final override var serviceMetadata: String? = null
+    final override var serviceMetadata = serviceMetadata
         private set
-    final override val outputFormat: String
     protected val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
 
     /**
@@ -59,14 +65,11 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
      *
      * @throws IllegalArgumentException If any argument is null or if the number of levels is less than 0
      */
-    constructor(serviceAddress: String, coverageName: String, outputFormat: String, sector: Sector, resolution: Angle): super(
-        TileMatrixSet.fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
+    constructor(serviceAddress: String, coverageName: String, outputFormat: String, sector: Sector, resolution: Angle): this(
+        serviceAddress, coverageName, outputFormat,
+        fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution),
         Wcs201ElevationSourceFactory(serviceAddress, coverageName, outputFormat)
-    ) {
-        this.serviceAddress = serviceAddress
-        this.coverageName = coverageName
-        this.outputFormat = outputFormat
-    }
+    )
 
     /**
      * Attempts to construct a Web Coverage Service (WCS) elevation coverage with the provided service address and
@@ -79,11 +82,9 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
      * @param outputFormat     the WCS source data format
      * @param serviceMetadata optional WCS coverage description XML string to avoid online coverages request
      */
-    constructor(serviceAddress: String, coverageName: String, outputFormat: String, serviceMetadata: String? = null) {
-        this.serviceAddress = serviceAddress
-        this.coverageName = coverageName
-        this.outputFormat = outputFormat
-        this.serviceMetadata = serviceMetadata
+    constructor(serviceAddress: String, coverageName: String, outputFormat: String, serviceMetadata: String? = null): this(
+        serviceAddress, coverageName, outputFormat, TileMatrixSet(), dummyElevationSource(), serviceMetadata
+    ) {
         mainScope.launch {
             try {
                 // Fetch the DescribeCoverage document and determine the bounding box and number of levels
@@ -112,6 +113,13 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
                 )
             }
         }
+    }
+
+    override fun clone() = Wcs201ElevationCoverage(
+        serviceAddress, coverageName, outputFormat, tileMatrixSet, elevationSourceFactory, serviceMetadata
+    ).also {
+        it.displayName = displayName
+        it.sector.copy(sector)
     }
 
     protected open fun tileMatrixSetFromCoverageDescription(coverageDescription: Wcs201CoverageDescription): TileMatrixSet {
@@ -183,5 +191,15 @@ open class Wcs201ElevationCoverage: TiledElevationCoverage, WebElevationCoverage
 
     companion object {
         const val SERVICE_TYPE = "WCS 2.0.1"
+
+        /**
+         * This is a dummy workaround for asynchronously defined ElevationSourceFactory
+         */
+        private fun dummyElevationSource() = object : ElevationSourceFactory {
+            override val contentType = "Dummy"
+
+            override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) =
+                ElevationSource.fromUnrecognized(Any())
+        }
     }
 }

@@ -7,7 +7,6 @@ import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.CacheSourceFactory
 import earth.worldwind.globe.elevation.ElevationDecoder
 import earth.worldwind.globe.elevation.ElevationSource
-import earth.worldwind.globe.elevation.ElevationSource.Companion.fromUnrecognized
 import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
@@ -26,15 +25,6 @@ actual open class TiledElevationCoverage actual constructor(
     override var cacheSourceFactory: CacheSourceFactory? = null
     override var isCacheOnly = false
     protected val elevationDecoder = ElevationDecoder()
-
-    /**
-     * This is a dummy workaround for asynchronously defined ElevationSourceFactory
-     */
-    actual constructor(): this(TileMatrixSet(), object : ElevationSourceFactory {
-        override val contentType = "Dummy"
-
-        override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
-    })
 
     /**
      * Makes a copy of this elevation coverage

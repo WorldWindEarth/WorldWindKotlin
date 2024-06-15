@@ -11,20 +11,33 @@ import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 
 /**
  * Generates elevations from OGC Web Map Service (WMS) version 1.3.0.
- *
- * @param serviceAddress OGC Web Map Service (WMS) server address
- * @param coverageName comma-separated coverage names
- * @param outputFormat required image format
- * @param sector bounding sector
- * @param resolution the target resolution in angular value of latitude per texel
  */
-open class WmsElevationCoverage(
+open class WmsElevationCoverage private constructor(
     override val serviceAddress: String, override val coverageName: String, override  val outputFormat: String,
-    sector: Sector, resolution: Angle
-): TiledElevationCoverage(
-    buildTileMatrixSet(sector, resolution), buildElevationSourceFactory(serviceAddress, coverageName, outputFormat)
-), WebElevationCoverage {
+    tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
+): TiledElevationCoverage(tileMatrixSet, elevationSourceFactory), WebElevationCoverage {
     override val serviceType = SERVICE_TYPE
+
+    /**
+     * @param serviceAddress OGC Web Map Service (WMS) server address
+     * @param coverageName comma-separated coverage names
+     * @param outputFormat required image format
+     * @param sector bounding sector
+     * @param resolution the target resolution in angular value of latitude per texel
+     */
+    constructor(
+        serviceAddress: String, coverageName: String, outputFormat: String, sector: Sector, resolution: Angle
+    ) : this(
+        serviceAddress, coverageName, outputFormat,
+        buildTileMatrixSet(sector, resolution), buildElevationSourceFactory(serviceAddress, coverageName, outputFormat)
+    )
+
+    override fun clone() = WmsElevationCoverage(
+        serviceAddress, coverageName, outputFormat, tileMatrixSet, elevationSourceFactory
+    ).also {
+        it.displayName = displayName
+        it.sector.copy(sector)
+    }
 
     companion object {
         const val SERVICE_TYPE = "WMS"

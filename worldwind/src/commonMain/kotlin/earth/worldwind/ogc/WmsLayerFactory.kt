@@ -4,7 +4,6 @@ import com.eygraber.uri.Uri
 import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.TiledImageLayer
-import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.ogc.wms.WmsCapabilities
 import earth.worldwind.ogc.wms.WmsLayer
 import earth.worldwind.shape.TiledSurfaceImage
@@ -24,8 +23,6 @@ import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
-
-    const val SERVICE_TYPE = "WMS"
     private const val DEFAULT_WMS_NUM_LEVELS = 20
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
@@ -71,16 +68,10 @@ object WmsLayerFactory {
 
     private fun createWmsImageLayer(
         serviceAddress: String, serviceMetadata: String, wmsLayers: List<WmsLayer>, name: String?
-    ): TiledImageLayer = object : TiledImageLayer(
+    ) = WmsImageLayer(
+        serviceAddress, serviceMetadata, wmsLayers.mapNotNull { lc -> lc.name }.joinToString(","),
         name ?: wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)
-    ), WebImageLayer {
-        override val serviceType = SERVICE_TYPE
-        override val serviceAddress = serviceAddress
-        override val serviceMetadata = serviceMetadata
-        override val layerName = wmsLayers.mapNotNull { lc -> lc.name }.joinToString(",")
-        override val imageFormat get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.imageFormat ?: "image/png"
-        override val isTransparent get() = (tiledSurfaceImage?.tileFactory as? WmsTileFactory)?.isTransparent ?: true
-    }
+    )
 
     private fun createWmsSurfaceImage(wmsLayers: List<WmsLayer>): TiledSurfaceImage {
         // Check if the server supports multiple layer request

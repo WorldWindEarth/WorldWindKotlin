@@ -1,14 +1,13 @@
 package earth.worldwind.globe.elevation.coverage
 
+import earth.worldwind.formats.geotiff.GeoTiffReader
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
-import earth.worldwind.globe.elevation.ElevationSource.Companion.fromUnrecognized
 import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
-import earth.worldwind.formats.geotiff.GeoTiffReader
 import io.ktor.client.fetch.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.await
@@ -22,15 +21,6 @@ import kotlin.math.roundToInt
 actual open class TiledElevationCoverage actual constructor(
     tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
 ) : AbstractTiledElevationCoverage(tileMatrixSet, elevationSourceFactory) {
-    /**
-     * This is a dummy workaround for asynchronously defined ElevationSourceFactory
-     */
-    actual constructor(): this(TileMatrixSet(), object : ElevationSourceFactory {
-        override val contentType = "Dummy"
-
-        override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int) = fromUnrecognized(Any())
-    })
-
     /**
      * Makes a copy of this elevation coverage
      */

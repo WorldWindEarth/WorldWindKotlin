@@ -7,6 +7,7 @@ import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
+import earth.worldwind.layer.mercator.WebMercatorImageLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.COVERAGE
@@ -49,17 +50,17 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 geoPackage.getWebService(content)?.let { service ->
                     runCatching {
                         when (service.type) {
-                            WmsLayerFactory.SERVICE_TYPE -> WmsLayerFactory.createLayer(
+                            WmsImageLayer.SERVICE_TYPE -> WmsLayerFactory.createLayer(
                                 service.address, service.layerName?.split(",") ?: error("Layer not specified"),
                                 service.metadata, content.identifier
                             )
 
-                            WmtsLayerFactory.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
+                            WmtsImageLayer.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
                                 service.address, service.layerName ?: error("Layer not specified"),
                                 service.metadata, content.identifier
                             )
 
-                            WebMercatorLayerFactory.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
+                            WebMercatorImageLayer.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
                                 service.address, service.outputFormat, service.isTransparent,
                                 content.identifier, config.numLevels, config.tileHeight, config.levelOffset
                             )

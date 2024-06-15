@@ -9,7 +9,7 @@ import earth.worldwind.util.LevelSet
 open class MercatorTiledImageLayer(
     name: String? = null, tiledSurfaceImage: MercatorTiledSurfaceImage? = null
 ): TiledImageLayer(name, tiledSurfaceImage) {
-    override fun clone() = MercatorTiledImageLayer(displayName, tiledSurfaceImage?.clone() as MercatorTiledSurfaceImage)
+    override fun clone() = MercatorTiledImageLayer(displayName, tiledSurfaceImage?.clone() as? MercatorTiledSurfaceImage)
 
     companion object {
         fun buildTiledSurfaceImage(

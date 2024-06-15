@@ -6,7 +6,6 @@ import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.layer.TiledImageLayer
-import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_COL_TEMPLATE
 import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_MATRIX_TEMPLATE
 import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_ROW_TEMPLATE
@@ -31,8 +30,6 @@ import kotlinx.serialization.decodeFromString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmtsLayerFactory {
-
-    const val SERVICE_TYPE = "WMTS"
     private const val PIXEL_SIZE = 0.28E-3 // Standardized rendering pixel size (0.28mm)
     private const val STYLE_TEMPLATE = "{style}"
     private const val TILE_MATRIX_SET_TEMPLATE = "{TileMatrixSet}"
@@ -80,14 +77,9 @@ object WmtsLayerFactory {
 
     private fun createWmtsImageLayer(
         serviceAddress: String, serviceMetadata: String, wmtsLayer: WmtsLayer, name: String?
-    ): TiledImageLayer = object : TiledImageLayer(name ?: wmtsLayer.title, createWmtsSurfaceImage(wmtsLayer)), WebImageLayer {
-        override val serviceType = SERVICE_TYPE
-        override val serviceAddress = serviceAddress
-        override val serviceMetadata = serviceMetadata
-        override val layerName = wmtsLayer.identifier
-        override val imageFormat get() = (tiledSurfaceImage?.tileFactory as? WmtsTileFactory)?.imageFormat ?: "image/png"
-        override val isTransparent = true // WMTS has no transparency data available
-    }
+    ) = WmtsImageLayer(
+        serviceAddress, serviceMetadata, wmtsLayer.identifier, name ?: wmtsLayer.title, createWmtsSurfaceImage(wmtsLayer)
+    )
 
     private fun createWmtsSurfaceImage(wmtsLayer: WmtsLayer): TiledSurfaceImage {
         // Search the list of coordinate system compatible tile matrix sets for compatible tiling schemes

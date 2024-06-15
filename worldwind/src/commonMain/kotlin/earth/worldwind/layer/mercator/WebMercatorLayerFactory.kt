@@ -1,13 +1,11 @@
 package earth.worldwind.layer.mercator
 
-import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.MercatorTiledImageLayer.Companion.buildTiledSurfaceImage
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.locale.language
 import kotlin.random.Random
 
 object WebMercatorLayerFactory {
-    const val SERVICE_TYPE = "XYZ"
     private const val OPEN_BRACKET = '{'
     private const val CLOSED_BRACKET = '}'
     private const val I_EXPRESSION = "{i}"
@@ -20,7 +18,7 @@ object WebMercatorLayerFactory {
     fun createLayer(
         urlTemplate: String, imageFormat: String = "image/png", transparent: Boolean = false,
         name: String? = null, numLevels: Int = 22, tileSize: Int = 256, levelOffset: Int = 1
-    ): MercatorTiledImageLayer {
+    ): WebMercatorImageLayer {
         val urlParts = parseUrl(urlTemplate)
         val randomValue = urlParts.find { it.startsWith(RAND_PREFIX) }
         val randomValues = randomValue?.removeSurrounding(RAND_PREFIX, "}")?.split(",")
@@ -46,12 +44,7 @@ object WebMercatorLayerFactory {
             }
         }
         val tiledSurfaceImage = buildTiledSurfaceImage(tileFactory, numLevels, tileSize, transparent, levelOffset)
-        return object : MercatorTiledImageLayer(name, tiledSurfaceImage), WebImageLayer {
-            override val serviceType = SERVICE_TYPE
-            override val serviceAddress = urlTemplate
-            override val imageFormat = imageFormat
-            override val isTransparent = transparent
-        }
+        return WebMercatorImageLayer(urlTemplate, imageFormat, transparent, name, tiledSurfaceImage)
     }
 
     private fun parseUrl(serverUrl: String): List<String> {
