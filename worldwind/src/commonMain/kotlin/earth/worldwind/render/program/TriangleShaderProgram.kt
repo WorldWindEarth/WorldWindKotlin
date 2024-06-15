@@ -11,7 +11,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
         """
             uniform mat4 mvpMatrix;
             uniform float lineWidth;
-            uniform float miterLengthCutoff;
+            uniform float invMiterLengthCutoff;
             uniform vec2 screen;
             uniform bool enableTexture;
             uniform bool enableOneVertexMode;
@@ -58,7 +58,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     
                     vec2 miter = vec2(-tangent.y, tangent.x);
                     vec2 normalA = vec2(-AB.y, AB.x);
-                    float miterLength = 1.0 / max(dot(miter, normalA), 1.0 / miterLengthCutoff);
+                    float miterLength = 1.0 / max(dot(miter, normalA), invMiterLengthCutoff);
                     
                     gl_Position = pointBScreen;
                     gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
@@ -106,7 +106,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
-    protected var miterLengthCutoff = 5.0f // in pixels, shouldn't be less than 1.0
+    protected var invMiterLengthCutoff = 1 / 5.0f // shouldn't be greater than 1.0 or equal 0.0
     protected var screenX = 0.0f
     protected var screenY = 0.0f
 
@@ -114,7 +114,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     protected var colorId = KglUniformLocation.NONE
     protected var opacityId = KglUniformLocation.NONE
     protected var lineWidthId = KglUniformLocation.NONE
-    protected var miterLengthCutoffId = KglUniformLocation.NONE
+    protected var invMiterLengthCutoffId = KglUniformLocation.NONE
     protected var screenId = KglUniformLocation.NONE
     protected var enablePickModeId = KglUniformLocation.NONE
     protected var enableTextureId = KglUniformLocation.NONE
@@ -136,8 +136,8 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
         gl.uniform1f(opacityId, opacity)
         lineWidthId = gl.getUniformLocation(program, "lineWidth")
         gl.uniform1f(lineWidthId, lineWidth)
-        miterLengthCutoffId = gl.getUniformLocation(program, "miterLengthCutoff")
-        gl.uniform1f(miterLengthCutoffId, miterLengthCutoff)
+        invMiterLengthCutoffId = gl.getUniformLocation(program, "invMiterLengthCutoff")
+        gl.uniform1f(invMiterLengthCutoffId, invMiterLengthCutoff)
         screenId = gl.getUniformLocation(program, "screen")
         gl.uniform2f(screenId, screenX, screenY)
 
@@ -209,9 +209,9 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     }
 
     fun loadMiterLengthCutoff(miterLengthCutoff : Float) {
-        if (this.miterLengthCutoff != miterLengthCutoff) {
-            this.miterLengthCutoff = miterLengthCutoff
-            gl.uniform1f(miterLengthCutoffId, miterLengthCutoff)
+        if (this.invMiterLengthCutoff != 1.0f / miterLengthCutoff) {
+            this.invMiterLengthCutoff = 1.0f / miterLengthCutoff
+            gl.uniform1f(invMiterLengthCutoffId, invMiterLengthCutoff)
         }
     }
 
