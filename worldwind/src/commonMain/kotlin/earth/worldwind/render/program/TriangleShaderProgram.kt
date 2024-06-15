@@ -58,7 +58,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     
                     vec2 miter = vec2(-tangent.y, tangent.x);
                     vec2 normalA = vec2(-AB.y, AB.x);
-                    float miterLength = 1.0 / dot(miter, normalA);
+                    float miterLength = 1.0 / max(dot(miter, normalA), 0.00001);
                     miterLength = min(miterLength, miterLengthCutoff);
                     
                     gl_Position = pointBScreen;
