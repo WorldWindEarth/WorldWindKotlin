@@ -2,7 +2,6 @@ package earth.worldwind.util
 
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -69,11 +68,11 @@ open class Level internal constructor(
      * @param sector the desired sector to check tile count
      * @return Number of tiles which fit specified sector at this level
      */
-    fun tilesInSector(sector: Sector): Long {
-        val firstRow = Tile.computeRow(tileDelta.latitude, sector.minLatitude, parent.tileOrigin.minLatitude)
-        val lastRow = Tile.computeLastRow(tileDelta.latitude, sector.maxLatitude, parent.tileOrigin.minLatitude)
-        val firstCol = Tile.computeColumn(tileDelta.longitude, sector.minLongitude, parent.tileOrigin.minLongitude)
-        val lastCol = Tile.computeLastColumn(tileDelta.longitude, sector.maxLongitude, parent.tileOrigin.minLongitude)
-        return (lastRow - firstRow + 1).toLong() * (lastCol - firstCol + 1).toLong()
+    fun tilesInSector(sector: Sector) = with(parent.tileOrigin) {
+        val firstRow = computeRow(tileDelta.latitude, sector.minLatitude)
+        val lastRow = computeLastRow(tileDelta.latitude, sector.maxLatitude)
+        val firstCol = computeColumn(tileDelta.longitude, sector.minLongitude)
+        val lastCol = computeLastColumn(tileDelta.longitude, sector.maxLongitude)
+        (lastRow - firstRow + 1).toLong() * (lastCol - firstCol + 1).toLong()
     }
 }

@@ -1,14 +1,11 @@
 package earth.worldwind.util
 
-import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.render.RenderContext
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.cos
-import kotlin.math.floor
 
 /**
  * Geographically rectangular tile within a [LevelSet], typically representing terrain or imagery. Provides a base
@@ -143,74 +140,6 @@ open class Tile protected constructor(
         var isAccelerateDegradation = true
 
         /**
-         * Computes a row number for a tile within a level given the tile's latitude.
-         *
-         * @param tileDelta the level's tile delta
-         * @param latitude  the tile's minimum latitude
-         * @param origin    the origin of the grid
-         *
-         * @return the computed row number
-         */
-        @JvmStatic
-        fun computeRow(tileDelta: Angle, latitude: Angle, origin: Angle): Int {
-            var row = floor((latitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees).toInt()
-            // if latitude is at the end of the grid, subtract 1 from the computed row to return the last row
-            if (latitude.inDegrees - origin.inDegrees == 180.0) row -= 1
-            return row
-        }
-
-        /**
-         * Computes a column number for a tile within a level given the tile's longitude.
-         *
-         * @param tileDelta the level's tile delta
-         * @param longitude the tile's minimum longitude
-         * @param origin    the origin of the grid
-         *
-         * @return The computed column number
-         */
-        @JvmStatic
-        fun computeColumn(tileDelta: Angle, longitude: Angle, origin: Angle): Int {
-            var col = floor((longitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees).toInt()
-            // if longitude is at the end of the grid, subtract 1 from the computed column to return the last column
-            if (longitude.inDegrees - origin.inDegrees == 360.0) col -= 1
-            return col
-        }
-
-        /**
-         * Computes the last row number for a tile within a level given the tile's maximum latitude.
-         *
-         * @param tileDelta   the level's tile delta
-         * @param maxLatitude the tile's maximum latitude
-         * @param origin      the origin of the grid
-         *
-         * @return the computed row number
-         */
-        @JvmStatic
-        fun computeLastRow(tileDelta: Angle, maxLatitude: Angle, origin: Angle): Int {
-            var row = ceil((maxLatitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees - 1).toInt()
-            // if max latitude is in the first row, set the max row to 0
-            if (maxLatitude.inDegrees - origin.inDegrees < tileDelta.inDegrees) row = 0
-            return row
-        }
-
-        /**
-         * Computes the last column number for a tile within a level given the tile's maximum longitude.
-         *
-         * @param tileDelta    the level's tile delta
-         * @param maxLongitude the tile's maximum longitude
-         * @param origin       the origin of the grid
-         *
-         * @return The computed column number
-         */
-        @JvmStatic
-        fun computeLastColumn(tileDelta: Angle, maxLongitude: Angle, origin: Angle): Int {
-            var col = ceil((maxLongitude.inDegrees - origin.inDegrees) / tileDelta.inDegrees - 1).toInt()
-            // if max longitude is in the first column, set the max column to 0
-            if (maxLongitude.inDegrees - origin.inDegrees < tileDelta.inDegrees) col = 0
-            return col
-        }
-
-        /**
          * Creates all tiles for a specified level within a [LevelSet].
          *
          * @param level       the level to create the tiles for
@@ -224,10 +153,10 @@ open class Tile protected constructor(
             val sector = level.parent.sector
             val tileOrigin = level.parent.tileOrigin
             val tileDelta = level.tileDelta
-            val firstRow = computeRow(tileDelta.latitude, sector.minLatitude, tileOrigin.minLatitude)
-            val lastRow = computeLastRow(tileDelta.latitude, sector.maxLatitude, tileOrigin.minLatitude)
-            val firstCol = computeColumn(tileDelta.longitude, sector.minLongitude, tileOrigin.minLongitude)
-            val lastCol = computeLastColumn(tileDelta.longitude, sector.maxLongitude, tileOrigin.minLongitude)
+            val firstRow = tileOrigin.computeRow(tileDelta.latitude, sector.minLatitude)
+            val lastRow = tileOrigin.computeLastRow(tileDelta.latitude, sector.maxLatitude)
+            val firstCol = tileOrigin.computeColumn(tileDelta.longitude, sector.minLongitude)
+            val lastCol = tileOrigin.computeLastColumn(tileDelta.longitude, sector.maxLongitude)
             val firstRowLat = tileOrigin.minLatitude.plusDegrees(firstRow * tileDelta.latitude.inDegrees)
             val firstColLon = tileOrigin.minLongitude.plusDegrees(firstCol * tileDelta.longitude.inDegrees)
             var minLat = firstRowLat

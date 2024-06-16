@@ -1,8 +1,6 @@
 package earth.worldwind.geom
 
 import earth.worldwind.geom.Sector.Companion.fromDegrees
-import earth.worldwind.util.Tile
-import kotlin.math.ceil
 
 open class TileMatrix internal constructor(
     val sector: Sector, val ordinal: Int, val matrixWidth: Int, val matrixHeight: Int, val tileWidth: Int, val tileHeight: Int
@@ -30,13 +28,13 @@ open class TileMatrix internal constructor(
      * @param sector the desired sector to check tile count
      * @return Number of tiles which fit specified sector at this level
      */
-    fun tilesInSector(sector: Sector): Long {
-        val deltaLat = this.sector.deltaLatitude / matrixHeight
-        val deltaLon = this.sector.deltaLongitude / matrixWidth
-        val firstRow = Tile.computeRow(deltaLat, sector.minLatitude, this.sector.minLatitude)
-        val lastRow = Tile.computeLastRow(deltaLat, sector.maxLatitude, this.sector.minLatitude)
-        val firstCol = Tile.computeColumn(deltaLon, sector.minLongitude, this.sector.minLongitude)
-        val lastCol = Tile.computeLastColumn(deltaLon, sector.maxLongitude, this.sector.minLongitude)
-        return (lastRow - firstRow + 1).toLong() * (lastCol - firstCol + 1).toLong()
+    fun tilesInSector(sector: Sector) = with(this.sector) {
+        val deltaLat = deltaLatitude / matrixHeight
+        val deltaLon = deltaLongitude / matrixWidth
+        val firstRow = computeRow(deltaLat, sector.minLatitude)
+        val lastRow = computeLastRow(deltaLat, sector.maxLatitude)
+        val firstCol = computeColumn(deltaLon, sector.minLongitude)
+        val lastCol = computeLastColumn(deltaLon, sector.maxLongitude)
+        (lastRow - firstRow + 1).toLong() * (lastCol - firstCol + 1).toLong()
     }
 }

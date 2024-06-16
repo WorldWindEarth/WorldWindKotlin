@@ -16,6 +16,8 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * Geographic rectangular region.
@@ -449,6 +451,66 @@ open class Sector(
                 && abs(maxLatitude.inDegrees - other.maxLatitude.inDegrees) < tolerance
                 && abs(minLongitude.inDegrees - other.minLongitude.inDegrees) < tolerance
                 && abs(maxLongitude.inDegrees - other.maxLongitude.inDegrees) < tolerance
+    }
+
+    /**
+     * Computes a row number for a tile within a level given the tile's latitude.
+     *
+     * @param tileDelta the level's tile delta
+     * @param latitude  the tile's minimum latitude
+     *
+     * @return the computed row number
+     */
+    open fun computeRow(tileDelta: Angle, latitude: Angle): Int {
+        var row = floor((latitude.inDegrees - minLatitude.inDegrees) / tileDelta.inDegrees).toInt()
+        // if latitude is at the end of the grid, subtract 1 from the computed row to return the last row
+        if (latitude.inDegrees - minLatitude.inDegrees == 180.0) row -= 1
+        return row
+    }
+
+    /**
+     * Computes a column number for a tile within a level given the tile's longitude.
+     *
+     * @param tileDelta the level's tile delta
+     * @param longitude the tile's minimum longitude
+     *
+     * @return The computed column number
+     */
+    open fun computeColumn(tileDelta: Angle, longitude: Angle): Int {
+        var col = floor((longitude.inDegrees - minLongitude.inDegrees) / tileDelta.inDegrees).toInt()
+        // if longitude is at the end of the grid, subtract 1 from the computed column to return the last column
+        if (longitude.inDegrees - minLongitude.inDegrees == 360.0) col -= 1
+        return col
+    }
+
+    /**
+     * Computes the last row number for a tile within a level given the tile's maximum latitude.
+     *
+     * @param tileDelta the level's tile delta
+     * @param latitude  the tile's maximum latitude
+     *
+     * @return the computed row number
+     */
+    open fun computeLastRow(tileDelta: Angle, latitude: Angle): Int {
+        var row = ceil((latitude.inDegrees - minLatitude.inDegrees) / tileDelta.inDegrees - 1).toInt()
+        // if max latitude is in the first row, set the max row to 0
+        if (latitude.inDegrees - minLatitude.inDegrees < tileDelta.inDegrees) row = 0
+        return row
+    }
+
+    /**
+     * Computes the last column number for a tile within a level given the tile's maximum longitude.
+     *
+     * @param tileDelta the level's tile delta
+     * @param longitude the tile's maximum longitude
+     *
+     * @return The computed column number
+     */
+    open fun computeLastColumn(tileDelta: Angle, longitude: Angle): Int {
+        var col = ceil((longitude.inDegrees - minLongitude.inDegrees) / tileDelta.inDegrees - 1).toInt()
+        // if max longitude is in the first column, set the max column to 0
+        if (longitude.inDegrees - minLongitude.inDegrees < tileDelta.inDegrees) col = 0
+        return col
     }
 
     override fun equals(other: Any?): Boolean {

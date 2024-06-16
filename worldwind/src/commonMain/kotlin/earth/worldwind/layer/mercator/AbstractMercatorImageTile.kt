@@ -34,10 +34,10 @@ abstract class AbstractMercatorImageTile(
             val tileOrigin = fromSector(level.parent.tileOrigin)
             val dLat = level.tileDelta.latitude
             val dLon = level.tileDelta.longitude
-            val firstRow = computeRow(dLat, sector.minLatitude, tileOrigin.minLatitude)
-            val lastRow = computeLastRow(dLat, sector.maxLatitude, tileOrigin.minLatitude)
-            val firstCol = computeColumn(dLon, sector.minLongitude, tileOrigin.minLongitude)
-            val lastCol = computeLastColumn(dLon, sector.maxLongitude, tileOrigin.minLongitude)
+            val firstRow = tileOrigin.computeRow(dLat, sector.minLatitude)
+            val lastRow = tileOrigin.computeLastRow(dLat, sector.maxLatitude)
+            val firstCol = tileOrigin.computeColumn(dLon, sector.minLongitude)
+            val lastCol = tileOrigin.computeLastColumn(dLon, sector.maxLongitude)
             val dPercent = tileOrigin.maxLatPercent - tileOrigin.minLatPercent
             val dLatPercent = dLat.inDegrees / tileOrigin.deltaLatitude.inDegrees * dPercent
             val firstRowPercent = gudermannianInverse(tileOrigin.minLatitude) + firstRow * dLatPercent
