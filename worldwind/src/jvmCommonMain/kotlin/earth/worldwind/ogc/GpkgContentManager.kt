@@ -67,6 +67,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
 
                             else -> null // It is not a known Web Layer type
                         }?.apply {
+                            // Apply bounding sector from content
+                            tiledSurfaceImage?.levelSet?.sector?.copy(config.sector)
                             // Configure cache for Web Layer
                             tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(geoPackage, content, service.outputFormat)
                         }
