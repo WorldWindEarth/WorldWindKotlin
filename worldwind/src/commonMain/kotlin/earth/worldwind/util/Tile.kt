@@ -221,12 +221,13 @@ open class Tile protected constructor(
          */
         @JvmStatic
         fun assembleTilesForLevel(level: Level, tileFactory: TileFactory, result: MutableList<Tile>): List<Tile> {
+            val sector = level.parent.sector
             val tileOrigin = level.parent.tileOrigin
             val tileDelta = level.tileDelta
-            val firstRow = computeRow(tileDelta.latitude, tileOrigin.minLatitude, tileOrigin.minLatitude)
-            val lastRow = computeLastRow(tileDelta.latitude, tileOrigin.maxLatitude, tileOrigin.minLatitude)
-            val firstCol = computeColumn(tileDelta.longitude, tileOrigin.minLongitude, tileOrigin.minLongitude)
-            val lastCol = computeLastColumn(tileDelta.longitude, tileOrigin.maxLongitude, tileOrigin.minLongitude)
+            val firstRow = computeRow(tileDelta.latitude, sector.minLatitude, tileOrigin.minLatitude)
+            val lastRow = computeLastRow(tileDelta.latitude, sector.maxLatitude, tileOrigin.minLatitude)
+            val firstCol = computeColumn(tileDelta.longitude, sector.minLongitude, tileOrigin.minLongitude)
+            val lastCol = computeLastColumn(tileDelta.longitude, sector.maxLongitude, tileOrigin.minLongitude)
             val firstRowLat = tileOrigin.minLatitude.plusDegrees(firstRow * tileDelta.latitude.inDegrees)
             val firstColLon = tileOrigin.minLongitude.plusDegrees(firstCol * tileDelta.longitude.inDegrees)
             var minLat = firstRowLat

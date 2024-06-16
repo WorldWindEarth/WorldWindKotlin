@@ -248,7 +248,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         }
     }
 
-    protected open fun invalidateTiles() {
+    open fun invalidateTiles() {
         topLevelTiles.clear()
         tileCache.clear()
     }
