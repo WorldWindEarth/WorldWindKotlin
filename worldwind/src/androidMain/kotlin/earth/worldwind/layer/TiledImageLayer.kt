@@ -43,7 +43,7 @@ actual open class TiledImageLayer actual constructor(
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
         context: Context, sector: Sector, resolution: ClosedRange<Angle>, overrideCache: Boolean = false,
-        scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
+        scope: CoroutineScope = GlobalScope, onProgress: ((Long, Long, Long) -> Unit)? = null
     ): Job {
         val imageDecoder = ImageDecoder(context)
         return tiledSurfaceImage?.launchBulkRetrieval(scope, sector, resolution, onProgress) { imageSource, cacheSource, options ->

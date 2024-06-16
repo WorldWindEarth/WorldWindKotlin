@@ -69,11 +69,11 @@ open class Level internal constructor(
      * @param sector the desired sector to check tile count
      * @return Number of tiles which fit specified sector at this level
      */
-    fun tilesInSector(sector: Sector): Int {
+    fun tilesInSector(sector: Sector): Long {
         val firstRow = Tile.computeRow(tileDelta.latitude, sector.minLatitude, parent.tileOrigin.minLatitude)
         val lastRow = Tile.computeLastRow(tileDelta.latitude, sector.maxLatitude, parent.tileOrigin.minLatitude)
         val firstCol = Tile.computeColumn(tileDelta.longitude, sector.minLongitude, parent.tileOrigin.minLongitude)
         val lastCol = Tile.computeLastColumn(tileDelta.longitude, sector.maxLongitude, parent.tileOrigin.minLongitude)
-        return (lastRow - firstRow + 1) * (lastCol - firstCol + 1)
+        return (lastRow - firstRow + 1).toLong() * (lastCol - firstCol + 1).toLong()
     }
 }

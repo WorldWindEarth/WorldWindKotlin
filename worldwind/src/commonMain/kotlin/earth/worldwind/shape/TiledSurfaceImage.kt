@@ -101,7 +101,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
 
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     open fun launchBulkRetrieval(
-        scope: CoroutineScope, sector: Sector, resolution: ClosedRange<Angle>, onProgress: ((Int, Int, Int) -> Unit)?,
+        scope: CoroutineScope, sector: Sector, resolution: ClosedRange<Angle>, onProgress: ((Long, Long, Long) -> Unit)?,
         retrieveTile: suspend (imageSource: ImageSource, cacheSource: ImageSource, options: ImageOptions?) -> Boolean
     ): Job {
         val cacheTileFactory = cacheTileFactory ?: error("Cache not configured")
@@ -110,8 +110,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
             val minLevel = levelSet.levelForResolution(resolution.endInclusive)
             val maxLevel = levelSet.levelForResolution(resolution.start)
             val tileCount = levelSet.tileCount(sector, minLevel, maxLevel)
-            var downloaded = 0
-            var skipped = 0
+            var downloaded = 0L
+            var skipped = 0L
             if (topLevelTiles.isEmpty()) createTopLevelTiles()
             topLevelTiles.forEach { topLevelTile ->
                 processAndSubdivideTile(topLevelTile as ImageTile, sector, minLevel, maxLevel) { tile ->

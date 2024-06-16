@@ -57,7 +57,7 @@ actual open class TiledElevationCoverage actual constructor(
     @Throws(IllegalStateException::class, IllegalArgumentException::class)
     fun makeLocal(
         sector: Sector, resolution: ClosedRange<Angle>, overrideCache: Boolean = false,
-        scope: CoroutineScope = GlobalScope, onProgress: ((Int, Int, Int) -> Unit)? = null
+        scope: CoroutineScope = GlobalScope, onProgress: ((Long, Long, Long) -> Unit)? = null
     ): Job {
         val cacheTileFactory = cacheSourceFactory ?: error("Cache not configured")
         require(sector.intersect(tileMatrixSet.sector)) { "Sector does not intersect elevation coverage sector" }
@@ -65,8 +65,8 @@ actual open class TiledElevationCoverage actual constructor(
             val minIdx = tileMatrixSet.indexOfMatrixNearest(resolution.endInclusive)
             val maxIdx = tileMatrixSet.indexOfMatrixNearest(resolution.start)
             val tileCount = tileMatrixSet.tileCount(sector, minIdx, maxIdx)
-            var downloaded = 0
-            var skipped = 0
+            var downloaded = 0L
+            var skipped = 0L
             processTiles(sector, minIdx, maxIdx) { tile ->
                 var attempt = 0
                 // Retry download attempts till success or 404 not fond or job canceled

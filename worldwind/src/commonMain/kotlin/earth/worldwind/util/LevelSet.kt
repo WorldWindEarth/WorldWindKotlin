@@ -192,8 +192,8 @@ open class LevelSet {
      * @param maxLevel maximal required level
      * @return tiles count
      */
-    fun tileCount(sector: Sector, minLevel: Level, maxLevel: Level): Int {
-        var tileCount = 0
+    fun tileCount(sector: Sector, minLevel: Level, maxLevel: Level): Long {
+        var tileCount = 0L
         var level = minLevel
         do {
             tileCount += level.tilesInSector(sector)

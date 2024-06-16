@@ -63,8 +63,8 @@ open class TileMatrixSet(val sector: Sector, val entries: List<TileMatrix>) {
      * @param maxIdx maximal required index of matrix
      * @return tiles count
      */
-    fun tileCount(sector: Sector, minIdx: Int, maxIdx: Int): Int {
-        var tileCount = 0
+    fun tileCount(sector: Sector, minIdx: Int, maxIdx: Int): Long {
+        var tileCount = 0L
         for (i in minIdx..maxIdx) tileCount += entries[i].tilesInSector(sector)
         return tileCount
     }
