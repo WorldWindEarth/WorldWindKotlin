@@ -4,6 +4,7 @@ import ArmyC2.C2SD.Rendering.MultiPointRenderer
 import ArmyC2.C2SD.Utilities.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
+import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.Color
@@ -133,6 +134,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                 val rs = RendererSettings.getInstance()
                 val textAttributes = TextAttributes().apply {
                     textColor = Color(mss.lineColor.rgb)
+                    textOffset = Offset.center()
                     font = Font(rs.mpLabelFont)
                     outlineWidth = MilStd2525.graphicsOutlineWidth
                 }

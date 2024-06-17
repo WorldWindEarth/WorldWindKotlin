@@ -8,6 +8,7 @@ import armyc2.c2sd.graphics2d.Point2D
 import armyc2.c2sd.renderer.utilities.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
+import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.Color
@@ -145,6 +146,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                 val rs = RendererSettings.getInstance()
                 val textAttributes = TextAttributes().apply {
                     textColor = Color(mss.lineColor.toARGB())
+                    textOffset = Offset.center()
                     font = Font(
                         Typeface.create(rs.mpModifierFontName, rs.mpModifierFontType),
                         rs.mpModifierFontSize.toFloat()

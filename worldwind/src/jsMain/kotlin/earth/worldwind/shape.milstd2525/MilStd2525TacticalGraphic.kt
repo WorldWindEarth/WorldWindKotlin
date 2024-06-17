@@ -2,6 +2,7 @@ package earth.worldwind.shape.milstd2525
 
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
+import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.Font
@@ -141,6 +142,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                 val textAttributes = TextAttributes().apply {
                     val fontInfo = RendererSettings.getMPFontInfo()
                     textColor = convertColor(mss.getLineColor())
+                    textOffset = Offset.center()
                     font = Font(
                         size = fontInfo.size as Int,
                         weight = fontInfo.style as String,
