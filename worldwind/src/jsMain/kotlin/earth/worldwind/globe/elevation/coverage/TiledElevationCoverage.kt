@@ -74,7 +74,11 @@ actual open class TiledElevationCoverage actual constructor(
 
     protected open fun decodeBuffer(buffer: ArrayBufferView?) = when (buffer) {
         is Int16Array -> ShortArray(buffer.length) { buffer[it] }
-        is Float32Array -> ShortArray(buffer.length) { buffer[it].roundToInt().toShort() }
+        is Float32Array -> ShortArray(buffer.length) {
+            val value = buffer[it]
+            // Consider converting null value from float to short
+            if (value == Float.MAX_VALUE) Short.MIN_VALUE else value.roundToInt().toShort()
+        }
         else -> null
     }
 

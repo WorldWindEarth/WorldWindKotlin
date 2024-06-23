@@ -30,7 +30,7 @@ open class GpkgElevationDataFactory(
         return if (isFloat) elevationDecoder.decodeTiff(tileUserData.tileData)
         else elevationDecoder.decodePng(
             tileUserData.tileData, griddedTile.scale, griddedTile.offset,
-            griddedCoverage.scale, griddedCoverage.offset, griddedCoverage.dataNull?.roundToInt()?.toShort()
+            griddedCoverage.scale, griddedCoverage.offset, griddedCoverage.dataNull
         )
     }
 

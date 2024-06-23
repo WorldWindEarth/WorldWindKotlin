@@ -103,7 +103,7 @@ open class ElevationDecoder: Closeable {
 
     fun decodePng(
         bytes: ByteArray, tileScale: Float = 1.0f, tileOffset: Float = 0.0f,
-        coverageScale: Float = 1.0f, coverageOffset: Float = 0.0f, dataNull: Short? = null
+        coverageScale: Float = 1.0f, coverageOffset: Float = 0.0f, dataNull: Float? = null
     ): Buffer {
         val png = PngReaderInt(ByteArrayInputStream(bytes))
         require(png.imgInfo.channels == 1 && png.imgInfo.bitDepth == 16) {
@@ -114,33 +114,32 @@ open class ElevationDecoder: Closeable {
         }
 
         // Check if scale and offset should be applied to elevation data
-        return if (tileOffset != 1.0f || tileScale != 0.0f || coverageScale != 1.0f || coverageOffset != 0.0f) {
+        return if (tileScale != 1.0f || tileOffset != 0.0f || coverageScale != 1.0f || coverageOffset != 0.0f) {
             // Apply scale and offset to INT16 values (except null data value) and return them as FLOAT32
             val pixels = FloatArray(png.imgInfo.cols * png.imgInfo.rows)
             var row = 0
             while (png.hasMoreRows()) {
                 png.readRowInt().scanline.forEachIndexed { i, pixel ->
-                    val h = pixel.toShort()
-                    pixels[row * png.imgInfo.cols + i] = if (h == dataNull) h.toFloat()
-                    else (h * tileScale + tileOffset) * coverageScale + coverageOffset
+                    val rawHeight = pixel.toFloat()
+                    pixels[row * png.imgInfo.cols + i] = if (rawHeight == dataNull) Float.MAX_VALUE
+                    else (rawHeight * tileScale + tileOffset) * coverageScale + coverageOffset
                 }
                 row++
             }
             png.close()
-
             FloatBuffer.wrap(pixels)
         } else {
             // Use INT16 value as is
             val pixels = ShortArray(png.imgInfo.cols * png.imgInfo.rows)
             var row = 0
+            val dataNullInt = dataNull?.roundToInt()
             while (png.hasMoreRows()) {
                 png.readRowInt().scanline.forEachIndexed { i, pixel ->
-                    pixels[row * png.imgInfo.cols + i] = pixel.toShort()
+                    pixels[row * png.imgInfo.cols + i] = if (pixel == dataNullInt) Short.MIN_VALUE else pixel.toShort()
                 }
                 row++
             }
             png.close()
-
             ShortBuffer.wrap(pixels)
         }
     }
