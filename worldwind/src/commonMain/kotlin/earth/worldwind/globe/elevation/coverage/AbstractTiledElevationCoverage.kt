@@ -24,6 +24,7 @@ abstract class AbstractTiledElevationCoverage(
 ): AbstractElevationCoverage() {
     companion object {
         protected const val GET_HEIGHT_LIMIT_SAMPLES = 32
+        protected const val NO_DATA = Short.MIN_VALUE
     }
 
     var tileMatrixSet = tileMatrixSet
@@ -100,6 +101,7 @@ abstract class AbstractTiledElevationCoverage(
                 val x1y0 = it[x1 + y0 * tileMatrix.tileWidth]
                 val x0y1 = it[x0 + y1 * tileMatrix.tileWidth]
                 val x1y1 = it[x1 + y1 * tileMatrix.tileWidth]
+                if (x0y0 == NO_DATA || x1y0 == NO_DATA || x0y1 == NO_DATA || x1y1 == NO_DATA) return null
                 val xf = x - x0
                 val yf = y - y0
                 return (1 - xf) * (1 - yf) * x0y0 + xf * (1 - yf) * x1y0 + (1 - xf) * yf * x0y1 + xf * yf * x1y1
@@ -343,7 +345,9 @@ abstract class AbstractTiledElevationCoverage(
                     val i1j0 = tileBlock.readTexel(row0, col1, i1 % tileWidth, j0 % tileHeight)
                     val i0j1 = tileBlock.readTexel(row1, col0, i0 % tileWidth, j1 % tileHeight)
                     val i1j1 = tileBlock.readTexel(row1, col1, i1 % tileWidth, j1 % tileHeight)
-                    result[rIdx] = (1 - a) * (1 - b) * i0j0 + a * (1 - b) * i1j0 + (1 - a) * b * i0j1 + a * b * i1j1
+                    if (i0j0 != NO_DATA && i1j0 != NO_DATA && i0j1 != NO_DATA && i1j1 != NO_DATA) {
+                        result[rIdx] = (1 - a) * (1 - b) * i0j0 + a * (1 - b) * i1j0 + (1 - a) * b * i0j1 + a * b * i1j1
+                    }
                 }
                 rIdx++
                 wIdx++
@@ -392,8 +396,10 @@ abstract class AbstractTiledElevationCoverage(
                     for (j in j0..j1) for (i in i0..i1) {
                         val pos = i + j * tileWidth
                         val texel = tileArray[pos]
-                        if (result[0] > texel) result[0] = texel.toFloat()
-                        if (result[1] < texel) result[1] = texel.toFloat()
+                        if (texel != NO_DATA) {
+                            if (result[0] > texel) result[0] = texel.toFloat()
+                            if (result[1] < texel) result[1] = texel.toFloat()
+                        }
                     }
                 }
             }
@@ -448,6 +454,6 @@ abstract class AbstractTiledElevationCoverage(
         }
 
         fun readTexel(row: Int, column: Int, i: Int, j: Int) =
-            getTileArray(row, column)?.get(i + j * tileMatrix.tileWidth) ?: 0
+            getTileArray(row, column)?.get(i + j * tileMatrix.tileWidth) ?: NO_DATA
     }
 }
