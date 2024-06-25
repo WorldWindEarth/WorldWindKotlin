@@ -490,8 +490,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         }
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
             where().eq(GpkgGriddedTile.CONTENT, content)
-            delete()
-        }
+        }.delete()
     }
 
     /**
@@ -510,32 +509,27 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         tileUserDataDao -= tableName
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
             where().eq(GpkgGriddedTile.CONTENT, content)
-            delete()
-        }
+        }.delete()
 
-        if (tileMatrixSetDao.isTableExists) {
+        if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(content.tableName)?.let { tileMatrixSet ->
             // Remove tile matrix set related to specified content table
-            val tileMatrixSet = tileMatrixSetDao.queryForId(content.tableName)
             tileMatrixSetDao.delete(tileMatrixSet)
 
             // Remove gridded coverage metadata if exists
             if (griddedCoverageDao.isTableExists) griddedCoverageDao.deleteBuilder().apply {
                 where().eq(GpkgGriddedCoverage.TILE_MATRIX_SET_NAME, tileMatrixSet.tableName)
-                delete()
-            }
+            }.delete()
         }
 
         // Remove all tile matrices related to specified content table
         if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
             where().eq(GpkgTileMatrix.CONTENT, content)
-            delete()
-        }
+        }.delete()
 
         // Remove all extensions related to specified content table
         if (extensionDao.isTableExists) extensionDao.deleteBuilder().apply {
             where().eq(GpkgExtension.TABLE_NAME, content.tableName)
-            delete()
-        }
+        }.delete()
 
         // Remove web service settings if exists
         if (webServiceDao.isTableExists) webServiceDao.deleteById(content.tableName)
