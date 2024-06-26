@@ -5,17 +5,14 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
 
 abstract class AbstractSurfaceRenderable(sector: Sector, displayName: String? = null) : AbstractRenderable(displayName) {
-    var sector = Sector(sector)
-        set(value) {
-            field.copy(value)
-            invalidateExtent()
-        }
+    val sector = Sector(sector)
     protected val extent by lazy { BoundingBox() }
     protected val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
     protected var extentExaggeration = 0.0f
     protected var extentGlobeState: Globe.State? = null
     protected var extentGlobeOffset: Globe.Offset? = null
+    protected val extentSector = Sector()
 
     protected open fun getExtent(rc: RenderContext): BoundingBox {
         val globe = rc.globe
@@ -27,15 +24,16 @@ abstract class AbstractSurfaceRenderable(sector: Sector, displayName: String? = 
         val state = rc.globeState
         val offset = rc.globe.offset
         if (timestamp != heightLimitsTimestamp || ve != extentExaggeration
-            || state != extentGlobeState || offset != extentGlobeOffset ) {
+            || state != extentGlobeState || offset != extentGlobeOffset || extentSector != sector) {
             val minHeight = heightLimits[0] * ve
             val maxHeight = heightLimits[1] * ve
             extent.setToSector(sector, globe, minHeight, maxHeight)
+            heightLimitsTimestamp = timestamp
+            extentExaggeration = ve
+            extentGlobeState = state
+            extentGlobeOffset = offset
+            extentSector.copy(sector)
         }
-        heightLimitsTimestamp = timestamp
-        extentExaggeration = ve
-        extentGlobeState = state
-        extentGlobeOffset = offset
         return extent
     }
 
@@ -46,10 +44,5 @@ abstract class AbstractSurfaceRenderable(sector: Sector, displayName: String? = 
         globe.elevationModel.getHeightLimits(sector, heightLimits)
         // check for valid height limits
         if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
-    }
-
-    protected open fun invalidateExtent() {
-        heightLimitsTimestamp = 0L
-        extentExaggeration = 0.0f
     }
 }

@@ -106,7 +106,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
-    protected var invMiterLengthCutoff = 1 / 5.0f // shouldn't be greater than 1.0 or equal 0.0
+    protected var invMiterLengthCutoff = 1.0f
     protected var screenX = 0.0f
     protected var screenY = 0.0f
 

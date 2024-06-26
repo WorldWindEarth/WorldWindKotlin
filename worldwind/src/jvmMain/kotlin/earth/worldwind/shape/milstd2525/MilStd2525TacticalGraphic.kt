@@ -10,18 +10,25 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.render.Color
 import earth.worldwind.render.Font
 import earth.worldwind.render.Renderable
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.*
 import earth.worldwind.util.Logger
+import java.awt.BasicStroke
 import java.awt.geom.Point2D
+import kotlin.math.roundToInt
 
 actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
     sidc: String, locations: List<Location>,
     boundingSector: Sector, modifiers: Map<String, String>?, attributes: Map<String, String>?
-) : AbstractMilStd2525TacticalGraphic(sidc, locations, boundingSector, modifiers, attributes) {
+) : AbstractMilStd2525TacticalGraphic(sidc, boundingSector, modifiers, attributes) {
     protected lateinit var controlPoints: ArrayList<Point2D.Double>
     protected lateinit var pointUL: Point2D.Double
 
-    override fun transformLocations(locations: List<Location>) {
+    init {
+        setAnchorLocations(locations)
+    }
+
+    fun setAnchorLocations(locations: List<Location>) {
         if (this::controlPoints.isInitialized) controlPoints.clear() else controlPoints = ArrayList()
         for (location in locations) controlPoints.add(Point2D.Double(location.longitude.inDegrees, location.latitude.inDegrees))
         var left = controlPoints[0].x
@@ -44,7 +51,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
             }
         }
         if (this::pointUL.isInitialized) pointUL.setLocation(left, top) else pointUL = Point2D.Double(left, top)
-        pointUL.setLocation(left, top)
+        reset()
     }
 
     override fun makeRenderables(scale: Double): List<Renderable> {
@@ -80,7 +87,6 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
         val outlines = mutableListOf<Renderable>()
         for (i in mss.symbolShapes.indices) convertShapeToRenderables(mss.symbolShapes[i], mss, ipc, shapes, outlines)
         for (i in mss.modifierShapes.indices) convertShapeToRenderables(mss.modifierShapes[i], mss, ipc, shapes, outlines)
-        invalidateExtent() // Regenerate extent in next frame due to sector may be extended by real shape measures
         return outlines + shapes
     }
 
@@ -93,15 +99,14 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                     outlineWidth = MilStd2525.graphicsLineWidth
                     (si.lineColor ?: si.fillColor)?.let { outlineColor = Color(it.rgb) } ?: return
                     (si.fillColor ?: si.lineColor)?.let { interiorColor = Color(it.rgb) } ?: return
-                    // TODO Fill dash pattern
-//                    val stroke = shape.stroke
-//                    if (stroke is BasicStroke) {
-//                        val dash = stroke.dashArray
-//                        if (dash != null && dash.isNotEmpty()) outlineImageSource = ImageSource.fromLineStipple(
-//                            // TODO How to correctly interpret dash array?
-//                            factor = dash[0].roundToInt(), pattern = 0xF0F0.toShort()
-//                        )
-//                    }
+                    val stroke = si.stroke
+                    if (stroke is BasicStroke) {
+                        val dash = stroke.dashArray
+                        if (dash != null && dash.isNotEmpty()) outlineImageSource = ImageSource.fromLineStipple(
+                            // TODO How to correctly interpret dash array?
+                            factor = dash[0].roundToInt(), pattern = 0xF0F0.toShort()
+                        )
+                    }
                 }
                 val hasOutline = MilStd2525.graphicsOutlineWidth != 0f
                 val outlineAttributes = if (hasOutline) ShapeAttributes(shapeAttributes).apply {
