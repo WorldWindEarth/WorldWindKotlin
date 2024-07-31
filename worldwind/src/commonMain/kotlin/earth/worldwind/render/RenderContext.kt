@@ -360,7 +360,7 @@ open class RenderContext {
     inline fun <reified T : Drawable> getDrawablePool(): Pool<T> {
         val key = T::class
         // use SynchronizedPool; acquire and are release may be called in separate threads
-        return drawablePools[key] as Pool<T>? ?: SynchronizedPool<T>().also { drawablePools[key] = it }
+        return drawablePools[key] as? Pool<T> ?: SynchronizedPool<T>().also { drawablePools[key] = it }
     }
 
     fun offerPickedObject(pickedObject: PickedObject) { pickedObjects?.offerPickedObject(pickedObject) }

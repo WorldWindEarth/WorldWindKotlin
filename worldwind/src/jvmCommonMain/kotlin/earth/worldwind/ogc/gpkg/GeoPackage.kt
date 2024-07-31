@@ -86,16 +86,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     suspend fun readTilesDataSize(tableName: String) = withContext(Dispatchers.IO) {
-        val connection = connectionSource.getReadOnlyConnection(tableName)
-
-        try {
-            connection.queryForLong("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'")
-        } catch (e: SQLException) {
-            Logger.logMessage(Logger.WARN, "GeoPackage", "readTilesDataSize", "Could not read tiles data size", e)
-            0L // Return zero if table does not exist
-        } finally {
-            connectionSource.releaseConnection(connection)
-        }
+        getTileUserDataDao(tableName).queryRawValue("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'")
     }
 
     suspend fun readTileUserData(
