@@ -168,6 +168,11 @@ open class Placemark @JvmOverloads constructor(
          * @return if placemark should display or skip its rendering
          */
         fun selectLevelOfDetail(rc: RenderContext, placemark: Placemark, cameraDistance: Double): Boolean
+
+        /**
+         * Forces level of details regeneration
+         */
+        fun invalidate() {}
     }
 
     /**

@@ -16,4 +16,5 @@ expect object MilStd2525 {
     fun setCountryCode(sidc: String, countryCode: String?): String
     fun getLineColor(sidc: String): Int
     fun getFillColor(sidc: String): Int
+    fun getUnfilledAttributes(sidc: String): Map<String, String>
 }

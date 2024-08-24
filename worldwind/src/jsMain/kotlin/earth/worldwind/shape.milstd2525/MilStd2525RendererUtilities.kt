@@ -1038,5 +1038,8 @@ external object ModifiersUnits {
 external object MilStdAttributes {
     val PixelSize: String
     val AltitudeMode: String
+    val FillColor: String
+    val LineColor: String
+    val IconColor: String
 }
 

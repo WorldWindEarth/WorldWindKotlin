@@ -52,6 +52,14 @@ abstract class AbstractMilStd2525Placemark(
                 invalidate()
             }
         }
+    var isFrameFilled = true
+        set(value) {
+            // Do not invalidate state if nothing changed
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
 
     init {
         levelOfDetailSelector = lodSelector
@@ -61,6 +69,6 @@ abstract class AbstractMilStd2525Placemark(
     }
 
     protected open fun invalidate() {
-        (levelOfDetailSelector as? MilStd2525LevelOfDetailSelector)?.invalidate()
+        levelOfDetailSelector?.invalidate()
     }
 }

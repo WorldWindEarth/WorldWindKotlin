@@ -180,4 +180,17 @@ actual object MilStd2525 {
     @JvmStatic
     actual fun getFillColor(sidc: String) = SymbolUtilities.getFillColorOfAffiliation(sidc)?.rgb
         ?: rendererSettings.friendlyGraphicFillColor.rgb
+
+    @JvmStatic
+    actual fun getUnfilledAttributes(sidc: String) = if (SymbolUtilities.isTacticalGraphic(sidc)) {
+        SymbolUtilities.getLineColorOfAffiliation(sidc)
+    } else {
+        SymbolUtilities.getFillColorOfAffiliation(sidc)
+    }?.rgb?.let {
+        mapOf(
+            MilStdAttributes.FillColor to "00000000",
+            MilStdAttributes.LineColor to Integer.toHexString(it),
+            MilStdAttributes.IconColor to Integer.toHexString(it)
+        )
+    } ?: emptyMap()
 }

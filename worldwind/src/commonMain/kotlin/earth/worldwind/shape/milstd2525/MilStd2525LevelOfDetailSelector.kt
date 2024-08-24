@@ -4,6 +4,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.PlacemarkAttributes
 import earth.worldwind.shape.milstd2525.MilStd2525.getSimplifiedSymbolID
+import earth.worldwind.shape.milstd2525.MilStd2525.getUnfilledAttributes
 import earth.worldwind.shape.milstd2525.MilStd2525.isTacticalGraphic
 import earth.worldwind.shape.milstd2525.MilStd2525.modifiersThreshold
 import earth.worldwind.shape.milstd2525.MilStd2525Placemark.Companion.getPlacemarkAttributes
@@ -18,7 +19,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
     protected var isHighlighted = false
     protected var isInvalidateRequested = false
 
-    fun invalidate() { isInvalidateRequested = true }
+    override fun invalidate() { isInvalidateRequested = true }
 
     /**
      * Gets the active attributes for the current distance to the camera and highlighted state.
@@ -41,18 +42,14 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
                 val simpleCode = if (isTacticalGraphic(placemark.symbolCode))
                     getSimplifiedSymbolID(placemark.symbolCode)
                 else placemark.symbolCode.substring(0, 3) + "*------*****"
-                placemark.attributes = getPlacemarkAttributes(
-                    simpleCode, symbolAttributes = placemark.symbolAttributes
-                )
+                placemark.attributes = getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
                 lastLevelOfDetail = LOW_LEVEL_OF_DETAIL
             }
         } else if (cameraDistance > modifiersThreshold && !placemark.isHighlighted || !placemark.isModifiersVisible) {
             // Medium-fidelity: use a simplified SIDC code without status, mobility, size and text modifiers
             if (lastLevelOfDetail != MEDIUM_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val simpleCode = getSimplifiedSymbolID(placemark.symbolCode)
-                placemark.attributes = getPlacemarkAttributes(
-                    simpleCode, symbolAttributes = placemark.symbolAttributes
-                )
+                placemark.attributes = getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
                 lastLevelOfDetail = MEDIUM_LEVEL_OF_DETAIL
             }
         } else if (!placemark.isHighlighted) {
@@ -60,7 +57,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
             if (lastLevelOfDetail != HIGH_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val basicModifiers = placemark.symbolModifiers?.filter { (k,_) -> k == "T" }
                 placemark.attributes = getPlacemarkAttributes(
-                    placemark.symbolCode, basicModifiers, placemark.symbolAttributes
+                    placemark.symbolCode, basicModifiers, getAttributes(placemark)
                 )
                 lastLevelOfDetail = HIGH_LEVEL_OF_DETAIL
             }
@@ -68,7 +65,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
             // Highest-fidelity: use the regular SIDC code with all available text modifiers
             if (lastLevelOfDetail != HIGHEST_LEVEL_OF_DETAIL || isInvalidateRequested || isHighlightChanged) {
                 placemark.attributes = getPlacemarkAttributes(
-                    placemark.symbolCode, placemark.symbolModifiers, placemark.symbolAttributes
+                    placemark.symbolCode, placemark.symbolModifiers, getAttributes(placemark)
                 )
                 lastLevelOfDetail = HIGHEST_LEVEL_OF_DETAIL
             }
@@ -82,6 +79,10 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
 
         return true
     }
+
+    private fun getAttributes(placemark: MilStd2525Placemark) = if (placemark.isFrameFilled) placemark.symbolAttributes
+    else placemark.symbolAttributes?.let { getUnfilledAttributes(placemark.symbolCode) + it }
+        ?: getUnfilledAttributes(placemark.symbolCode)
 
     companion object {
         protected const val NORMAL_SCALE = 1.0
