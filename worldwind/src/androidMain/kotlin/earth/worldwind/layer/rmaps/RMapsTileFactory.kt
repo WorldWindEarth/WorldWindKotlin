@@ -1,4 +1,4 @@
-package earth.worldwind.layer.mbtiles
+package earth.worldwind.layer.rmaps
 
 import android.graphics.Bitmap
 import android.os.Build
@@ -6,7 +6,7 @@ import com.j256.ormlite.dao.Dao
 import earth.worldwind.render.image.ImageSource
 
 actual fun buildImageSource(
-    tilesDao: Dao<MBTiles, *>, readOnly: Boolean, contentKey: String, zoom: Int, column: Int, row: Int, imageFormat: String?
+    tilesDao: Dao<RMapsTiles, *>, readOnly: Boolean, contentKey: String, x: Int, y: Int, z: Int, imageFormat: String?
 ): ImageSource {
     val format = when {
         imageFormat.equals("image/jpeg", true) -> Bitmap.CompressFormat.JPEG
@@ -19,5 +19,5 @@ actual fun buildImageSource(
         }
         else -> Bitmap.CompressFormat.PNG
     }
-    return ImageSource.fromBitmapFactory(MBTilesBitmapFactory(tilesDao, readOnly, contentKey, zoom, column, row, format))
+    return ImageSource.fromBitmapFactory(RMapsBitmapFactory(tilesDao, readOnly, contentKey, x, y, z, format))
 }

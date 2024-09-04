@@ -11,7 +11,7 @@ import earth.worldwind.util.ResourcePostprocessor
 import java.io.ByteArrayOutputStream
 
 open class MBTilesBitmapFactory(
-    protected val tilesDao: Dao<MBTiles, Int>,
+    protected val tilesDao: Dao<MBTiles, *>,
     protected val isReadOnly: Boolean,
     protected val contentKey: String,
     protected val zoom: Int,

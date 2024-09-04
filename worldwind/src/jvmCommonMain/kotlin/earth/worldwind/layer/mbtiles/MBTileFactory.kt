@@ -17,17 +17,17 @@ import kotlinx.datetime.Instant
 import java.io.File
 
 expect fun buildImageSource(
-    tilesDao: Dao<MBTiles, Int>, readOnly: Boolean, contentKey: String, zoom: Int, column: Int, row: Int, imageFormat: String?
+    tilesDao: Dao<MBTiles, *>, readOnly: Boolean, contentKey: String, zoom: Int, column: Int, row: Int, imageFormat: String?
 ): ImageSource
 
 open class MBTileFactory(final override val contentPath: String, val isReadOnly: Boolean) : CacheTileFactory {
     protected val connectionSource = initConnection(contentPath, isReadOnly)
-    protected val tilesDao: Dao<MBTiles, Int> = DaoManager.createDao(connectionSource, MBTiles::class.java)
+    protected val tilesDao = DaoManager.createDao(connectionSource, MBTiles::class.java)
     protected val metadataDao: Dao<MBTilesMetadata, String> = DaoManager.createDao(connectionSource, MBTilesMetadata::class.java)
-    protected val contentFie = File(contentPath)
+    protected val contentFile = File(contentPath)
     override val contentType = if (metadataDao.isTableExists && tilesDao.isTableExists) "MBTiles" else error("Not an MBTiles map file")
     override val contentKey = metadataDao.queryForId("name")?.value ?: error("Empty name!")
-    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(contentFie.lastModified())
+    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(contentFile.lastModified())
     val boundingSector = metadataDao.queryForId("bounds")?.value?.let {
         val box = it.split(",")
         if (box.size < 4) return@let null
@@ -46,14 +46,14 @@ open class MBTileFactory(final override val contentPath: String, val isReadOnly:
 
     fun shutdown() = connectionSource.close()
 
-    override suspend fun contentSize() = contentFie.length() // One file should contain one map
+    override suspend fun contentSize() = contentFile.length() // One file should contain one map
 
     override suspend fun clearContent(deleteMetadata: Boolean) {
         withContext(Dispatchers.IO) {
             if (isReadOnly) error("Database is readonly!")
             if (deleteMetadata) {
                 connectionSource.close()
-                contentFie.delete()
+                contentFile.delete()
             } else if (tilesDao.isTableExists) tilesDao.deleteBuilder().delete() else Unit
         }
     }
