@@ -87,4 +87,11 @@ interface SelectDragCallback {
      * @param position picked terrain or renderable center position
      */
     fun onRenderableDoubleTap(renderable: Renderable, position: Position) {}
+
+    /**
+     * Terrain position was double-tapped or double-clicked
+     *
+     * @param position picked terrain position
+     */
+    fun onTerrainDoubleTap(position: Position) {}
 }

@@ -30,6 +30,11 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
      * Enable/disable dragging of flying objects using their terrain projection position.
      */
     var isDragTerrainPosition = false
+    /**
+     * Issue pick callback after the gesture detector is confident that the user's first tap is not followed
+     * by a second tap leading to a double-tap gesture.
+     */
+    var isSingleTapConfirmed = false
     protected open val gestureDetector = GestureDetector(wwd.context, this)
     protected val slop = ViewConfiguration.get(wwd.context).scaledTouchSlop
     protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
@@ -54,7 +59,17 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     }
 
     override fun onSingleTapUp(event: MotionEvent): Boolean {
-        val callback = callback ?: return false
+        if (!isSingleTapConfirmed) onSingleTap()
+        return false
+    }
+
+    override fun onSingleTapConfirmed(event: MotionEvent): Boolean {
+        if (isSingleTapConfirmed) onSingleTap()
+        return false
+    }
+
+    private fun onSingleTap() {
+        val callback = callback ?: return
         wwd.mainScope.launch {
             val (renderable, position) = awaitPickResult(false)
             if (position != null) {
@@ -64,7 +79,6 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
             } else callback.onNothingPicked()
             wwd.requestRedraw()
         }
-        return false
     }
 
     override fun onScroll(downEvent: MotionEvent?, moveEvent: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
@@ -107,8 +121,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         val callback = callback ?: return false
         return runBlocking {
             val (renderable, position) = awaitPickResult(false)
-            if (renderable is Renderable && position != null) {
-                callback.onRenderableDoubleTap(renderable, position)
+            if (position != null) {
+                if (renderable is Renderable) callback.onRenderableDoubleTap(renderable, position)
+                else callback.onTerrainDoubleTap(position)
                 wwd.requestRedraw()
                 true
             } else false

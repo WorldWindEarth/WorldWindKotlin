@@ -10,13 +10,13 @@ plugins {
 
 buildscript {
     dependencies {
-        classpath("dev.icerock.moko:resources-generator:0.24.1")
+        classpath("dev.icerock.moko:resources-generator:0.24.2")
     }
 }
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.5.23"
+    version = "1.5.25"
 
     extra.apply {
         set("minSdk", 21)

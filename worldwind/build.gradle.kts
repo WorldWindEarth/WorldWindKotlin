@@ -40,13 +40,13 @@ kotlin {
     }
     sourceSets {
         val mockkVersion = "1.13.10"
-        val mokoVersion = "0.24.1"
+        val mokoVersion = "0.24.2"
         val ktorVersion = "2.3.10"
         val ormliteVersion = "6.1"
         val commonMain by getting {
             dependencies {
-                api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+                api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.github.pdvrieze.xmlutil:serialization:0.86.3")
@@ -113,7 +113,7 @@ kotlin {
         val androidMain by getting {
             dependsOn(jvmCommonMain)
             dependencies {
-                implementation("androidx.annotation:annotation:1.8.0")
+                implementation("androidx.annotation:annotation:1.8.2")
                 implementation("androidx.appcompat:appcompat-resources:1.7.0")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.60")
                 implementation("com.j256.ormlite:ormlite-android:$ormliteVersion")
@@ -126,8 +126,8 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("io.mockk:mockk-android:$mockkVersion")
-                implementation("androidx.test.ext:junit:1.1.5")
-                implementation("androidx.test:rules:1.5.0")
+                implementation("androidx.test.ext:junit:1.2.1")
+                implementation("androidx.test:rules:1.6.1")
             }
         }
         all {
@@ -167,7 +167,7 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
 }
 
 // Do not generate Intrinsics runtime assertion for performance reasons
