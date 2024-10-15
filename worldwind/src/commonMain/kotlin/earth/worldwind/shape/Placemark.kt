@@ -236,7 +236,7 @@ open class Placemark @JvmOverloads constructor(
         if (activeTexture != null) {
             val w = activeTexture.width.toDouble()
             val h = activeTexture.height.toDouble()
-            val s = activeAttributes.imageScale * visibilityScale
+            val s = activeAttributes.imageScale * visibilityScale // * rc.densityFactor
             activeAttributes.imageOffset.offsetForSize(w, h, offset)
             offsetX = offset.x * s
             offsetY = offset.y * s
@@ -246,7 +246,7 @@ open class Placemark @JvmOverloads constructor(
             // This branch serves both non-textured attributes and also textures that haven't been loaded yet.
             // We set the size for non-loaded textures to the typical size of a contemporary "small" icon (24px)
             var size = if (activeAttributes.imageSource != null) 24.0 else activeAttributes.imageScale
-            size *= visibilityScale
+            size *= visibilityScale // * rc.densityFactor
             activeAttributes.imageOffset.offsetForSize(size, size, offset)
             offsetX = offset.x
             offsetY = offset.y

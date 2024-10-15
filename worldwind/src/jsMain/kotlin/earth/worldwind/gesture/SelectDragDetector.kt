@@ -159,8 +159,8 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                     if (clapToGround && wwd.engine.pickTerrainPosition(movePoint.x, movePoint.y, toPosition)
                         || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
                         && wwd.engine.screenPointToGroundPosition(
-                            dragRefPt.x + recognizer.translationX - lastTranslation.x,
-                            dragRefPt.y + recognizer.translationY - lastTranslation.y,
+                            dragRefPt.x + (recognizer.translationX - lastTranslation.x) * wwd.engine.densityFactor,
+                            dragRefPt.y + (recognizer.translationY - lastTranslation.y) * wwd.engine.densityFactor,
                             toPosition
                         )) {
                         // Backup last translation

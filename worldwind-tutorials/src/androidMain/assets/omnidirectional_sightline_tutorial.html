@@ -59,7 +59,7 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
         addRenderable(
             Placemark(position).apply {
                 attributes.apply {
-                    imageSource = earth.worldwind.render.image.ImageSource.fromResource(MR.images.aircraft_fixwing)
+                    imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
                     imageScale = 2.0
                     isDrawLeader = true
                 }

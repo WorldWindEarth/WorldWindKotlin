@@ -8,6 +8,7 @@ import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.OmnidirectionalSightline
 import earth.worldwind.shape.Placemark
 
@@ -29,7 +30,7 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
         addRenderable(
             Placemark(position).apply {
                 attributes.apply {
-                    imageSource = earth.worldwind.render.image.ImageSource.fromResource(MR.images.aircraft_fixwing)
+                    imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
                     imageOffset = Offset.bottomCenter()
                     imageScale = 2.0
                     isDrawLeader = true

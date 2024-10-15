@@ -191,8 +191,8 @@ open class WorldWindow(
      */
     fun canvasCoordinates(x: Number, y: Number): Vec2 {
         val bbox = canvas.getBoundingClientRect()
-        val xc = x.toDouble() - (bbox.left + canvas.clientLeft) // * canvas.width / bbox.width
-        val yc = y.toDouble() - (bbox.top + canvas.clientTop) // * canvas.height / bbox.height
+        val xc = (x.toDouble() - (bbox.left + canvas.clientLeft)) * canvas.width / bbox.width
+        val yc = (y.toDouble() - (bbox.top + canvas.clientTop)) * canvas.height / bbox.height
         return Vec2(xc, yc)
     }
 
