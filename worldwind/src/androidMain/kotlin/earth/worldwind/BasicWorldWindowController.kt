@@ -101,8 +101,9 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
 
                 // Adjust the change in latitude and longitude based on observation point heading.
                 val heading = lookAt.heading
-                val sinHeading = sin(heading.inRadians)
-                val cosHeading = cos(heading.inRadians)
+                val headingRadians = heading.inRadians
+                val sinHeading = sin(headingRadians)
+                val cosHeading = cos(headingRadians)
                 lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
                 lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
 

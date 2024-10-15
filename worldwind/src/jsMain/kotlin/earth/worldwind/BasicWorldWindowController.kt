@@ -105,24 +105,41 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
                 lastPoint.set(0.0, 0.0)
             }
             CHANGED -> {
+                // Get observation point position.
+                var lat = lookAt.position.latitude
+                var lon = lookAt.position.longitude
+
                 // Convert the translation from screen coordinates to arc degrees. Use the view's range as a
                 // metric for converting screen pixels to meters, and use the globe's radius for converting from meters
                 // to arc degrees. Transform viewport pixel size to canvas client pixel size.
-                val globe = wwd.engine.globe
-                val globeRadius = max(globe.equatorialRadius, globe.polarRadius)
                 val distance = max(1.0, lookAt.range)
                 val metersPerPixel = wwd.engine.pixelSizeAtDistance(distance) * wwd.engine.densityFactor
                 val forwardMeters = (ty - lastPoint.y) * metersPerPixel
                 val sideMeters = -(tx - lastPoint.x) * metersPerPixel
+                val globeRadius = wwd.engine.globe.getRadiusAt(lat, lon)
                 val forwardRadians = forwardMeters / globeRadius
                 val sideRadians = sideMeters / globeRadius
 
-                // Apply the change in latitude and longitude to the view, relative to the current heading.
-                val sinHeading = sin(lookAt.heading.inRadians)
-                val cosHeading = cos(lookAt.heading.inRadians)
-                lookAt.position.apply {
-                    latitude = latitude.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
-                    longitude = longitude.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
+                // Adjust the change in latitude and longitude based on observation point heading.
+                val heading = lookAt.heading
+                val headingRadians = heading.inRadians
+                val sinHeading = sin(headingRadians)
+                val cosHeading = cos(headingRadians)
+                lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
+                lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
+
+                // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
+                // the camera to the appropriate spot on the other side of the pole.
+                if (lat.inDegrees < -90.0 || lat.inDegrees > 90.0) {
+                    lookAt.position.latitude = lat.normalizeLatitude()
+                    lookAt.position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
+                    lookAt.heading = heading.plusDegrees(180.0).normalize360()
+                } else if (lon.inDegrees < -180.0 || lon.inDegrees > 180.0) {
+                    lookAt.position.latitude = lat
+                    lookAt.position.longitude = lon.normalizeLongitude()
+                } else {
+                    lookAt.position.latitude = lat
+                    lookAt.position.longitude = lon
                 }
                 lastPoint.set(tx, ty)
                 applyChanges()
