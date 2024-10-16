@@ -114,6 +114,7 @@ open class WorldWind @JvmOverloads constructor(
      * The number of bits in the depth buffer associated with this WorldWind.
      */
     protected var depthBits = 0
+    protected var frameIndex = 0L
     private val scratchModelview = Matrix4()
     private val scratchProjection = Matrix4()
     private val scratchPoint = Vec3()
@@ -444,6 +445,7 @@ open class WorldWind @JvmOverloads constructor(
         )
         rc.renderResourceCache = renderResourceCache
         rc.verticalExaggeration = verticalExaggeration
+        rc.frameIndex = frameIndex++
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude
         rc.globeState = globe.state

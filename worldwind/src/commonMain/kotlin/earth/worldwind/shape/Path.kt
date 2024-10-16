@@ -5,6 +5,7 @@ import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
+import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.buffer.IntBufferObject
@@ -41,6 +42,7 @@ open class Path @JvmOverloads constructor(
     private val prevPoint = Vec3()
     private val texCoordMatrix = Matrix3()
     private val intermediateLocation = Location()
+    override var allowBatching = true
 
     companion object {
         protected const val VERTEX_STRIDE = 10
@@ -50,6 +52,25 @@ open class Path @JvmOverloads constructor(
         }
 
         protected fun nextCacheKey() = Any()
+    }
+
+    override fun addToBatch(rc : RenderContext) : Boolean {
+        // Can't batch extrude as it uses different shader and geometry
+        val canBeBatched = super.addToBatch(rc) && (!isExtrude || isSurfaceShape)
+
+        val layer = rc.currentLayer
+        if(layer is RenderableLayer) {
+            val renderer = layer.batchRenderers.getOrPut(Path::class) { PathBatchRenderer() }
+
+            if (!canBeBatched) {
+                renderer.removeRenderable(this)
+                return false
+            }
+
+            return renderer.addOrUpdateRenderable(this)
+        }
+
+        return false
     }
 
     override fun reset() {
@@ -94,9 +115,11 @@ open class Path @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, vertexArray, vertexArray.size)
-        }
+        val vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
+        drawState.vertexState.addAttribute(0, vertexBuffer, 4, GL_FLOAT, false, 20, 0)
+        drawState.vertexState.addAttribute(1, vertexBuffer, 4, GL_FLOAT, false, 20, 40)
+        drawState.vertexState.addAttribute(2, vertexBuffer, 4, GL_FLOAT, false, 20, 80)
+        drawState.vertexState.addAttribute(3, vertexBuffer, 1, GL_FLOAT, false, 20, 56)
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
@@ -259,6 +282,7 @@ open class Path @JvmOverloads constructor(
             texCoord1d += point.distanceTo(prevPoint)
         }
         prevPoint.copy(point)
+
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
@@ -271,6 +295,7 @@ open class Path @JvmOverloads constructor(
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = -1.0f
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
             if (!firstOrLast) {
                 outlineElements.add(vertex)
                 outlineElements.add(vertex.inc())
@@ -281,6 +306,7 @@ open class Path @JvmOverloads constructor(
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             vertexArray[vertexIndex++] = 1.0f
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
