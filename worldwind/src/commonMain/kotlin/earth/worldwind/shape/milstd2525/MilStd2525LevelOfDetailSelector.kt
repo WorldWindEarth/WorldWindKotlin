@@ -52,7 +52,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
                 placemark.attributes = getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
                 lastLevelOfDetail = MEDIUM_LEVEL_OF_DETAIL
             }
-        } else if (!placemark.isHighlighted) {
+        } else if (!placemark.isHighlighted && !isForceAllModifiers) {
             // High-fidelity: use the regular SIDC code without text modifiers, except unique designation (T)
             if (lastLevelOfDetail != HIGH_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val basicModifiers = placemark.symbolModifiers?.filter { (k,_) -> k == "T" }
@@ -85,6 +85,10 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         ?: getUnfilledAttributes(placemark.symbolCode)
 
     companion object {
+        /**
+         * Always use the highest fidelity instead of high (forces all text modifiers)
+         */
+        var isForceAllModifiers = false
         protected const val NORMAL_SCALE = 1.0
         protected const val HIGHLIGHTED_SCALE = 1.3
         protected const val LOW_LEVEL_OF_DETAIL = 0
