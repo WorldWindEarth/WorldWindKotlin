@@ -461,7 +461,7 @@ open class Placemark @JvmOverloads constructor(
         drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
@@ -473,7 +473,7 @@ open class Placemark @JvmOverloads constructor(
         drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = 0.0f
@@ -485,7 +485,7 @@ open class Placemark @JvmOverloads constructor(
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = 0.0f
@@ -497,7 +497,7 @@ open class Placemark @JvmOverloads constructor(
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = 0f
         drawable.vertexPoints[vertexIndex] = 0f
 
         // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.

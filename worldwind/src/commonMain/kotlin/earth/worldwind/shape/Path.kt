@@ -43,7 +43,10 @@ open class Path @JvmOverloads constructor(
     private val intermediateLocation = Location()
 
     companion object {
-        protected const val VERTEX_STRIDE = 10
+        protected const val VERTEX_STRIDE = 5 // 5 floats
+        protected const val OUTLINE_SEGMENT_STRIDE = 4 * VERTEX_STRIDE // 4 vertices
+        protected const val EXTRUDE_SEGMENT_STRIDE = 2 * VERTEX_STRIDE // 2 vertices
+        protected const val VERTICAL_SEGMENT_STRIDE = 4 * 2 * VERTEX_STRIDE // 4 pairs of 2 vertices
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
@@ -84,7 +87,7 @@ open class Path @JvmOverloads constructor(
             val pool = rc.getDrawablePool<DrawableShape>()
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
-            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, VERTEX_STRIDE, vertexOrigin)
+            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE, vertexOrigin)
         }
 
         // Use triangles mode to draw lines
@@ -177,36 +180,36 @@ open class Path @JvmOverloads constructor(
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
         vertexIndex = 0
-        verticalIndex = if (isExtrude && !isSurfaceShape) (vertexCount + 2) * VERTEX_STRIDE else 0
-        extrudeIndex = if (isExtrude && !isSurfaceShape) verticalIndex + (positions.size * 4) * VERTEX_STRIDE else 0
-        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(verticalIndex + extrudeIndex + (vertexCount + 2) * VERTEX_STRIDE)
-        else FloatArray((vertexCount + 2) * VERTEX_STRIDE)
+        verticalIndex = if (isExtrude && !isSurfaceShape) (vertexCount + 2) * OUTLINE_SEGMENT_STRIDE else 0
+        extrudeIndex = if (isExtrude && !isSurfaceShape) verticalIndex + (positions.size * VERTICAL_SEGMENT_STRIDE) else 0
+        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(verticalIndex + extrudeIndex + (vertexCount + 2) * EXTRUDE_SEGMENT_STRIDE)
+        else FloatArray((vertexCount + 2) * OUTLINE_SEGMENT_STRIDE)
         interiorElements.clear()
         outlineElements.clear()
         verticalElements.clear()
 
         // Add the first vertex.
         var begin = positions[0]
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, true /*intermediate*/, true)
         addVertex(rc, begin.latitude, begin.longitude, begin.altitude, false /*intermediate*/, true)
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, false /*intermediate*/, false)
 
         // Add the remaining vertices, inserting vertices along each edge as indicated by the path's properties.
         for (idx in 1 until positions.size) {
             val end = positions[idx]
             addIntermediateVertices(rc, begin, end)
-            addVertex(rc, end.latitude, end.longitude, end.altitude, false /*intermediate*/, false)
+            addVertex(rc, end.latitude, end.longitude, end.altitude, false /*intermediate*/, idx != (positions.size - 1))
             begin = end
         }
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude,false /*intermediate*/, true)
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude,true /*intermediate*/, false)
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
         if (isSurfaceShape) {
             boundingSector.setEmpty()
-            boundingSector.union(vertexArray, vertexIndex, VERTEX_STRIDE)
+            boundingSector.union(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
             boundingSector.translate(vertexOrigin.y /*latitude*/, vertexOrigin.x /*longitude*/)
             boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
         } else {
-            boundingBox.setToPoints(vertexArray, vertexIndex, VERTEX_STRIDE)
+            boundingBox.setToPoints(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
             boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
             boundingSector.setEmpty() // Cartesian shape bounding sector is unused
         }
@@ -240,16 +243,16 @@ open class Path @JvmOverloads constructor(
                 RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
                 else -> {}
             }
-            addVertex(rc, loc.latitude, loc.longitude, alt, true /*intermediate*/, false /*firstOrLast*/)
+            addVertex(rc, loc.latitude, loc.longitude, alt, true /*intermediate*/, true /*addIndices*/)
             dist += deltaDist
             alt += deltaAlt
         }
     }
 
     protected open fun addVertex(
-        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, firstOrLast : Boolean
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, addIndices : Boolean
     ) {
-        val vertex = (vertexIndex / VERTEX_STRIDE - 1) * 2
+        val vertex = vertexIndex / VERTEX_STRIDE
         val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertexIndex == 0) {
             if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
@@ -263,37 +266,68 @@ open class Path @JvmOverloads constructor(
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = 1.0f // [-1; 1]
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = -1.0f
+            vertexArray[vertexIndex++] = 0.0f // [-1; -1]
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            if (!firstOrLast) {
+
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = 3.0f // [1; 1]
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = 2.0f // [1; -1]
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            if (addIndices) {
                 outlineElements.add(vertex)
-                outlineElements.add(vertex.inc())
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 3)
             }
         } else {
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = 1.0f // [-1; 1]
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = -1.0f
+            vertexArray[vertexIndex++] = 0.0f // [-1; -1]
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
-            if (!firstOrLast) {
+
+            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = 3.0f // [1; 1]
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = 2.0f // [1; -1]
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            if (addIndices) {
                 outlineElements.add(vertex)
-                outlineElements.add(vertex.inc())
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 3)
             }
             if (isExtrude) {
                 val vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, verticalPoint)
 
-                val extrudeVertex =  (extrudeIndex / VERTEX_STRIDE - 1) * 2
+                val extrudeVertex =  extrudeIndex / VERTEX_STRIDE
 
                 vertexArray[extrudeIndex++] = (point.x - vertexOrigin.x).toFloat()
                 vertexArray[extrudeIndex++] = (point.y - vertexOrigin.y).toFloat()
@@ -307,13 +341,13 @@ open class Path @JvmOverloads constructor(
                 vertexArray[extrudeIndex++] = 0f
                 vertexArray[extrudeIndex++] = 0f
 
-                if (!firstOrLast) {
+                if (addIndices) {
                     interiorElements.add(extrudeVertex)
                     interiorElements.add(extrudeVertex.inc())
                 }
 
-                if (!intermediate && !firstOrLast) {
-                    val index =  verticalIndex / VERTEX_STRIDE * 2
+                if (!intermediate) {
+                    val index =  verticalIndex / VERTEX_STRIDE
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
@@ -323,7 +357,7 @@ open class Path @JvmOverloads constructor(
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
                     vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
@@ -335,7 +369,7 @@ open class Path @JvmOverloads constructor(
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
                     vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
@@ -347,7 +381,7 @@ open class Path @JvmOverloads constructor(
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
                     vertexArray[verticalIndex++] = 0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
@@ -359,7 +393,7 @@ open class Path @JvmOverloads constructor(
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = -1f
+                    vertexArray[verticalIndex++] = 0f
                     vertexArray[verticalIndex++] = 0f
 
                     verticalElements.add(index)
