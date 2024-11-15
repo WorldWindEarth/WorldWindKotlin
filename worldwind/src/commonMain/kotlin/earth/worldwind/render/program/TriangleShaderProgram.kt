@@ -220,9 +220,9 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
 
     // should be in (0;1] range
     fun loadMiterLengthCutoff(miterLengthCutoff : Float) {
-        if (this.invMiterLengthCutoff != invMiterLengthCutoff) {
+        if (this.invMiterLengthCutoff != 1.0f / miterLengthCutoff) {
             this.invMiterLengthCutoff = 1.0f / miterLengthCutoff
-            gl.uniform1f(invMiterLengthCutoffId, 1.0f / miterLengthCutoff)
+            gl.uniform1f(invMiterLengthCutoffId, invMiterLengthCutoff)
         }
     }
 
