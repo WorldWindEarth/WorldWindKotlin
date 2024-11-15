@@ -62,7 +62,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     
                     vec2 miter = vec2(-tangent.y, tangent.x);
                     vec2 normalA = vec2(-AB.y, AB.x);
-                    float miterLength = 1.0 / clamp(dot(miter, normalA), 0.000001, 1.0);
+                    float miterLength = 1.0 / clamp(dot(miter, normalA), 0.01, 1.0);
                     
                     gl_Position = pointBScreen;
                     if (miterLength >= miterLengthCutoff && sign(cornerX * dot(miter, point)) > 0.0) {
@@ -115,7 +115,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
-    protected var miterLengthCutoff = 0.2f
+    protected var miterLengthCutoff = 5.0f
     protected var screenX = 0.0f
     protected var screenY = 0.0f
 
