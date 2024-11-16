@@ -120,6 +120,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 -terrainSector.minLatitude.inDegrees,
                 0.0
             )
+            program.loadClipDistance((textureMvpMatrix.m[11] / (textureMvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // set value here, but matrix is orthographic and shader clipping won't work as vertices projected orthographically always have .w == 1
             for (element in scratchList) {
                 // Get the shape.
                 val shape = element as DrawableSurfaceShape
