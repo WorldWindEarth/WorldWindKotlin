@@ -63,14 +63,14 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     
                     vec2 miter = vec2(-tangent.y, tangent.x);
                     vec2 normalA = vec2(-AB.y, AB.x);
-                    float invMiterLength = max(dot(miter, normalA), invMiterLengthCutoff);
+                    float miterLength = 1.0 / max(dot(miter, normalA), invMiterLengthCutoff);
                     
                     gl_Position = pointBScreen;
-                    if (abs(invMiterLengthCutoff - invMiterLength) < length(eps) && sign(cornerX * dot(miter, point)) > 0.0) {
+                    if (abs(miterLength - 1.0 / invMiterLengthCutoff) < length(eps) && sign(cornerY * dot(miter, point)) > 0.0) {
                       // trim the corner
-                        gl_Position.xy = gl_Position.w * (gl_Position.xy - (cornerY * cornerX * lineWidth * normalA) / screen.xy);
+                        gl_Position.xy = gl_Position.w * (gl_Position.xy + (cornerY * lineWidth * vec2(-cornerX * normalA.x, normalA.y)) / screen.xy);
                     } else {
-                        gl_Position.xy = gl_Position.w * (gl_Position.xy + (cornerY * miter * lineWidth * 1.0 / invMiterLength) / screen.xy);
+                        gl_Position.xy = gl_Position.w * (gl_Position.xy + (cornerY * miter * lineWidth * miterLength) / screen.xy);
                     }
                 }
                 
