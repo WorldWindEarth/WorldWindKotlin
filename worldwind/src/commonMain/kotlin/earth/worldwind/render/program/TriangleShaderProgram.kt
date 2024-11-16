@@ -66,21 +66,20 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     pointBScreen.xy = pointBScreen.xy / pointBScreen.w;
                     pointCScreen.xy = pointCScreen.xy / pointCScreen.w;
                     
-                    vec2 eps = vec2(2.0 / screen.x, 2.0 / screen.y);
-                    eps *= 0.1;
+                    float eps = 0.1 * length(vec2(2.0 / screen.x, 2.0 / screen.y));
                     
-                    if (all(lessThanEqual(abs(pointBScreen.xy - pointAScreen.xy), eps))) {
+                    if (length(pointBScreen.xy - pointAScreen.xy) < eps) {
                         pointAScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointCScreen.xy);
                     }
-                    if (all(lessThanEqual(abs(pointBScreen.xy - pointCScreen.xy), eps))) {
+                    if (length(pointBScreen.xy - pointCScreen.xy) <  eps) {
                         pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
                     }
-                    if (all(lessThanEqual(abs(pointAScreen.xy - pointCScreen.xy), eps))) {
+                    if (length(pointAScreen.xy - pointCScreen.xy) < eps) {
                         pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
                     }
                     
-                    vec2 AB = normalize(normalize(pointBScreen.xy - pointAScreen.xy) * screen);
-                    vec2 BC = normalize(normalize(pointCScreen.xy - pointBScreen.xy) * screen);
+                    vec2 AB = normalize((pointBScreen.xy - pointAScreen.xy) * screen);
+                    vec2 BC = normalize((pointCScreen.xy - pointBScreen.xy) * screen);
                     vec2 tangent = normalize(AB + BC);
                     vec2 point = normalize(AB - BC);
                     
@@ -89,7 +88,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     float miterLength = 1.0 / max(dot(miter, normalA), invMiterLengthCutoff);
                     
                     gl_Position = pointBScreen;
-                    if (abs(miterLength - 1.0 / invMiterLengthCutoff) < length(eps) && sign(cornerY * dot(miter, point)) > 0.0) {
+                    if (abs(miterLength - 1.0 / invMiterLengthCutoff) < eps && sign(cornerY * dot(miter, point)) > 0.0) {
                       // trim the corner
                         gl_Position.xy = gl_Position.w * (gl_Position.xy + (cornerY * lineWidth * vec2(-cornerX * normalA.x, normalA.y)) / screen.xy);
                     } else {
@@ -245,7 +244,6 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
         }
     }
 
-    // should be in (0;1] range
     fun loadMiterLengthCutoff(miterLengthCutoff : Float) {
         if (this.invMiterLengthCutoff != 1.0f / miterLengthCutoff) {
             this.invMiterLengthCutoff = 1.0f / miterLengthCutoff
