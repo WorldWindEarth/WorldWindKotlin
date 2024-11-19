@@ -28,22 +28,18 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
             void main() {
                 if (enableOneVertexMode) {
                     /* Transform the vertex position by the modelview-projection matrix. */
-                    gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
+                    gl_Position = mvpMatrix * pointA;
                 } else {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
                     vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
                     vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
-                    float cornerX = floor((pointB.w + 0.5) / 2.0);
-                    float cornerY = mod(pointB.w, 2.0);
-                    cornerX = 2.0 * cornerX - 1.0;
-                    cornerY = 2.0 * cornerY - 1.0;
+                    vec4 interpolationPoint = pointB.w < 2.0 ? pointAScreen : pointCScreen; // not a mistake, this should be assigned here
                     
                     if(pointBScreen.w < clipDistance)
                     {
-                        vec4 interpolationPoint = cornerX < 0.0 ? pointAScreen : pointCScreen;
-                        pointBScreen  = mix(pointBScreen, interpolationPoint, (clipDistance - pointBScreen.w)/(interpolationPoint.w - pointBScreen.w));
-                        if(cornerX < 0.0)
+                        pointBScreen = mix(pointBScreen, interpolationPoint, clamp((clipDistance - pointBScreen.w)/(interpolationPoint.w - pointBScreen.w), 0.0, 1.0));
+                        if(pointB.w < 2.0)
                         { 
                             pointCScreen = pointBScreen;
                         } else
@@ -54,12 +50,12 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
 
                     if(pointAScreen.w < clipDistance)
                     {
-                        pointAScreen  = mix(pointAScreen, pointBScreen, (clipDistance - pointAScreen.w)/(pointBScreen.w - pointAScreen.w));
+                        pointAScreen  = mix(pointAScreen, pointBScreen, clamp((clipDistance - pointAScreen.w)/(pointBScreen.w - pointAScreen.w), 0.0, 1.0));
                     }
 
                     if(pointCScreen.w < clipDistance)
                     {
-                        pointCScreen  = mix(pointCScreen, pointBScreen, (clipDistance - pointCScreen.w)/(pointBScreen.w - pointCScreen.w));
+                        pointCScreen  = mix(pointCScreen, pointBScreen, clamp((clipDistance - pointCScreen.w)/(pointBScreen.w - pointCScreen.w), 0.0, 1.0));
                     }
                     
                     pointAScreen.xy = pointAScreen.xy / pointAScreen.w;
@@ -87,6 +83,8 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     vec2 normalA = vec2(-AB.y, AB.x);
                     float miterLength = 1.0 / max(dot(miter, normalA), invMiterLengthCutoff);
                     
+                    float cornerX = floor((pointB.w + 0.5) / 2.0);
+                    float cornerY = mod(pointB.w, 2.0);
                     gl_Position = pointBScreen;
                     if (abs(miterLength - 1.0 / invMiterLengthCutoff) < eps && sign(cornerY * dot(miter, point)) > 0.0) {
                       // trim the corner
