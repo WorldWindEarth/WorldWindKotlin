@@ -154,6 +154,16 @@ open class Path @JvmOverloads constructor(
             )
         }
 
+        // Configure the drawable according to the shape's attributes.
+        drawState.vertexOrigin.copy(vertexOrigin)
+        drawState.enableCullFace = false
+        drawState.enableDepthTest = activeAttributes.isDepthTest
+        drawState.enableDepthWrite = activeAttributes.isDepthWrite
+
+        // Enqueue the drawable for processing on the OpenGL thread.
+        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
+        else rc.offerShapeDrawable(drawable, cameraDistance)
+
         // Configure the drawable to display the shape's extruded interior.
         if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape) {
             val pool = rc.getDrawablePool<DrawableShape>()
@@ -195,16 +205,6 @@ open class Path @JvmOverloads constructor(
 
             rc.offerShapeDrawable(drawableExtrusion, cameraDistance)
         }
-
-        // Configure the drawable according to the shape's attributes.
-        drawState.vertexOrigin.copy(vertexOrigin)
-        drawState.enableCullFace = false
-        drawState.enableDepthTest = activeAttributes.isDepthTest
-        drawState.enableDepthWrite = activeAttributes.isDepthWrite
-
-        // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
-        else rc.offerShapeDrawable(drawable, cameraDistance)
     }
 
     protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty()
