@@ -89,7 +89,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     cornerY = 2.0 * cornerY - 1.0;
                     if (abs(miterLength - (1.0 / invMiterLengthCutoff)) < eps && cornerY * dot(miter, point) > 0.0) {
                       // trim the corner
-                        gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * lineWidth * vec2(-cornerX * normalA.x, normalA.y)) / screen.xy);
+                        gl_Position.xy = pointBScreen.w * (pointBScreen.xy - (cornerX * cornerY * lineWidth * normalA) / screen.xy);
                     } else {
                         gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * miter * lineWidth * miterLength) / screen.xy);
                     }
