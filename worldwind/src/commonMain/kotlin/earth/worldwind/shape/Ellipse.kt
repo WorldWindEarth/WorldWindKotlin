@@ -164,7 +164,7 @@ open class Ellipse @JvmOverloads constructor(
     companion object {
         protected const val VERTEX_STRIDE = 5
         protected const val OUTLINE_LINE_SEGMENT_STRIDE = 4 * VERTEX_STRIDE
-        protected const val VERTICAL_LINE_SEGMENT_STRIDE = 4 * 2 * OUTLINE_LINE_SEGMENT_STRIDE // 4 points per 4 vertices per vertical line
+        protected const val VERTICAL_LINE_SEGMENT_STRIDE = 4 * OUTLINE_LINE_SEGMENT_STRIDE // 4 points per 4 vertices per vertical line
         /**
          * The minimum number of intervals that will be used for geometry generation.
          */
@@ -477,7 +477,7 @@ open class Ellipse @JvmOverloads constructor(
             if (i > 0 && i < activeIntervals / 2) spineRadius[spineIdx++] = x
             if (i < 1) {
                 firstLoc = Position(loc.latitude, loc.longitude, center.altitude)
-                addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, false)
+                addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, true)
             }
             addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, true)
         }

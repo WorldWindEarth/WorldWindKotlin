@@ -93,7 +93,7 @@ open class Path @JvmOverloads constructor(
             val pool = rc.getDrawablePool<DrawableShape>()
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
-            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE, vertexOrigin)
+            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, OUTLINE_SEGMENT_STRIDE, vertexOrigin)
         }
 
         // Use triangles mode to draw lines

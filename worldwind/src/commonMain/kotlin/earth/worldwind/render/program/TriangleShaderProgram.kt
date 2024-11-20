@@ -36,7 +36,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
                     vec4 interpolationPoint = pointB.w < 2.0 ? pointAScreen : pointCScreen; // not a mistake, this should be assigned here
                     
-                    if(pointBScreen.w < clipDistance)
+                    if(pointBScreen.w < 0.0)
                     {
                         pointBScreen = mix(pointBScreen, interpolationPoint, clamp((clipDistance - pointBScreen.w)/(interpolationPoint.w - pointBScreen.w), 0.0, 1.0));
                         if(pointB.w < 2.0)
@@ -48,12 +48,12 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                         }
                     }
 
-                    if(pointAScreen.w < clipDistance)
+                    if(pointAScreen.w < 0.0)
                     {
                         pointAScreen  = mix(pointAScreen, pointBScreen, clamp((clipDistance - pointAScreen.w)/(pointBScreen.w - pointAScreen.w), 0.0, 1.0));
                     }
 
-                    if(pointCScreen.w < clipDistance)
+                    if(pointCScreen.w < 0.0)
                     {
                         pointCScreen  = mix(pointCScreen, pointBScreen, clamp((clipDistance - pointCScreen.w)/(pointBScreen.w - pointCScreen.w), 0.0, 1.0));
                     }
@@ -83,15 +83,17 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     vec2 normalA = vec2(-AB.y, AB.x);
                     float miterLength = 1.0 / max(dot(miter, normalA), invMiterLengthCutoff);
                     
-                    float cornerX = floor((pointB.w + 0.5) / 2.0);
+                    float cornerX = floor((pointB.w + 0.5) * 0.5);
                     float cornerY = mod(pointB.w, 2.0);
-                    gl_Position = pointBScreen;
-                    if (abs(miterLength - 1.0 / invMiterLengthCutoff) < eps && sign(cornerY * dot(miter, point)) > 0.0) {
+                    cornerX = 2.0 * cornerX - 1.0;
+                    cornerY = 2.0 * cornerY - 1.0;
+                    if (abs(miterLength - (1.0 / invMiterLengthCutoff)) < eps && cornerY * dot(miter, point) > 0.0) {
                       // trim the corner
-                        gl_Position.xy = gl_Position.w * (gl_Position.xy + (cornerY * lineWidth * vec2(-cornerX * normalA.x, normalA.y)) / screen.xy);
+                        gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * lineWidth * vec2(-cornerX * normalA.x, normalA.y)) / screen.xy);
                     } else {
-                        gl_Position.xy = gl_Position.w * (gl_Position.xy + (cornerY * miter * lineWidth * miterLength) / screen.xy);
+                        gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * miter * lineWidth * miterLength) / screen.xy);
                     }
+                    gl_Position.zw = pointBScreen.zw;
                 }
                 
                 /* Transform the vertex tex coord by the tex coord matrix. */
@@ -136,7 +138,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
-    protected var invMiterLengthCutoff = 1.0f / 5.0f // should be in (0;1] range
+    protected var invMiterLengthCutoff = 1.0f / 5.0f // should be in (0;1) range, values close to 1 will trigger cutoff for straight lines
     protected var screenX = 0.0f
     protected var screenY = 0.0f
     protected var clipDistance = 0.0f

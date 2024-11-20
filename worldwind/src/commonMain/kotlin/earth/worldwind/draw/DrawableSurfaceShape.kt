@@ -121,6 +121,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 0.0
             )
             program.loadClipDistance((textureMvpMatrix.m[11] / (textureMvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // set value here, but matrix is orthographic and shader clipping won't work as vertices projected orthographically always have .w == 1
+            program.loadScreen(colorAttachment.width.toFloat(), colorAttachment.height.toFloat())
             for (element in scratchList) {
                 // Get the shape.
                 val shape = element as DrawableSurfaceShape
@@ -136,17 +137,13 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                     shape.drawState.vertexOrigin.z
                 )
                 program.loadModelviewProjection(mvpMatrix)
+                program.enableOneVertexMode(!shape.drawState.isLine)
                 if (shape.drawState.isLine) {
-                    program.enableOneVertexMode(false)
-                    program.loadScreen(colorAttachment.width.toFloat(), colorAttachment.height.toFloat())
-
                     dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20, 0)
                     dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20, 80)
                     dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20, 160)
                     dc.gl.vertexAttribPointer(3 /*vertexTexCoord*/, 1, GL_FLOAT, false, 20, 96)
                 } else {
-                    program.enableOneVertexMode(true)
-
                     // Use the shape's vertex point attribute.
                     dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
                     dc.gl.vertexAttribPointer(1 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
@@ -211,12 +208,14 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             program.loadTexCoordMatrix(identityMatrix3)
             program.loadColor(color)
             program.loadOpacity(opacity)
+            program.loadScreen(dc.viewport.width.toFloat(), dc.viewport.height.toFloat())
 
             // Use the draw context's modelview projection matrix, transformed to terrain local coordinates.
             val terrainOrigin = terrain.vertexOrigin
             mvpMatrix.copy(dc.modelviewProjection)
             mvpMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
             program.loadModelviewProjection(mvpMatrix)
+            program.loadClipDistance(0.0f)
 
             // Draw the terrain as triangles.
             terrain.drawTriangles(dc)
