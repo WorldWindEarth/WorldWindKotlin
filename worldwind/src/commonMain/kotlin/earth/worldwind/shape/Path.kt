@@ -14,6 +14,7 @@ import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.kgl.*
+import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 
 open class Path @JvmOverloads constructor(
@@ -302,29 +303,33 @@ open class Path @JvmOverloads constructor(
             texCoord1d += point.distanceTo(prevPoint)
         }
         prevPoint.copy(point)
+        val upperLeftCorner = encodeOrientationVector(-1f, 1f)
+        val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
+        val upperRightCorner = encodeOrientationVector(1f, 1f)
+        val lowerRightCorner = encodeOrientationVector(1f, -1f)
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 1.0f // [-1; 1]
+            vertexArray[vertexIndex++] = upperLeftCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 0.0f // [-1; -1]
+            vertexArray[vertexIndex++] = lowerLeftCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 3.0f // [1; 1]
+            vertexArray[vertexIndex++] = upperRightCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 2.0f // [1; -1]
+            vertexArray[vertexIndex++] = lowerRightCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             if (addIndices) {
@@ -337,25 +342,25 @@ open class Path @JvmOverloads constructor(
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 1.0f // [-1; 1]
+            vertexArray[vertexIndex++] = upperLeftCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 0.0f // [-1; -1]
+            vertexArray[vertexIndex++] = lowerLeftCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 3.0f // [1; 1]
+            vertexArray[vertexIndex++] = upperRightCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 2.0f // [1; -1]
+            vertexArray[vertexIndex++] = lowerRightCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             if (addIndices) {
@@ -390,100 +395,100 @@ open class Path @JvmOverloads constructor(
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = upperLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 0f
+                    vertexArray[verticalIndex++] = lowerLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 3f
+                    vertexArray[verticalIndex++] = upperRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 2f
+                    vertexArray[verticalIndex++] = lowerRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     // first pointB
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = upperLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 0f
+                    vertexArray[verticalIndex++] = lowerLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 3f
+                    vertexArray[verticalIndex++] = upperRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 2f
+                    vertexArray[verticalIndex++] = lowerRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     // second pointB
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = upperLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 0f
+                    vertexArray[verticalIndex++] = lowerLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 3f
+                    vertexArray[verticalIndex++] = upperRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 2f
+                    vertexArray[verticalIndex++] = lowerRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     // last vertices, that simulate pointC for previous vertices
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 1f
+                    vertexArray[verticalIndex++] = upperLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 0f
+                    vertexArray[verticalIndex++] = lowerLeftCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 3f
+                    vertexArray[verticalIndex++] = upperRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                     vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = 2f
+                    vertexArray[verticalIndex++] = lowerRightCorner
                     vertexArray[verticalIndex++] = 0.0f
 
                     // indices for triangles from firstPointB secondPointB
