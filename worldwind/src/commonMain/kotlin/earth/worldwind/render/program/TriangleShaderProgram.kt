@@ -36,25 +36,20 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
                     vec4 interpolationPoint = pointB.w < 0.0 ? pointAScreen : pointCScreen; // not a mistake, this should be assigned here
                     
-                    if(pointBScreen.w < 0.0)
-                    {
+                    if (pointBScreen.w < 0.0) {
                         pointBScreen = mix(pointBScreen, interpolationPoint, clamp((clipDistance - pointBScreen.w)/(interpolationPoint.w - pointBScreen.w), 0.0, 1.0));
-                        if(pointB.w < 0.0)
-                        { 
+                        if (pointB.w < 0.0) { 
                             pointCScreen = pointBScreen;
-                        } else
-                        {
+                        } else {
                             pointAScreen = pointBScreen;
                         }
                     }
 
-                    if(pointAScreen.w < 0.0)
-                    {
+                    if (pointAScreen.w < 0.0)  {
                         pointAScreen  = mix(pointAScreen, pointBScreen, clamp((clipDistance - pointAScreen.w)/(pointBScreen.w - pointAScreen.w), 0.0, 1.0));
                     }
 
-                    if(pointCScreen.w < 0.0)
-                    {
+                    if (pointCScreen.w < 0.0) {
                         pointCScreen  = mix(pointCScreen, pointBScreen, clamp((clipDistance - pointCScreen.w)/(pointBScreen.w - pointCScreen.w), 0.0, 1.0));
                     }
                     

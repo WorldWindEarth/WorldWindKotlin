@@ -44,7 +44,7 @@ open class DrawableShape protected constructor(): Drawable {
             program.loadClipDistance((mvpMatrix.m[11] / (mvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // nearPlane / 2.0f
             mvpMatrix.multiplyByMatrix(dc.modelview)
         } else {
-            program.loadClipDistance((dc.projection.m[11] / (dc.projection.m[10] - 1.0f)).toFloat() / 2.0f)  // nearPlane / 2.0f
+            program.loadClipDistance((dc.projection.m[11] / (dc.projection.m[10] - 1.0)).toFloat() / 2.0f)  // nearPlane / 2.0f
             mvpMatrix.copy(dc.modelviewProjection)
         }
         mvpMatrix.multiplyByTranslation(
