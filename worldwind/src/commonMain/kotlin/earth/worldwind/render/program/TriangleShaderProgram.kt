@@ -138,7 +138,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
-    protected var invMiterLengthCutoff = 1.0f / 5.0f // should be in (0;1) range, values close to 1 will trigger cutoff for straight lines
+    protected var invMiterLengthCutoff = 1.0f / 2.0f // should be in (0;1) range, values close to 1 will trigger cutoff for straight lines
     protected var screenX = 0.0f
     protected var screenY = 0.0f
     protected var clipDistance = 0.0f
