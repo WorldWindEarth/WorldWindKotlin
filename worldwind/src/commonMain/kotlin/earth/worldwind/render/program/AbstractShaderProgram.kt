@@ -79,7 +79,7 @@ abstract class AbstractShaderProgram: RenderResource {
         dc.gl.shaderSource(fs, programSources[FRAGMENT_SHADER])
         dc.gl.compileShader(fs)
 
-        if (dc.gl.getShaderParameteri(vs, GL_COMPILE_STATUS) != GL_TRUE) {
+        if (dc.gl.getShaderParameteri(fs, GL_COMPILE_STATUS) != GL_TRUE) {
             val msg = dc.gl.getShaderInfoLog(fs)
             dc.gl.deleteShader(vs)
             dc.gl.deleteShader(fs)

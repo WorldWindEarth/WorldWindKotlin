@@ -20,6 +20,7 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.glu.GLU
 import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
 import earth.worldwind.util.kgl.*
+import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 
 open class Polygon @JvmOverloads constructor(
@@ -69,7 +70,8 @@ open class Polygon @JvmOverloads constructor(
 
     companion object {
         protected const val VERTEX_STRIDE = 5
-        protected const val LINE_VERTEX_STRIDE = 10
+        protected const val OUTLINE_LINE_SEGMENT_STRIDE = 4 * VERTEX_STRIDE
+        protected const val VERTICAL_LINE_SEGMENT_STRIDE = 4 * OUTLINE_LINE_SEGMENT_STRIDE // 4 points per 4 vertices per vertical line
         protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             wrapMode = WrapMode.REPEAT
@@ -316,7 +318,7 @@ open class Polygon @JvmOverloads constructor(
 
             if (noIntermediatePoints) {
                 vertexCount += p.size
-                lineVertexCount += (p.size + 2)
+                lineVertexCount += (p.size + 2) // +2 is for point A and point C at the start and end if line strip
                 verticalVertexCount += p.size
             } else if (p.isNotEmpty() && p[0] == p[p.size - 1]) {
                 vertexCount += p.size + (p.size - 1) * maximumIntermediatePoints
@@ -338,9 +340,9 @@ open class Polygon @JvmOverloads constructor(
         topElements.clear()
         sideElements.clear()
         lineVertexIndex = 0
-        verticalVertexIndex = lineVertexCount * LINE_VERTEX_STRIDE
-        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray(lineVertexCount * LINE_VERTEX_STRIDE + verticalVertexCount * 4 * LINE_VERTEX_STRIDE)
-        else FloatArray(lineVertexCount * LINE_VERTEX_STRIDE)
+        verticalVertexIndex = lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE
+        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE + verticalVertexCount * VERTICAL_LINE_SEGMENT_STRIDE)
+        else FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE)
         outlineElements.clear()
         verticalElements.clear()
 
@@ -363,22 +365,22 @@ open class Polygon @JvmOverloads constructor(
             var begin = positions[0]
             addVertex(rc, begin.latitude, begin.longitude, begin.altitude, VERTEX_ORIGINAL /*type*/)
 
-            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, true, false)
-            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, false, false)
+            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, true, true)
+            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, false, true)
 
             // Add the remaining boundary vertices, tessellating each edge as indicated by the polygon's properties.
             for (idx in 1 until positions.size) {
                 val end = positions[idx]
                 addIntermediateVertices(rc, begin, end)
                 addVertex(rc, end.latitude, end.longitude, end.altitude, VERTEX_ORIGINAL /*type*/)
-                addLineVertex(rc, end.latitude, end.longitude, end.altitude, false, true)
+                addLineVertex(rc, end.latitude, end.longitude, end.altitude, false, if (idx == (positions.size - 1)) end != positions[0] else true) // check if there is implicit closing edge
                 begin = end
             }
 
             // Tessellate the implicit closing edge if the boundary is not already closed.
             if (begin != positions[0]) {
                 addIntermediateVertices(rc, begin, positions[0])
-                addLineVertex(rc, positions[0].latitude, positions[0].longitude, positions[0].altitude, true, true)
+                addLineVertex(rc, positions[0].latitude, positions[0].longitude, positions[0].altitude, true, false)
                 addLineVertex(rc, positions[0].latitude, positions[0].longitude, positions[0].altitude, true, false)
             } else {
                 addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, true, false)
@@ -479,108 +481,207 @@ open class Polygon @JvmOverloads constructor(
     protected open fun addLineVertex(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, isIntermediate : Boolean, addIndices : Boolean
     ) {
-        val vertex = (lineVertexIndex / LINE_VERTEX_STRIDE - 1) * 2
-        var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
+        val vertex = lineVertexIndex / VERTEX_STRIDE
+        val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (lineVertexIndex == 0) texCoord1d = 0.0
         else texCoord1d += point.distanceTo(prevPoint)
         prevPoint.copy(point)
+        val upperLeftCorner = encodeOrientationVector(-1f, 1f)
+        val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
+        val upperRightCorner = encodeOrientationVector(1f, 1f)
+        val lowerRightCorner = encodeOrientationVector(1f, -1f)
         if (isSurfaceShape) {
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = 1.0f
+            lineVertexArray[lineVertexIndex++] = upperLeftCorner
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = -1.0f
+            lineVertexArray[lineVertexIndex++] = lowerLeftCorner
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = upperRightCorner
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = lowerRightCorner
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
             if (addIndices) {
-                outlineElements.add(vertex - 2)
-                outlineElements.add(vertex - 1)
+                // indices for triangles made from this segment vertices
                 outlineElements.add(vertex)
-                outlineElements.add(vertex)
-                outlineElements.add(vertex - 1)
                 outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 3)
+                // indices for triangles made from last vertices of this segment and first vertices of next segment
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 3)
+                outlineElements.add(vertex + 4)
+                outlineElements.add(vertex + 4)
+                outlineElements.add(vertex + 3)
+                outlineElements.add(vertex + 5)
             }
         } else {
             lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = 1.0f
+            lineVertexArray[lineVertexIndex++] = upperLeftCorner
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
             lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = -1.0f
+            lineVertexArray[lineVertexIndex++] = lowerLeftCorner
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
+            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = upperRightCorner
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
+            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            lineVertexArray[lineVertexIndex++] = lowerRightCorner
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
             if (addIndices) {
-                outlineElements.add(vertex - 2)
-                outlineElements.add(vertex - 1)
+                // indices for triangles made from this segment vertices
                 outlineElements.add(vertex)
-                outlineElements.add(vertex)
-                outlineElements.add(vertex - 1)
                 outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 3)
+                // indices for triangles made from last vertices of this segment and first vertices of next segment
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 3)
+                outlineElements.add(vertex + 4)
+                outlineElements.add(vertex + 4)
+                outlineElements.add(vertex + 3)
+                outlineElements.add(vertex + 5)
             }
             if (isExtrude && !isIntermediate) {
                 var vertPoint = Vec3()
                 vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
-                val index =  verticalVertexIndex / LINE_VERTEX_STRIDE * 2
+                val index =  verticalVertexIndex / VERTEX_STRIDE
 
+                // first vertices, that simulate pointA for next vertices
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = 1f
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
                 lineVertexArray[verticalVertexIndex++] = 0.0f
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = 1f
+                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
                 lineVertexArray[verticalVertexIndex++] = 0.0f
 
                 lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = upperRightCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                // first pointB
+                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = upperRightCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                // second pointB
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
                 lineVertexArray[verticalVertexIndex++] = 0.0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = 1f
+                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
                 lineVertexArray[verticalVertexIndex++] = 0.0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = upperRightCorner
                 lineVertexArray[verticalVertexIndex++] = 0.0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = 1f
+                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                // last vertices, that simulate pointC for previous vertices
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
                 lineVertexArray[verticalVertexIndex++] = 0.0f
 
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = -1f
+                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
                 lineVertexArray[verticalVertexIndex++] = 0.0f
 
-                verticalElements.add(index)
-                verticalElements.add(index + 1)
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = upperRightCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
+                lineVertexArray[verticalVertexIndex++] = 0.0f
+
+                // indices for triangles from firstPointB secondPointB
                 verticalElements.add(index + 2)
-                verticalElements.add(index + 2)
-                verticalElements.add(index + 1)
                 verticalElements.add(index + 3)
+                verticalElements.add(index + 4)
+                verticalElements.add(index + 4)
+                verticalElements.add(index + 3)
+                verticalElements.add(index + 5)
             }
         }
     }

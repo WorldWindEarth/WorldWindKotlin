@@ -108,3 +108,15 @@ fun powerOfTwoCeiling(value: Int): Int {
     val pow = ceil(ln(value.toDouble()) / ln(2.0)).toInt()
     return 1 shl pow
 }
+
+/**
+ * Packs vec2 into one float value.
+ *
+ * @param x x coordinate of vector should be in -1 or 1.
+ * @param y coordinate of vector should be in -1 or 1.
+ *
+ * @return the float value with encoded coordinates
+ */
+fun encodeOrientationVector(x: Float, y: Float) : Float {
+    return x + 0.5f * y;
+}

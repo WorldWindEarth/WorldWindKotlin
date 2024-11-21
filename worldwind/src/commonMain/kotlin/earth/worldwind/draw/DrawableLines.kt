@@ -71,6 +71,9 @@ open class DrawableLines protected constructor(): Drawable {
         // Use the leader's line width in screen pixels.
         program.loadLineWidth(lineWidth)
 
+        // Set cutoff to 10 to avoid possible cutoff at small values of miter length
+        program.loadMiterLengthCutoff(10f)
+
         // Disable depth testing if requested.
         if (!enableDepthTest) dc.gl.disable(GL_DEPTH_TEST)
 

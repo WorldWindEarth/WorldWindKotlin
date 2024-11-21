@@ -11,11 +11,12 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
         """
             uniform mat4 mvpMatrix;
             uniform float lineWidth;
-            uniform float invMiterLengthCutoff;
-            uniform vec2 screen;
+            uniform vec2 miterLengthCutoff;
+            uniform vec4 screen;
             uniform bool enableTexture;
             uniform bool enableOneVertexMode;
             uniform mat3 texCoordMatrix;
+            uniform float clipDistance;
             
             attribute vec4 pointA;
             attribute vec4 pointB;
@@ -27,41 +28,65 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
             void main() {
                 if (enableOneVertexMode) {
                     /* Transform the vertex position by the modelview-projection matrix. */
-                    gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
+                    gl_Position = mvpMatrix * pointA;
                 } else {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
                     vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
                     vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
-                    float corner = pointB.w;
+                    vec4 interpolationPoint = pointB.w < 0.0 ? pointAScreen : pointCScreen; // not a mistake, this should be assigned here
                     
-                    pointAScreen = pointAScreen / pointAScreen.w;
-                    pointBScreen = pointBScreen / pointBScreen.w;
-                    pointCScreen = pointCScreen / pointCScreen.w;
+                    if (pointBScreen.w < 0.0) {
+                        pointBScreen = mix(pointBScreen, interpolationPoint, clamp((clipDistance - pointBScreen.w)/(interpolationPoint.w - pointBScreen.w), 0.0, 1.0));
+                        if (pointB.w < 0.0) { 
+                            pointCScreen = pointBScreen;
+                        } else {
+                            pointAScreen = pointBScreen;
+                        }
+                    }
+
+                    if (pointAScreen.w < 0.0) {
+                        pointAScreen  = mix(pointAScreen, pointBScreen, clamp((clipDistance - pointAScreen.w)/(pointBScreen.w - pointAScreen.w), 0.0, 1.0));
+                    }
+
+                    if (pointCScreen.w < 0.0) {
+                        pointCScreen  = mix(pointCScreen, pointBScreen, clamp((clipDistance - pointCScreen.w)/(pointBScreen.w - pointCScreen.w), 0.0, 1.0));
+                    }
                     
-                    vec2 eps = vec2(2.0 / screen.x, 2.0 / screen.y);
-                    eps *= 0.1;
+                    pointAScreen.xy = pointAScreen.xy / pointAScreen.w;
+                    pointBScreen.xy = pointBScreen.xy / pointBScreen.w;
+                    pointCScreen.xy = pointCScreen.xy / pointCScreen.w;
                     
-                    if (all(lessThanEqual(abs(pointBScreen.xy - pointAScreen.xy), eps))) {
+                    float eps = 0.2 * length(screen.zw);
+                    
+                    if (length(pointBScreen.xy - pointAScreen.xy) < eps) {
                         pointAScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointCScreen.xy);
                     }
-                    if (all(lessThanEqual(abs(pointBScreen.xy - pointCScreen.xy), eps))) {
+                    if (length(pointBScreen.xy - pointCScreen.xy) <  eps) {
                         pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
                     }
-                    if (all(lessThanEqual(abs(pointAScreen.xy - pointCScreen.xy), eps))) {
+                    if (length(pointAScreen.xy - pointCScreen.xy) < eps) {
                         pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
                     }
                     
-                    vec2 AB = normalize(normalize(pointBScreen.xy - pointAScreen.xy) * screen);
-                    vec2 BC = normalize(normalize(pointCScreen.xy - pointBScreen.xy) * screen);
+                    vec2 AB = normalize((pointBScreen.xy - pointAScreen.xy) * screen.xy);
+                    vec2 BC = normalize((pointCScreen.xy - pointBScreen.xy) * screen.xy);
                     vec2 tangent = normalize(AB + BC);
+                    vec2 point = normalize(AB - BC);
                     
                     vec2 miter = vec2(-tangent.y, tangent.x);
                     vec2 normalA = vec2(-AB.y, AB.x);
-                    float miterLength = 1.0 / max(dot(miter, normalA), invMiterLengthCutoff);
+                    float miterLength = 1.0 / max(dot(miter, normalA), miterLengthCutoff.y);
                     
-                    gl_Position = pointBScreen;
-                    gl_Position.xy = gl_Position.xy + (corner * miter * lineWidth * miterLength) / screen.xy;
+                    float cornerX = sign(pointB.w);
+                    float cornerY = (pointB.w - cornerX) * 2.0;
+                    if (abs(miterLength - miterLengthCutoff.x) < eps && cornerY * dot(miter, point) > 0.0) {
+                      // trim the corner
+                        gl_Position.xy = pointBScreen.w * (pointBScreen.xy - (cornerX * cornerY * lineWidth * normalA) * screen.zw);
+                    } else {
+                        gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * miter * lineWidth * miterLength) * screen.zw);
+                    }
+                    gl_Position.zw = pointBScreen.zw;
                 }
                 
                 /* Transform the vertex tex coord by the tex coord matrix. */
@@ -106,21 +131,23 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1.0f
-    protected var invMiterLengthCutoff = 1.0f
-    protected var screenX = 0.0f
-    protected var screenY = 0.0f
+    protected var miterLengthCutoff = 2.0f // should be greater than 1.0
+    protected var screenX = 1.0f
+    protected var screenY = 1.0f
+    protected var clipDistance = 0.0f
 
     protected var mvpMatrixId = KglUniformLocation.NONE
     protected var colorId = KglUniformLocation.NONE
     protected var opacityId = KglUniformLocation.NONE
     protected var lineWidthId = KglUniformLocation.NONE
-    protected var invMiterLengthCutoffId = KglUniformLocation.NONE
+    protected var miterLengthCutoffId = KglUniformLocation.NONE
     protected var screenId = KglUniformLocation.NONE
     protected var enablePickModeId = KglUniformLocation.NONE
     protected var enableTextureId = KglUniformLocation.NONE
     protected var enableOneVertexModeId = KglUniformLocation.NONE
     protected var texCoordMatrixId = KglUniformLocation.NONE
     protected var texSamplerId = KglUniformLocation.NONE
+    protected var clipDistanceId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -136,10 +163,12 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
         gl.uniform1f(opacityId, opacity)
         lineWidthId = gl.getUniformLocation(program, "lineWidth")
         gl.uniform1f(lineWidthId, lineWidth)
-        invMiterLengthCutoffId = gl.getUniformLocation(program, "invMiterLengthCutoff")
-        gl.uniform1f(invMiterLengthCutoffId, invMiterLengthCutoff)
+        miterLengthCutoffId = gl.getUniformLocation(program, "miterLengthCutoff")
+        gl.uniform2f(miterLengthCutoffId, miterLengthCutoff, 1f / miterLengthCutoff)
         screenId = gl.getUniformLocation(program, "screen")
-        gl.uniform2f(screenId, screenX, screenY)
+        gl.uniform4f(screenId, screenX, screenY, 1f / screenX, 1f / screenY)
+        clipDistanceId = gl.getUniformLocation(program, "clipDistance")
+        gl.uniform1f(clipDistanceId, clipDistance)
 
         enablePickModeId = gl.getUniformLocation(program, "enablePickMode")
         gl.uniform1i(enablePickModeId, if (enablePickMode) 1 else 0)
@@ -209,9 +238,16 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     }
 
     fun loadMiterLengthCutoff(miterLengthCutoff : Float) {
-        if (this.invMiterLengthCutoff != 1.0f / miterLengthCutoff) {
-            this.invMiterLengthCutoff = 1.0f / miterLengthCutoff
-            gl.uniform1f(invMiterLengthCutoffId, invMiterLengthCutoff)
+        if (this.miterLengthCutoff != miterLengthCutoff) {
+            this.miterLengthCutoff = miterLengthCutoff
+            gl.uniform2f(miterLengthCutoffId, miterLengthCutoff, 1f / miterLengthCutoff)
+        }
+    }
+
+    fun loadClipDistance(clipDistance : Float) {
+        if (this.clipDistance != clipDistance) {
+            this.clipDistance = clipDistance
+            gl.uniform1f(clipDistanceId, clipDistance)
         }
     }
 
@@ -219,7 +255,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
         if ((this.screenX != screenX) and (this.screenY != screenY) ) {
             this.screenX = screenX
             this.screenY = screenY
-            gl.uniform2f(screenId, this.screenX, this.screenY)
+            gl.uniform4f(screenId, this.screenX, this.screenY, 1f / screenX, 1f / screenY)
         }
     }
 }

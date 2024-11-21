@@ -14,6 +14,7 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.math.boundingRectForUnitSquare
+import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
@@ -452,52 +453,54 @@ open class Placemark @JvmOverloads constructor(
         drawable.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         var vertexIndex = 0
+        val upperLeftCorner = encodeOrientationVector(-1f, 1f)
+        val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
         drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        drawable.vertexPoints[vertexIndex++] = 1f
-        drawable.vertexPoints[vertexIndex++] = 0f
-
-        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
-        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
-        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = upperLeftCorner
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = lowerLeftCorner
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
         drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = upperLeftCorner
+        drawable.vertexPoints[vertexIndex++] = 0f
+
+        drawable.vertexPoints[vertexIndex++] = (placePoint.x - groundPoint.x).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.y - groundPoint.y).toFloat()
+        drawable.vertexPoints[vertexIndex++] = (placePoint.z - groundPoint.z).toFloat()
+        drawable.vertexPoints[vertexIndex++] = lowerLeftCorner
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
-        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = upperLeftCorner
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = lowerLeftCorner
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
-        drawable.vertexPoints[vertexIndex++] = 1f
+        drawable.vertexPoints[vertexIndex++] = upperLeftCorner
         drawable.vertexPoints[vertexIndex++] = 0f
 
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
         drawable.vertexPoints[vertexIndex++] = 0.0f
-        drawable.vertexPoints[vertexIndex++] = -1f
+        drawable.vertexPoints[vertexIndex++] = lowerLeftCorner
         drawable.vertexPoints[vertexIndex] = 0f
 
         // Compute the drawable's modelview-projection matrix, relative to the placemark's ground point.

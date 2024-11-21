@@ -41,8 +41,10 @@ open class DrawableShape protected constructor(): Drawable {
         // Use the draw context's modelview projection matrix, transformed to shape local coordinates.
         if (drawState.depthOffset != 0.0) {
             mvpMatrix.copy(dc.projection).offsetProjectionDepth(drawState.depthOffset)
+            program.loadClipDistance((mvpMatrix.m[11] / (mvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // nearPlane / 2.0f
             mvpMatrix.multiplyByMatrix(dc.modelview)
         } else {
+            program.loadClipDistance((dc.projection.m[11] / (dc.projection.m[10] - 1.0)).toFloat() / 2.0f)  // nearPlane / 2.0f
             mvpMatrix.copy(dc.modelviewProjection)
         }
         mvpMatrix.multiplyByTranslation(
@@ -73,9 +75,9 @@ open class DrawableShape protected constructor(): Drawable {
             program.enableOneVertexMode(false)
             program.loadScreen(dc.viewport.width.toFloat(), dc.viewport.height.toFloat())
             dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20, 0)
-            dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20, 40)
-            dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20, 80)
-            dc.gl.vertexAttribPointer(3 /*texCoord*/, 1, GL_FLOAT, false, 20, 56)
+            dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20, 80)
+            dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20, 160)
+            dc.gl.vertexAttribPointer(3 /*texCoord*/, 1, GL_FLOAT, false, 20, 96)
         } else {
             program.enableOneVertexMode(true)
             dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, drawState.vertexStride, 0)
