@@ -29,7 +29,7 @@ actual open class TiledElevationCoverage actual constructor(
         it.sector.copy(sector)
     }
 
-    override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
+    actual override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         val elevationSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
         if (elevationSource.isUrl) {
             val url = elevationSource.asUrl()

@@ -16,7 +16,7 @@ actual open class ImageTile actual constructor(
     /**
      * Repeat image.onLoad event defined in RenderResourceCache to continue retrieval of original unprocessed image
      */
-    override suspend fun <Resource> process(resource: Resource): Resource {
+    actual override suspend fun <Resource> process(resource: Resource): Resource {
         if (resource is Image) {
             resource.onload?.invoke(Event("load"))
         }

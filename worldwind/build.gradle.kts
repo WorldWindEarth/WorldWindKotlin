@@ -1,5 +1,3 @@
-@file:Suppress("UnstableApiUsage")
-
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
@@ -39,17 +37,17 @@ kotlin {
         }
     }
     sourceSets {
-        val mockkVersion = "1.13.10"
-        val mokoVersion = "0.24.2"
-        val ktorVersion = "2.3.10"
+        val mockkVersion = "1.13.13"
+        val mokoVersion = "0.24.3"
+        val ktorVersion = "2.3.12"
         val ormliteVersion = "6.1"
         val commonMain by getting {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.github.pdvrieze.xmlutil:serialization:0.86.3")
+                implementation("io.github.pdvrieze.xmlutil:serialization:0.90.3")
                 implementation("com.eygraber:uri-kmp:0.0.18")
                 implementation("ar.com.hjg:pngj:2.1.0")
                 implementation("mil.nga:tiff:3.0.0")
@@ -76,10 +74,10 @@ kotlin {
                 implementation("io.mockk:mockk-jvm:$mockkVersion")
             }
         }
-        val jvmMain by getting {
+        jvmMain {
             dependsOn(jvmCommonMain)
             dependencies {
-                val joglVersion = "2.3.2"
+                val joglVersion = "2.5.0"
                 implementation("org.jogamp.gluegen:gluegen-rt:$joglVersion")
                 implementation("org.jogamp.jogl:jogl-all:$joglVersion")
 
@@ -95,34 +93,34 @@ kotlin {
                 implementation("com.j256.ormlite:ormlite-jdbc:$ormliteVersion")
             }
         }
-        val jvmTest by getting {
+        jvmTest {
             dependsOn(jvmCommonTest)
         }
-        val jsMain by getting {
+        jsMain {
             dependsOn(commonMain)
             dependencies {
                 implementation("io.ktor:ktor-client-js:$ktorVersion")
             }
         }
-        val jsTest by getting {
+        jsTest {
             dependsOn(commonTest)
             dependencies {
                 implementation(kotlin("test-js"))
             }
         }
-        val androidMain by getting {
+        androidMain {
             dependsOn(jvmCommonMain)
             dependencies {
-                implementation("androidx.annotation:annotation:1.8.2")
+                implementation("androidx.annotation:annotation:1.9.1")
                 implementation("androidx.appcompat:appcompat-resources:1.7.0")
                 implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.60")
                 implementation("com.j256.ormlite:ormlite-android:$ormliteVersion")
             }
         }
-        val androidUnitTest by getting {
+        androidUnitTest {
             dependsOn(jvmCommonTest)
         }
-        val androidInstrumentedTest by getting {
+        androidInstrumentedTest {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("io.mockk:mockk-android:$mockkVersion")
@@ -167,17 +165,19 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 }
 
 // Do not generate Intrinsics runtime assertion for performance reasons
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class)
     .all {
-        kotlinOptions {
-            freeCompilerArgs = freeCompilerArgs + listOf(
-                "-Xno-call-assertions",
-                "-Xno-receiver-assertions",
-                "-Xno-param-assertions"
+        compilerOptions {
+            freeCompilerArgs.addAll(
+                listOf(
+                    "-Xno-call-assertions",
+                    "-Xno-receiver-assertions",
+                    "-Xno-param-assertions"
+                )
             )
         }
     }

@@ -49,7 +49,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         reset()
     }
 
-    override fun makeRenderables(scale: Double): List<Renderable> {
+    actual override fun makeRenderables(scale: Double): List<Renderable> {
         val ipc = PointConverter3D(pointUL.getX(), pointUL.getY(), scale * 96.0 * 39.3700787)
 
 //        // Calculate clipping rectangle

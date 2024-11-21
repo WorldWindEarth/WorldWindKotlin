@@ -107,7 +107,7 @@ actual open class TiledElevationCoverage actual constructor(
     }
 
     // TODO If retrieved cache source is outdated, than try to retrieve online source anyway to refresh cache
-    override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
+    actual override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         // Determine a cache source if cache tile factory is specified
         val cacheSource = cacheSourceFactory?.createElevationSource(tileMatrix, row, column)
         try {

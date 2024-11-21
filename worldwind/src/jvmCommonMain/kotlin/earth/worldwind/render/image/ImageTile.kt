@@ -11,7 +11,7 @@ actual open class ImageTile actual constructor(
     actual var imageSource: ImageSource? = null
     actual var cacheSource: ImageSource? = null
 
-    override suspend fun <Resource> process(resource: Resource): Resource {
+    actual override suspend fun <Resource> process(resource: Resource): Resource {
         val source = cacheSource?.asUnrecognized()
         return if (source is ResourcePostprocessor) source.process(resource) else resource
     }
