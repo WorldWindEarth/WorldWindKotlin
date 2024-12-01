@@ -16,8 +16,12 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
             uniform vec2 miterLengthCutoff;
             uniform vec4 screen;
             uniform bool enableTexture;
-            uniform bool enableOneVertexMode;
+            uniform bool enableLinesMode;
+            uniform bool enableVertexColorAndWidth;
             uniform mat3 texCoordMatrix;
+            uniform vec4 color;
+            uniform int pickIdOffset;
+            uniform bool enablePickMode;
             uniform float clipDistance;
             
             in vec4 pointA;
@@ -94,7 +98,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
                     }
                     gl_Position.zw = pointBScreen.zw;
                 }
-                
+                   
                 outVertexColor = enableVertexColorAndWidth ? vertexColor : color;
                 if(enablePickMode && pickIdOffset != 0) {
                     ivec3 colorAsInt = ivec3(int(outVertexColor.r * 255.0), int(outVertexColor.g * 255.0), int(outVertexColor.b * 255.0));

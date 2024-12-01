@@ -16,6 +16,7 @@ import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.kgl.*
+import earth.worldwind.util.math.encodeOrientationVector
 
 open class LineSetAttributes(path : Path) {
     val isSurfaceShape: Boolean = path.isSurfaceShape
@@ -67,7 +68,8 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
 
     companion object {
         protected const val MAX_PATHS = 256
-        protected const val VERTEX_STRIDE = 10
+        protected const val VERTEX_STRIDE = 5 // 5 floats
+        protected const val OUTLINE_SEGMENT_STRIDE = 4 * VERTEX_STRIDE // 4 vertices
         const val NEAR_ZERO_THRESHOLD = 1.0e-10
         protected val defaultOutlineImageOptions = ImageOptions().apply {
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
@@ -171,7 +173,7 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
             drawState = drawable.drawState
             cameraDistance = cameraDistanceCartesian(
                 rc, vertexArray, vertexArray.size,
-                VERTEX_STRIDE, vertexOrigin
+                OUTLINE_SEGMENT_STRIDE, vertexOrigin
             )
         }
 
@@ -186,9 +188,9 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
         // Assemble the drawable's OpenGL vertex buffer object.
         val vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
         drawState.vertexState.addAttribute(0, vertexBuffer, 4, GL_FLOAT, false, 20, 0) // pointA
-        drawState.vertexState.addAttribute(1, vertexBuffer, 4, GL_FLOAT, false, 20, 40) // pointB
-        drawState.vertexState.addAttribute(2, vertexBuffer, 4, GL_FLOAT, false, 20, 80) // pointC
-        drawState.vertexState.addAttribute(3, vertexBuffer, 1, GL_FLOAT, false, 20,56) // texCoord
+        drawState.vertexState.addAttribute(1, vertexBuffer, 4, GL_FLOAT, false, 20, 80) // pointB
+        drawState.vertexState.addAttribute(2, vertexBuffer, 4, GL_FLOAT, false, 20, 160) // pointC
+        drawState.vertexState.addAttribute(3, vertexBuffer, 1, GL_FLOAT, false, 20,96) // texCoord
 
         val colorBuffer = rc.getBufferObject(colorBufferKey) { IntBufferObject(GL_ARRAY_BUFFER, colorArray) }
         val pickColorBuffer = rc.getBufferObject(pickColorBufferKey) { IntBufferObject(GL_ARRAY_BUFFER, pickColorArray) }
@@ -257,11 +259,11 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
         // geometry is assembled.
         vertexIndex = 0
         colorWidthIndex = 0
-        vertexArray = FloatArray(vertexCount * VERTEX_STRIDE)
+        vertexArray = FloatArray(vertexCount * OUTLINE_SEGMENT_STRIDE)
         outlineElements.clear()
-        colorArray = IntArray(vertexCount * 2)
-        pickColorArray = IntArray(vertexCount * 2)
-        widthArray = FloatArray(vertexCount * 2)
+        colorArray = IntArray(vertexCount * 4)
+        pickColorArray = IntArray(vertexCount * 4)
+        widthArray = FloatArray(vertexCount * 4)
 
         for (idx in 0 until pathCount ) {
             val path = paths[idx] ?: break
@@ -280,26 +282,26 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
 
             // Add the first vertex.
             var begin = positions[0]
-            addVertices(rc, begin.latitude, begin.longitude, begin.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt, addIndices = false, isFirstVertex =  true)
-            addVertices(rc, begin.latitude, begin.longitude, begin.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt, addIndices = false, isFirstVertex = false)
+            addVertices(rc, begin.latitude, begin.longitude, begin.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt, addIndices = true, endOfPath = false)
+            addVertices(rc, begin.latitude, begin.longitude, begin.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt, addIndices = true, endOfPath = false)
             // Add the remaining vertices, inserting vertices along each edge as indicated by the path's properties.
             for (vertexIdx in 1 until positions.size) {
                 val end = positions[vertexIdx]
                 addIntermediateVertices(rc, begin, end, path.maximumIntermediatePoints, path.pathType, path.altitudeMode, lineWidth, colorInt, pickColorInt)
-                addVertices(rc, end.latitude, end.longitude, end.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt,addIndices = true,  isFirstVertex = false)
+                addVertices(rc, end.latitude, end.longitude, end.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt, vertexIdx != (positions.size - 1), false)
                 begin = end
             }
-            addVertices(rc, begin.latitude, begin.longitude, begin.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt,addIndices = false,  isFirstVertex = false)
+            addVertices(rc, begin.latitude, begin.longitude, begin.altitude, path.altitudeMode, lineWidth, colorInt, pickColorInt, addIndices = false, endOfPath = true)
         }
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
         if (attributes.isSurfaceShape) {
             boundingSector.setEmpty()
-            boundingSector.union(vertexArray, vertexIndex, VERTEX_STRIDE)
+            boundingSector.union(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
             boundingSector.translate(vertexOrigin.y /*latitude*/, vertexOrigin.x /*longitude*/)
             boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
         } else {
-            boundingBox.setToPoints(vertexArray, vertexIndex, VERTEX_STRIDE)
+            boundingBox.setToPoints(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
             boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
             boundingSector.setEmpty() // Cartesian shape bounding sector is unused
         }
@@ -341,9 +343,9 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
     }
 
     protected open fun addVertices(
-        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, width : Float, colorInt : Int, pickColorInt: Int, addIndices : Boolean, isFirstVertex : Boolean
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, width : Float, colorInt : Int, pickColorInt: Int, addIndices : Boolean, endOfPath : Boolean
     ) {
-        val vertex = (vertexIndex / VERTEX_STRIDE - 1) * 2
+        val vertex = vertexIndex / VERTEX_STRIDE
         val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertexIndex == 0) {
             if (attributes.isSurfaceShape) vertexOrigin.set(
@@ -353,14 +355,12 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
             )
             else vertexOrigin.copy(point)
             texCoord1d = 0.0
-        }
-
-        if(!isFirstVertex) {
+        } else {
             texCoord1d += point.distanceTo(prevPoint)
         }
         prevPoint.copy(point)
 
-        // Duplicate  width and color because this function adds 2 vertices
+        // Duplicate  width and color because this function adds 4 vertices
         widthArray[colorWidthIndex] = width
         colorArray[colorWidthIndex] = colorInt
         pickColorArray[colorWidthIndex] = pickColorInt
@@ -369,46 +369,103 @@ open class PathSet(private val attributes: LineSetAttributes): Boundable {
         colorArray[colorWidthIndex] = colorInt
         pickColorArray[colorWidthIndex] = pickColorInt
         ++colorWidthIndex
+        widthArray[colorWidthIndex] = width
+        colorArray[colorWidthIndex] = colorInt
+        pickColorArray[colorWidthIndex] = pickColorInt
+        ++colorWidthIndex
+        widthArray[colorWidthIndex] = width
+        colorArray[colorWidthIndex] = colorInt
+        pickColorArray[colorWidthIndex] = pickColorInt
+        ++colorWidthIndex
+
+        val upperLeftCorner = encodeOrientationVector(-1f, 1f)
+        val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
+        val upperRightCorner = encodeOrientationVector(1f, 1f)
+        val lowerRightCorner = encodeOrientationVector(1f, -1f)
 
         if (attributes.isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = upperLeftCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = -1.0f
+            vertexArray[vertexIndex++] = lowerLeftCorner
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = upperRightCorner
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = lowerRightCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
 
             if (addIndices) {
-                outlineElements.add(vertex - 2) // 0    0 -- 2
-                outlineElements.add(vertex - 1) // 1    |  / | ----> line goes this way
-                outlineElements.add(vertex) // 2        | /  | ----> line goes this way
-                outlineElements.add(vertex) // 2        1 -- 3
-                outlineElements.add(vertex - 1) // 1
-                outlineElements.add(vertex + 1) // 3
+                outlineElements.add(vertex)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 3)
+                // indices for triangles made from last vertices of this segment and first vertices of next segment
+                if(!endOfPath) {
+                    outlineElements.add(vertex + 2)
+                    outlineElements.add(vertex + 3)
+                    outlineElements.add(vertex + 4)
+                    outlineElements.add(vertex + 4)
+                    outlineElements.add(vertex + 3)
+                    outlineElements.add(vertex + 5)
+                }
             }
         } else {
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = 1.0f
+            vertexArray[vertexIndex++] = upperLeftCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
             vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = -1.0f
+            vertexArray[vertexIndex++] = lowerLeftCorner
             vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = upperRightCorner
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
+            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
+            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
+            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+            vertexArray[vertexIndex++] = lowerRightCorner
+            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+
             if (addIndices) {
-                outlineElements.add(vertex - 2) // 0    0 -- 2
-                outlineElements.add(vertex - 1) // 1    |  / | ----> line goes this way
-                outlineElements.add(vertex) // 2        | /  | ----> line goes this way
-                outlineElements.add(vertex) // 2        1 -- 3
-                outlineElements.add(vertex - 1) // 1
-                outlineElements.add(vertex + 1) // 3
+                outlineElements.add(vertex)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 3)
+                if(!endOfPath) {
+                    // indices for triangles made from last vertices of this segment and first vertices of next segment
+                    outlineElements.add(vertex + 2)
+                    outlineElements.add(vertex + 3)
+                    outlineElements.add(vertex + 4)
+                    outlineElements.add(vertex + 4)
+                    outlineElements.add(vertex + 3)
+                    outlineElements.add(vertex + 5)
+                }
             }
         }
     }
