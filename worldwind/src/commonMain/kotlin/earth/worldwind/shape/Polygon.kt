@@ -179,9 +179,9 @@ open class Polygon @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, vertexArray, vertexIndex)
-        }
+        val vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
+        drawState.vertexState.addAttribute(0, vertexBuffer, 4, GL_FLOAT, false, VERTEX_STRIDE * 4, 0)
+        drawState.vertexState.addAttribute(3, vertexBuffer, 2, GL_FLOAT, false, VERTEX_STRIDE * 4,12)
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
@@ -199,9 +199,11 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.vertexBuffer = rc.getBufferObject(vertexLinesBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray)
-        }
+        val lineVertexBuffer = rc.getBufferObject(vertexLinesBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray) }
+        drawStateLines.vertexState.addAttribute(0, lineVertexBuffer, 4, GL_FLOAT, false, 20, 0)
+        drawStateLines.vertexState.addAttribute(1, lineVertexBuffer, 4, GL_FLOAT, false, 20, 40)
+        drawStateLines.vertexState.addAttribute(2, lineVertexBuffer, 4, GL_FLOAT, false, 20, 80)
+        drawStateLines.vertexState.addAttribute(3, lineVertexBuffer, 1, GL_FLOAT, false, 20, 56)
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getBufferObject(elementLinesBufferKey) {
@@ -255,7 +257,6 @@ open class Polygon @JvmOverloads constructor(
         // Configure the drawable to display the shape's interior top.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
         drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_INT, 0 /*offset*/)
 
         // Configure the drawable to display the shape's interior sides.
@@ -490,11 +491,13 @@ open class Polygon @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = 1.0f
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = -1.0f
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
             if (addIndices) {
                 outlineElements.add(vertex - 2)
                 outlineElements.add(vertex - 1)
@@ -509,6 +512,7 @@ open class Polygon @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
             lineVertexArray[lineVertexIndex++] = 1.0f
             lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
+
             lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
