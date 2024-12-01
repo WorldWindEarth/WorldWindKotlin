@@ -28,7 +28,7 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
             void main() {
                 if (enableOneVertexMode) {
                     /* Transform the vertex position by the modelview-projection matrix. */
-                    gl_Position = mvpMatrix * pointA;
+                    gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
                 } else {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
