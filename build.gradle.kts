@@ -16,7 +16,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.6.0"
+    version = "1.6.1"
 
     extra.apply {
         set("minSdk", 21)
@@ -28,6 +28,5 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        maven("https://jogamp.org/deployment/maven/")
     }
 }

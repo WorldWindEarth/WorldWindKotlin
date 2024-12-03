@@ -41,7 +41,7 @@ kotlin {
         val mokoVersion = "0.24.3"
         val ktorVersion = "2.3.12"
         val ormliteVersion = "6.1"
-        val commonMain by getting {
+        commonMain {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
@@ -54,21 +54,21 @@ kotlin {
                 api("dev.icerock.moko:resources:$mokoVersion")
             }
         }
-        val commonTest by getting {
+        commonTest {
             dependencies {
                 implementation(kotlin("test"))
                 implementation("dev.icerock.moko:resources-test:$mokoVersion")
             }
         }
         val jvmCommonMain by creating {
-            dependsOn(commonMain)
+            dependsOn(commonMain.get())
             dependencies {
                 implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
                 compileOnly("com.j256.ormlite:ormlite-core:$ormliteVersion")
             }
         }
         val jvmCommonTest by creating {
-            dependsOn(commonTest)
+            dependsOn(commonTest.get())
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("io.mockk:mockk-jvm:$mockkVersion")
@@ -77,7 +77,7 @@ kotlin {
         jvmMain {
             dependsOn(jvmCommonMain)
             dependencies {
-                val joglVersion = "2.5.0"
+                val joglVersion = "2.3.2"
                 implementation("org.jogamp.gluegen:gluegen-rt:$joglVersion")
                 implementation("org.jogamp.jogl:jogl-all:$joglVersion")
 
@@ -97,13 +97,11 @@ kotlin {
             dependsOn(jvmCommonTest)
         }
         jsMain {
-            dependsOn(commonMain)
             dependencies {
                 implementation("io.ktor:ktor-client-js:$ktorVersion")
             }
         }
         jsTest {
-            dependsOn(commonTest)
             dependencies {
                 implementation(kotlin("test-js"))
             }
