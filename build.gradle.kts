@@ -3,7 +3,6 @@ plugins {
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("android") version kotlinVersion apply false
-    id("org.jetbrains.dokka") version "1.9.20" apply false
     id("com.android.library") apply false
     id("com.android.application") apply false
 }
