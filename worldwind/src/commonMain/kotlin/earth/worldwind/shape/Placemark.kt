@@ -13,7 +13,6 @@ import earth.worldwind.render.Texture
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.render.program.TriangleShaderProgram
-import earth.worldwind.util.math.boundingRectForUnitSquare
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -302,7 +301,7 @@ open class Placemark @JvmOverloads constructor(
         prepareImageTransform(rc.camera, offsetX, offsetY, scaleX, scaleY)
 
         // If the placemark's icon is visible, enqueue a drawable icon for processing on the OpenGL thread.
-        boundingRectForUnitSquare(imageTransform, imageBounds)
+        imageTransform.boundingRectForUnitSquare(imageBounds)
         if (rc.frustum.intersectsViewport(imageBounds)) {
             val pool = rc.getDrawablePool<DrawableScreenTexture>()
             val drawable = DrawableScreenTexture.obtain(pool)
@@ -325,7 +324,7 @@ open class Placemark @JvmOverloads constructor(
                     screenPlacePoint.z
                 )
                 labelTransform.setScale(w * s, h * s, 1.0)
-                boundingRectForUnitSquare(labelTransform, labelBounds)
+                labelTransform.boundingRectForUnitSquare(labelBounds)
                 if (rc.frustum.intersectsViewport(labelBounds)) {
                     val pool = rc.getDrawablePool<DrawableScreenTexture>()
                     val drawable = DrawableScreenTexture.obtain(pool)
@@ -594,7 +593,5 @@ open class Placemark @JvmOverloads constructor(
         fun createWithImageAndLabel(
             position: Position, imageSource: ImageSource, label: String
         ) = Placemark(position, PlacemarkAttributes.createWithImage(imageSource), label)
-
-        protected fun nextCacheKey() = Any()
     }
 }

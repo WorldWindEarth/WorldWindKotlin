@@ -78,7 +78,7 @@ open class DrawableGroundAtmosphere : Drawable {
             program.loadModelviewProjection(mvpMatrix)
 
             // Use a tex coord matrix that registers the night texture correctly on each terrain.
-            if (textureBound && nightTexture != null) {
+            if (textureBound) {
                 texCoordMatrix.copy(nightTexture.coordTransform)
                 texCoordMatrix.multiplyByTileTransform(terrain.sector, fullSphereSector)
                 program.loadTexCoordMatrix(texCoordMatrix)

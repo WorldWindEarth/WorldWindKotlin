@@ -9,7 +9,6 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.BasicShaderProgram
-import earth.worldwind.util.math.boundingRectForUnitSquare
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -189,7 +188,7 @@ open class Label @JvmOverloads constructor(
 
         // Apply the label's translation and scale according to its text size.
         renderData.unitSquareTransform.multiplyByScale(w * s, h * s, 1.0)
-        boundingRectForUnitSquare(renderData.unitSquareTransform, renderData.screenBounds)
+        renderData.unitSquareTransform.boundingRectForUnitSquare(renderData.screenBounds)
         if (!rc.frustum.intersectsViewport(renderData.screenBounds)) return  // the text is outside the viewport
 
         // Obtain a pooled drawable and configure it to draw the label's text.

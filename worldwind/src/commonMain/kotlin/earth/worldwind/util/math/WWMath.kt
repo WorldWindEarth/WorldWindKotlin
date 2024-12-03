@@ -1,7 +1,5 @@
 package earth.worldwind.util.math
 
-import earth.worldwind.geom.Matrix4
-import earth.worldwind.geom.Viewport
 import kotlin.math.*
 
 /**
@@ -53,40 +51,6 @@ fun interpolate(amount: Double, value1: Double, value2: Double) = (1 - amount) *
  * @return the remainder after dividing the number by the modulus
  */
 fun mod(value: Int, modulus: Int) = (value % modulus + modulus) % modulus
-
-/**
- * Computes the bounding rectangle for a unit square after applying a transformation matrix to the square's four
- * corners.
- *
- * @param unitSquareTransform the matrix to apply to the unit square
- * @param result              a pre-allocated Viewport in which to return the computed bounding rectangle
- *
- * @return the result argument set to the computed bounding rectangle
- */
-fun boundingRectForUnitSquare(unitSquareTransform: Matrix4, result: Viewport): Viewport {
-    val m = unitSquareTransform.m
-
-    // transform of (0, 0)
-    val x1 = m[3]
-    val y1 = m[7]
-
-    // transform of (1, 0)
-    val x2 = m[0] + m[3]
-    val y2 = m[4] + m[7]
-
-    // transform of (0, 1)
-    val x3 = m[1] + m[3]
-    val y3 = m[5] + m[7]
-
-    // transform of (1, 1)
-    val x4 = m[0] + m[1] + m[3]
-    val y4 = m[4] + m[5] + m[7]
-    val minX = min(min(x1, x2), min(x3, x4)).toInt()
-    val maxX = max(max(x1, x2), max(x3, x4)).toInt()
-    val minY = min(min(y1, y2), min(y3, y4)).toInt()
-    val maxY = max(max(y1, y2), max(y3, y4)).toInt()
-    return result.set(minX, minY, maxX - minX, maxY - minY)
-}
 
 /**
  * Indicates whether a specified value is a power of two.

@@ -1242,9 +1242,9 @@ open class Matrix4 private constructor(
         r[2][2] = 1.0
         r[1][1] = r[2][2]
         r[0][0] = r[1][1]
-        for (a in 0 until MAX_SWEEPS) {
+        repeat(MAX_SWEEPS) {
             // Exit if off-diagonal entries small enough
-            if (abs(m12) < EPSILON && abs(m13) < EPSILON && abs(m23) < EPSILON) break
+            if (abs(m12) < EPSILON && abs(m13) < EPSILON && abs(m23) < EPSILON) return@repeat
 
             // Annihilate (1,2) entry.
             if (m12 != 0.0) {
@@ -1463,6 +1463,37 @@ open class Matrix4 private constructor(
         farResult.y = fy / fw
         farResult.z = fz / fw
         return true
+    }
+
+    /**
+     * Computes the bounding rectangle for a unit square after applying a transformation matrix to the square's four
+     * corners.
+     *
+     * @param result              a pre-allocated Viewport in which to return the computed bounding rectangle
+     *
+     * @return the result argument set to the computed bounding rectangle
+     */
+    fun boundingRectForUnitSquare(result: Viewport): Viewport {
+        // transform of (0, 0)
+        val x1 = m[3]
+        val y1 = m[7]
+
+        // transform of (1, 0)
+        val x2 = m[0] + m[3]
+        val y2 = m[4] + m[7]
+
+        // transform of (0, 1)
+        val x3 = m[1] + m[3]
+        val y3 = m[5] + m[7]
+
+        // transform of (1, 1)
+        val x4 = m[0] + m[1] + m[3]
+        val y4 = m[4] + m[5] + m[7]
+        val minX = min(min(x1, x2), min(x3, x4)).toInt()
+        val maxX = max(max(x1, x2), max(x3, x4)).toInt()
+        val minY = min(min(y1, y2), min(y3, y4)).toInt()
+        val maxY = max(max(y1, y2), max(y3, y4)).toInt()
+        return result.set(minX, minY, maxX - minX, maxY - minY)
     }
 
     override fun equals(other: Any?): Boolean {
