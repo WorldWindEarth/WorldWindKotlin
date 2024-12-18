@@ -137,7 +137,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
                                 onProgress?.invoke(downloaded, ++skipped, tileCount)
                             }
                             break // Continue downloading the next tile
-                        } catch (throwable: Throwable) {
+                        } catch (_: Throwable) {
                             delay(if (attempt % makeLocalRetries == 0) makeLocalTimeoutLong else makeLocalTimeoutShort)
                         }
                     }
@@ -176,23 +176,29 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     protected open fun createTopLevelTiles() = Tile.assembleTilesForLevel(levelSet.firstLevel, tileFactory, topLevelTiles)
 
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
-        // ignore tiles which soes not fit projection limits
+        // ignore tiles which do not fit projection limits
         if (rc.globe.projectionLimits?.let { tile.intersectsSector(it) } == false) return
         // ignore the tile and its descendants if it's not needed or not visible
         if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc)) return
-        val retrieveCurrentLevel = tile.level.levelNumber >= levelSet.levelOffset
-        if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
-            if (retrieveCurrentLevel) addTile(rc, tile)
+        // Do not retrieve tiles bigger than level size because they can be simulated by downscaling more detailed tiles
+        // TODO Remove this restriction when GeoPackage will be able to correctly align tiles bigger than level size
+        val validSize = tile.level.levelWidth >= tile.level.tileWidth && tile.level.levelHeight >= tile.level.tileHeight
+        // Do not retrieve tiles from levels before level offset
+        val retrieveCurrentLevel = validSize && tile.level.levelNumber >= levelSet.levelOffset
+        // Use current tile if it must not subdivide and should be retrieved, or it is the last level tile
+        val isLastLevel = tile.level.isLastLevel
+        val mustSubdivide = tile.mustSubdivide(rc, detailControl)
+        if (isLastLevel || retrieveCurrentLevel && !mustSubdivide) {
+            // Skip using last level tile on more detailed levels if using ancestor tiles is switched off
+            if (!isLastLevel || !mustSubdivide || useAncestorTileTexture) addTile(rc, tile)
             return  // use the tile if it does not need to be subdivided
         }
         val currentAncestorTile = ancestorTile
         val currentAncestorTexture = ancestorTexture
         getTexture(rc, tile, retrieveTopLevelTiles && retrieveCurrentLevel)?.let { tileTexture ->
             // tile has a texture; use it as a fallback tile for descendants
-            if (useAncestorTileTexture) {
-                ancestorTile = tile
-                ancestorTexture = tileTexture
-            }
+            ancestorTile = tile
+            ancestorTexture = tileTexture
         }
         // each tile has a cached size of 1, recursively process the tile's children
         val children = tile.subdivideToCache(tileFactory, tileCache, 4)
@@ -205,14 +211,22 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val texture = getTexture(rc, tile)
         val ancestorTile = ancestorTile
         val ancestorTexture = ancestorTexture
+        val imageSource = tile.imageSource
+        val absentResourceList = rc.renderResourceCache.absentResourceList
         val opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
-        if (texture != null) { // use the tile's own texture
+        if (texture != null) {
+            // use the tile's own texture
             val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
             val drawable = DrawableSurfaceTexture.obtain(pool).set(
                 activeProgram, tile.sector, opacity, texture, texture.coordTransform, rc.globe.offset
             )
             rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
-        } else if (ancestorTile != null && ancestorTexture != null) { // use the ancestor tile's texture, transformed to fill the tile sector
+        } else if (ancestorTile != null && ancestorTexture != null && (
+            // Use ancestor tile if it is allowed or previous level tile is still loading
+            useAncestorTileTexture || tile.level.levelNumber - ancestorTile.level.levelNumber <= 1
+                    && imageSource != null && !absentResourceList.isResourceAbsent(imageSource.hashCode())
+        )) {
+            // use the ancestor tile's texture, transformed to fill the tile sector
             ancestorTexCoordMatrix.copy(ancestorTexture.coordTransform)
             ancestorTexCoordMatrix.multiplyByTileTransform(tile.sector, ancestorTile.sector)
             val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
@@ -236,7 +250,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         // If a cache source is not absent, then retrieve it instead of an original image source
         val isCacheAbsent = cacheSource == null || rc.renderResourceCache.absentResourceList.isResourceAbsent(cacheSource.hashCode())
         return rc.getTexture(
-            if (isCacheAbsent) imageSource else cacheSource!!, imageOptions, retrieve && (!isCacheOnly || !isCacheAbsent)
+            if (isCacheAbsent) imageSource else cacheSource, imageOptions, retrieve && (!isCacheOnly || !isCacheAbsent)
         )
     }
 

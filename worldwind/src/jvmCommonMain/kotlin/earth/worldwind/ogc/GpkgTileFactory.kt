@@ -32,7 +32,11 @@ open class GpkgTileFactory(
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int) =
         buildTile(sector, level, row, column).apply {
-            imageSource = getImageSource(level, row, column)?.also { it.postprocessor = this }
+        	// GeoPackage and WorldWind has different tile origin corners, thus tiles bigger than level will be incorrectly aligned.
+            // TODO Find solution how to correctly align or transform tiles bigger than level size and remove this restriction.
+            if (level.levelHeight >= level.tileHeight) {
+                imageSource = getImageSource(level, row, column)?.also { it.postprocessor = this }
+            }
         }
 
     protected open fun buildTile(sector: Sector, level: Level, row: Int, column: Int) = if (sector is MercatorSector) {

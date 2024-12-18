@@ -169,8 +169,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             sector.copy(contentSector)
             tileOrigin.copy(tmsSector)
             firstLevelDelta = Location(
-                tmsSector.deltaLatitude / minTileMatrix.matrixHeight * (1 shl minZoom),
-                tmsSector.deltaLongitude / minTileMatrix.matrixWidth * (1 shl minZoom)
+                tmsSector.deltaLatitude / (tms.maxY - tms.minY) * minTileMatrix.pixelYSize * minTileMatrix.tileHeight,
+                tmsSector.deltaLongitude / (tms.maxX - tms.minX) * minTileMatrix.pixelXSize * minTileMatrix.tileWidth
             )
             levelOffset = minZoom
             numLevels = maxZoom + 1
