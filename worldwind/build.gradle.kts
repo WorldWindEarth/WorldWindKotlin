@@ -41,10 +41,11 @@ kotlin {
         val mokoVersion = "0.24.3"
         val ktorVersion = "2.3.12"
         val ormliteVersion = "6.1"
+        val coroutinesVerion = "1.9.0"
         commonMain {
             dependencies {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVerion")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.github.pdvrieze.xmlutil:serialization:0.90.3")
@@ -57,6 +58,7 @@ kotlin {
         commonTest {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVerion")
                 implementation("dev.icerock.moko:resources-test:$mokoVersion")
             }
         }

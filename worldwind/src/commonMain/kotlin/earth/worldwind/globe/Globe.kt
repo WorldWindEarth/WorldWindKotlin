@@ -1,7 +1,10 @@
 package earth.worldwind.globe
 
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.elevation.ElevationModel
+import earth.worldwind.globe.geoid.EGM96Geoid
+import earth.worldwind.globe.geoid.Geoid
 import earth.worldwind.globe.projection.GeographicProjection
 import earth.worldwind.globe.projection.Wgs84Projection
 import kotlin.math.PI
@@ -21,7 +24,11 @@ open class Globe(
      * Indicates the geographic projection used by this globe. The projection specifies this globe's Cartesian
      * coordinate system.
      */
-    var projection: GeographicProjection = Wgs84Projection()
+    var projection: GeographicProjection = Wgs84Projection(),
+    /**
+     * Represents Gravitational Model of the globe
+     */
+    var geoid: Geoid = EGM96Geoid()
 ) {
     /**
      * Represents the elevations for an area, often but not necessarily the whole globe.
@@ -184,7 +191,44 @@ open class Globe(
      * @return Elevation in meters in specified location
      */
     fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean = false) =
-        elevationModel.getHeight(latitude, longitude, retrieve).toDouble()
+        (elevationModel.getElevation(latitude, longitude, retrieve) + geoid.getOffset(latitude, longitude)).toDouble()
+
+    /**
+     * Gets elevation values for the specified sector with required width and height resolution, including Geoid offset
+     *
+     * @param gridSector specified sector to determine elevation values
+     * @param gridWidth value matrix width
+     * @param gridHeight value matrix height
+     * @param result pre-allocated array for the result. Must be width * height size.
+     */
+    fun getElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
+        elevationModel.getElevationGrid(gridSector, gridWidth, gridHeight, result)
+        // Apply Gravitational Model offset
+        val minLat = gridSector.minLatitude.inDegrees
+        val minLon = gridSector.minLongitude.inDegrees
+        val deltaLat = gridSector.deltaLatitude.inDegrees / (gridHeight - 1)
+        val deltaLon = gridSector.deltaLongitude.inDegrees / (gridWidth - 1)
+        var h = 0
+        for (i in 0 until gridHeight) {
+            val lat = minLat + i * deltaLat
+            for (j in 0 until gridWidth) {
+                val lon = minLon + j * deltaLon
+                result[h++] += geoid.getOffset(lat.degrees, lon.degrees)
+            }
+        }
+    }
+
+    /**
+     * Gets elevation limits at specified sector, including Geoid offset
+     *
+     * @param sector specified sector to determine elevation limits
+     * @return pre-allocated array for the result. Must be size of 2.
+     */
+    fun getElevationLimits(sector: Sector, result: FloatArray) {
+        elevationModel.getElevationLimits(sector, result)
+        // Apply Gravitational Model offset
+        for (i in result.indices) result[i] += geoid.getOffset(sector.centroidLatitude, sector.centroidLongitude)
+    }
 
     /**
      * Get absolute position with terrain elevation at specified coordinates

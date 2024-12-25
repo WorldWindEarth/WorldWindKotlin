@@ -111,7 +111,7 @@ abstract class AbstractTile(
         // initialize the heights for elevation model scan
         heightLimits[0] = Float.MAX_VALUE
         heightLimits[1] = -Float.MAX_VALUE
-        globe.elevationModel.getHeightLimits(sector, heightLimits)
+        globe.getElevationLimits(sector, heightLimits)
         // check for valid height limits
         if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
     }

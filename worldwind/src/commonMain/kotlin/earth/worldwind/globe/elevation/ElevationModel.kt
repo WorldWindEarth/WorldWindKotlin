@@ -46,22 +46,22 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
 
     override fun iterator() = coverages.iterator()
 
-    fun getHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float {
+    fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float {
         // coverages composite from fine to coarse
         for (i in coverages.indices.reversed()) {
-            val height = coverages[i].getHeight(latitude, longitude, retrieve)
+            val height = coverages[i].getElevation(latitude, longitude, retrieve)
             if (height != null) return height
         }
         return 0f
     }
 
-    fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
+    fun getElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         // coverages composite from coarse to fine
-        for (i in coverages.indices) coverages[i].getHeightGrid(gridSector, gridWidth, gridHeight, result)
+        for (i in coverages.indices) coverages[i].getElevationGrid(gridSector, gridWidth, gridHeight, result)
     }
 
-    fun getHeightLimits(sector: Sector, result: FloatArray) {
+    fun getElevationLimits(sector: Sector, result: FloatArray) {
         // coverage order is irrelevant
-        for (i in coverages.indices) coverages[i].getHeightLimits(sector, result)
+        for (i in coverages.indices) coverages[i].getElevationLimits(sector, result)
     }
 }

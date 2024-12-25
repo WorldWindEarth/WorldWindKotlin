@@ -34,26 +34,26 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
 
     override fun hasUserProperty(key: Any) = userProperties?.containsKey(key) == true
 
-    override fun getHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
+    override fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
         return if (isEnabled) {
             val key = 31 * latitude.inDegrees.hashCode() + longitude.inDegrees.hashCode()
-            heightCache[key] ?: doGetHeight(latitude, longitude, retrieve)?.also {
+            heightCache[key] ?: doGetElevation(latitude, longitude, retrieve)?.also {
                 heightCache.put(key, it, 1)
             }
         } else null
     }
 
-    override fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
-        if (isEnabled) doGetHeightGrid(gridSector, gridWidth, gridHeight, result)
+    override fun getElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
+        if (isEnabled) doGetElevationGrid(gridSector, gridWidth, gridHeight, result)
     }
 
-    override fun getHeightLimits(sector: Sector, result: FloatArray) {
-        if (isEnabled) doGetHeightLimits(sector, result)
+    override fun getElevationLimits(sector: Sector, result: FloatArray) {
+        if (isEnabled) doGetElevationLimits(sector, result)
     }
 
-    protected abstract fun doGetHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float?
+    protected abstract fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float?
 
-    protected abstract fun doGetHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray)
+    protected abstract fun doGetElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray)
 
-    protected abstract fun doGetHeightLimits(sector: Sector, result: FloatArray)
+    protected abstract fun doGetElevationLimits(sector: Sector, result: FloatArray)
 }

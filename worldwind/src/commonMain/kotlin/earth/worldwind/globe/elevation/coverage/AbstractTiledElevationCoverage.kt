@@ -75,7 +75,7 @@ abstract class AbstractTiledElevationCoverage(
         updateTimestamp()
     }
 
-    override fun doGetHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
+    override fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
         if (!tileMatrixSet.sector.contains(latitude, longitude)) return null // no coverage in the specified location
         val targetIdx = tileMatrixSet.entries.size - 1 // retrieve height from last available matrix
         for (idx in targetIdx downTo 0) {
@@ -110,7 +110,7 @@ abstract class AbstractTiledElevationCoverage(
         return null // did not find a tile
     }
 
-    override fun doGetHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
+    override fun doGetElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         if (!tileMatrixSet.sector.intersects(gridSector)) return  // no coverage in the specified sector
         val targetPixelSpan = gridSector.deltaLatitude.div(gridHeight)
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)
@@ -126,7 +126,7 @@ abstract class AbstractTiledElevationCoverage(
         }
     }
 
-    override fun doGetHeightLimits(sector: Sector, result: FloatArray) {
+    override fun doGetElevationLimits(sector: Sector, result: FloatArray) {
         if (!tileMatrixSet.sector.intersects(sector)) return  // no coverage in the specified sector
         val targetPixelSpan = sector.deltaLatitude.div(GET_HEIGHT_LIMIT_SAMPLES)
         val targetIdx = tileMatrixSet.indexOfMatrixNearest(targetPixelSpan)

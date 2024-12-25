@@ -40,7 +40,7 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         val timestamp = rc.elevationModelTimestamp
         if (timestamp != heightTimestamp) {
             heightGrid.fill(0f)
-            globe.elevationModel.getHeightGrid(sector, tileWidth, tileHeight, heightGrid)
+            globe.getElevationGrid(sector, tileWidth, tileHeight, heightGrid)
             // Calculate height vertex buffer from height grid
             for (r in 0 until level.tileHeight) for (c in 0 until level.tileWidth) {
                 heights[(r + 1) * (level.tileWidth + 2) + c + 1] = heightGrid[r * level.tileWidth + c]

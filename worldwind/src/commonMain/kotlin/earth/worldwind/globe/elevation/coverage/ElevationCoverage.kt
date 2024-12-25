@@ -62,7 +62,7 @@ interface ElevationCoverage {
      * @param retrieve if true, then the value will be retrieved from a remote source for the next frame
      * @return elevation value at specified location
      */
-    fun getHeight(latitude: Angle, longitude: Angle, retrieve: Boolean): Float?
+    fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float?
 
     /**
      * Gets elevation values for the specified sector with required width and height resolution
@@ -71,12 +71,12 @@ interface ElevationCoverage {
      * @param gridHeight value matrix height
      * @param result pre-allocated array for the result. Must be width * height size.
      */
-    fun getHeightGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray)
+    fun getElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray)
 
     /**
      * Gets elevation limits at specified sector
      * @param sector specified sector to determine elevation limits
      * @return pre-allocated array for the result. Must be size of 2.
      */
-    fun getHeightLimits(sector: Sector, result: FloatArray)
+    fun getElevationLimits(sector: Sector, result: FloatArray)
 }
