@@ -16,7 +16,7 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
     override var timestamp = Clock.System.now().toEpochMilliseconds()
         protected set
     private var userProperties: MutableMap<Any, Any>? = null
-    private val heightCache = LruMemoryCache<Int,Float>(50000)
+    private val heightCache = LruMemoryCache<Int,Float>(100000)
 
     protected fun updateTimestamp() {
         timestamp = Clock.System.now().toEpochMilliseconds()
