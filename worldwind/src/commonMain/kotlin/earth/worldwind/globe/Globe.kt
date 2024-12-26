@@ -227,7 +227,8 @@ open class Globe(
     fun getElevationLimits(sector: Sector, result: FloatArray) {
         elevationModel.getElevationLimits(sector, result)
         // Apply Gravitational Model offset
-        for (i in result.indices) result[i] += geoid.getOffset(sector.centroidLatitude, sector.centroidLongitude)
+        val offset = geoid.getOffset(sector.centroidLatitude, sector.centroidLongitude)
+        for (i in result.indices) result[i] += offset
     }
 
     /**
