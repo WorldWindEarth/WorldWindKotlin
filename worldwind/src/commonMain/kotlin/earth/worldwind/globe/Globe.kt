@@ -43,11 +43,6 @@ open class Globe(
      */
     val polarRadius get() = ellipsoid.semiMinorAxis
     /**
-     * Indicates the eccentricity squared parameter of the globe's ellipsoid. This is equivalent to `2*f -
-     * f*f`, where `f` is the ellipsoid's flattening parameter.
-     */
-    val eccentricitySquared get() = ellipsoid.eccentricitySquared
-    /**
      * Indicates whether this is a 2D globe.
      */
     val is2D get() = projection.is2D
@@ -72,8 +67,8 @@ open class Globe(
             // Calculate horizontal projection offset in meters
             offsetValue = when (value) {
                 Offset.Center -> 0.0
-                Offset.Right -> 2.0 * PI * equatorialRadius
-                Offset.Left -> -2.0 * PI * equatorialRadius
+                Offset.Right -> 2.0 * PI * ellipsoid.semiMajorAxis
+                Offset.Left -> -2.0 * PI * ellipsoid.semiMajorAxis
             }
         }
     protected var offsetValue = 0.0
@@ -121,25 +116,25 @@ open class Globe(
      * @return the result argument, set to the computed Cartesian coordinates
      */
     fun geographicToCartesian(latitude: Angle, longitude: Angle, altitude: Double, result: Vec3) =
-        projection.geographicToCartesian(this, latitude, longitude, altitude, offsetValue, result)
+        projection.geographicToCartesian(ellipsoid, latitude, longitude, altitude, offsetValue, result)
 
     fun geographicToCartesianNormal(latitude: Angle, longitude: Angle, result: Vec3) =
-        projection.geographicToCartesianNormal(this, latitude, longitude, result)
+        projection.geographicToCartesianNormal(ellipsoid, latitude, longitude, result)
 
     fun geographicToCartesianTransform(latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4) =
-        projection.geographicToCartesianTransform(this, latitude, longitude, altitude, result)
+        projection.geographicToCartesianTransform(ellipsoid, latitude, longitude, altitude, result)
 
     fun geographicToCartesianGrid(
         sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
         origin: Vec3?, result: FloatArray, rowOffset: Int = 0, rowStride: Int = 0
     ) = projection.geographicToCartesianGrid(
-        this, sector, numLat, numLon, height, verticalExaggeration,
+        ellipsoid, sector, numLat, numLon, height, verticalExaggeration,
         origin, offsetValue, result, rowOffset, rowStride
     )
 
     fun geographicToCartesianBorder(
         sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3, result: FloatArray
-    ) = projection.geographicToCartesianBorder(this, sector, numLat, numLon, height, origin, offsetValue, result)
+    ) = projection.geographicToCartesianBorder(ellipsoid, sector, numLat, numLon, height, origin, offsetValue, result)
 
     /**
      * Converts a Cartesian point to a geographic position. This globe's projection specifies the Cartesian coordinate
@@ -153,12 +148,12 @@ open class Globe(
      * @return the result argument, set to the computed geographic position
      */
     fun cartesianToGeographic(x: Double, y: Double, z: Double, result: Position) =
-        projection.cartesianToGeographic(this, x, y, z, offsetValue, result).also {
+        projection.cartesianToGeographic(ellipsoid, x, y, z, offsetValue, result).also {
             if (is2D) result.longitude = result.longitude.normalize180()
         }
 
     fun cartesianToLocalTransform(x: Double, y: Double, z: Double, result: Matrix4) =
-        projection.cartesianToLocalTransform(this, x, y, z, result)
+        projection.cartesianToLocalTransform(ellipsoid, x, y, z, result)
 
     /**
      * Indicates the distance to the globe's horizon from a specified height above the globe's ellipsoid. The result of
@@ -179,7 +174,7 @@ open class Globe(
      *
      * @return true if the ray intersects the globe, otherwise false
      */
-    fun intersect(line: Line, result: Vec3) = projection.intersect(this, line, result)
+    fun intersect(line: Line, result: Vec3) = projection.intersect(ellipsoid, line, result)
 
     /**
      * Determine terrain altitude in specified geographic point from elevation model

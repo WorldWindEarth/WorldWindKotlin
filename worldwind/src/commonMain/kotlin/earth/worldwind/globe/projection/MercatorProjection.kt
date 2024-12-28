@@ -2,7 +2,6 @@ package earth.worldwind.globe.projection
 
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Sector.Companion.fromDegrees
-import earth.worldwind.globe.Globe
 import earth.worldwind.util.Logger
 import kotlin.math.*
 
@@ -14,37 +13,37 @@ open class MercatorProjection : GeographicProjection {
     private val scratchVec = Vec3()
 
     override fun geographicToCartesian(
-        globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, offset: Double, result: Vec3
+        ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, altitude: Double, offset: Double, result: Vec3
     ): Vec3 {
         val lat = latitude.coerceIn(projectionLimits.minLatitude, projectionLimits.maxLatitude)
         val lon = longitude.coerceIn(projectionLimits.minLongitude, projectionLimits.maxLongitude)
 
         // See "Map Projections: A Working Manual", page 44 for the source of the below formulas.
-        val ecc = sqrt(globe.eccentricitySquared)
+        val ecc = sqrt(ellipsoid.eccentricitySquared)
         val sinPhi = sin(lat.inRadians)
         val s = (1 + sinPhi) / (1 - sinPhi) * ((1 - ecc * sinPhi) / (1 + ecc * sinPhi)).pow(ecc)
-        result.x = globe.equatorialRadius * lon.inRadians + offset
-        result.y = 0.5 * globe.equatorialRadius * ln(s)
+        result.x = ellipsoid.semiMajorAxis * lon.inRadians + offset
+        result.y = 0.5 * ellipsoid.semiMajorAxis * ln(s)
         result.z = altitude
         return result
     }
 
-    override fun geographicToCartesianNormal(globe: Globe, latitude: Angle, longitude: Angle, result: Vec3): Vec3 {
+    override fun geographicToCartesianNormal(ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, result: Vec3): Vec3 {
         return result.set(0.0, 0.0, 1.0)
     }
 
     override fun geographicToCartesianTransform(
-        globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4
+        ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4
     ): Matrix4 {
-        val vec = geographicToCartesian(globe, latitude, longitude, altitude, 0.0, scratchVec)
+        val vec = geographicToCartesian(ellipsoid, latitude, longitude, altitude, 0.0, scratchVec)
 
         // Set the result to an orthonormal basis with the East, North, and Up vectors forming the X, Y and Z axes,
         // respectively, and the Cartesian point indicating the coordinate system's origin.
-        return cartesianToLocalTransform(globe, vec.x, vec.y, vec.z, result)
+        return cartesianToLocalTransform(ellipsoid, vec.x, vec.y, vec.z, result)
     }
 
     override fun geographicToCartesianGrid(
-        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
+        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
         origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
     ): FloatArray {
         require(numLat >= 1 && numLon >= 1) {
@@ -57,8 +56,8 @@ open class MercatorProjection : GeographicProjection {
             Logger.logMessage(Logger.ERROR, "MercatorProjection", "geographicToCartesianGrid", "missingArray")
         }
 
-        val eqr = globe.equatorialRadius
-        val ecc = sqrt(globe.eccentricitySquared)
+        val eqr = ellipsoid.semiMajorAxis
+        val ecc = sqrt(ellipsoid.eccentricitySquared)
         val minLat = sector.minLatitude.inRadians
         val maxLat = sector.maxLatitude.inRadians
         val minLon = sector.minLongitude.inRadians
@@ -104,11 +103,11 @@ open class MercatorProjection : GeographicProjection {
     }
 
     override fun geographicToCartesianBorder(
-        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: Float,
+        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: Float,
         origin: Vec3?, offset: Double, result: FloatArray
     ): FloatArray {
-        val eqr = globe.equatorialRadius
-        val ecc = sqrt(globe.eccentricitySquared)
+        val eqr = ellipsoid.semiMajorAxis
+        val ecc = sqrt(ellipsoid.eccentricitySquared)
         val minLat = sector.minLatitude.inRadians
         val maxLat = sector.maxLatitude.inRadians
         val minLon = sector.minLongitude.inRadians
@@ -162,12 +161,12 @@ open class MercatorProjection : GeographicProjection {
     }
 
     override fun cartesianToGeographic(
-        globe: Globe, x: Double, y: Double, z: Double, offset: Double, result: Position
+        ellipsoid: Ellipsoid, x: Double, y: Double, z: Double, offset: Double, result: Position
     ): Position {
         // See "Map Projections: A Working Manual", pages 44-45 for the source of the below formulas.
-        val eqr = globe.equatorialRadius
-        val ecc = sqrt(globe.eccentricitySquared)
-        val t = exp(-y / globe.equatorialRadius) // eq (7-10)
+        val eqr = ellipsoid.semiMajorAxis
+        val ecc = sqrt(ellipsoid.eccentricitySquared)
+        val t = exp(-y / ellipsoid.semiMajorAxis) // eq (7-10)
 
         // Inverse projection requires converging series
         var phi = PI / 2 - 2 * atan(t) // eq (7-11) [first trial]
@@ -182,14 +181,14 @@ open class MercatorProjection : GeographicProjection {
         return result.setRadians(phi, lambda, z)
     }
 
-    override fun cartesianToLocalTransform(globe: Globe, x: Double, y: Double, z: Double, result: Matrix4) = result.set(
+    override fun cartesianToLocalTransform(ellipsoid: Ellipsoid, x: Double, y: Double, z: Double, result: Matrix4) = result.set(
         1.0, 0.0, 0.0, x,
         0.0, 1.0, 0.0, y,
         0.0, 0.0, 1.0, z,
         0.0, 0.0, 0.0, 1.0
     )
 
-    override fun intersect(globe: Globe, line: Line, result: Vec3): Boolean {
+    override fun intersect(ellipsoid: Ellipsoid, line: Line, result: Vec3): Boolean {
         // Taken from "Mathematics for 3D Game Programming and Computer Graphics, Third Edition", Section 6.2.3.
         // Note that the parameter n from in equations 6.70 and 6.71 is omitted here. For an ellipsoidal globe this
         // parameter is always 1, so its square and its product with any other value simplifies to the identity.

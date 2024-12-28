@@ -1,7 +1,6 @@
 package earth.worldwind.globe.projection
 
 import earth.worldwind.geom.*
-import earth.worldwind.globe.Globe
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.math.*
@@ -18,13 +17,13 @@ open class Wgs84Projection: GeographicProjection {
     override val displayName = "WGS84"
     private val scratchPos = Position()
 
-    override fun geographicToCartesian(globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, offset: Double, result: Vec3): Vec3 {
+    override fun geographicToCartesian(ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, altitude: Double, offset: Double, result: Vec3): Vec3 {
         val cosLat = cos(latitude.inRadians)
         val sinLat = sin(latitude.inRadians)
         val cosLon = cos(longitude.inRadians)
         val sinLon = sin(longitude.inRadians)
-        val ec2 = globe.eccentricitySquared
-        val rpm = globe.equatorialRadius / sqrt(1.0 - ec2 * sinLat * sinLat)
+        val ec2 = ellipsoid.eccentricitySquared
+        val rpm = ellipsoid.semiMajorAxis / sqrt(1.0 - ec2 * sinLat * sinLat)
         return result.set(
             (altitude + rpm) * cosLat * sinLon,
             (altitude + rpm * (1.0 - ec2)) * sinLat,
@@ -32,31 +31,31 @@ open class Wgs84Projection: GeographicProjection {
         )
     }
 
-    override fun geographicToCartesianNormal(globe: Globe, latitude: Angle, longitude: Angle, result: Vec3): Vec3 {
+    override fun geographicToCartesianNormal(ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, result: Vec3): Vec3 {
         val cosLat = cos(latitude.inRadians)
         val sinLat = sin(latitude.inRadians)
         val cosLon = cos(longitude.inRadians)
         val sinLon = sin(longitude.inRadians)
-        val eqr2 = globe.equatorialRadius * globe.equatorialRadius
-        val pol2 = globe.polarRadius * globe.polarRadius
+        val eqr2 = ellipsoid.semiMajorAxis * ellipsoid.semiMajorAxis
+        val pol2 = ellipsoid.semiMinorAxis * ellipsoid.semiMinorAxis
         return result.set(
             cosLat * sinLon / eqr2,
-            (1 - globe.eccentricitySquared) * sinLat / pol2,
+            (1 - ellipsoid.eccentricitySquared) * sinLat / pol2,
             cosLat * cosLon / eqr2
         ).normalize()
     }
 
     override fun geographicToCartesianTransform(
-        globe: Globe, latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4
+        ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4
     ): Matrix4 {
         val cosLat = cos(latitude.inRadians)
         val sinLat = sin(latitude.inRadians)
         val cosLon = cos(longitude.inRadians)
         val sinLon = sin(longitude.inRadians)
-        val ec2 = globe.eccentricitySquared
-        val rpm = globe.equatorialRadius / sqrt(1.0 - ec2 * sinLat * sinLat)
-        val eqr2 = globe.equatorialRadius * globe.equatorialRadius
-        val pol2 = globe.polarRadius * globe.polarRadius
+        val ec2 = ellipsoid.eccentricitySquared
+        val rpm = ellipsoid.semiMajorAxis / sqrt(1.0 - ec2 * sinLat * sinLat)
+        val eqr2 = ellipsoid.semiMajorAxis * ellipsoid.semiMajorAxis
+        val pol2 = ellipsoid.semiMinorAxis * ellipsoid.semiMinorAxis
 
         // Convert the geographic position to Cartesian coordinates. This is equivalent to calling geographicToCartesian
         // but is much more efficient as an inline computation, as the results of cosLat/sinLat/etc. can be computed
@@ -68,7 +67,7 @@ open class Wgs84Projection: GeographicProjection {
         // Compute the surface normal at the geographic position. This is equivalent to calling
         // geographicToCartesianNormal but is much more efficient as an inline computation.
         var ux = cosLat * sinLon / eqr2
-        var uy = (1 - globe.eccentricitySquared) * sinLat / pol2
+        var uy = (1 - ellipsoid.eccentricitySquared) * sinLat / pol2
         var uz = cosLat * cosLon / eqr2
         var len = sqrt(ux * ux + uy * uy + uz * uz)
         ux /= len
@@ -119,7 +118,7 @@ open class Wgs84Projection: GeographicProjection {
     }
 
     override fun geographicToCartesianGrid(
-        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
+        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
         origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
     ): FloatArray {
         require(numLat >= 1 && numLon >= 1) {
@@ -137,8 +136,8 @@ open class Wgs84Projection: GeographicProjection {
         val maxLon = sector.maxLongitude.inRadians
         val deltaLat = (maxLat - minLat) / if (numLat > 1) numLat - 1 else 1
         val deltaLon = (maxLon - minLon) / if (numLon > 1) numLon - 1 else 1
-        val eqr = globe.equatorialRadius
-        val ec2 = globe.eccentricitySquared
+        val eqr = ellipsoid.semiMajorAxis
+        val ec2 = ellipsoid.eccentricitySquared
         val cosLon = DoubleArray(numLon)
         val sinLon = DoubleArray(numLon)
         var elevIndex = 0
@@ -182,7 +181,7 @@ open class Wgs84Projection: GeographicProjection {
     }
 
     override fun geographicToCartesianBorder(
-        globe: Globe, sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3?, offset: Double, result: FloatArray
+        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: Float, origin: Vec3?, offset: Double, result: FloatArray
     ): FloatArray {
         require(numLat >= 1 && numLon >= 1) {
             logMessage(
@@ -198,8 +197,8 @@ open class Wgs84Projection: GeographicProjection {
         val deltaLon = (maxLon - minLon) / if (numLon > 1) numLon - 3 else 1
         var lat = minLat
         var lon = minLon
-        val eqr = globe.equatorialRadius
-        val ec2 = globe.eccentricitySquared
+        val eqr = ellipsoid.semiMajorAxis
+        val ec2 = ellipsoid.eccentricitySquared
         val xOffset = origin?.x ?: 0.0
         val yOffset = origin?.y ?: 0.0
         val zOffset = origin?.z ?: 0.0
@@ -241,16 +240,18 @@ open class Wgs84Projection: GeographicProjection {
         return result
     }
 
-    override fun cartesianToGeographic(globe: Globe, x: Double, y: Double, z: Double, offset: Double, result: Position): Position {
+    override fun cartesianToGeographic(
+        ellipsoid: Ellipsoid, x: Double, y: Double, z: Double, offset: Double, result: Position
+    ): Position {
         // According to H. Vermeille,
         // "An analytical method to transform geocentric into geodetic coordinates"
         // http://www.springerlink.com/content/3t6837t27t351227/fulltext.pdf
         // Journal of Geodesy, accepted 10/2010, not yet published
         val zpx = z * z + x * x
         val zpxSqrt = sqrt(zpx)
-        val a = globe.equatorialRadius
+        val a = ellipsoid.semiMajorAxis
         val ra2 = 1 / (a * a)
-        val e2 = globe.eccentricitySquared
+        val e2 = ellipsoid.eccentricitySquared
         val e4 = e2 * e2
 
         // Step 1
@@ -305,19 +306,19 @@ open class Wgs84Projection: GeographicProjection {
         return result.setRadians(phi, lambda, h)
     }
 
-    override fun cartesianToLocalTransform(globe: Globe, x: Double, y: Double, z: Double, result: Matrix4): Matrix4 {
-        val pos = cartesianToGeographic(globe, x, y, z, 0.0, scratchPos)
+    override fun cartesianToLocalTransform(ellipsoid: Ellipsoid, x: Double, y: Double, z: Double, result: Matrix4): Matrix4 {
+        val pos = cartesianToGeographic(ellipsoid, x, y, z, 0.0, scratchPos)
         val cosLat = cos(pos.latitude.inRadians)
         val sinLat = sin(pos.latitude.inRadians)
         val cosLon = cos(pos.longitude.inRadians)
         val sinLon = sin(pos.longitude.inRadians)
-        val eqr2 = globe.equatorialRadius * globe.equatorialRadius
-        val pol2 = globe.polarRadius * globe.polarRadius
+        val eqr2 = ellipsoid.semiMajorAxis * ellipsoid.semiMajorAxis
+        val pol2 = ellipsoid.semiMinorAxis * ellipsoid.semiMinorAxis
 
         // Compute the surface normal at the geographic position. This is equivalent to calling
         // geographicToCartesianNormal but is much more efficient as an inline computation.
         var ux = cosLat * sinLon / eqr2
-        var uy = (1 - globe.eccentricitySquared) * sinLat / pol2
+        var uy = (1 - ellipsoid.eccentricitySquared) * sinLat / pol2
         var uz = cosLat * cosLon / eqr2
         var len = sqrt(ux * ux + uy * uy + uz * uz)
         ux /= len
@@ -367,7 +368,7 @@ open class Wgs84Projection: GeographicProjection {
         )
     }
 
-    override fun intersect(globe: Globe, line: Line, result: Vec3): Boolean {
+    override fun intersect(ellipsoid: Ellipsoid, line: Line, result: Vec3): Boolean {
         // Taken from "Mathematics for 3D Game Programming and Computer Graphics, Third Edition", Section 6.2.3.
         // Note that the parameter n from in equations 6.70 and 6.71 is omitted here. For an ellipsoidal globe this
         // parameter is always 1, so its square and its product with any other value simplifies to the identity.
@@ -377,9 +378,9 @@ open class Wgs84Projection: GeographicProjection {
         val sx = line.origin.x
         val sy = line.origin.y
         val sz = line.origin.z
-        val eqr = globe.equatorialRadius
+        val eqr = ellipsoid.semiMajorAxis
         val eqr2 = eqr * eqr // nominal radius squared
-        val m = eqr / globe.polarRadius // ratio of the x semi-axis length to the y semi-axis length
+        val m = eqr / ellipsoid.semiMinorAxis // ratio of the x semi-axis length to the y semi-axis length
         val m2 = m * m
         val a = vx * vx + m2 * vy * vy + vz * vz
         val b = 2 * (sx * vx + m2 * sy * vy + sz * vz)

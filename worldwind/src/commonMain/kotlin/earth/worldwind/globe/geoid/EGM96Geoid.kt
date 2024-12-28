@@ -22,12 +22,19 @@ expect fun getValue(k: Int): Short
  * description of the file.
  */
 @OptIn(DelicateCoroutinesApi::class)
-open class EGM96Geoid(offsetsFile: AssetResource = MR.assets.EGM96_dat, scope: CoroutineScope = GlobalScope) : Geoid {
-    init {
-        loadData(offsetsFile, scope)
-    }
+open class EGM96Geoid(
+    protected val offsetsFile: AssetResource = MR.assets.EGM96_dat,
+    protected val scope: CoroutineScope = GlobalScope
+) : Geoid {
+    private var isLoadDataRequested = false
 
     override fun getOffset(latitude: Angle, longitude: Angle): Float {
+        // Request data load once
+        if (!isLoadDataRequested) {
+            isLoadDataRequested = true
+            loadData(offsetsFile, scope)
+        }
+
         // Return 0 for all offsets if the file not loaded yet or failed to load.
         if (!isInitialized) return 0f
 

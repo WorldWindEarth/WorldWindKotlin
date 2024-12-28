@@ -1,8 +1,8 @@
 package earth.worldwind.ogc
 
+import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Sector.Companion.fromDegrees
-import earth.worldwind.globe.Globe
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.Logger
 import io.mockk.every
@@ -63,18 +63,18 @@ class WmsLayerTest {
 
         // Create mock objects for testing
         val sector = Sector() // mockk<Sector>(relaxed = true)
-        val globe = mockk<Globe>(relaxed = true)
-        every { globe.equatorialRadius } returns mockRadius
+        val ellipsoid = mockk<Ellipsoid>(relaxed = true)
+        every { ellipsoid.semiMajorAxis } returns mockRadius
         val wmsLayerConfig = WmsLayerConfig("testServiceAddress", "testLayerList")
 
         // Test invalid submissions throw exceptions
         try {
-            WmsLayer(sector, -metersPerPixel, wmsLayerConfig, globe)
+            WmsLayer(sector, -metersPerPixel, wmsLayerConfig, ellipsoid)
             fail("provided illegal parameters")
         } catch (ex: IllegalArgumentException) {
             assertNotNull(ex, "null exception thrown")
         }
-        val wmsLayer = WmsLayer(sector, metersPerPixel, wmsLayerConfig, globe)
+        val wmsLayer = WmsLayer(sector, metersPerPixel, wmsLayerConfig, ellipsoid)
 
         // check that the layer was created by the constructor
         assertNotNull(wmsLayer, "layer created")
@@ -178,17 +178,17 @@ class WmsLayerTest {
         val deltaLon = 2.0
         val notionalGlobeRadius = 3000000.0
         val initialSector = fromDegrees(minLat, minLon, deltaLat, deltaLon)
-        val initialGlobe = mockk<Globe>(relaxed = true)
-        every { initialGlobe.equatorialRadius } returns notionalGlobeRadius
+        val initialEllipsoid = mockk<Ellipsoid>(relaxed = true)
+        every { initialEllipsoid.semiMajorAxis } returns notionalGlobeRadius
         val initialNotionalServiceAddress = "notionalServiceAddress"
         val initialNotionalLayerList = "notionalLayerList"
         val initialWmsLayerConfig = WmsLayerConfig(initialNotionalServiceAddress, initialNotionalLayerList)
         val metersPerPixel = 0.5
-        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialGlobe)
+        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialEllipsoid)
 
         // test invalid submissions throw exceptions
         try {
-            wmsLayer.setConfiguration(initialSector, -metersPerPixel, initialWmsLayerConfig, initialGlobe)
+            wmsLayer.setConfiguration(initialSector, -metersPerPixel, initialWmsLayerConfig, initialEllipsoid)
             fail("provided invalid argument")
         } catch (ex: IllegalArgumentException) {
             assertNotNull(ex)
@@ -207,13 +207,13 @@ class WmsLayerTest {
         val deltaLon = 2.0
         val notionalGlobeRadius = 3000000.0
         val initialSector = fromDegrees(minLat, minLon, deltaLat, deltaLon)
-        val initialGlobe = mockk<Globe>(relaxed = true)
-        every { initialGlobe.equatorialRadius } returns notionalGlobeRadius
+        val initialEllipsoid = mockk<Ellipsoid>(relaxed = true)
+        every { initialEllipsoid.semiMajorAxis } returns notionalGlobeRadius
         val initialNotionalServiceAddress = "notionalServiceAddress"
         val initialNotionalLayerList = "notionalLayerList"
         val initialWmsLayerConfig = WmsLayerConfig(initialNotionalServiceAddress, initialNotionalLayerList)
         val metersPerPixel = 0.5
-        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialGlobe)
+        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialEllipsoid)
         val alternativeLatMin = -45.0
         val alternativeLonMin = 50.0
         val alternativeDeltaLat = 5.0
@@ -222,14 +222,14 @@ class WmsLayerTest {
             alternativeLatMin, alternativeLonMin, alternativeDeltaLat, alternativeDeltaLon
         )
         wmsLayer.setConfiguration(
-            alternativeSector, metersPerPixel, initialWmsLayerConfig, initialGlobe
+            alternativeSector, metersPerPixel, initialWmsLayerConfig, initialEllipsoid
         )
         val sector = (wmsLayer.getRenderable(0) as TiledSurfaceImage).levelSet.sector
         assertEquals(alternativeSector, sector, "sector updated")
     }
 
     /**
-     * Test the four parameter `setConfiguration` method updates when the [Globe] is changed.
+     * Test the four parameter `setConfiguration` method updates when the [Ellipsoid] is changed.
      */
     @Test
     fun testSetConfiguration_FourParameter_GlobeUpdate() {
@@ -240,17 +240,17 @@ class WmsLayerTest {
         val deltaLon = 2.0
         val notionalGlobeRadius = 3000000.0
         val initialSector = fromDegrees(minLat, minLon, deltaLat, deltaLon)
-        val initialGlobe = mockk<Globe>(relaxed = true)
-        every { initialGlobe.equatorialRadius } returns notionalGlobeRadius
+        val initialEllipsoid = mockk<Ellipsoid>(relaxed = true)
+        every { initialEllipsoid.semiMajorAxis } returns notionalGlobeRadius
         val initialNotionalServiceAddress = "notionalServiceAddress"
         val initialNotionalLayerList = "notionalLayerList"
         val initialWmsLayerConfig = WmsLayerConfig(initialNotionalServiceAddress, initialNotionalLayerList)
         val metersPerPixel = 0.5
-        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialGlobe)
+        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialEllipsoid)
         val initialLayers = (wmsLayer.getRenderable(0) as TiledSurfaceImage).levelSet.numLevels
-        val alternativeGlobe = mockk<Globe>(relaxed = true)
-        every { alternativeGlobe.equatorialRadius } returns 2 * notionalGlobeRadius
-        wmsLayer.setConfiguration(initialSector, metersPerPixel, initialWmsLayerConfig, alternativeGlobe)
+        val alternativeEllipsoid = mockk<Ellipsoid>(relaxed = true)
+        every { alternativeEllipsoid.semiMajorAxis } returns 2 * notionalGlobeRadius
+        wmsLayer.setConfiguration(initialSector, metersPerPixel, initialWmsLayerConfig, alternativeEllipsoid)
         val numberOfLevels = (wmsLayer.getRenderable(0) as TiledSurfaceImage).levelSet.numLevels
         assertNotEquals(initialLayers, numberOfLevels, "layer levels updated by globe object change")
     }
@@ -267,17 +267,17 @@ class WmsLayerTest {
         val deltaLon = 2.0
         val notionalGlobeRadius = 3000000.0
         val initialSector = fromDegrees(minLat, minLon, deltaLat, deltaLon)
-        val initialGlobe = mockk<Globe>(relaxed = true)
-        every { initialGlobe.equatorialRadius } returns notionalGlobeRadius
+        val initialEllipsoid = mockk<Ellipsoid>(relaxed = true)
+        every { initialEllipsoid.semiMajorAxis } returns notionalGlobeRadius
         val initialNotionalServiceAddress = "notionalServiceAddress"
         val initialNotionalLayerList = "notionalLayerList"
         val initialWmsLayerConfig = WmsLayerConfig(initialNotionalServiceAddress, initialNotionalLayerList)
         val metersPerPixel = 0.5
-        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialGlobe)
+        val wmsLayer = WmsLayer(initialSector, metersPerPixel, initialWmsLayerConfig, initialEllipsoid)
         val alternativeMetersPerPixel = 10.0
         val originalNumberOfLevels = (wmsLayer.getRenderable(0) as TiledSurfaceImage).levelSet.numLevels
         wmsLayer.setConfiguration(
-            initialSector, alternativeMetersPerPixel, initialWmsLayerConfig, initialGlobe
+            initialSector, alternativeMetersPerPixel, initialWmsLayerConfig, initialEllipsoid
         )
         val numberOfLevels = (wmsLayer.getRenderable(0) as TiledSurfaceImage).levelSet.numLevels
         assertNotEquals(originalNumberOfLevels, numberOfLevels, "levels updated")

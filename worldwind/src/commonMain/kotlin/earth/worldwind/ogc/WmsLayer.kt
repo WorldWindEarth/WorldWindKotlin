@@ -2,7 +2,6 @@ package earth.worldwind.ogc
 
 import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Sector
-import earth.worldwind.globe.Globe
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.LevelSet
@@ -31,14 +30,14 @@ open class WmsLayer @JvmOverloads constructor(displayName: String = "WMS Layer")
      * @param sector         the geographic region in which to display the WMS layer
      * @param metersPerPixel the desired resolution in meters on Earth
      * @param config         the WMS layer configuration values
-     * @param globe          the Globe to take equatorial radius
+     * @param ellipsoid      the Ellipsoid to take equatorial radius
      *
      * @throws IllegalArgumentException If the resolution is not positive, or if any
      * configuration value is invalid
      */
     @JvmOverloads
-    constructor(sector: Sector, metersPerPixel: Double, config: WmsLayerConfig, globe: Globe? = null) : this() {
-        setConfiguration(sector, metersPerPixel, config, globe)
+    constructor(sector: Sector, metersPerPixel: Double, config: WmsLayerConfig, ellipsoid: Ellipsoid?? = null) : this() {
+        setConfiguration(sector, metersPerPixel, config, ellipsoid)
     }
 
     /**
@@ -49,19 +48,19 @@ open class WmsLayer @JvmOverloads constructor(displayName: String = "WMS Layer")
      * @param sector         the geographic region in which to display the WMS layer
      * @param metersPerPixel the desired resolution in meters on the specified globe
      * @param config         the WMS layer configuration values
-     * @param globe          the Globe to take equatorial radius
+     * @param ellipsoid      the Ellipsoid to take equatorial radius
      *
      * @throws IllegalArgumentException If the resolution is not positive, or if any
      * configuration value is invalid
      */
     @JvmOverloads
     fun setConfiguration(
-        sector: Sector, metersPerPixel: Double, config: WmsLayerConfig, globe: Globe? = null
+        sector: Sector, metersPerPixel: Double, config: WmsLayerConfig, ellipsoid: Ellipsoid? = null
     ) {
         require(metersPerPixel > 0) {
             logMessage(ERROR, "WmsLayer", "setConfiguration", "invalidResolution")
         }
-        val radiansPerPixel = metersPerPixel / (globe?.equatorialRadius ?: Ellipsoid.WGS84.semiMajorAxis)
+        val radiansPerPixel = metersPerPixel / (ellipsoid?.semiMajorAxis ?: Ellipsoid.WGS84.semiMajorAxis)
         val levelsConfig = LevelSetConfig().apply {
             this.sector.copy(sector)
             numLevels = numLevelsForResolution(radiansPerPixel)
