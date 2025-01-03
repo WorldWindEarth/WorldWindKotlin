@@ -152,8 +152,8 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                     textColor = Color(mss.lineColor.toARGB())
                     textOffset = Offset.center()
                     font = Font(
-                        Typeface.create(rs.mpModifierFontName, rs.mpModifierFontType),
-                        rs.mpModifierFontSize.toFloat()
+                        rs.mpModifierFontSize.toFloat(),
+                        Typeface.create(rs.mpModifierFontName, rs.mpModifierFontType)
                     )
                     outlineWidth = MilStd2525.graphicsOutlineWidth
                 }

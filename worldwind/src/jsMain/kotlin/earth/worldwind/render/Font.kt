@@ -41,7 +41,7 @@ actual open class Font(
      */
     var horizontalAlignment: CanvasTextAlign = CanvasTextAlign.CENTER
 ) {
-    actual constructor(): this(14)
+    actual constructor(): this(DEFAULT_FONT_SIZE)
     actual constructor(family: String, weight: FontWeight, size: Int): this(
         size, family,
         if (weight == FontWeight.BOLD) "bold" else "normal",

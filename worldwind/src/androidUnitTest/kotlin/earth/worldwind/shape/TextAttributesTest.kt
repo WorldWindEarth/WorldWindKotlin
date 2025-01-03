@@ -1,5 +1,7 @@
 package earth.worldwind.shape
 
+import android.content.res.Resources
+import android.util.TypedValue
 import android.graphics.Typeface
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.OffsetMode
@@ -15,6 +17,10 @@ class TextAttributesTest {
         // Mock the static Typeface methods used by TextAttributes
         mockkStatic(Typeface::class)
         every { Typeface.defaultFromStyle(Typeface.NORMAL) } returns mockk(relaxed = true)
+        mockkStatic(Resources::getSystem)
+        every { Resources.getSystem() } returns mockk(relaxed = true)
+        mockkStatic(TypedValue::applyDimension)
+        every { TypedValue.applyDimension(any(), any(), any()) } returns 24f
     }
 
     @Test

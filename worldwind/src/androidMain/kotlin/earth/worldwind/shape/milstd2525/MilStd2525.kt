@@ -153,7 +153,7 @@ actual object MilStd2525 {
     @JvmStatic
     fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
         val modifierFont = rendererSettings.modiferFont
-        font = Font(modifierFont.typeface, modifierFont.textSize)
+        font = Font(modifierFont.textSize, modifierFont.typeface)
         textColor.set(rendererSettings.labelForegroundColor)
         outlineColor.set(rendererSettings.labelBackgroundColor)
         outlineWidth = rendererSettings.textOutlineWidth.toFloat()

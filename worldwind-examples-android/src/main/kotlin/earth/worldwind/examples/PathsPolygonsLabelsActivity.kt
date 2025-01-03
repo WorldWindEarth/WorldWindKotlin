@@ -116,12 +116,12 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
         private fun loadPlaceNames() {
             // Define the text attributes used for places
             val placeAttrs = TextAttributes()
-            placeAttrs.font = Font(Typeface.DEFAULT_BOLD, 28f) // Override the normal Typeface default size is 24
+            placeAttrs.font = Font(28f, Typeface.DEFAULT_BOLD) // Override the normal Typeface default size is 24
             placeAttrs.textOffset = bottomRight() // anchor the label's bottom-right corner at its position
 
             // Define the text attribute used for lakes
             val lakeAttrs = TextAttributes()
-            lakeAttrs.font = Font(Typeface.create("serif", Typeface.BOLD_ITALIC), 32f) // default size is 24
+            lakeAttrs.font = Font(32f, Typeface.create("serif", Typeface.BOLD_ITALIC)) // default size is 24
             lakeAttrs.textColor = Color(0f, 1f, 1f, 0.70f) // cyan, with 7% opacity
             lakeAttrs.textOffset = center() // center the label over its position
 
