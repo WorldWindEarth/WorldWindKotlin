@@ -266,10 +266,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         }
     }
 
-    /**
-     * Implements the GLSurfaceView.Renderer.onSurfaceChanged interface which is called on the GLThread when the surface
-     * is created.
-     */
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
         // Specify the default WorldWind OpenGL state.
         engine.setupDrawContext()
@@ -278,10 +274,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         mainScope.launch { engine.renderResourceCache.clear() }
     }
 
-    /**
-     * Implements the GLSurfaceView.Renderer.onSurfaceChanged interface which is called on the GLThread when the window
-     * size changes.
-     */
     override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
         // Set the WorldWind's new viewport dimensions.
         engine.setupViewport(width, height)
@@ -293,10 +285,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         requestRedraw()
     }
 
-    /**
-     * Implements the GLSurfaceView.Renderer.onDrawFrame interface which is called on the GLThread when rendering is
-     * requested.
-     */
     override fun onDrawFrame(unused: GL10) {
         // Remove and process pick the frame from the front of the pick queue, recycling it back into the pool. Continue
         // requesting frames on the OpenGL thread until the pick queue is empty. This is critical for correct operation.
@@ -334,12 +322,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         }
     }
 
-    /**
-     * Called immediately after the surface is first created, in which case the WorldWindow instance adds itself as a
-     * listener to the [WorldWind.events] - a facility for broadcasting global redraw requests to active WorldWindows.
-     *
-     * @param holder the SurfaceHolder whose surface is being created
-     */
     override fun surfaceCreated(holder: SurfaceHolder) {
         super.surfaceCreated(holder)
 
@@ -356,11 +338,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         }
     }
 
-    /**
-     * Called immediately before a surface is being destroyed, in which case the WorldWindow reset its internal state.
-     *
-     * @param holder the SurfaceHolder whose surface is being destroyed
-     */
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         super.surfaceDestroyed(holder)
 
@@ -371,11 +348,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         reset()
     }
 
-    /**
-     * Called when the activity is paused. Calling this method will pause the rendering thread, cause any outstanding
-     * pick operations to return an empty pick list, and prevent subsequent calls to pick and requestRedraw to return
-     * without performing any action.
-     */
     override fun onPause() {
         super.onPause()
 

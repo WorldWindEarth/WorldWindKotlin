@@ -96,13 +96,13 @@ open class MultiGlobeActivity: AbstractMainActivity() {
         performLayout()
     }
 
-    override fun onPause() {
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
         for (wwd in worldWindows) wwd.onPause() // pauses the rendering thread
     }
 
-    override fun onResume() {
-        super.onResume()
+    override fun onStart() {
+        super.onStart()
         for (wwd in worldWindows) wwd.onResume() // resumes a paused rendering thread
     }
 
