@@ -5,6 +5,7 @@ import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
+import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.*
 import earth.worldwind.render.buffer.FloatBufferObject
 import earth.worldwind.render.buffer.IntBufferObject
@@ -45,6 +46,7 @@ open class Path @JvmOverloads constructor(
     private val prevPoint = Vec3()
     private val texCoordMatrix = Matrix3()
     private val intermediateLocation = Location()
+    override var allowBatching = true
 
     companion object {
         protected const val VERTEX_STRIDE = 5 // 5 floats
@@ -57,6 +59,25 @@ open class Path @JvmOverloads constructor(
         }
 
         protected fun nextCacheKey() = Any()
+    }
+
+    override fun addToBatch(rc : RenderContext) : Boolean {
+        // Can't batch extrude as it uses different shader and geometry
+        val canBeBatched = super.addToBatch(rc) && (!isExtrude || isSurfaceShape)
+
+        val layer = rc.currentLayer
+        if(layer is RenderableLayer) {
+            val renderer = layer.batchRenderers.getOrPut(Path::class) { PathBatchRenderer() }
+
+            if (!canBeBatched) {
+                renderer.removeRenderable(this)
+                return false
+            }
+
+            return renderer.addOrUpdateRenderable(this)
+        }
+
+        return false
     }
 
     override fun reset() {
@@ -104,9 +125,11 @@ open class Path @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, vertexArray, vertexArray.size)
-        }
+        val vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
+        drawState.vertexState.addAttribute(0, vertexBuffer, 4, GL_FLOAT, false, 20, 0)
+        drawState.vertexState.addAttribute(1, vertexBuffer, 4, GL_FLOAT, false, 20, 80)
+        drawState.vertexState.addAttribute(2, vertexBuffer, 4, GL_FLOAT, false, 20, 160)
+        drawState.vertexState.addAttribute(3, vertexBuffer, 1, GL_FLOAT, false, 20, 96)
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
@@ -176,10 +199,9 @@ open class Path @JvmOverloads constructor(
             // Use the basic GLSL program to draw the shape.
             drawStateExtrusion.program = rc.getShaderProgram { TriangleShaderProgram() }
 
-            // Assemble the drawable's OpenGL vertex buffer object.
-            drawStateExtrusion.vertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) {
-                FloatBufferObject(GL_ARRAY_BUFFER, extrudeVertexArray, extrudeVertexArray.size)
-            }
+            val extrusionVertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, extrudeVertexArray) }
+            drawStateExtrusion.vertexState.addAttribute(0, extrusionVertexBuffer, 3, GL_FLOAT, false, 20, 0)
+            drawStateExtrusion.vertexState.addAttribute(3, extrusionVertexBuffer, 1, GL_FLOAT, false, 20, 12)
 
             // Assemble the drawable's OpenGL element buffer object.
             drawStateExtrusion.elementBuffer = rc.getBufferObject(extrudeElementBufferKey) {
@@ -199,7 +221,6 @@ open class Path @JvmOverloads constructor(
             // Configure the drawable according to the shape's attributes.
             drawStateExtrusion.texture(null)
             drawStateExtrusion.vertexOrigin.copy(vertexOrigin)
-            drawStateExtrusion.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
             drawStateExtrusion.enableCullFace = false
             drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
             drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite
@@ -390,7 +411,7 @@ open class Path @JvmOverloads constructor(
 
                 if (!intermediate) {
                     val index =  verticalIndex / VERTEX_STRIDE
-                    
+
                     // first vertices, that simulate pointA for next vertices
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
