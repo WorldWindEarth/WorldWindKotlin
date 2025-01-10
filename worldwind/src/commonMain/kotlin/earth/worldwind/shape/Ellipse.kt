@@ -141,11 +141,15 @@ open class Ellipse @JvmOverloads constructor(
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
     protected var vertexBufferKey = Any()
+    protected var elementBufferKey = Any()
     protected var lineVertexArray = FloatArray(0)
     protected var lineVertexIndex = 0
     protected var lineVertexBufferKey = Any()
     protected var lineElementBufferKey = Any()
     protected var verticalVertexIndex = 0
+    // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
+    protected val topElements = mutableListOf<Short>()
+    protected val sideElements = mutableListOf<Short>()
     protected val verticalElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val vertexOrigin = Vec3()
@@ -170,14 +174,6 @@ open class Ellipse @JvmOverloads constructor(
          * The minimum number of intervals that will be used for geometry generation.
          */
         protected const val MIN_INTERVALS = 32
-        /**
-         * Key for Range object in the element buffer describing the top of the Ellipse.
-         */
-        protected const val TOP_RANGE = 0
-        /**
-         * Key for Range object in the element buffer describing the extruded sides of the Ellipse.
-         */
-        protected const val SIDE_RANGE = 1
 
         protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
         protected val defaultOutlineImageOptions = ImageOptions().apply {
@@ -185,60 +181,9 @@ open class Ellipse @JvmOverloads constructor(
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
         }
 
-        /**
-         * Simple interval count based cache of the keys for element buffers. Element buffers are dependent only on the
-         * number of intervals so the keys are cached here. The element buffer object itself is in the
-         * RenderResourceCache and subject to the restrictions and behavior of that cache.
-         */
-        protected val elementBufferKeys = mutableMapOf<Int,Any>()
-
         private val scratchPosition = Position()
         private val scratchPoint = Vec3()
         private val scratchVertPoint = Vec3()
-
-        protected fun assembleElements(intervals: Int): ShortBufferObject {
-            // Create temporary storage for elements
-            // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
-            val elements = mutableListOf<Short>()
-
-            // Generate the top element buffer with spine
-            var idx = intervals.toShort()
-            val offset = computeIndexOffset(intervals)
-
-            // Add the anchor leg
-            elements.add(0.toShort())
-            elements.add(1.toShort())
-            // Tessellate the interior
-            for (i in 2 until intervals) {
-                // Add the corresponding interior spine point if this isn't the vertex following the last vertex for the
-                // negative major axis
-                if (i != intervals / 2 + 1) if (i > intervals / 2) elements.add(--idx) else elements.add(idx++)
-                // Add the degenerate triangle at the negative major axis in order to flip the triangle strip back towards
-                // the positive axis
-                if (i == intervals / 2) elements.add(i.toShort())
-                // Add the exterior vertex
-                elements.add(i.toShort())
-            }
-            // Complete the strip
-            elements.add(--idx)
-            elements.add(0.toShort())
-            val topRange = Range(0, elements.size)
-
-            // Generate the side element buffer
-            for (i in 0 until intervals) {
-                elements.add(i.toShort())
-                elements.add(i.plus(offset).toShort())
-            }
-            elements.add(0.toShort())
-            elements.add(offset.toShort())
-            val sideRange = Range(topRange.upper, elements.size)
-
-            // Generate a buffer for the element
-            val elementBuffer = ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, elements.toShortArray())
-            elementBuffer.ranges[TOP_RANGE] = topRange
-            elementBuffer.ranges[SIDE_RANGE] = sideRange
-            return elementBuffer
-        }
 
         protected fun computeNumberSpinePoints(intervals: Int) = intervals / 2 - 1 // intervals should be even
 
@@ -251,6 +196,7 @@ open class Ellipse @JvmOverloads constructor(
         if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
             vertexBufferKey = Any()
+            elementBufferKey = Any()
             lineVertexBufferKey = Any()
             lineElementBufferKey = Any()
         }
@@ -293,8 +239,13 @@ open class Ellipse @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
 
         // Get the attributes of the element buffer
-        val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
-        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) { assembleElements(activeIntervals) }
+        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
+            val array = ShortArray(topElements.size + sideElements.size)
+            var index = 0
+            for (element in topElements) array[index++] = element
+            for (element in sideElements) array[index++] = element
+            ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
+        }
 
         drawStateLines.isLine = true
 
@@ -356,12 +307,10 @@ open class Ellipse @JvmOverloads constructor(
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
         drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
-        val top = drawState.elementBuffer!!.ranges[TOP_RANGE]!!
-        drawState.drawElements(GL_TRIANGLE_STRIP, top.length, GL_UNSIGNED_SHORT, top.lower * 2 /*offset*/)
+        drawState.drawElements(GL_TRIANGLE_STRIP, topElements.size, GL_UNSIGNED_SHORT, 0 * Short.SIZE_BYTES /*offset*/)
         if (isExtrude) {
-            val side = drawState.elementBuffer!!.ranges[SIDE_RANGE]!!
             drawState.texture(null)
-            drawState.drawElements(GL_TRIANGLE_STRIP, side.length, GL_UNSIGNED_SHORT, side.lower * 2)
+            drawState.drawElements(GL_TRIANGLE_STRIP, sideElements.size, GL_UNSIGNED_SHORT, topElements.size * Short.SIZE_BYTES)
         }
     }
 
@@ -396,6 +345,42 @@ open class Ellipse @JvmOverloads constructor(
                 GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES
             )
         }
+    }
+
+    private fun assembleElements(intervals: Int) {
+        // Clear elements storage
+        topElements.clear()
+        sideElements.clear()
+
+        // Generate the top element buffer with spine
+        var idx = intervals.toShort()
+        val offset = computeIndexOffset(intervals)
+
+        // Add the anchor leg
+        topElements.add(0.toShort())
+        topElements.add(1.toShort())
+        // Tessellate the interior
+        for (i in 2 until intervals) {
+            // Add the corresponding interior spine point if this isn't the vertex following the last vertex for the
+            // negative major axis
+            if (i != intervals / 2 + 1) if (i > intervals / 2) topElements.add(--idx) else topElements.add(idx++)
+            // Add the degenerate triangle at the negative major axis in order to flip the triangle strip back towards
+            // the positive axis
+            if (i == intervals / 2) topElements.add(i.toShort())
+            // Add the exterior vertex
+            topElements.add(i.toShort())
+        }
+        // Complete the strip
+        topElements.add(--idx)
+        topElements.add(0.toShort())
+
+        // Generate the side element buffer
+        for (i in 0 until intervals) {
+            sideElements.add(i.toShort())
+            sideElements.add(i.plus(offset).toShort())
+        }
+        sideElements.add(0.toShort())
+        sideElements.add(offset.toShort())
     }
 
     protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
@@ -491,6 +476,8 @@ open class Ellipse @JvmOverloads constructor(
             center.greatCircleLocation(heading.plusDegrees(headingAdjustment), spineRadius[i], scratchPosition)
             addVertex(rc, scratchPosition.latitude, scratchPosition.longitude, center.altitude, arrayOffset, false)
         }
+
+        assembleElements(activeIntervals)
 
         // Compute the shape's bounding sector from its assembled coordinates.
         if (isSurfaceShape) {
