@@ -356,6 +356,9 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         // whether the render resources are valid, so we reset and let the GLSurfaceView establish the new
         // EGL context and viewport.
         reset()
+
+        // Invalidate elevation model cache to free memory when application is not used
+        engine.globe.elevationModel.invalidate()
     }
 
     override fun onAttachedToWindow() {

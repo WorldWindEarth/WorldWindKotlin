@@ -134,9 +134,6 @@ open class WorldWind @JvmOverloads constructor(
         // Clear the render resource cache; it's entries are now invalid.
         renderResourceCache.clear()
 
-        // Invalidate elevation model.
-        globe.elevationModel.invalidate()
-
         // Clear the viewport dimensions.
         viewport.setEmpty()
 
