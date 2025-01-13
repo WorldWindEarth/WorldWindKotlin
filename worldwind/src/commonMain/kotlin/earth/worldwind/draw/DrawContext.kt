@@ -21,6 +21,7 @@ open class DrawContext(val gl: Kgl) {
     val modelviewProjection = Matrix4()
 //    val infiniteProjection = Matrix4()
     val screenProjection = Matrix4()
+    var uploadQueue: UploadQueue? = null
     var drawableQueue: DrawableQueue? = null
     var drawableTerrain: DrawableQueue? = null
     var pickedObjects: PickedObjectList? = null
@@ -123,6 +124,7 @@ open class DrawContext(val gl: Kgl) {
         modelviewProjection.setToIdentity()
         screenProjection.setToIdentity()
 //        infiniteProjection.setToIdentity()
+        uploadQueue = null
         drawableQueue = null
         drawableTerrain = null
         pickedObjects = null
@@ -150,6 +152,8 @@ open class DrawContext(val gl: Kgl) {
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
     }
+
+    fun uploadBuffers() = uploadQueue?.processUploads(this)
 
     fun peekDrawable() = drawableQueue?.peekDrawable()
 

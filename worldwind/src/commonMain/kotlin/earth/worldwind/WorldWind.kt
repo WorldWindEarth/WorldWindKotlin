@@ -473,6 +473,7 @@ open class WorldWind @JvmOverloads constructor(
         }
 
         // Accumulate the Drawables in the frame's drawable queue and drawable terrain data structures.
+        rc.uploadQueue = frame.uploadQueue
         rc.drawableQueue = frame.drawableQueue
         rc.drawableTerrain = frame.drawableTerrain
         rc.pickedObjects = frame.pickedObjects
@@ -514,6 +515,7 @@ open class WorldWind @JvmOverloads constructor(
         )
 
         // Process the drawables in the frame's drawable queue and drawable terrain data structures.
+        dc.uploadQueue = frame.uploadQueue
         dc.drawableQueue = frame.drawableQueue
         dc.drawableTerrain = frame.drawableTerrain
         dc.pickedObjects = frame.pickedObjects

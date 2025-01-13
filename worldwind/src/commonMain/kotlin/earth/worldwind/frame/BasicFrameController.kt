@@ -98,12 +98,17 @@ open class BasicFrameController: FrameController {
 
     override fun drawFrame(dc: DrawContext) {
         clearFrame(dc)
+        uploadBuffers(dc)
         drawDrawables(dc)
         if (dc.isPickMode) resolvePick(dc)
     }
 
     protected open fun clearFrame(dc: DrawContext) {
         dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+    }
+
+    protected open fun uploadBuffers(dc: DrawContext) {
+        dc.uploadBuffers()
     }
 
     protected open fun drawDrawables(dc: DrawContext) {
