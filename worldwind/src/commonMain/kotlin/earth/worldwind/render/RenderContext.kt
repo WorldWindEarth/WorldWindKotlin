@@ -340,8 +340,11 @@ open class RenderContext {
         } else null
     }
 
-    fun offerBufferUpload(buffer : GLBufferObject, array: NumericArray) {
-        uploadQueue?.queueBufferUpload(buffer, array)
+    fun offerGLBufferUpload(key: Any, array: NumericArray) {
+        renderResourceCache[key].also {
+            uploadQueue?.queueBufferUpload(it as GLBufferObject, array)
+            renderResourceCache.updateSize(key, array.byteCount)
+        }
     }
 
     fun offerBackgroundDrawable(drawable: Drawable) {

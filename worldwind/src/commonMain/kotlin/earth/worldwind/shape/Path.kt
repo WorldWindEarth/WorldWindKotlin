@@ -103,18 +103,20 @@ open class Path @JvmOverloads constructor(
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.tmpVertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
-        }.also { if(reassembleGeometry) rc.offerBufferUpload(it, NumericArray.Floats(vertexArray)) }
+        }
+        if(reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.tmpElementBuffer = rc.getGLBufferObject(elementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
-        }.also { if(reassembleGeometry) {
+        }
+        if(reassembleGeometry) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
             for (element in verticalElements) array[index++] = element
-            rc.offerBufferUpload(it, NumericArray.Ints(array))
-        } }
+            rc.offerGLBufferUpload(elementBufferKey, NumericArray.Ints(array))
+        }
 
         // Configure the drawable to use the outline texture when drawing the outline.
         if (activeAttributes.isDrawOutline) {
@@ -178,17 +180,19 @@ open class Path @JvmOverloads constructor(
             // Assemble the drawable's OpenGL vertex buffer object.
             drawStateExtrusion.tmpVertexBuffer = rc.getGLBufferObject(extrudeVertexBufferKey) {
                 GLBufferObject(GL_ARRAY_BUFFER, 0)
-            }.also { if(reassembleGeometry) rc.offerBufferUpload(it, NumericArray.Floats(extrudeVertexArray)) }
+            }
+            if (reassembleGeometry) { rc.offerGLBufferUpload(extrudeVertexBufferKey, NumericArray.Floats(extrudeVertexArray)) }
 
             // Assemble the drawable's OpenGL element buffer object.
             drawStateExtrusion.tmpElementBuffer = rc.getGLBufferObject(extrudeElementBufferKey) {
                 GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
-            }.also { if(reassembleGeometry) {
+            }
+            if (reassembleGeometry) {
                 val array = IntArray(interiorElements.size)
                 var index = 0
                 for (element in interiorElements) array[index++] = element
-                rc.offerBufferUpload(it, NumericArray.Ints(array))
-            } }
+                rc.offerGLBufferUpload(extrudeElementBufferKey, NumericArray.Ints(array))
+            }
 
             drawStateExtrusion.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawStateExtrusion.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
