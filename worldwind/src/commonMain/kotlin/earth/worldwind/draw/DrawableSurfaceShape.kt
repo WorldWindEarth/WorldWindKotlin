@@ -126,8 +126,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 // Get the shape.
                 val shape = element as DrawableSurfaceShape
                 if (shape.offset != terrain.offset || !shape.sector.intersectsOrNextTo(terrainSector)) continue
-                if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true && shape.drawState.tmpVertexBuffer?.bindBuffer(dc) != true) continue  // vertex buffer unspecified or failed to bind
-                if (shape.drawState.elementBuffer?.bindBuffer(dc) != true && shape.drawState.tmpElementBuffer?.bindBuffer(dc) != true) continue  // element buffer unspecified or failed to bind
+                if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) continue  // vertex buffer unspecified or failed to bind
+                if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) continue  // element buffer unspecified or failed to bind
 
                 // Transform local shape coordinates to texture fragments appropriate for the terrain sector.
                 mvpMatrix.copy(textureMvpMatrix)

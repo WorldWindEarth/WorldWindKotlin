@@ -177,13 +177,13 @@ open class Polygon @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.tmpVertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
+        drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
         if(reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawState.tmpElementBuffer = rc.getGLBufferObject(elementBufferKey) {
+        drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         if(reassembleGeometry) {
@@ -201,13 +201,13 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.tmpVertexBuffer = rc.getGLBufferObject(vertexLinesBufferKey) {
+        drawStateLines.vertexBuffer = rc.getGLBufferObject(vertexLinesBufferKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
         if(reassembleGeometry) { rc.offerGLBufferUpload(vertexLinesBufferKey, NumericArray.Floats(lineVertexArray)) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawStateLines.tmpElementBuffer = rc.getGLBufferObject(elementLinesBufferKey) {
+        drawStateLines.elementBuffer = rc.getGLBufferObject(elementLinesBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         if(reassembleGeometry) {

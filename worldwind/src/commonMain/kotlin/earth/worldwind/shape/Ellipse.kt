@@ -232,11 +232,11 @@ open class Ellipse @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.tmpVertexBuffer = rc.getGLBufferObject(vertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
+        drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
         if (reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
 
         // Get the attributes of the element buffer
-        drawState.tmpElementBuffer = rc.getGLBufferObject(elementBufferKey) {
+        drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         if (reassembleGeometry) {
@@ -253,11 +253,11 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.tmpVertexBuffer = rc.getGLBufferObject(lineVertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
+        drawStateLines.vertexBuffer = rc.getGLBufferObject(lineVertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
         if (reassembleGeometry) { rc.offerGLBufferUpload(lineVertexBufferKey, NumericArray.Floats(lineVertexArray)) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawStateLines.tmpElementBuffer = rc.getGLBufferObject(lineElementBufferKey) {
+        drawStateLines.elementBuffer = rc.getGLBufferObject(lineElementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         if (reassembleGeometry) {

@@ -34,10 +34,10 @@ open class Path @JvmOverloads constructor(
     protected val interiorElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
-    protected var extrudeVertexBufferKey = Any()
-    protected var extrudeElementBufferKey = Any()
-    protected var vertexBufferKey = Any()
-    protected var elementBufferKey = Any()
+    protected val extrudeVertexBufferKey = Any()
+    protected val extrudeElementBufferKey = Any()
+    protected val vertexBufferKey = Any()
+    protected val elementBufferKey = Any()
     protected val vertexOrigin = Vec3()
     protected var texCoord1d = 0.0
     private val point = Vec3()
@@ -55,8 +55,6 @@ open class Path @JvmOverloads constructor(
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
         }
-
-        protected fun nextCacheKey() = Any()
     }
 
     override fun reset() {
@@ -101,13 +99,13 @@ open class Path @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.tmpVertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
+        drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
         if(reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawState.tmpElementBuffer = rc.getGLBufferObject(elementBufferKey) {
+        drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         if(reassembleGeometry) {
@@ -178,13 +176,13 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.program = rc.getShaderProgram { TriangleShaderProgram() }
 
             // Assemble the drawable's OpenGL vertex buffer object.
-            drawStateExtrusion.tmpVertexBuffer = rc.getGLBufferObject(extrudeVertexBufferKey) {
+            drawStateExtrusion.vertexBuffer = rc.getGLBufferObject(extrudeVertexBufferKey) {
                 GLBufferObject(GL_ARRAY_BUFFER, 0)
             }
             if (reassembleGeometry) { rc.offerGLBufferUpload(extrudeVertexBufferKey, NumericArray.Floats(extrudeVertexArray)) }
 
             // Assemble the drawable's OpenGL element buffer object.
-            drawStateExtrusion.tmpElementBuffer = rc.getGLBufferObject(extrudeElementBufferKey) {
+            drawStateExtrusion.elementBuffer = rc.getGLBufferObject(extrudeElementBufferKey) {
                 GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
             if (reassembleGeometry) {
