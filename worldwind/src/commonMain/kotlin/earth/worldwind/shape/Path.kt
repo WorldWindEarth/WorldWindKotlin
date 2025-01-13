@@ -6,13 +6,13 @@ import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.IntBufferObject
+import earth.worldwind.render.buffer.GLBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
@@ -34,10 +34,10 @@ open class Path @JvmOverloads constructor(
     protected val interiorElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
-    protected lateinit var extrudeVertexBufferKey: Any
-    protected lateinit var extrudeElementBufferKey: Any
-    protected lateinit var vertexBufferKey: Any
-    protected lateinit var elementBufferKey: Any
+    protected var extrudeVertexBufferKey = Any()
+    protected var extrudeElementBufferKey = Any()
+    protected var vertexBufferKey = Any()
+    protected var elementBufferKey = Any()
     protected val vertexOrigin = Vec3()
     protected var texCoord1d = 0.0
     private val point = Vec3()
@@ -71,12 +71,9 @@ open class Path @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (positions.size < 2) return // nothing to draw
 
-        if (mustAssembleGeometry(rc)) {
+        val reassembleGeometry = mustAssembleGeometry(rc)
+        if (reassembleGeometry) {
             assembleGeometry(rc)
-            vertexBufferKey = nextCacheKey()
-            elementBufferKey = nextCacheKey()
-            extrudeVertexBufferKey = nextCacheKey()
-            extrudeElementBufferKey = nextCacheKey()
         }
 
         // Obtain a drawable form the render context pool, and compute distance to the render camera.
@@ -104,18 +101,20 @@ open class Path @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, vertexArray, vertexArray.size)
-        }
+        drawState.tmpVertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
+            GLBufferObject(GL_ARRAY_BUFFER, 0)
+        }.also { if(reassembleGeometry) rc.offerBufferUpload(it, NumericArray.Floats(vertexArray)) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
+        drawState.tmpElementBuffer = rc.getGLBufferObject(elementBufferKey) {
+            GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }.also { if(reassembleGeometry) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
             for (element in verticalElements) array[index++] = element
-            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
-        }
+            rc.offerBufferUpload(it, NumericArray.Ints(array))
+        } }
 
         // Configure the drawable to use the outline texture when drawing the outline.
         if (activeAttributes.isDrawOutline) {
@@ -177,17 +176,19 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.program = rc.getShaderProgram { TriangleShaderProgram() }
 
             // Assemble the drawable's OpenGL vertex buffer object.
-            drawStateExtrusion.vertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) {
-                FloatBufferObject(GL_ARRAY_BUFFER, extrudeVertexArray, extrudeVertexArray.size)
-            }
+            drawStateExtrusion.tmpVertexBuffer = rc.getGLBufferObject(extrudeVertexBufferKey) {
+                GLBufferObject(GL_ARRAY_BUFFER, 0)
+            }.also { if(reassembleGeometry) rc.offerBufferUpload(it, NumericArray.Floats(extrudeVertexArray)) }
 
             // Assemble the drawable's OpenGL element buffer object.
-            drawStateExtrusion.elementBuffer = rc.getBufferObject(extrudeElementBufferKey) {
+            drawStateExtrusion.tmpElementBuffer = rc.getGLBufferObject(extrudeElementBufferKey) {
+                GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+            }.also { if(reassembleGeometry) {
                 val array = IntArray(interiorElements.size)
                 var index = 0
                 for (element in interiorElements) array[index++] = element
-                IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
-            }
+                rc.offerBufferUpload(it, NumericArray.Ints(array))
+            } }
 
             drawStateExtrusion.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawStateExtrusion.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
