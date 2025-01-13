@@ -51,17 +51,15 @@ class GLBufferObject(protected val target: Int, var byteCount: Int) : RenderReso
 
     protected fun loadBufferObjectData(dc: DrawContext, array: NumericArray)
     {
+        byteCount = array.byteCount
         when (array) {
             is NumericArray.Floats -> {
-                byteCount = array.array.size * Float.SIZE_BYTES
                 dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
             }
             is NumericArray.Ints -> {
-                byteCount = array.array.size * Int.SIZE_BYTES
                 dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
             }
             is NumericArray.Shorts -> {
-                byteCount = array.array.size * Short.SIZE_BYTES
                 dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
             }
         }
