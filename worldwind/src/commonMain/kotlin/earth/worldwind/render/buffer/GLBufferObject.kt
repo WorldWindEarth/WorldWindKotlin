@@ -1,12 +1,18 @@
 package earth.worldwind.render.buffer
 
 import earth.worldwind.draw.DrawContext
-import earth.worldwind.util.NumericArray
 import earth.worldwind.render.RenderResource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.GL_STATIC_DRAW
 import earth.worldwind.util.kgl.KglBuffer
+
+sealed class NumericArray {
+    abstract val byteCount: Int
+    data class Floats(val array: FloatArray, override val byteCount: Int = array.size * Float.SIZE_BYTES) : NumericArray()
+    data class Ints(val array: IntArray, override val byteCount: Int = array.size * Int.SIZE_BYTES) : NumericArray()
+    data class Shorts(val array: ShortArray, override val byteCount: Int = array.size * Short.SIZE_BYTES) : NumericArray()
+}
 
 class GLBufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
     protected var id = KglBuffer.NONE
