@@ -2,6 +2,7 @@ package earth.worldwind.frame
 
 import earth.worldwind.PickedObjectList
 import earth.worldwind.draw.DrawableQueue
+import earth.worldwind.draw.UploadQueue
 import earth.worldwind.geom.Line
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec2
@@ -15,6 +16,7 @@ open class Frame {
     val projection = Matrix4()
     val modelview = Matrix4()
 //    val infiniteProjection = Matrix4()
+    val uploadQueue = UploadQueue()
     val drawableQueue = DrawableQueue()
     val drawableTerrain = DrawableQueue()
     var pickedObjects: PickedObjectList? = null
@@ -39,6 +41,7 @@ open class Frame {
         projection.setToIdentity()
         modelview.setToIdentity()
 //        infiniteProjection.setToIdentity()
+        uploadQueue.clearUploads()
         drawableQueue.clearDrawables()
         drawableTerrain.clearDrawables()
         pickedObjects?.let { pickDeferred?.complete(it) } // Complete deferred pick if available

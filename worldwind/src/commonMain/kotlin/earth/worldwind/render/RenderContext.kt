@@ -6,6 +6,7 @@ import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableGroup
 import earth.worldwind.draw.DrawableQueue
 import earth.worldwind.draw.DrawableTerrain
+import earth.worldwind.draw.UploadQueue
 import earth.worldwind.geom.*
 import earth.worldwind.geom.AltitudeMode.*
 import earth.worldwind.globe.Globe
@@ -14,10 +15,12 @@ import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.LayerList
 import earth.worldwind.render.buffer.AbstractBufferObject
+import earth.worldwind.render.buffer.GLBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.AbstractShaderProgram
 import earth.worldwind.shape.TextAttributes
+import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.util.Pool
 import earth.worldwind.util.SynchronizedPool
 import earth.worldwind.util.glu.GLU
@@ -52,6 +55,7 @@ open class RenderContext {
     val modelview = Matrix4()
     val modelviewProjection = Matrix4()
     val frustum = Frustum()
+    var uploadQueue : UploadQueue? = null
     var drawableQueue: DrawableQueue? = null
     var drawableTerrain: DrawableQueue? = null
     var pickedObjects: PickedObjectList? = null
@@ -88,6 +92,7 @@ open class RenderContext {
         modelview.setToIdentity()
         modelviewProjection.setToIdentity()
         frustum.setToUnitFrustum()
+        uploadQueue = null
         drawableQueue = null
         drawableTerrain = null
         pickedObjects = null
@@ -323,6 +328,8 @@ open class RenderContext {
     inline fun <reified T: AbstractBufferObject> getBufferObject(key: Any, builder: () -> T) =
         renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as T
 
+    inline fun getGLBufferObject(key: Any, builder: () -> GLBufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as GLBufferObject
+
     fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache.run {
         scratchTextCacheKey.text = text
         scratchTextCacheKey.attributes = attributes
@@ -331,6 +338,13 @@ open class RenderContext {
             // Use new text cache key and copy attributes on put operation to avoid cache issues on attributes modification
             put(TextCacheKey(text, TextAttributes(attributes)), it, it.byteCount)
         } else null
+    }
+
+    fun offerGLBufferUpload(key: Any, array: NumericArray) {
+        renderResourceCache[key].also {
+            uploadQueue?.queueBufferUpload(it as GLBufferObject, array)
+            renderResourceCache.updateSize(key, array.byteCount)
+        }
     }
 
     fun offerBackgroundDrawable(drawable: Drawable) {
