@@ -136,6 +136,9 @@ open class DrawContext(val gl: Kgl) {
 
     fun contextLost() {
         // Clear objects and values associated with the current OpenGL context.
+        scratchFramebufferCache?.release(this)
+        unitSquareBufferCache?.release(this)
+        rectangleElementsBufferCache?.release(this)
         framebuffer = KglFramebuffer.NONE
         program = KglProgram.NONE
         textureUnit = GL_TEXTURE0
