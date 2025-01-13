@@ -328,6 +328,8 @@ open class RenderContext {
     inline fun <reified T: AbstractBufferObject> getBufferObject(key: Any, builder: () -> T) =
         renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as T
 
+    inline fun getGLBufferObject(key: Any, builder: () -> GLBufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as GLBufferObject
+
     fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache.run {
         scratchTextCacheKey.text = text
         scratchTextCacheKey.attributes = attributes

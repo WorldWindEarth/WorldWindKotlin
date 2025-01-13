@@ -25,6 +25,7 @@ open class UploadQueue internal constructor(){
         }
         val entry = entries[size] ?: Entry().also { entries[size] = it }
         entry.set(array, buffer)
+        size++
     }
 
     fun processUploads(dc : DrawContext)
