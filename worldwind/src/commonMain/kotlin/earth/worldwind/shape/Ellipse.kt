@@ -8,15 +8,14 @@ import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.render.*
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.IntBufferObject
-import earth.worldwind.render.buffer.ShortBufferObject
+import earth.worldwind.render.buffer.GLBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
@@ -140,12 +139,12 @@ open class Ellipse @JvmOverloads constructor(
     protected var activeIntervals = 0
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
-    protected var vertexBufferKey = Any()
-    protected var elementBufferKey = Any()
+    protected val vertexBufferKey = Any()
+    protected val elementBufferKey = Any()
     protected var lineVertexArray = FloatArray(0)
     protected var lineVertexIndex = 0
-    protected var lineVertexBufferKey = Any()
-    protected var lineElementBufferKey = Any()
+    protected val lineVertexBufferKey = Any()
+    protected val lineElementBufferKey = Any()
     protected var verticalVertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val topElements = mutableListOf<Short>()
@@ -193,12 +192,9 @@ open class Ellipse @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (majorRadius == 0.0 && minorRadius == 0.0) return  // nothing to draw
 
-        if (mustAssembleGeometry(rc)) {
+        val reassembleGeometry = mustAssembleGeometry(rc)
+        if (reassembleGeometry) {
             assembleGeometry(rc)
-            vertexBufferKey = Any()
-            elementBufferKey = Any()
-            lineVertexBufferKey = Any()
-            lineElementBufferKey = Any()
         }
 
         // Obtain a drawable form the render context pool.
@@ -236,15 +232,19 @@ open class Ellipse @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, vertexArray) }
+        drawState.tmpVertexBuffer = rc.getGLBufferObject(vertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
+        if (reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
 
         // Get the attributes of the element buffer
-        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
+        drawState.tmpElementBuffer = rc.getGLBufferObject(elementBufferKey) {
+            GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        if (reassembleGeometry) {
             val array = ShortArray(topElements.size + sideElements.size)
             var index = 0
             for (element in topElements) array[index++] = element
             for (element in sideElements) array[index++] = element
-            ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
+            rc.offerGLBufferUpload(elementBufferKey, NumericArray.Shorts(array))
         }
 
         drawStateLines.isLine = true
@@ -253,15 +253,19 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.vertexBuffer = rc.getBufferObject(lineVertexBufferKey) { FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray) }
+        drawStateLines.tmpVertexBuffer = rc.getGLBufferObject(lineVertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
+        if (reassembleGeometry) { rc.offerGLBufferUpload(lineVertexBufferKey, NumericArray.Floats(lineVertexArray)) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawStateLines.elementBuffer = rc.getBufferObject(lineElementBufferKey) {
+        drawStateLines.tmpElementBuffer = rc.getGLBufferObject(lineElementBufferKey) {
+            GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        if (reassembleGeometry) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
             for (element in verticalElements) array[index++] = element
-            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
+            rc.offerGLBufferUpload(lineElementBufferKey, NumericArray.Ints(array))
         }
 
         drawInterior(rc, drawState)
