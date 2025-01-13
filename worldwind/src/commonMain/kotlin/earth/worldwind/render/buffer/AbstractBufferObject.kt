@@ -8,7 +8,6 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.KglBuffer
 
 abstract class AbstractBufferObject(protected val target: Int, val byteCount: Int) : RenderResource {
-    val ranges = mutableMapOf<Int, Range>()
     protected var id = KglBuffer.NONE
 
     override fun release(dc: DrawContext) { deleteBufferObject(dc) }
