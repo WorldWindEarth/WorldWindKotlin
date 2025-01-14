@@ -10,7 +10,6 @@ import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferPool
 import earth.worldwind.render.buffer.GLBufferObject
-import earth.worldwind.render.buffer.IntBufferObject
 import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.util.kgl.*
 
@@ -37,7 +36,7 @@ open class DrawContext(val gl: Kgl) {
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
     private var unitSquareBufferCache: GLBufferObject? = null
-    private var rectangleElementsBufferCache: IntBufferObject? = null
+    private var rectangleElementsBufferCache: GLBufferObject? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
@@ -111,9 +110,12 @@ open class DrawContext(val gl: Kgl) {
      * The OpenGL buffer object is created on first use and cached. Subsequent calls to this method return the cached
      * buffer object.
      */
-    val rectangleElementsBuffer get() = rectangleElementsBufferCache ?: IntBufferObject(
-        GL_ELEMENT_ARRAY_BUFFER, intArrayOf(0, 1, 2, 2, 1, 3)
-    ).also { rectangleElementsBufferCache = it }
+    val rectangleElementsBuffer get() = rectangleElementsBufferCache ?: GLBufferObject(
+        GL_ELEMENT_ARRAY_BUFFER, 0
+    ).also {
+        it.loadBuffer(this, NumericArray.Ints(intArrayOf(0, 1, 2, 2, 1, 3)))
+        rectangleElementsBufferCache = it
+    }
     /**
      * Returns a scratch list suitable for accumulating entries during drawing. The list is cleared before each frame,
      * otherwise its contents are undefined.
