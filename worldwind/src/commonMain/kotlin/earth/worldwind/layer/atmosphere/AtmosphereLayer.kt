@@ -26,8 +26,6 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     protected val activeLightDirection = Vec3()
     private val fullSphereSector = Sector().setFullSphere()
 
-    private var vboInitialized = false
-    private var iboInitialized = false
     companion object {
         private val VERTEX_POINTS_KEY = AtmosphereLayer::class.simpleName + ".points"
         private val TRI_STRIP_ELEMENTS_KEY = AtmosphereLayer::class.simpleName + ".triStripElements"
@@ -65,15 +63,9 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         val size = 128
         drawable.program = rc.getShaderProgram { SkyProgram() }
         drawable.vertexPoints = rc.getGLBufferObject(VERTEX_POINTS_KEY) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
-        if (!vboInitialized) {
-            rc.offerGLBufferUpload(VERTEX_POINTS_KEY, NumericArray.Floats(assembleVertexPoints(rc, size, size, rc.atmosphereAltitude.toFloat())))
-            vboInitialized = true
-        }
+        rc.offerGLBufferUpload(VERTEX_POINTS_KEY, 1) { NumericArray.Floats(assembleVertexPoints(rc, size, size, rc.atmosphereAltitude.toFloat())) }
         drawable.triStripElements = rc.getGLBufferObject(TRI_STRIP_ELEMENTS_KEY) { GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0) }
-        if (!iboInitialized) {
-            rc.offerGLBufferUpload(TRI_STRIP_ELEMENTS_KEY, NumericArray.Shorts(assembleTriStripElements(size, size)))
-            iboInitialized = true
-        }
+        rc.offerGLBufferUpload(TRI_STRIP_ELEMENTS_KEY, 1) { NumericArray.Shorts(assembleTriStripElements(size, size)) }
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe.equatorialRadius
         drawable.atmosphereAltitude = rc.atmosphereAltitude

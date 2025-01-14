@@ -16,7 +16,10 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
     protected open var age = 0L
         get() = ++field // Auto increment cache age on each access to its entries
 
-    protected open class Entry<K, V>(val key: K, val value: V, var size: Int) { var lastUsed = 0L }
+    protected open class Entry<K, V>(val key: K, val value: V, var size: Int) {
+        var lastUsed = 0L
+        var version = 0L
+    }
 
     init {
         require(capacity >= 1) {
@@ -57,10 +60,15 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
         value
     }
 
-    open fun updateSize(key: K, newSize: Int) = entries[key]?.run {
-        usedCapacity -= size
-        size = newSize
-        usedCapacity += size
+    open fun update(key: K, newVersion: Long, update: () -> Int) = entries[key]?.run {
+        if(version < newVersion) {
+            version = newVersion
+            update().run {
+                usedCapacity -= size
+                usedCapacity += this
+                size = this
+            }
+        }
     }
 
     open fun trimToAge(maxAge: Long): Int {

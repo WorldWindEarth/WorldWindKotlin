@@ -146,6 +146,7 @@ open class Ellipse @JvmOverloads constructor(
     protected val lineVertexBufferKey = Any()
     protected val lineElementBufferKey = Any()
     protected var verticalVertexIndex = 0
+    protected var bufferDataVersion = 0L
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val topElements = mutableListOf<Short>()
     protected val sideElements = mutableListOf<Short>()
@@ -192,9 +193,9 @@ open class Ellipse @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (majorRadius == 0.0 && minorRadius == 0.0) return  // nothing to draw
 
-        val reassembleGeometry = mustAssembleGeometry(rc)
-        if (reassembleGeometry) {
+        if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
+            ++bufferDataVersion
         }
 
         // Obtain a drawable form the render context pool.
@@ -233,18 +234,18 @@ open class Ellipse @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
-        if (reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
+        rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
 
         // Get the attributes of the element buffer
         drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        if (reassembleGeometry) {
+        rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
             val array = ShortArray(topElements.size + sideElements.size)
             var index = 0
             for (element in topElements) array[index++] = element
             for (element in sideElements) array[index++] = element
-            rc.offerGLBufferUpload(elementBufferKey, NumericArray.Shorts(array))
+            NumericArray.Shorts(array)
         }
 
         drawStateLines.isLine = true
@@ -254,18 +255,18 @@ open class Ellipse @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawStateLines.vertexBuffer = rc.getGLBufferObject(lineVertexBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
-        if (reassembleGeometry) { rc.offerGLBufferUpload(lineVertexBufferKey, NumericArray.Floats(lineVertexArray)) }
+        rc.offerGLBufferUpload(lineVertexBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getGLBufferObject(lineElementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        if (reassembleGeometry) {
+        rc.offerGLBufferUpload(lineElementBufferKey, bufferDataVersion) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
             for (element in verticalElements) array[index++] = element
-            rc.offerGLBufferUpload(lineElementBufferKey, NumericArray.Ints(array))
+            NumericArray.Ints(array)
         }
 
         drawInterior(rc, drawState)

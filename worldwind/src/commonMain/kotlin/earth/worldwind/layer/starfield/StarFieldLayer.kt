@@ -59,7 +59,8 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
      * Display star field on a specified time point. If null, then current time will be used each frame.
      */
     var time : Instant? = null
-    protected var uploadStarVbo = true
+    protected var startDataVersion = 0L
+    protected var sunDataVersion = 0L
     protected val starsPositionsVboCacheKey = Any() //gpu cache key for the stars vbo.
     protected var numStars = 0
     protected var starData: StarData? = null
@@ -76,7 +77,6 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
 
     protected open fun invalidateStarData() {
         starData = null
-        uploadStarVbo = true
     }
 
     override fun doRender(rc: RenderContext) {
@@ -93,10 +93,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
         drawable.starsPositionsBuffer = rc.getGLBufferObject(starsPositionsVboCacheKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
-        if (uploadStarVbo) {
-            rc.offerGLBufferUpload(starsPositionsVboCacheKey, NumericArray.Floats(createStarsGeometry(starData, rc)))
-            uploadStarVbo = false
-        }
+        rc.offerGLBufferUpload(starsPositionsVboCacheKey, startDataVersion) { NumericArray.Floats(createStarsGeometry(starData, rc)) }
         // Number of days since Greenwich noon, Terrestrial Time, on 1 January 2000 (J2000.0)
         drawable.julianDate = SunPosition.computeJulianDate(time)
         drawable.minMagnitude = minMagnitude
@@ -130,7 +127,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
                 val hashCode = sunBufferView.contentHashCode()
                 if (sunBufferViewHashCode != hashCode) {
                     sunBufferViewHashCode = hashCode
-                    rc.offerGLBufferUpload(sunPositionsCacheKey, NumericArray.Floats(sunBufferView))
+                    rc.offerGLBufferUpload(sunPositionsCacheKey, ++sunDataVersion) { NumericArray.Floats(sunBufferView) }
                 }
             }
         }
@@ -144,6 +141,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
             loadStarted = true
             rc.renderResourceCache.retrieveTextFile(starDataSource) {
                 starData = Json.decodeFromString(it)
+                ++startDataVersion
                 loadStarted = false
                 WorldWind.requestRedraw()
             }

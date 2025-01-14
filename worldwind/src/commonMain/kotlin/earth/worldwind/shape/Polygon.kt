@@ -38,6 +38,7 @@ open class Polygon @JvmOverloads constructor(
     protected val sideElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
+    protected var bufferDataVersion = 0L
     protected val vertexBufferKey = Any()
     protected val elementBufferKey = Any()
     protected val vertexLinesBufferKey = Any()
@@ -139,9 +140,9 @@ open class Polygon @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (boundaries.isEmpty()) return  // nothing to draw
 
-        val reassembleGeometry = mustAssembleGeometry(rc)
-        if (reassembleGeometry) {
+        if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
+            ++bufferDataVersion
         }
 
         // Obtain a drawable form the render context pool.
@@ -180,18 +181,18 @@ open class Polygon @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
-        if(reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
+        rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        if(reassembleGeometry) {
+        rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
             val array = IntArray(topElements.size + sideElements.size)
             var index = 0
             for (element in topElements) array[index++] = element
             for (element in sideElements) array[index++] = element
-            rc.offerGLBufferUpload(elementBufferKey, NumericArray.Ints(array))
+            NumericArray.Ints(array)
         }
 
         // Use triangles mode to draw lines
@@ -204,18 +205,18 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.vertexBuffer = rc.getGLBufferObject(vertexLinesBufferKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
-        if(reassembleGeometry) { rc.offerGLBufferUpload(vertexLinesBufferKey, NumericArray.Floats(lineVertexArray)) }
+        rc.offerGLBufferUpload(vertexLinesBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getGLBufferObject(elementLinesBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        if(reassembleGeometry) {
+        rc.offerGLBufferUpload(elementLinesBufferKey, bufferDataVersion) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
             for (element in verticalElements) array[index++] = element
-            rc.offerGLBufferUpload(elementLinesBufferKey, NumericArray.Ints(array))
+            NumericArray.Ints(array)
         }
 
         drawInterior(rc, drawState)

@@ -340,10 +340,14 @@ open class RenderContext {
         } else null
     }
 
-    fun offerGLBufferUpload(key: Any, array: NumericArray) {
+    fun offerGLBufferUpload(key: Any, newVersion: Long, arrayBuilder: () -> NumericArray) {
         renderResourceCache[key].also {
-            uploadQueue?.queueBufferUpload(it as GLBufferObject, array)
-            renderResourceCache.updateSize(key, array.byteCount)
+            renderResourceCache.update(key, newVersion) {
+                arrayBuilder().run {
+                    uploadQueue?.queueBufferUpload(it as GLBufferObject, this)
+                    this.byteCount
+                }
+            }
         }
     }
 

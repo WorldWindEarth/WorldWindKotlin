@@ -34,6 +34,7 @@ open class Path @JvmOverloads constructor(
     protected val interiorElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
+    protected var bufferDataVersion = 0L
     protected val extrudeVertexBufferKey = Any()
     protected val extrudeElementBufferKey = Any()
     protected val vertexBufferKey = Any()
@@ -69,9 +70,9 @@ open class Path @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (positions.size < 2) return // nothing to draw
 
-        val reassembleGeometry = mustAssembleGeometry(rc)
-        if (reassembleGeometry) {
+        if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
+            ++bufferDataVersion
         }
 
         // Obtain a drawable form the render context pool, and compute distance to the render camera.
@@ -102,18 +103,18 @@ open class Path @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
             GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
-        if(reassembleGeometry) { rc.offerGLBufferUpload(vertexBufferKey, NumericArray.Floats(vertexArray)) }
+        rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
             GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        if(reassembleGeometry) {
+        rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
             for (element in verticalElements) array[index++] = element
-            rc.offerGLBufferUpload(elementBufferKey, NumericArray.Ints(array))
+            NumericArray.Ints(array)
         }
 
         // Configure the drawable to use the outline texture when drawing the outline.
@@ -179,17 +180,17 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.vertexBuffer = rc.getGLBufferObject(extrudeVertexBufferKey) {
                 GLBufferObject(GL_ARRAY_BUFFER, 0)
             }
-            if (reassembleGeometry) { rc.offerGLBufferUpload(extrudeVertexBufferKey, NumericArray.Floats(extrudeVertexArray)) }
+            rc.offerGLBufferUpload(extrudeVertexBufferKey, bufferDataVersion) { NumericArray.Floats(extrudeVertexArray) }
 
             // Assemble the drawable's OpenGL element buffer object.
             drawStateExtrusion.elementBuffer = rc.getGLBufferObject(extrudeElementBufferKey) {
                 GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
-            if (reassembleGeometry) {
+            rc.offerGLBufferUpload(extrudeElementBufferKey,bufferDataVersion) {
                 val array = IntArray(interiorElements.size)
                 var index = 0
                 for (element in interiorElements) array[index++] = element
-                rc.offerGLBufferUpload(extrudeElementBufferKey, NumericArray.Ints(array))
+                 NumericArray.Ints(array)
             }
 
             drawStateExtrusion.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
