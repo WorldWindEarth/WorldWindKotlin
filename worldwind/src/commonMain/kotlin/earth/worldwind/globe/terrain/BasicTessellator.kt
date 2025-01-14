@@ -7,8 +7,8 @@ import earth.worldwind.geom.Range
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.ShortBufferObject
+import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.util.*
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
@@ -42,8 +42,8 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected var levelSetTriStripElements: ShortArray? = null
     protected val levelSetLineElementRange = Range()
     protected val levelSetTriStripElementRange = Range()
-    protected var levelSetVertexTexCoordBuffer: FloatBufferObject? = null
-    protected var levelSetElementBuffer: ShortBufferObject? = null
+    protected var levelSetVertexTexCoordBuffer: GLBufferObject? = null
+    protected var levelSetElementBuffer: GLBufferObject? = null
     protected var lastGlobeState: Globe.State? = null
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
@@ -165,13 +165,17 @@ open class BasicTessellator: Tessellator, TileFactory {
         val triStripElements = levelSetTriStripElements ?: assembleTriStripElements(numLat, numLon).also { levelSetTriStripElements = it }
 
         // Retrieve or create the level set's OpenGL vertex tex coord buffer object.
-        levelSetVertexTexCoordBuffer = rc.getBufferObject(LEVEL_SET_VERTEX_TEX_COORD_KEY) {
-            FloatBufferObject(GL_ARRAY_BUFFER, vertexTexCoords)
+        levelSetVertexTexCoordBuffer = rc.getGLBufferObject(LEVEL_SET_VERTEX_TEX_COORD_KEY) {
+            GLBufferObject(GL_ARRAY_BUFFER, 0)
         }
+        rc.offerGLBufferUpload(LEVEL_SET_VERTEX_TEX_COORD_KEY, 1) { NumericArray.Floats(vertexTexCoords) }
 
         // Retrieve or create the level set's OpenGL element buffer object.
-        levelSetElementBuffer = rc.getBufferObject(LEVEL_SET_ELEMENT_KEY) {
-            ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, lineElements + triStripElements).also {
+        levelSetElementBuffer = rc.getGLBufferObject(LEVEL_SET_ELEMENT_KEY) {
+            GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(LEVEL_SET_ELEMENT_KEY, 1) {
+            NumericArray.Shorts(lineElements + triStripElements).also {
                 levelSetLineElementRange.upper = lineElements.size
                 levelSetTriStripElementRange.lower = lineElements.size
                 levelSetTriStripElementRange.upper = lineElements.size + triStripElements.size
