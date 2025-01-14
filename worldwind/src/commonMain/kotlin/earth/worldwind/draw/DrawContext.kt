@@ -9,8 +9,9 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferPool
-import earth.worldwind.render.buffer.FloatBufferObject
+import earth.worldwind.render.buffer.GLBufferObject
 import earth.worldwind.render.buffer.IntBufferObject
+import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {
@@ -35,7 +36,7 @@ open class DrawContext(val gl: Kgl) {
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
-    private var unitSquareBufferCache: FloatBufferObject? = null
+    private var unitSquareBufferCache: GLBufferObject? = null
     private var rectangleElementsBufferCache: IntBufferObject? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
@@ -90,9 +91,12 @@ open class DrawContext(val gl: Kgl) {
      * The OpenGL buffer object is created on first use and cached. Subsequent calls to this method return the cached
      * buffer object.
      */
-    val unitSquareBuffer get() = unitSquareBufferCache ?: FloatBufferObject(
-        GL_ARRAY_BUFFER, floatArrayOf(0f, 1f, 0f, 0f, 1f, 1f, 1f, 0f)
-    ).also { unitSquareBufferCache = it }
+    val unitSquareBuffer get() = unitSquareBufferCache ?: GLBufferObject(
+        GL_ARRAY_BUFFER, 0
+    ).also {
+        it.loadBuffer(this, NumericArray.Floats(floatArrayOf(0f, 1f, 0f, 0f, 1f, 1f, 1f, 0f)))
+        unitSquareBufferCache = it
+    }
     /**
      * Returns an OpenGL buffer object containing indices needed to render triangle
      * Expected vertex data layout for this buffer is something like this
