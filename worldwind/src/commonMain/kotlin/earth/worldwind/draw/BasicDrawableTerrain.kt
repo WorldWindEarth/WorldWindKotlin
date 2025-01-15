@@ -4,7 +4,7 @@ import earth.worldwind.geom.Range
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
-import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_LINES
@@ -18,10 +18,10 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     override val vertexOrigin = Vec3()
     val lineElementRange = Range()
     val triStripElementRange = Range()
-    var vertexPoints: GLBufferObject? = null
-    var vertexHeights: GLBufferObject? = null
-    var vertexTexCoords: GLBufferObject? = null
-    var elements: GLBufferObject? = null
+    var vertexPoints: BufferObject? = null
+    var vertexHeights: BufferObject? = null
+    var vertexTexCoords: BufferObject? = null
+    var elements: BufferObject? = null
     private var pool: Pool<BasicDrawableTerrain>? = null
 
     companion object {

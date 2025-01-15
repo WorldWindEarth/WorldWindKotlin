@@ -14,7 +14,7 @@ sealed class NumericArray {
     data class Shorts(val array: ShortArray, override val byteCount: Int = array.size * Short.SIZE_BYTES) : NumericArray()
 }
 
-class GLBufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
+class BufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
     protected var id = KglBuffer.NONE
 
     override fun release(dc: DrawContext) { deleteBufferObject(dc) }

@@ -6,7 +6,7 @@ import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.render.*
-import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
@@ -101,13 +101,13 @@ open class Path @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
-            GLBufferObject(GL_ARRAY_BUFFER, 0)
+            BufferObject(GL_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
-            GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
             val array = IntArray(outlineElements.size + verticalElements.size)
@@ -178,13 +178,13 @@ open class Path @JvmOverloads constructor(
 
             // Assemble the drawable's OpenGL vertex buffer object.
             drawStateExtrusion.vertexBuffer = rc.getGLBufferObject(extrudeVertexBufferKey) {
-                GLBufferObject(GL_ARRAY_BUFFER, 0)
+                BufferObject(GL_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(extrudeVertexBufferKey, bufferDataVersion) { NumericArray.Floats(extrudeVertexArray) }
 
             // Assemble the drawable's OpenGL element buffer object.
             drawStateExtrusion.elementBuffer = rc.getGLBufferObject(extrudeElementBufferKey) {
-                GLBufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+                BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(extrudeElementBufferKey,bufferDataVersion) {
                 val array = IntArray(interiorElements.size)

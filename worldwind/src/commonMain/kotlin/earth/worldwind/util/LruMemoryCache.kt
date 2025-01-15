@@ -63,10 +63,10 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
     open fun update(key: K, newVersion: Long, update: () -> Int) = entries[key]?.run {
         if(version < newVersion) {
             version = newVersion
-            update().run {
+            update().let {
                 usedCapacity -= size
-                usedCapacity += this
-                size = this
+                usedCapacity += it
+                size = it
             }
         }
     }

@@ -14,7 +14,7 @@ import earth.worldwind.globe.terrain.Terrain
 import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.LayerList
-import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.AbstractShaderProgram
@@ -324,7 +324,7 @@ open class RenderContext {
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions?, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
 
-    inline fun getGLBufferObject(key: Any, builder: () -> GLBufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as GLBufferObject
+    inline fun getGLBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as BufferObject
 
     fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache.run {
         scratchTextCacheKey.text = text
@@ -340,7 +340,7 @@ open class RenderContext {
         renderResourceCache[key].also {
             renderResourceCache.update(key, newVersion) {
                 arrayBuilder().run {
-                    uploadQueue?.queueBufferUpload(it as GLBufferObject, this)
+                    uploadQueue?.queueBufferUpload(it as BufferObject, this)
                     this.byteCount
                 }
             }

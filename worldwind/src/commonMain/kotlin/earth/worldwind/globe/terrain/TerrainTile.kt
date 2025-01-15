@@ -4,7 +4,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.util.Level
 import earth.worldwind.util.Tile
@@ -74,14 +74,14 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         sortOrder = drawSortOrder(rc)
     }
 
-    fun getHeightBuffer(rc: RenderContext) : GLBufferObject {
-        val buffer = rc.getGLBufferObject(heightBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
+    fun getHeightBuffer(rc: RenderContext) : BufferObject {
+        val buffer = rc.getGLBufferObject(heightBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(heightBufferKey, 1) { NumericArray.Floats(heights) }
         return buffer
     }
 
-    fun getPointBuffer(rc: RenderContext) : GLBufferObject {
-        val buffer = rc.getGLBufferObject(pointBufferKey) { GLBufferObject(GL_ARRAY_BUFFER, 0) }
+    fun getPointBuffer(rc: RenderContext) : BufferObject {
+        val buffer = rc.getGLBufferObject(pointBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(pointBufferKey, 1) { NumericArray.Floats(points) }
         return buffer
     }

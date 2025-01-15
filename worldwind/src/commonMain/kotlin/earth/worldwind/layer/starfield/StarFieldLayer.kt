@@ -6,7 +6,7 @@ import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawableStarField
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.Logger.ERROR
@@ -91,7 +91,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
 
         // Render Star Field
         drawable.starsPositionsBuffer = rc.getGLBufferObject(starsPositionsVboCacheKey) {
-            GLBufferObject(GL_ARRAY_BUFFER, 0)
+            BufferObject(GL_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(starsPositionsVboCacheKey, startDataVersion) { NumericArray.Floats(createStarsGeometry(starData, rc)) }
         // Number of days since Greenwich noon, Terrestrial Time, on 1 January 2000 (J2000.0)
@@ -122,7 +122,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
                 sunBufferView[3] = 1f
 
                 drawable.sunPositionsBuffer = rc.getGLBufferObject(sunPositionsCacheKey) {
-                    GLBufferObject(GL_ARRAY_BUFFER, 0)
+                    BufferObject(GL_ARRAY_BUFFER, 0)
                 }
                 val hashCode = sunBufferView.contentHashCode()
                 if (sunBufferViewHashCode != hashCode) {

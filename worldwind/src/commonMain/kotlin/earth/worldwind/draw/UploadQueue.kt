@@ -1,6 +1,6 @@
 package earth.worldwind.draw
 
-import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.render.buffer.NumericArray
@@ -15,7 +15,7 @@ open class UploadQueue internal constructor(){
         protected const val MIN_CAPACITY_INCREMENT = 12
     }
 
-    fun queueBufferUpload(buffer: GLBufferObject, array: NumericArray) {
+    fun queueBufferUpload(buffer: BufferObject, array: NumericArray) {
         val capacity = entries.size
         if (capacity == size) {
             val increment = max(capacity shr 1, MIN_CAPACITY_INCREMENT)
@@ -54,9 +54,9 @@ open class UploadQueue internal constructor(){
     protected open class Entry {
 
         var array: NumericArray? = null
-        var buffer: GLBufferObject? = null
+        var buffer: BufferObject? = null
 
-        fun set(array: NumericArray?, buffer: GLBufferObject?) {
+        fun set(array: NumericArray?, buffer: BufferObject?) {
             this.array = array
             this.buffer = buffer
         }

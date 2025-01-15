@@ -4,7 +4,7 @@ import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Vec3
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
-import earth.worldwind.render.buffer.GLBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
 
 open class DrawShapeState internal constructor() {
@@ -13,8 +13,8 @@ open class DrawShapeState internal constructor() {
     }
 
     var program: TriangleShaderProgram? = null
-    var vertexBuffer: GLBufferObject? = null
-    var elementBuffer: GLBufferObject? = null
+    var vertexBuffer: BufferObject? = null
+    var elementBuffer: BufferObject? = null
     val vertexOrigin = Vec3()
     var vertexStride = 0
     var enableCullFace = true
