@@ -14,7 +14,6 @@ import earth.worldwind.globe.terrain.Terrain
 import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.LayerList
-import earth.worldwind.render.buffer.AbstractBufferObject
 import earth.worldwind.render.buffer.GLBufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
@@ -324,9 +323,6 @@ open class RenderContext {
 
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions?, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
-
-    inline fun <reified T: AbstractBufferObject> getBufferObject(key: Any, builder: () -> T) =
-        renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as T
 
     inline fun getGLBufferObject(key: Any, builder: () -> GLBufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as GLBufferObject
 
