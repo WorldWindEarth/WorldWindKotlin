@@ -3,15 +3,14 @@ package earth.worldwind.layer.atmosphere
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
 import earth.worldwind.geom.Vec3
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.ShortBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
 
 class DrawableSkyAtmosphere : Drawable {
-    var vertexPoints: FloatBufferObject? = null
-    var triStripElements: ShortBufferObject? = null
+    var vertexPoints: BufferObject? = null
+    var triStripElements: BufferObject? = null
     val lightDirection = Vec3()
     var globeRadius = 0.0
     var atmosphereAltitude = 0.0

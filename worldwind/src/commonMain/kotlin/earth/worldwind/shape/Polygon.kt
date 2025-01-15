@@ -7,8 +7,7 @@ import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.render.*
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.IntBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
@@ -17,6 +16,7 @@ import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.glu.GLU
 import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
 import earth.worldwind.util.kgl.*
@@ -38,10 +38,11 @@ open class Polygon @JvmOverloads constructor(
     protected val sideElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
-    protected var vertexBufferKey = nextCacheKey()
-    protected var elementBufferKey = nextCacheKey()
-    protected var vertexLinesBufferKey = nextCacheKey()
-    protected var elementLinesBufferKey = nextCacheKey()
+    protected var bufferDataVersion = 0L
+    protected val vertexBufferKey = Any()
+    protected val elementBufferKey = Any()
+    protected val vertexLinesBufferKey = Any()
+    protected val elementLinesBufferKey = Any()
     protected val vertexOrigin = Vec3()
     protected var cameraDistance = 0.0
     protected var texCoord1d = 0.0
@@ -80,7 +81,6 @@ open class Polygon @JvmOverloads constructor(
         protected const val VERTEX_ORIGINAL = 0
         protected const val VERTEX_INTERMEDIATE = 1
         protected const val VERTEX_COMBINED = 2
-        protected fun nextCacheKey() = Any()
     }
 
     fun getBoundary(index: Int): List<Position> {
@@ -142,10 +142,7 @@ open class Polygon @JvmOverloads constructor(
 
         if (mustAssembleGeometry(rc)) {
             assembleGeometry(rc)
-            vertexBufferKey = nextCacheKey()
-            elementBufferKey = nextCacheKey()
-            vertexLinesBufferKey = nextCacheKey()
-            elementLinesBufferKey = nextCacheKey()
+            ++bufferDataVersion
         }
 
         // Obtain a drawable form the render context pool.
@@ -182,16 +179,20 @@ open class Polygon @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, vertexArray, vertexIndex)
+            BufferObject(GL_ARRAY_BUFFER, 0)
         }
+        rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
+            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
             val array = IntArray(topElements.size + sideElements.size)
             var index = 0
             for (element in topElements) array[index++] = element
             for (element in sideElements) array[index++] = element
-            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
+            NumericArray.Ints(array)
         }
 
         // Use triangles mode to draw lines
@@ -202,16 +203,20 @@ open class Polygon @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawStateLines.vertexBuffer = rc.getBufferObject(vertexLinesBufferKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, lineVertexArray)
+            BufferObject(GL_ARRAY_BUFFER, 0)
         }
+        rc.offerGLBufferUpload(vertexLinesBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getBufferObject(elementLinesBufferKey) {
+            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(elementLinesBufferKey, bufferDataVersion) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
             for (element in verticalElements) array[index++] = element
-            IntBufferObject(GL_ELEMENT_ARRAY_BUFFER, array)
+            NumericArray.Ints(array)
         }
 
         drawInterior(rc, drawState)

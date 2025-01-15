@@ -5,14 +5,14 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.ShortBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageConfig
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource.Companion.fromResource
 import earth.worldwind.util.SunPosition
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
+import earth.worldwind.util.NumericArray
 import kotlinx.datetime.Instant
 
 open class AtmosphereLayer: AbstractLayer("Atmosphere") {
@@ -62,10 +62,10 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         val drawable = DrawableSkyAtmosphere.obtain(pool)
         val size = 128
         drawable.program = rc.getShaderProgram { SkyProgram() }
-        drawable.vertexPoints = rc.getBufferObject(VERTEX_POINTS_KEY) {
-            assembleVertexPoints(rc, size, size, rc.atmosphereAltitude.toFloat())
-        }
-        drawable.triStripElements = rc.getBufferObject(TRI_STRIP_ELEMENTS_KEY) { assembleTriStripElements(size, size) }
+        drawable.vertexPoints = rc.getBufferObject(VERTEX_POINTS_KEY) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        rc.offerGLBufferUpload(VERTEX_POINTS_KEY, 1) { NumericArray.Floats(assembleVertexPoints(rc, size, size, rc.atmosphereAltitude.toFloat())) }
+        drawable.triStripElements = rc.getBufferObject(TRI_STRIP_ELEMENTS_KEY) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0) }
+        rc.offerGLBufferUpload(TRI_STRIP_ELEMENTS_KEY, 1) { NumericArray.Shorts(assembleTriStripElements(size, size)) }
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe.equatorialRadius
         drawable.atmosphereAltitude = rc.atmosphereAltitude
@@ -86,7 +86,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         rc.offerSurfaceDrawable(drawable, Double.POSITIVE_INFINITY)
     }
 
-    protected open fun assembleVertexPoints(rc: RenderContext, numLat: Int, numLon: Int, altitude: Float): FloatBufferObject {
+    protected open fun assembleVertexPoints(rc: RenderContext, numLat: Int, numLon: Int, altitude: Float): FloatArray {
         val count = numLat * numLon
         val altitudes = FloatArray(count)
         altitudes.fill(altitude)
@@ -94,13 +94,13 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         rc.globe.geographicToCartesianGrid(
             fullSphereSector, numLat, numLon, altitudes, 1.0f, null, points
         )
-        return FloatBufferObject(GL_ARRAY_BUFFER, points)
+        return points
     }
 
     // TODO move this into a basic tessellator implementation in WorldWind
     // TODO tessellator and atmosphere needs the TriStripIndices - could we add these to BasicGlobe (needs to be on a static context)
     // TODO may need to switch the tessellation method anyway - geographic grid may produce artifacts at the poles
-    protected open fun assembleTriStripElements(numLat: Int, numLon: Int): ShortBufferObject {
+    protected open fun assembleTriStripElements(numLat: Int, numLon: Int): ShortArray {
         // Allocate a buffer to hold the indices.
         val count = ((numLat - 1) * numLon + (numLat - 2)) * 2
         val elements = ShortArray(count)
@@ -124,6 +124,6 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
                 elements[pos++] = ((latIndex + 2) * numLon).toShort()
             }
         }
-        return ShortBufferObject(GL_ELEMENT_ARRAY_BUFFER, elements)
+        return elements
     }
 }

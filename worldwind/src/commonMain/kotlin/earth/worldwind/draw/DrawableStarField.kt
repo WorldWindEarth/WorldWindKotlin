@@ -3,7 +3,7 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.starfield.StarFieldProgram
 import earth.worldwind.render.Texture
-import earth.worldwind.render.buffer.FloatBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_ALIASED_POINT_SIZE_RANGE
@@ -20,8 +20,8 @@ open class DrawableStarField protected constructor(): Drawable {
     var isShowSun = false
     var sunSize = 0.0f
     var sunTexture: Texture? = null
-    var starsPositionsBuffer: FloatBufferObject? = null
-    var sunPositionsBuffer: FloatBufferObject? = null
+    var starsPositionsBuffer: BufferObject? = null
+    var sunPositionsBuffer: BufferObject? = null
     var program: StarFieldProgram? = null
     private var pool: Pool<DrawableStarField>? = null
 
@@ -57,7 +57,7 @@ open class DrawableStarField protected constructor(): Drawable {
         }
     }
 
-    protected open fun drawStars(dc: DrawContext, program: StarFieldProgram, buffer: FloatBufferObject?) {
+    protected open fun drawStars(dc: DrawContext, program: StarFieldProgram, buffer: BufferObject?) {
         if (buffer?.bindBuffer(dc) != true) return
         dc.gl.vertexAttribPointer(0, 4, GL_FLOAT, false, 0, 0)
         // This subtraction does not work properly on the GPU due to precision loss. It must be done on the CPU.
@@ -69,7 +69,7 @@ open class DrawableStarField protected constructor(): Drawable {
     }
 
     protected open fun drawSun(
-        dc: DrawContext, program: StarFieldProgram, sunBuffer: FloatBufferObject?, sunTexture: Texture?
+        dc: DrawContext, program: StarFieldProgram, sunBuffer: BufferObject?, sunTexture: Texture?
     ) {
         if (maxGlPointSize == 0f) maxGlPointSize = dc.gl.getParameterfv(GL_ALIASED_POINT_SIZE_RANGE)[1]
 

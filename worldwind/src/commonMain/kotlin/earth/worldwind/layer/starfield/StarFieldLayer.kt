@@ -6,8 +6,9 @@ import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawableStarField
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.buffer.FloatBufferObject
+import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SunPosition
@@ -58,7 +59,9 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
      * Display star field on a specified time point. If null, then current time will be used each frame.
      */
     var time : Instant? = null
-    protected var starsPositionsVboCacheKey = nextCacheKey() //gpu cache key for the stars vbo.
+    protected var startDataVersion = 0L
+    protected var sunDataVersion = 0L
+    protected val starsPositionsVboCacheKey = Any() //gpu cache key for the stars vbo.
     protected var numStars = 0
     protected var starData: StarData? = null
     protected var minMagnitude = Float.MAX_VALUE
@@ -69,14 +72,11 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
      */
     protected var loadStarted = false
     protected val minScale = 10e6
-    protected var sunPositionsCacheKey = nextCacheKey()
+    protected val sunPositionsCacheKey = Any()
     protected val sunBufferView = FloatArray(4)
-
-    protected fun nextCacheKey() = Any()
 
     protected open fun invalidateStarData() {
         starData = null
-        starsPositionsVboCacheKey = nextCacheKey()
     }
 
     override fun doRender(rc: RenderContext) {
@@ -91,8 +91,9 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
 
         // Render Star Field
         drawable.starsPositionsBuffer = rc.getBufferObject(starsPositionsVboCacheKey) {
-            FloatBufferObject(GL_ARRAY_BUFFER, createStarsGeometry(starData, rc))
+            BufferObject(GL_ARRAY_BUFFER, 0)
         }
+        rc.offerGLBufferUpload(starsPositionsVboCacheKey, startDataVersion) { NumericArray.Floats(createStarsGeometry(starData, rc)) }
         // Number of days since Greenwich noon, Terrestrial Time, on 1 January 2000 (J2000.0)
         drawable.julianDate = SunPosition.computeJulianDate(time)
         drawable.minMagnitude = minMagnitude
@@ -120,13 +121,13 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
                 sunBufferView[2] = sunSize.coerceAtMost(DrawableStarField.maxGlPointSize)
                 sunBufferView[3] = 1f
 
+                drawable.sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
+                    BufferObject(GL_ARRAY_BUFFER, 0)
+                }
                 val hashCode = sunBufferView.contentHashCode()
                 if (sunBufferViewHashCode != hashCode) {
                     sunBufferViewHashCode = hashCode
-                    sunPositionsCacheKey = nextCacheKey()
-                }
-                drawable.sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
-                    FloatBufferObject(GL_ARRAY_BUFFER, sunBufferView)
+                    rc.offerGLBufferUpload(sunPositionsCacheKey, ++sunDataVersion) { NumericArray.Floats(sunBufferView) }
                 }
             }
         }
@@ -140,6 +141,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
             loadStarted = true
             rc.renderResourceCache.retrieveTextFile(starDataSource) {
                 starData = Json.decodeFromString(it)
+                ++startDataVersion
                 loadStarted = false
                 WorldWind.requestRedraw()
             }

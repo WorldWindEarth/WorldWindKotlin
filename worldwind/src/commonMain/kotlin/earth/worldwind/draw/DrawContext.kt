@@ -9,8 +9,8 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferPool
-import earth.worldwind.render.buffer.FloatBufferObject
-import earth.worldwind.render.buffer.IntBufferObject
+import earth.worldwind.render.buffer.BufferObject
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {
@@ -21,6 +21,7 @@ open class DrawContext(val gl: Kgl) {
     val modelviewProjection = Matrix4()
 //    val infiniteProjection = Matrix4()
     val screenProjection = Matrix4()
+    var uploadQueue: UploadQueue? = null
     var drawableQueue: DrawableQueue? = null
     var drawableTerrain: DrawableQueue? = null
     var pickedObjects: PickedObjectList? = null
@@ -34,8 +35,8 @@ open class DrawContext(val gl: Kgl) {
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
-    private var unitSquareBufferCache: FloatBufferObject? = null
-    private var rectangleElementsBufferCache: IntBufferObject? = null
+    private var unitSquareBufferCache: BufferObject? = null
+    private var rectangleElementsBufferCache: BufferObject? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
@@ -89,9 +90,12 @@ open class DrawContext(val gl: Kgl) {
      * The OpenGL buffer object is created on first use and cached. Subsequent calls to this method return the cached
      * buffer object.
      */
-    val unitSquareBuffer get() = unitSquareBufferCache ?: FloatBufferObject(
-        GL_ARRAY_BUFFER, floatArrayOf(0f, 1f, 0f, 0f, 1f, 1f, 1f, 0f)
-    ).also { unitSquareBufferCache = it }
+    val unitSquareBuffer get() = unitSquareBufferCache ?: BufferObject(
+        GL_ARRAY_BUFFER, 0
+    ).also {
+        it.loadBuffer(this, NumericArray.Floats(floatArrayOf(0f, 1f, 0f, 0f, 1f, 1f, 1f, 0f)))
+        unitSquareBufferCache = it
+    }
     /**
      * Returns an OpenGL buffer object containing indices needed to render triangle
      * Expected vertex data layout for this buffer is something like this
@@ -106,9 +110,12 @@ open class DrawContext(val gl: Kgl) {
      * The OpenGL buffer object is created on first use and cached. Subsequent calls to this method return the cached
      * buffer object.
      */
-    val rectangleElementsBuffer get() = rectangleElementsBufferCache ?: IntBufferObject(
-        GL_ELEMENT_ARRAY_BUFFER, intArrayOf(0, 1, 2, 2, 1, 3)
-    ).also { rectangleElementsBufferCache = it }
+    val rectangleElementsBuffer get() = rectangleElementsBufferCache ?: BufferObject(
+        GL_ELEMENT_ARRAY_BUFFER, 0
+    ).also {
+        it.loadBuffer(this, NumericArray.Ints(intArrayOf(0, 1, 2, 2, 1, 3)))
+        rectangleElementsBufferCache = it
+    }
     /**
      * Returns a scratch list suitable for accumulating entries during drawing. The list is cleared before each frame,
      * otherwise its contents are undefined.
@@ -123,6 +130,7 @@ open class DrawContext(val gl: Kgl) {
         modelviewProjection.setToIdentity()
         screenProjection.setToIdentity()
 //        infiniteProjection.setToIdentity()
+        uploadQueue = null
         drawableQueue = null
         drawableTerrain = null
         pickedObjects = null
@@ -136,6 +144,9 @@ open class DrawContext(val gl: Kgl) {
 
     fun contextLost() {
         // Clear objects and values associated with the current OpenGL context.
+        scratchFramebufferCache?.release(this)
+        unitSquareBufferCache?.release(this)
+        rectangleElementsBufferCache?.release(this)
         framebuffer = KglFramebuffer.NONE
         program = KglProgram.NONE
         textureUnit = GL_TEXTURE0
@@ -147,6 +158,8 @@ open class DrawContext(val gl: Kgl) {
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
     }
+
+    fun uploadBuffers() = uploadQueue?.processUploads(this)
 
     fun peekDrawable() = drawableQueue?.peekDrawable()
 
