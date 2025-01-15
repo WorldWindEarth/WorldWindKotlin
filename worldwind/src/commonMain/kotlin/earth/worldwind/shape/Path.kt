@@ -100,13 +100,13 @@ open class Path @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getGLBufferObject(vertexBufferKey) {
+        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawState.elementBuffer = rc.getGLBufferObject(elementBufferKey) {
+        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
@@ -177,13 +177,13 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.program = rc.getShaderProgram { TriangleShaderProgram() }
 
             // Assemble the drawable's OpenGL vertex buffer object.
-            drawStateExtrusion.vertexBuffer = rc.getGLBufferObject(extrudeVertexBufferKey) {
+            drawStateExtrusion.vertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) {
                 BufferObject(GL_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(extrudeVertexBufferKey, bufferDataVersion) { NumericArray.Floats(extrudeVertexArray) }
 
             // Assemble the drawable's OpenGL element buffer object.
-            drawStateExtrusion.elementBuffer = rc.getGLBufferObject(extrudeElementBufferKey) {
+            drawStateExtrusion.elementBuffer = rc.getBufferObject(extrudeElementBufferKey) {
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(extrudeElementBufferKey,bufferDataVersion) {

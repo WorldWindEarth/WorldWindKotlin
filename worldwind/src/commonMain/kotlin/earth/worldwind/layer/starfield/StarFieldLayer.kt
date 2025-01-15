@@ -90,7 +90,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
         val drawable = DrawableStarField.obtain(pool)
 
         // Render Star Field
-        drawable.starsPositionsBuffer = rc.getGLBufferObject(starsPositionsVboCacheKey) {
+        drawable.starsPositionsBuffer = rc.getBufferObject(starsPositionsVboCacheKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(starsPositionsVboCacheKey, startDataVersion) { NumericArray.Floats(createStarsGeometry(starData, rc)) }
@@ -121,7 +121,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
                 sunBufferView[2] = sunSize.coerceAtMost(DrawableStarField.maxGlPointSize)
                 sunBufferView[3] = 1f
 
-                drawable.sunPositionsBuffer = rc.getGLBufferObject(sunPositionsCacheKey) {
+                drawable.sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
                     BufferObject(GL_ARRAY_BUFFER, 0)
                 }
                 val hashCode = sunBufferView.contentHashCode()

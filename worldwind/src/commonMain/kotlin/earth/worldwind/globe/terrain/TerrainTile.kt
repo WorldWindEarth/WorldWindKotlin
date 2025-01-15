@@ -75,13 +75,13 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     }
 
     fun getHeightBuffer(rc: RenderContext) : BufferObject {
-        val buffer = rc.getGLBufferObject(heightBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        val buffer = rc.getBufferObject(heightBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(heightBufferKey, 1) { NumericArray.Floats(heights) }
         return buffer
     }
 
     fun getPointBuffer(rc: RenderContext) : BufferObject {
-        val buffer = rc.getGLBufferObject(pointBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        val buffer = rc.getBufferObject(pointBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(pointBufferKey, 1) { NumericArray.Floats(points) }
         return buffer
     }

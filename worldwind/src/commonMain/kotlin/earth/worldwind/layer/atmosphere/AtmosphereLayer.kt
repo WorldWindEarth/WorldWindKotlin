@@ -62,9 +62,9 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         val drawable = DrawableSkyAtmosphere.obtain(pool)
         val size = 128
         drawable.program = rc.getShaderProgram { SkyProgram() }
-        drawable.vertexPoints = rc.getGLBufferObject(VERTEX_POINTS_KEY) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        drawable.vertexPoints = rc.getBufferObject(VERTEX_POINTS_KEY) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(VERTEX_POINTS_KEY, 1) { NumericArray.Floats(assembleVertexPoints(rc, size, size, rc.atmosphereAltitude.toFloat())) }
-        drawable.triStripElements = rc.getGLBufferObject(TRI_STRIP_ELEMENTS_KEY) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0) }
+        drawable.triStripElements = rc.getBufferObject(TRI_STRIP_ELEMENTS_KEY) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(TRI_STRIP_ELEMENTS_KEY, 1) { NumericArray.Shorts(assembleTriStripElements(size, size)) }
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe.equatorialRadius

@@ -324,7 +324,7 @@ open class RenderContext {
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions?, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
 
-    inline fun getGLBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as BufferObject
+    inline fun getBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as BufferObject
 
     fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache.run {
         scratchTextCacheKey.text = text

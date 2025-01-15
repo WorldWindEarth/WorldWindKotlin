@@ -165,13 +165,13 @@ open class BasicTessellator: Tessellator, TileFactory {
         val triStripElements = levelSetTriStripElements ?: assembleTriStripElements(numLat, numLon).also { levelSetTriStripElements = it }
 
         // Retrieve or create the level set's OpenGL vertex tex coord buffer object.
-        levelSetVertexTexCoordBuffer = rc.getGLBufferObject(LEVEL_SET_VERTEX_TEX_COORD_KEY) {
+        levelSetVertexTexCoordBuffer = rc.getBufferObject(LEVEL_SET_VERTEX_TEX_COORD_KEY) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(LEVEL_SET_VERTEX_TEX_COORD_KEY, 1) { NumericArray.Floats(vertexTexCoords) }
 
         // Retrieve or create the level set's OpenGL element buffer object.
-        levelSetElementBuffer = rc.getGLBufferObject(LEVEL_SET_ELEMENT_KEY) {
+        levelSetElementBuffer = rc.getBufferObject(LEVEL_SET_ELEMENT_KEY) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(LEVEL_SET_ELEMENT_KEY, 1) {
