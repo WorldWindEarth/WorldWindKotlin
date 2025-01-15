@@ -8,7 +8,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.buffer.NumericArray
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.*
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER

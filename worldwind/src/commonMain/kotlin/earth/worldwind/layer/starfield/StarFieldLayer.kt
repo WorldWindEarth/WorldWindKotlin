@@ -7,8 +7,8 @@ import earth.worldwind.draw.DrawableStarField
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SunPosition

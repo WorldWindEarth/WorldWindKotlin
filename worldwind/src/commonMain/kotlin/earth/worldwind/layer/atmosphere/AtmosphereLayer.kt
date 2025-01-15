@@ -6,13 +6,13 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.buffer.NumericArray
 import earth.worldwind.render.image.ImageConfig
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource.Companion.fromResource
 import earth.worldwind.util.SunPosition
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
+import earth.worldwind.util.NumericArray
 import kotlinx.datetime.Instant
 
 open class AtmosphereLayer: AbstractLayer("Atmosphere") {

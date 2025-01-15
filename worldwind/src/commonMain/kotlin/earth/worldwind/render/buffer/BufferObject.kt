@@ -6,15 +6,9 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.GL_STATIC_DRAW
 import earth.worldwind.util.kgl.KglBuffer
+import earth.worldwind.util.NumericArray
 
-sealed class NumericArray {
-    abstract val byteCount: Int
-    data class Floats(val array: FloatArray, override val byteCount: Int = array.size * Float.SIZE_BYTES) : NumericArray()
-    data class Ints(val array: IntArray, override val byteCount: Int = array.size * Int.SIZE_BYTES) : NumericArray()
-    data class Shorts(val array: ShortArray, override val byteCount: Int = array.size * Short.SIZE_BYTES) : NumericArray()
-}
-
-class BufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
+open class BufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
     protected var id = KglBuffer.NONE
 
     override fun release(dc: DrawContext) { deleteBufferObject(dc) }

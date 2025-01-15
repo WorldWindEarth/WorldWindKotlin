@@ -10,7 +10,7 @@ import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferPool
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.buffer.NumericArray
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {

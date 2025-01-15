@@ -16,7 +16,7 @@ import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.render.buffer.NumericArray
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.glu.GLU
 import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
 import earth.worldwind.util.kgl.*

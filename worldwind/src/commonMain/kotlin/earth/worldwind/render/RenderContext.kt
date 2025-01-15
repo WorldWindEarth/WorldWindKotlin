@@ -19,7 +19,7 @@ import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.program.AbstractShaderProgram
 import earth.worldwind.shape.TextAttributes
-import earth.worldwind.render.buffer.NumericArray
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.Pool
 import earth.worldwind.util.SynchronizedPool
 import earth.worldwind.util.glu.GLU

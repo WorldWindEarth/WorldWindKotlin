@@ -3,7 +3,7 @@ package earth.worldwind.draw
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.render.buffer.NumericArray
+import earth.worldwind.util.NumericArray
 import kotlin.math.max
 
 open class UploadQueue internal constructor(){
