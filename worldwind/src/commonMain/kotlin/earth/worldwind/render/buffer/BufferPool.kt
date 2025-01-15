@@ -1,7 +1,7 @@
 package earth.worldwind.render.buffer
 
-import earth.worldwind.util.kgl.KglBuffer
 import earth.worldwind.draw.DrawContext
+import earth.worldwind.util.kgl.KglBuffer
 
 open class BufferPool(
     protected val target: Int,

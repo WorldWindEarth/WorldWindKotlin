@@ -1,6 +1,5 @@
 package earth.worldwind.globe.elevation.coverage
 
-import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.CacheSourceFactory
 import earth.worldwind.util.ContentManager

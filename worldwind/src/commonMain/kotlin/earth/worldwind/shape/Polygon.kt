@@ -6,7 +6,7 @@ import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
-import earth.worldwind.render.*
+import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ResamplingMode
@@ -19,7 +19,10 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.glu.GLU
 import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
-import earth.worldwind.util.kgl.*
+import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
+import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
+import earth.worldwind.util.kgl.GL_TRIANGLES
+import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 

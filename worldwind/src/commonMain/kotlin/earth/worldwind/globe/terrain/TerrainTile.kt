@@ -5,8 +5,8 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.util.NumericArray
 import earth.worldwind.util.Level
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.Tile
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 

@@ -4,9 +4,9 @@ import earth.worldwind.draw.DrawContext
 import earth.worldwind.render.RenderResource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.GL_STATIC_DRAW
 import earth.worldwind.util.kgl.KglBuffer
-import earth.worldwind.util.NumericArray
 
 open class BufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
     protected var id = KglBuffer.NONE

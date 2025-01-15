@@ -1,6 +1,8 @@
 package earth.worldwind.util.math
 
-import kotlin.math.*
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.ln
 
 /**
  * Restricts a value to the range [min, max] degrees, clamping values outside the range. Values less than min are

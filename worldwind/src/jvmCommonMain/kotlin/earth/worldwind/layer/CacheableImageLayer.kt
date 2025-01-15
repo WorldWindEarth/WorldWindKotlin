@@ -1,6 +1,5 @@
 package earth.worldwind.layer
 
-import earth.worldwind.geom.Sector
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.ContentManager
 

@@ -1,8 +1,8 @@
 package earth.worldwind.shape
 
 import android.content.res.Resources
-import android.util.TypedValue
 import android.graphics.Typeface
+import android.util.TypedValue
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.render.Color

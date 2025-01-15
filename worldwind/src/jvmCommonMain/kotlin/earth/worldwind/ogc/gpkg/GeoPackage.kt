@@ -15,11 +15,9 @@ import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
-import earth.worldwind.util.Logger
 import earth.worldwind.util.ormlite.initConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.sql.SQLException
 import java.util.*
 import kotlin.math.*
 
