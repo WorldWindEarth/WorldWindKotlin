@@ -6,6 +6,7 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
+import earth.worldwind.render.VertexState
 
 open class DrawShapeState internal constructor() {
     companion object {
@@ -13,41 +14,40 @@ open class DrawShapeState internal constructor() {
     }
 
     var program: TriangleShaderProgram? = null
-    var vertexBuffer: BufferObject? = null
     var elementBuffer: BufferObject? = null
     val vertexOrigin = Vec3()
-    var vertexStride = 0
     var enableCullFace = true
     var enableDepthTest = true
     var enableDepthWrite = true
     var depthOffset = 0.0
     var isLine = false
+    var isStatic = false
+    val vertexState = VertexState()
+    var pickIdOffset = 0
     protected val color = Color()
     protected var opacity = 1.0f
     protected var lineWidth = 1f
     protected var texture: Texture? = null
     protected val texCoordMatrix = Matrix3()
-    private val texCoordAttrib = VertexAttrib()
     internal var primCount = 0
     internal val prims = Array(MAX_DRAW_ELEMENTS) { DrawElements() }
 
     open fun reset() {
         program = null
-        vertexBuffer = null
+        vertexState.reset()
         elementBuffer = null
         vertexOrigin.set(0.0, 0.0, 0.0)
-        vertexStride = 0
         enableCullFace = true
         enableDepthTest = true
         isLine = false
+        isStatic = false
         depthOffset = 0.0
         color.set(1f, 1f, 1f, 1f)
+        pickIdOffset = 0
         opacity = 1.0f
         lineWidth = 1f
         texture = null
         texCoordMatrix.setToIdentity()
-        texCoordAttrib.size = 0
-        texCoordAttrib.offset = 0
         primCount = 0
         for (idx in 0 until MAX_DRAW_ELEMENTS) prims[idx].texture = null
     }
@@ -62,11 +62,6 @@ open class DrawShapeState internal constructor() {
 
     fun texCoordMatrix(matrix: Matrix3) = apply { texCoordMatrix.copy(matrix) }
 
-    fun texCoordAttrib(size: Int, offset: Int) = apply {
-        texCoordAttrib.size = size
-        texCoordAttrib.offset = offset
-    }
-
     open fun drawElements(mode: Int, count: Int, type: Int, offset: Int) {
         val prim = prims[primCount++]
         prim.mode = mode
@@ -78,8 +73,6 @@ open class DrawShapeState internal constructor() {
         prim.lineWidth = lineWidth
         prim.texture = texture
         prim.texCoordMatrix.copy(texCoordMatrix)
-        prim.texCoordAttrib.size = texCoordAttrib.size
-        prim.texCoordAttrib.offset = texCoordAttrib.offset
     }
 
     internal open class DrawElements {
@@ -92,11 +85,5 @@ open class DrawShapeState internal constructor() {
         var lineWidth = 0f
         var texture: Texture? = null
         val texCoordMatrix = Matrix3()
-        val texCoordAttrib = VertexAttrib()
-    }
-
-    internal open class VertexAttrib {
-        var size = 0
-        var offset = 0
     }
 }
