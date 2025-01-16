@@ -95,8 +95,12 @@ actual object MilStd2525 {
             family = RendererSettings.getModifierFontName(),
             weight = RendererSettings.getModifierFontStyle()
         )
-        textColor.set(RendererSettings.getLabelForegroundColor().toInt())
-        outlineColor.set(RendererSettings.getLabelBackgroundColor().toInt())
+        val foregroundColor = RendererSettings.getLabelForegroundColor() ?: Color(0, 0, 0)
+        val backgroundColor = RendererSettings.getLabelBackgroundColor() ?: Color.getColorFromHexString(
+            RendererUtilities.getIdealOutlineColor(foregroundColor.toHexString(withAlpha = false), forceRGB = true)
+        )
+        textColor.set(foregroundColor.toARGB().toInt())
+        outlineColor.set(backgroundColor.toARGB().toInt())
         outlineWidth =  RendererSettings.getTextOutlineWidth().toFloat()
     }
 

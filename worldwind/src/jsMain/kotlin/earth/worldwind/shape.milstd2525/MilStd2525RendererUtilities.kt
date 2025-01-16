@@ -17,11 +17,10 @@ open external class PointConverter3D(controlLong: Number, controlLat: Number, sc
 }
 
 /**
- * @param {string} symbolID - 15 character mil-std code
- * @param {string} uniqueID
- * @param {array} coordinates - array of Point2D
- * @param {object} modifiers
- * @returns {armyc2.c2sd.renderer.utilities.MilStdSymbol}
+ * @param symbolID - 15 character mil-std code
+ * @param uniqueID
+ * @param coordinates - array of Point2D
+ * @param modifiers
  */
 open external class MilStdSymbol(
     symbolID: String, uniqueID: String?,
@@ -29,9 +28,8 @@ open external class MilStdSymbol(
     modifiers: Map<String, String>?
 ) {
     /**
-     * @param {String} modifier like ModifiersTG.T_UniqueDesignation1
-     * @param {String} value
-     * @param {Number} index only applies to X, AM & AN
+     * @param modifier like ModifiersTG.T_UniqueDesignation1
+     * @param index only applies to X, AM & AN
      */
     fun setModifier(modifier: String, value: String, index: Number? = definedExternally)
     fun setAltitudeMode(value: String?)
@@ -74,32 +72,99 @@ open external class ShapeInfo {
 }
 
 open external class ImageInfo {
-    /**
-     * @returns {armyc2.c2sd.renderer.so.Point}
-     */
     fun getCenterPoint(): armyc2.c2sd.renderer.so.Point
-
     fun getSymbolBounds(): armyc2.c2sd.renderer.so.Rectangle
 
     /**
-     *
      * @returns {HTML5 canvas} HTML5 canvas
      */
     fun getImage(): Image
 }
 
-open external class Color {
+open external class Color(R: Number, G: Number, B: Number, A: Number = definedExternally) {
+    fun convert(integer: Int): String
     fun getAlpha(): Number
     fun getRed(): Number
     fun getGreen(): Number
     fun getBlue(): Number
+    fun toRGB(): Number
     fun toARGB(): Number
+
     /**
      * A hex string in the format of AARRGGBB
      * @param withAlpha Optional, default is true. If set to false,
      * will return a hex string without alpha values.
      */
     fun toHexString(withAlpha : Boolean): String
+
+    /**
+     * A KML Formatted hex string is in the format of AABBGGRR
+     */
+    fun toKMLHexString(): String
+
+    companion object {
+        val white: Color
+        val WHITE: Color
+        val lightGray: Color
+        val LIGHT_GRAY: Color
+        val gray: Color
+        val GRAY: Color
+        val darkGray: Color
+        val DARK_GRAY: Color
+        val black: Color
+        val BLACK: Color
+        val red: Color
+        val RED: Color
+        val pink: Color
+        val PINK: Color
+        val orange: Color
+        val ORANGE: Color
+        val yellow: Color
+        val YELLOW: Color
+        val green: Color
+        val GREEN: Color
+        val magenta: Color
+        val MAGENTA: Color
+        val cyan: Color
+        val CYAN: Color
+        val blue: Color
+        val BLUE: Color
+
+        /**
+         * @param color int value of a color
+         * @return 0 - 255, alpha value
+         */
+        fun getAlphaFromColor(color: Number): Number
+
+        /**
+         * @param color int value of a color
+         * @return 0 - 255, Red value
+         */
+        fun getRedFromColor(color: Number): Number
+
+        /**
+         * @param color int value of a color
+         * @return 0 - 255, Green value
+         */
+        fun getGreenFromColor(color: Number): Number
+
+        /**
+         * @param color int value of a color
+         * @return 0 - 255, Blue value
+         */
+        fun getBlueFromColor(color: Number): Number
+
+        /**
+         * @param hexValue - String representing hex value
+         * (formatted "0xRRGGBB" i.e. "0xFFFFFF")
+         * OR
+         * formatted "0xAARRGGBB" i.e. "0x00FFFFFF" for a color with an alpha value
+         * I will also put up with "RRGGBB" and "AARRGGBB" without the starting "0x"
+         */
+        fun getColorFromHexString(hexValue: String): Color
+
+        fun rgbToHexString(r: Number, g: Number, b: Number, a: Number): String
+    }
 }
 
 external object RendererUtilities {
@@ -108,7 +173,6 @@ external object RendererUtilities {
      * @param color like "#FFFFFF"
      * @param forceRGB, return value drops any alpha value
      * and is formatted like "#RRGGBB"
-     * @returns {String}
      */
     fun getIdealOutlineColor(color: String, forceRGB: Boolean): String
 }
@@ -154,36 +218,111 @@ external object RendererSettings {
      */
     val Symbology_2525C: Number
 
+    val OperationalConditionModifierType_SLASH: Number
+    val OperationalConditionModifierType_BAR: Number
+
     /**
-     * Current symbology standard
-     * @returns {Number}
+     * Library version
      */
-    fun getSymbologyStandard(): Number
+    fun getVersion(): String
+
+    /**
+     * Set operational condition modifiers to be rendered as bars(1) or slashes(0)
+     * @param operationalConditionModifierType like [OperationalConditionModifierType_BAR]
+     */
+    fun setOperationalConditionModifierType(operationalConditionModifierType: Number)
+
+    /**
+     * Get operational condition modifiers to be rendered as bars(1) or slashes(0)
+     * @return Operational Condition Modifier Type like [OperationalConditionModifierType_BAR]
+     */
+    fun getOperationalConditionModifierType(): Number
 
     /**
      * Controls what symbols are supported.
      * Set this before loading the renderer.
-     * @param {Number} standard like RendererSettings.Symbology_2525B
+     * @param standard like RendererSettings.Symbology_2525B
      */
     fun setSymbologyStandard(standard: Number)
 
     /**
-     *
-     * @param {String} name like "Arial" or "Arial, sans-serif" so a backup is
-     * available in case 'Arial' is not present.
-     * @param {Number} size like 12
-     * @param {String} style like "bold"
+     * Current symbology standard
      */
-    fun setMPModifierFont(name: String, size: Number, style: String)
+    fun getSymbologyStandard(): Number
+
+    /**
+     * set device DPI (default 90)
+     */
+    fun setDeviceDPI(value: Number)
+
+    /**
+     * returns user defined device DPI (default 90)
+     */
+    fun getDeviceDPI(): Number
+
+    /**
+     * For lines symbols with "decorations" like FLOT or LOC, when points are
+     * too close together, we will start dropping points until we get enough
+     * space between 2 points to draw the decoration.  Without this, when points
+     * are too close together, you run the chance that the decorated line will
+     * look like a plain line because there was no room between points to
+     * draw the decoration.
+     */
+    fun setUseLineInterpolation(value: Boolean)
+
+    /**
+     * Returns the current setting for Line Interpolation.
+     */
+    fun getUseLineInterpolation(): Boolean
 
     /**
      *
-     * @param {String} name like "Arial" or "Arial, sans-serif" so a backup is
+     * @param name like "Arial" or "Arial, sans-serif" so a backup is
      * available in case 'Arial' is not present.
-     * @param {Number} size like 12
-     * @param {String} style like "bold"
+     * @param size like 12
+     * @param style like "bold"
+     * @param kmlLabelScale Only set if you want to scale the KML label font. (default 1.0)
      */
-    fun setModifierFont(name: String, size: Number, style: String)
+    fun setMPModifierFont(
+        name: String, size: Number, style: String,
+        kmlLabelScale: Number = definedExternally, fontInfo: dynamic? = definedExternally
+    )
+
+    /**
+     * @returns String like "bold 12pt Arial"
+     */
+    fun getMPModifierFont(): String
+
+    fun getMPModifierFontName(): String
+
+    fun getMPModifierFontSize(): Number
+
+    fun getMPModifierFontStyle(): String
+
+    /**
+     * @param name like "Arial" or "Arial, sans-serif" so a backup is
+     * available in case 'Arial' is not present.
+     * @param size like 12
+     * @param style like "bold"
+     */
+    fun setModifierFont(name: String, size: Number, style: String, fontInfo: dynamic? = definedExternally)
+
+    /**
+     * @returns String like "bold 12pt Arial"
+     */
+    fun getModifierFont(): String
+
+    fun getModifierFontName(): String
+
+    fun getModifierFontSize(): Number
+
+    fun getModifierFontStyle(): String
+
+    fun getKMLLabelScale(): Number
+
+    fun getFontInfo(): dynamic
+
+    fun getMPFontInfo(): dynamic
 
     /**
      * None, outline (default), or filled background.
@@ -195,11 +334,22 @@ external object RendererSettings {
     fun setTextBackgroundMethod(textBackgroundMethod: Number)
 
     /**
+     * None, outline (default), or filled background.
+     * @return method like RenderSettings.TextBackgroundMethod_NONE
+     */
+    fun getTextBackgroundMethod(): Number
+
+    /**
      * if RenderSettings.TextBackgroundMethod_OUTLINE is used,
      * the outline will be this many pixels wide.
-     * @param {Number} width
      */
     fun setTextOutlineWidth(width: Number)
+
+    /**
+     * if RenderSettings.TextBackgroundMethod_OUTLINE is used,
+     * the outline will be this many pixels wide.
+     */
+    fun getTextOutlineWidth(): Number
 
     /**
      * This applies to Single Point Tactical Graphics.
@@ -208,155 +358,498 @@ external object RendererSettings {
      * 1 for outline thickness of 1 pixel,
      * 2 for outline thickness of 2 pixels,
      * greater than 2 is not currently recommended.
-     * @param {type} width
      */
     fun setSinglePointSymbolOutlineWidth(width: Number)
 
     /**
-     * get the preferred line affiliation color for graphics.
+     * This only applies to single point tactical graphics.
+     */
+    fun getSinglePointSymbolOutlineWidth(): Number
+
+    /**
+     * Refers to text color of modifier labels
+     * Default Color is Black. If NULL, uses line color of symbol
+     */
+    fun setLabelForegroundColor(value: Color?)
+
+    /**
+     * Refers to text color of modifier labels
+     */
+    fun getLabelForegroundColor(): Color?
+
+    /**
+     * Refers to text color of modifier labels
+     * Default Color is White.
+     * Null value means the optimal background color (black or white)
+     * will be chose based on the color of the text.
+     */
+    fun setLabelBackgroundColor(value: Color?)
+
+    /**
+     * Refers to background color of modifier labels
+     */
+    fun getLabelBackgroundColor(): Color?
+
+    /**
+     * Collapse Modifiers for fire support areas when the symbol isn't large enough to show all
+     * the labels.  Identifying label will always be visible.  Zooming in, to make the symbol larger,
+     * will make more modifiers visible.  Resizing the symbol can also make more modifiers visible.
+     */
+    fun setAutoCollapseModifiers(value: Boolean)
+
+    /**
+     * Returns the current setting for Line Interpolation.
+     */
+    fun getAutoCollapseModifiers(): Boolean
+
+    /**
+     * Cesium users calling RenderSymbol2D should set this to true
+     */
+    fun setUseCesium2DScaleModifiers(value: Boolean)
+
+    fun getUseCesium2DScaleModifiers(): Boolean
+
+    /**
+     * for SVG and Canvas output, if your images look stretched or scaled down,
+     * try altering there values.  Smaller values will result in a bigger image.
+     * Larger values will result in a smaller image.  For example, if you're
+     * getting images half the size of the space that they take on the map and are
+     * getting stretched to fill it, try 0.5 as a starting point.
+     * @param value (default 1.0)
+     */
+    fun set3DMinScaleMultiplier(value: Number)
+
+    fun get3DMinScaleMultiplier(): Number
+    
+    /**
+     * for SVG and Canvas output, if your images look stretched or scaled down,
+     * try altering there values.  Smaller values will result in a bigger image.
+     * Larger values will result in a smaller image.  For example, if you're
+     * getting images half the size of the space that they take on the map and are
+     * getting stretched to fill it, try 0.5 as a starting point.
+     * @param value (default 1.0)
+     */
+    fun set3DMaxScaleMultiplier(value: Number)
+
+    fun get3DMaxScaleMultiplier(): Number
+
+    /**
+     * if true (default), when HQ Staff is present, location will be indicated by the free
+     * end of the staff.
+     */
+    fun setCenterOnHQStaff(value: Boolean)
+
+    fun getCenterOnHQStaff(): Boolean
+
+    /**
+     * Sets the default pixel size for symbology.
+     * Default value is 35.
+     */
+    fun setDefaultPixelSize(size: Number)
+
+    /**
+     * Gets the default pixel size for symbology.
+     * Default value is 35.
+     */
+    fun getDefaultPixelSize(): Number
+
+    /**
+     * Value from 0 to 255. The closer to 0 the lighter the text color has to be
+     * to have the outline be black. Default value is 160.
+     */
+    fun setTextBackgroundAutoColorThreshold(value: Number)
+
+    /**
+     * Value from 0 to 255. The closer to 0 the lighter the text color has to be
+     * to have the outline be black. Default value is 160.
+     */
+    fun getTextBackgroundAutoColorThreshold(): Number
+
+    /**
+     * false to use label font size
+     * true to scale it using symbolPixelBounds / 3.5
+     */
+    fun setScaleEchelon(value: Boolean)
+
+    /**
+     * Returns the value determining if we scale the echelon font size or
+     * just match the font size specified by the label font.
+     */
+    fun getScaleEchelon(): Boolean
+
+    /**
+     * Determines how to draw the Affiliation modifier.
+     * True to draw as modifier label in the "E/F" location.
+     * False to draw at the top right corner of the symbol
+     */
+    fun setDrawAffiliationModifierAsLabel(value: Boolean)
+
+    /**
+     * True to draw as modifier label in the "E/F" location.
+     * False to draw at the top right corner of the symbol
+     */
+    fun getDrawAffiliationModifierAsLabel(): Boolean
+
+    /**
+     * If present, append the Country Code to the 'M' Label
+     */
+    fun setDrawCountryCode(value: Boolean)
+
+    /**
+     * If present, append the Country Code to the 'M' Label
+     */
+    fun getDrawCountryCode(): Boolean
+
+    /**
+     * Get a boolean indicating between the use of ENY labels in all segments (false) or
+     * to only set 2 labels one at the north and the other one at the south of the graphic (true).
+     */
+    fun getTwoLabelOnly(): Boolean
+
+    /**
+     * Set a boolean indicating between the use of ENY labels in all segments (false) or
+     * to only set 2 labels one at the north and the other one at the south of the graphic (true).
+     */
+    fun setTwoLabelOnly(twoLabelOnly: Boolean)
+
+    /**
+     * get the preferred fill affiliation color for units.
+     *
      * @return Color like  Color(255, 255, 255)
-     * */
-    fun getFriendlyGraphicLineColor(): Color
+     */
+    fun getFriendlyUnitFillColor(): Color
+
+    /**
+     * Set the preferred fill affiliation color for units
+     *
+     * @param friendlyUnitFillColor Color like  Color(255, 255, 255)
+     */
+    fun setFriendlyUnitFillColor(friendlyUnitFillColor: Color)
+
+    /**
+     * get the preferred fill affiliation color for units.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getHostileUnitFillColor(): Color
+
+    /**
+     * Set the preferred fill affiliation color for units
+     *
+     * @param hostileUnitFillColor Color like  Color(255, 255, 255)
+     */
+    fun setHostileUnitFillColor(hostileUnitFillColor: Color)
+
+    /**
+     * get the preferred fill affiliation color for units.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getNeutralUnitFillColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for units
+     *
+     * @param neutralUnitFillColor Color like  Color(255, 255, 255)
+     */
+    fun setNeutralUnitFillColor(neutralUnitFillColor: Color)
+
+    /**
+     * get the preferred fill affiliation color for units.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getUnknownUnitFillColor(): Color
+
+    /**
+     * Set the preferred fill affiliation color for units
+     *
+     * @param unknownUnitFillColor Color like  Color(255, 255, 255)
+     */
+    fun setUnknownUnitFillColor(unknownUnitFillColor: Color)
 
     /**
      * get the preferred fill affiliation color for graphics.
      *
      * @return Color like  Color(255, 255, 255)
+     */
+    fun getHostileGraphicFillColor(): Color
+
+    /**
+     * Set the preferred fill affiliation color for graphics
      *
-     * */
+     * @param hostileGraphicFillColor Color like  Color(255, 255, 255)
+     */
+    fun setHostileGraphicFillColor(hostileGraphicFillColor: Color)
+
+    /**
+     * get the preferred fill affiliation color for graphics.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
     fun getFriendlyGraphicFillColor(): Color
 
-    fun getLabelForegroundColor(): Number
+    /**
+     * Set the preferred fill affiliation color for graphics
+     *
+     * @param friendlyGraphicFillColor Color like  Color(255, 255, 255)
+     */
+    fun setFriendlyGraphicFillColor(friendlyGraphicFillColor: Color)
 
-    fun getLabelBackgroundColor(): Number
+    /**
+     * get the preferred fill affiliation color for graphics.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getNeutralGraphicFillColor(): Color
 
-    fun getTextOutlineWidth(): Number
+    /**
+     * Set the preferred fill affiliation color for graphics
+     *
+     * @param neutralGraphicFillColor Color like  Color(255, 255, 255)
+     */
+    fun setNeutralGraphicFillColor(neutralGraphicFillColor: Color)
 
-    fun getMPFontInfo(): dynamic
+    /**
+     * get the preferred fill affiliation color for graphics.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getUnknownGraphicFillColor(): Color
 
-    fun getModifierFontSize(): Number
+    /**
+     * Set the preferred fill affiliation color for graphics
+     *
+     * @param unknownGraphicFillColor Color like  Color(255, 255, 255)
+     */
+    fun setUnknownGraphicFillColor(unknownGraphicFillColor: Color)
 
-    fun getModifierFontName(): String
+    /**
+     * get the preferred line affiliation color for units.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getFriendlyUnitLineColor(): Color
 
-    fun getModifierFontStyle(): String
+    /**
+     * Set the preferred line affiliation color for units
+     *
+     * @param friendlyUnitLineColor Color like  Color(255, 255, 255)
+     */
+    fun setFriendlyUnitLineColor(friendlyUnitLineColor: Color)
+
+    /**
+     * get the preferred line   affiliation color for units.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getHostileUnitLineColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for units
+     *
+     * @param hostileUnitLineColor Color like  Color(255, 255, 255)
+     *
+     * */
+    fun setHostileUnitLineColor(hostileUnitLineColor: Color)
+
+    /**
+     * get the preferred line affiliation color for units.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getNeutralUnitLineColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for units
+     *
+     * @param neutralUnitLineColor Color like  Color(255, 255, 255)
+     */
+    fun setNeutralUnitLineColor(neutralUnitLineColor: Color)
+
+    /**
+     * get the preferred line affiliation color for units.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getUnknownUnitLineColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for units
+     *
+     * @param unknownUnitLineColor Color like  Color(255, 255, 255)
+     */
+    fun setUnknownUnitLineColor(unknownUnitLineColor: Color)
+
+    /**
+     * get the preferred line affiliation color for graphics.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getFriendlyGraphicLineColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for graphics
+     *
+     * @param friendlyGraphicLineColor Color like  Color(255, 255, 255)
+     */
+    fun setFriendlyGraphicLineColor(friendlyGraphicLineColor: Color)
+
+    /**
+     * get the preferred line affiliation color for graphics.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getHostileGraphicLineColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for graphics
+     *
+     * @param hostileGraphicLineColor Color like  Color(255, 255, 255)
+     */
+    fun setHostileGraphicLineColor(hostileGraphicLineColor: Color)
+
+    /**
+     * get the preferred line affiliation color for graphics.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getNeutralGraphicLineColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for graphics
+     *
+     * @param neutralGraphicLineColor Color like  Color(255, 255, 255)
+     */
+    fun setNeutralGraphicLineColor(neutralGraphicLineColor: Color)
+
+    /**
+     * get the preferred line affiliation color for graphics.
+     *
+     * @return Color like  Color(255, 255, 255)
+     */
+    fun getUnknownGraphicLineColor(): Color
+
+    /**
+     * Set the preferred line affiliation color for graphics
+     *
+     * @param unknownGraphicLineColor Color like  Color(255, 255, 255)
+     */
+    fun setUnknownGraphicLineColor(unknownGraphicLineColor: Color)
+
+    /**
+     * Set the preferred line and fill affiliation color for tactical graphics.
+     *
+     * @param friendlyGraphicLineColor Color
+     * @param hostileGraphicLineColor Color
+     * @param neutralGraphicLineColor Color
+     * @param unknownGraphicLineColor Color
+     * @param friendlyGraphicFillColor Color
+     * @param hostileGraphicFillColor Color
+     * @param neutralGraphicFillColor Color
+     * @param unknownGraphicFillColor Color
+     */
+    fun setGraphicPreferredAffiliationColors(
+        friendlyGraphicLineColor: Color,
+        hostileGraphicLineColor: Color,
+        neutralGraphicLineColor: Color,
+        unknownGraphicLineColor: Color,
+        friendlyGraphicFillColor: Color,
+        hostileGraphicFillColor: Color,
+        neutralGraphicFillColor: Color,
+        unknownGraphicFillColor: Color)
+
+    /**
+     * Set the preferred line and fill affiliation color for units and tactical graphics.
+     *
+     * @param friendlyUnitLineColor Color like  Color(255, 255, 255). Set to null to ignore setting
+     * @param hostileUnitLineColor Color
+     * @param neutralUnitLineColor Color
+     * @param unknownUnitLineColor Color
+     * @param friendlyUnitFillColor Color
+     * @param hostileUnitFillColor Color
+     * @param neutralUnitFillColor Color
+     * @param unknownUnitFillColor Color
+     */
+    fun setUnitPreferredAffiliationColors(
+        friendlyUnitLineColor: Color,
+        hostileUnitLineColor: Color,
+        neutralUnitLineColor: Color,
+        unknownUnitLineColor: Color,
+        friendlyUnitFillColor: Color,
+        hostileUnitFillColor: Color,
+        neutralUnitFillColor: Color,
+        unknownUnitFillColor: Color
+    )
 }
 
 external object SymbolUtilities {
     /**
-     * @param {String} symbolID 15 character code
-     * @returns {String} basic symbolID
+     * @param symbolID 15 character code
+     * @returns basic symbolID
      */
     fun getBasicSymbolID(symbolID: String, symStd: Number? = definedExternally): String
 
     /**
      * Reads the Symbol ID string and returns the text that represents the echelon
      * code.
-     * @param {String} echelon
-     * @returns {String}
      */
     fun getEchelonText(echelon: String): String
 
     /**
      * Gets line color used if no line color has been set. The color is specified based on the affiliation of
      * the symbol and whether it is a unit or not.
-     * @param {String} symbolID
-     * @returns {armyc2.c2sd.renderer.utilities.Color} hex color like #FFFFFF
+     * @returns [Color] hex color like #FFFFFF
      */
     fun getLineColorOfAffiliation(symbolID: String?): Color?
 
     /**
      * Is the fill color used if no fill color has been set. The color is specified based on the affiliation
      * of the symbol and whether it is a unit or not.
-     * @param {String} symbolID
-     * @returns {armyc2.c2sd.renderer.utilities.Color} hex color like #FFFFFF
+     * @returns [Color] hex color like #FFFFFF
      */
     fun getFillColorOfAffiliation(symbolID: String?): Color?
 
     /**
      * converts a Javascript Date object into a properly formated String for
      * W or W1
-     * @param {Date} date
-     * @returns {String}
      */
     fun getDateLabel(date: Date): String
 
     /**
      * Determines if the symbol is a tactical graphic
-     * @param {String} strSymbolID
-     * @returns {Boolean} true if symbol starts with "G", or is a weather graphic, or an EMS natural event
+     * @returns true if symbol starts with "G", or is a weather graphic, or an EMS natural event
      */
     fun isTacticalGraphic(strSymbolID: String?): Boolean
 
-    /**
-     * @param {String} strSymbolID
-     * @returns {Boolean}
-     */
     fun isWeather(strSymbolID: String): Boolean
 
-    /**
-     * @param {String} strSymbolID
-     * @returns {Boolean}
-     */
     fun isMobility(strSymbolID: String): Boolean
 
-    /**
-     * @param {String} strSymbolID
-     * @returns {Boolean}
-     */
     fun hasInstallationModifier(strSymbolID: String): Boolean
 
     /**
      * Returns true if the SymbolID has a valid Affiliation (2nd character)
-     * @param {String} SymbolID
-     * @returns {Boolean}
      */
-    fun hasValidAffiliation(SymbolID: String?): Boolean
+    fun hasValidAffiliation(symbolID: String?): Boolean
 
     /**
      * Returns true if the SymbolID has a valid Status (4th character)
-     * @param {String} SymbolID
-     * @returns {Boolean}
      */
-    fun hasValidStatus(SymbolID: String?): Boolean
+    fun hasValidStatus(symbolID: String?): Boolean
 
     /**
      * Returns true if the characters in the country code positions of the
      * SymbolID are letters.
-     * @param {String} symbolID
-     * @returns {Boolean}
      */
     fun hasValidCountryCode(symbolID: String?): Boolean
 
-    /**
-     *
-     * @param {String} symbolID
-     * @param {Number} symStd
-     * @returns {Boolean}
-     */
     fun hasAMmodifierRadius(symbolID: String, symStd: Number? = definedExternally): Boolean
 
-    /**
-     *
-     * @param {String} symbolID
-     * @param {Number} symStd
-     * @returns {Boolean}
-     */
     fun hasAMmodifierWidth(symbolID: String, symStd: Number? = definedExternally): Boolean
 
-    /**
-     *
-     * @param {String} symbolID
-     * @param {String} tgModifier like armyc2.c2sd.renderer.utilities.ModifiersTG.AN_AZIMUTH
-     * @param {Number} symStd like armyc2.c2sd.renderer.utilities.RendererSettings.Symbology_2525C
-     * @returns {Boolean}
-     */
     fun canSymbolHaveModifier(symbolID: String?, tgModifier: String, symStd: Number? = definedExternally): Boolean
 
-    /**
-     * @param {String} symbolID
-     * @param {String} unitModifier
-     * @returns {Boolean}
-     */
     fun canUnitHaveModifier(symbolID: String?, unitModifier: String): Boolean
 }
 
@@ -468,10 +961,9 @@ external object SymbolDefTable {
     val DRAW_CATEGORY_UNKNOWN: Int
 
     /**
-     *
-     * @param {type} symbolID
-     * @param {Number} symStd 2525b=0,2525c=1
-     * @returns {SymbolDef} has symbolID, minPoints, maxPoints,
+     * @param symbolID
+     * @param symStd 2525b=0,2525c=1
+     * @returns SymbolDef has symbolID, minPoints, maxPoints,
      * drawCategory, hasWidth, modifiers.  drawCategory is a number, the
      * rest are strings
      */
@@ -480,10 +972,9 @@ external object SymbolDefTable {
 
 external object UnitDefTable {
     /**
-     *
-     * @param {String} symbolID
-     * @param {Number} symStd 2525b=0,2525c=1
-     * @returns {unitDef} has symbolID, description, drawCategory,
+     * @param symbolID
+     * @param symStd 2525b=0,2525c=1
+     * @returns UnitDef has symbolID, description, drawCategory,
      * hierarchy, alphahierarchy, path.  drawCategory is a Number.
      */
     fun getUnitDef(symbolID: String, symStd: Number): dynamic

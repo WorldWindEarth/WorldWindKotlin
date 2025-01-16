@@ -165,7 +165,7 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 // Do not generate Intrinsics runtime assertion for performance reasons
@@ -182,7 +182,7 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class)
         }
     }
 
-val dokkaOutputDir = "${layout.buildDirectory}/dokka"
+val dokkaOutputDir = "${layout.buildDirectory.get()}/dokka"
 tasks.getByName<org.jetbrains.dokka.gradle.DokkaTask>("dokkaHtml") {
     outputDirectory.set(file(dokkaOutputDir))
 }

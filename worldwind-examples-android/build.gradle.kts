@@ -41,5 +41,5 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.60")
 
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
