@@ -5,6 +5,8 @@ import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
+import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.render.PathBatchRenderer
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
@@ -46,6 +48,7 @@ open class Path @JvmOverloads constructor(
     private val prevPoint = Vec3()
     private val texCoordMatrix = Matrix3()
     private val intermediateLocation = Location()
+    override var allowBatching = true
 
     companion object {
         protected const val VERTEX_STRIDE = 5 // 5 floats
@@ -56,6 +59,25 @@ open class Path @JvmOverloads constructor(
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
         }
+    }
+
+    override fun addToBatch(rc : RenderContext) : Boolean {
+        // Can't batch extrude as it uses different shader and geometry
+        val canBeBatched = super.addToBatch(rc) && (!isExtrude || isSurfaceShape)
+
+        val layer = rc.currentLayer
+        if(layer is RenderableLayer) {
+            val renderer = layer.batchRenderers.getOrPut(Path::class) { PathBatchRenderer() }
+
+            if (!canBeBatched) {
+                renderer.removeRenderable(this)
+                return false
+            }
+
+            return renderer.addOrUpdateRenderable(this)
+        }
+
+        return false
     }
 
     override fun reset() {
@@ -100,10 +122,14 @@ open class Path @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
+        val vertexBuffer = rc.getBufferObject(vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
+        drawState.vertexState.addAttribute(0, vertexBuffer, 4, GL_FLOAT, false, 20, 0)
+        drawState.vertexState.addAttribute(1, vertexBuffer, 4, GL_FLOAT, false, 20, 80)
+        drawState.vertexState.addAttribute(2, vertexBuffer, 4, GL_FLOAT, false, 20, 160)
+        drawState.vertexState.addAttribute(3, vertexBuffer, 1, GL_FLOAT, false, 20, 96)
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
@@ -176,11 +202,13 @@ open class Path @JvmOverloads constructor(
             // Use the basic GLSL program to draw the shape.
             drawStateExtrusion.program = rc.getShaderProgram { TriangleShaderProgram() }
 
-            // Assemble the drawable's OpenGL vertex buffer object.
-            drawStateExtrusion.vertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) {
+            val extrusionVertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) {
                 BufferObject(GL_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(extrudeVertexBufferKey, bufferDataVersion) { NumericArray.Floats(extrudeVertexArray) }
+            drawStateExtrusion.vertexState.addAttribute(0, extrusionVertexBuffer, 3, GL_FLOAT, false, 20, 0)
+            drawStateExtrusion.vertexState.addAttribute(3, extrusionVertexBuffer, 1, GL_FLOAT, false, 20, 12)
+            // Assemble the drawable's OpenGL vertex buffer object.
 
             // Assemble the drawable's OpenGL element buffer object.
             drawStateExtrusion.elementBuffer = rc.getBufferObject(extrudeElementBufferKey) {
@@ -195,14 +223,12 @@ open class Path @JvmOverloads constructor(
 
             // Configure the drawable according to the shape's attributes.
             drawStateExtrusion.vertexOrigin.copy(vertexOrigin)
-            drawStateExtrusion.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
             drawStateExtrusion.enableCullFace = false
             drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
             drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite
             drawStateExtrusion.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawStateExtrusion.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawStateExtrusion.texture(null)
-            drawStateExtrusion.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
             drawStateExtrusion.drawElements(
                 GL_TRIANGLE_STRIP, interiorElements.size,
                 GL_UNSIGNED_INT, 0
@@ -395,7 +421,7 @@ open class Path @JvmOverloads constructor(
 
                 if (!intermediate) {
                     val index =  verticalIndex / VERTEX_STRIDE
-                    
+
                     // first vertices, that simulate pointA for next vertices
                     vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
                     vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
