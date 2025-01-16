@@ -169,8 +169,8 @@ open class WorldWind @JvmOverloads constructor(
         // Keep pixel scale by adapting field of view on view port resize
         if (isKeepScale && viewport.height != 0) {
             try {
-                camera.fieldOfView *= height / viewport.height.toDouble()
-            } catch (ignore: IllegalArgumentException) {
+                camera.fieldOfView = (2.0 * atan(tan(camera.fieldOfView.inRadians / 2.0) * height / viewport.height)).radians
+            } catch (_: IllegalArgumentException) {
                 // Keep original field of view in case new one does not fit requirements
             }
         }
