@@ -43,7 +43,7 @@ open class MercatorProjection : GeographicProjection {
     }
 
     override fun geographicToCartesianGrid(
-        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
+        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Double,
         origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
     ): FloatArray {
         require(numLat >= 1 && numLon >= 1) {

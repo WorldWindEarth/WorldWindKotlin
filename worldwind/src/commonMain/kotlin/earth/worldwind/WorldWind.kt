@@ -86,19 +86,6 @@ open class WorldWind @JvmOverloads constructor(
             field = value
         }
     /**
-     * Vertical exaggeration (VE) is a scale that is used to emphasize vertical features, which might be too small
-     * to identify relative to the horizontal scale.
-     */
-    var verticalExaggeration = 1.0
-        set(value) {
-            require(value > 0) {
-                Logger.logMessage(
-                    Logger.ERROR, "WorldWind", "setVerticalExaggeration", "invalidVerticalExaggeration"
-                )
-            }
-            field = value
-        }
-    /**
      * Atmosphere altitude above ellipsoid. Used to control when objects are clipped by the far plain behind the globe.
      */
     var atmosphereAltitude = 160000.0
@@ -227,9 +214,8 @@ open class WorldWind @JvmOverloads constructor(
 
         // Check if camera altitude is not under the surface
         val position = camera.position
-        val elevation = if (globe.is2D) COLLISION_THRESHOLD else globe.getElevation(
-            position.latitude, position.longitude
-        ) * verticalExaggeration + COLLISION_THRESHOLD
+        val elevation = if (globe.is2D) COLLISION_THRESHOLD
+        else globe.getElevation(position.latitude, position.longitude) + COLLISION_THRESHOLD
         if (elevation > position.altitude) {
             // Set camera altitude above the surface
             position.altitude = elevation
@@ -440,7 +426,6 @@ open class WorldWind @JvmOverloads constructor(
             cameraPosition.latitude, cameraPosition.longitude, cameraPosition.altitude, rc.cameraPoint
         )
         rc.renderResourceCache = renderResourceCache
-        rc.verticalExaggeration = verticalExaggeration
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude
         rc.globeState = globe.state
@@ -539,7 +524,7 @@ open class WorldWind @JvmOverloads constructor(
     protected open fun computeViewingTransform(projection: Matrix4, modelview: Matrix4) {
         // Compute the clip plane distances. The near distance is set to a large value that does not clip the globe's
         // surface. The far distance is set to the smallest value that does not clip the atmosphere.
-        val eyeAltitude = globe.getAbsolutePosition(camera.position, camera.altitudeMode).altitude
+        val eyeAltitude = globe.getAbsolutePosition(camera.position, camera.altitudeMode).altitude * globe.verticalExaggeration
         val eyeHorizon = globe.horizonDistance(eyeAltitude)
         val atmosphereHorizon = globe.horizonDistance(atmosphereAltitude)
 
@@ -555,7 +540,7 @@ open class WorldWind @JvmOverloads constructor(
         // Prevent the near clip plane from intersecting the terrain.
         val distanceToSurface = if (globe.is2D) eyeAltitude else eyeAltitude - globe.getElevation(
             camera.position.latitude, camera.position.longitude
-        ) * verticalExaggeration
+        ) * globe.verticalExaggeration
         if (distanceToSurface > 0) {
             val tanHalfFov = tan(0.5 * camera.fieldOfView.inRadians)
             val maxNearDistance = distanceToSurface / (2 * sqrt(2 * tanHalfFov * tanHalfFov + 1))
@@ -607,14 +592,11 @@ open class WorldWind @JvmOverloads constructor(
                 position.latitude, position.longitude, position.altitude, result
             )
             AltitudeMode.CLAMP_TO_GROUND -> globe.geographicToCartesianTransform(
-                position.latitude, position.longitude, globe.getElevation(
-                    position.latitude, position.longitude
-                ) * verticalExaggeration, result
+                position.latitude, position.longitude, globe.getElevation(position.latitude, position.longitude), result
             )
             AltitudeMode.RELATIVE_TO_GROUND -> globe.geographicToCartesianTransform(
-                position.latitude, position.longitude, (position.altitude + globe.getElevation(
-                    position.latitude, position.longitude
-                )) * verticalExaggeration, result
+                position.latitude, position.longitude,
+                position.altitude + globe.getElevation(position.latitude, position.longitude), result
             )
         }
         return result

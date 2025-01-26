@@ -91,9 +91,8 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         val altitudes = FloatArray(count)
         altitudes.fill(altitude)
         val points = FloatArray(count * 3)
-        rc.globe.geographicToCartesianGrid(
-            fullSphereSector, numLat, numLon, altitudes, 1.0f, null, points
-        )
+        // Ignore vertical exaggeration for atmosphere
+        rc.globe.projection.geographicToCartesianGrid(rc.globe.ellipsoid, fullSphereSector, numLat, numLon, altitudes, 1.0, null, 0.0, points, 0, 0)
         return points
     }
 

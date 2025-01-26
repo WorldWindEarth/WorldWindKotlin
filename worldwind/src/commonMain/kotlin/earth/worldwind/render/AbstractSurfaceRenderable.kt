@@ -9,7 +9,6 @@ abstract class AbstractSurfaceRenderable(sector: Sector, displayName: String? = 
     protected val extent by lazy { BoundingBox() }
     protected val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
-    protected var extentExaggeration = 0.0f
     protected var extentGlobeState: Globe.State? = null
     protected var extentGlobeOffset: Globe.Offset? = null
     protected val extentSector = Sector()
@@ -20,16 +19,13 @@ abstract class AbstractSurfaceRenderable(sector: Sector, displayName: String? = 
         if (timestamp != heightLimitsTimestamp) {
             if (globe.is2D) heightLimits.fill(0f) else calcHeightLimits(globe)
         }
-        val ve = rc.verticalExaggeration.toFloat()
         val state = rc.globeState
         val offset = rc.globe.offset
-        if (timestamp != heightLimitsTimestamp || ve != extentExaggeration
-            || state != extentGlobeState || offset != extentGlobeOffset || extentSector != sector) {
-            val minHeight = heightLimits[0] * ve
-            val maxHeight = heightLimits[1] * ve
+        if (timestamp != heightLimitsTimestamp || state != extentGlobeState || offset != extentGlobeOffset || extentSector != sector) {
+            val minHeight = heightLimits[0]
+            val maxHeight = heightLimits[1]
             extent.setToSector(sector, globe, minHeight, maxHeight)
             heightLimitsTimestamp = timestamp
-            extentExaggeration = ve
             extentGlobeState = state
             extentGlobeOffset = offset
             extentSector.copy(sector)

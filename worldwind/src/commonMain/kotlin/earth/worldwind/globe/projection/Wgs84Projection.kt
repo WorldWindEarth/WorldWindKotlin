@@ -118,7 +118,7 @@ open class Wgs84Projection: GeographicProjection {
     }
 
     override fun geographicToCartesianGrid(
-        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
+        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Double,
         origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
     ): FloatArray {
         require(numLat >= 1 && numLon >= 1) {
@@ -169,7 +169,7 @@ open class Wgs84Projection: GeographicProjection {
             val rpm = eqr / sqrt(1.0 - ec2 * sinLat * sinLat)
             var colIndex = rowIndex
             for (lonIndex in 0 until numLon) {
-                val hgt = if (height != null) (height[elevIndex++] * verticalExaggeration).toDouble() else 0.0
+                val hgt = if (height != null) height[elevIndex++] * verticalExaggeration else 0.0
                 result[colIndex++] = ((hgt + rpm) * cosLat * sinLon[lonIndex] - xOffset).toFloat()
                 result[colIndex++] = ((hgt + rpm * (1.0 - ec2)) * sinLat - yOffset).toFloat()
                 result[colIndex++] = ((hgt + rpm) * cosLat * cosLon[lonIndex] - zOffset).toFloat()

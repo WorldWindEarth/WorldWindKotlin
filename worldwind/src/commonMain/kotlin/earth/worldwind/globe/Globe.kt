@@ -7,6 +7,7 @@ import earth.worldwind.globe.geoid.EGM96Geoid
 import earth.worldwind.globe.geoid.Geoid
 import earth.worldwind.globe.projection.GeographicProjection
 import earth.worldwind.globe.projection.Wgs84Projection
+import earth.worldwind.util.Logger
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -57,7 +58,7 @@ open class Globe(
     /**
      * Current globe state.
      */
-    val state get() = State(ellipsoid, projection.displayName)
+    val state get() = State(ellipsoid, projection.displayName, verticalExaggeration)
     /**
      * The globe offset in 2D continuous projection. Center is the default for 3D.
      */
@@ -72,6 +73,19 @@ open class Globe(
             }
         }
     protected var offsetValue = 0.0
+    /**
+     * Vertical exaggeration (VE) is a scale that is used to emphasize vertical features, which might be too small
+     * to identify relative to the horizontal scale.
+     */
+    var verticalExaggeration = 1.0
+        set(value) {
+            require(value > 0) {
+                Logger.logMessage(
+                    Logger.ERROR, "Globe", "setVerticalExaggeration", "invalidVerticalExaggeration"
+                )
+            }
+            field = value
+        }
 
     /**
      * An offset to apply to this globe when translating between Geographic positions and Cartesian points.
@@ -82,7 +96,7 @@ open class Globe(
     /**
      * Used to compare states during rendering to determine whether globe-state dependent cached values must be updated.
      */
-    data class State(private val ellipsoid: Ellipsoid, private val projectionName: String)
+    data class State(private val ellipsoid: Ellipsoid, private val projectionName: String, private val ve: Double)
 
     /**
      * Indicates the radius in meters of the globe's ellipsoid at a specified location.
@@ -116,16 +130,16 @@ open class Globe(
      * @return the result argument, set to the computed Cartesian coordinates
      */
     fun geographicToCartesian(latitude: Angle, longitude: Angle, altitude: Double, result: Vec3) =
-        projection.geographicToCartesian(ellipsoid, latitude, longitude, altitude, offsetValue, result)
+        projection.geographicToCartesian(ellipsoid, latitude, longitude, altitude * verticalExaggeration, offsetValue, result)
 
     fun geographicToCartesianNormal(latitude: Angle, longitude: Angle, result: Vec3) =
         projection.geographicToCartesianNormal(ellipsoid, latitude, longitude, result)
 
     fun geographicToCartesianTransform(latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4) =
-        projection.geographicToCartesianTransform(ellipsoid, latitude, longitude, altitude, result)
+        projection.geographicToCartesianTransform(ellipsoid, latitude, longitude, altitude * verticalExaggeration, result)
 
     fun geographicToCartesianGrid(
-        sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Float,
+        sector: Sector, numLat: Int, numLon: Int, height: FloatArray?,
         origin: Vec3?, result: FloatArray, rowOffset: Int = 0, rowStride: Int = 0
     ) = projection.geographicToCartesianGrid(
         ellipsoid, sector, numLat, numLon, height, verticalExaggeration,
@@ -150,6 +164,7 @@ open class Globe(
     fun cartesianToGeographic(x: Double, y: Double, z: Double, result: Position) =
         projection.cartesianToGeographic(ellipsoid, x, y, z, offsetValue, result).also {
             if (is2D) result.longitude = result.longitude.normalize180()
+            result.altitude /= verticalExaggeration
         }
 
     fun cartesianToLocalTransform(x: Double, y: Double, z: Double, result: Matrix4) =

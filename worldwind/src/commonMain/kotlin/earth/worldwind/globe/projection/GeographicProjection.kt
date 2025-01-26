@@ -47,7 +47,7 @@ interface GeographicProjection {
 
     fun geographicToCartesianGrid(
         ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?,
-        verticalExaggeration: Float, origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
+        verticalExaggeration: Double, origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
     ): FloatArray
 
     fun geographicToCartesianBorder(

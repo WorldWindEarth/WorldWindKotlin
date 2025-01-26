@@ -21,7 +21,6 @@ abstract class AbstractTile(
     protected val extent by lazy { BoundingBox() }
     protected open val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
-    protected var extentExaggeration = 0.0f
     protected var extentGlobeState: Globe.State? = null
     protected var extentGlobeOffset: Globe.Offset? = null
     private val nearestPoint = Vec3()
@@ -81,7 +80,7 @@ abstract class AbstractTile(
             lonDifference > 180.0 -> sector.minLongitude.inDegrees
             else -> cameraPosition.longitude.inDegrees.coerceIn(sector.minLongitude.inDegrees, sector.maxLongitude.inDegrees)
         }
-        val minHeight = heightLimits[0] * rc.verticalExaggeration
+        val minHeight = heightLimits[0].toDouble()
         return rc.globe.geographicToCartesian(nearestLat.degrees, nearestLon.degrees, minHeight, nearestPoint)
     }
 
@@ -91,17 +90,14 @@ abstract class AbstractTile(
         if (timestamp != heightLimitsTimestamp) {
             if (globe.is2D) heightLimits.fill(0f) else calcHeightLimits(globe)
         }
-        val ve = rc.verticalExaggeration.toFloat()
         val state = rc.globeState
         val offset = rc.globe.offset
-        if (timestamp != heightLimitsTimestamp || ve != extentExaggeration
-            || state != extentGlobeState || offset != extentGlobeOffset) {
-            val minHeight = heightLimits[0] * ve
-            val maxHeight = heightLimits[1] * ve
+        if (timestamp != heightLimitsTimestamp || state != extentGlobeState || offset != extentGlobeOffset) {
+            val minHeight = heightLimits[0]
+            val maxHeight = heightLimits[1]
             extent.setToSector(sector, globe, minHeight, maxHeight)
         }
         heightLimitsTimestamp = timestamp
-        extentExaggeration = ve
         extentGlobeState = state
         extentGlobeOffset = offset
         return extent

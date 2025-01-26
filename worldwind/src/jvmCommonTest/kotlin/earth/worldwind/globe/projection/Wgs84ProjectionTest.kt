@@ -118,7 +118,7 @@ class Wgs84ProjectionTest {
         val numLon = 33
         val count = numLat * numLon * stride
         val elevations = FloatArray(count)
-        val verticalExaggeration = 1.0f
+        val verticalExaggeration = 1.0
         val sector = Sector()
         val referencePoint = Vec3()
         val result = FloatArray(count)

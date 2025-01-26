@@ -27,7 +27,6 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     private var lastCameraHeading = 0.0
     private var lastCameraTilt = 0.0
     private var lastFOV = 0.0
-    private var lastVerticalExaggeration = 0.0
     private var lastGlobeState: Globe.State? = null
     private var lastGlobeOffset: Globe.Offset? = null
 
@@ -198,7 +197,6 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
      * @return true if the graticule should be updated.
      */
     private fun needsToUpdate(rc: RenderContext): Boolean {
-        if (lastVerticalExaggeration != rc.verticalExaggeration) return true
         if (abs(lastCameraHeading - rc.camera.heading.inDegrees) > 1) return true
         if (abs(lastCameraTilt - rc.camera.tilt.inDegrees) > 1) return true
         if (abs(lastFOV - rc.camera.fieldOfView.inDegrees) > 1) return true
@@ -213,7 +211,6 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         lastFOV = rc.camera.fieldOfView.inDegrees
         lastCameraHeading = rc.camera.heading.inDegrees
         lastCameraTilt = rc.camera.tilt.inDegrees
-        lastVerticalExaggeration = rc.verticalExaggeration
         lastGlobeState = rc.globeState
     }
 
@@ -240,11 +237,9 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     }
 
     fun getSurfacePoint(rc: RenderContext, latitude: Angle, longitude: Angle): Vec3 {
-        if (!rc.terrain.surfacePoint(latitude, longitude, surfacePoint))
-            rc.globe.geographicToCartesian(
-                latitude, longitude, rc.globe.getElevation(latitude, longitude)
-                        * rc.verticalExaggeration, surfacePoint
-            )
+        if (!rc.terrain.surfacePoint(latitude, longitude, surfacePoint)) rc.globe.geographicToCartesian(
+            latitude, longitude, rc.globe.getElevation(latitude, longitude), surfacePoint
+        )
         return surfacePoint
     }
 

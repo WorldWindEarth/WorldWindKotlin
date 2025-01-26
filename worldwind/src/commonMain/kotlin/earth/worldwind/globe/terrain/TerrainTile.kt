@@ -24,7 +24,6 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
      */
     protected val minTerrainElevation = -Short.MAX_VALUE.toFloat()
     protected var heightTimestamp = 0L
-    protected var verticalExaggeration = 0.0f
     protected var globeState: Globe.State? = null
     protected var globeOffset: Globe.Offset? = null
     var sortOrder = 0.0
@@ -52,23 +51,20 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
             }
             updateHeightBufferKey()
         }
-        val ve = rc.verticalExaggeration.toFloat()
         val state = rc.globeState
         val offset = rc.globe.offset
-        if (timestamp != heightTimestamp || ve != verticalExaggeration || state != globeState || offset != globeOffset) {
-            val borderHeight = minTerrainElevation * ve
+        if (timestamp != heightTimestamp || state != globeState || offset != globeOffset) {
             val rowStride = (tileWidth + 2) * 3
             globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude, 0.0, origin)
             globe.geographicToCartesianGrid(
-                sector, tileWidth, tileHeight, heightGrid, ve, origin, points, rowStride + 3, rowStride
+                sector, tileWidth, tileHeight, heightGrid, origin, points, rowStride + 3, rowStride
             )
             globe.geographicToCartesianBorder(
-                sector, tileWidth + 2, tileHeight + 2, borderHeight, origin, points
+                sector, tileWidth + 2, tileHeight + 2, minTerrainElevation, origin, points
             )
             updatePointBufferKey()
         }
         heightTimestamp = timestamp
-        verticalExaggeration = ve
         globeState = state
         globeOffset = offset
         sortOrder = drawSortOrder(rc)

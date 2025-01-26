@@ -36,7 +36,6 @@ open class RenderContext {
     lateinit var camera: Camera
     lateinit var renderResourceCache: RenderResourceCache
     var densityFactor = 1f
-    var verticalExaggeration = 1.0
     var horizonDistance = 0.0
     var atmosphereAltitude = 0.0
     var viewingDistance = 0.0
@@ -73,7 +72,6 @@ open class RenderContext {
 
     open fun reset() {
         densityFactor = 1f
-        verticalExaggeration = 1.0
         horizonDistance = 0.0
         atmosphereAltitude = 0.0
         viewingDistance = 0.0
@@ -290,21 +288,21 @@ open class RenderContext {
         latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, result: Vec3
     ): Vec3 {
         when (altitudeMode) {
-            ABSOLUTE -> globe.geographicToCartesian(latitude, longitude, altitude * verticalExaggeration, result)
+            ABSOLUTE -> globe.geographicToCartesian(latitude, longitude, altitude, result)
             CLAMP_TO_GROUND -> if (!terrain.surfacePoint(latitude, longitude, result)) globe.run {
                 // Use elevation model height as a fallback
                 val elevation = getElevation(latitude, longitude)
-                geographicToCartesian(latitude, longitude, elevation * verticalExaggeration, result)
+                geographicToCartesian(latitude, longitude, elevation, result)
             }
             RELATIVE_TO_GROUND -> if (terrain.surfacePoint(latitude, longitude, result)) {
                 // Offset along the normal vector at the terrain surface point.
                 if (altitude != 0.0) globe.geographicToCartesianNormal(latitude, longitude, scratchVector).also {
-                    result.add(scratchVector.multiply(altitude))
+                    result.add(scratchVector.multiply(altitude * globe.verticalExaggeration))
                 }
             } else globe.run {
                 // Use elevation model height as a fallback
                 val elevation = altitude + getElevation(latitude, longitude)
-                geographicToCartesian(latitude, longitude, elevation * verticalExaggeration, result)
+                geographicToCartesian(latitude, longitude, elevation, result)
             }
         }
         return result
