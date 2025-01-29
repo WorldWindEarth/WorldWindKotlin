@@ -27,7 +27,6 @@ open class MBTileFactory(final override val contentPath: String, val isReadOnly:
     protected val contentFile = File(contentPath)
     override val contentType = if (metadataDao.isTableExists && tilesDao.isTableExists) "MBTiles" else error("Not an MBTiles map file")
     override val contentKey = metadataDao.queryForId("name")?.value ?: error("Empty name!")
-    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(contentFile.lastModified())
     val boundingSector = metadataDao.queryForId("bounds")?.value?.let {
         val box = it.split(",")
         if (box.size < 4) return@let null
@@ -46,7 +45,11 @@ open class MBTileFactory(final override val contentPath: String, val isReadOnly:
 
     fun shutdown() = connectionSource.close()
 
-    override suspend fun contentSize() = contentFile.length() // One file should contain one map
+    override suspend fun lastModifiedDate() = withContext(Dispatchers.IO) {
+        Instant.fromEpochMilliseconds(contentFile.lastModified())
+    }
+
+    override suspend fun contentSize() = withContext(Dispatchers.IO) { contentFile.length() } // One file should contain one map
 
     override suspend fun clearContent(deleteMetadata: Boolean) {
         withContext(Dispatchers.IO) {

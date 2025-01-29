@@ -14,10 +14,11 @@ interface CacheTileFactory : TileFactory {
      * Path to cache content storage root
      */
     val contentPath: String
+
     /**
-     * Last update date of cache content
+     * Last modified date of cache content
      */
-    val lastUpdateDate: Instant
+    suspend fun lastModifiedDate(): Instant
 
     /**
      * Estimated cache content size in bytes

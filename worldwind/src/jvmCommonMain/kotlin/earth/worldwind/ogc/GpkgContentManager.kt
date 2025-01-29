@@ -18,6 +18,8 @@ import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.ContentManager
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import java.io.File
 
@@ -34,9 +36,11 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
      */
     fun shutdown() = geoPackage.shutdown()
 
-    override suspend fun contentSize() = File(pathName).length()
+    override suspend fun contentSize() = withContext(Dispatchers.IO) { File(pathName).length() }
 
-    override suspend fun lastModifiedDate() = Instant.fromEpochMilliseconds(File(pathName).lastModified())
+    override suspend fun lastModifiedDate() = withContext(Dispatchers.IO) {
+        Instant.fromEpochMilliseconds(File(pathName).lastModified())
+    }
 
     override suspend fun getImageLayersCount() = geoPackage.countContent(TILES).toInt()
 

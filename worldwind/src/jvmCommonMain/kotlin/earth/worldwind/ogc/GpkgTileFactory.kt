@@ -19,7 +19,8 @@ open class GpkgTileFactory(
     override val contentType = "GPKG"
     override val contentKey get() = content.tableName
     override val contentPath get() = geoPackage.pathName
-    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(content.lastChange.time)
+
+    override suspend fun lastModifiedDate() = Instant.fromEpochMilliseconds(content.lastChange.time)
 
     override suspend fun contentSize() = geoPackage.readTilesDataSize(content.tableName)
 

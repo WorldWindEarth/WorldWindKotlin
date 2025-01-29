@@ -29,13 +29,16 @@ open class ATAKTileFactory(
     protected val contentFile = File(contentPath)
     override val contentType = if (tilesDao.isTableExists && metadataDao.isTableExists) "ATAK" else error("Not an ATAK map file")
     override val contentKey = tilesDao.queryForFirst()?.provider ?: error("Empty cache file")
-    override val lastUpdateDate get() = Instant.fromEpochMilliseconds(contentFile.lastModified())
     val srid = metadataDao.queryForId("srid")?.value?.toIntOrNull()
     val isShutdown get() = !connectionSource.isOpen("")
 
     fun shutdown() = connectionSource.close()
 
-    override suspend fun contentSize() = contentFile.length() // One file should contain one map
+    override suspend fun lastModifiedDate() = withContext(Dispatchers.IO) {
+        Instant.fromEpochMilliseconds(contentFile.lastModified())
+    }
+
+    override suspend fun contentSize() = withContext(Dispatchers.IO) { contentFile.length() } // One file should contain one map
 
     override suspend fun clearContent(deleteMetadata: Boolean) {
         withContext(Dispatchers.IO) {

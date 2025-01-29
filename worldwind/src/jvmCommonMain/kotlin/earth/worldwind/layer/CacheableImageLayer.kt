@@ -30,10 +30,11 @@ interface CacheableImageLayer : Layer {
      * Bounding sector of cache content or null, if cache is not configured or bounding measures are not specified
      */
     val boundingSector get() = tiledSurfaceImage?.levelSet?.sector
+
     /**
-     * Last update date of cache content or null, if cache is not configured
+     * Last modified date of cache content or null, if cache is not configured
      */
-    val lastUpdateDate get() = tiledSurfaceImage?.cacheTileFactory?.lastUpdateDate
+    suspend fun lastModifiedDate() = tiledSurfaceImage?.cacheTileFactory?.lastModifiedDate()
 
     /**
      * Configures image layer to use specified cache provider
