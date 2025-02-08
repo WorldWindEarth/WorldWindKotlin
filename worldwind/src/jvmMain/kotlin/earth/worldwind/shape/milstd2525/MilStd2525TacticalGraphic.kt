@@ -141,7 +141,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                     textColor = Color(mss.lineColor.rgb)
                     textOffset = Offset.center()
                     font = Font(rs.mpLabelFont)
-                    outlineWidth = MilStd2525.graphicsOutlineWidth
+                    outlineColor = Color(SymbolDraw.getIdealTextBackgroundColor(si.lineColor).rgb)
                 }
                 val point = ipc.PixelsToGeo(si.modifierStringPosition ?: si.glyphPosition ?: return)
                 val position = Position.fromDegrees(point.y, point.x, 0.0)

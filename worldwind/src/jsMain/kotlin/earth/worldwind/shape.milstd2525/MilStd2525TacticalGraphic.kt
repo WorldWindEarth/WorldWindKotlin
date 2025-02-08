@@ -143,7 +143,8 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                         weight = fontInfo.style as String,
                         family = fontInfo.name as String
                     )
-                    outlineWidth = MilStd2525.graphicsOutlineWidth
+                    val hexString = RendererUtilities.getIdealOutlineColor(mss.getLineColor().toHexString(false), true)
+                    outlineColor = earth.worldwind.render.Color.fromHexString(hexString)
                 }
                 val point = ipc.PixelsToGeo(si.getModifierStringPosition() ?: si.getGlyphPosition() ?: return)
                 val position = Position.fromDegrees(point.getY().toDouble(), point.getX().toDouble(), 0.0)
