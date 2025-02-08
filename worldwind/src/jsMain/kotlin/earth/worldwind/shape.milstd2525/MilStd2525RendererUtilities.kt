@@ -36,6 +36,8 @@ open external class MilStdSymbol(
     fun getSymbolShapes(): java.util.ArrayList<ShapeInfo>
     fun getModifierShapes(): java.util.ArrayList<ShapeInfo>
     fun getLineColor(): Color
+    fun getTextColor(): Color
+    fun getTextBackgroundColor(): Color
 }
 
 open external class ShapeInfo {
