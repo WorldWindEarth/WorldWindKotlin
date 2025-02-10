@@ -451,6 +451,7 @@ open class Polygon @JvmOverloads constructor(
 
     protected open fun addVertex(rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, type: Int): Int {
         val vertex = vertexIndex / VERTEX_STRIDE
+        val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (type != VERTEX_COMBINED) {

@@ -687,6 +687,7 @@ open class Ellipse @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset: Int, isExtrudedSkirt: Boolean
     ) {
         var offsetVertexIndex = vertexIndex + offset
+        val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
         var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (isSurfaceShape) {

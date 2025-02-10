@@ -298,6 +298,7 @@ open class Path @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, addIndices : Boolean
     ) {
         val vertex = vertexIndex / VERTEX_STRIDE
+        val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
         val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertexIndex == 0) {
             if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
