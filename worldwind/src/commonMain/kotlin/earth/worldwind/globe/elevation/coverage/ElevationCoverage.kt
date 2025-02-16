@@ -60,9 +60,10 @@ interface ElevationCoverage {
      * @param latitude location latitude
      * @param longitude location longitude
      * @param retrieve if true, then the value will be retrieved from a remote source for the next frame
-     * @return elevation value at specified location
+     * @return elevation value at specified location or the elevation model's [MISSING_DATA] replacement
+     * value if there is no elevation for the given location
      */
-    fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float?
+    fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float
 
     /**
      * Gets elevation values for the specified sector with required width and height resolution
@@ -79,4 +80,11 @@ interface ElevationCoverage {
      * @return pre-allocated array for the result. Must be size of 2.
      */
     fun getElevationLimits(sector: Sector, result: FloatArray)
+
+    companion object {
+        /**
+         * Missing data replacement value
+         */
+        const val MISSING_DATA = Float.MAX_VALUE
+    }
 }

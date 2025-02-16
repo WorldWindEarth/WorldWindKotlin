@@ -6,6 +6,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSourceFactory
+import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISSING_DATA
 import earth.worldwind.util.AbsentResourceList
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
@@ -76,8 +77,8 @@ abstract class AbstractTiledElevationCoverage(
         updateTimestamp()
     }
 
-    override fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
-        if (!tileMatrixSet.sector.contains(latitude, longitude)) return null // no coverage in the specified location
+    override fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float {
+        if (!tileMatrixSet.sector.contains(latitude, longitude)) return MISSING_DATA // no coverage in the specified location
         val targetIdx = tileMatrixSet.entries.size - 1 // retrieve height from last available matrix
         for (idx in targetIdx downTo 0) {
             // enable retrieval of the last and the first matrix
@@ -102,13 +103,13 @@ abstract class AbstractTiledElevationCoverage(
                 val x1y0 = it[x1 + y0 * tileMatrix.tileWidth]
                 val x0y1 = it[x0 + y1 * tileMatrix.tileWidth]
                 val x1y1 = it[x1 + y1 * tileMatrix.tileWidth]
-                if (x0y0 == NO_DATA || x1y0 == NO_DATA || x0y1 == NO_DATA || x1y1 == NO_DATA) return null
+                if (x0y0 == NO_DATA || x1y0 == NO_DATA || x0y1 == NO_DATA || x1y1 == NO_DATA) return MISSING_DATA
                 val xf = x - x0
                 val yf = y - y0
                 return (1 - xf) * (1 - yf) * x0y0 + xf * (1 - yf) * x1y0 + (1 - xf) * yf * x0y1 + xf * yf * x1y1
             }
         }
-        return null // did not find a tile
+        return MISSING_DATA // did not find a tile
     }
 
     override fun doGetElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {

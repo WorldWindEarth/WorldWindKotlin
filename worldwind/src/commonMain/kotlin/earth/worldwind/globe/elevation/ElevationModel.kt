@@ -3,6 +3,7 @@ package earth.worldwind.globe.elevation
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage
+import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISSING_DATA
 
 open class ElevationModel(): Iterable<ElevationCoverage> {
     protected val coverages = mutableListOf<ElevationCoverage>()
@@ -50,7 +51,7 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
         // coverages composite from fine to coarse
         for (i in coverages.indices.reversed()) {
             val height = coverages[i].getElevation(latitude, longitude, retrieve)
-            if (height != null) return height
+            if (height != MISSING_DATA) return height
         }
         return 0f
     }

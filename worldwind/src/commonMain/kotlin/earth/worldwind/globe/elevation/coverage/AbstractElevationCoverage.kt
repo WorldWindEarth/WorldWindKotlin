@@ -2,7 +2,7 @@ package earth.worldwind.globe.elevation.coverage
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
-import earth.worldwind.util.LruMemoryCache
+import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISSING_DATA
 import kotlinx.datetime.Clock
 
 abstract class AbstractElevationCoverage: ElevationCoverage {
@@ -16,11 +16,9 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
     override var timestamp = Clock.System.now().toEpochMilliseconds()
         protected set
     private var userProperties: MutableMap<Any, Any>? = null
-    private val heightCache = LruMemoryCache<Int,Float>(100000)
 
     protected fun updateTimestamp() {
         timestamp = Clock.System.now().toEpochMilliseconds()
-        heightCache.clear() // Invalidate cache if elevation coverage changed
     }
 
     override fun getUserProperty(key: Any) = userProperties?.get(key)
@@ -34,13 +32,8 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
 
     override fun hasUserProperty(key: Any) = userProperties?.containsKey(key) == true
 
-    override fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float? {
-        return if (isEnabled) {
-            val key = 31 * latitude.inDegrees.hashCode() + longitude.inDegrees.hashCode()
-            heightCache[key] ?: doGetElevation(latitude, longitude, retrieve)?.also {
-                heightCache.put(key, it, 1)
-            }
-        } else null
+    override fun getElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float {
+        return if (isEnabled) doGetElevation(latitude, longitude, retrieve) else MISSING_DATA
     }
 
     override fun getElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
@@ -51,7 +44,7 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
         if (isEnabled) doGetElevationLimits(sector, result)
     }
 
-    protected abstract fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float?
+    protected abstract fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean): Float
 
     protected abstract fun doGetElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray)
 
