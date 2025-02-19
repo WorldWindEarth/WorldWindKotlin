@@ -431,7 +431,6 @@ Placemarks are conditionally displayed based on the camera distance:
                 placemark.levelOfDetailSelector = PlaceLevelOfDetailSelector(resources, place)
                 placemark.isEyeDistanceScaling = true
                 placemark.eyeDistanceScalingThreshold = PlaceLevelOfDetailSelector.LEVEL_1_DISTANCE
-                placemark.label = place.name
                 placemark.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
 
                 // On a background thread, we can add Placemarks to a RenderableLayer that is

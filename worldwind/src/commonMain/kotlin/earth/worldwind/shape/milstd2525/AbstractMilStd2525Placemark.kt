@@ -19,7 +19,7 @@ import earth.worldwind.shape.Placemark
 abstract class AbstractMilStd2525Placemark(
     val symbolCode: String, position: Position,
     symbolModifiers: Map<String, String>?, symbolAttributes: Map<String, String>?, lodSelector: LevelOfDetailSelector
-) : Placemark(position, name = symbolCode) {
+) : Placemark(position) {
 
     protected companion object {
         const val MINIMUM_IMAGE_SCALE = 0.5

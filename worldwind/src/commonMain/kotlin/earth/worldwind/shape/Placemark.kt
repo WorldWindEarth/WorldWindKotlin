@@ -39,10 +39,10 @@ open class Placemark @JvmOverloads constructor(
      */
     var attributes: PlacemarkAttributes = PlacemarkAttributes(),
     /**
-     * The placemark's display name.
+     * The label text to draw near the placemark.
      */
-    name: String? = null
-) : AbstractRenderable(if (name?.isEmpty() != false) "Placemark" else name), Highlightable, Movable {
+    var label: String? = null
+) : AbstractRenderable(if (label.isNullOrEmpty()) "Placemark" else label), Highlightable, Movable {
     /**
      * The placemark's geographic position.
      */
@@ -62,10 +62,6 @@ open class Placemark @JvmOverloads constructor(
      * Determines whether the normal or highlighted attributes should be used.
      */
     override var isHighlighted = false
-    /**
-     * The label text to draw near the placemark.
-     */
-    var label: String? = /*name*/null // Do not use display name as label by default
     /**
      * Sets the optional level-of-detail selector used to inject logic for selecting PlacemarkAttributes based on
      * the camera distance and highlighted attribute.  If set to null, the normal and highlight attribute bundles used
@@ -519,7 +515,7 @@ open class Placemark @JvmOverloads constructor(
      *
      * @return True if there is a valid label and label attributes.
      */
-    protected open fun mustDrawLabel(rc: RenderContext) = activeAttributes.isDrawLabel && label?.isNotEmpty() == true
+    protected open fun mustDrawLabel(rc: RenderContext) = activeAttributes.isDrawLabel && !label.isNullOrEmpty()
 
     /**
      * Determines if a leader-line should and can be drawn.
