@@ -592,6 +592,8 @@ open class Placemark @JvmOverloads constructor(
         @JvmStatic
         fun createWithImageAndLabel(
             position: Position, imageSource: ImageSource, label: String
-        ) = Placemark(position, PlacemarkAttributes.createWithImage(imageSource), label)
+        ) = Placemark(position, PlacemarkAttributes.createWithImage(imageSource), label).apply {
+            this.label = label
+        }
     }
 }
