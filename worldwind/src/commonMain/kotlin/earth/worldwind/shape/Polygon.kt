@@ -315,20 +315,18 @@ open class Polygon @JvmOverloads constructor(
     protected open fun assembleGeometry(rc: RenderContext) {
         // Determine the number of vertexes
         val noIntermediatePoints = maximumIntermediatePoints <= 0 || pathType == LINEAR
-
         var vertexCount = 0
         var lineVertexCount = 0
         var verticalVertexCount = 0
         for (i in boundaries.indices) {
             val p = boundaries[i]
-
             if (p.isEmpty()) continue
-
+            val lastEqualsFirst = p[0] == p[p.size - 1]
             if (noIntermediatePoints) {
                 vertexCount += p.size
-                lineVertexCount += (p.size + 2) // +2 is for point A and point C at the start and end if line strip
+                lineVertexCount += p.size + if (lastEqualsFirst) 2 else 3
                 verticalVertexCount += p.size
-            } else if (p.isNotEmpty() && p[0] == p[p.size - 1]) {
+            } else if (lastEqualsFirst) {
                 vertexCount += p.size + (p.size - 1) * maximumIntermediatePoints
                 lineVertexCount += 2 + p.size + (p.size - 1) * maximumIntermediatePoints
                 verticalVertexCount += p.size
