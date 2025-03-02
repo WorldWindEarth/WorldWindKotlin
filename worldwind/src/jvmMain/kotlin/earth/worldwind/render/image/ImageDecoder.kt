@@ -57,7 +57,7 @@ open class ImageDecoder: Closeable {
                     append(HttpHeaders.UserAgent, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
                 }
             }
-            ImageIO.read(ByteArrayInputStream(response.readBytes()))
+            ImageIO.read(ByteArrayInputStream(response.readRawBytes()))
         } else ImageIO.read(url)
 
     protected open fun decodeUnrecognized(imageSource: ImageSource): BufferedImage? {

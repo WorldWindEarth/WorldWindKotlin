@@ -13,7 +13,7 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
     companion object {
         /**
          * Create a set of Transverse Mercator coordinates from a pair of latitude and longitude,
-         * for the given [Globe] and projection parameters.
+         * for the given projection parameters.
          *
          * @param latitude the latitude.
          * @param longitude the longitude.
@@ -49,8 +49,7 @@ class TMCoord private constructor(val latitude: Angle, val longitude: Angle, val
         }
 
         /**
-         * Create a set of Transverse Mercator coordinates for the given [Globe],
-         * easting, northing and projection parameters.
+         * Create a set of Transverse Mercator coordinates for the given easting, northing and projection parameters.
          *
          * @param easting the easting distance value in meters.
          * @param northing the northing distance value in meters.

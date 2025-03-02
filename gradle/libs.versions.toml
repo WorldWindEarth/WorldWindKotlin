@@ -1,0 +1,74 @@
+[versions]
+annotation = "1.9.1"
+appcompat = "1.7.0"
+coroutines = "1.10.1"
+datetime = "0.6.2"
+desugar = "2.1.5"
+jogl = "2.3.2" # Newer version 2.5.0 is absent on Maven Central
+junit = "1.2.1"
+ktor = "3.1.1"
+lifecycle = "2.8.7"
+lwjgl = "3.3.3"
+material = "1.12.0"
+mil-sym-android = "0.1.60"
+mil-sym-jvm = "0.1.41"
+mockk = "1.13.17"
+ormlite = "6.1"
+pngj = "2.1.0"
+resources = "0.24.5"
+rules = "1.6.1"
+serialization = "1.8.0"
+tiff = "3.0.0"
+uri-kmp = "0.0.19"
+xmlutil = "0.90.3"
+
+[plugins]
+
+[libraries]
+androidx-annotation = { module = "androidx.annotation:annotation", version.ref = "annotation" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-appcompat-resources = { module = "androidx.appcompat:appcompat-resources", version.ref = "appcompat" }
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "junit" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-rules = { module = "androidx.test:rules", version.ref = "rules" }
+
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-serialization-xml = { module = "io.github.pdvrieze.xmlutil:serialization", version.ref = "xmlutil" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
+
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+
+moko-resources = { module = "dev.icerock.moko:resources", version.ref = "resources" }
+moko-resources-generator = { module = "dev.icerock.moko:resources-generator", version.ref = "resources" }
+moko-resources-test = { module = "dev.icerock.moko:resources-test", version.ref = "resources" }
+
+mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
+mockk-jvm = { module = "io.mockk:mockk-jvm", version.ref = "mockk" }
+
+mil-sym-android = { module = "io.github.missioncommand:mil-sym-android-renderer", version.ref = "mil-sym-android" }
+mil-sym-jvm = { module = "io.github.missioncommand:mil-sym-renderer", version.ref = "mil-sym-jvm" }
+
+jogl = { module = "org.jogamp.jogl:jogl-all", version.ref = "jogl" }
+gluegen = { module = "org.jogamp.gluegen:gluegen-rt", version.ref = "jogl" }
+
+lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
+lwjgl-assimp = { module = "org.lwjgl:lwjgl-assimp", version.ref = "lwjgl" }
+lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
+lwjgl-openal = { module = "org.lwjgl:lwjgl-openal", version.ref = "lwjgl" }
+lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
+lwjgl-stb = { module = "org.lwjgl:lwjgl-stb", version.ref = "lwjgl" }
+
+ormlite-core = { module = "com.j256.ormlite:ormlite-core", version.ref = "ormlite" }
+ormlite-android = { module = "com.j256.ormlite:ormlite-android", version.ref = "ormlite" }
+ormlite-jdbc = { module = "com.j256.ormlite:ormlite-jdbc", version.ref = "ormlite" }
+
+desugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+pngj = { module = "ar.com.hjg:pngj", version.ref = "pngj" }
+tiff = { module = "mil.nga:tiff", version.ref = "tiff" }
+uri-kmp = { module = "com.eygraber:uri-kmp", version.ref = "uri-kmp" }

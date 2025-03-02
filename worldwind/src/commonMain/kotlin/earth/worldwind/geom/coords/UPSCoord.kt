@@ -31,7 +31,7 @@ class UPSCoord private constructor(
         }
 
         /**
-         * Create a set of UPS coordinates for the given [Globe].
+         * Create a set of UPS coordinates.
          *
          * @param hemisphere the hemisphere, either [Hemisphere.N] of [Hemisphere.S].
          * @param easting    the easting distance in meters

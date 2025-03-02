@@ -9,11 +9,10 @@ import earth.worldwind.geom.Vec3
  * Surface of a planet or celestial object.
  * <br>
  * Models the geometric surface defined by an ellipsoidal globe and its
- * associated elevations. Terrain uses the Cartesian coordinate system specified by a `GeographicProjection` and
+ * associated elevations. Terrain uses the Cartesian coordinate system specified by a GeographicProjection and
  * is capable of representing both a 3D ellipsoid and a 2D map projection, though not simultaneously.
  * <br>
  * <h3>Caching Terrain Queries</h3>
- *
  *
  * Terrain implementations typically model a subset of the globe's surface at varying
  * resolution. In this case results from the methods `intersect` and `surfacePoint` cannot be cached. Either
@@ -21,9 +20,6 @@ import earth.worldwind.geom.Vec3
  * computation is successful the result is based on an unknown resolution. However, if the terrain implementation is
  * known to model a pre-determined resolution and region of interest results from the methods `intersect` and
  * `surfacePoint` may be cached.
- *
- *
- * @see GeographicProjection
  */
 interface Terrain {
     /**

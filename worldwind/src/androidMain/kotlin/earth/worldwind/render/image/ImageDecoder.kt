@@ -61,7 +61,7 @@ open class ImageDecoder(val context: Context): Closeable {
             }
         }
         return if (response.status == HttpStatusCode.OK) {
-            val bytes = response.readBytes()
+            val bytes = response.readRawBytes()
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bitmapFactoryOptions(imageOptions))
         } else null // Result is not an image, access denied or server error
     }

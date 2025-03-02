@@ -53,8 +53,7 @@ class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, p
          *
          * @param MGRSString the MGRS coordinate text string.
          * @return the corresponding [MGRSCoord].
-         * @throws IllegalArgumentException if the [MGRSString] is empty,
-         * the [Globe] is null, or the conversion to geodetic coordinates fails (invalid coordinate string).
+         * @throws IllegalArgumentException if the [MGRSString] is empty or the conversion to geodetic coordinates fails.
          */
         @JvmStatic
         fun fromString(MGRSString: String): MGRSCoord {

@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
@@ -14,8 +16,8 @@ multiplatformResources {
 
 kotlin {
     jvm {
-        compilations.all {
-            kotlinOptions.jvmTarget = extra["javaVersion"].toString()
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
         }
         testRuns["test"].executionTask.configure {
             useJUnit()
@@ -32,67 +34,60 @@ kotlin {
     }
     androidTarget {
         publishLibraryVariants("release")
-        compilations.all {
-            kotlinOptions.jvmTarget = extra["javaVersion"].toString()
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
     sourceSets {
-        val mockkVersion = "1.13.13"
-        val mokoVersion = "0.24.3"
-        val ktorVersion = "2.3.12"
-        val ormliteVersion = "6.1"
-        val coroutinesVerion = "1.9.0"
         commonMain {
             dependencies {
-                api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVerion")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-                implementation("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("io.github.pdvrieze.xmlutil:serialization:0.90.3")
-                implementation("com.eygraber:uri-kmp:0.0.18")
-                implementation("ar.com.hjg:pngj:2.1.0")
-                implementation("mil.nga:tiff:3.0.0")
-                api("dev.icerock.moko:resources:$mokoVersion")
+                api(libs.kotlinx.datetime)
+                api(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.serialization.xml)
+                implementation(libs.ktor.client.core)
+                implementation(libs.uri.kmp)
+                implementation(libs.pngj)
+                implementation(libs.tiff)
+                api(libs.moko.resources)
             }
         }
         commonTest {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVerion")
-                implementation("dev.icerock.moko:resources-test:$mokoVersion")
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.moko.resources.test)
             }
         }
         val jvmCommonMain by creating {
             dependsOn(commonMain.get())
             dependencies {
-                implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
-                compileOnly("com.j256.ormlite:ormlite-core:$ormliteVersion")
+                implementation(libs.ktor.client.okhttp)
+                compileOnly(libs.ormlite.core)
             }
         }
         val jvmCommonTest by creating {
             dependsOn(commonTest.get())
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation("io.mockk:mockk-jvm:$mockkVersion")
+                implementation(libs.mockk.jvm)
             }
         }
         jvmMain {
             dependsOn(jvmCommonMain)
             dependencies {
-                val joglVersion = "2.3.2"
-                implementation("org.jogamp.gluegen:gluegen-rt:$joglVersion")
-                implementation("org.jogamp.jogl:jogl-all:$joglVersion")
+                implementation(libs.gluegen)
+                implementation(libs.jogl)
 
-                val lwjglVersion = "3.3.3"
-                implementation("org.lwjgl:lwjgl:$lwjglVersion")
-                implementation("org.lwjgl:lwjgl-assimp:$lwjglVersion")
-                implementation("org.lwjgl:lwjgl-glfw:$lwjglVersion")
-                implementation("org.lwjgl:lwjgl-openal:$lwjglVersion")
-                implementation("org.lwjgl:lwjgl-opengl:$lwjglVersion")
-                implementation("org.lwjgl:lwjgl-stb:$lwjglVersion")
+                implementation(libs.lwjgl)
+                implementation(libs.lwjgl.assimp)
+                implementation(libs.lwjgl.glfw)
+                implementation(libs.lwjgl.openal)
+                implementation(libs.lwjgl.opengl)
+                implementation(libs.lwjgl.stb)
 
-                implementation("io.github.missioncommand:mil-sym-renderer:0.1.41")
-                implementation("com.j256.ormlite:ormlite-jdbc:$ormliteVersion")
+                implementation(libs.mil.sym.jvm)
+                implementation(libs.ormlite.jdbc)
             }
         }
         jvmTest {
@@ -100,7 +95,7 @@ kotlin {
         }
         jsMain {
             dependencies {
-                implementation("io.ktor:ktor-client-js:$ktorVersion")
+                implementation(libs.ktor.client.js)
             }
         }
         jsTest {
@@ -111,10 +106,10 @@ kotlin {
         androidMain {
             dependsOn(jvmCommonMain)
             dependencies {
-                implementation("androidx.annotation:annotation:1.9.1")
-                implementation("androidx.appcompat:appcompat-resources:1.7.0")
-                implementation("io.github.missioncommand:mil-sym-android-renderer:0.1.60")
-                implementation("com.j256.ormlite:ormlite-android:$ormliteVersion")
+                implementation(libs.androidx.annotation)
+                implementation(libs.androidx.appcompat.resources)
+                implementation(libs.mil.sym.android)
+                implementation(libs.ormlite.android)
             }
         }
         androidUnitTest {
@@ -123,9 +118,9 @@ kotlin {
         androidInstrumentedTest {
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation("io.mockk:mockk-android:$mockkVersion")
-                implementation("androidx.test.ext:junit:1.2.1")
-                implementation("androidx.test:rules:1.6.1")
+                implementation(libs.mockk.android)
+                implementation(libs.androidx.junit)
+                implementation(libs.androidx.rules)
             }
         }
         all {
@@ -159,13 +154,13 @@ android {
     }
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = extra["javaVersion"] as JavaVersion
-        targetCompatibility = extra["javaVersion"] as JavaVersion
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring(libs.desugar)
 }
 
 // Do not generate Intrinsics runtime assertion for performance reasons
@@ -182,17 +177,24 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class)
         }
     }
 
-val dokkaOutputDir = "${layout.buildDirectory.get()}/dokka"
-tasks.getByName<org.jetbrains.dokka.gradle.DokkaTask>("dokkaHtml") {
-    outputDirectory.set(file(dokkaOutputDir))
-}
+val dokkaOutputDir = layout.buildDirectory.dir("dokka")
 val deleteDokkaOutputDir by tasks.register<Delete>("deleteDokkaOutputDirectory") {
     delete(dokkaOutputDir)
 }
 val javadocJar = tasks.register<Jar>("javadocJar") {
-    dependsOn(deleteDokkaOutputDir, tasks.dokkaHtml)
+    dependsOn(deleteDokkaOutputDir, tasks.dokkaGeneratePublicationHtml)
     archiveClassifier.set("javadoc")
     from(dokkaOutputDir)
+}
+
+dokka {
+    moduleName.set("WorldWind Kotlin")
+    pluginsConfiguration.html {
+        footerMessage.set("(c) WorldWind Earth")
+    }
+    dokkaPublications.html {
+        outputDirectory.set(dokkaOutputDir)
+    }
 }
 
 val sonatypeUsername: String? = System.getenv("SONATYPE_USERNAME")

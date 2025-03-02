@@ -34,7 +34,7 @@ class UTMCoord private constructor(
         }
 
         /**
-         * Create a set of UTM coordinates for the given [Globe].
+         * Create a set of UTM coordinates.
          *
          * @param zone       the UTM zone - 1 to 60.
          * @param hemisphere the hemisphere, either [Hemisphere.N] of [Hemisphere.S].

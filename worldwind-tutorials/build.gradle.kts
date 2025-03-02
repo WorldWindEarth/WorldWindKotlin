@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     kotlin("multiplatform")
     id("com.android.application")
@@ -20,8 +22,8 @@ kotlin {
         }
     }
     androidTarget {
-        compilations.all {
-            kotlinOptions.jvmTarget = extra["javaVersion"].toString()
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
     sourceSets {
@@ -32,10 +34,10 @@ kotlin {
         }
         androidMain{
             dependencies {
-                implementation("androidx.appcompat:appcompat:1.7.0")
-                implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-                implementation("com.google.android.material:material:1.12.0")
+                implementation(libs.androidx.appcompat)
+                implementation(libs.androidx.lifecycle.runtime.ktx)
+                implementation(libs.kotlinx.coroutines.android)
+                implementation(libs.material)
             }
         }
         all {
@@ -71,11 +73,11 @@ android {
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = extra["javaVersion"] as JavaVersion
-        targetCompatibility = extra["javaVersion"] as JavaVersion
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring(libs.desugar)
 }

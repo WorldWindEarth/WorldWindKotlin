@@ -59,7 +59,7 @@ open class ElevationDecoder: Closeable {
 
     protected open suspend fun decodeUrl(url: URL, postprocessor: ResourcePostprocessor?) = httpClient.get(url).let {
         if (it.status == HttpStatusCode.OK) {
-            decodeBytes(it.readBytes(), it.contentType().toString(), postprocessor)
+            decodeBytes(it.readRawBytes(), it.contentType().toString(), postprocessor)
         } else null // The result is not an elevation data, access denied or server error
     }
 
