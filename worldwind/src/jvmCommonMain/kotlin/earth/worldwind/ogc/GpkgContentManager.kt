@@ -50,19 +50,42 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             runCatching { geoPackage.buildLevelSetConfig(content) }.onFailure {
                 Logger.logMessage(Logger.WARN, "GpkgContentManager", "getImageLayers", it.message!!)
             }.getOrNull()?.let { config ->
-                // Check if WEB service config available and try to create a Web Layer
-                geoPackage.getWebService(content)?.let { service ->
+                // Check if valid WEB service config available and try to create a Web Layer. May fail on big metadata.
+                runCatching { geoPackage.getWebService(content) }.getOrNull()?.let { service ->
+                    // Try to create WEB layer. May fail on invalid capabilities response or server unreachable.
                     runCatching {
                         when (service.type) {
-                            WmsImageLayer.SERVICE_TYPE -> WmsLayerFactory.createLayer(
-                                service.address, service.layerName?.split(",") ?: error("Layer not specified"),
-                                service.metadata, content.identifier
-                            )
+                            WmsImageLayer.SERVICE_TYPE -> {
+                                val layerNames = service.layerName?.split(",") ?: error("Layer not specified")
+                                try {
+                                    WmsLayerFactory.createLayer(
+                                        service.address, layerNames, service.metadata, content.identifier
+                                    )
+                                } catch (e: Exception) {
+                                    // If metadata was not null, try to request online metadata and replace layer cache
+                                    if (service.metadata == null) throw e else WmsLayerFactory.createLayer(
+                                        service.address, layerNames, serviceMetadata = null, content.identifier
+                                    ).also {
+                                        if (it is CacheableImageLayer) setupImageLayerCache(it, content.tableName)
+                                    }
+                                }
+                            }
 
-                            WmtsImageLayer.SERVICE_TYPE -> WmtsLayerFactory.createLayer(
-                                service.address, service.layerName ?: error("Layer not specified"),
-                                service.metadata, content.identifier
-                            )
+                            WmtsImageLayer.SERVICE_TYPE -> {
+                                val layerName = service.layerName ?: error("Layer not specified")
+                                try {
+                                    WmtsLayerFactory.createLayer(
+                                        service.address, layerName, service.metadata, content.identifier
+                                    )
+                                } catch (e: Exception) {
+                                    // If metadata was not null, try to request online metadata and replace layer cache
+                                    if (service.metadata == null) throw e else WmtsLayerFactory.createLayer(
+                                        service.address, layerName, serviceMetadata = null, content.identifier
+                                    ).also {
+                                        if (it is CacheableImageLayer) setupImageLayerCache(it, content.tableName)
+                                    }
+                                }
+                            }
 
                             WebMercatorImageLayer.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
                                 service.address, service.outputFormat, service.isTransparent,
@@ -137,17 +160,26 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 requireNotNull(metadata) { "Missing gridded coverage metadata for '${content.tableName}'" }
                 val matrixSet = geoPackage.buildTileMatrixSet(content)
                 val factory = GpkgElevationSourceFactory(geoPackage, content, metadata.datatype == "float")
-                val service = geoPackage.getWebService(content)
+                val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
                 when (service?.type) {
                     Wcs100ElevationCoverage.SERVICE_TYPE -> Wcs100ElevationCoverage(
                         service.address, service.layerName ?: error("Coverage not specified"),
                         service.outputFormat, matrixSet.sector, matrixSet.maxResolution
                     ).apply { cacheSourceFactory = factory }
 
-                    Wcs201ElevationCoverage.SERVICE_TYPE -> Wcs201ElevationCoverage(
-                        service.address, service.layerName ?: error("Coverage not specified"),
-                        service.outputFormat, service.metadata
-                    ).apply { cacheSourceFactory = factory }
+                    Wcs201ElevationCoverage.SERVICE_TYPE -> {
+                        val layerName = service.layerName ?: error("Coverage not specified")
+                        try {
+                            Wcs201ElevationCoverage.createCoverage(
+                                service.address, layerName, service.outputFormat, service.metadata
+                            )
+                        } catch (e: Exception) {
+                            // If metadata was not null, try to request online metadata and replace layer cache
+                            if (service.metadata == null) throw e else Wcs201ElevationCoverage.createCoverage(
+                                service.address, layerName, service.outputFormat
+                            ).also { setupElevationCoverageCache(it, content.tableName) }
+                        }.apply { cacheSourceFactory = factory }
+                    }
 
                     WmsElevationCoverage.SERVICE_TYPE -> WmsElevationCoverage(
                         service.address, service.layerName ?: error("Coverage not specified"),
