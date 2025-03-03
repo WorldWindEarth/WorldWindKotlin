@@ -96,6 +96,9 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(libs.ktor.client.js)
+                // IC internal error: can not find library org.jetbrains.kotlin:kotlinx-atomicfu-runtime
+                // https://youtrack.jetbrains.com/issue/KT-57235
+                implementation(libs.kotlinx.atomicfu.runtime)
             }
         }
         jsTest {
