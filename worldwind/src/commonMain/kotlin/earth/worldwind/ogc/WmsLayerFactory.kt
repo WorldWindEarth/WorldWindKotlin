@@ -19,6 +19,7 @@ import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
@@ -43,13 +44,12 @@ object WmsLayerFactory {
         require(layerNames.isNotEmpty()) {
             logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val wmsCapabilitiesText = serviceMetadata ?: retrieveWmsCapabilities(serviceAddress)
-        val wmsCapabilities = decodeWmsCapabilities(wmsCapabilitiesText)
-        val wmsLayers = wmsCapabilities.getNamedLayers(layerNames)
+        val wmsLayers = if (serviceMetadata != null) decodeWmsLayerList(serviceMetadata)
+        else retrieveWmsCapabilities(serviceAddress).getNamedLayers(layerNames)
         require(wmsLayers.isNotEmpty()) {
             makeMessage("WmsLayerFactory", "createLayer", "Provided layer names did not match available layers")
         }
-        return createWmsImageLayer(serviceAddress, wmsCapabilitiesText, wmsLayers, displayName)
+        return createWmsImageLayer(serviceAddress, serviceMetadata ?: xml.encodeToString(wmsLayers), wmsLayers, displayName)
     }
 
     private suspend fun retrieveWmsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
@@ -58,11 +58,13 @@ object WmsLayerFactory {
             .appendQueryParameter("SERVICE", "WMS")
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
+        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText().let { xmlText ->
+            withContext(Dispatchers.Default) { xml.decodeFromString<WmsCapabilities>(xmlText) }
+        }
     }
 
-    private suspend fun decodeWmsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {
-        xml.decodeFromString<WmsCapabilities>(xmlText)
+    private suspend fun decodeWmsLayerList(xmlText: String) = withContext(Dispatchers.Default) {
+        xml.decodeFromString<List<WmsLayer>>(xmlText)
     }
 
     private fun createWmsImageLayer(

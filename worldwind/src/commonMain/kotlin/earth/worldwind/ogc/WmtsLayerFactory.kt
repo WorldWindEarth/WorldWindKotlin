@@ -26,6 +26,7 @@ import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmtsLayerFactory {
@@ -52,13 +53,12 @@ object WmtsLayerFactory {
         require(layerName.isNotEmpty()) {
             logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val wmtsCapabilitiesText = serviceMetadata ?: retrieveWmtsCapabilities(serviceAddress)
-        val wmtsCapabilities = decodeWmtsCapabilities(wmtsCapabilitiesText)
-        val wmtsLayer = wmtsCapabilities.getLayer(layerName)
+        val wmtsLayer = if (serviceMetadata != null) decodeWmtsLayer(serviceMetadata)
+        else retrieveWmtsCapabilities(serviceAddress).getLayer(layerName)
         requireNotNull(wmtsLayer) {
             makeMessage("WmtsLayerFactory", "createLayer", "Specified layer name was not found")
         }
-        return createWmtsImageLayer(serviceAddress, wmtsCapabilitiesText, wmtsLayer, displayName)
+        return createWmtsImageLayer(serviceAddress, serviceMetadata ?: xml.encodeToString(wmtsLayer), wmtsLayer, displayName)
     }
 
     private suspend fun retrieveWmtsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
@@ -67,11 +67,13 @@ object WmtsLayerFactory {
             .appendQueryParameter("SERVICE", "WMTS")
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
+        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText().let { xmlText ->
+            withContext(Dispatchers.Default) { xml.decodeFromString<WmtsCapabilities>(xmlText) }
+        }
     }
 
-    private suspend fun decodeWmtsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {
-        xml.decodeFromString<WmtsCapabilities>(xmlText)
+    private suspend fun decodeWmtsLayer(xmlText: String) = withContext(Dispatchers.Default) {
+        xml.decodeFromString<WmtsLayer>(xmlText)
     }
 
     private fun createWmtsImageLayer(
@@ -191,7 +193,7 @@ object WmtsLayerFactory {
                             minX = topLeftCorner[1].toDouble()
                             maxY = topLeftCorner[0].toDouble()
                         }
-                    } catch (e: NumberFormatException) {
+                    } catch (_: NumberFormatException) {
                         logMessage(
                             WARN, "WmtsLayerFactory", "determineTileSchemeCompatibleTileMatrixSet",
                             "Unable to parse TopLeftCorner values"
