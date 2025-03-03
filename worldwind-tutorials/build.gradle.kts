@@ -32,6 +32,12 @@ kotlin {
                 implementation(project(":worldwind"))
             }
         }
+        jsMain {
+            dependencies {
+                // IC internal error: can not find library org.jetbrains.kotlin:kotlinx-atomicfu-runtime
+                implementation(libs.kotlinx.atomicfu.runtime)
+            }
+        }
         androidMain{
             dependencies {
                 implementation(libs.androidx.appcompat)
