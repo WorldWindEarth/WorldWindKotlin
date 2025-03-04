@@ -21,7 +21,7 @@ rules = "1.6.1"
 serialization = "1.8.0"
 tiff = "3.0.0"
 uri-kmp = "0.0.19"
-xmlutil = "0.90.3"
+xmlutil = "0.91.0-RC1"
 
 [plugins]
 
