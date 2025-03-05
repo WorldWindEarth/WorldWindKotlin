@@ -193,20 +193,20 @@ open class Path @JvmOverloads constructor(
                  NumericArray.Ints(array)
             }
 
-            drawStateExtrusion.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
-            drawStateExtrusion.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawStateExtrusion.drawElements(
-                GL_TRIANGLE_STRIP, interiorElements.size,
-                GL_UNSIGNED_INT, 0
-            )
-
             // Configure the drawable according to the shape's attributes.
-            drawStateExtrusion.texture(null)
             drawStateExtrusion.vertexOrigin.copy(vertexOrigin)
             drawStateExtrusion.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
             drawStateExtrusion.enableCullFace = false
             drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
             drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite
+            drawStateExtrusion.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+            drawStateExtrusion.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
+            drawStateExtrusion.texture(null)
+            drawStateExtrusion.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
+            drawStateExtrusion.drawElements(
+                GL_TRIANGLE_STRIP, interiorElements.size,
+                GL_UNSIGNED_INT, 0
+            )
 
             rc.offerShapeDrawable(drawableExtrusion, cameraDistance)
         }
