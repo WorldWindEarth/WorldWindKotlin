@@ -4,6 +4,7 @@ import dev.icerock.moko.resources.ImageResource
 import earth.worldwind.util.AbstractSource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.math.powerOfTwoCeiling
 import kotlinx.browser.document
 import org.khronos.webgl.TexImageSource
 import org.w3c.dom.CanvasRenderingContext2D
@@ -192,6 +193,8 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
 
     protected open class LineStippleImageFactory(protected val factor: Int, protected val pattern: Short): ImageFactory {
         override fun createImage(): TexImageSource {
+            // https://www.khronos.org/webgl/wiki/WebGL_and_OpenGL_Differences#Non-Power_of_Two_Texture_Support
+            val factor = powerOfTwoCeiling(factor) // WebGl 1.0 does not support REPEAT for NPOT textures
             val canvas = document.createElement("canvas") as HTMLCanvasElement
             canvas.width = if (factor <= 0) 16 else factor * 16
             canvas.height = 1
