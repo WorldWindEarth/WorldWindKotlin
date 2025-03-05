@@ -286,6 +286,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/shapes_dash_and_fill.html",
                 R.string.title_shapes_dash_and_fill
             )
+            R.id.nav_milstd2525_activity -> loadTutorial(
+                MilStd2525Fragment::class.java,
+                "file:///android_asset/milstd2525_tutorial.html",
+                R.string.title_milstd2525
+            )
             R.id.nav_show_tessellation_activity -> loadTutorial(
                 ShowTessellationFragment::class.java,
                 "file:///android_asset/show_tessellation_tutorial.html",

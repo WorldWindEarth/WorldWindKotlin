@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Placemarks Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Placemarks Tutorial</h1>
+<p>
+    Demonstrates how to add MilStd2525 Tactical Graphics to a RenderableLayer.
+</p>
+<p>
+    This example renders four different MilStd2525 Tactical Graphics with one above ground.
+</p>
+<h2>Example</h2>
+<h3>MilStd2525Fragment.kt</h3>
+<p>
+    The PlacemarksFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we create and add a RenderableLayer with four MilStd2525 Tactical Graphics to the globe.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class MilStd2525Fragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow with a RenderableLayer populated with MilStd2525 Tactical Graphics.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        // Trigger MilStd2525 symbol fonts initialization
+        MilStd2525.initializeRenderer(requireContext())
+        MilStd2525Tutorial(it.engine).start()
+    }
+}
+
+class MilStd2525Tutorial(private val engine: WorldWind) : AbstractTutorial() {
+
+    private val layer = RenderableLayer("Tactical Graphics").apply {
+        // Add a "MIL-STD-2525 Friendly SOF Drone Aircraft"
+        addRenderable(
+            Placemark(
+                fromDegrees(32.4520, 63.44553, 3000.0),
+                MilStd2525Placemark.getPlacemarkAttributes("SFAPMFQM--GIUSA", mapOf("Q" to "235"))
+            ).apply {
+                attributes.isDrawLeader = true
+                isBillboardingEnabled = true
+            }
+        )
+
+        // Add a "MIL-STD-2525 Hostile Self-Propelled Rocket Launchers"
+        addRenderable(
+            Placemark(
+                fromDegrees(32.4014, 63.3894, 0.0),
+                MilStd2525Placemark.getPlacemarkAttributes("SHGXUCFRMS----G", mapOf("Q" to "90", "AJ" to "0.1"))
+            ).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                isBillboardingEnabled = true
+            }
+        )
+
+        // Add a "MIL-STD-2525 Friendly Heavy Machine Gun"
+        val modifiers = mapOf(
+            "C" to "200",
+            "G" to "FOR REINFORCEMENTS",
+            "H" to "ADDED SUPPORT FOR JJ",
+            "V" to "MACHINE GUN",
+            "W" to "30140000ZSEP97" // Date/Time Group
+        )
+        addRenderable(
+            Placemark(
+                fromDegrees(32.3902, 63.4161, 0.0),
+                MilStd2525Placemark.getPlacemarkAttributes("SFGPEWRH--MTUSG", modifiers)
+            ).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                isBillboardingEnabled = true
+            }
+        )
+
+        // Add "MIL-STD-2525 Counterattack by fire"
+        addRenderable(
+            MilStd2525TacticalGraphic("GHTPKF----****X", listOf(
+                Location.fromDegrees(32.379, 63.457),
+                Location.fromDegrees(32.348, 63.412),
+                Location.fromDegrees(32.364, 63.375),
+                Location.fromDegrees(32.396, 63.451),
+            ))
+        )
+    }
+
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+        engine.cameraFromLookAt(
+            LookAt(
+                position = fromDegrees(32.420, 63.414, 0.0),
+                altitudeMode = AltitudeMode.ABSOLUTE, range = 2e4,
+                heading = ZERO, tilt = 60.0.degrees, roll = ZERO
+            )
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
+    }
+
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

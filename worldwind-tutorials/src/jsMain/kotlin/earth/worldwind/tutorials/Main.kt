@@ -14,6 +14,7 @@ import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
+import earth.worldwind.shape.milstd2525.RendererUtilities
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.w3c.dom.*
@@ -21,12 +22,15 @@ import org.w3c.dom.*
 fun main() {
     // Register an event listener to be called when the page is loaded.
     window.onload = {
+        // Trigger MilStd2525 symbol fonts initialization
+        RendererUtilities.fontsLoaded()
+
         // Create a WorldWindow for the canvas.
         val wwd = WorldWindow(document.getElementById("WorldWindow") as HTMLCanvasElement)
         val tutorialSelect = document.getElementById("Tutorials") as HTMLSelectElement
         val projectionSelect = document.getElementById("Projections") as HTMLSelectElement
         val actionsContainer = document.getElementById("Actions") as HTMLDivElement
-        val tutorials = mapOf (
+        val tutorials = mapOf(
             "Basic globe" to BasicTutorial(wwd.engine),
             "Set camera view" to CameraViewTutorial(wwd.engine),
             "Set \"look at\" view" to LookAtViewTutorial(wwd.engine),
@@ -38,6 +42,7 @@ fun main() {
             "Labels" to LabelsTutorial(wwd.engine),
             "Sight line" to SightlineTutorial(wwd.engine),
             "Surface image" to SurfaceImageTutorial(wwd.engine),
+            "MilStd2525 graphics" to MilStd2525Tutorial(wwd.engine),
             "Show tessellation" to ShowTessellationTutorial(wwd.engine),
             "MGRS Graticule" to MGRSGraticuleTutorial(wwd.engine),
             "Gauss-Kruger Graticule" to GKGraticuleTutorial(wwd.engine),
@@ -46,7 +51,7 @@ fun main() {
             "WCS Elevation" to WcsElevationTutorial(wwd.engine),
             "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),
         )
-        val projections = mapOf (
+        val projections = mapOf(
             "WGS84 Projection" to Wgs84Projection(),
             "Mercator Projection" to MercatorProjection()
         )
@@ -55,11 +60,13 @@ fun main() {
         // Add some image layers to the WorldWindow's globe.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
-            addLayer(WebMercatorLayerFactory.createLayer(
-                urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
-                imageFormat = "image/jpeg",
-                name = "Google Satellite"
-            ))
+            addLayer(
+                WebMercatorLayerFactory.createLayer(
+                    urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+                    imageFormat = "image/jpeg",
+                    name = "Google Satellite"
+                )
+            )
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
         }
@@ -73,7 +80,9 @@ fun main() {
             override fun canMoveRenderable(renderable: Renderable) = renderable is Movable
         }
 
-        fun callAction(actionName: String) { currentTutorial?.let { tutorials[it]?.runAction(actionName) } }
+        fun callAction(actionName: String) {
+            currentTutorial?.let { tutorials[it]?.runAction(actionName) }
+        }
 
         fun createAction(actionName: String) {
             (document.createElement("button") as HTMLButtonElement).apply {
@@ -116,7 +125,7 @@ fun main() {
             }
         }
         tutorialSelect.onchange = { event -> selectTutorial((event.target as HTMLSelectElement).value) }
-        projectionSelect.onchange = { event -> selectProjection((event.target as HTMLSelectElement).value)}
+        projectionSelect.onchange = { event -> selectProjection((event.target as HTMLSelectElement).value) }
         selectTutorial(tutorials.keys.first())
         selectProjection(projections.keys.first())
     }
