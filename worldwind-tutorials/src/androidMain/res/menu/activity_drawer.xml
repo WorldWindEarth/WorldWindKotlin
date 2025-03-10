@@ -74,6 +74,10 @@
             android:icon="@android:drawable/ic_menu_edit"
             android:title="@string/title_shapes_dash_and_fill"/>
         <item
+                android:id="@+id/nav_milstd2525_activity"
+                android:icon="@android:drawable/ic_menu_myplaces"
+                android:title="@string/title_milstd2525"/>
+        <item
             android:id="@+id/nav_camera_control_activity"
             android:icon="@android:drawable/ic_menu_camera"
             android:title="@string/title_camera_controls"/>

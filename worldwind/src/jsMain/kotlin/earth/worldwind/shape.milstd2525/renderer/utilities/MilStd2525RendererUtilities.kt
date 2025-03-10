@@ -1,19 +1,24 @@
-@file:JsQualifier("armyc2.c2sd.renderer.utilities")
-@file:Suppress("unused", "FunctionName")
+@file:JsQualifier("window.armyc2.c2sd.renderer.utilities")
+@file:Suppress("unused", "FunctionName", "LocalVariableName")
 
-package earth.worldwind.shape.milstd2525
+package earth.worldwind.shape.milstd2525.renderer.utilities
 
+import earth.worldwind.shape.milstd2525.graphics2d.Point2D
+import earth.worldwind.shape.milstd2525.graphics2d.Stroke
+import earth.worldwind.shape.milstd2525.java
+import earth.worldwind.shape.milstd2525.renderer.so.Point
+import earth.worldwind.shape.milstd2525.renderer.so.Rectangle
 import org.w3c.dom.Image
 import kotlin.js.Date
 
 external interface IPointConversion {
-    fun PixelsToGeo(pixel: armyc2.c2sd.graphics2d.Point2D): armyc2.c2sd.graphics2d.Point2D
-    fun GeoToPixels(coord: armyc2.c2sd.graphics2d.Point2D): armyc2.c2sd.graphics2d.Point2D
+    fun PixelsToGeo(pixel: Point2D): Point2D
+    fun GeoToPixels(coord: Point2D): Point2D
 }
 
-open external class PointConverter3D(controlLong: Number, controlLat: Number, scale: Number) : IPointConversion {
-    override fun PixelsToGeo(pixel: armyc2.c2sd.graphics2d.Point2D): armyc2.c2sd.graphics2d.Point2D
-    override fun GeoToPixels(coord: armyc2.c2sd.graphics2d.Point2D): armyc2.c2sd.graphics2d.Point2D
+external class PointConverter3D(controlLong: Number, controlLat: Number, scale: Number) : IPointConversion {
+    override fun PixelsToGeo(pixel: Point2D): Point2D
+    override fun GeoToPixels(coord: Point2D): Point2D
 }
 
 /**
@@ -22,9 +27,9 @@ open external class PointConverter3D(controlLong: Number, controlLat: Number, sc
  * @param coordinates - array of Point2D
  * @param modifiers
  */
-open external class MilStdSymbol(
+external class MilStdSymbol(
     symbolID: String, uniqueID: String?,
-    coordinates: java.util.ArrayList<armyc2.c2sd.graphics2d.Point2D>,
+    coordinates: java.util.ArrayList<Point2D>,
     modifiers: Map<String, String>?
 ) {
     /**
@@ -40,16 +45,16 @@ open external class MilStdSymbol(
     fun getTextBackgroundColor(): Color
 }
 
-open external class ShapeInfo {
+external class ShapeInfo {
     fun getShapeType(): Number
     fun getLineColor(): Color?
     fun getFillColor(): Color?
-    fun getPolylines(): java.util.ArrayList<java.util.ArrayList<armyc2.c2sd.graphics2d.Point2D>>
-    fun getModifierStringPosition(): armyc2.c2sd.graphics2d.Point2D?
-    fun getGlyphPosition(): armyc2.c2sd.graphics2d.Point2D?
+    fun getPolylines(): java.util.ArrayList<java.util.ArrayList<Point2D>>
+    fun getModifierStringPosition(): Point2D?
+    fun getGlyphPosition(): Point2D?
     fun getModifierString(): String
     fun getModifierStringAngle(): Number
-    fun getStroke(): armyc2.c2sd.graphics2d.Stroke?
+    fun getStroke(): Stroke?
 
     companion object {
         val SHAPE_TYPE_POLYLINE: Number
@@ -73,9 +78,9 @@ open external class ShapeInfo {
     }
 }
 
-open external class ImageInfo {
-    fun getCenterPoint(): armyc2.c2sd.renderer.so.Point
-    fun getSymbolBounds(): armyc2.c2sd.renderer.so.Rectangle
+external class ImageInfo {
+    fun getCenterPoint(): Point
+    fun getSymbolBounds(): Rectangle
 
     /**
      * @returns {HTML5 canvas} HTML5 canvas
@@ -83,7 +88,7 @@ open external class ImageInfo {
     fun getImage(): Image
 }
 
-open external class Color(R: Number, G: Number, B: Number, A: Number = definedExternally) {
+external class Color(R: Number, G: Number, B: Number, A: Number = definedExternally) {
     fun convert(integer: Int): String
     fun getAlpha(): Number
     fun getRed(): Number

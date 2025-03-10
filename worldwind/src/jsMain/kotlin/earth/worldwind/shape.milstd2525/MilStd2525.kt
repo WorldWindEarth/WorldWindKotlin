@@ -2,6 +2,17 @@ package earth.worldwind.shape.milstd2525
 
 import earth.worldwind.render.Font
 import earth.worldwind.shape.TextAttributes
+import earth.worldwind.shape.milstd2525.renderer.MilStdIconRenderer
+import earth.worldwind.shape.milstd2525.renderer.utilities.Color
+import earth.worldwind.shape.milstd2525.renderer.utilities.ImageInfo
+import earth.worldwind.shape.milstd2525.renderer.utilities.MilStdAttributes
+import earth.worldwind.shape.milstd2525.renderer.utilities.ModifiersTG
+import earth.worldwind.shape.milstd2525.renderer.utilities.ModifiersUnits
+import earth.worldwind.shape.milstd2525.renderer.utilities.RendererSettings
+import earth.worldwind.shape.milstd2525.renderer.utilities.RendererUtilities
+import earth.worldwind.shape.milstd2525.renderer.utilities.SymbolDefTable
+import earth.worldwind.shape.milstd2525.renderer.utilities.SymbolUtilities
+import earth.worldwind.shape.milstd2525.renderer.utilities.UnitDefTable
 
 /**
  * This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library
@@ -23,6 +34,9 @@ actual object MilStd2525 {
     var graphicsOutlineWidth = SYMBOL_OUTLINE_WIDTH.toFloat()
 
     init {
+        // Initialize fonts
+        RendererUtilities.fontsLoaded()
+
         // Initialize RendererSettings
         RendererSettings.setSymbologyStandard(RendererSettings.Symbology_2525C)
 
@@ -38,25 +52,6 @@ actual object MilStd2525 {
         RendererSettings.setSinglePointSymbolOutlineWidth(SYMBOL_OUTLINE_WIDTH)
     }
 
-// TODO Implement async fonts loading check
-//  fun isReady(): Promise<String> {
-//    return Promise{ resolve, _ ->
-//      if (!RendererUtilities.fontsLoaded()) {
-//        val time = Date.now()
-//        val i = setInterval(() => {
-//          if (RendererUtilities.fontsLoaded()) {
-//            clearInterval(i)
-//            resolve("Fonts loaded")
-//          } else {
-//            console.log("Fonts haven\'t been loaded after: ", ((Date.now() - time) / 1000).toFixed(2), " seconds")
-//          }
-//        }, 50)
-//      } else {
-//        resolve("Fonts loaded")
-//      }
-//    }
-//  }
-
     /**
      * Creates an MIL-STD-2525 symbol from the specified symbol code, modifiers and attributes.
      *
@@ -67,14 +62,10 @@ actual object MilStd2525 {
      * @return An ImageInfo object containing the symbol's image and metadata may be null
      */
     fun renderImage(symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?): ImageInfo? {
-        val params = mutableMapOf<String, String>()
-        if (modifiers != null) {
-            params.putAll(modifiers)
-        }
-        if (attributes != null) {
-            params.putAll(attributes)
-        }
-        return armyc2.c2sd.renderer.MilStdIconRenderer.Render(symbolCode, params)
+        val params: dynamic = object{}
+        modifiers?.forEach { params[it.key] = it.value }
+        attributes?.forEach { params[it.key] = it.value }
+        return MilStdIconRenderer.Render(symbolCode, params)
     }
 
     /**

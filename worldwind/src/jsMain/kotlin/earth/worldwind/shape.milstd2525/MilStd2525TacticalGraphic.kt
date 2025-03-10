@@ -7,17 +7,17 @@ import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.Font
 import earth.worldwind.render.Renderable
-import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.*
+import earth.worldwind.shape.milstd2525.graphics2d.Point2D
+import earth.worldwind.shape.milstd2525.renderer.utilities.*
 import earth.worldwind.util.Logger
-import kotlin.math.roundToInt
 
 actual open class MilStd2525TacticalGraphic actual constructor(
     sidc: String, locations: List<Location>,
     boundingSector: Sector, modifiers: Map<String, String>?, attributes: Map<String, String>?
 ) : AbstractMilStd2525TacticalGraphic(sidc, boundingSector, modifiers, attributes) {
-    protected lateinit var controlPoints: java.util.ArrayList<armyc2.c2sd.graphics2d.Point2D>
-    protected lateinit var pointUL: armyc2.c2sd.graphics2d.Point2D
+    protected lateinit var controlPoints: java.util.ArrayList<Point2D>
+    protected lateinit var pointUL: Point2D
 
     init {
         setAnchorLocations(locations)
@@ -25,7 +25,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
 
     fun setAnchorLocations(locations: List<Location>) {
         if (this::controlPoints.isInitialized) controlPoints.clear() else controlPoints = java.util.ArrayList()
-        for (location in locations) controlPoints.add(armyc2.c2sd.graphics2d.Point2D(location.longitude.inDegrees, location.latitude.inDegrees))
+        for (location in locations) controlPoints.add(Point2D(location.longitude.inDegrees, location.latitude.inDegrees))
         val point0 = controlPoints.get(0) ?: return
         var left = point0.getX().toDouble()
         var top = point0.getY().toDouble()
@@ -45,7 +45,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                 if (pt.getX().toDouble() > 0.0 && pt.getX().toDouble() < left) left = pt.getX().toDouble()
             }
         }
-        if (this::pointUL.isInitialized) pointUL.setLocation(left, top) else pointUL = armyc2.c2sd.graphics2d.Point2D(left, top)
+        if (this::pointUL.isInitialized) pointUL.setLocation(left, top) else pointUL = Point2D(left, top)
         reset()
     }
 
@@ -53,11 +53,11 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         val ipc = PointConverter3D(pointUL.getX(), pointUL.getY(), scale * 96.0 * 39.3700787)
 
 //        // Calculate clipping rectangle
-//        val leftTop = ipc.GeoToPixels(armyc2.c2sd.graphics2d.Point2D(boundingSector.minLongitude.degrees, boundingSector.maxLatitude.degrees))
-//        val rightBottom = ipc.GeoToPixels(armyc2.c2sd.graphics2d.Point2D(boundingSector.maxLongitude.degrees, boundingSector.minLatitude.degrees))
+//        val leftTop = ipc.GeoToPixels(Point2D(boundingSector.minLongitude.degrees, boundingSector.maxLatitude.degrees))
+//        val rightBottom = ipc.GeoToPixels(Point2D(boundingSector.maxLongitude.degrees, boundingSector.minLatitude.degrees))
 //        val width = abs(rightBottom.getX().toDouble() - leftTop.getX().toDouble())
 //        val height = abs(rightBottom.getY().toDouble() - leftTop.getY().toDouble())
-//        val rect = if (width > 0 && height > 0) armyc2.c2sd.graphics2d.Rectangle2D(leftTop.getX(), leftTop.getY(), width, height) else null
+//        val rect = if (width > 0 && height > 0) Rectangle2D(leftTop.getX(), leftTop.getY(), width, height) else null
 
         // Create MilStd Symbol and render it
         val mss = MilStdSymbol(sidc, null, controlPoints, null)
@@ -94,14 +94,6 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     outlineWidth = MilStd2525.graphicsLineWidth
                     (si.getLineColor() ?: si.getFillColor())?.let { outlineColor = convertColor(it) } ?: return
                     (si.getFillColor() ?: si.getLineColor())?.let { interiorColor = convertColor(it) } ?: return
-                    val stroke = si.getStroke()
-                    if (stroke is armyc2.c2sd.graphics2d.BasicStroke) {
-                        val dash = stroke.getDashArray()
-                        if (!dash.isNullOrEmpty()) outlineImageSource = ImageSource.fromLineStipple(
-                            // TODO How to correctly interpret dash array?
-                            factor = dash[0].roundToInt(), pattern = 0xF0F0.toShort()
-                        )
-                    }
                 }
                 val hasOutline = MilStd2525.graphicsOutlineWidth != 0f
                 val outlineAttributes = if (hasOutline) ShapeAttributes(shapeAttributes).apply {
