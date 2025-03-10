@@ -19,6 +19,7 @@ import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
@@ -43,13 +44,16 @@ object WmsLayerFactory {
         require(layerNames.isNotEmpty()) {
             logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val wmsCapabilitiesText = serviceMetadata ?: retrieveWmsCapabilities(serviceAddress)
-        val wmsCapabilities = decodeWmsCapabilities(wmsCapabilitiesText)
-        val wmsLayers = wmsCapabilities.getNamedLayers(layerNames)
-        require(wmsLayers.isNotEmpty()) {
+        val capabilities = decodeWmsCapabilities(serviceMetadata ?: retrieveWmsCapabilities(serviceAddress))
+        val layers = capabilities.getNamedLayers(layerNames)
+        require(layers.isNotEmpty()) {
             makeMessage("WmsLayerFactory", "createLayer", "Provided layer names did not match available layers")
         }
-        return createWmsImageLayer(serviceAddress, wmsCapabilitiesText, wmsLayers, displayName)
+        return createWmsImageLayer(
+            serviceAddress,
+            serviceMetadata ?: xml.encodeToString(capabilities.copy(capability = capabilities.capability.copy(layers = layers))),
+            layers, displayName
+        )
     }
 
     private suspend fun retrieveWmsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
