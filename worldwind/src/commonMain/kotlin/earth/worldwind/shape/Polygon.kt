@@ -391,6 +391,9 @@ open class Polygon @JvmOverloads constructor(
             } else {
                 addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, true, false)
             }
+            // Drop last six indices as they are used for connecting segments and there's no next segment for last vertices (check addLineVertex)
+            outlineElements.subList(outlineElements.size - 6, outlineElements.size).clear()
+
             GLU.gluTessEndContour(tess)
         }
         GLU.gluTessEndPolygon(tess)
