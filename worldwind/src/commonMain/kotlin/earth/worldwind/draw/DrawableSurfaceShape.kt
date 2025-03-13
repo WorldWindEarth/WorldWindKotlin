@@ -159,6 +159,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                         program.enableTexture(true)
                     } else {
                         program.enableTexture(false)
+                        // prevent "RENDER WARNING: there is no texture bound to unit 0"
+                        dc.defaultTexture.bindTexture(dc)
                     }
                     if (shape.drawState.isLine) {
                         program.loadLineWidth(prim.lineWidth)
@@ -221,7 +223,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             terrain.drawTriangles(dc)
         } finally {
             // Unbind color attachment texture to avoid feedback loop
-            dc.bindTexture(KglTexture.NONE)
+            dc.defaultTexture.bindTexture(dc)
+//            dc.bindTexture(KglTexture.NONE)
         }
     }
 }

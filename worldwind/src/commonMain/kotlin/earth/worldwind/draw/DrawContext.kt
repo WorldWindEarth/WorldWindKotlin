@@ -37,6 +37,7 @@ open class DrawContext(val gl: Kgl) {
     private var scratchFramebufferCache: Framebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
+    private var defaultTextureCache: Texture? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
@@ -116,6 +117,13 @@ open class DrawContext(val gl: Kgl) {
         it.loadBuffer(this, NumericArray.Ints(intArrayOf(0, 1, 2, 2, 1, 3)))
         rectangleElementsBufferCache = it
     }
+
+    /**
+     * Returns 1x1 RGBA texture for binding to empty texture slot, initialized to 0
+     */
+    val defaultTexture get() = defaultTextureCache ?: Texture(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, false).also {
+        defaultTextureCache = it
+    }
     /**
      * Returns a scratch list suitable for accumulating entries during drawing. The list is cleared before each frame,
      * otherwise its contents are undefined.
@@ -147,6 +155,7 @@ open class DrawContext(val gl: Kgl) {
         scratchFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
+        defaultTextureCache?.release(this)
         framebuffer = KglFramebuffer.NONE
         program = KglProgram.NONE
         textureUnit = GL_TEXTURE0
@@ -155,6 +164,7 @@ open class DrawContext(val gl: Kgl) {
         scratchFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null
+        defaultTextureCache = null
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
     }

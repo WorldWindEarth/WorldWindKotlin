@@ -139,7 +139,7 @@ open class DrawableSightline protected constructor(): Drawable {
             }
         } finally {
             // Unbind depth attachment texture to avoid feedback loop
-            dc.bindTexture(KglTexture.NONE)
+            dc.defaultTexture.bindTexture(dc)
         }
     }
 }

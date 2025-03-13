@@ -87,6 +87,8 @@ open class DrawableScreenTexture protected constructor(): Drawable {
             program.loadTexCoordMatrix(texture.coordTransform)
         } else {
             program.enableTexture(false)
+            // prevent "RENDER WARNING: there is no texture bound to unit 0"
+            dc.defaultTexture.bindTexture(dc)
         }
 
         // Use a modelview-projection matrix that transforms the unit square to screen coordinates.
