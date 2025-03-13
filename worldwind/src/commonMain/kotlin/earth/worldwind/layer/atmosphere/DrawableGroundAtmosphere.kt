@@ -82,8 +82,10 @@ open class DrawableGroundAtmosphere : Drawable {
                 texCoordMatrix.copy(nightTexture.coordTransform)
                 texCoordMatrix.multiplyByTileTransform(terrain.sector, fullSphereSector)
                 program.loadTexCoordMatrix(texCoordMatrix)
+            } else {
+                // prevent "RENDER WARNING: there is no texture bound to unit 0"
+                dc.defaultTexture.bindTexture(dc)
             }
-
             // Draw the terrain as triangles, multiplying the current fragment color by the program's secondary color.
             program.loadFragMode(SECONDARY)
             dc.gl.blendFunc(GL_DST_COLOR, GL_ZERO)

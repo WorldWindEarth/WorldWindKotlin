@@ -94,6 +94,8 @@ open class DrawableShape protected constructor(): Drawable {
                 program.enableTexture(true)
             } else {
                 program.enableTexture(false)
+                // prevent "RENDER WARNING: there is no texture bound to unit 0"
+                dc.defaultTexture.bindTexture(dc)
             }
             if (drawState.isLine) {
                 program.loadLineWidth(prim.lineWidth)
