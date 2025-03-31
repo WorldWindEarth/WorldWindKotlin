@@ -15,7 +15,7 @@ actual fun loadData(offsetsFile: AssetResource, scope: CoroutineScope) {
     scope.launch {
         // NOTE! It is not possible to provide Context here, that's why we are using pure Java resources access
         val filePath = "assets/${offsetsFile.path}"
-        val bytes = EGM96Geoid.javaClass.classLoader?.getResourceAsStream(filePath)?.use { it.readBytes() }
+        val bytes = EGM96Geoid::class.java.classLoader?.getResourceAsStream(filePath)?.use { it.readBytes() }
             ?: throw FileNotFoundException("Couldn't open resource as stream at: $filePath")
         deltas = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN).asShortBuffer()
     }

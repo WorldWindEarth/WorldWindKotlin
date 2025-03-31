@@ -22,7 +22,7 @@ import kotlin.math.min
 open class EGM2008Geoid(protected val offsetsFile: AssetResource): Geoid {
     protected val offsetCache = LruMemoryCache<Int, FloatArray>((CACHE_SIZE * 8) / 10, CACHE_SIZE)
 
-    override fun getOffset(lat: Angle, lon: Angle) = getOffset(lat.inDegrees, lon.inDegrees)
+    override fun getOffset(latitude: Angle, longitude: Angle) = getOffset(latitude.inDegrees, longitude.inDegrees)
 
     protected fun getOffset(lat: Double, lon: Double): Float {
         val latRow = getLatRow(lat)
