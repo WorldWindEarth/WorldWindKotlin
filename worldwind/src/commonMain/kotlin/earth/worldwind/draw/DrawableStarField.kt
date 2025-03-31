@@ -28,6 +28,8 @@ open class DrawableStarField protected constructor(): Drawable {
     companion object {
         var maxGlPointSize = 0f
 
+        val KEY = DrawableStarField::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableStarField>): DrawableStarField {
             val instance = pool.acquire() ?: DrawableStarField()

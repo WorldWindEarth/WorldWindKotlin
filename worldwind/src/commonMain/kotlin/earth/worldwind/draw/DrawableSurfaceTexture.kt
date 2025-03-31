@@ -22,6 +22,8 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
     private var pool: Pool<DrawableSurfaceTexture>? = null
 
     companion object {
+        val KEY = DrawableSurfaceTexture::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableSurfaceTexture>): DrawableSurfaceTexture {
             val instance = pool.acquire() ?: DrawableSurfaceTexture()

@@ -204,7 +204,7 @@ open class Ellipse @JvmOverloads constructor(
         val drawableLines: Drawable
         val drawStateLines: DrawShapeState
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceShape>()
+            val pool = rc.getDrawablePool<DrawableSurfaceShape>(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             drawable.offset = rc.globe.offset
@@ -219,7 +219,7 @@ open class Ellipse @JvmOverloads constructor(
 
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
         } else {
-            val pool = rc.getDrawablePool<DrawableShape>()
+            val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
 
@@ -230,7 +230,7 @@ open class Ellipse @JvmOverloads constructor(
         }
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
+        drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
@@ -251,7 +251,7 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.isLine = true
 
         // Use the basic GLSL program to draw the shape.
-        drawStateLines.program = rc.getShaderProgram { TriangleShaderProgram() }
+        drawStateLines.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawStateLines.vertexBuffer = rc.getBufferObject(lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }

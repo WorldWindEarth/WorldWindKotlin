@@ -286,7 +286,7 @@ open class Placemark @JvmOverloads constructor(
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
-                val pool = rc.getDrawablePool<DrawableLines>()
+                val pool = rc.getDrawablePool<DrawableLines>(DrawableLines.KEY)
                 val drawable = DrawableLines.obtain(pool)
                 prepareDrawableLeader(rc, drawable)
                 rc.offerShapeDrawable(drawable, cameraDistance)
@@ -299,7 +299,7 @@ open class Placemark @JvmOverloads constructor(
         // If the placemark's icon is visible, enqueue a drawable icon for processing on the OpenGL thread.
         imageTransform.boundingRectForUnitSquare(imageBounds)
         if (rc.frustum.intersectsViewport(imageBounds)) {
-            val pool = rc.getDrawablePool<DrawableScreenTexture>()
+            val pool = rc.getDrawablePool<DrawableScreenTexture>(DrawableScreenTexture.KEY)
             val drawable = DrawableScreenTexture.obtain(pool)
             prepareDrawableIcon(rc, drawable, activeTexture)
             rc.offerShapeDrawable(drawable, cameraDistance)
@@ -322,7 +322,7 @@ open class Placemark @JvmOverloads constructor(
                 labelTransform.setScale(w * s, h * s, 1.0)
                 labelTransform.boundingRectForUnitSquare(labelBounds)
                 if (rc.frustum.intersectsViewport(labelBounds)) {
-                    val pool = rc.getDrawablePool<DrawableScreenTexture>()
+                    val pool = rc.getDrawablePool<DrawableScreenTexture>(DrawableScreenTexture.KEY)
                     val drawable = DrawableScreenTexture.obtain(pool)
                     prepareDrawableLabel(rc, drawable, labelTexture)
                     rc.offerShapeDrawable(drawable, cameraDistance)
@@ -396,7 +396,7 @@ open class Placemark @JvmOverloads constructor(
      */
     protected open fun prepareDrawableIcon(rc: RenderContext, drawable: DrawableScreenTexture, activeTexture: Texture?) {
         // Use the basic GLSL program to draw the placemark's icon.
-        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
 
         // Use the plaemark's unit square transform matrix.
         drawable.unitSquareTransform.copy(imageTransform)
@@ -420,7 +420,7 @@ open class Placemark @JvmOverloads constructor(
      */
     protected open fun prepareDrawableLabel(rc: RenderContext, drawable: DrawableScreenTexture, labelTexture: Texture) {
         // Use the basic GLSL program to draw the placemark's label.
-        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
 
         // Use the label's unit square transform matrix.
         drawable.unitSquareTransform.copy(labelTransform)
@@ -445,7 +445,7 @@ open class Placemark @JvmOverloads constructor(
      */
     protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableLines) {
         // Use the basic GLSL program to draw the placemark's leader.
-        drawable.program = rc.getShaderProgram { TriangleShaderProgram() }
+        drawable.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         var vertexIndex = 0
         val upperLeftCorner = encodeOrientationVector(-1f, 1f)

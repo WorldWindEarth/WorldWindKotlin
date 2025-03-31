@@ -30,6 +30,8 @@ open class DrawableSightline protected constructor(): Drawable {
     )
 
     companion object {
+        val KEY = DrawableSightline::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableSightline>): DrawableSightline {
             val instance = pool.acquire() ?: DrawableSightline()

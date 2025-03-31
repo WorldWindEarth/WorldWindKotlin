@@ -138,4 +138,8 @@ open class GroundProgram: AbstractAtmosphereProgram() {
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint")
+
+    companion object {
+        val KEY = GroundProgram::class
+    }
 }

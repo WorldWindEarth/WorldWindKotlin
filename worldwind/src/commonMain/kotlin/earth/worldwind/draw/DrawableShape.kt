@@ -14,6 +14,8 @@ open class DrawableShape protected constructor(): Drawable {
     private val mvpMatrix = Matrix4()
 
     companion object {
+        val KEY = DrawableShape::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableShape>): DrawableShape {
             val instance = pool.acquire() ?: DrawableShape()

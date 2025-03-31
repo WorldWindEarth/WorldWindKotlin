@@ -22,6 +22,7 @@ import earth.worldwind.util.glu.GLU
 import earth.worldwind.util.glu.GLUtessellator
 import kotlinx.coroutines.CompletableDeferred
 import kotlin.math.tan
+import kotlin.reflect.KClass
 
 open class RenderContext {
     companion object {
@@ -310,15 +311,15 @@ open class RenderContext {
 
     // TODO redesign ShaderProgram to operate as a resource accessible from DrawContext
     // TODO created automatically on OpenGL thread, unless the caller wants to explicitly create a program
-    inline fun <reified T: AbstractShaderProgram> getShaderProgram(builder: () -> T): T {
-        val key = T::class
+    @Suppress("UNCHECKED_CAST")
+    fun <T: AbstractShaderProgram> getShaderProgram(key: KClass<T>, builder: () -> T): T {
         return renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.programLength) } } as T
     }
 
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions?, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
 
-    inline fun getBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as BufferObject
+    fun getBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as BufferObject
 
     fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache.run {
         scratchTextCacheKey.text = text
@@ -365,8 +366,7 @@ open class RenderContext {
     val drawableCount get() = drawableQueue?.count ?: 0
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified T : Drawable> getDrawablePool(): Pool<T> {
-        val key = T::class
+    fun <T : Drawable> getDrawablePool(key: KClass<T>): Pool<T> {
         // use SynchronizedPool; acquire and are release may be called in separate threads
         return drawablePools[key] as? Pool<T> ?: SynchronizedPool<T>().also { drawablePools[key] = it }
     }

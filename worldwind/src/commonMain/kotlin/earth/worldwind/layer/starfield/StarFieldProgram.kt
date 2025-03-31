@@ -134,4 +134,8 @@ open class StarFieldProgram : AbstractShaderProgram() {
      * @param value Texture enabled
      */
     fun loadTextureEnabled(value: Boolean) = gl.uniform1i(textureEnabledId, if (value) 1 else 0)
+
+    companion object {
+        val KEY = StarFieldProgram::class
+    }
 }

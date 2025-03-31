@@ -15,6 +15,8 @@ open class DrawableTessellation protected constructor(): Drawable {
     private val offsetMvpMatrix = Matrix4()
 
     companion object {
+        val KEY = DrawableTessellation::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableTessellation>): DrawableTessellation {
             val instance = pool.acquire() ?: DrawableTessellation()

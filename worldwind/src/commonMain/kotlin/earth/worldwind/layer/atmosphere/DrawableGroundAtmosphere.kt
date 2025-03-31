@@ -24,6 +24,8 @@ open class DrawableGroundAtmosphere : Drawable {
     private var pool: Pool<DrawableGroundAtmosphere>? = null
 
     companion object {
+        val KEY = DrawableGroundAtmosphere::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableGroundAtmosphere>): DrawableGroundAtmosphere {
             val instance = pool.acquire() ?: DrawableGroundAtmosphere()  // get an instance from the pool

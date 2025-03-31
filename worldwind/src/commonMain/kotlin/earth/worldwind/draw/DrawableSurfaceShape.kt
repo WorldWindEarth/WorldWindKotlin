@@ -21,6 +21,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     private var opacity = 1.0f
 
     companion object {
+        val KEY = DrawableSurfaceShape::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableSurfaceShape>): DrawableSurfaceShape {
             val instance = pool.acquire() ?: DrawableSurfaceShape()

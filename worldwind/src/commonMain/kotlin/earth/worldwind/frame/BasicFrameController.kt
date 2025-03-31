@@ -80,11 +80,11 @@ open class BasicFrameController: FrameController {
         val pickedObjectId = rc.nextPickedObjectId()
 
         // Enqueue a drawable for processing on the OpenGL thread that displays terrain in the unique pick color.
-        val pool = rc.getDrawablePool<DrawableSurfaceColor>()
+        val pool = rc.getDrawablePool<DrawableSurfaceColor>(DrawableSurfaceColor.KEY)
         val drawable = obtain(pool)
         identifierToUniqueColor(pickedObjectId, drawable.color)
         drawable.opacity = 1.0f // Just to be sure to reset opacity
-        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
         rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
 
         // If the pick ray intersects the terrain, enqueue a picked object that associates the terrain drawable with its

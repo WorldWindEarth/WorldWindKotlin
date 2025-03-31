@@ -86,7 +86,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
 
         val starData = starData ?: return // Star data is not loaded yet
         val time = time ?: Clock.System.now()
-        val pool = rc.getDrawablePool<DrawableStarField>()
+        val pool = rc.getDrawablePool<DrawableStarField>(DrawableStarField.KEY)
         val drawable = DrawableStarField.obtain(pool)
 
         // Render Star Field
@@ -132,7 +132,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
             }
         }
 
-        drawable.program = rc.getShaderProgram { StarFieldProgram() }
+        drawable.program = rc.getShaderProgram(StarFieldProgram.KEY) { StarFieldProgram() }
         rc.offerBackgroundDrawable(drawable)
     }
 

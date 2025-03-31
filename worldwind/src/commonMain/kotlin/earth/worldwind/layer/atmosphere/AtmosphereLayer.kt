@@ -58,10 +58,10 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     }
 
     protected open fun renderSky(rc: RenderContext) {
-        val pool = rc.getDrawablePool<DrawableSkyAtmosphere>()
+        val pool = rc.getDrawablePool<DrawableSkyAtmosphere>(DrawableSkyAtmosphere.KEY)
         val drawable = DrawableSkyAtmosphere.obtain(pool)
         val size = 128
-        drawable.program = rc.getShaderProgram { SkyProgram() }
+        drawable.program = rc.getShaderProgram(SkyProgram.KEY) { SkyProgram() }
         drawable.vertexPoints = rc.getBufferObject(VERTEX_POINTS_KEY) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(VERTEX_POINTS_KEY, 1) { NumericArray.Floats(assembleVertexPoints(rc, size, size, rc.atmosphereAltitude.toFloat())) }
         drawable.triStripElements = rc.getBufferObject(TRI_STRIP_ELEMENTS_KEY) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0) }
@@ -74,9 +74,9 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
 
     protected open fun renderGround(rc: RenderContext) {
         if (rc.terrain.sector.isEmpty) return  // no terrain surface to render on
-        val pool = rc.getDrawablePool<DrawableGroundAtmosphere>()
+        val pool = rc.getDrawablePool<DrawableGroundAtmosphere>(DrawableGroundAtmosphere.KEY)
         val drawable = DrawableGroundAtmosphere.obtain(pool)
-        drawable.program = rc.getShaderProgram { GroundProgram() }
+        drawable.program = rc.getShaderProgram(GroundProgram.KEY) { GroundProgram() }
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe.equatorialRadius
         drawable.atmosphereAltitude = rc.atmosphereAltitude

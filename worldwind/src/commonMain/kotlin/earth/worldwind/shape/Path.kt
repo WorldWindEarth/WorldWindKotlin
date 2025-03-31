@@ -80,14 +80,14 @@ open class Path @JvmOverloads constructor(
         val drawState: DrawShapeState
         val cameraDistance: Double
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceShape>()
+            val pool = rc.getDrawablePool<DrawableSurfaceShape>(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
-            val pool = rc.getDrawablePool<DrawableShape>()
+            val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, OUTLINE_SEGMENT_STRIDE, vertexOrigin)
@@ -97,7 +97,7 @@ open class Path @JvmOverloads constructor(
         drawState.isLine = true
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram { TriangleShaderProgram() }
+        drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
@@ -167,14 +167,14 @@ open class Path @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's extruded interior.
         if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableShape>()
+            val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
             val drawableExtrusion = DrawableShape.obtain(pool)
             val drawStateExtrusion = drawableExtrusion.drawState
 
             drawStateExtrusion.isLine = false
 
             // Use the basic GLSL program to draw the shape.
-            drawStateExtrusion.program = rc.getShaderProgram { TriangleShaderProgram() }
+            drawStateExtrusion.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
             // Assemble the drawable's OpenGL vertex buffer object.
             drawStateExtrusion.vertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) {
@@ -220,7 +220,7 @@ open class Path @JvmOverloads constructor(
         else if (positions.isNotEmpty()) positions.size + (positions.size - 1) * maximumIntermediatePoints else 0
 
         // Separate vertex array for interior polygon
-        extrudeIndex = 0;
+        extrudeIndex = 0
         extrudeVertexArray = if(isExtrude && !isSurfaceShape)  FloatArray((vertexCount + 2) * EXTRUDE_SEGMENT_STRIDE) else FloatArray(0)
         interiorElements.clear()
 

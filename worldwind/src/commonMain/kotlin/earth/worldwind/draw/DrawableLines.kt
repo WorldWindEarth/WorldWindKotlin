@@ -24,6 +24,8 @@ open class DrawableLines protected constructor(): Drawable {
     private var pool: Pool<DrawableLines>? = null
 
     companion object {
+        val KEY = DrawableLines::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableLines>): DrawableLines {
             val instance = pool.acquire() ?: DrawableLines()

@@ -14,6 +14,8 @@ open class DrawableSurfaceColor protected constructor(): Drawable {
     private val mvpMatrix = Matrix4()
 
     companion object {
+        val KEY = DrawableSurfaceColor::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableSurfaceColor>): DrawableSurfaceColor {
             val instance = pool.acquire() ?: DrawableSurfaceColor()

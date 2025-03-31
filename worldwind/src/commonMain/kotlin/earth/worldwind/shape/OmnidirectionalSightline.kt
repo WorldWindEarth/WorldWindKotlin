@@ -160,7 +160,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
 
     protected open fun makeDrawable(rc: RenderContext) {
         // Obtain a pooled drawable and configure it to draw the sightline's coverage.
-        val pool = rc.getDrawablePool<DrawableSightline>()
+        val pool = rc.getDrawablePool<DrawableSightline>(DrawableSightline.KEY)
         val drawable = DrawableSightline.obtain(pool)
 
         // Compute the transform from sightline local coordinates to world coordinates.
@@ -177,7 +177,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
         drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
 
         // Use the sightline GLSL program to draw the coverage.
-        drawable.program = rc.getShaderProgram { SightlineProgram() }
+        drawable.program = rc.getShaderProgram(SightlineProgram.KEY) { SightlineProgram() }
 
         // Enqueue a drawable for processing on the OpenGL thread.
         rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)

@@ -258,4 +258,8 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
             gl.uniform4f(screenId, this.screenX, this.screenY, 1f / screenX, 1f / screenY)
         }
     }
+
+    companion object {
+        val KEY = TriangleShaderProgram::class
+    }
 }

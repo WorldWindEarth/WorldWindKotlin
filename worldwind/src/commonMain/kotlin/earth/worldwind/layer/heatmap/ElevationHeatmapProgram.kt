@@ -113,4 +113,8 @@ open class ElevationHeatmapProgram : AbstractShaderProgram() {
         mvpMatrix.transposeToArray(mvpMatrixArray, 0)
         gl.uniformMatrix4fv(mvpMatrixId, 1, false, mvpMatrixArray, 0)
     }
+
+    companion object {
+        val KEY = ElevationHeatmapProgram::class
+    }
 }

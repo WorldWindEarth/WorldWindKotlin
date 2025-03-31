@@ -15,6 +15,8 @@ open class DrawableHeatmap protected constructor(): Drawable {
     private var pool: Pool<DrawableHeatmap>? = null
 
     companion object {
+        val KEY = DrawableHeatmap::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableHeatmap>): DrawableHeatmap {
             val instance = pool.acquire() ?: DrawableHeatmap()

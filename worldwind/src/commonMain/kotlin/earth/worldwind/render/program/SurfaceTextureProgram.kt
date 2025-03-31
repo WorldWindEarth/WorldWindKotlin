@@ -141,4 +141,8 @@ open class SurfaceTextureProgram : AbstractShaderProgram() {
             gl.uniform1f(opacityId, opacity)
         }
     }
+
+    companion object {
+        val KEY = SurfaceTextureProgram::class
+    }
 }

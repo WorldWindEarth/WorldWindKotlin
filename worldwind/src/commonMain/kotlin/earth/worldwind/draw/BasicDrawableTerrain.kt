@@ -25,6 +25,8 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     private var pool: Pool<BasicDrawableTerrain>? = null
 
     companion object {
+        val KEY = BasicDrawableTerrain::class
+
         @JvmStatic
         fun obtain(pool: Pool<BasicDrawableTerrain>): BasicDrawableTerrain {
             val instance = pool.acquire() ?: BasicDrawableTerrain()

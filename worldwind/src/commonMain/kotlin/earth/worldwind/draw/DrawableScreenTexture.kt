@@ -22,6 +22,8 @@ open class DrawableScreenTexture protected constructor(): Drawable {
     private val mvpMatrix = Matrix4()
 
     companion object {
+        val KEY = DrawableScreenTexture::class
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableScreenTexture>): DrawableScreenTexture {
             val instance = pool.acquire() ?: DrawableScreenTexture()

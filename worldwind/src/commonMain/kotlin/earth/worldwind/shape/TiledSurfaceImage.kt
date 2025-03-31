@@ -160,7 +160,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     }
 
     protected open fun determineActiveProgram(rc: RenderContext) {
-        activeProgram = rc.getShaderProgram { SurfaceTextureProgram() }
+        activeProgram = rc.getShaderProgram(SurfaceTextureProgram.KEY) { SurfaceTextureProgram() }
     }
 
     protected open fun assembleTiles(rc: RenderContext) {
@@ -216,7 +216,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         if (texture != null) {
             // use the tile's own texture
-            val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
+            val pool = rc.getDrawablePool<DrawableSurfaceTexture>(DrawableSurfaceTexture.KEY)
             val drawable = DrawableSurfaceTexture.obtain(pool).set(
                 activeProgram, tile.sector, opacity, texture, texture.coordTransform, rc.globe.offset
             )
@@ -229,7 +229,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
             // use the ancestor tile's texture, transformed to fill the tile sector
             ancestorTexCoordMatrix.copy(ancestorTexture.coordTransform)
             ancestorTexCoordMatrix.multiplyByTileTransform(tile.sector, ancestorTile.sector)
-            val pool = rc.getDrawablePool<DrawableSurfaceTexture>()
+            val pool = rc.getDrawablePool<DrawableSurfaceTexture>(DrawableSurfaceTexture.KEY)
             val drawable = DrawableSurfaceTexture.obtain(pool).set(
                 activeProgram, tile.sector, opacity, ancestorTexture, ancestorTexCoordMatrix, rc.globe.offset
             )
