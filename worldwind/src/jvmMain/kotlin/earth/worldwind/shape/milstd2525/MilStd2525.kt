@@ -1,9 +1,8 @@
 package earth.worldwind.shape.milstd2525
 
-import ArmyC2.C2SD.RendererPluginInterface.ISinglePointInfo
-import ArmyC2.C2SD.Utilities.*
+import armyc2.c5isr.renderer.MilStdIconRenderer
+import armyc2.c5isr.renderer.utilities.*
 import earth.worldwind.shape.TextAttributes
-import sec.web.renderer.SinglePoint2525Renderer
 import java.awt.Font
 
 /**
@@ -12,7 +11,7 @@ import java.awt.Font
  */
 actual object MilStd2525 {
     private const val GRAPHICS_LINE_WIDTH = 3f
-    private const val SYMBOL_OUTLINE_WIDTH = 1
+    private const val GRAPHICS_OUTLINE_WIDTH = 1f
 
     /**
      * Controls the symbol modifiers visibility threshold
@@ -23,20 +22,15 @@ actual object MilStd2525 {
      */
     actual var labelScaleThreshold = 4.0
     actual var graphicsLineWidth = GRAPHICS_LINE_WIDTH
-    var graphicsOutlineWidth = SYMBOL_OUTLINE_WIDTH.toFloat()
-    /**
-     * The actual rendering engine for the MIL-STD-2525 graphics.
-     */
-    private val renderer = SinglePoint2525Renderer()
-    private val rendererSettings = RendererSettings.getInstance()
+    var graphicsOutlineWidth = GRAPHICS_OUTLINE_WIDTH
 
     /**
     * Initializes the static MIL-STD-2525 symbol renderer.
     */
     init {
         // Establish the default rendering values.
-        // See: https://github.com/missioncommand/mil-sym-android/blob/master/Renderer/src/main/java/armyc2/c2sd/renderer/utilities/RendererSettings.java
-        rendererSettings.symbologyStandard = RendererSettings.Symbology_2525C
+        val rendererSettings = RendererSettings.getInstance()
+        rendererSettings.defaultPixelSize = 36
 
         // Depending on screen size and DPI you may want to change the font size.
         rendererSettings.setLabelFont("Arial", Font.BOLD, 8)
@@ -44,10 +38,7 @@ actual object MilStd2525 {
 
         // Configure modifier text output
         rendererSettings.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
-        rendererSettings.textOutlineWidth = 4
-
-        // Configure Single point symbol outline width
-        rendererSettings.singlePointSymbolOutlineWidth = SYMBOL_OUTLINE_WIDTH
+        rendererSettings.textBackgroundAutoColorThreshold = 75
     }
 
     /**
@@ -60,132 +51,84 @@ actual object MilStd2525 {
      * @return An ImageInfo object containing the symbol's bitmap and metadata; may be null
      */
     @JvmStatic
-    fun renderImage(symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?): ISinglePointInfo? {
-        val params = mutableMapOf<String, String>()
-        if (modifiers != null) {
-            params.putAll(modifiers)
-        }
-        if (attributes != null) {
-            params.putAll(attributes)
-        }
-        return renderer.render(symbolCode, params)
-    }
+    fun renderImage(
+        symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?
+    ): ImageInfo? = MilStdIconRenderer.getInstance().RenderIcon(
+        symbolCode, modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" } ?: emptyMap(), attributes ?: emptyMap()
+    )
 
     /**
-     * Get symbol text description and hierarchy reference.
+     * Get symbol text description and visual attributes like draw category, min points, max points, etc.
      */
     @JvmStatic
-    fun getSymbolDef(sidc: String): SymbolDef? = SymbolDefTable.getInstance()
-        .getSymbolDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
-
-    /**
-     * Get symbol visual attributes like draw category, min points, max points, etc.
-     */
-    @JvmStatic
-    fun getUnitDef(sidc: String): UnitDef? = UnitDefTable.getInstance()
-        .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
+    fun getMSLInfo(symbolID: String): MSInfo? = MSLookup.getInstance().getMSLInfo(symbolID)
 
     @JvmStatic
     fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
+        val rendererSettings = RendererSettings.getInstance()
         font = earth.worldwind.render.Font(rendererSettings.labelFont)
-        textColor.set(rendererSettings.labelForegroundColor.rgb)
-        outlineColor.set(rendererSettings.labelBackgroundColor.rgb)
-        outlineWidth = rendererSettings.textOutlineWidth.toFloat()
+//        textColor.set(rendererSettings.labelForegroundColor.rgb)
+//        outlineColor.set(rendererSettings.labelBackgroundColor.rgb)
+//        outlineWidth = rendererSettings.textOutlineWidth.toFloat()
     }
 
     @JvmStatic
-    actual fun getSimplifiedSymbolID(sidc: String) =
-        setAffiliation(SymbolUtilities.getBasicSymbolID(sidc), sidc.substring(1, 2))
+    actual fun getSimplifiedSymbolID(symbolID: String) = symbolID.substring(0, 6) + "0000" + symbolID.substring(10, 16) + "0000"
 
     @JvmStatic
-    actual fun isTacticalGraphic(sidc: String) = SymbolUtilities.isTacticalGraphic(sidc)
+    actual fun isTacticalGraphic(symbolID: String) = SymbolUtilities.isTacticalGraphic(symbolID)
 
     @JvmStatic
-    actual fun setAffiliation(sidc: String, affiliation: String?) =
-        // Weather symbols has no affiliation
-        if (sidc.length >= 2 && !SymbolUtilities.isWeather(sidc) && affiliation != null && affiliation.length == 1) {
-            val result = sidc.substring(0, 1) + affiliation.uppercase() + sidc.substring(2)
-            if (SymbolUtilities.hasValidAffiliation(result)) result else sidc
-        } else sidc
+    actual fun setAffiliation(symbolID: String, affiliation: String?) = affiliation?.toIntOrNull()?.let {
+        SymbolID.setAffiliation(symbolID, it)
+    } ?: symbolID
 
     @JvmStatic
-    actual fun setStatus(sidc: String, status: String?) =
-        // Weather symbols has no status
-        if (sidc.length >= 4 && !SymbolUtilities.isWeather(sidc) && status != null && status.length == 1) {
-            val result = sidc.substring(0, 3) + status.uppercase() + sidc.substring(4)
-            if (SymbolUtilities.hasValidStatus(result)) result else sidc
-        } else sidc
+    actual fun setStatus(symbolID: String, status: String?) = status?.toIntOrNull()?.let {
+        SymbolID.setStatus(symbolID, it)
+    } ?: symbolID
 
     @JvmStatic
-    actual fun setEchelon(sidc: String, echelon: String?): String {
-        val isTG = SymbolUtilities.isTacticalGraphic(sidc)
-        return if (sidc.length >= 12 && (isTG && SymbolUtilities.canSymbolHaveModifier(sidc, ModifiersTG.B_ECHELON)
-                    || !isTG && SymbolUtilities.canUnitHaveModifier(sidc, ModifiersUnits.B_ECHELON))
-            && echelon != null && echelon.length == 1 && SymbolUtilities.getEchelonText(echelon).isNotEmpty()
-        ) sidc.substring(0, 11) + echelon.uppercase() + sidc.substring(12) else sidc
-    }
+    actual fun setEchelon(symbolID: String, echelon: String?) = echelon?.toIntOrNull()?.let {
+        SymbolID.setAmplifierDescriptor(symbolID, it)
+    } ?: symbolID
 
     @JvmStatic
-    actual fun setSymbolModifier(
-        sidc: String, hq: Boolean, taskForce: Boolean, feintDummy: Boolean, installation: Boolean, mobility: String?
-    ): String {
-        var result = sidc
-        if (result.length >= 11 && !SymbolUtilities.isTacticalGraphic(result)) {
-            // Check if mobility is applicable
-            if (mobility != null && mobility.length == 2 && result.length >= 12
-                && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.R_MOBILITY_INDICATOR)
-            ) {
-                // Try applying mobility
-                val sidcWithMobility = result.substring(0, 10) + mobility.uppercase() + result.substring(12)
-                // Check if mobility is valid
-                if (SymbolUtilities.isMobility(sidcWithMobility)) result = sidcWithMobility
-            } else {
-                // Check if HQ, TaskForce, Feint or Dummy symbol modifiers are applicable
-                val isHQ = hq && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.S_HQ_STAFF_OR_OFFSET_INDICATOR)
-                val isTaskForce = taskForce && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.D_TASK_FORCE_INDICATOR)
-                val isDummy = feintDummy && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AB_FEINT_DUMMY_INDICATOR)
-                val isInstallation = installation && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AC_INSTALLATION)
-                val modifier = when {
-                    !isDummy && isHQ && !isTaskForce -> 'A' // HEADQUARTERS
-                    !isDummy && isHQ && isTaskForce -> 'B' // TASK FORCE + HEADQUARTERS
-                    isDummy && isHQ && !isTaskForce -> 'C' // FEINT/DUMMY + HEADQUARTERS
-                    isDummy && isHQ && isTaskForce -> 'D' // FEINT/DUMMY + TASK FORCE + HEADQUARTERS
-                    !isDummy && !isHQ && isTaskForce -> 'E' // TASK FORCE
-                    isDummy && !isHQ && !isTaskForce -> 'F' // FEINT/DUMMY
-                    isDummy && !isHQ && isTaskForce -> 'G' // FEINT/DUMMY + TASK FORCE
-                    else -> if (isInstallation) 'H' else null
-                }
-                // Apply symbol modifier
-                if (modifier != null) result = result.substring(0, 10) + modifier + result.substring(11)
-                // Fix Feint/Dummy modifier for installation
-                if (isDummy && result.length >= 12 && SymbolUtilities.hasInstallationModifier(result)) {
-                    result = result.substring(0, 11) + "B" + result.substring(12)
-                }
-            }
+    actual fun setMobility(symbolID: String, mobility: String?) = mobility?.toIntOrNull()?.let {
+        SymbolID.setAmplifierDescriptor(symbolID, it)
+    } ?: symbolID
+
+    @JvmStatic
+    actual fun setHQTFD(symbolID: String, hq: Boolean, taskForce: Boolean, feintDummy: Boolean): String {
+        val isHQ = hq && SymbolUtilities.isHQ(symbolID)
+        val isTaskForce = taskForce && SymbolUtilities.isTaskForce(symbolID)
+        val isDummy = feintDummy && SymbolUtilities.hasModifier(symbolID, Modifiers.AB_FEINT_DUMMY_INDICATOR)
+        val HQTFD = when {
+            isDummy && !isHQ && !isTaskForce -> 1 // FEINT/DUMMY
+            !isDummy && isHQ && !isTaskForce -> 2 // HEADQUARTERS
+            isDummy && isHQ && !isTaskForce -> 3 // FEINT/DUMMY + HEADQUARTERS
+            !isDummy && !isHQ && isTaskForce -> 4 // TASK FORCE
+            isDummy && !isHQ && isTaskForce -> 5 // FEINT/DUMMY + TASK FORCE
+            !isDummy && isHQ && isTaskForce -> 6 // TASK FORCE + HEADQUARTERS
+            isDummy && isHQ && isTaskForce -> 7 // FEINT/DUMMY + TASK FORCE + HEADQUARTERS
+            else -> 0
         }
-        return result
+        return SymbolID.setHQTFD(symbolID, HQTFD)
     }
 
     @JvmStatic
-    actual fun setCountryCode(sidc: String, countryCode: String?) =
-        if (sidc.length >= 14 && countryCode != null && countryCode.length == 2) {
-            val result = sidc.substring(0, 12) + countryCode.uppercase() + sidc.substring(14)
-            if (SymbolUtilities.hasValidCountryCode(result)) result else sidc
-        } else sidc
+    actual fun getLineColor(symbolID: String) = SymbolUtilities.getLineColorOfAffiliation(symbolID)?.rgb
+        ?: RendererSettings.getInstance().friendlyGraphicLineColor.rgb
 
     @JvmStatic
-    actual fun getLineColor(sidc: String) = SymbolUtilities.getLineColorOfAffiliation(sidc)?.rgb
-        ?: rendererSettings.friendlyGraphicLineColor.rgb
+    actual fun getFillColor(symbolID: String) = SymbolUtilities.getFillColorOfAffiliation(symbolID)?.rgb
+        ?: RendererSettings.getInstance().friendlyGraphicFillColor.rgb
 
     @JvmStatic
-    actual fun getFillColor(sidc: String) = SymbolUtilities.getFillColorOfAffiliation(sidc)?.rgb
-        ?: rendererSettings.friendlyGraphicFillColor.rgb
-
-    @JvmStatic
-    actual fun getUnfilledAttributes(sidc: String) = if (SymbolUtilities.isTacticalGraphic(sidc)) {
-        SymbolUtilities.getLineColorOfAffiliation(sidc)
+    actual fun getUnfilledAttributes(symbolID: String) = if (SymbolUtilities.isTacticalGraphic(symbolID)) {
+        SymbolUtilities.getLineColorOfAffiliation(symbolID)
     } else {
-        SymbolUtilities.getFillColorOfAffiliation(sidc)
+        SymbolUtilities.getFillColorOfAffiliation(symbolID)
     }?.rgb?.let {
         mapOf(
             MilStdAttributes.FillColor to "00000000",

@@ -1,11 +1,10 @@
 package earth.worldwind.shape.milstd2525
 
 import android.graphics.Typeface
-import android.util.SparseArray
-import armyc2.c2sd.JavaRendererServer.RenderMultipoints.clsRenderer
-import armyc2.c2sd.graphics2d.BasicStroke
-import armyc2.c2sd.graphics2d.Point2D
-import armyc2.c2sd.renderer.utilities.*
+import armyc2.c5isr.RenderMultipoints.clsRenderer
+import armyc2.c5isr.graphics2d.BasicStroke
+import armyc2.c5isr.graphics2d.Point2D
+import armyc2.c5isr.renderer.utilities.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Offset
@@ -20,19 +19,11 @@ import earth.worldwind.util.Logger
 import kotlin.math.roundToInt
 
 actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
-    sidc: String, locations: List<Location>,
+    symbolID: String, locations: List<Location>,
     boundingSector: Sector, modifiers: Map<String, String>?, attributes: Map<String, String>?
-) : AbstractMilStd2525TacticalGraphic(sidc, boundingSector, modifiers, attributes) {
+) : AbstractMilStd2525TacticalGraphic(symbolID, boundingSector, modifiers, attributes) {
     protected lateinit var controlPoints: ArrayList<Point2D>
     protected lateinit var pointUL: Point2D.Double
-
-    constructor(
-        locations: List<Location>, boundingSector: Sector, sidc: String,
-        modifiers: SparseArray<String>? = null, attributes: SparseArray<String>? = null
-    ): this(
-        sidc, locations, boundingSector,
-        MilStd2525.graphicModifiersFromSparseArray(modifiers), MilStd2525.attributesFromSparseArray(attributes)
-    )
 
     init {
         setAnchorLocations(locations)
@@ -75,10 +66,10 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
 //        val rect = if (width > 0 && height > 0) Rectangle2D.Double(leftTop.x, leftTop.y, width, height) else null
 
         // Create MilStd Symbol and render it
-        val mss = MilStdSymbol(sidc, null, controlPoints, null)
+        val mss = MilStdSymbol(symbolID, "", controlPoints, emptyMap())
         modifiers?.forEach { (key, value) ->
-            when (val modifierKey = ModifiersTG.getModifierKey(key)) {
-                ModifiersTG.AM_DISTANCE, ModifiersTG.AN_AZIMUTH, ModifiersTG.X_ALTITUDE_DEPTH -> {
+            when (val modifierKey = Modifiers.getModifierKey(key) ?: "") {
+                Modifiers.AM_DISTANCE, Modifiers.AN_AZIMUTH, Modifiers.X_ALTITUDE_DEPTH -> {
                     val elements = value.split(",")
                     for (j in elements.indices) mss.setModifier(modifierKey, elements[j], j)
                 }
@@ -86,9 +77,9 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
             }
         }
         attributes?.run {
-            mss.altitudeMode = get(MilStdAttributes.AltitudeMode.toString())
-            mss.altitudeUnit = DistanceUnit.parse(get(MilStdAttributes.AltitudeUnits.toString()))
-            mss.distanceUnit = DistanceUnit.parse(get(MilStdAttributes.DistanceUnits.toString()))
+            get(MilStdAttributes.AltitudeMode)?.let { mss.altitudeMode = it }
+            get(MilStdAttributes.AltitudeUnits)?.let { DistanceUnit.parse(it)?.let { mss.altitudeUnit = it } }
+            get(MilStdAttributes.DistanceUnits)?.let { DistanceUnit.parse(it)?.let { mss.distanceUnit = it } }
         }
         clsRenderer.renderWithPolylines(mss, ipc, null /*rect*/)
 
@@ -152,16 +143,16 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                     textColor = Color(mss.lineColor.toARGB())
                     textOffset = Offset.center()
                     font = Font(
-                        rs.mpModifierFontSize.toFloat(),
-                        Typeface.create(rs.mpModifierFontName, rs.mpModifierFontType)
+                        rs.mpLabelFontSize.toFloat(),
+                        Typeface.create(rs.mpLabelFontName, rs.mpLabelFontType)
                     )
                     outlineColor = Color(RendererUtilities.getIdealOutlineColor(mss.lineColor).toARGB())
                 }
-                val point = ipc.PixelsToGeo(si.modifierStringPosition ?: si.glyphPosition ?: return)
+                val point = ipc.PixelsToGeo(si.modifierPosition ?: si.glyphPosition ?: return)
                 val position = Position.fromDegrees(point.y, point.x, 0.0)
                 sector.union(position) // Extend bounding box by real graphics measures
                 val label = Label(position, si.modifierString, textAttributes)
-                applyLabelAttributes(label, si.modifierStringAngle.degrees)
+                applyLabelAttributes(label, si.modifierAngle.degrees)
                 shapes += label
             }
             else -> Logger.logMessage(Logger.ERROR, "MilStd2525TacticalGraphic", "convertShapeToRenderables", "unknownShapeType")

@@ -15,7 +15,7 @@ import kotlin.math.ln
 import kotlin.math.roundToInt
 
 abstract class AbstractMilStd2525TacticalGraphic(
-    protected val sidc: String, protected val boundingSector: Sector,
+    protected val symbolID: String, protected val boundingSector: Sector,
     modifiers: Map<String, String>?, attributes: Map<String, String>?,
 ) : AbstractSurfaceRenderable(boundingSector), Highlightable {
     override var isHighlighted = false

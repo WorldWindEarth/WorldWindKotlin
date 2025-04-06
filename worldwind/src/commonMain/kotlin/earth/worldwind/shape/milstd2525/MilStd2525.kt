@@ -5,16 +5,14 @@ expect object MilStd2525 {
     var labelScaleThreshold: Double
     var graphicsLineWidth: Float
         private set
-    fun getSimplifiedSymbolID(sidc: String): String
-    fun isTacticalGraphic(sidc: String): Boolean
-    fun setAffiliation(sidc: String, affiliation: String?): String
-    fun setStatus(sidc: String, status: String?): String
-    fun setEchelon(sidc: String, echelon: String?): String
-    fun setSymbolModifier(
-        sidc: String, hq: Boolean, taskForce: Boolean, feintDummy: Boolean, installation: Boolean, mobility: String?
-    ): String
-    fun setCountryCode(sidc: String, countryCode: String?): String
-    fun getLineColor(sidc: String): Int
-    fun getFillColor(sidc: String): Int
-    fun getUnfilledAttributes(sidc: String): Map<String, String>
+    fun getSimplifiedSymbolID(symbolID: String): String
+    fun isTacticalGraphic(symbolID: String): Boolean
+    fun setAffiliation(symbolID: String, affiliation: String?): String
+    fun setStatus(symbolID: String, status: String?): String
+    fun setEchelon(symbolID: String, echelon: String?): String
+    fun setMobility(symbolID: String, mobility: String?): String
+    fun setHQTFD(symbolID: String, hq: Boolean, taskForce: Boolean, feintDummy: Boolean): String
+    fun getLineColor(symbolID: String): Int
+    fun getFillColor(symbolID: String): Int
+    fun getUnfilledAttributes(symbolID: String): Map<String, String>
 }

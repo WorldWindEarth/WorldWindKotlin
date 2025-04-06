@@ -5,6 +5,10 @@ import earth.worldwind.geom.Position
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.PlacemarkAttributes
 import earth.worldwind.util.Logger
+import kotlinx.browser.document
+import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.Image
 
 /**
  * Constructs a MIL-STD-2525 Placemark with an appropriate level of detail for the current distance from the camera.
@@ -14,18 +18,18 @@ import earth.worldwind.util.Logger
  * See the [MilStd2525Placemark.getPlacemarkAttributes] for more information about resource caching/sharing.
  *
  * @param position The placemark's geographic position
- * @param symbolCode A 15-character alphanumeric identifier that provides the information necessary to display or
+ * @param symbolID A 20-character numeric identifier that provides the information necessary to display or
  * transmit a tactical symbol between MIL-STD-2525 compliant systems.
  * @param symbolModifiers An optional collection of unit or tactical graphic modifiers.
  * @param symbolAttributes An optional collection of rendering attributes.
  */
 actual open class MilStd2525Placemark actual constructor(
-    symbolCode: String,
+    symbolID: String,
     position: Position,
     symbolModifiers: Map<String, String>?,
     symbolAttributes: Map<String, String>?,
     lodSelector: LevelOfDetailSelector
-) : AbstractMilStd2525Placemark(symbolCode, position, symbolModifiers, symbolAttributes, lodSelector) {
+) : AbstractMilStd2525Placemark(symbolID, position, symbolModifiers, symbolAttributes, lodSelector) {
     actual companion object {
         /**
          * A cache of PlacemarkAttribute bundles containing MIL-STD-2525 symbols. Using a cache is essential for memory
@@ -44,9 +48,10 @@ actual open class MilStd2525Placemark actual constructor(
          * Creates a placemark attributes bundle containing a MIL-STD-2525 symbol using the specified modifiers and
          * attributes.
          *
-         * @param symbolCode The 15-character SIDC (symbol identification coding scheme) code.
-         * @param symbolModifiers The ModifierUnit (unit) or ModifierTG (tactical graphic) modifiers collection. May be null.
-         * @param symbolAttributes The MilStdAttributes attributes collection. May be null.
+         * @param symbolCode A 20-character numeric identifier that provides the information necessary to display or
+         * transmit a tactical symbol between MIL-STD-2525 compliant systems.
+         * @param symbolModifiers An optional collection of unit or tactical graphic modifiers.
+         * @param symbolAttributes An optional collection of rendering attributes.
          *
          * @return A new [PlacemarkAttributes] bundle representing the MIL-STD-2525 symbol.
          */
@@ -81,11 +86,20 @@ actual open class MilStd2525Placemark actual constructor(
         override val isRunBlocking = true
 
         override fun createImage() = MilStd2525.renderImage(symbolCode, symbolModifiers, symbolAttributes)?.let {
+            val symbolBounds = it.getSymbolBounds()
+            val imageBounds = it.getImageBounds()
             // Apply the computed image offset after the renderer has created the image. This is essential for proper
             // placement as the offset may change depending on the level of detail, for instance, the absence or
             // presence of text modifiers.
-            onRender(it.getCenterPoint().getX(), it.getCenterPoint().getY(), it.getSymbolBounds().getWidth(), it.getSymbolBounds().getHeight())
-            it.getImage()
+            onRender(it.getSymbolCenterX(), it.getSymbolCenterY(), symbolBounds.getWidth(), symbolBounds.getHeight())
+            val svgImage = Image(imageBounds.getWidth().toInt(), imageBounds.getHeight().toInt())
+            val canvas = document.createElement("canvas") as HTMLCanvasElement
+            canvas.width = imageBounds.getWidth().toInt()
+            canvas.height = imageBounds.getHeight().toInt()
+            val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
+            svgImage.onload = { ctx.drawImage(svgImage, 0.0, 0.0) }
+            svgImage.src = it.getSVGDataURI()
+            canvas
         } ?: run {
             Logger.logMessage(
                 Logger.ERROR, "MilStd2525Placemark", "createBitmap", "Failed to render image for $symbolCode"

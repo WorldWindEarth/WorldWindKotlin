@@ -24,10 +24,10 @@ actual open class MercatorImageTile actual constructor(
     sector: MercatorSector, level: Level, row: Int, column: Int
 ): AbstractMercatorImageTile(sector, level, row, column) {
     companion object {
-        val srcCanvas = document.createElement("canvas") as HTMLCanvasElement
-        val srcCtx = srcCanvas.getContext("2d", js("{ willReadFrequently: true }")) as CanvasRenderingContext2D
-        val dstCanvas = document.createElement("canvas") as HTMLCanvasElement
-        val dstCtx = dstCanvas.getContext("2d") as CanvasRenderingContext2D
+        private val srcCanvas = document.createElement("canvas") as HTMLCanvasElement
+        private val srcCtx = srcCanvas.getContext("2d", js("{ willReadFrequently: true }")) as CanvasRenderingContext2D
+        private val dstCanvas = document.createElement("canvas") as HTMLCanvasElement
+        private val dstCtx = dstCanvas.getContext("2d") as CanvasRenderingContext2D
     }
 
     override suspend fun <Resource> process(resource: Resource) = if (resource is Image) {

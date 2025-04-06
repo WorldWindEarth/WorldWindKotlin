@@ -39,7 +39,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.material)
-    implementation(libs.mil.sym.android)
 
     coreLibraryDesugaring(libs.desugar)
 }

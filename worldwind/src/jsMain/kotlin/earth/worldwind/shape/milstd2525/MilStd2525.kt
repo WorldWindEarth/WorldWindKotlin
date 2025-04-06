@@ -1,18 +1,17 @@
 package earth.worldwind.shape.milstd2525
 
-import android.content.Context
-import android.graphics.Typeface
-import armyc2.c5isr.renderer.MilStdIconRenderer
-import armyc2.c5isr.renderer.utilities.*
-import earth.worldwind.R
 import earth.worldwind.render.Font
 import earth.worldwind.shape.TextAttributes
+import earth.worldwind.shape.milstd2525.Font.Companion.getTypeString
 
 /**
  * This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library
- * @see <a href="https://github.com/missioncommand/mil-sym-android">https://github.com/missioncommand/mil-sym-android</a>
+ * @see <a href="https://github.com/missioncommand/mil-sym-js">https://github.com/missioncommand/mil-sym-js</a>
  */
 actual object MilStd2525 {
+    private const val GRAPHICS_LINE_WIDTH = 3f
+    private const val GRAPHICS_OUTLINE_WIDTH = 1f
+
     /**
      * Controls the symbol modifiers visibility threshold
      */
@@ -20,42 +19,25 @@ actual object MilStd2525 {
     /**
      * Controls the tactical graphics labels visibility threshold
      */
-    actual var labelScaleThreshold = 30.0
-    actual var graphicsLineWidth = 0f
-    var graphicsOutlineWidth = 0f
-    @JvmStatic
-    var isInitialized = false
-        private set
+    actual var labelScaleThreshold = 4.0
+    actual var graphicsLineWidth = GRAPHICS_LINE_WIDTH
+    var graphicsOutlineWidth = GRAPHICS_OUTLINE_WIDTH
 
-    /**
-     * Initializes the static MIL-STD-2525 symbol renderer.  This method must be called one time before calling
-     * renderImage().
-     *
-     * @param context The Context used to define the location of the renderer's cache directly.
-     */
-    @JvmStatic
-    @Synchronized
-    fun initializeRenderer(context: Context) {
-        if (isInitialized) return
+    init {
+        // Initialize resources
+        initialize("/files/")
 
-        // Establish the default rendering values.
+        // Initialize RendererSettings
         val rendererSettings = RendererSettings.getInstance()
-        rendererSettings.defaultPixelSize = context.resources.getDimensionPixelSize(R.dimen.default_pixel_size)
+        rendererSettings.setDefaultPixelSize(36)
 
         // Depending on screen size and DPI you may want to change the font size.
-        rendererSettings.setModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.modifier_font_size))
-        rendererSettings.setMPLabelFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.mp_modifier_font_size))
+        rendererSettings.setLabelFont("Arial", "normal", 8)
+        rendererSettings.setMPLabelFont("Arial", "normal", 12)
 
         // Configure modifier text output
-        rendererSettings.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
-        rendererSettings.textBackgroundAutoColorThreshold = 75
-
-        // Tell the renderer where the cache folder is located which is needed to process the embedded xml files.
-        MilStdIconRenderer.getInstance().init(context)
-        MSLookup.getInstance().init(context)
-        graphicsLineWidth = context.resources.getDimension(R.dimen.graphics_line_width)
-        graphicsOutlineWidth = context.resources.getDimension(R.dimen.graphics_outline_width)
-        isInitialized = true
+        rendererSettings.setTextBackgroundMethod(RendererSettings.TextBackgroundMethod_OUTLINE)
+        rendererSettings.setTextBackgroundAutoColorThreshold(75)
     }
 
     /**
@@ -67,56 +49,51 @@ actual object MilStd2525 {
      *
      * @return An ImageInfo object containing the symbol's bitmap and metadata; may be null
      */
-    @JvmStatic
     fun renderImage(
         symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?
-    ): ImageInfo? = MilStdIconRenderer.getInstance().RenderIcon(
+    ): SVGSymbolInfo? = MilStdIconRenderer.getInstance().RenderSVG(
         symbolCode, modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" } ?: emptyMap(), attributes ?: emptyMap()
     )
 
     /**
      * Get symbol text description and visual attributes like draw category, min points, max points, etc.
      */
-    @JvmStatic
     fun getMSLInfo(symbolID: String): MSInfo? = MSLookup.getInstance().getMSLInfo(symbolID)
 
-    @JvmStatic
     fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
         val rendererSettings = RendererSettings.getInstance()
-        val modifierFont = rendererSettings.modiferFont
-        font = Font(modifierFont.textSize, modifierFont.typeface)
-//        textColor.set(rendererSettings.labelForegroundColor)
-//        outlineColor.set(rendererSettings.labelBackgroundColor)
-//        outlineWidth = rendererSettings.textOutlineWidth.toFloat()
+        font = Font(
+            size = rendererSettings.getLabelFontSize().toInt(),
+            family = rendererSettings.getLabelFontName(),
+            weight = getTypeString(rendererSettings.getLabelFontType().toDouble())
+        )
+//        val foregroundColor = rendererSettings.getLabelForegroundColor() ?: Color(0, 0, 0)
+//        val backgroundColor = rendererSettings.getLabelBackgroundColor() ?: RendererUtilities.getIdealOutlineColor(foregroundColor)
+//        textColor.set(foregroundColor.toARGB().toInt())
+//        outlineColor.set(backgroundColor.toARGB().toInt())
+//        outlineWidth =  rendererSettings.getTextOutlineWidth().toFloat()
     }
 
-    @JvmStatic
     actual fun getSimplifiedSymbolID(symbolID: String) = symbolID.substring(0, 6) + "0000" + symbolID.substring(10, 16) + "0000"
 
-    @JvmStatic
     actual fun isTacticalGraphic(symbolID: String) = SymbolUtilities.isTacticalGraphic(symbolID)
 
-    @JvmStatic
     actual fun setAffiliation(symbolID: String, affiliation: String?) = affiliation?.toIntOrNull()?.let {
         SymbolID.setAffiliation(symbolID, it)
     } ?: symbolID
 
-    @JvmStatic
     actual fun setStatus(symbolID: String, status: String?) = status?.toIntOrNull()?.let {
         SymbolID.setStatus(symbolID, it)
     } ?: symbolID
 
-    @JvmStatic
     actual fun setEchelon(symbolID: String, echelon: String?) = echelon?.toIntOrNull()?.let {
         SymbolID.setAmplifierDescriptor(symbolID, it)
     } ?: symbolID
 
-    @JvmStatic
     actual fun setMobility(symbolID: String, mobility: String?) = mobility?.toIntOrNull()?.let {
         SymbolID.setAmplifierDescriptor(symbolID, it)
     } ?: symbolID
 
-    @JvmStatic
     actual fun setHQTFD(symbolID: String, hq: Boolean, taskForce: Boolean, feintDummy: Boolean): String {
         val isHQ = hq && SymbolUtilities.isHQ(symbolID)
         val isTaskForce = taskForce && SymbolUtilities.isTaskForce(symbolID)
@@ -134,24 +111,21 @@ actual object MilStd2525 {
         return SymbolID.setHQTFD(symbolID, HQTFD)
     }
 
-    @JvmStatic
-    actual fun getLineColor(symbolID: String) = SymbolUtilities.getLineColorOfAffiliation(symbolID)?.toARGB()
-        ?: AffiliationColors.FriendlyGraphicLineColor.toARGB()
+    actual fun getLineColor(symbolID: String) = SymbolUtilities.getLineColorOfAffiliation(symbolID)?.toARGB()?.toInt()
+        ?: RendererSettings.getInstance().getFriendlyGraphicLineColor().toARGB().toInt()
 
-    @JvmStatic
-    actual fun getFillColor(symbolID: String) = SymbolUtilities.getFillColorOfAffiliation(symbolID)?.toARGB()
-        ?: AffiliationColors.FriendlyGraphicFillColor.toARGB()
+    actual fun getFillColor(symbolID: String) = SymbolUtilities.getFillColorOfAffiliation(symbolID)?.toARGB()?.toInt()
+        ?: RendererSettings.getInstance().getFriendlyGraphicFillColor().toARGB().toInt()
 
-    @JvmStatic
-    actual fun getUnfilledAttributes(symbolID: String) = if (SymbolUtilities.isTacticalGraphic(symbolID)) {
+    actual fun getUnfilledAttributes(symbolID: String) = if (isTacticalGraphic(symbolID)) {
         SymbolUtilities.getLineColorOfAffiliation(symbolID)
     } else {
         SymbolUtilities.getFillColorOfAffiliation(symbolID)
-    }?.toHexString()?.let {
+    }?.toHexString(true)?.let {
         mapOf(
-            MilStdAttributes.FillColor.toString() to "00000000",
-            MilStdAttributes.LineColor.toString() to it,
-            MilStdAttributes.IconColor.toString() to it
+            MilStdAttributes.FillColor to "00000000",
+            MilStdAttributes.LineColor to it,
+            MilStdAttributes.IconColor to it
         )
     } ?: emptyMap()
 }

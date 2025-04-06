@@ -19,8 +19,8 @@ allprojects {
     version = "1.7.4"
 
     extra.apply {
-        set("minSdk", 21)
-        set("targetSdk", 34)
+        set("minSdk", 24)
+        set("targetSdk", 35)
         set("versionCode", 15)
     }
 

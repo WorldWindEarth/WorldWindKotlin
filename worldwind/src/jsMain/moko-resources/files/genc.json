@@ -1,0 +1,1407 @@
+ {
+  "genc": {
+    "countries": 
+
+[
+  {
+    "3char": "AFG",
+    "numeric": "4",
+    "name": "AFGHANISTAN"
+  },
+  {
+    "3char": "XQZ",
+    "numeric": "900",
+    "name": "AKROTIRI"
+  },
+  {
+    "3char": "ALB",
+    "numeric": "8",
+    "name": "ALBANIA"
+  },
+  {
+    "3char": "DZA",
+    "numeric": "12",
+    "name": "ALGERIA"
+  },
+  {
+    "3char": "ASM",
+    "numeric": "16",
+    "name": "AMERICAN SAMOA"
+  },
+  {
+    "3char": "AND",
+    "numeric": "20",
+    "name": "ANDORRA"
+  },
+  {
+    "3char": "AGO",
+    "numeric": "24",
+    "name": "ANGOLA"
+  },
+  {
+    "3char": "AIA",
+    "numeric": "660",
+    "name": "ANGUILLA"
+  },
+  {
+    "3char": "ATA",
+    "numeric": "10",
+    "name": "ANTARCTICA"
+  },
+  {
+    "3char": "ATG",
+    "numeric": "28",
+    "name": "ANTIGUA AND BARBUDA"
+  },
+  {
+    "3char": "ARG",
+    "numeric": "32",
+    "name": "ARGENTINA"
+  },
+  {
+    "3char": "ARM",
+    "numeric": "51",
+    "name": "ARMENIA"
+  },
+  {
+    "3char": "ABW",
+    "numeric": "533",
+    "name": "ARUBA"
+  },
+  {
+    "3char": "XAC",
+    "numeric": "902",
+    "name": "ASHMORE AND CARTIER ISLANDS"
+  },
+  {
+    "3char": "AUS",
+    "numeric": "36",
+    "name": "AUSTRALIA"
+  },
+  {
+    "3char": "AUT",
+    "numeric": "40",
+    "name": "AUSTRIA"
+  },
+  {
+    "3char": "AZE",
+    "numeric": "31",
+    "name": "AZERBAIJAN"
+  },
+  {
+    "3char": "BHS",
+    "numeric": "44",
+    "name": "BAHAMAS, THE"
+  },
+  {
+    "3char": "BHR",
+    "numeric": "48",
+    "name": "BAHRAIN"
+  },
+  {
+    "3char": "XBK",
+    "numeric": "903",
+    "name": "BAKER ISLAND"
+  },
+  {
+    "3char": "BGD",
+    "numeric": "50",
+    "name": "BANGLADESH"
+  },
+  {
+    "3char": "BRB",
+    "numeric": "52",
+    "name": "BARBADOS"
+  },
+  {
+    "3char": "XBI",
+    "numeric": "904",
+    "name": "BASSAS DA INDIA"
+  },
+  {
+    "3char": "BLR",
+    "numeric": "112",
+    "name": "BELARUS"
+  },
+  {
+    "3char": "BEL",
+    "numeric": "56",
+    "name": "BELGIUM"
+  },
+  {
+    "3char": "BLZ",
+    "numeric": "84",
+    "name": "BELIZE"
+  },
+  {
+    "3char": "BEN",
+    "numeric": "204",
+    "name": "BENIN"
+  },
+  {
+    "3char": "BMU",
+    "numeric": "60",
+    "name": "BERMUDA"
+  },
+  {
+    "3char": "BTN",
+    "numeric": "64",
+    "name": "BHUTAN"
+  },
+  {
+    "3char": "BOL",
+    "numeric": "68",
+    "name": "BOLIVIA"
+  },
+  {
+    "3char": "BES",
+    "numeric": "535",
+    "name": "BONAIRE, SINT EUSTATIUS, AND SABA"
+  },
+  {
+    "3char": "BIH",
+    "numeric": "70",
+    "name": "BOSNIA AND HERZEGOVINA"
+  },
+  {
+    "3char": "BWA",
+    "numeric": "72",
+    "name": "BOTSWANA"
+  },
+  {
+    "3char": "BVT",
+    "numeric": "74",
+    "name": "BOUVET ISLAND"
+  },
+  {
+    "3char": "BRA",
+    "numeric": "76",
+    "name": "BRAZIL"
+  },
+  {
+    "3char": "IOT",
+    "numeric": "86",
+    "name": "BRITISH INDIAN OCEAN TERRITORY"
+  },
+  {
+    "3char": "BRN",
+    "numeric": "96",
+    "name": "BRUNEI"
+  },
+  {
+    "3char": "BGR",
+    "numeric": "100",
+    "name": "BULGARIA"
+  },
+  {
+    "3char": "BFA",
+    "numeric": "854",
+    "name": "BURKINA FASO"
+  },
+  {
+    "3char": "MMR",
+    "numeric": "104",
+    "name": "BURMA"
+  },
+  {
+    "3char": "BDI",
+    "numeric": "108",
+    "name": "BURUNDI"
+  },
+  {
+    "3char": "CPV",
+    "numeric": "132",
+    "name": "CABO VERDE"
+  },
+  {
+    "3char": "KHM",
+    "numeric": "116",
+    "name": "CAMBODIA"
+  },
+  {
+    "3char": "CMR",
+    "numeric": "120",
+    "name": "CAMEROON"
+  },
+  {
+    "3char": "CAN",
+    "numeric": "124",
+    "name": "CANADA"
+  },
+  {
+    "3char": "CYM",
+    "numeric": "136",
+    "name": "CAYMAN ISLANDS"
+  },
+  {
+    "3char": "CAF",
+    "numeric": "140",
+    "name": "CENTRAL AFRICAN REPUBLIC"
+  },
+  {
+    "3char": "TCD",
+    "numeric": "148",
+    "name": "CHAD"
+  },
+  {
+    "3char": "CHL",
+    "numeric": "152",
+    "name": "CHILE"
+  },
+  {
+    "3char": "CHN",
+    "numeric": "156",
+    "name": "CHINA"
+  },
+  {
+    "3char": "CXR",
+    "numeric": "162",
+    "name": "CHRISTMAS ISLAND"
+  },
+  {
+    "3char": "CPT",
+    "numeric": "905",
+    "name": "CLIPPERTON ISLAND"
+  },
+  {
+    "3char": "CCK",
+    "numeric": "166",
+    "name": "COCOS (KEELING) ISLANDS"
+  },
+  {
+    "3char": "COL",
+    "numeric": "170",
+    "name": "COLOMBIA"
+  },
+  {
+    "3char": "COM",
+    "numeric": "174",
+    "name": "COMOROS"
+  },
+  {
+    "3char": "COG",
+    "numeric": "178",
+    "name": "CONGO (BRAZZAVILLE)"
+  },
+  {
+    "3char": "COD",
+    "numeric": "180",
+    "name": "CONGO (KINSHASA)"
+  },
+  {
+    "3char": "COK",
+    "numeric": "184",
+    "name": "COOK ISLANDS"
+  },
+  {
+    "3char": "XCS",
+    "numeric": "906",
+    "name": "CORAL SEA ISLANDS"
+  },
+  {
+    "3char": "CRI",
+    "numeric": "188",
+    "name": "COSTA RICA"
+  },
+  {
+    "3char": "CIV",
+    "numeric": "384",
+    "name": "CÔTE D’IVOIRE"
+  },
+  {
+    "3char": "HRV",
+    "numeric": "191",
+    "name": "CROATIA"
+  },
+  {
+    "3char": "CUB",
+    "numeric": "192",
+    "name": "CUBA"
+  },
+  {
+    "3char": "CUW",
+    "numeric": "531",
+    "name": "CURAÇAO"
+  },
+  {
+    "3char": "CYP",
+    "numeric": "196",
+    "name": "CYPRUS"
+  },
+  {
+    "3char": "CZE",
+    "numeric": "203",
+    "name": "CZECHIA"
+  },
+  {
+    "3char": "DNK",
+    "numeric": "208",
+    "name": "DENMARK"
+  },
+  {
+    "3char": "XXD",
+    "numeric": "907",
+    "name": "DHEKELIA"
+  },
+  {
+    "3char": "DGA",
+    "numeric": "908",
+    "name": "DIEGO GARCIA"
+  },
+  {
+    "3char": "DJI",
+    "numeric": "262",
+    "name": "DJIBOUTI"
+  },
+  {
+    "3char": "DMA",
+    "numeric": "212",
+    "name": "DOMINICA"
+  },
+  {
+    "3char": "DOM",
+    "numeric": "214",
+    "name": "DOMINICAN REPUBLIC"
+  },
+  {
+    "3char": "ECU",
+    "numeric": "218",
+    "name": "ECUADOR"
+  },
+  {
+    "3char": "EGY",
+    "numeric": "818",
+    "name": "EGYPT"
+  },
+  {
+    "3char": "SLV",
+    "numeric": "222",
+    "name": "EL SALVADOR"
+  },
+  {
+    "3char": "XAZ",
+    "numeric": "909",
+    "name": "ENTITY 1"
+  },
+  {
+    "3char": "XCR",
+    "numeric": "910",
+    "name": "ENTITY 2"
+  },
+  {
+    "3char": "XCY",
+    "numeric": "911",
+    "name": "ENTITY 3"
+  },
+  {
+    "3char": "XKM",
+    "numeric": "912",
+    "name": "ENTITY 4"
+  },
+  {
+    "3char": "XKN",
+    "numeric": "913",
+    "name": "ENTITY 5"
+  },
+  {
+    "3char": "AX3",
+    "numeric": "914",
+    "name": "ENTITY 6"
+  },
+  {
+    "3char": "GNQ",
+    "numeric": "226",
+    "name": "EQUATORIAL GUINEA"
+  },
+  {
+    "3char": "ERI",
+    "numeric": "232",
+    "name": "ERITREA"
+  },
+  {
+    "3char": "EST",
+    "numeric": "233",
+    "name": "ESTONIA"
+  },
+  {
+    "3char": "SWZ",
+    "numeric": "748",
+    "name": "ESWATINI"
+  },
+  {
+    "3char": "ETH",
+    "numeric": "231",
+    "name": "ETHIOPIA"
+  },
+  {
+    "3char": "XEU",
+    "numeric": "915",
+    "name": "EUROPA ISLAND"
+  },
+  {
+    "3char": "FLK",
+    "numeric": "238",
+    "name": "FALKLAND ISLANDS (ISLAS MALVINAS)"
+  },
+  {
+    "3char": "FRO",
+    "numeric": "234",
+    "name": "FAROE ISLANDS"
+  },
+  {
+    "3char": "FJI",
+    "numeric": "242",
+    "name": "FIJI"
+  },
+  {
+    "3char": "FIN",
+    "numeric": "246",
+    "name": "FINLAND"
+  },
+  {
+    "3char": "FRA",
+    "numeric": "250",
+    "name": "FRANCE"
+  },
+  {
+    "3char": "GUF",
+    "numeric": "254",
+    "name": "FRENCH GUIANA"
+  },
+  {
+    "3char": "PYF",
+    "numeric": "258",
+    "name": "FRENCH POLYNESIA"
+  },
+  {
+    "3char": "ATF",
+    "numeric": "260",
+    "name": "FRENCH SOUTHERN AND ANTARCTIC LANDS"
+  },
+  {
+    "3char": "GAB",
+    "numeric": "266",
+    "name": "GABON"
+  },
+  {
+    "3char": "GMB",
+    "numeric": "270",
+    "name": "GAMBIA, THE"
+  },
+  {
+    "3char": "XGZ",
+    "numeric": "916",
+    "name": "GAZA STRIP"
+  },
+  {
+    "3char": "GEO",
+    "numeric": "268",
+    "name": "GEORGIA"
+  },
+  {
+    "3char": "DEU",
+    "numeric": "276",
+    "name": "GERMANY"
+  },
+  {
+    "3char": "GHA",
+    "numeric": "288",
+    "name": "GHANA"
+  },
+  {
+    "3char": "GIB",
+    "numeric": "292",
+    "name": "GIBRALTAR"
+  },
+  {
+    "3char": "XGL",
+    "numeric": "917",
+    "name": "GLORIOSO ISLANDS"
+  },
+  {
+    "3char": "GRC",
+    "numeric": "300",
+    "name": "GREECE"
+  },
+  {
+    "3char": "GRL",
+    "numeric": "304",
+    "name": "GREENLAND"
+  },
+  {
+    "3char": "GRD",
+    "numeric": "308",
+    "name": "GRENADA"
+  },
+  {
+    "3char": "GLP",
+    "numeric": "312",
+    "name": "GUADELOUPE"
+  },
+  {
+    "3char": "GUM",
+    "numeric": "316",
+    "name": "GUAM"
+  },
+  {
+    "3char": "AX2",
+    "numeric": "918",
+    "name": "GUANTANAMO BAY NAVAL BASE"
+  },
+  {
+    "3char": "GTM",
+    "numeric": "320",
+    "name": "GUATEMALA"
+  },
+  {
+    "3char": "GGY",
+    "numeric": "831",
+    "name": "GUERNSEY"
+  },
+  {
+    "3char": "GIN",
+    "numeric": "324",
+    "name": "GUINEA"
+  },
+  {
+    "3char": "GNB",
+    "numeric": "624",
+    "name": "GUINEA-BISSAU"
+  },
+  {
+    "3char": "GUY",
+    "numeric": "328",
+    "name": "GUYANA"
+  },
+  {
+    "3char": "HTI",
+    "numeric": "332",
+    "name": "HAITI"
+  },
+  {
+    "3char": "HMD",
+    "numeric": "334",
+    "name": "HEARD ISLAND AND MCDONALD ISLANDS"
+  },
+  {
+    "3char": "HND",
+    "numeric": "340",
+    "name": "HONDURAS"
+  },
+  {
+    "3char": "HKG",
+    "numeric": "344",
+    "name": "HONG KONG"
+  },
+  {
+    "3char": "XHO",
+    "numeric": "919",
+    "name": "HOWLAND ISLAND"
+  },
+  {
+    "3char": "HUN",
+    "numeric": "348",
+    "name": "HUNGARY"
+  },
+  {
+    "3char": "ISL",
+    "numeric": "352",
+    "name": "ICELAND"
+  },
+  {
+    "3char": "IND",
+    "numeric": "356",
+    "name": "INDIA"
+  },
+  {
+    "3char": "IDN",
+    "numeric": "360",
+    "name": "INDONESIA"
+  },
+  {
+    "3char": "IRN",
+    "numeric": "364",
+    "name": "IRAN"
+  },
+  {
+    "3char": "IRQ",
+    "numeric": "368",
+    "name": "IRAQ"
+  },
+  {
+    "3char": "IRL",
+    "numeric": "372",
+    "name": "IRELAND"
+  },
+  {
+    "3char": "IMN",
+    "numeric": "833",
+    "name": "ISLE OF MAN"
+  },
+  {
+    "3char": "ISR",
+    "numeric": "376",
+    "name": "ISRAEL"
+  },
+  {
+    "3char": "ITA",
+    "numeric": "380",
+    "name": "ITALY"
+  },
+  {
+    "3char": "JAM",
+    "numeric": "388",
+    "name": "JAMAICA"
+  },
+  {
+    "3char": "XJM",
+    "numeric": "920",
+    "name": "JAN MAYEN"
+  },
+  {
+    "3char": "JPN",
+    "numeric": "392",
+    "name": "JAPAN"
+  },
+  {
+    "3char": "XJV",
+    "numeric": "921",
+    "name": "JARVIS ISLAND"
+  },
+  {
+    "3char": "JEY",
+    "numeric": "832",
+    "name": "JERSEY"
+  },
+  {
+    "3char": "XJA",
+    "numeric": "922",
+    "name": "JOHNSTON ATOLL"
+  },
+  {
+    "3char": "JOR",
+    "numeric": "400",
+    "name": "JORDAN"
+  },
+  {
+    "3char": "XJN",
+    "numeric": "923",
+    "name": "JUAN DE NOVA ISLAND"
+  },
+  {
+    "3char": "KAZ",
+    "numeric": "398",
+    "name": "KAZAKHSTAN"
+  },
+  {
+    "3char": "KEN",
+    "numeric": "404",
+    "name": "KENYA"
+  },
+  {
+    "3char": "XKR",
+    "numeric": "924",
+    "name": "KINGMAN REEF"
+  },
+  {
+    "3char": "KIR",
+    "numeric": "296",
+    "name": "KIRIBATI"
+  },
+  {
+    "3char": "PRK",
+    "numeric": "408",
+    "name": "KOREA, NORTH"
+  },
+  {
+    "3char": "KOR",
+    "numeric": "410",
+    "name": "KOREA, SOUTH"
+  },
+  {
+    "3char": "XKS",
+    "numeric": "901",
+    "name": "KOSOVO"
+  },
+  {
+    "3char": "KWT",
+    "numeric": "414",
+    "name": "KUWAIT"
+  },
+  {
+    "3char": "KGZ",
+    "numeric": "417",
+    "name": "KYRGYZSTAN"
+  },
+  {
+    "3char": "LAO",
+    "numeric": "418",
+    "name": "LAOS"
+  },
+  {
+    "3char": "LVA",
+    "numeric": "428",
+    "name": "LATVIA"
+  },
+  {
+    "3char": "LBN",
+    "numeric": "422",
+    "name": "LEBANON"
+  },
+  {
+    "3char": "LSO",
+    "numeric": "426",
+    "name": "LESOTHO"
+  },
+  {
+    "3char": "LBR",
+    "numeric": "430",
+    "name": "LIBERIA"
+  },
+  {
+    "3char": "LBY",
+    "numeric": "434",
+    "name": "LIBYA"
+  },
+  {
+    "3char": "LIE",
+    "numeric": "438",
+    "name": "LIECHTENSTEIN"
+  },
+  {
+    "3char": "LTU",
+    "numeric": "440",
+    "name": "LITHUANIA"
+  },
+  {
+    "3char": "LUX",
+    "numeric": "442",
+    "name": "LUXEMBOURG"
+  },
+  {
+    "3char": "MAC",
+    "numeric": "446",
+    "name": "MACAU"
+  },
+  {
+    "3char": "MDG",
+    "numeric": "450",
+    "name": "MADAGASCAR"
+  },
+  {
+    "3char": "MWI",
+    "numeric": "454",
+    "name": "MALAWI"
+  },
+  {
+    "3char": "MYS",
+    "numeric": "458",
+    "name": "MALAYSIA"
+  },
+  {
+    "3char": "MDV",
+    "numeric": "462",
+    "name": "MALDIVES"
+  },
+  {
+    "3char": "MLI",
+    "numeric": "466",
+    "name": "MALI"
+  },
+  {
+    "3char": "MLT",
+    "numeric": "470",
+    "name": "MALTA"
+  },
+  {
+    "3char": "MHL",
+    "numeric": "584",
+    "name": "MARSHALL ISLANDS"
+  },
+  {
+    "3char": "MTQ",
+    "numeric": "474",
+    "name": "MARTINIQUE"
+  },
+  {
+    "3char": "MRT",
+    "numeric": "478",
+    "name": "MAURITANIA"
+  },
+  {
+    "3char": "MUS",
+    "numeric": "480",
+    "name": "MAURITIUS"
+  },
+  {
+    "3char": "MYT",
+    "numeric": "175",
+    "name": "MAYOTTE"
+  },
+  {
+    "3char": "MEX",
+    "numeric": "484",
+    "name": "MEXICO"
+  },
+  {
+    "3char": "FSM",
+    "numeric": "583",
+    "name": "MICRONESIA, FEDERATED STATES OF"
+  },
+  {
+    "3char": "XMW",
+    "numeric": "925",
+    "name": "MIDWAY ISLANDS"
+  },
+  {
+    "3char": "MDA",
+    "numeric": "498",
+    "name": "MOLDOVA"
+  },
+  {
+    "3char": "MCO",
+    "numeric": "492",
+    "name": "MONACO"
+  },
+  {
+    "3char": "MNG",
+    "numeric": "496",
+    "name": "MONGOLIA"
+  },
+  {
+    "3char": "MNE",
+    "numeric": "499",
+    "name": "MONTENEGRO"
+  },
+  {
+    "3char": "MSR",
+    "numeric": "500",
+    "name": "MONTSERRAT"
+  },
+  {
+    "3char": "MAR",
+    "numeric": "504",
+    "name": "MOROCCO"
+  },
+  {
+    "3char": "MOZ",
+    "numeric": "508",
+    "name": "MOZAMBIQUE"
+  },
+  {
+    "3char": "NAM",
+    "numeric": "516",
+    "name": "NAMIBIA"
+  },
+  {
+    "3char": "NRU",
+    "numeric": "520",
+    "name": "NAURU"
+  },
+  {
+    "3char": "XNV",
+    "numeric": "926",
+    "name": "NAVASSA ISLAND"
+  },
+  {
+    "3char": "NPL",
+    "numeric": "524",
+    "name": "NEPAL"
+  },
+  {
+    "3char": "NLD",
+    "numeric": "528",
+    "name": "NETHERLANDS"
+  },
+  {
+    "3char": "NCL",
+    "numeric": "540",
+    "name": "NEW CALEDONIA"
+  },
+  {
+    "3char": "NZL",
+    "numeric": "554",
+    "name": "NEW ZEALAND"
+  },
+  {
+    "3char": "NIC",
+    "numeric": "558",
+    "name": "NICARAGUA"
+  },
+  {
+    "3char": "NER",
+    "numeric": "562",
+    "name": "NIGER"
+  },
+  {
+    "3char": "NGA",
+    "numeric": "566",
+    "name": "NIGERIA"
+  },
+  {
+    "3char": "NIU",
+    "numeric": "570",
+    "name": "NIUE"
+  },
+  {
+    "3char": "NFK",
+    "numeric": "574",
+    "name": "NORFOLK ISLAND"
+  },
+  {
+    "3char": "MKD",
+    "numeric": "807",
+    "name": "NORTH MACEDONIA"
+  },
+  {
+    "3char": "MNP",
+    "numeric": "580",
+    "name": "NORTHERN MARIANA ISLANDS"
+  },
+  {
+    "3char": "NOR",
+    "numeric": "578",
+    "name": "NORWAY"
+  },
+  {
+    "3char": "OMN",
+    "numeric": "512",
+    "name": "OMAN"
+  },
+  {
+    "3char": "PAK",
+    "numeric": "586",
+    "name": "PAKISTAN"
+  },
+  {
+    "3char": "PLW",
+    "numeric": "585",
+    "name": "PALAU"
+  },
+  {
+    "3char": "XPL",
+    "numeric": "927",
+    "name": "PALMYRA ATOLL"
+  },
+  {
+    "3char": "PAN",
+    "numeric": "591",
+    "name": "PANAMA"
+  },
+  {
+    "3char": "PNG",
+    "numeric": "598",
+    "name": "PAPUA NEW GUINEA"
+  },
+  {
+    "3char": "XPR",
+    "numeric": "928",
+    "name": "PARACEL ISLANDS"
+  },
+  {
+    "3char": "PRY",
+    "numeric": "600",
+    "name": "PARAGUAY"
+  },
+  {
+    "3char": "PER",
+    "numeric": "604",
+    "name": "PERU"
+  },
+  {
+    "3char": "PHL",
+    "numeric": "608",
+    "name": "PHILIPPINES"
+  },
+  {
+    "3char": "PCN",
+    "numeric": "612",
+    "name": "PITCAIRN ISLANDS"
+  },
+  {
+    "3char": "POL",
+    "numeric": "616",
+    "name": "POLAND"
+  },
+  {
+    "3char": "PRT",
+    "numeric": "620",
+    "name": "PORTUGAL"
+  },
+  {
+    "3char": "PRI",
+    "numeric": "630",
+    "name": "PUERTO RICO"
+  },
+  {
+    "3char": "QAT",
+    "numeric": "634",
+    "name": "QATAR"
+  },
+  {
+    "3char": "REU",
+    "numeric": "638",
+    "name": "REUNION"
+  },
+  {
+    "3char": "ROU",
+    "numeric": "642",
+    "name": "ROMANIA"
+  },
+  {
+    "3char": "RUS",
+    "numeric": "643",
+    "name": "RUSSIA"
+  },
+  {
+    "3char": "RWA",
+    "numeric": "646",
+    "name": "RWANDA"
+  },
+  {
+    "3char": "BLM",
+    "numeric": "652",
+    "name": "SAINT BARTHELEMY"
+  },
+  {
+    "3char": "SHN",
+    "numeric": "654",
+    "name": "SAINT HELENA, ASCENSION, AND TRISTAN DA CUNHA"
+  },
+  {
+    "3char": "KNA",
+    "numeric": "659",
+    "name": "SAINT KITTS AND NEVIS"
+  },
+  {
+    "3char": "LCA",
+    "numeric": "662",
+    "name": "SAINT LUCIA"
+  },
+  {
+    "3char": "MAF",
+    "numeric": "663",
+    "name": "SAINT MARTIN"
+  },
+  {
+    "3char": "SPM",
+    "numeric": "666",
+    "name": "SAINT PIERRE AND MIQUELON"
+  },
+  {
+    "3char": "VCT",
+    "numeric": "670",
+    "name": "SAINT VINCENT AND THE GRENADINES"
+  },
+  {
+    "3char": "WSM",
+    "numeric": "882",
+    "name": "SAMOA"
+  },
+  {
+    "3char": "SMR",
+    "numeric": "674",
+    "name": "SAN MARINO"
+  },
+  {
+    "3char": "STP",
+    "numeric": "678",
+    "name": "SAO TOME AND PRINCIPE"
+  },
+  {
+    "3char": "SAU",
+    "numeric": "682",
+    "name": "SAUDI ARABIA"
+  },
+  {
+    "3char": "SEN",
+    "numeric": "686",
+    "name": "SENEGAL"
+  },
+  {
+    "3char": "SRB",
+    "numeric": "688",
+    "name": "SERBIA"
+  },
+  {
+    "3char": "SYC",
+    "numeric": "690",
+    "name": "SEYCHELLES"
+  },
+  {
+    "3char": "SLE",
+    "numeric": "694",
+    "name": "SIERRA LEONE"
+  },
+  {
+    "3char": "SGP",
+    "numeric": "702",
+    "name": "SINGAPORE"
+  },
+  {
+    "3char": "SXM",
+    "numeric": "534",
+    "name": "SINT MAARTEN"
+  },
+  {
+    "3char": "SVK",
+    "numeric": "703",
+    "name": "SLOVAKIA"
+  },
+  {
+    "3char": "SVN",
+    "numeric": "705",
+    "name": "SLOVENIA"
+  },
+  {
+    "3char": "SLB",
+    "numeric": "90",
+    "name": "SOLOMON ISLANDS"
+  },
+  {
+    "3char": "SOM",
+    "numeric": "706",
+    "name": "SOMALIA"
+  },
+  {
+    "3char": "ZAF",
+    "numeric": "710",
+    "name": "SOUTH AFRICA"
+  },
+  {
+    "3char": "SGS",
+    "numeric": "239",
+    "name": "SOUTH GEORGIA AND SOUTH SANDWICH ISLANDS"
+  },
+  {
+    "3char": "SSD",
+    "numeric": "728",
+    "name": "SOUTH SUDAN"
+  },
+  {
+    "3char": "ESP",
+    "numeric": "724",
+    "name": "SPAIN"
+  },
+  {
+    "3char": "XSP",
+    "numeric": "929",
+    "name": "SPRATLY ISLANDS"
+  },
+  {
+    "3char": "LKA",
+    "numeric": "144",
+    "name": "SRI LANKA"
+  },
+  {
+    "3char": "SDN",
+    "numeric": "729",
+    "name": "SUDAN"
+  },
+  {
+    "3char": "SUR",
+    "numeric": "740",
+    "name": "SURINAME"
+  },
+  {
+    "3char": "XSV",
+    "numeric": "930",
+    "name": "SVALBARD"
+  },
+  {
+    "3char": "SWE",
+    "numeric": "752",
+    "name": "SWEDEN"
+  },
+  {
+    "3char": "CHE",
+    "numeric": "756",
+    "name": "SWITZERLAND"
+  },
+  {
+    "3char": "SYR",
+    "numeric": "760",
+    "name": "SYRIA"
+  },
+  {
+    "3char": "TWN",
+    "numeric": "158",
+    "name": "TAIWAN"
+  },
+  {
+    "3char": "TJK",
+    "numeric": "762",
+    "name": "TAJIKISTAN"
+  },
+  {
+    "3char": "TZA",
+    "numeric": "834",
+    "name": "TANZANIA"
+  },
+  {
+    "3char": "THA",
+    "numeric": "764",
+    "name": "THAILAND"
+  },
+  {
+    "3char": "TLS",
+    "numeric": "626",
+    "name": "TIMOR-LESTE"
+  },
+  {
+    "3char": "TGO",
+    "numeric": "768",
+    "name": "TOGO"
+  },
+  {
+    "3char": "TKL",
+    "numeric": "772",
+    "name": "TOKELAU"
+  },
+  {
+    "3char": "TON",
+    "numeric": "776",
+    "name": "TONGA"
+  },
+  {
+    "3char": "TTO",
+    "numeric": "780",
+    "name": "TRINIDAD AND TOBAGO"
+  },
+  {
+    "3char": "XTR",
+    "numeric": "931",
+    "name": "TROMELIN ISLAND"
+  },
+  {
+    "3char": "TUN",
+    "numeric": "788",
+    "name": "TUNISIA"
+  },
+  {
+    "3char": "TUR",
+    "numeric": "792",
+    "name": "TURKEY"
+  },
+  {
+    "3char": "TKM",
+    "numeric": "795",
+    "name": "TURKMENISTAN"
+  },
+  {
+    "3char": "TCA",
+    "numeric": "796",
+    "name": "TURKS AND CAICOS ISLANDS"
+  },
+  {
+    "3char": "TUV",
+    "numeric": "798",
+    "name": "TUVALU"
+  },
+  {
+    "3char": "UGA",
+    "numeric": "800",
+    "name": "UGANDA"
+  },
+  {
+    "3char": "UKR",
+    "numeric": "804",
+    "name": "UKRAINE"
+  },
+  {
+    "3char": "ARE",
+    "numeric": "784",
+    "name": "UNITED ARAB EMIRATES"
+  },
+  {
+    "3char": "GBR",
+    "numeric": "826",
+    "name": "UNITED KINGDOM"
+  },
+  {
+    "3char": "USA",
+    "numeric": "840",
+    "name": "UNITED STATES"
+  },
+  {
+    "3char": "AX1",
+    "numeric": "932",
+    "name": "UNKNOWN"
+  },
+  {
+    "3char": "URY",
+    "numeric": "858",
+    "name": "URUGUAY"
+  },
+  {
+    "3char": "UZB",
+    "numeric": "860",
+    "name": "UZBEKISTAN"
+  },
+  {
+    "3char": "VUT",
+    "numeric": "548",
+    "name": "VANUATU"
+  },
+  {
+    "3char": "VAT",
+    "numeric": "336",
+    "name": "VATICAN CITY"
+  },
+  {
+    "3char": "VEN",
+    "numeric": "862",
+    "name": "VENEZUELA"
+  },
+  {
+    "3char": "VNM",
+    "numeric": "704",
+    "name": "VIETNAM"
+  },
+  {
+    "3char": "VGB",
+    "numeric": "92",
+    "name": "VIRGIN ISLANDS, BRITISH"
+  },
+  {
+    "3char": "VIR",
+    "numeric": "850",
+    "name": "VIRGIN ISLANDS, U.S."
+  },
+  {
+    "3char": "XWK",
+    "numeric": "933",
+    "name": "WAKE ISLAND"
+  },
+  {
+    "3char": "WLF",
+    "numeric": "876",
+    "name": "WALLIS AND FUTUNA"
+  },
+  {
+    "3char": "XWB",
+    "numeric": "934",
+    "name": "WEST BANK"
+  },
+  {
+    "3char": "ESH",
+    "numeric": "732",
+    "name": "WESTERN SAHARA"
+  },
+  {
+    "3char": "YEM",
+    "numeric": "887",
+    "name": "YEMEN"
+  },
+  {
+    "3char": "ZMB",
+    "numeric": "894",
+    "name": "ZAMBIA"
+  },
+  {
+    "3char": "ZWE",
+    "numeric": "716",
+    "name": "ZIMBABWE"
+  }
+]
+  }}
