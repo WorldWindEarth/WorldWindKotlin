@@ -1,7 +1,7 @@
 package earth.worldwind.shape.milstd2525
 
-import ArmyC2.C2SD.Rendering.MultiPointRenderer
-import ArmyC2.C2SD.Utilities.*
+import armyc2.c5isr.RenderMultipoints.clsRenderer
+import armyc2.c5isr.renderer.utilities.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Offset
@@ -18,11 +18,11 @@ import java.awt.geom.Point2D
 import kotlin.math.roundToInt
 
 actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
-    sidc: String, locations: List<Location>,
+    symbolID: String, locations: List<Location>,
     boundingSector: Sector, modifiers: Map<String, String>?, attributes: Map<String, String>?
-) : AbstractMilStd2525TacticalGraphic(sidc, boundingSector, modifiers, attributes) {
-    protected lateinit var controlPoints: ArrayList<Point2D.Double>
-    protected lateinit var pointUL: Point2D.Double
+) : AbstractMilStd2525TacticalGraphic(symbolID, boundingSector, modifiers, attributes) {
+    protected lateinit var controlPoints: ArrayList<Point2D>
+    protected lateinit var pointUL: Point2D
 
     init {
         setAnchorLocations(locations)
@@ -65,22 +65,22 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
 //        val rect = if (width > 0 && height > 0) Rectangle2D.Double(leftTop.x, leftTop.y, width, height) else null
 
         // Create MilStd Symbol and render it
-        val mss = MilStdSymbol(sidc, null, controlPoints, null)
+        val mss = MilStdSymbol(symbolID, "", controlPoints, emptyMap())
         modifiers?.forEach { (key, value) ->
-            when (key) {
-                ModifiersTG.AM_DISTANCE, ModifiersTG.AN_AZIMUTH, ModifiersTG.X_ALTITUDE_DEPTH -> {
+            when (val modifierKey = Modifiers.getModifierKey(key) ?: "") {
+                Modifiers.AM_DISTANCE, Modifiers.AN_AZIMUTH, Modifiers.X_ALTITUDE_DEPTH -> {
                     val elements = value.split(",")
-                    for (j in elements.indices) mss.setModifier(key, elements[j], j)
+                    for (j in elements.indices) mss.setModifier(modifierKey, elements[j], j)
                 }
-                else -> mss.setModifier(key, value)
+                else -> mss.setModifier(modifierKey, value)
             }
         }
         attributes?.run {
-            mss.altitudeMode = get(MilStdAttributes.AltitudeMode)
-            //mss.altitudeUnit = DistanceUnit.parse(get(MilStdAttributes.AltitudeUnits))
-            //mss.distanceUnit = DistanceUnit.parse(get(MilStdAttributes.DistanceUnits))
+            get(MilStdAttributes.AltitudeMode)?.let { mss.altitudeMode = it }
+            get(MilStdAttributes.AltitudeUnits)?.let { DistanceUnit.parse(it)?.let { mss.altitudeUnit = it } }
+            get(MilStdAttributes.DistanceUnits)?.let { DistanceUnit.parse(it)?.let { mss.distanceUnit = it } }
         }
-        MultiPointRenderer.getInstance().renderWithPolylines(mss, ipc, null /*rect*/)
+        clsRenderer.renderWithPolylines(mss, ipc, null /*rect*/)
 
         // Create Renderables based on Poly-lines and Modifiers from Renderer
         val shapes = mutableListOf<Renderable>()

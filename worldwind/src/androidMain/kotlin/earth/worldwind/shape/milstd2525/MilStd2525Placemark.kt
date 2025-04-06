@@ -1,7 +1,6 @@
 package earth.worldwind.shape.milstd2525
 
 import android.graphics.Bitmap
-import android.util.SparseArray
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.geom.Position
 import earth.worldwind.render.image.ImageSource
@@ -19,7 +18,7 @@ import java.lang.ref.WeakReference
  * and the bitmap factory.
  *
  * @param position The placemark's geographic position
- * @param symbolCode A 15-character alphanumeric identifier that provides the information necessary to display or
+ * @param symbolID A 20-character numeric identifier that provides the information necessary to display or
  * transmit a tactical symbol between MIL-STD-2525 compliant systems.
  * @param symbolModifiers An optional collection of unit or tactical graphic modifiers. See:
  * @see <a href="https://github.com/missioncommand/mil-sym-android/blob/master/Renderer/src/main/java/armyc2/c2sd/renderer/utilities/ModifiersUnits.java">ModifiersUnits</a>
@@ -28,20 +27,12 @@ import java.lang.ref.WeakReference
  * @see <a href="https://github.com/missioncommand/mil-sym-android/blob/master/Renderer/src/main/java/armyc2/c2sd/renderer/utilities/MilStdAttributes.java">MilStdAttributes</a>
  */
 actual open class MilStd2525Placemark actual constructor(
-    symbolCode: String,
+    symbolID: String,
     position: Position,
     symbolModifiers: Map<String, String>?,
     symbolAttributes: Map<String, String>?,
     lodSelector: LevelOfDetailSelector
-) : AbstractMilStd2525Placemark(symbolCode, position, symbolModifiers, symbolAttributes, lodSelector) {
-    constructor(
-        symbolCode: String, position: Position, symbolModifiers: SparseArray<String>? = null,
-        symbolAttributes: SparseArray<String>? = null
-    ) : this(
-        symbolCode, position, MilStd2525.modifiersFromSparseArray(symbolCode, symbolModifiers),
-        MilStd2525.attributesFromSparseArray(symbolAttributes)
-    )
-
+) : AbstractMilStd2525Placemark(symbolID, position, symbolModifiers, symbolAttributes, lodSelector) {
     actual companion object {
         /**
          * A cache of PlacemarkAttribute bundles containing MIL-STD-2525 symbols. Using a cache is essential for memory
@@ -61,27 +52,10 @@ actual open class MilStd2525Placemark actual constructor(
          * Creates a placemark attributes bundle containing a MIL-STD-2525 symbol using the specified modifiers and
          * attributes.
          *
-         * @param symbolCode The 15-character SIDC (symbol identification coding scheme) code.
-         * @param symbolModifiers The ModifierUnit (unit) or ModifierTG (tactical graphic) modifiers collection. May be null.
-         * @param symbolAttributes The MilStdAttributes attributes collection. May be null.
-         *
-         * @return A new [PlacemarkAttributes] bundle representing the MIL-STD-2525 symbol.
-         */
-        @JvmStatic
-        fun getPlacemarkAttributes(
-            symbolCode: String, symbolModifiers: SparseArray<String>? = null, symbolAttributes: SparseArray<String>? = null
-        ) = getPlacemarkAttributes(
-            symbolCode, MilStd2525.modifiersFromSparseArray(symbolCode, symbolModifiers),
-            MilStd2525.attributesFromSparseArray(symbolAttributes)
-        )
-
-        /**
-         * Creates a placemark attributes bundle containing a MIL-STD-2525 symbol using the specified modifiers and
-         * attributes.
-         *
-         * @param symbolCode The 15-character SIDC (symbol identification coding scheme) code.
-         * @param symbolModifiers The ModifierUnit (unit) or ModifierTG (tactical graphic) modifiers collection. May be null.
-         * @param symbolAttributes The MilStdAttributes attributes collection. May be null.
+         * @param symbolCode A 20-character numeric identifier that provides the information necessary to display or
+         * transmit a tactical symbol between MIL-STD-2525 compliant systems.
+         * @param symbolModifiers An optional collection of unit or tactical graphic modifiers.
+         * @param symbolAttributes An optional collection of rendering attributes.
          *
          * @return A new [PlacemarkAttributes] bundle representing the MIL-STD-2525 symbol.
          */
