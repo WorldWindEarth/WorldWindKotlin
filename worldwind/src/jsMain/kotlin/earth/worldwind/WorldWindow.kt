@@ -13,7 +13,6 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.WebKgl
 import earth.worldwind.util.window.PrepareEventHandler
 import earth.worldwind.util.window.createDefaultPrepareEventHandler
-import kotlinx.browser.window
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import org.khronos.webgl.WebGLContextAttributes
