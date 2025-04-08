@@ -11,6 +11,8 @@ import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.WebKgl
+import earth.worldwind.util.window.PrepareEventHandler
+import earth.worldwind.util.window.createDefaultPrepareEventHandler
 import kotlinx.browser.window
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
@@ -35,8 +37,18 @@ open class WorldWindow(
     /**
      * Render resource cache capacity in bytes
      */
-    cacheCapacity: Long = RenderResourceCache.recommendedCapacity()
+    cacheCapacity: Long = RenderResourceCache.recommendedCapacity(),
+    /**
+     * The adapter coverts child window event to parent window events.
+     */
+    private val prepareEvent: PrepareEventHandler = createDefaultPrepareEventHandler(canvas),
 ) {
+    /**
+     * Real current window where canvas located.
+     * Provides correct classes from correct window for instancing and interaction.
+     */
+    protected val currentWindow get() = canvas.ownerDocument!!.defaultView!!
+
     /**
      * WebGL context associated with the HTML canvas.
      */
@@ -91,20 +103,20 @@ open class WorldWindow(
         addEventListener("wheel", preventDefaultListener)
 
         // Redirect various UI interactions to the appropriate handler.
-        val onGestureEvent = EventListener { e -> controller.handleEvent(e) }
-        if (window.navigator.maxTouchPoints == 0) {
+        val onGestureEvent = EventListener { e -> controller.handleEvent(prepareEvent(e)) }
+        if (currentWindow.navigator.maxTouchPoints == 0) {
             // Prevent the browser's default actions in response to pointer events which interfere with navigation.
             // This CSS style property is configured here to ensure that it's set for all applications.
             canvas.style.setProperty("touch-action", "none")
 
             addEventListener("pointerdown", onGestureEvent)
-            window.addEventListener("pointermove", onGestureEvent, false) // get pointermove events outside event target
-            window.addEventListener("pointercancel", onGestureEvent, false) // get pointercancel events outside event target
-            window.addEventListener("pointerup", onGestureEvent, false) // get pointerup events outside event target
+            currentWindow.addEventListener("pointermove", onGestureEvent, false) // get pointermove events outside event target
+            currentWindow.addEventListener("pointercancel", onGestureEvent, false) // get pointercancel events outside event target
+            currentWindow.addEventListener("pointerup", onGestureEvent, false) // get pointerup events outside event target
         } else {
             addEventListener("mousedown", onGestureEvent)
-            window.addEventListener("mousemove", onGestureEvent, false) // get mousemove events outside event target
-            window.addEventListener("mouseup", onGestureEvent, false) // get mouseup events outside event target
+            currentWindow.addEventListener("mousemove", onGestureEvent, false) // get mousemove events outside event target
+            currentWindow.addEventListener("mouseup", onGestureEvent, false) // get mouseup events outside event target
             addEventListener("touchstart", onGestureEvent)
             addEventListener("touchmove", onGestureEvent)
             addEventListener("touchend", onGestureEvent)
@@ -113,16 +125,18 @@ open class WorldWindow(
         addEventListener("wheel", onGestureEvent)
 
         // Set up to handle WebGL context events.
+        // The event may arrive from another window. Forcing typecast to prevent class cast exception.
         canvas.addEventListener("webglcontextlost",
-            { event -> event as WebGLContextEvent
+            { e -> val event = e.unsafeCast<WebGLContextEvent>()
                 log(INFO, "WebGL context event: " + event.statusMessage)
                 // Inform WebGL that we handle context restoration, enabling the context restored event to be delivered.
                 event.preventDefault()
                 // Notify the draw context that the WebGL rendering context has been lost.
                 contextLost()
             }, false)
+        // The event may arrive from another window. Forcing typecast to prevent class cast exception.
         canvas.addEventListener("webglcontextrestored",
-            { event -> event as WebGLContextEvent
+            { e -> val event = e.unsafeCast<WebGLContextEvent>()
                 log(INFO, "WebGL context event: " + event.statusMessage)
                 // Notify the draw context that the WebGL rendering context has been restored.
                 contextRestored()
@@ -146,7 +160,7 @@ open class WorldWindow(
     fun addEventListener(type: String, listener: EventListener) {
         var entry = eventListeners[type]
         if (entry == null) {
-            entry = EventListenerEntry { event ->
+            entry = EventListenerEntry { e -> val event = prepareEvent(e)
                 event.asDynamic().worldWindow = this@WorldWindow
                 // calls listeners in reverse registration order
                 entry?.listeners?.forEach{ l -> l.handleEvent(event) }
@@ -264,7 +278,7 @@ open class WorldWindow(
      */
     protected open fun contextLost() {
         // Stop the rendering animation frame loop, resuming only if the WebGL context is restored.
-        window.cancelAnimationFrame(redrawRequestId)
+        currentWindow.cancelAnimationFrame(redrawRequestId)
 
         // Cancel all async jobs but keep scope reusable
         mainScope.coroutineContext.cancelChildren()
@@ -285,7 +299,7 @@ open class WorldWindow(
         engine.setupDrawContext()
 
         // Store current screen density factor
-        engine.densityFactor = window.devicePixelRatio.toFloat()
+        engine.densityFactor = currentWindow.devicePixelRatio.toFloat()
 
         // Enable WebGL depth texture extension to be able to use GL_DEPTH_COMPONENT texture format
         gl.getExtension("WEBGL_depth_texture")
@@ -317,7 +331,7 @@ open class WorldWindow(
         redrawIfNeeded()
 
         // Continue the animation frame loop until the WebGL context is lost.
-        redrawRequestId = window.requestAnimationFrame { animationFrameLoop() }
+        redrawRequestId = currentWindow.requestAnimationFrame { animationFrameLoop() }
     }
 
     protected open fun redrawIfNeeded() {
@@ -388,10 +402,12 @@ open class WorldWindow(
             val glAttrs = WebGLContextAttributes(antialias = false)
             val context = canvas.getContext("webgl", glAttrs)
                 ?: canvas.getContext("experimental-webgl", glAttrs)
-            require(context is WebGLRenderingContext) {
+            // WebGLRenderingContext class may not belong to currentWindow, so we check instance class by name.
+            val klass = WebGLRenderingContext.asDynamic().name
+            require(context != null && context.asDynamic().constructor.name == klass) {
                 logMessage(ERROR, "WorldWindow", "createContext", "webglNotSupported")
             }
-            return context
+            return context.unsafeCast<WebGLRenderingContext>()
         }
     }
 
