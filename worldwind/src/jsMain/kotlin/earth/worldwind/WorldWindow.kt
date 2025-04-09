@@ -46,7 +46,7 @@ open class WorldWindow(
      * Real current window where canvas located.
      * Provides correct classes from correct window for instancing and interaction.
      */
-    protected val currentWindow get() = canvas.ownerDocument!!.defaultView!!
+    protected val currentWindow get() = canvas.ownerDocument?.defaultView ?: error("Canvas isn't attached to a document")
 
     /**
      * WebGL context associated with the HTML canvas.
@@ -126,7 +126,8 @@ open class WorldWindow(
         // Set up to handle WebGL context events.
         // The event may arrive from another window. Forcing typecast to prevent class cast exception.
         canvas.addEventListener("webglcontextlost",
-            { e -> val event = e.unsafeCast<WebGLContextEvent>()
+            { dirtyEvent ->
+                val event = dirtyEvent.unsafeCast<WebGLContextEvent>()
                 log(INFO, "WebGL context event: " + event.statusMessage)
                 // Inform WebGL that we handle context restoration, enabling the context restored event to be delivered.
                 event.preventDefault()
@@ -135,7 +136,8 @@ open class WorldWindow(
             }, false)
         // The event may arrive from another window. Forcing typecast to prevent class cast exception.
         canvas.addEventListener("webglcontextrestored",
-            { e -> val event = e.unsafeCast<WebGLContextEvent>()
+            { dirtyEvent ->
+                val event = dirtyEvent.unsafeCast<WebGLContextEvent>()
                 log(INFO, "WebGL context event: " + event.statusMessage)
                 // Notify the draw context that the WebGL rendering context has been restored.
                 contextRestored()
@@ -159,7 +161,8 @@ open class WorldWindow(
     fun addEventListener(type: String, listener: EventListener) {
         var entry = eventListeners[type]
         if (entry == null) {
-            entry = EventListenerEntry { e -> val event = prepareEvent(e)
+            entry = EventListenerEntry {
+                dirtyEvent -> val event = prepareEvent(dirtyEvent)
                 event.asDynamic().worldWindow = this@WorldWindow
                 // calls listeners in reverse registration order
                 entry?.listeners?.forEach{ l -> l.handleEvent(event) }

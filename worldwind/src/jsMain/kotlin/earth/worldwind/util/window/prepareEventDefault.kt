@@ -17,79 +17,79 @@ import org.w3c.dom.pointerevents.PointerEventInit
  * with another implementations, because the way of cloning may be imprecise
  * for purposes of particular application.
  */
-val prepareEventDefault: PrepareEventHandler = { event ->
+val prepareEventDefault: PrepareEventHandler = { dirtyEvent ->
     when (true) {
-        event.type.startsWith("mouse") -> {
-            val e0 = event.unsafeCast<MouseEvent>()
+        dirtyEvent.type.startsWith("mouse") -> {
+            val event = dirtyEvent.unsafeCast<MouseEvent>()
             MouseEvent(
-                e0.type, MouseEventInit(
-                    bubbles = e0.bubbles,
-                    cancelable = e0.cancelable,
-                    clientX = e0.clientX,
-                    clientY = e0.clientY,
-                    screenX = e0.screenX,
-                    screenY = e0.screenY,
-                    button = e0.button,
-                    buttons = e0.buttons,
-                    relatedTarget = e0.relatedTarget
+                event.type, MouseEventInit(
+                    bubbles = event.bubbles,
+                    cancelable = event.cancelable,
+                    clientX = event.clientX,
+                    clientY = event.clientY,
+                    screenX = event.screenX,
+                    screenY = event.screenY,
+                    button = event.button,
+                    buttons = event.buttons,
+                    relatedTarget = event.relatedTarget
                 )
             )
         }
 
-        event.type.startsWith("pointer") -> {
-            val e0 = event.unsafeCast<PointerEvent>()
+        dirtyEvent.type.startsWith("pointer") -> {
+            val event = dirtyEvent.unsafeCast<PointerEvent>()
             PointerEvent(
-                e0.type, PointerEventInit(
-                    bubbles = e0.bubbles,
-                    cancelable = e0.cancelable,
-                    composed = e0.composed,
+                event.type, PointerEventInit(
+                    bubbles = event.bubbles,
+                    cancelable = event.cancelable,
+                    composed = event.composed,
 
-                    clientX = e0.clientX,
-                    clientY = e0.clientY,
-                    screenX = e0.screenX,
-                    screenY = e0.screenY,
+                    clientX = event.clientX,
+                    clientY = event.clientY,
+                    screenX = event.screenX,
+                    screenY = event.screenY,
 
-                    button = e0.button,
-                    buttons = e0.buttons,
-                    relatedTarget = e0.relatedTarget,
+                    button = event.button,
+                    buttons = event.buttons,
+                    relatedTarget = event.relatedTarget,
 
-                    pointerId = e0.pointerId,
-                    width = e0.width,
-                    height = e0.height,
-                    pressure = e0.pressure,
-                    tangentialPressure = e0.tangentialPressure,
-                    tiltX = e0.tiltX,
-                    tiltY = e0.tiltY,
-                    twist = e0.twist,
+                    pointerId = event.pointerId,
+                    width = event.width,
+                    height = event.height,
+                    pressure = event.pressure,
+                    tangentialPressure = event.tangentialPressure,
+                    tiltX = event.tiltX,
+                    tiltY = event.tiltY,
+                    twist = event.twist,
 
-                    pointerType = e0.pointerType,
-                    isPrimary = e0.isPrimary
+                    pointerType = event.pointerType,
+                    isPrimary = event.isPrimary
                 )
             )
         }
 
-        (event.type == "wheel") -> {
-            val e0 = event.unsafeCast<WheelEvent>()
+        (dirtyEvent.type == "wheel") -> {
+            val event = dirtyEvent.unsafeCast<WheelEvent>()
             WheelEvent(
-                e0.type, WheelEventInit(
-                    bubbles = e0.bubbles,
-                    cancelable = e0.cancelable,
-                    composed = e0.composed,
-                    deltaX = e0.deltaX,
-                    deltaY = e0.deltaY,
-                    deltaZ = e0.deltaZ,
-                    deltaMode = e0.deltaMode,
-                    clientX = e0.clientX,
-                    clientY = e0.clientY,
-                    screenX = e0.screenX,
-                    screenY = e0.screenY,
-                    ctrlKey = e0.ctrlKey,
-                    shiftKey = e0.shiftKey,
-                    altKey = e0.altKey,
-                    metaKey = e0.metaKey,
-                    button = e0.button,
-                    buttons = e0.buttons,
-                    relatedTarget = e0.relatedTarget
+                event.type, WheelEventInit(
+                    bubbles = event.bubbles,
+                    cancelable = event.cancelable,
+                    composed = event.composed,
+                    deltaX = event.deltaX,
+                    deltaY = event.deltaY,
+                    deltaZ = event.deltaZ,
+                    deltaMode = event.deltaMode,
+                    clientX = event.clientX,
+                    clientY = event.clientY,
+                    screenX = event.screenX,
+                    screenY = event.screenY,
+                    ctrlKey = event.ctrlKey,
+                    shiftKey = event.shiftKey,
+                    altKey = event.altKey,
+                    metaKey = event.metaKey,
+                    button = event.button,
+                    buttons = event.buttons,
+                    relatedTarget = event.relatedTarget
                 )
             )
         }
@@ -97,34 +97,34 @@ val prepareEventDefault: PrepareEventHandler = { event ->
         /**
          * It may work not in all browsers correctly.
          */
-        event.type.startsWith("touch") -> try {
-            val e0 = event.unsafeCast<TouchEvent>()
+        dirtyEvent.type.startsWith("touch") -> try {
+            val event = dirtyEvent.unsafeCast<TouchEvent>()
             // Create new event this way, because `TouchEvent` constructor doesn't accept event type.
             val clone = js(
-                "new TouchEvent(e0.type, {" +
-                        "bubbles: e0.bubbles," +
-                        "cancelable: e0.cancelable," +
-                        "composed: e0.composed," +
-                        "touches: e0.touches," +
-                        "targetTouches: e0.targetTouches," +
-                        "changedTouches: e0.changedTouches," +
-                        "ctrlKey: e0.ctrlKey," +
-                        "shiftKey: e0.shiftKey," +
-                        "altKey: e0.altKey," +
-                        "metaKey: e0.metaKey," +
-                        "detail: e0.detail," +
-                        "which: e0.which," +
+                "new TouchEvent(event.type, {" +
+                        "bubbles: event.bubbles," +
+                        "cancelable: event.cancelable," +
+                        "composed: event.composed," +
+                        "touches: event.touches," +
+                        "targetTouches: event.targetTouches," +
+                        "changedTouches: event.changedTouches," +
+                        "ctrlKey: event.ctrlKey," +
+                        "shiftKey: event.shiftKey," +
+                        "altKey: event.altKey," +
+                        "metaKey: event.metaKey," +
+                        "detail: event.detail," +
+                        "which: event.which," +
                         "})"
             ) as TouchEvent
             clone
         } catch (e: Throwable) {
-            console.warn("Failed to adapt touch event: ${event.type}. May window will fail even type checks.", e)
-            event
+            console.warn("Failed to adapt touch event: ${dirtyEvent.type}. May window will fail even type checks.", e)
+            dirtyEvent
         }
 
         else -> {
-            console.info("Event converter between windows is not implemented for event type: ${event.type}.")
-            event
+            console.info("Event converter between windows is not implemented for event type: ${dirtyEvent.type}.")
+            dirtyEvent
         }
     }
 }
