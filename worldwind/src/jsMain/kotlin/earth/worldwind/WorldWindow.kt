@@ -161,8 +161,8 @@ open class WorldWindow(
     fun addEventListener(type: String, listener: EventListener) {
         var entry = eventListeners[type]
         if (entry == null) {
-            entry = EventListenerEntry {
-                dirtyEvent -> val event = prepareEvent(dirtyEvent)
+            entry = EventListenerEntry { dirtyEvent ->
+                val event = prepareEvent(dirtyEvent)
                 event.asDynamic().worldWindow = this@WorldWindow
                 // calls listeners in reverse registration order
                 entry?.listeners?.forEach{ l -> l.handleEvent(event) }
