@@ -10,7 +10,9 @@ import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
 
-open class DrawableSightline protected constructor(): Drawable {
+open class DrawableSightline protected constructor() : Drawable {
+    var omnidirectional = false
+    var fieldOfView = POS90
     val centerTransform = Matrix4()
     var range = 0f
     val visibleColor = Color(0f, 0f, 0f, 0f)
@@ -56,14 +58,21 @@ open class DrawableSightline protected constructor(): Drawable {
         program.loadRange(range)
         program.loadColor(visibleColor, occludedColor)
 
+        // TODO construct matrix using separate horizontal and vertical fov
         // Configure the cube map projection matrix to capture one face of the cube map as far as the sightline's range.
-        cubeMapProjection.setToPerspectiveProjection(1, 1, POS90, 1.0, range.toDouble())
+        cubeMapProjection.setToPerspectiveProjection(1, 1, fieldOfView, 1.0, range.toDouble())
 
         // TODO accumulate only the visible terrain, which can be used in both passes
         // TODO give terrain a bounding box, test with a frustum set using depthviewProjection
-        for (i in cubeMapFace.indices) {
-            sightlineView.copy(centerTransform)
-            sightlineView.multiplyByMatrix(cubeMapFace[i])
+        if (omnidirectional) {
+            for (i in cubeMapFace.indices) {
+                sightlineView.copy(centerTransform)
+                sightlineView.multiplyByMatrix(cubeMapFace[i])
+                sightlineView.invertOrthonormal()
+                if (drawSceneDepth(dc)) drawSceneOcclusion(dc)
+            }
+        } else {
+            sightlineView.copy(centerTransform) // should contain rotation for sightline direction
             sightlineView.invertOrthonormal()
             if (drawSceneDepth(dc)) drawSceneOcclusion(dc)
         }
