@@ -31,7 +31,8 @@ actual open class RenderResourceCache(
     }
 
     override var age = 0L // Manually incrementable cache age
-    var urlRetrievalQueueSize = 16
+    var remoteRetrievalQueueSize = 8
+    var localRetrievalQueueSize = 16
     /**
      * Main render resource retrieval scope
      */
@@ -41,13 +42,18 @@ actual open class RenderResourceCache(
      */
     actual val absentResourceList = AbsentResourceList<Int>(3, 60.seconds)
     /**
-     * List of retrievals currently in progress.
+     * List of remote URL retrievals currently in progress.
      */
-    protected val currentRetrievals = mutableSetOf<ImageSource>()
+    protected val remoteRetrievals = mutableSetOf<ImageSource>()
+    /**
+     * List of other local retrievals currently in progress.
+     */
+    protected val localRetrievals = mutableSetOf<ImageSource>()
 
     override fun clear() {
         super.clear()
-        currentRetrievals.clear()
+        remoteRetrievals.clear()
+        localRetrievals.clear()
         absentResourceList.clear()
         age = 0
     }
@@ -64,35 +70,33 @@ actual open class RenderResourceCache(
                 // Following type of image sources is already in memory, so a texture may be created and put into the cache immediately.
                 return createTexture(options, imageSource.asImage())?.also { put(imageSource, it, it.byteCount) }
             }
-            imageSource.isImageFactory -> {
-                val factory = imageSource.asImageFactory()
-                if (factory.isRunBlocking) {
-                    // Image factory makes easy operations, so a texture may be created and put into the cache immediately.
-                    return factory.createImage()?.let { image ->
-                        createTexture(options, image)?.also { put(imageSource, it, it.byteCount) }
+        }
+
+        // Ignore retrieval of resources marked as absent
+        if (absentResourceList.isResourceAbsent(imageSource.hashCode())) return null
+
+        // Retrieve image source from URL or local resource. Request the image source and return null to indicate that
+        // the texture is not in memory. The image is added to the image retrieval cache upon successful retrieval. It's
+        // then expected that a subsequent render frame will result in another call to retrieveTexture, in which case
+        // the image will be found in the image retrieval cache.
+        val currentRetrievals = if (imageSource.isUrl) remoteRetrievals else localRetrievals
+        val retrievalQueueSize = if (imageSource.isUrl) remoteRetrievalQueueSize else localRetrievalQueueSize
+        if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)) {
+            when {
+                imageSource.isUrl -> retrieveRemoteImage(currentRetrievals, imageSource, options, imageSource.asUrl())
+                imageSource.isResource -> retrieveRemoteImage(
+                    currentRetrievals, imageSource, options, imageSource.asResource().fileUrl
+                )
+                imageSource.isImageFactory -> {
+                    currentRetrievals += imageSource
+                    mainScope.launch {
+                        imageSource.asImageFactory().createImage()?.let { retrievalSucceeded(imageSource, options, it) }
+                            ?: retrievalFailed(imageSource)
+                        currentRetrievals -= imageSource
                     }
                 }
             }
         }
-
-        // Ignore retrieval of already requested resources or marked as absent
-        if (currentRetrievals.size >= urlRetrievalQueueSize || currentRetrievals.contains(imageSource)
-            || absentResourceList.isResourceAbsent(imageSource.hashCode())) return null
-
-        // Retrieve remote image source
-        when {
-            imageSource.isResource -> retrieveRemoteImage(imageSource, options, imageSource.asResource().fileUrl)
-            imageSource.isUrl -> retrieveRemoteImage(imageSource, options, imageSource.asUrl())
-            imageSource.isImageFactory -> {
-                currentRetrievals += imageSource
-                mainScope.launch {
-                    imageSource.asImageFactory().createImage()?.let {
-                        retrievalSucceeded(imageSource, options, it)
-                    } ?: retrievalFailed(imageSource)
-                }
-            }
-        }
-
         return  null
     }
 
@@ -106,7 +110,9 @@ actual open class RenderResourceCache(
         }
     }
 
-    protected open fun retrieveRemoteImage(imageSource: ImageSource, options: ImageOptions?, src: String) {
+    protected open fun retrieveRemoteImage(
+        currentRetrievals: MutableSet<ImageSource>, imageSource: ImageSource, options: ImageOptions?, src: String
+    ) {
         val image = Image()
         var postprocessorExecuted = false
         image.onload = {
@@ -118,8 +124,12 @@ actual open class RenderResourceCache(
                 mainScope.launch { postprocessor.process(image) } // Apply image transformation.
             } else retrievalSucceeded(imageSource, options, image) // Consume original or processed image as retrieved
             if (postprocessor != null) URL.revokeObjectURL(image.src) // Revoke URL possibly created in postprocessor
+            currentRetrievals -= imageSource
         }
-        image.onerror = { _, _, _, _, _ -> retrievalFailed(imageSource) }
+        image.onerror = { _, _, _, _, _ ->
+            retrievalFailed(imageSource)
+            currentRetrievals -= imageSource
+        }
         currentRetrievals += imageSource
         image.crossOrigin = "anonymous"
         image.src = src
@@ -164,14 +174,12 @@ actual open class RenderResourceCache(
     protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, image: TexImageSource) {
         // Create texture and put it into cache.
         createTexture(options, image)?.let { put(source, it, it.byteCount) }
-        currentRetrievals -= source
         absentResourceList.unmarkResourceAbsent(source.hashCode())
         WorldWind.requestRedraw()
         if (isLoggable(DEBUG)) log(DEBUG, "Image retrieval succeeded: $source")
     }
 
     protected open fun retrievalFailed(source: ImageSource) {
-        currentRetrievals -= source
         absentResourceList.markResourceAbsent(source.hashCode())
         log(WARN, "Image retrieval failed: $source")
     }

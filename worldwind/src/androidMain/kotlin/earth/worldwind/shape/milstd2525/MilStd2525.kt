@@ -2,9 +2,8 @@ package earth.worldwind.shape.milstd2525
 
 import android.content.Context
 import android.graphics.Typeface
-import android.util.SparseArray
-import armyc2.c2sd.renderer.MilStdIconRenderer
-import armyc2.c2sd.renderer.utilities.*
+import armyc2.c5isr.renderer.MilStdIconRenderer
+import armyc2.c5isr.renderer.utilities.*
 import earth.worldwind.R
 import earth.worldwind.render.Font
 import earth.worldwind.shape.TextAttributes
@@ -14,22 +13,6 @@ import earth.worldwind.shape.TextAttributes
  * @see <a href="https://github.com/missioncommand/mil-sym-android">https://github.com/missioncommand/mil-sym-android</a>
  */
 actual object MilStd2525 {
-    /**
-     * The actual rendering engine for the MIL-STD-2525 graphics.
-     */
-    private val renderer = MilStdIconRenderer.getInstance()
-    private val rendererSettings = RendererSettings.getInstance()
-    /**
-     * Controls the symbol modifiers visibility threshold
-     */
-    actual var modifiersThreshold = 3.2e4
-    /**
-     * Controls the tactical graphics labels visibility threshold
-     */
-    actual var labelScaleThreshold = 30.0
-
-    actual var graphicsLineWidth = 0f
-    var graphicsOutlineWidth = 0f
     @JvmStatic
     var isInitialized = false
         private set
@@ -46,81 +29,24 @@ actual object MilStd2525 {
         if (isInitialized) return
 
         // Establish the default rendering values.
-        // See: https://github.com/missioncommand/mil-sym-android/blob/master/Renderer/src/main/java/armyc2/c2sd/renderer/utilities/RendererSettings.java
-        rendererSettings.symbologyStandard = RendererSettings.Symbology_2525C
+        val rendererSettings = RendererSettings.getInstance()
         rendererSettings.defaultPixelSize = context.resources.getDimensionPixelSize(R.dimen.default_pixel_size)
+        rendererSettings.outlineSPControlMeasures = false // Do not outline single point control measures
+        rendererSettings.twoLabelOnly = true // Show only two labels fo minefield
+        rendererSettings.actionPointDefaultFill = false // Do not fill action points
 
         // Depending on screen size and DPI you may want to change the font size.
         rendererSettings.setModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.modifier_font_size))
-        rendererSettings.setMPModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.mp_modifier_font_size))
+        rendererSettings.setMPLabelFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.mp_modifier_font_size))
 
         // Configure modifier text output
         rendererSettings.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
-        rendererSettings.textOutlineWidth = context.resources.getDimensionPixelSize(R.dimen.text_outline_width)
-
-        // Configure Single point symbol outline width
-        rendererSettings.singlePointSymbolOutlineWidth = context.resources.getDimensionPixelSize(R.dimen.symbol_outline_width)
+        rendererSettings.textBackgroundAutoColorThreshold = 180
 
         // Tell the renderer where the cache folder is located which is needed to process the embedded xml files.
-        renderer.init(context, context.cacheDir.absolutePath)
-        graphicsLineWidth = context.resources.getDimension(R.dimen.graphics_line_width)
-        graphicsOutlineWidth = context.resources.getDimension(R.dimen.symbol_outline_width)
+        MilStdIconRenderer.getInstance().init(context)
+        MSLookup.getInstance().init(context)
         isInitialized = true
-    }
-
-    @JvmStatic
-    fun modifiersToSparseArray(symbolCode: String, modifiers: Map<String, String>?) =
-        if (SymbolUtilities.isTacticalGraphic(symbolCode)) graphicModifiersToSparseArray(modifiers)
-        else symbolModifiersToSparseArray(modifiers)
-
-    @JvmStatic
-    fun modifiersFromSparseArray(symbolCode: String, modifiers: SparseArray<String>?) =
-        if (SymbolUtilities.isTacticalGraphic(symbolCode)) graphicModifiersFromSparseArray(modifiers)
-        else symbolModifiersFromSparseArray(modifiers)
-
-    @JvmStatic
-    fun symbolModifiersToSparseArray(modifiers: Map<String, String>?): SparseArray<String> {
-        val modifiersArray = SparseArray<String>()
-        modifiers?.entries?.forEach { (key, value) -> modifiersArray.put(ModifiersUnits.getModifierKey(key), value) }
-        return modifiersArray
-    }
-
-    @JvmStatic
-    fun symbolModifiersFromSparseArray(modifiersArray: SparseArray<String>?): Map<String, String> {
-        val modifiers = mutableMapOf<String, String>()
-        if (modifiersArray != null) for (i in 0 until modifiersArray.size())
-            modifiers[ModifiersUnits.getModifierLetterCode(modifiersArray.keyAt(i))] = modifiersArray.valueAt(i)
-        return modifiers
-    }
-
-    @JvmStatic
-    fun graphicModifiersToSparseArray(modifiers: Map<String, String>?): SparseArray<String> {
-        val modifiersArray = SparseArray<String>()
-        modifiers?.entries?.forEach { (key, value) -> modifiersArray.put(ModifiersTG.getModifierKey(key), value) }
-        return modifiersArray
-    }
-
-    @JvmStatic
-    fun graphicModifiersFromSparseArray(modifiersArray: SparseArray<String>?): Map<String, String> {
-        val modifiers = mutableMapOf<String, String>()
-        if (modifiersArray != null) for (i in 0 until modifiersArray.size())
-            modifiers[ModifiersTG.getModifierLetterCode(modifiersArray.keyAt(i))] = modifiersArray.valueAt(i)
-        return modifiers
-    }
-
-    @JvmStatic
-    fun attributesToSparseArray(attributes: Map<String, String>?): SparseArray<String> {
-        val modifiersArray = SparseArray<String>()
-        attributes?.entries?.forEach { (key, value) -> modifiersArray.put(key.toInt(), value) }
-        return modifiersArray
-    }
-
-    @JvmStatic
-    fun attributesFromSparseArray(attributesArray: SparseArray<String>?): Map<String, String> {
-        val attributes = mutableMapOf<String, String>()
-        if (attributesArray != null) for (i in 0 until attributesArray.size())
-            attributes[attributesArray.keyAt(i).toString()] = attributesArray.valueAt(i)
-        return attributes
     }
 
     /**
@@ -133,124 +59,30 @@ actual object MilStd2525 {
      * @return An ImageInfo object containing the symbol's bitmap and metadata; may be null
      */
     @JvmStatic
-    fun renderImage(symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?): ImageInfo? =
-        renderer.RenderIcon(symbolCode, modifiersToSparseArray(symbolCode, modifiers), attributesToSparseArray(attributes))
-
-    /**
-     * Get symbol text description and hierarchy reference.
-     */
-    @JvmStatic
-    fun getSymbolDef(sidc: String): SymbolDef? = SymbolDefTable.getInstance()
-        .getSymbolDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
-
-    /**
-     * Get symbol visual attributes like draw category, min points, max points, etc.
-     */
-    @JvmStatic
-    fun getUnitDef(sidc: String): UnitDef? = UnitDefTable.getInstance()
-        .getUnitDef(SymbolUtilities.getBasicSymbolID(sidc), rendererSettings.symbologyStandard)
+    fun renderImage(
+        symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?
+    ): ImageInfo? = MilStdIconRenderer.getInstance().RenderIcon(
+        symbolCode, modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" } ?: emptyMap(), attributes ?: emptyMap()
+    )
 
     @JvmStatic
     fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
+        val rendererSettings = RendererSettings.getInstance()
         val modifierFont = rendererSettings.modiferFont
         font = Font(modifierFont.textSize, modifierFont.typeface)
-        textColor.set(rendererSettings.labelForegroundColor)
-        outlineColor.set(rendererSettings.labelBackgroundColor)
-        outlineWidth = rendererSettings.textOutlineWidth.toFloat()
+//        textColor.set(rendererSettings.labelForegroundColor)
+//        outlineColor.set(rendererSettings.labelBackgroundColor)
+//        outlineWidth = rendererSettings.textOutlineWidth.toFloat()
     }
 
     @JvmStatic
-    actual fun getSimplifiedSymbolID(sidc: String) =
-        setAffiliation(SymbolUtilities.getBasicSymbolID(sidc), sidc.substring(1, 2))
+    actual fun isTacticalGraphic(symbolID: String) = SymbolUtilities.isTacticalGraphic(symbolID)
 
     @JvmStatic
-    actual fun isTacticalGraphic(sidc: String) = SymbolUtilities.isTacticalGraphic(sidc)
-
-    @JvmStatic
-    actual fun setAffiliation(sidc: String, affiliation: String?) =
-        if (sidc.length >= 2 && !SymbolUtilities.isWeather(sidc) && affiliation != null && affiliation.length == 1) {
-            val result = sidc.substring(0, 1) + affiliation.uppercase() + sidc.substring(2)
-            if (SymbolUtilities.hasValidAffiliation(result)) result else sidc
-        } else sidc
-
-    @JvmStatic
-    actual fun setStatus(sidc: String, status: String?) =
-        // Weather symbols has no status
-        if (sidc.length >= 4 && !SymbolUtilities.isWeather(sidc) && status != null && status.length == 1) {
-            val result = sidc.substring(0, 3) + status.uppercase() + sidc.substring(4)
-            if (SymbolUtilities.hasValidStatus(result)) result else sidc
-        } else sidc
-
-    @JvmStatic
-    actual fun setEchelon(sidc: String, echelon: String?): String {
-        val isTG = SymbolUtilities.isTacticalGraphic(sidc)
-        return if (sidc.length >= 12 && (isTG && SymbolUtilities.canSymbolHaveModifier(sidc, ModifiersTG.B_ECHELON)
-                    || !isTG && SymbolUtilities.canUnitHaveModifier(sidc, ModifiersUnits.B_ECHELON))
-            && echelon != null && echelon.length == 1 && SymbolUtilities.getEchelonText(echelon) != null
-        ) sidc.substring(0, 11) + echelon.uppercase() + sidc.substring(12) else sidc
-    }
-
-    @JvmStatic
-    actual fun setSymbolModifier(
-        sidc: String, hq: Boolean, taskForce: Boolean, feintDummy: Boolean, installation: Boolean, mobility: String?
-    ): String {
-        var result = sidc
-        if (result.length >= 11 && !SymbolUtilities.isTacticalGraphic(result)) {
-            // Check if mobility is applicable
-            if (mobility != null && mobility.length == 2 && result.length >= 12
-                && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.R_MOBILITY_INDICATOR)
-            ) {
-                // Try applying mobility
-                val sidcWithMobility = result.substring(0, 10) + mobility.uppercase() + result.substring(12)
-                // Check if mobility is valid
-                if (SymbolUtilities.isMobility(sidcWithMobility)) result = sidcWithMobility
-            } else {
-                // Check if HQ, TaskForce, Feint or Dummy symbol modifiers are applicable
-                val isHQ = hq && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.S_HQ_STAFF_OR_OFFSET_INDICATOR)
-                val isTaskForce = taskForce && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.D_TASK_FORCE_INDICATOR)
-                val isDummy = feintDummy && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AB_FEINT_DUMMY_INDICATOR)
-                val isInstallation = installation && SymbolUtilities.canUnitHaveModifier(result, ModifiersUnits.AC_INSTALLATION)
-                val modifier = when {
-                    !isDummy && isHQ && !isTaskForce -> 'A' // HEADQUARTERS
-                    !isDummy && isHQ && isTaskForce -> 'B' // TASK FORCE + HEADQUARTERS
-                    isDummy && isHQ && !isTaskForce -> 'C' // FEINT/DUMMY + HEADQUARTERS
-                    isDummy && isHQ && isTaskForce -> 'D' // FEINT/DUMMY + TASK FORCE + HEADQUARTERS
-                    !isDummy && !isHQ && isTaskForce -> 'E' // TASK FORCE
-                    isDummy && !isHQ && !isTaskForce -> 'F' // FEINT/DUMMY
-                    isDummy && !isHQ && isTaskForce -> 'G' // FEINT/DUMMY + TASK FORCE
-                    else -> if (isInstallation) 'H' else null
-                }
-                // Apply symbol modifier
-                if (modifier != null) result = result.substring(0, 10) + modifier + result.substring(11)
-                // Fix Feint/Dummy modifier for installation
-                if (isDummy && result.length >= 12 && SymbolUtilities.hasInstallationModifier(result)) {
-                    result = result.substring(0, 11) + "B" + result.substring(12)
-                }
-            }
-        }
-        return result
-    }
-
-    @JvmStatic
-    actual fun setCountryCode(sidc: String, countryCode: String?) =
-        if (sidc.length >= 14 && countryCode != null && countryCode.length == 2) {
-            val result = sidc.substring(0, 12) + countryCode.uppercase() + sidc.substring(14)
-            if (SymbolUtilities.hasValidCountryCode(result)) result else sidc
-        } else sidc
-
-    @JvmStatic
-    actual fun getLineColor(sidc: String) = SymbolUtilities.getLineColorOfAffiliation(sidc)?.toARGB()
-        ?: rendererSettings.friendlyGraphicLineColor.toARGB()
-
-    @JvmStatic
-    actual fun getFillColor(sidc: String) = SymbolUtilities.getFillColorOfAffiliation(sidc)?.toARGB()
-        ?: rendererSettings.friendlyGraphicFillColor.toARGB()
-
-    @JvmStatic
-    actual fun getUnfilledAttributes(sidc: String) = if (SymbolUtilities.isTacticalGraphic(sidc)) {
-        SymbolUtilities.getLineColorOfAffiliation(sidc)
+    actual fun getUnfilledAttributes(symbolID: String) = if (SymbolUtilities.isTacticalGraphic(symbolID)) {
+        SymbolUtilities.getLineColorOfAffiliation(symbolID)
     } else {
-        SymbolUtilities.getFillColorOfAffiliation(sidc)
+        SymbolUtilities.getFillColorOfAffiliation(symbolID)
     }?.toHexString()?.let {
         mapOf(
             MilStdAttributes.FillColor.toString() to "00000000",

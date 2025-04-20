@@ -2,19 +2,17 @@ package earth.worldwind.examples
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.SparseArray
 import android.view.Choreographer
 import android.view.Choreographer.FrameCallback
 import android.widget.FrameLayout
 import android.widget.TextView
-import armyc2.c2sd.renderer.utilities.MilStdAttributes
-import armyc2.c2sd.renderer.utilities.ModifiersUnits
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Position.Companion.fromDegrees
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.ShowTessellationLayer
 import earth.worldwind.shape.milstd2525.MilStd2525
+import earth.worldwind.shape.milstd2525.MilStd2525LevelOfDetailSelector
 import earth.worldwind.shape.milstd2525.MilStd2525Placemark
 import java.text.SimpleDateFormat
 import java.util.*
@@ -119,87 +117,38 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
             // Create a Renderable layer for the placemarks and add it to the WorldWindow
             val symbolLayer = RenderableLayer("MIL-STD-2525 Symbols")
             wwd.engine.layers.addLayer(symbolLayer)
-            MilStd2525.modifiersThreshold = 75e4
-            val unitModifiers = SparseArray<String>()
-            val renderAttributes = SparseArray<String>()
-            renderAttributes.put(MilStdAttributes.KeepUnitRatio, "false")
-            val codeScheme = "S" // Warfighting
-            val sizeMobility = "*"
-            val countryCode = "**"
-            val orderOfBattle = "**"
+            MilStd2525LevelOfDetailSelector.modifiersThreshold = 75e4
+            val renderAttributes = mapOf("KEEPUNITRATIO" to "false")
+            val version = "100"
+            val amplifier = "000"
+            val modifiers = "0000"
             var numSymbolsCreated = 0
-            for (standardId in standardIdentities) {
-                for (battleDimension in battleDimensions) {
+            for (standardID in standardIdentities) {
+                for (symbolSet in symbolSets) {
                     for (status in statusCodes) {
-                        when (battleDimension) {
-                            "Z" -> for (functionId in warfightingUnknownFunctionIDs) {
-                                val sidc = codeScheme + standardId + battleDimension + status + functionId + sizeMobility + countryCode + orderOfBattle
-                                val position = randomPosition
-                                unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
-                                unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
-                                symbolLayer.addRenderable(
-                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
-                                )
-                                numSymbolsCreated++
-                            }
-                            "P" ->                                 //unitModifiers.clear();
-                                for (functionId in warfightingSpaceFunctionIDs) {
-                                    val sidc = codeScheme + standardId + battleDimension + status + functionId + sizeMobility + countryCode + orderOfBattle
-                                    val position = randomPosition
-                                    unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
-                                    unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
-                                    symbolLayer.addRenderable(
-                                        createPlacemark(position, sidc, unitModifiers, renderAttributes)
-                                    )
-                                    numSymbolsCreated++
-                                }
-                            "A" -> for (functionId in warfightingAirFunctionIDs) {
-                                val sidc = codeScheme + standardId + battleDimension + status + functionId + sizeMobility + countryCode + orderOfBattle
-                                val position = randomPosition
-                                unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
-                                unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
-                                symbolLayer.addRenderable(
-                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
-                                )
-                                numSymbolsCreated++
-                            }
-                            "G" -> for (functionId in warfightingGroundFunctionIDs) {
-                                val sidc = codeScheme + standardId + battleDimension + status + functionId + sizeMobility + countryCode + orderOfBattle
-                                symbolLayer.addRenderable(
-                                    createPlacemark(randomPosition, sidc, unitModifiers, renderAttributes)
-                                )
-                                numSymbolsCreated++
-                            }
-                            "S" -> for (functionId in warfightingSeaSurfaceFunctionIDs) {
-                                val sidc = codeScheme + standardId + battleDimension + status + functionId + sizeMobility + countryCode + orderOfBattle
-                                val position = randomPosition
-                                unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
-                                unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
-                                symbolLayer.addRenderable(
-                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
-                                )
-                                numSymbolsCreated++
-                            }
-                            "U" -> for (functionId in warfightingSubsurfaceFunctionIDs) {
-                                val sidc = codeScheme + standardId + battleDimension + status + functionId + sizeMobility + countryCode + orderOfBattle
-                                val position = randomPosition
-                                unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
-                                unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
-                                symbolLayer.addRenderable(
-                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
-                                )
-                                numSymbolsCreated++
-                            }
-                            "F" -> for (functionId in warfightingSOFFunctionIDs) {
-                                val sidc = codeScheme + standardId + battleDimension + standardId + functionId + sizeMobility + countryCode + orderOfBattle
-                                val position = randomPosition
-                                unitModifiers.put(ModifiersUnits.W_DTG_1, getDateTimeGroup(Date()))
-                                unitModifiers.put(ModifiersUnits.Y_LOCATION, getLocation(position))
-                                symbolLayer.addRenderable(
-                                    createPlacemark(position, sidc, unitModifiers, renderAttributes)
-                                )
-                                numSymbolsCreated++
-                            }
+                        val entities = when (symbolSet) {
+                            "00" -> unknownEntities
+                            "01" -> airEntities
+                            "05" -> spaceEntities
+                            "10" -> landUnitEntities
+                            "15" -> landEquipmentEntities
+                            "20" -> landInstallationEntities
+                            "30" -> seaSurfaceEntities
+                            "35" -> subsurfaceEntities
+                            "36" -> mineWarfareEntities
+                            else -> error("Unsupported Symbol Set")
+                        }
+                        for (entity in entities) {
+                            val symbolID = version + standardID + symbolSet + status + amplifier + entity + modifiers
+                            val position = randomPosition
+                            val unitModifiers = mapOf(
+                                "W" to getDateTimeGroup(Date()),
+                                "Y" to getLocation(position),
+                            )
+                            symbolLayer.addRenderable(
+                                createPlacemark(position, symbolID, unitModifiers, renderAttributes)
+                            )
+                            numSymbolsCreated++
                         }
                     }
                 }
@@ -213,7 +162,7 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
         }// Use a random sin value to generate latitudes without clustering at the poles.
 
         /**
-         * Returns a  an even distribution of latitude and longitudes across the globe.
+         * Returns an even distribution of latitude and longitudes across the globe.
          *
          * @return A random latitude/longitude with a zero altitude
          */
@@ -251,8 +200,8 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
         }
 
         protected open fun createPlacemark(
-            position: Position, sidc: String, unitModifiers: SparseArray<String>, renderAttributes: SparseArray<String>
-        ) = MilStd2525Placemark(sidc, position, unitModifiers, renderAttributes).apply {
+            position: Position, symbolID: String, unitModifiers: Map<String, String>, renderAttributes: Map<String, String>
+        ) = MilStd2525Placemark(symbolID, position, unitModifiers, renderAttributes).apply {
             eyeDistanceScalingThreshold = 15e5
             isEyeDistanceScaling = true
         }
@@ -260,235 +209,134 @@ open class PlacemarksMilStd2525StressActivity: GeneralGlobeActivity(), FrameCall
 
     companion object {
         private val standardIdentities = arrayOf(
-            "P",  // Pending
-            "U",  // Unknown
-            "F",  // Friend
-            "N",  // Neutral
-            "H",  // Hostile
-            "A",  // Assumed Friend
-            "S"   // Suspect
+            "0",  // Pending
+            "1",  // Unknown
+            "2",  // Assumed Friend
+            "3",  // Friend
+            "4",  // Neutral
+            "5",  // Suspect
+            "6",  // Hostile
         )
-        private val battleDimensions = arrayOf(
-            "Z",  // Unknown
-            "P",  // Space
-            "A",  // Air
-            "G",  // Ground
-            "S",  // Sea surface
-            "U",  // Subsurface
-            "F"   // SOF
+        private val symbolSets = arrayOf(
+            "00",  // Unknown
+            "01",  // Air
+            "05",  // Space
+            "10",  // Land Unit
+            "15",  // Land Equipment
+            "20",  // Land Installation
+            "30",  // Sea surface
+            "35",  // Subsurface
+            "36",  // Mine Wafare
         )
         private val statusCodes = arrayOf(
-            "A",  // Anticipated
-            "P",  // Present
-            "C",  // Present/Fully Capable
-            "D",  // Present/Damaged
-            "X",  // Present/Destroyed
-            "F"   // Present/Full to Capacity
+            "0",  // Present
+            "1",  // Planned/Anticipated/Suspect
+            "2",  // Present/Fully Capable
+            "3",  // Present/Damaged
+            "4",  // Present/Destroyed
+            "5"   // Present/Full to Capacity
         )
-        private val warfightingUnknownFunctionIDs = arrayOf("------")
-        private val warfightingSpaceFunctionIDs = arrayOf(
-            "------", "S-----", "V-----", "T-----", "L-----"
+        private val unknownEntities = arrayOf("000000")
+        private val airEntities = arrayOf(
+            "110000", "110100", "110101", "110102", "110103", "110104", "110105", "110107", "110108", "110109",
+            "110110", "110111", "110112", "110113", "110114", "110115", "110116", "110117", "110118", "110119",
+            "110120", "110121", "110122", "110123", "110124", "110125", "110126", "110127", "110128", "110129",
+            "110130", "110131", "110132", "110133", "110200", "110300", "110400", "110500", "110600", "110700",
+            "120000", "120100", "120200", "120300", "120400", "120500", "120600", "130000", "130100", "130200",
+            "140000",
         )
-        private val warfightingAirFunctionIDs = arrayOf(
-            "------", "C-----", "M-----", "MF----", "MFB---", "MFF---", "MFFI--", "MFT---", "MFA---",
-            "MFL---", "MFK---", "MFKB--", "MFKD--", "MFC---", "MFCL--", "MFCM--", "MFCH--", "MFJ---",
-            "MFO---", "MFR---", "MFRW--", "MFRZ--", "MFRX--", "MFP---", "MFPN--", "MFPM--", "MFU---",
-            "MFUL--", "MFUM--", "MFUH--", "MFY---", "MFH---", "MFD---", "MFQ---", "MFQA--", "MFQB--",
-            "MFQC--", "MFQD--", "MFQF--", "MFQH--", "MFQJ--", "MFQK--", "MFQL--", "MFQM--", "MFQI--",
-            "MFQN--", "MFQP--", "MFQR--", "MFQRW-", "MFQRZ-", "MFQRX-", "MFQS--", "MFQT--", "MFQU--",
-            "MFQY--", "MFQO--", "MFS---", "MFM---", "MH----", "MHA---", "MHS---", "MHU---", "MHUL--",
-            "MHUM--", "MHUH--", "MHI---", "MHH---", "MHR---", "MHQ---", "MHC---", "MHCL--", "MHCM--",
-            "MHCH--", "MHT---", "MHO---", "MHM---", "MHD---", "MHK---", "MHJ---", "ML----", "MV----",
-            "ME----", "W-----", "WM----", "WMS---", "WMSS--", "WMSA--", "WMSU--", "WMSB--", "WMA---",
-            "WMAS--", "WMAA--", "WMAP--", "WMU---", "WMCM--", "WMB---", "WB----", "WD----", "C-----",
-            "CF----", "CH----", "CL----"
+        private val spaceEntities = arrayOf(
+            "110000", "110100", "110200", "110300", "110400", "110500", "110600", "110700", "110800", "110900",
+            "111000", "111100", "111200", "111300", "111400", "111500", "111600", "111700", "111800", "111900",
+            "120000", "120100", "120200", "120300", "120400", "120500", "120600", "120700", "120800", "120900",
+            "121000", "121100", "121200", "130000",
         )
-        private val warfightingGroundFunctionIDs = arrayOf(
-            "------", "U-----", "UC----", "UCD---", "UCDS--", "UCDSC-", "UCDSS-", "UCDSV-", "UCDM--",
-            "UCDML-", "UCDMLA", "UCDMM-", "UCDMH-", "UCDH--", "UCDHH-", "UCDHP-", "UCDG--", "UCDC--",
-            "UCDT--", "UCDO--", "UCA---", "UCAT--", "UCATA-", "UCATW-", "UCATWR", "UCATL-", "UCATM-",
-            "UCATH-", "UCATR-", "UCAW--", "UCAWS-", "UCAWA-", "UCAWW-", "UCAWWR", "UCAWL-", "UCAWM-",
-            "UCAWH-", "UCAWR-", "UCAA--", "UCAAD-", "UCAAL-", "UCAAM-", "UCAAS-", "UCAAU-", "UCAAC-",
-            "UCAAA-", "UCAAAT", "UCAAAW", "UCAAAS", "UCAAO-", "UCAAOS", "UCV---", "UCVF--", "UCVFU-",
-            "UCVFA-", "UCVFR-", "UCVR--", "UCVRA-", "UCVRS-", "UCVRW-", "UCVRU-", "UCVRUL", "UCVRUM",
-            "UCVRUH", "UCVRUC", "UCVRUE", "UCVRM-", "UCVS--", "UCVC--", "UCVV--", "UCVU--", "UCVUF-",
-            "UCVUR-", "UCI---", "UCIL--", "UCIM--", "UCIO--", "UCIA--", "UCIS--", "UCIZ--", "UCIN--",
-            "UCII--", "UCIC--", "UCE---", "UCEC--", "UCECS-", "UCECA-", "UCECC-", "UCECL-", "UCECM-",
-            "UCECH-", "UCECT-", "UCECW-", "UCECO-", "UCECR-", "UCEN--", "UCENN-", "UCF---", "UCFH--",
-            "UCFHE-", "UCFHS-", "UCFHA-", "UCFHC-", "UCFHO-", "UCFHL-", "UCFHM-", "UCFHH-", "UCFHX-",
-            "UCFR--", "UCFRS-", "UCFRSS", "UCFRSR", "UCFRST", "UCFRM-", "UCFRMS", "UCFRMR", "UCFRMT",
-            "UCFT--", "UCFTR-", "UCFTS-", "UCFTF-", "UCFTC-", "UCFTCD", "UCFTCM", "UCFTA-", "UCFM--",
-            "UCFMS-", "UCFMW-", "UCFMT-", "UCFMTA", "UCFMTS", "UCFMTC", "UCFMTO", "UCFML-", "UCFS--",
-            "UCFSS-", "UCFSA-", "UCFSL-", "UCFSO-", "UCFO--", "UCFOS-", "UCFOA-", "UCFOL-", "UCFOO-",
-            "UCR---", "UCRH--", "UCRV--", "UCRVA-", "UCRVM-", "UCRVG-", "UCRVO-", "UCRC--", "UCRS--",
-            "UCRA--", "UCRO--", "UCRL--", "UCRR--", "UCRRD-", "UCRRF-", "UCRRL-", "UCRX--", "UCM---",
-            "UCMT--", "UCMS--", "UCS---", "UCSW--", "UCSG--", "UCSGD-", "UCSGM-", "UCSGA-", "UCSM--",
-            "UCSR--", "UCSA--", "UU----", "UUA---", "UUAC--", "UUACC-", "UUACCK", "UUACCM", "UUACS-",
-            "UUACSM", "UUACSA", "UUACR-", "UUACRW", "UUACRS", "UUAN--", "UUAB--", "UUABR-", "UUAD--",
-            "UUM---", "UUMA--", "UUMS--", "UUMSE-", "UUMSEA", "UUMSED", "UUMSEI", "UUMSEJ", "UUMSET",
-            "UUMSEC", "UUMC--", "UUMR--", "UUMRG-", "UUMRS-", "UUMRSS", "UUMRX-", "UUMMO-", "UUMO--",
-            "UUMT--", "UUMQ--", "UUMJ--", "UUL---", "UULS--", "UULM--", "UULC--", "UULF--", "UULD--",
-            "UUS---", "UUSA--", "UUSC--", "UUSCL-", "UUSO--", "UUSF--", "UUSM--", "UUSMS-", "UUSML-",
-            "UUSMN-", "UUSR--", "UUSRS-", "UUSRT-", "UUSRW-", "UUSS--", "UUSW--", "UUSX--", "UUI---",
-            "UUP---", "UUE---", "US----", "USA---", "USAT--", "USAC--", "USAJ--", "USAJT-", "USAJC-",
-            "USAO--", "USAOT-", "USAOC-", "USAF--", "USAFT-", "USAFC-", "USAS--", "USAST-", "USASC-",
-            "USAM--", "USAMT-", "USAMC-", "USAR--", "USART-", "USARC-", "USAP--", "USAPT-", "USAPC-",
-            "USAPB-", "USAPBT", "USAPBC", "USAPM-", "USAPMT", "USAPMC", "USAX--", "USAXT-", "USAXC-",
-            "USAL--", "USALT-", "USALC-", "USAW--", "USAWT-", "USAWC-", "USAQ--", "USAQT-", "USAQC-",
-            "USM---", "USMT--", "USMC--", "USMM--", "USMMT-", "USMMC-", "USMV--", "USMVT-", "USMVC-",
-            "USMD--", "USMDT-", "USMDC-", "USMP--", "USMPT-", "USMPC-", "USS---", "USST--", "USSC--",
-            "USS1--", "USS1T-", "USS1C-", "USS2--", "USS2T-", "USS2C-", "USS3--", "USS3T-", "USS3C-",
-            "USS3A-", "USS3AT", "USS3AC", "USS4--", "USS4T-", "USS4C-", "USS5--", "USS5T-", "USS5C-",
-            "USS6--", "USS6T-", "USS6C-", "USS7--", "USS7T-", "USS7C-", "USS8--", "USS8T-", "USS8C-",
-            "USS9--", "USS9T-", "USS9C-", "USSX--", "USSXT-", "USSXC-", "USSL--", "USSLT-", "USSLC-",
-            "USSW--", "USSWT-", "USSWC-", "USSWP-", "USSWPT", "USSWPC", "UST---", "USTT--", "USTC--",
-            "USTM--", "USTMT-", "USTMC-", "USTR--", "USTRT-", "USTRC-", "USTS--", "USTST-", "USTSC-",
-            "USTA--", "USTAT-", "USTAC-", "USTI--", "USTIT-", "USTIC-", "USX---", "USXT--", "USXC--",
-            "USXH--", "USXHT-", "USXHC-", "USXR--", "USXRT-", "USXRC-", "USXO--", "USXOT-", "USXOC-",
-            "USXOM-", "USXOMT", "USXOMC", "USXE--", "USXET-", "USXEC-", "UH----", "E-----", "EWM---",
-            "EWMA--", "EWMAS-", "EWMASR", "EWMAI-", "EWMAIR", "EWMAIE", "EWMAL-", "EWMALR", "EWMALE",
-            "EWMAT-", "EWMATR", "EWMATE", "EWMS--", "EWMSS-", "EWMSI-", "EWMSL-", "EWMT--", "EWMTL-",
-            "EWMTM-", "EWMTH-", "EWS---", "EWSL--", "EWSM--", "EWSH--", "EWX---", "EWXL--", "EWXM--",
-            "EWXH--", "EWT---", "EWTL--", "EWTM--", "EWTH--", "EWR---", "EWRR--", "EWRL--", "EWRH--",
-            "EWZ---", "EWZL--", "EWZM--", "EWZH--", "EWO---", "EWOL--", "EWOM--", "EWOH--", "EWH---",
-            "EWHL--", "EWHLS-", "EWHM--", "EWHMS-", "EWHH--", "EWHHS-", "EWG---", "EWGL--", "EWGM--",
-            "EWGH--", "EWGR--", "EWD---", "EWDL--", "EWDLS-", "EWDM--", "EWDMS-", "EWDH--", "EWDHS-",
-            "EWA---", "EWAL--", "EWAM--", "EWAH--", "EV----", "EVA---", "EVAT--", "EVATL-", "EVATLR",
-            "EVATM-", "EVATMR", "EVATH-", "EVATHR", "EVAA--", "EVAAR-", "EVAI--", "EVAC--", "EVAS--",
-            "EVAL--", "EVU---", "EVUB--", "EVUS--", "EVUSL-", "EVUSM-", "EVUSH-", "EVUL--", "EVUX--",
-            "EVUR--", "EVUT--", "EVUTL-", "EVUTH-", "EVUA--", "EVUAA-", "EVE---", "EVEB--", "EVEE--",
-            "EVEC--", "EVEM--", "EVEMV-", "EVEML-", "EVEA--", "EVEAA-", "EVEAT-", "EVED--", "EVEDA-",
-            "EVES--", "EVER--", "EVEH--", "EVEF--", "EVT---", "EVC---", "EVCA--", "EVCAL-", "EVCAM-",
-            "EVCAH-", "EVCO--", "EVCOL-", "EVCOM-", "EVCOH-", "EVCM--", "EVCML-", "EVCMM-", "EVCMH-",
-            "EVCU--", "EVCUL-", "EVCUM-", "EVCUH-", "EVCJ--", "EVCJL-", "EVCJM-", "EVCJH-", "EVCT--",
-            "EVCTL-", "EVCTM-", "EVCTH-", "EVCF--", "EVCFL-", "EVCFM-", "EVCFH-", "EVM---", "EVS---",
-            "EVST--", "EVSR--", "EVSC--", "EVSP--", "EVSW--", "ES----", "ESR---", "ESE---", "EXI---",
-            "EXL---", "EXN---", "EXF---", "EXM---", "EXMC--", "EXML--", "I-----", "IR----", "IRM---",
-            "IRP---", "IRN---", "IRNB--", "IRNC--", "IRNN--", "IP----", "IPD---", "IE----", "IU----",
-            "IUR---", "IUT---", "IUE---", "IUEN--", "IUED--", "IUEF--", "IUP---", "IMF---", "IMFA--",
-            "IMFP--", "IMFPW-", "IMFS--", "IMA---", "IME---", "IMG---", "IMV---", "IMN---", "IMNB--",
-            "IMC---", "IMS---", "IMM---", "IG----", "IB----", "IBA---", "IBN---", "IT----", "IX----",
-            "IXH---"
+        private val landUnitEntities = arrayOf(
+            "110000", "110100", "110200", "110300", "110400", "110500", "110600", "110601", "110700", "110800",
+            "110900", "111000", "111001", "111002", "111003", "111004", "111005", "111100", "111200", "120000",
+            "120100", "120200", "120300", "120400", "120401", "120402", "120500", "120501", "120502", "120600",
+            "120601", "120700", "120800", "120801", "120900", "121000", "121100", "121101", "121102", "121103",
+            "121104", "121105", "121200", "121300", "121301", "121302", "121303", "121400", "121500", "121600",
+            "121700", "121800", "121801", "121802", "121803", "121804", "121805", "121900", "130000", "130100",
+            "130101", "130102", "130200", "130300", "130301", "130302", "130400", "130500", "130600", "130700",
+            "130800", "130801", "130802", "130803", "130900", "140000", "140100", "140101", "140102", "140103",
+            "140104", "140105", "140200", "140300", "140400", "140500", "140600", "140700", "140701", "140702",
+            "140703", "140800", "140900", "141000", "141100", "141200", "141300", "141400", "141500", "141600",
+            "141700", "141701", "141702", "141800", "141900", "142000", "142100", "150000", "150100", "150200",
+            "150300", "150400", "150500", "150501", "150502", "150503", "150504", "150505", "150600", "150700",
+            "150800", "150900", "151000", "151100", "151200", "160000", "160100", "160200", "160300", "160400",
+            "160500", "160600", "160700", "160800", "160900", "161000", "161100", "161200", "161300", "161400",
+            "161500", "161600", "161700", "161800", "161900", "162000", "162100", "162200", "162300", "162400",
+            "162500", "162600", "162700", "162800", "162900", "163000", "163100", "163200", "163300", "163400",
+            "163500", "163600", "163700", "163800", "163900", "164000", "164100", "164200", "164300", "164400",
+            "164500", "164600", "164700", "164800", "164900", "170000", "170100", "180000", "180100", "180200",
+            "180300", "180400", "190000", "200000", "200100", "200200", "200300", "200400", "200500", "200600",
+            "200700", "200800", "200900", "201000", "201100", "201200", "201300",
         )
-        private val warfightingSeaSurfaceFunctionIDs = arrayOf(
-            "------", "C-----", "CL----", "CLCV--", "CLBB--", "CLCC--", "CLDD--", "CLFF--", "CLLL--",
-            "CLLLAS", "CLLLMI", "CLLLSU", "CA----", "CALA--", "CALS--", "CALSM-", "CALST-", "CALC--",
-            "CM----", "CMML--", "CMMS--", "CMMH--", "CMMA--", "CP----", "CPSB--", "CPSU--", "CPSUM-",
-            "CPSUT-", "CPSUG-", "CH----", "G-----", "GT----", "GG----", "GU----", "GC----", "CD----",
-            "CU----", "CUM---", "CUS---", "CUN---", "CUR---", "N-----", "NR----", "NF----", "NI----",
-            "NS----", "NM----", "NH----", "XM----", "XMC---", "XMR---", "XMO---", "XMTU--", "XMF---",
-            "XMP---", "XMH---", "XMTO--", "XF----", "XFDF--", "XFDR--", "XFTR--", "XR----", "XL----",
-            "XH----", "XA----", "XAR---", "XAS---", "XP----", "O-----"
+        private val landEquipmentEntities = arrayOf(
+            "110000", "110100", "110101", "110102", "110103", "110200", "110201", "110202", "110203", "110300",
+            "110301", "110302", "110303", "110400", "110500", "110501", "110502", "110503", "110600", "110601",
+            "110602", "110603", "110700", "110701", "110702", "110703", "110800", "110801", "110802", "110803",
+            "110900", "110901", "110902", "110903", "111000", "111001", "111002", "111003", "111100", "111101",
+            "111102", "111103", "111104", "111105", "111106", "111107", "111108", "111109", "111200", "111201",
+            "111202", "111203", "111300", "111301", "111302", "111303", "111400", "111401", "111402", "111403",
+            "111500", "111501", "111502", "111503", "111600", "111601", "111602", "111603", "111701", "111701",
+            "111702", "111703", "111800", "111900", "112000", "120000", "120100", "120101", "120102", "120103",
+            "120104", "120105", "120106", "120107", "120108", "120109", "120110", "120200", "120201", "120202",
+            "120203", "120300", "120301", "120302", "120303", "130000", "130100", "130200", "130300", "130400",
+            "130500", "130600", "130700", "130701", "130800", "130801", "130900", "130901", "130902", "131000",
+            "131001", "131002", "131003", "131100", "131101", "131200", "131300", "131400", "131500", "131600",
+            "140000", "140100", "140200", "140300", "140400", "140500", "140600", "140601", "140602", "140603",
+            "140700", "140800", "140900", "141000", "141100", "141200", "141201", "141202", "150000", "150100",
+            "150200", "160000", "160100", "160101", "160102", "160103", "160200", "160201", "160202", "160203",
+            "160300", "160301", "160302", "160303", "160400", "160401", "160402", "160403", "160500", "160501",
+            "160502", "160503", "160600", "160601", "160602", "160603", "160700", "160701", "160702", "160703",
+            "160800", "160900", "170000", "170100", "170200", "170300", "170400", "170500", "170600", "170700",
+            "170800", "170900", "171000", "171100", "180000", "190000", "190100", "190200", "190300", "190400",
+            "190500", "200000", "200100", "200200", "200300", "200400", "200500", "200600", "200700", "200800",
+            "200900", "201000", "201100", "201200", "201300", "201400", "201500", "201501", "210000", "210100",
+            "210200", "210300", "210400", "210500", "220000", "220100", "220200", "220300", "230000", "230100",
+            "230200", "240000",
         )
-        private val warfightingSubsurfaceFunctionIDs = arrayOf(
-            "------", "S-----", "SF----", "SB----", "SR----", "SX----", "SN----", "SNF---", "SNA---",
-            "SNM---", "SNG---", "SNB---", "SC----", "SCF---", "SCA---", "SCM---", "SCG---", "SCB---",
-            "SO----", "SOF---", "SU----", "SUM---", "SUS---", "SUN---", "S1----", "S2----", "S3----",
-            "S4----", "SL----", "SK----", "W-----", "WT----", "WM----", "WMD---", "WMG---", "WMGD--",
-            "WMGX--", "WMGE--", "WMGC--", "WMGR--", "WMGO--", "WMM---", "WMMD--", "WMMX--", "WMME--",
-            "WMMC--", "WMMR--", "WMMO--", "WMF---", "WMFD--", "WMFX--", "WMFE--", "WMFC--", "WMFR--",
-            "WMFO--", "WMO---", "WMOD--", "WMX---", "WME---", "WMA---", "WMC---", "WMR---", "WMB---",
-            "WMBD--", "WMN---", "WMS---", "WMSX--", "WMSD--", "WD----", "WDM---", "WDMG--", "WDMM--",
-            "ND----", "E-----", "V-----", "X-----"
+        private val landInstallationEntities = arrayOf(
+            "110000", "110100", "110200", "110300", "110400", "110500", "110600", "110700", "110701", "110800",
+            "110900", "111000", "111100", "111200", "111300", "111400", "111500", "111600", "111700", "111800",
+            "111900", "111901", "111902", "112000", "112100", "112101", "112102", "112103", "112104", "112105",
+            "112106", "112107", "112108", "112109", "112110", "112111", "112112", "112200", "112201", "112202",
+            "120000", "120100", "120101", "120102", "120103", "120104", "120105", "120106", "120107", "120108",
+            "120200", "120201", "120202", "120203", "120204", "120205", "120206", "120207", "120300", "120301",
+            "120302", "120303", "120304", "120305", "120306", "120307", "120308", "120309", "120310", "120400",
+            "120401", "120402", "120500", "120501", "120502", "120503", "120504", "120505", "120506", "120600",
+            "120700", "120701", "120702", "120800", "120801", "120802", "120900", "120901", "120902", "121000",
+            "121001", "121002", "121003", "121004", "121100", "121101", "121102", "121103", "121200", "121201",
+            "121202", "121203", "121300", "121301", "121302", "121303", "121304", "121305", "121306", "121307",
+            "121308", "121309", "121310", "121311", "121312", "121313", "121400", "121401", "121402", "121403",
+            "121404", "121405", "121406", "121407", "121408", "121409", "121410", "121411",
         )
-        private val warfightingSOFFunctionIDs = arrayOf(
-            "------", "A-----", "AF----", "AFA---", "AFK---", "AFU---", "AFUL--", "AFUM--", "AFUH--",
-            "AV----", "AH----", "AHH---", "AHA---", "AHU---", "AHUL--", "AHUM--", "AHUH--", "N-----",
-            "NS----", "NU----", "NB----", "NN----", "G-----", "GS----", "GR----", "GP----","GPA---",
-            "GC----", "B-----"
+        private val seaSurfaceEntities = arrayOf(
+            "110000", "120000", "120100", "120200", "120201", "120202", "120203", "120204", "120205", "120206",
+            "120300", "120301", "120302", "120303", "120304", "120305", "120306", "120307", "120308", "120400",
+            "120401", "120402", "120403", "120404", "120405", "120406", "120500", "120501", "120502", "120600",
+            "120700", "120800", "120801", "120900", "121000", "121001", "121002", "121003", "121004", "121005",
+            "121100", "130000", "130100", "130101", "130102", "130103", "130104", "130105", "130106", "130107",
+            "130108", "130109", "130110", "130111", "130112", "130113", "130200", "130201", "130202", "130203",
+            "130204", "140000", "140100", "140101", "140102", "140103", "140104", "140105", "140106", "140107",
+            "140108", "140109", "140110", "140111", "140112", "140113", "140114", "140115", "140116", "140200",
+            "140201", "140202", "140203", "140300", "140400", "140500", "140501", "140502", "140600", "140700",
+            "150000", "160000", "170000",
         )
-        var signalsIntelligenceSpaceFunctionIDs = arrayOf(
-            "SCD---", "SRD---", "SRE---", "SRI---", "SRM---", "SRT---", "SRS---", "SRU---"
+        private val subsurfaceEntities = arrayOf(
+            "110000", "110100", "110101", "110102", "110103", "110200", "110300", "110400", "110500", "120000",
+            "120100", "120200", "120300", "130000", "130100", "130200", "130300", "140000", "150000", "160000",
         )
-        var signalsIntelligenceAirFunctionIDs = arrayOf(
-            "SCC---", "SCO---", "SCP---", "SCS---", "SRAI--", "SRAS--", "SRC---", "SRD---", "SRE---",
-            "SRF---", "SRI---", "SRMA--", "SRMD--", "SRMG--", "SRMT--", "SRMF--", "SRTI--", "SRTA--",
-            "SRTT--", "SRU---"
-        )
-        var signalsIntelligenceGroundFunctionIDs = arrayOf(
-            "SCC---", "SCO---", "SCP---", "SCS---", "SCT---", "SRAT--", "SRAA--", "SRB---", "SRCS--",
-            "SRCA--", "SRD---", "SRE---", "SRF---", "SRH---", "SRI---", "SRMM--", "SRMA--", "SRMG--",
-            "SRMT--", "SRMF--", "SRS---", "SRTA--", "SRTI--", "SRTT--", "SRU---"
-        )
-
-        // Warfighting
-        var signalsIntelligenceSeaSurfaceFunctionIDs = arrayOf(
-            "SCC---", "SCO---", "SCP---", "SCS---", "SRAT--", "SRAA--", "SRCA--", "SRCI--", "SRD---",
-            "SRE---", "SRF---", "SRH---", "SRI---", "SRMM--", "SRMA--", "SRMG--", "SRMT--", "SRMF--",
-            "SRS---", "SRTA--", "SRTI--", "SRTT--", "SRU---"
-        )
-        var signalsIntelligenceSubsurfaceFunctionIDs = arrayOf(
-            "SCO---", "SCP---", "SCS---", "SRD---", "SRE---", "SRM---", "SRS---", "SRT---", "SRU---"
-        )
-        var stabilityOperationsViolentActivitiesFunctionIDs = arrayOf(
-            "A-----", "M-----", "MA----", "MB----", "MC----", "B-----", "Y-----", "D-----", "S-----",
-            "P-----", "E-----", "EI----"
-        )
-        var stabilityOperationsLocationsFunctionIDs = arrayOf(
-            "B-----", "G-----", "W-----", "M-----"
-        )
-        var stabilityOperationsOperationsFunctionIDs = arrayOf(
-            "P-----", "RW----", "RC----", "D-----", "M-----", "Y-----", "YT----", "YW----", "YH----",
-            "F-----", "S-----", "O-----", "E-----", "HT----", "HA----", "HV----", "K-----", "KA----",
-            "A-----", "U-----", "C-----", "CA----", "CB----", "CC----"
-        )
-        var stabilityOperationsItemsFunctionIDs = arrayOf(
-            "R-----", "S-----", "G-----", "V-----", "I-----", "D-----", "F-----"
-        )
-        var stabilityOperationsIndividualFunctionIDs = arrayOf(
-            "------", "A-----", "B-----", "C-----"
-        )
-
-        //  Signals Intelligence
-        var stabilityOperationsNonmilitaryFunctionIDs = arrayOf(
-            "------", "A-----", "B-----", "C-----", "D-----", "E-----", "F-----"
-        )
-        var stabilityOperationsRapeFunctionIDs = arrayOf(
-            "------",
-            "A-----"
-        )
-        var emergencyManagementIncidentsFunctionIDs = arrayOf(
-            "A-----", "AC----", "B-----", "BA----", "BC----", "BD----", "BF----", "C-----", "CA----",
-            "CB----", "CC----", "CD----", "CE----", "CF----", "CG----", "CH----", "D-----", "DA----",
-            "DB----", "DC----", "DE----", "DF----", "DG----", "DH----", "DI----", "DJ----", "DK----",
-            "DL----", "DM----", "DN----", "DO----", "E-----", "EA----", "F-----", "FA----", "G-----",
-            "GA----", "GB----", "H-----", "HA----"
-        )
-        var emergencyManagementNaturalEventsFunctionIDs = arrayOf(
-            "AA----", "AB----", "AC----", "AD----", "AE----", "AG----", "BB----", "BC----", "BF----",
-            "BM----", "CA----", "CB----", "CC----", "CD----", "CE----"
-        )
-        var emergencyManagementOperationsFunctionIDs = arrayOf(
-            "A-----H----", "AA---------", "AB---------", "AC----H----", "AD----H----", "AE---------",
-            "AF---------", "AG----H----", "AJ----H----", "AK----H----", "AL----H----", "AM----H----",
-            "B----------", "BA---------", "BB---------", "BC----H----", "BD---------", "BE----H----",
-            "BF----H----", "BG----H----", "BH----H----", "BI----H----", "BJ---------", "BK----H----",
-            "BL----H----", "C----------", "CA---------", "CB---------", "CC---------", "CD----H----",
-            "CE----H----", "D----------", "DA---------", "DB---------", "DC----H----", "DD---------",
-            "DDA--------", "DDB--------", "DDC---H----", "DE---------", "DEA--------", "DEB--------",
-            "DEC---H----", "DF---------", "DFA--------", "DFB--------", "DFC---H----", "DG---------",
-            "DGA--------", "DGB--------", "DGC---H----", "DH---------", "DHA--------", "DHB--------",
-            "DHC---H----", "DI---------", "DIA--------", "DIB--------", "DIC---H----", "DJ---------",
-            "DJB--------", "DJC---H----", "DK---------", "DL---------", "DLA--------", "DLB--------",
-            "DLC---H----", "DM---------", "DMA--------", "DMB--------", "DMC---H----", "DN---------",
-            "DNA--------", "DNC---H----", "DO---------", "DOA--------", "DOB--------", "DOC---H----",
-            "EA---------", "EB---------", "EC---------", "ED---------", "EE---------"
-        )
-
-        //  Stability Operations
-        var emergencyManagementInfrastructureFunctionIDs = arrayOf(
-            "A----------", "AA----H----", "AB----H----", "AC----H----", "AD----H----", "AE----H----",
-            "AF----H----", "AG----H----", "B-----H----", "BA---------", "BB----H----", "BC----H----",
-            "BD----H----", "BE----H----", "BF----H----", "C-----H----", "CA----H----", "CB----H----",
-            "CC----H----", "CD----H----", "CE----H----", "CF----H----", "CG----H----", "CH----H----",
-            "CI----H----", "CJ----H----", "D-----H----", "DA----H----", "DB----H----", "EA----H----",
-            "EB----H----", "EE----H----", "F-----H----", "G-----H----", "GA----H----", "H-----H----",
-            "HA----H----", "HB----H----", "I-----H----", "IA----H----", "IB----H----", "IC----H----",
-            "ID----H----", "J-----H----", "JA----H----", "JB----H----", "JC----H----", "K-----H----",
-            "KB----H----", "LA----H----", "LD----H----", "LE----H----", "LF----H----", "LH----H----",
-            "LJ----H----", "LK----H----", "LM----H----", "LO----H----", "LP----H----", "MA---------",
-            "MB----H----", "MC---------", "MD----H----", "ME----H----", "MF----H----", "MG----H----",
-            "MH----H----", "MI----H----"
+        private val mineWarfareEntities = arrayOf(
+            "110000", "110100", "110200", "110300", "110400", "110500", "110600", "110700", "110800", "110801",
+            "110802", "110803", "110804", "110900", "110901", "110902", "110903", "110904", "110905", "120000",
+            "130000", "130100", "130200", "140000", "140100", "140101", "140102", "140103", "140104", "140105",
+            "140200", "140201", "140202", "140203", "140204", "140205", "140300", "140301", "140302", "140303",
+            "140304", "140305", "140400", "140401", "140402", "140403", "140404", "140405", "150000", "150100",
+            "150200", "150300", "160000", "160100", "160200", "160300", "170000", "170100", "180000", "190000",
+            "190100", "190200", "190300", "200000", "210000",
         )
     }
 }

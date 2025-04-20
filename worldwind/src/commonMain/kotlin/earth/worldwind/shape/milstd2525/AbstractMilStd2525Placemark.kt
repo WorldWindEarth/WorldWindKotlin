@@ -10,14 +10,14 @@ import earth.worldwind.shape.Placemark
  * to release memory resources.
  *
  * @param position The placemark's geographic position
- * @param symbolCode A 15-character alphanumeric identifier that provides the information necessary to display or
+ * @param symbolID A 30-character numeric identifier that provides the information necessary to display or
  * transmit a tactical symbol between MIL-STD-2525 compliant systems.
  * @param symbolModifiers An optional collection of unit or tactical graphic modifiers.
  * @param symbolAttributes An optional collection of rendering attributes.
  * @param lodSelector Level of detail selector
  */
 abstract class AbstractMilStd2525Placemark(
-    val symbolCode: String, position: Position,
+    val symbolID: String, position: Position,
     symbolModifiers: Map<String, String>?, symbolAttributes: Map<String, String>?, lodSelector: LevelOfDetailSelector
 ) : Placemark(position) {
 

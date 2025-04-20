@@ -43,7 +43,7 @@ class MilStd2525Tutorial(private val engine: WorldWind) : AbstractTutorial() {
         addRenderable(
             Placemark(
                 fromDegrees(32.4520, 63.44553, 3000.0),
-                MilStd2525Placemark.getPlacemarkAttributes("SFAPMFQM--GIUSA", mapOf("Q" to "235"))
+                MilStd2525Placemark.getPlacemarkAttributes("10030101001103002700", mapOf("Q" to "235", "AS" to "US"))
             ).apply {
                 attributes.isDrawLeader = true
                 isBillboardingEnabled = true
@@ -54,7 +54,7 @@ class MilStd2525Tutorial(private val engine: WorldWind) : AbstractTutorial() {
         addRenderable(
             Placemark(
                 fromDegrees(32.4014, 63.3894, 0.0),
-                MilStd2525Placemark.getPlacemarkAttributes("SHGXUCFRMS----G", mapOf("Q" to "90", "AJ" to "0.1"))
+                MilStd2525Placemark.getPlacemarkAttributes("10061040001303014100", mapOf("Q" to "90", "AJ" to "0.1"))
             ).apply {
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 isBillboardingEnabled = true
@@ -62,17 +62,17 @@ class MilStd2525Tutorial(private val engine: WorldWind) : AbstractTutorial() {
         )
 
         // Add a "MIL-STD-2525 Friendly Heavy Machine Gun"
-        val modifiers = mapOf(
-            "C" to "200",
-            "G" to "FOR REINFORCEMENTS",
-            "H" to "ADDED SUPPORT FOR JJ",
-            "V" to "MACHINE GUN",
-            "W" to "30140000ZSEP97" // Date/Time Group
-        )
         addRenderable(
             Placemark(
                 fromDegrees(32.3902, 63.4161, 0.0),
-                MilStd2525Placemark.getPlacemarkAttributes("SFGPEWRH--MTUSG", modifiers)
+                MilStd2525Placemark.getPlacemarkAttributes("10031500361102030000", mapOf(
+                    "C" to "200",
+                    "G" to "FOR REINFORCEMENTS",
+                    "H" to "ADDED SUPPORT FOR JJ",
+                    "V" to "MACHINE GUN",
+                    "W" to "30140000ZSEP97", // Date/Time Group
+                    "AS" to "US"
+                ))
             ).apply {
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                 isBillboardingEnabled = true
@@ -81,11 +81,11 @@ class MilStd2525Tutorial(private val engine: WorldWind) : AbstractTutorial() {
 
         // Add "MIL-STD-2525 Counterattack by fire"
         addRenderable(
-            MilStd2525TacticalGraphic("GHTPKF----****X", listOf(
-                Location.fromDegrees(32.379, 63.457),
-                Location.fromDegrees(32.348, 63.412),
-                Location.fromDegrees(32.364, 63.375),
-                Location.fromDegrees(32.396, 63.451),
+            MilStd2525TacticalGraphic("10062500003407000000", listOf(
+                fromDegrees(32.379, 63.457),
+                fromDegrees(32.348, 63.412),
+                fromDegrees(32.364, 63.375),
+                fromDegrees(32.396, 63.451),
             ))
         )
     }

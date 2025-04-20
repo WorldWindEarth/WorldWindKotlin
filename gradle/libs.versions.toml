@@ -11,8 +11,9 @@ ktor = "3.1.1"
 lifecycle = "2.8.7"
 lwjgl = "3.3.3"
 material = "1.12.0"
-mil-sym-android = "0.1.60"
-mil-sym-jvm = "0.1.41"
+mil-sym-android = "2.3.4"
+mil-sym-java = "2.1.5"
+mil-sym-ts = "2.1.6"
 mockk = "1.13.17"
 ormlite = "6.1"
 pngj = "2.1.0"
@@ -21,7 +22,7 @@ rules = "1.6.1"
 serialization = "1.8.0"
 tiff = "3.0.0"
 uri-kmp = "0.0.19"
-xmlutil = "0.91.0-RC1"
+xmlutil = "0.91.0"
 
 [plugins]
 
@@ -52,8 +53,8 @@ moko-resources-test = { module = "dev.icerock.moko:resources-test", version.ref 
 mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
 mockk-jvm = { module = "io.mockk:mockk-jvm", version.ref = "mockk" }
 
-mil-sym-android = { module = "io.github.missioncommand:mil-sym-android-renderer", version.ref = "mil-sym-android" }
-mil-sym-jvm = { module = "io.github.missioncommand:mil-sym-renderer", version.ref = "mil-sym-jvm" }
+mil-sym-android = { module = "io.github.missioncommand:mil-sym-android", version.ref = "mil-sym-android" }
+mil-sym-java = { module = "io.github.missioncommand:mil-sym-java", version.ref = "mil-sym-java" }
 
 jogl = { module = "org.jogamp.jogl:jogl-all", version.ref = "jogl" }
 gluegen = { module = "org.jogamp.gluegen:gluegen-rt", version.ref = "jogl" }

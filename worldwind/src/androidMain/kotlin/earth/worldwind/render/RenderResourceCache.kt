@@ -41,12 +41,12 @@ actual open class RenderResourceCache @JvmOverloads constructor(
             } ?: (1024 * 1024 * 256) // use 256 MB by default
     }
 
-    var urlRetrievalQueueSize = 8
+    var remoteRetrievalQueueSize = 8
     var localRetrievalQueueSize = 16
     override var age = 0L // Manually incrementable cache age
     val imageDecoder = ImageDecoder(context)
     protected val evictionQueue = ConcurrentLinkedQueue<RenderResource>()
-    protected val urlRetrievals = mutableSetOf<ImageSource>()
+    protected val remoteRetrievals = mutableSetOf<ImageSource>()
     protected val localRetrievals = mutableSetOf<ImageSource>()
     /**
      * Main render resource retrieval scope
@@ -64,7 +64,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     override fun clear() {
         super.clear()
         evictionQueue.clear() // the eviction queue no longer needs to be processed
-        urlRetrievals.clear()
+        remoteRetrievals.clear()
         localRetrievals.clear()
         absentResourceList.clear()
         age = 0
@@ -113,7 +113,10 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         when {
             imageSource.isBitmap -> {
                 // Bitmap image sources are already in memory, so a texture may be created and put into the cache immediately.
-                return createTexture(options, imageSource.asBitmap()).also { put(imageSource, it, it.byteCount) }
+                // Do not recycle image sources from Bitmap on load to be able to reuse them after GL context lost
+                return createTexture(options, imageSource.asBitmap(), recycleOnLoad = false).also {
+                    put(imageSource, it, it.byteCount)
+                }
             }
             imageSource.isBitmapFactory -> {
                 val factory = imageSource.asBitmapFactory()
@@ -135,8 +138,8 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         // the texture is not in memory. The image is added to the image retrieval cache upon successful retrieval. It's
         // then expected that a subsequent render frame will result in another call to retrieveTexture, in which case
         // the image will be found in the image retrieval cache.
-        val currentRetrievals = if (imageSource.isUrl) urlRetrievals else localRetrievals
-        val retrievalQueueSize = if (imageSource.isUrl) urlRetrievalQueueSize else localRetrievalQueueSize
+        val currentRetrievals = if (imageSource.isUrl) remoteRetrievals else localRetrievals
+        val retrievalQueueSize = if (imageSource.isUrl) remoteRetrievalQueueSize else localRetrievalQueueSize
         if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)) {
             currentRetrievals += imageSource
             mainScope.launch {
@@ -156,8 +159,8 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         return null
     }
 
-    protected open fun createTexture(options: ImageOptions?, bitmap: Bitmap): Texture {
-        val texture = BitmapTexture(bitmap)
+    protected open fun createTexture(options: ImageOptions?, bitmap: Bitmap, recycleOnLoad: Boolean = true): Texture {
+        val texture = BitmapTexture(bitmap, recycleOnLoad)
         if (options?.resamplingMode == ResamplingMode.NEAREST_NEIGHBOR) {
             texture.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             texture.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)

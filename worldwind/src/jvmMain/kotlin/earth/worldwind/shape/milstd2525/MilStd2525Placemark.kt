@@ -15,18 +15,18 @@ import java.lang.ref.WeakReference
  * See the [MilStd2525Placemark.getPlacemarkAttributes] for more information about resource caching/sharing.
  *
  * @param position The placemark's geographic position
- * @param symbolCode A 15-character alphanumeric identifier that provides the information necessary to display or
+ * @param symbolID A 30-character numeric identifier that provides the information necessary to display or
  * transmit a tactical symbol between MIL-STD-2525 compliant systems.
  * @param symbolModifiers An optional collection of unit or tactical graphic modifiers.
  * @param symbolAttributes An optional collection of rendering attributes.
  */
 actual open class MilStd2525Placemark actual constructor(
-    symbolCode: String,
+    symbolID: String,
     position: Position,
     symbolModifiers: Map<String, String>?,
     symbolAttributes: Map<String, String>?,
     lodSelector: LevelOfDetailSelector
-) : AbstractMilStd2525Placemark(symbolCode, position, symbolModifiers, symbolAttributes, lodSelector) {
+) : AbstractMilStd2525Placemark(symbolID, position, symbolModifiers, symbolAttributes, lodSelector) {
     actual companion object {
         /**
          * A cache of PlacemarkAttribute bundles containing MIL-STD-2525 symbols. Using a cache is essential for memory
@@ -46,9 +46,10 @@ actual open class MilStd2525Placemark actual constructor(
          * Creates a placemark attributes bundle containing a MIL-STD-2525 symbol using the specified modifiers and
          * attributes.
          *
-         * @param symbolCode The 15-character SIDC (symbol identification coding scheme) code.
-         * @param symbolModifiers The ModifierUnit (unit) or ModifierTG (tactical graphic) modifiers collection. May be null.
-         * @param symbolAttributes The MilStdAttributes attributes collection. May be null.
+         * @param symbolCode A 30-character numeric identifier that provides the information necessary to display or
+         * transmit a tactical symbol between MIL-STD-2525 compliant systems.
+         * @param symbolModifiers An optional collection of unit or tactical graphic modifiers.
+         * @param symbolAttributes An optional collection of rendering attributes.
          *
          * @return A new [PlacemarkAttributes] bundle representing the MIL-STD-2525 symbol.
          */
@@ -65,7 +66,6 @@ actual open class MilStd2525Placemark actual constructor(
                     imageSource = ImageSource.fromImageFactory(it)
                 }
                 MilStd2525.applyTextAttributes(labelAttributes)
-                leaderAttributes.outlineWidth = MilStd2525.graphicsLineWidth / 1.5f
                 minimumImageScale = MINIMUM_IMAGE_SCALE
                 symbolCache[key] = WeakReference(this)
             }
@@ -84,7 +84,7 @@ actual open class MilStd2525Placemark actual constructor(
             // Apply the computed image offset after the renderer has created the image. This is essential for proper
             // placement as the offset may change depending on the level of detail, for instance, the absence or
             // presence of text modifiers.
-            onRender(it.symbolCenterPoint.x, it.symbolCenterPoint.y, it.symbolBounds.width, it.symbolBounds.height)
+            onRender(it.symbolCenterX.toDouble(), it.symbolCenterY.toDouble(), it.symbolBounds.width, it.symbolBounds.height)
             it.image
         } ?: run {
             Logger.logMessage(

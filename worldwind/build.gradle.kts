@@ -86,7 +86,7 @@ kotlin {
                 implementation(libs.lwjgl.opengl)
                 implementation(libs.lwjgl.stb)
 
-                implementation(libs.mil.sym.jvm)
+                implementation(libs.mil.sym.java)
                 implementation(libs.ormlite.jdbc)
             }
         }
@@ -96,7 +96,7 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(libs.ktor.client.js)
-                implementation(npm("@io.github.missioncommand/mil-sym-js", "0.3.40"))
+                implementation(npm("@armyc2.c5isr.renderer/mil-sym-ts", libs.versions.mil.sym.ts.get()))
                 // IC internal error: can not find library org.jetbrains.kotlin:kotlinx-atomicfu-runtime
                 // https://youtrack.jetbrains.com/issue/KT-57235
                 implementation(libs.kotlinx.atomicfu.runtime)

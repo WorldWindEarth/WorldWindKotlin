@@ -2,13 +2,9 @@ package earth.worldwind.examples
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.SparseArray
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
-import armyc2.c2sd.renderer.utilities.MilStdAttributes
-import armyc2.c2sd.renderer.utilities.ModifiersUnits
-import armyc2.c2sd.renderer.utilities.SymbolUtilities
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Position.Companion.fromDegrees
@@ -215,7 +211,7 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
                         airports.add(airport)
                     }
                 }
-            } catch (e: IOException) {
+            } catch (_: IOException) {
                 log(Logger.ERROR, "Exception attempting to read Airports database")
             }
         }
@@ -227,48 +223,44 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
             publishProgress("Creating airport symbols...")
 
             // Shared rendering attributes
-            val milStdAttributes = SparseArray<String>()
-            val civilianColorAttributes = SparseArray<String>()
-            civilianColorAttributes.put(
-                MilStdAttributes.FillColor,
-                SymbolUtilities.colorToHexString(armyc2.c2sd.renderer.utilities.Color.magenta, false)
-            )
+            val milStdAttributes = mutableMapOf<String, String>()
+            val civilianColorAttributes = mapOf("FILLCOLOR" to String.format("%08x", Color.MAGENTA))
             var placemark: Placemark
             for (airport in airports) {
-                val unitModifiers = SparseArray<String>()
-                unitModifiers.put(ModifiersUnits.T_UNIQUE_DESIGNATION_1, airport.name)
+                val unitModifiers = mutableMapOf<String, String>()
+                unitModifiers.put("T", airport.name)
                 placemark = when {
                     friends.contains(airport.country) -> {
                         when (airport.use) {
                             Airport.MILITARY, Airport.JOINT -> MilStd2525Placemark(
-                                "SFGPIBA---H****", airport.position,
+                                "10032000001213010000", airport.position,
                                 unitModifiers, milStdAttributes
                             )
                             Airport.CIVILIAN, Airport.OTHER -> MilStd2525Placemark(
-                                "SFGPIBA---H****", airport.position,
+                                "10032000001213011100", airport.position,
                                 unitModifiers, civilianColorAttributes
                             )
                             else -> MilStd2525Placemark(
-                                "SUGPIBA---H****", airport.position,
+                                "10012000001213010000", airport.position,
                                 unitModifiers, milStdAttributes
                             )
                         }
                     }
                     neutrals.contains(airport.country) -> {
                         MilStd2525Placemark(
-                            "SNGPIBA---H****", airport.position,
+                            "10042000001213010000", airport.position,
                             unitModifiers, milStdAttributes
                         )
                     }
                     hostiles.contains(airport.country) -> {
                         MilStd2525Placemark(
-                            "SHGPIBA---H****", airport.position,
+                            "10062000001213010000", airport.position,
                             unitModifiers, milStdAttributes
                         )
                     }
                     else -> {
                         MilStd2525Placemark(
-                            "SUGPIBA---H****", airport.position,
+                            "10012000001213010000", airport.position,
                             unitModifiers, milStdAttributes
                         )
                     }
@@ -299,9 +291,10 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
 
                 // Create a MIL-STD-2525 symbol based on the departure airport
                 val symbolCode = createAircraftSymbolCode(departure.country, departure.use)
-                val unitModifiers = SparseArray<String>()
-                unitModifiers.put(ModifiersUnits.H_ADDITIONAL_INFO_1, "ORIG: " + departure.name)
-                unitModifiers.put(ModifiersUnits.G_STAFF_COMMENTS, "DEST: " + arrival.name)
+                val unitModifiers = mutableMapOf<String, String>()
+                unitModifiers.put("H", "ORIG: " + departure.name)
+                unitModifiers.put("G", "DEST: " + arrival.name)
+                unitModifiers.put("AS", departure.country)
                 val placemark = MilStd2525Placemark(symbolCode, origin, unitModifiers, null).apply {
                     isEyeDistanceScaling = true
 
@@ -324,31 +317,30 @@ There are $NUM_AIRPORTS airports and $NUM_AIRCRAFT aircraft symbols in this exam
         }
 
         /**
-         * Generates a SIDC (symbol identification coding scheme) for an aircraft originating the given county and
-         * departure airport use type.
+         * Generates a Symbol ID for an aircraft originating the given county and departure airport use type.
          *
-         * @param country    A country code as defined in the airports database.
+         * @param country    A country code as defined in the airport's database.
          * @param airportUse The use code for the departure airport.
          *
-         * @return A 15-character alphanumeric identifier.
+         * @return A 30-character numeric identifier.
          */
         private fun createAircraftSymbolCode(country: String, airportUse: String): String {
             val identity = when {
-                friends.contains(country) -> "F"
-                neutrals.contains(country) -> "N"
-                hostiles.contains(country) -> "H"
-                else -> "U"
+                friends.contains(country) -> "3"
+                neutrals.contains(country) -> "4"
+                hostiles.contains(country) -> "6"
+                else -> "1"
             }
             val type = when (airportUse) {
-                Airport.MILITARY, Airport.JOINT -> "MF" // Military fixed wing
-                Airport.CIVILIAN, Airport.OTHER -> "CF" // Civilian fixed wing
-                else -> "--"
+                Airport.MILITARY, Airport.JOINT -> "1101" // Military fixed wing
+                Airport.CIVILIAN, Airport.OTHER -> "1201" // Civilian fixed wing
+                else -> "0000"
             }
 
-            // Adding the country code the the symbol creates more and larger images, but it adds a useful bit
-            // of context to the aircraft as they fly across the globe.  Replace country with "**" to reduce the
+            // Adding the country code the symbol creates more and larger images, but it adds a useful bit
+            // of context to the aircraft as they fly across the globe.  Replace country with "**" to reduce
             // the memory footprint of the image textures.
-            return "S" + identity + "AP" + type + "----**" + country + "*"
+            return "100" + identity + "010000" + type + "000000"
         }
     }
 

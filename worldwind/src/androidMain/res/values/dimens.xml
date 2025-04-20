@@ -7,7 +7,4 @@
     <dimen name="default_pixel_size">36dp</dimen>
     <dimen name="modifier_font_size">8sp</dimen>
     <dimen name="mp_modifier_font_size">12sp</dimen>
-    <dimen name="text_outline_width">2dp</dimen>
-    <dimen name="symbol_outline_width">0.5dp</dimen>
-    <dimen name="graphics_line_width">1.5dp</dimen>
 </resources>

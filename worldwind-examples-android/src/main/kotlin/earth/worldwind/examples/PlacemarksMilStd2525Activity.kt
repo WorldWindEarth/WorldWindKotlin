@@ -2,10 +2,8 @@ package earth.worldwind.examples
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.SparseArray
 import android.widget.FrameLayout
 import android.widget.TextView
-import armyc2.c2sd.renderer.utilities.ModifiersUnits
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -79,39 +77,35 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
             val symbolLayer = RenderableLayer("Symbols")
             wwd.engine.layers.addLayer(symbolLayer)
 
-            // Add a "MIL-STD-2525 Friendly SOF Drone Aircraft"
-            val modifiers = SparseArray<String>()
-            modifiers.put(ModifiersUnits.Q_DIRECTION_OF_MOVEMENT, "235")
+            // Add a "MIL-STD-2525 Feint/Dummy Friendly SOF Drone Aircraft from US"
             val drone = Placemark(
                 fromDegrees(32.4520, 63.44553, 3000.0),
-                MilStd2525Placemark.getPlacemarkAttributes("SFAPMFQM--GIUSA", modifiers)
+                MilStd2525Placemark.getPlacemarkAttributes("10030101001103002700", mapOf("Q" to "235", "AS" to "US"))
             )
             drone.attributes.isDrawLeader = true
             drone.isBillboardingEnabled = true
             symbolLayer.addRenderable(drone)
 
-            // Add a "MIL-STD-2525 Hostile Self-Propelled Rocket Launchers"
-            modifiers.clear()
-            modifiers.put(ModifiersUnits.Q_DIRECTION_OF_MOVEMENT, "90")
-            modifiers.put(ModifiersUnits.AJ_SPEED_LEADER, "0.1")
+            // Add a "MIL-STD-2525 Present/Destroyed Hostile Self-Propelled Multiple Rocket Launcher"
             val launcher = Placemark(
                 fromDegrees(32.4014, 63.3894, 0.0),
-                MilStd2525Placemark.getPlacemarkAttributes("SHGXUCFRMS----G", modifiers)
+                MilStd2525Placemark.getPlacemarkAttributes("10061040001303014100", mapOf("Q" to "90", "AJ" to "0.1"))
             )
             launcher.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
             launcher.isBillboardingEnabled = true
             symbolLayer.addRenderable(launcher)
 
-            // Add a "MIL-STD-2525 Friendly Heavy Machine Gun"
-            modifiers.clear()
-            modifiers.put(ModifiersUnits.C_QUANTITY, "200")
-            modifiers.put(ModifiersUnits.G_STAFF_COMMENTS, "FOR REINFORCEMENTS")
-            modifiers.put(ModifiersUnits.H_ADDITIONAL_INFO_1, "ADDED SUPPORT FOR JJ")
-            modifiers.put(ModifiersUnits.V_EQUIP_TYPE, "MACHINE GUN")
-            modifiers.put(ModifiersUnits.W_DTG_1, "30140000ZSEP97") // Date/Time Group
+            // Add a "MIL-STD-2525 Friendly Heavy Machine Gun on Railway"
             val machineGun = Placemark(
                 fromDegrees(32.3902, 63.4161, 0.0),
-                MilStd2525Placemark.getPlacemarkAttributes("SFGPEWRH--MTUSG", modifiers)
+                MilStd2525Placemark.getPlacemarkAttributes("10031500361102030000", mapOf(
+                    "C" to "200",
+                    "G" to "FOR REINFORCEMENTS",
+                    "H" to "ADDED SUPPORT FOR JJ",
+                    "V" to "MACHINE GUN",
+                    "W" to "30140000ZSEP97", // Date/Time Group
+                    "AS" to "US"
+            ))
             )
             machineGun.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
             machineGun.isBillboardingEnabled = true
@@ -119,7 +113,7 @@ open class PlacemarksMilStd2525Activity: GeneralGlobeActivity() {
 
             // Add "MIL-STD-2525 Counterattack by fire"
             val counterattack = MilStd2525TacticalGraphic(
-                "GHTPKF----****X", listOf(
+                "10062500003407000000", listOf(
                     Location.fromDegrees(32.379, 63.457),
                     Location.fromDegrees(32.348, 63.412),
                     Location.fromDegrees(32.364, 63.375),

@@ -9,7 +9,9 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.GL_TEXTURE_2D
 import earth.worldwind.util.math.isPowerOfTwo
 
-open class BitmapTexture(bitmap: Bitmap) : Texture(bitmap.width, bitmap.height, GLUtils.getInternalFormat(bitmap), GLUtils.getType(bitmap)) {
+open class BitmapTexture(
+    bitmap: Bitmap, private val isRecycleOnLoad: Boolean = true
+) : Texture(bitmap.width, bitmap.height, GLUtils.getInternalFormat(bitmap), GLUtils.getType(bitmap)) {
     protected var bitmap: Bitmap? = bitmap
     // TODO consider using Bitmap.hasMipMap
     //override val hasMipMap = bitmap.hasMipMap()
@@ -42,8 +44,10 @@ open class BitmapTexture(bitmap: Bitmap) : Texture(bitmap.width, bitmap.height, 
                 "Exception attempting to load texture image '$bitmap'", e
             )
         } finally {
-            bitmap?.recycle()
-            bitmap = null
+            if (isRecycleOnLoad) {
+                bitmap?.recycle()
+                bitmap = null
+            }
         }
     }
 }

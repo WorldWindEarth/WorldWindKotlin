@@ -176,11 +176,6 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      */
     interface ImageFactory {
         /**
-         * Image factory runs asynchronously by default, but this behavior can be changed by overriding current attribute.
-         */
-        val isRunBlocking: Boolean get() = false
-
-        /**
          * Returns the image associated with this factory. This method may be called more than once and may be called
          * from a non-UI thread. Each invocation must return an image with equivalent content, dimensions and
          * configuration. Any side effects applied to the WorldWind scene by the factory must be executed on the main
@@ -188,11 +183,11 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          *
          * @return the image associated with this factory
          */
-        fun createImage(): TexImageSource?
+        suspend fun createImage(): TexImageSource?
     }
 
     protected open class LineStippleImageFactory(protected val factor: Int, protected val pattern: Short): ImageFactory {
-        override fun createImage(): TexImageSource {
+        override suspend fun createImage(): TexImageSource {
             // https://www.khronos.org/webgl/wiki/WebGL_and_OpenGL_Differences#Non-Power_of_Two_Texture_Support
             val factor = powerOfTwoCeiling(factor) // WebGl 1.0 does not support REPEAT for NPOT textures
             val canvas = document.createElement("canvas") as HTMLCanvasElement

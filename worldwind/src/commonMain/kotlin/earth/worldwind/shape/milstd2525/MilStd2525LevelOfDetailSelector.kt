@@ -3,10 +3,8 @@ package earth.worldwind.shape.milstd2525
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.PlacemarkAttributes
-import earth.worldwind.shape.milstd2525.MilStd2525.getSimplifiedSymbolID
 import earth.worldwind.shape.milstd2525.MilStd2525.getUnfilledAttributes
 import earth.worldwind.shape.milstd2525.MilStd2525.isTacticalGraphic
-import earth.worldwind.shape.milstd2525.MilStd2525.modifiersThreshold
 import earth.worldwind.shape.milstd2525.MilStd2525Placemark.Companion.getPlacemarkAttributes
 
 /**
@@ -37,35 +35,34 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
 
         // Determine the normal attributes based on highlighted state and the distance from the camera to the placemark
         if (cameraDistance > placemark.eyeDistanceScalingThreshold && !placemark.isHighlighted) {
-            // Low-fidelity: use a SIDC code with affiliation code only
+            // Low-fidelity: use a Symbol ID with affiliation code only
             if (lastLevelOfDetail != LOW_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val simpleCode = if (isTacticalGraphic(placemark.symbolCode))
-                    getSimplifiedSymbolID(placemark.symbolCode)
-                else placemark.symbolCode.substring(0, 3) + "*------*****"
+                val simpleCode = if (isTacticalGraphic(placemark.symbolID)) getSimplifiedSymbolID(placemark.symbolID)
+                else placemark.symbolID.substring(0, 6) + "000000000000000000000000"
                 placemark.attributes = getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
                 lastLevelOfDetail = LOW_LEVEL_OF_DETAIL
             }
         } else if (cameraDistance > modifiersThreshold && !placemark.isHighlighted || !placemark.isModifiersVisible) {
-            // Medium-fidelity: use a simplified SIDC code without status, mobility, size and text modifiers
+            // Medium-fidelity: use a simplified Symbol ID without status, mobility, size and text modifiers
             if (lastLevelOfDetail != MEDIUM_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val simpleCode = getSimplifiedSymbolID(placemark.symbolCode)
+                val simpleCode = getSimplifiedSymbolID(placemark.symbolID)
                 placemark.attributes = getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
                 lastLevelOfDetail = MEDIUM_LEVEL_OF_DETAIL
             }
         } else if (!placemark.isHighlighted && !isForceAllModifiers) {
-            // High-fidelity: use the regular SIDC code without text modifiers, except unique designation (T)
+            // High-fidelity: use the regular Symbol ID without text modifiers, except unique designation (T)
             if (lastLevelOfDetail != HIGH_LEVEL_OF_DETAIL || isInvalidateRequested) {
                 val basicModifiers = placemark.symbolModifiers?.filter { (k,_) -> k == "T" }
                 placemark.attributes = getPlacemarkAttributes(
-                    placemark.symbolCode, basicModifiers, getAttributes(placemark)
+                    placemark.symbolID, basicModifiers, getAttributes(placemark)
                 )
                 lastLevelOfDetail = HIGH_LEVEL_OF_DETAIL
             }
         } else {
-            // Highest-fidelity: use the regular SIDC code with all available text modifiers
+            // Highest-fidelity: use the regular Symbol ID with all available text modifiers
             if (lastLevelOfDetail != HIGHEST_LEVEL_OF_DETAIL || isInvalidateRequested || isHighlightChanged) {
                 placemark.attributes = getPlacemarkAttributes(
-                    placemark.symbolCode, placemark.symbolModifiers, getAttributes(placemark)
+                    placemark.symbolID, placemark.symbolModifiers, getAttributes(placemark)
                 )
                 lastLevelOfDetail = HIGHEST_LEVEL_OF_DETAIL
             }
@@ -80,11 +77,17 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         return true
     }
 
+    private fun getSimplifiedSymbolID(symbolID: String) = symbolID.substring(0, 6) + "0000" + symbolID.substring(10, 16) + "00000000000000"
+
     private fun getAttributes(placemark: MilStd2525Placemark) = if (placemark.isFrameFilled) placemark.symbolAttributes
-    else placemark.symbolAttributes?.let { getUnfilledAttributes(placemark.symbolCode) + it }
-        ?: getUnfilledAttributes(placemark.symbolCode)
+    else placemark.symbolAttributes?.let { getUnfilledAttributes(placemark.symbolID) + it }
+        ?: getUnfilledAttributes(placemark.symbolID)
 
     companion object {
+        /**
+         * Controls the symbol modifiers visibility threshold
+         */
+        var modifiersThreshold = 3.2e4
         /**
          * Always use the highest fidelity instead of high (forces all text modifiers)
          */

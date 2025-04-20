@@ -5,20 +5,24 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.AbstractSurfaceRenderable
+import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.*
-import earth.worldwind.shape.milstd2525.MilStd2525.labelScaleThreshold
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
 abstract class AbstractMilStd2525TacticalGraphic(
-    protected val sidc: String, protected val boundingSector: Sector,
+    protected val symbolID: String, protected val boundingSector: Sector,
     modifiers: Map<String, String>?, attributes: Map<String, String>?,
 ) : AbstractSurfaceRenderable(boundingSector), Highlightable {
     override var isHighlighted = false
+        set(value) {
+            field = value
+            reset()
+        }
     var modifiers = modifiers
         set(value) {
             field = value
@@ -34,12 +38,30 @@ abstract class AbstractMilStd2525TacticalGraphic(
     private val lodBuffer = mutableMapOf<Int, List<Renderable>>()
     private val lodSector = mutableMapOf<Int, Sector>()
 
-    protected companion object {
-        const val MAX_WIDTH_DP = 1e-3
-        const val MIN_WIDTH_DP = 1e-5
-        const val HIGHLIGHT_FACTOR = 2f
-
+    companion object {
+        private const val MAX_WIDTH_DP = 1e-3
+        private const val MIN_WIDTH_DP = 1e-5
         private const val ZERO_LEVEL_PX = 256
+
+        /**
+         * Controls the Tactical Graphics labels visibility threshold
+         */
+        var labelScaleThreshold = 30.0
+
+        /**
+         * Controls the Tactical Graphics outline width. If 0, then the outline is disabled.
+         */
+        var graphicsOutlineWidth = 0.0f
+
+        /**
+         * Controls the Tactical Graphics outline color. If null, then automatic contrast color will be used.
+         */
+        var graphicsOutlineColor: Color? = null
+
+        /**
+         * Controls the Tactical Graphics outline behavior. If true, then only highlighted graphics will be outlined.
+         */
+        var isOutlineHighlightedOnly = false
 
         @JvmStatic
         fun defaultBoundingSector(locations: List<Location>) = Sector().apply { locations.forEach { l -> union(l) } }
@@ -75,7 +97,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
         if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
             val shapes = lodBuffer[lod] ?: run {
                 sector.setEmpty() // Prepare bounding box to be extended by real graphics measures
-                makeRenderables(computeLoDScale(equatorialRadius, lod)).also {
+                makeRenderables(rc, computeLoDScale(equatorialRadius, lod)).also {
                     lodBuffer[lod] = it
                     lodSector[lod] = Sector(sector) // Remember real bounding box based on LoD
                 }
@@ -88,7 +110,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
         }
     }
 
-    protected abstract fun makeRenderables(scale: Double): List<Renderable> // Platform dependent implementation
+    protected abstract fun makeRenderables(rc: RenderContext, scale: Double): List<Renderable> // Platform dependent implementation
 
     protected fun reset() {
         lodBuffer.clear()
@@ -99,9 +121,6 @@ abstract class AbstractMilStd2525TacticalGraphic(
         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
         isFollowTerrain = true
         maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
-        highlightAttributes = ShapeAttributes(attributes).apply {
-            outlineWidth *= HIGHLIGHT_FACTOR
-        }
         pickDelegate = this@AbstractMilStd2525TacticalGraphic
     }
 
