@@ -118,7 +118,7 @@ open class Path @JvmOverloads constructor(
         }
 
         // Configure the drawable to use the outline texture when drawing the outline.
-        if (activeAttributes.isDrawOutline) {
+        if (activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             activeAttributes.outlineImageSource?.let { outlineImageSource ->
                 rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
                     val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
@@ -131,7 +131,7 @@ open class Path @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel. Lines
         // drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
-        if (activeAttributes.isDrawOutline) {
+        if (activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f)
@@ -145,7 +145,7 @@ open class Path @JvmOverloads constructor(
         drawState.texture(null)
 
         // Configure the drawable to display the shape's extruded verticals.
-        if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude) {
+        if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
@@ -166,7 +166,7 @@ open class Path @JvmOverloads constructor(
         else rc.offerShapeDrawable(drawable, cameraDistance)
 
         // Configure the drawable to display the shape's extruded interior.
-        if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape) {
+        if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape && (!rc.isPickMode || activeAttributes.isPickInterior)) {
             val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
             val drawableExtrusion = DrawableShape.obtain(pool)
             val drawStateExtrusion = drawableExtrusion.drawState

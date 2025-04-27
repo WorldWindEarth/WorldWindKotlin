@@ -59,7 +59,15 @@ open class ShapeAttributes(
     /**
      * Indicates the image source applied to shape outlines.
      */
-    var outlineImageSource: ImageSource?
+    var outlineImageSource: ImageSource?,
+    /**
+     * Allows to pick interior elements of shape
+     */
+    var isPickInterior: Boolean,
+    /**
+     * Allows to pick outline elements of shape
+     */
+    var isPickOutline: Boolean,
 ) {
     /**
      * Indicates the color and opacity of shape interiors.
@@ -87,7 +95,9 @@ open class ShapeAttributes(
         outlineColor = Color(1f, 0f, 0f, 1f), // red
         outlineWidth = 1.0f,
         interiorImageSource = null,
-        outlineImageSource = null
+        outlineImageSource = null,
+        isPickInterior = true,
+        isPickOutline = true,
     )
 
     constructor(attributes: ShapeAttributes): this(
@@ -101,7 +111,9 @@ open class ShapeAttributes(
         Color(attributes.outlineColor),
         attributes.outlineWidth,
         attributes.interiorImageSource,
-        attributes.outlineImageSource
+        attributes.outlineImageSource,
+        attributes.isPickInterior,
+        attributes.isPickOutline,
     )
 
     fun copy(attributes: ShapeAttributes) = apply {
@@ -116,6 +128,8 @@ open class ShapeAttributes(
         outlineWidth = attributes.outlineWidth
         interiorImageSource = attributes.interiorImageSource
         outlineImageSource = attributes.outlineImageSource
+        isPickInterior = attributes.isPickInterior
+        isPickOutline = attributes.isPickOutline
     }
 
     override fun equals(other: Any?): Boolean {
@@ -132,6 +146,8 @@ open class ShapeAttributes(
         if (outlineWidth != other.outlineWidth) return false
         if (interiorImageSource != other.interiorImageSource) return false
         if (outlineImageSource != other.outlineImageSource) return false
+        if (isPickInterior != other.isPickInterior) return false
+        if (isPickOutline != other.isPickOutline) return false
 
         return true
     }
@@ -148,6 +164,8 @@ open class ShapeAttributes(
         result = 31 * result + outlineWidth.hashCode()
         result = 31 * result + (interiorImageSource?.hashCode() ?: 0)
         result = 31 * result + (outlineImageSource?.hashCode() ?: 0)
+        result = 31 * result + isPickInterior.hashCode()
+        result = 31 * result + isPickOutline.hashCode()
         return result
     }
 }

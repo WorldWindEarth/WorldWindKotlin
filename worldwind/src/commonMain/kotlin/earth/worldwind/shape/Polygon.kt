@@ -250,7 +250,7 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState) {
-        if (!activeAttributes.isDrawInterior) return
+        if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
 
         // Configure the drawable to use the interior texture when drawing the interior.
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
@@ -276,7 +276,7 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
-        if (!activeAttributes.isDrawOutline) return
+        if (!activeAttributes.isDrawOutline || rc.isPickMode && !activeAttributes.isPickOutline) return
 
         // Configure the drawable to use the outline texture when drawing the outline.
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
@@ -298,7 +298,7 @@ open class Polygon @JvmOverloads constructor(
         )
 
         // Configure the drawable to display the shape's extruded verticals.
-        if (activeAttributes.isDrawVerticals && isExtrude) {
+        if (activeAttributes.isDrawVerticals && isExtrude && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
             drawState.lineWidth(activeAttributes.outlineWidth)
