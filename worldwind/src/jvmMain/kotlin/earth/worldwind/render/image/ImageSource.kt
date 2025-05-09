@@ -8,6 +8,7 @@ import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
 import java.net.MalformedURLException
+import java.net.URI
 import java.net.URL
 
 /**
@@ -104,7 +105,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          */
         @JvmStatic
         actual fun fromUrlString(urlString: String) = try {
-            fromUrl(URL(urlString))
+            fromUrl(URI.create(urlString).toURL())
         } catch (e: MalformedURLException) {
             logMessage(ERROR, "ImageSource", "fromUrlString", "invalidUrlString", e)
             throw e

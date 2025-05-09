@@ -5,6 +5,7 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import java.io.File
 import java.net.MalformedURLException
+import java.net.URI
 import java.net.URL
 import java.nio.Buffer
 
@@ -75,7 +76,7 @@ actual open class ElevationSource protected constructor(source: Any): AbstractSo
          */
         @JvmStatic
         actual fun fromUrlString(urlString: String) = try {
-            fromUrl(URL(urlString))
+            fromUrl(URI.create(urlString).toURL())
         } catch (e: MalformedURLException) {
             logMessage(ERROR, "ElevationSource", "fromUrlString", "invalidUrlString", e)
             throw e
