@@ -1,7 +1,7 @@
 [versions]
 annotation = "1.9.1"
 appcompat = "1.7.0"
-atomicfu = "2.1.10" # This library has the same version as Kotlin and is required only as compile issue workaround
+atomicfu = "2.1.20" # This library has the same version as Kotlin and is required only as compile issue workaround
 coroutines = "1.10.1"
 datetime = "0.6.2"
 desugar = "2.1.5"
