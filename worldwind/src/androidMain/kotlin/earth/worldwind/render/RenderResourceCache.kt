@@ -131,16 +131,15 @@ actual open class RenderResourceCache @JvmOverloads constructor(
             }
         }
 
-        // Ignore retrieval of resources marked as absent
-        if (absentResourceList.isResourceAbsent(imageSource.hashCode())) return null
-
         // The image must be retrieved on a separate thread. Request the image source and return null to indicate that
         // the texture is not in memory. The image is added to the image retrieval cache upon successful retrieval. It's
         // then expected that a subsequent render frame will result in another call to retrieveTexture, in which case
         // the image will be found in the image retrieval cache.
         val currentRetrievals = if (imageSource.isUrl) remoteRetrievals else localRetrievals
         val retrievalQueueSize = if (imageSource.isUrl) remoteRetrievalQueueSize else localRetrievalQueueSize
-        if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)) {
+        if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)
+            // Ignore retrieval of resources marked as absent
+            && !absentResourceList.isResourceAbsent(imageSource.hashCode())) {
             currentRetrievals += imageSource
             mainScope.launch {
                 try {

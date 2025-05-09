@@ -72,16 +72,15 @@ actual open class RenderResourceCache(
             }
         }
 
-        // Ignore retrieval of resources marked as absent
-        if (absentResourceList.isResourceAbsent(imageSource.hashCode())) return null
-
         // Retrieve image source from URL or local resource. Request the image source and return null to indicate that
         // the texture is not in memory. The image is added to the image retrieval cache upon successful retrieval. It's
         // then expected that a subsequent render frame will result in another call to retrieveTexture, in which case
         // the image will be found in the image retrieval cache.
         val currentRetrievals = if (imageSource.isUrl) remoteRetrievals else localRetrievals
         val retrievalQueueSize = if (imageSource.isUrl) remoteRetrievalQueueSize else localRetrievalQueueSize
-        if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)) {
+        if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)
+            // Ignore retrieval of resources marked as absent
+            && !absentResourceList.isResourceAbsent(imageSource.hashCode())) {
             when {
                 imageSource.isUrl -> retrieveRemoteImage(currentRetrievals, imageSource, options, imageSource.asUrl())
                 imageSource.isResource -> retrieveRemoteImage(
@@ -122,9 +121,11 @@ actual open class RenderResourceCache(
             if (postprocessor != null && !postprocessorExecuted) {
                 postprocessorExecuted = true // Prevent cyclic processing due to src modification inside postprocessing.
                 mainScope.launch { postprocessor.process(image) } // Apply image transformation.
-            } else retrievalSucceeded(imageSource, options, image) // Consume original or processed image as retrieved
+            } else {
+                retrievalSucceeded(imageSource, options, image) // Consume original or processed image as retrieved
+                currentRetrievals -= imageSource
+            }
             if (postprocessor != null) URL.revokeObjectURL(image.src) // Revoke URL possibly created in postprocessor
-            currentRetrievals -= imageSource
         }
         image.onerror = { _, _, _, _, _ ->
             retrievalFailed(imageSource)
