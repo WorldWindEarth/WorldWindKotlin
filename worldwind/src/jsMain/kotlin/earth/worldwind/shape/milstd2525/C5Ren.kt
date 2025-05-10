@@ -3,7 +3,7 @@
 @file:JsModule("@armyc2.c5isr.renderer/mil-sym-ts")
 @file:JsNonModule
 @file:Suppress("NON_EXTERNAL_DECLARATION_IN_INAPPROPRIATE_FILE")
-@file:OptIn(kotlin.js.ExperimentalJsCollectionsApi::class)
+@file:OptIn(ExperimentalJsCollectionsApi::class)
 
 package earth.worldwind.shape.milstd2525
 
@@ -774,6 +774,47 @@ external class Font {
         fun getTypeString(type: Number): String
         fun getTypeInt(type: String): Number
     }
+}
+
+/**
+ * Default Affiliation Colors for the symbols
+ */
+external object AffiliationColors {
+	var FriendlyUnitFillColor: Color
+	var HostileUnitFillColor: Color
+	var NeutralUnitFillColor: Color
+	var UnknownUnitFillColor: Color
+	var SuspectUnitFillColor: Color
+
+	var FriendlyGraphicFillColor: Color
+	var HostileGraphicFillColor: Color
+	var NeutralGraphicFillColor: Color
+	var UnknownGraphicFillColor: Color
+	var SuspectGraphicFillColor: Color
+
+	var FriendlyUnitLineColor: Color
+	var HostileUnitLineColor: Color
+	var NeutralUnitLineColor: Color
+	var UnknownUnitLineColor: Color
+	var SuspectUnitLineColor: Color
+
+	var FriendlyGraphicLineColor: Color
+	var HostileGraphicLineColor: Color
+	var NeutralGraphicLineColor: Color
+	var UnknownGraphicLineColor: Color
+    var SuspectGraphicLineColor: Color
+
+	var ObstacleGreenDark: Color
+	var ObstacleGreen: Color
+
+	var WeatherRed: Color
+	var WeatherBlue: Color
+
+	var WeatherPurpleDark: Color
+	var WeatherPurpleLight: Color
+
+	var WeatherBrownDark: Color
+	var WeatherBrownLight: Color
 }
 
 /**
@@ -4209,9 +4250,7 @@ external class RendererSettings {
     fun getSinglePointSymbolOutlineWidth(): int
     fun setOutlineSPControlMeasures(value: Boolean): Unit
     fun getOutlineSPControlMeasures(): Boolean
-
     fun setActionPointDefaultFill(value: Boolean): Unit
-
     fun getActionPointDefaultFill(): Boolean
 
     /**
@@ -4323,6 +4362,19 @@ external class RendererSettings {
      * @param TwoLabelOnly
      */
     fun setTwoLabelOnly(TwoLabelOnly: Boolean): Unit
+
+    /**
+     * When true, if the main icon is normally small to allow room for sector modifiers,
+     * make it larger when no sector modifiers are present for better visibility.
+     * @param scaleMainIcon
+     */
+    fun setScaleMainIcon(scaleMainIcon: Boolean): Unit
+
+    /**
+     * When true, if the main icon is normally small to allow room for sector modifiers,
+     * main icon is made larger when no sector modifiers are present for better visibility.
+     */
+    fun getScaleMainIcon(): Boolean
 
     /**
      * get the preferred fill affiliation color for units.
@@ -6788,6 +6840,8 @@ external class RendererUtilities {
         ): String
 
         fun findWidestStrokeWidth(svg: String): float
+        fun getDistanceBetweenPoints(pt1: Point2D, pt2: Point2D): int
+        fun scaleIcon(symbolID: String, icon: SVGInfo): SVGInfo
         fun getData(path: String): Promise<Any?>
     }
 }
@@ -6840,6 +6894,8 @@ external class WebRenderer {
     fun getSinglePointAnchor(symbolID: String): String
 
     companion object {
+        val OUTPUT_FORMAT_KML: Any? /* type isn't declared */
+
         /**
          * @deprecated
          */

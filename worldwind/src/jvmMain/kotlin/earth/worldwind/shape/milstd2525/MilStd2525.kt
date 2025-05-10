@@ -20,6 +20,7 @@ actual object MilStd2525 {
         rendererSettings.outlineSPControlMeasures = false // Do not outline single point control measures
         rendererSettings.twoLabelOnly = true // Show only two labels fo minefield
         rendererSettings.actionPointDefaultFill = false // Do not fill action points
+        rendererSettings.scaleMainIcon = true // Make central icon bigger if no sector modifiers available
 
         // Depending on screen size and DPI you may want to change the font size.
         rendererSettings.setLabelFont("Arial", Font.BOLD, 8)
@@ -41,7 +42,7 @@ actual object MilStd2525 {
      */
     @JvmStatic
     fun renderImage(
-        symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?
+        symbolCode: String, modifiers: Map<String, String>? = null, attributes: Map<String, String>? = null
     ): ImageInfo? = MilStdIconRenderer.getInstance().RenderIcon(
         symbolCode, modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" } ?: emptyMap(), attributes ?: emptyMap()
     )

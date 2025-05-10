@@ -12,7 +12,7 @@ import kotlin.js.collections.JsMap
 actual object MilStd2525 {
     init {
         // Initialize resources
-        initialize("/files/")
+        initialize("/assets/mil-sym/")
 
         // Initialize RendererSettings
         val rendererSettings = RendererSettings.getInstance()
@@ -20,6 +20,7 @@ actual object MilStd2525 {
         rendererSettings.setOutlineSPControlMeasures(false) // Do not outline single point control measures
         rendererSettings.setTwoLabelOnly(true) // Show only two labels fo minefield
         rendererSettings.setActionPointDefaultFill(false) // Do not fill action points
+        rendererSettings.setScaleMainIcon(true) // Make central icon bigger if no sector modifiers available
 
         // Depending on screen size and DPI you may want to change the font size.
         rendererSettings.setLabelFont("Arial", "normal", 8)
@@ -41,7 +42,7 @@ actual object MilStd2525 {
      */
     @OptIn(ExperimentalJsCollectionsApi::class, ExperimentalJsExport::class)
     fun renderImage(
-        symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?
+        symbolCode: String, modifiers: Map<String, String>? = null, attributes: Map<String, String>? = null
     ): SVGSymbolInfo? = MilStdIconRenderer.getInstance().RenderSVG(
         symbolCode,
         modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" }?.asJsReadonlyMapView() ?: JsMap(),
