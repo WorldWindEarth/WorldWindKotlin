@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!-- This is a very simple example of using Web WorldWind. -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" >
+    <title>WorldWind Tutorials</title>
+</head>
+<body>
+    <style>
+        body {
+            margin: 0
+        }
+
+        #Tutorials {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            width: 200px;
+        }
+
+        #Projections {
+            position: fixed;
+            top: 60px;
+            left: 30px;
+            width: 200px;
+        }
+
+        #Actions {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            right: 30px;
+            overflow-x: auto;
+            white-space: nowrap;
+            background-color: #ccc;
+            padding: 20px;
+        }
+
+        #Actions > :not(:last-child) {
+            margin-right: 10px;
+        }
+    </style>
+<!-- Create a canvas for WorldWindow. -->
+<canvas id="WorldWindow" style="width: 100vw; height: 100vh; background-color: black; display: block;">
+    Your browser does not support HTML5 Canvas.
+</canvas>
+<select id="Tutorials"></select>
+<select id="Projections"></select>
+<div id="Actions"></div>
+<script src="worldwind-tutorials.js"></script>
+</body>
+</html>
