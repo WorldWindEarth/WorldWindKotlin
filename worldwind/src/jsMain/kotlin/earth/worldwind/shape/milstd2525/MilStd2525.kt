@@ -5,6 +5,26 @@ import earth.worldwind.shape.TextAttributes
 import earth.worldwind.shape.milstd2525.Font.Companion.getTypeString
 import kotlin.js.collections.JsMap
 
+@JsModule("@armyc2.c5isr.renderer/mil-sym-ts/data/genc.4079ea2923ffe59c6374.json")
+@JsNonModule
+private external val genc: dynamic
+
+@JsModule("@armyc2.c5isr.renderer/mil-sym-ts/data/msd.08108ef3b61555d050f3.json")
+@JsNonModule
+private external val msd: dynamic
+
+@JsModule("@armyc2.c5isr.renderer/mil-sym-ts/data/mse.3b58217607a1d34606dd.json")
+@JsNonModule
+private external val mse: dynamic
+
+@JsModule("@armyc2.c5isr.renderer/mil-sym-ts/data/svgd.60c4f9362343eedde86c.json")
+@JsNonModule
+private external val svgd: dynamic
+
+@JsModule("@armyc2.c5isr.renderer/mil-sym-ts/data/svge.ee0cc365383412da1439.json")
+@JsNonModule
+private external val svge: dynamic
+
 /**
  * This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library
  * @see <a href="https://github.com/missioncommand/mil-sym-js">https://github.com/missioncommand/mil-sym-js</a>
@@ -12,7 +32,14 @@ import kotlin.js.collections.JsMap
 actual object MilStd2525 {
     init {
         // Initialize resources
-        initialize("/files/")
+        GENCLookup.genc = genc
+        GENCLookup.getInstance()
+        MSLookup.msd = msd
+        MSLookup.mse = mse
+        MSLookup.getInstance()
+        SVGLookup.svgd = svgd
+        SVGLookup.svge = svge
+        SVGLookup.getInstance()
 
         // Initialize RendererSettings
         val rendererSettings = RendererSettings.getInstance()
@@ -20,6 +47,7 @@ actual object MilStd2525 {
         rendererSettings.setOutlineSPControlMeasures(false) // Do not outline single point control measures
         rendererSettings.setTwoLabelOnly(true) // Show only two labels fo minefield
         rendererSettings.setActionPointDefaultFill(false) // Do not fill action points
+        rendererSettings.setScaleMainIcon(true) // Make central icon bigger if no sector modifiers available
 
         // Depending on screen size and DPI you may want to change the font size.
         rendererSettings.setLabelFont("Arial", "normal", 8)
@@ -41,7 +69,7 @@ actual object MilStd2525 {
      */
     @OptIn(ExperimentalJsCollectionsApi::class, ExperimentalJsExport::class)
     fun renderImage(
-        symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?
+        symbolCode: String, modifiers: Map<String, String>? = null, attributes: Map<String, String>? = null
     ): SVGSymbolInfo? = MilStdIconRenderer.getInstance().RenderSVG(
         symbolCode,
         modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" }?.asJsReadonlyMapView() ?: JsMap(),
