@@ -38,6 +38,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val griddedTileDao: Dao<GpkgGriddedTile, Int> =
         DaoManager.createDao(connectionSource, GpkgGriddedTile::class.java)
     private val tileUserDataDao = mutableMapOf<String, Dao<GpkgTileUserData, Int>>()
+    private val writeDispatcher = Dispatchers.IO.limitedParallelism(1) // Single thread dispatcher
 
     val isShutdown get() = !connectionSource.isOpen("")
 
@@ -98,7 +99,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     @Throws(IllegalStateException::class)
     suspend fun writeTileUserData(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         val tileUserData = readTileUserData(content, zoomLevel, tileColumn, tileRow) ?: GpkgTileUserData().also {
             it.zoomLevel = zoomLevel
@@ -123,7 +124,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     suspend fun writeGriddedTile(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, scale: Float = 1.0f, offset: Float = 0.0f,
         min: Float? = null, max: Float? = null, mean: Float? = null, stdDev: Float? = null
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         readTileUserData(content, zoomLevel, tileColumn, tileRow)?.let { tileUserData ->
             val griddedTile = readGriddedTile(content, tileUserData) ?: GpkgGriddedTile().also {
@@ -178,7 +179,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     @Throws(IllegalStateException::class)
     suspend fun setupTilesContent(
         layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, setupWebLayer: Boolean
-    ): GpkgContent = withContext(Dispatchers.IO) {
+    ): GpkgContent = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
         // Ensure the necessary tables created
@@ -241,7 +242,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     suspend fun updateTilesContent(
         layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, content: GpkgContent
-    ): Unit = withContext(Dispatchers.IO) {
+    ): Unit = withContext(writeDispatcher) {
         val srs = srsDao.queryForId(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
         val box = buildBoundingBox(levelSet.sector, srs.id)
         with(content) {
@@ -255,7 +256,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     @Throws(IllegalStateException::class)
-    suspend fun setupTileMatrices(content: GpkgContent, levelSet: LevelSet) = withContext(Dispatchers.IO) {
+    suspend fun setupTileMatrices(content: GpkgContent, levelSet: LevelSet) = withContext(writeDispatcher) {
         if (isReadOnly) error("Content ${content.tableName} cannot be updated. GeoPackage is read-only!")
         val tms = tileMatrixSetDao.queryForId(content.tableName) ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
@@ -283,7 +284,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     @Throws(IllegalStateException::class)
-    suspend fun setupWebLayer(layer: WebImageLayer, content: GpkgContent): Unit = withContext(Dispatchers.IO) {
+    suspend fun setupWebLayer(layer: WebImageLayer, content: GpkgContent): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("WebService $content cannot be updated. GeoPackage is read-only!")
         createWebServiceTable()
         webServiceDao.createOrUpdate(
@@ -322,7 +323,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     @Throws(IllegalStateException::class)
     suspend fun setupGriddedCoverageContent(
         coverage: CacheableElevationCoverage, tableName: String, setupWebCoverage: Boolean, isFloat: Boolean
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
         // Ensure the necessary tables created
@@ -408,7 +409,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     suspend fun updateGriddedCoverageContent(
         coverage: CacheableElevationCoverage, tableName: String, content: GpkgContent
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(writeDispatcher) {
         val srs = srsDao.queryForId(EPSG_4326)
         val box = buildBoundingBox(coverage.sector, srs.id)
         with(content) {
@@ -422,7 +423,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     @Throws(IllegalStateException::class)
-    suspend fun setupTileMatrices(content: GpkgContent, tileMatrixSet: TileMatrixSet) = withContext(Dispatchers.IO) {
+    suspend fun setupTileMatrices(content: GpkgContent, tileMatrixSet: TileMatrixSet) = withContext(writeDispatcher) {
         if (isReadOnly) error("Content ${content.tableName} cannot be updated. GeoPackage is read-only!")
         val tms = tileMatrixSetDao.queryForId(content.tableName) ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
@@ -446,7 +447,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     @Throws(IllegalStateException::class)
-    suspend fun setupWebCoverage(coverage: WebElevationCoverage, content: GpkgContent): Unit = withContext(Dispatchers.IO) {
+    suspend fun setupWebCoverage(coverage: WebElevationCoverage, content: GpkgContent): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("WebService ${content.tableName} cannot be updated. GeoPackage is read-only!")
         createWebServiceTable()
         webServiceDao.createOrUpdate(
@@ -467,7 +468,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * @throws IllegalStateException In case of read-only database.
      */
     @Throws(IllegalStateException::class)
-    suspend fun clearContent(tableName: String) = withContext(Dispatchers.IO) {
+    suspend fun clearContent(tableName: String) = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
@@ -488,7 +489,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * @throws IllegalStateException In case of read-only database.
      */
     @Throws(IllegalStateException::class)
-    suspend fun deleteContent(tableName: String): Unit = withContext(Dispatchers.IO) {
+    suspend fun deleteContent(tableName: String): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
@@ -536,7 +537,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         return buildSector(minX, minY, maxX, maxY, srsId)
     }
 
-    protected open suspend fun createBaseTables() = withContext(Dispatchers.IO) {
+    protected open suspend fun createBaseTables() = withContext(writeDispatcher) {
         TableUtils.createTableIfNotExists(connectionSource, GpkgSpatialReferenceSystem::class.java)
         TableUtils.createTableIfNotExists(connectionSource, GpkgContent::class.java)
         TableUtils.createTableIfNotExists(connectionSource, GpkgTileMatrixSet::class.java)
@@ -544,23 +545,23 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         TableUtils.createTableIfNotExists(connectionSource, GpkgExtension::class.java)
     }
 
-    protected open suspend fun createGriddedCoverageTables() = withContext(Dispatchers.IO) {
+    protected open suspend fun createGriddedCoverageTables() = withContext(writeDispatcher) {
         TableUtils.createTableIfNotExists(connectionSource, GpkgGriddedCoverage::class.java)
         TableUtils.createTableIfNotExists(connectionSource, GpkgGriddedTile::class.java)
     }
 
-    protected open suspend fun createWebServiceTable() = withContext(Dispatchers.IO) {
+    protected open suspend fun createWebServiceTable() = withContext(writeDispatcher) {
         TableUtils.createTableIfNotExists(connectionSource, GpkgWebService::class.java)
     }
 
-    protected open suspend fun createTileTable(tableName: String) = withContext(Dispatchers.IO) {
+    protected open suspend fun createTileTable(tableName: String) = withContext(writeDispatcher) {
         getTileUserDataDao(tableName).let { if (!it.isTableExists) TableUtils.createTable(it) }
     }
 
     /**
      * Undefined cartesian and geographic SRS - Requirement 11 http://www.geopackage.org/spec131/index.html
      */
-    protected open suspend fun writeDefaultSpatialReferenceSystems(): Unit = withContext(Dispatchers.IO) {
+    protected open suspend fun writeDefaultSpatialReferenceSystems(): Unit = withContext(writeDispatcher) {
         GpkgSpatialReferenceSystem().also {
             it.name = "Undefined cartesian SRS"
             it.id = -1
@@ -581,7 +582,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         }
     }
 
-    protected open suspend fun writeEPSG3857SpatialReferenceSystem() = withContext(Dispatchers.IO) {
+    protected open suspend fun writeEPSG3857SpatialReferenceSystem() = withContext(writeDispatcher) {
         GpkgSpatialReferenceSystem().also {
             it.name = "Web Mercator"
             it.id = EPSG_3857
@@ -593,7 +594,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         }
     }
 
-    protected open suspend fun writeEPSG4326SpatialReferenceSystem() = withContext(Dispatchers.IO) {
+    protected open suspend fun writeEPSG4326SpatialReferenceSystem() = withContext(writeDispatcher) {
         GpkgSpatialReferenceSystem().also {
             it.name = "WGS 84 geodetic"
             it.id = EPSG_4326
