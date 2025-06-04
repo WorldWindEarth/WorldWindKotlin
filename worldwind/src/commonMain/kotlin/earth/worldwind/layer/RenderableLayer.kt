@@ -23,6 +23,10 @@ open class RenderableLayer @JvmOverloads constructor(displayName: String? = null
         return renderables[index]
     }
 
+    fun getRenderablesByDisplayName(name: String): List<Renderable> {
+        return renderables.filter { it.displayName?.contains(name, ignoreCase = true) == true }
+    }
+
     fun setRenderable(index: Int, renderable: Renderable): Renderable {
         require(index in renderables.indices) {
             logMessage(ERROR, "RenderableLayer", "setRenderable", "invalidIndex")
