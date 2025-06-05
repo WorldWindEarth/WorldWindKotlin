@@ -152,6 +152,21 @@ open class Color @JvmOverloads constructor(
     }
 
     /**
+     * Returns this color's components as a color int. Color ints are stored as packed ints as follows: `(red <<
+     * 0) | (green << 8) | (blue << 16) | (alpha << 24)`. Each component is an 8 bit number between 0 and 255 with 0
+     * indicating the component's intensity.
+     *
+     * @return this color converted to a color int
+     */
+    fun toColorIntRGBA(): Int {
+        val r8 = (red * 0xFF).roundToInt()
+        val g8 = (green * 0xFF).roundToInt()
+        val b8 = (blue * 0xFF).roundToInt()
+        val a8 = (alpha * 0xFF).roundToInt()
+        return rgba(a8, r8, g8, b8)
+    }
+
+    /**
      * Convert the argb color to its HSV components.
      *     hsv[0] is Hue [0 .. 360)
      *     hsv[1] is Saturation [0...1]
@@ -369,5 +384,17 @@ open class Color @JvmOverloads constructor(
          * @param blue Blue component \([0..255]\) of the color
          */
         private fun argb(alpha: Int, red: Int, green: Int, blue: Int) = alpha shl 24 or (red shl 16) or (green shl 8) or blue
+
+        /**
+         * Return a color-int from alpha, red, green, blue components.
+         * These component values should be \([0..255]\), but there is no
+         * range check performed, so if they are out of range, the
+         * returned color is undefined.
+         * @param alpha Alpha component \([0..255]\) of the color
+         * @param red Red component \([0..255]\) of the color
+         * @param green Green component \([0..255]\) of the color
+         * @param blue Blue component \([0..255]\) of the color
+         */
+        private fun rgba(alpha: Int, red: Int, green: Int, blue: Int) = red or (green shl 8) or (blue shl 16) or (alpha shl 24)
     }
 }
