@@ -1,8 +1,8 @@
 {
-  "input": "<nodeModules>/@armyc2.c5isr.renderer/mil-sym-ts/C5Ren.d.ts",
+  "input": "<nodeModules>/@armyc2.c5isr.renderer/mil-sym-ts-web/C5Ren.d.ts",
   "output": "src/jsMain/kotlin/earth/worldwind/shape/milstd2525",
   "libraryName": "earth.worldwind.shape.milstd2525",
   "moduleNameMapper": {
-    ".*": "@armyc2.c5isr.renderer/mil-sym-ts"
+    ".*": "@armyc2.c5isr.renderer/mil-sym-ts-web"
   }
 }

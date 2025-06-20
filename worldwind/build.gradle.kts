@@ -96,7 +96,7 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(libs.ktor.client.js)
-                implementation(npm("@armyc2.c5isr.renderer/mil-sym-ts", libs.versions.mil.sym.ts.get()))
+                implementation(npm("@armyc2.c5isr.renderer/mil-sym-ts-web", libs.versions.mil.sym.ts.get()))
                 // IC internal error: can not find library org.jetbrains.kotlin:kotlinx-atomicfu-runtime
                 // https://youtrack.jetbrains.com/issue/KT-57235
                 implementation(libs.kotlinx.atomicfu.runtime)
