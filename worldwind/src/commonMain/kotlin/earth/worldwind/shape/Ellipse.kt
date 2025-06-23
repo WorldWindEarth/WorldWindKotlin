@@ -233,8 +233,10 @@ open class Ellipse @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        val vertexBuffer = rc.getBufferObject(vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
+        drawState.vertexState.addAttribute(0, vertexBuffer, 3, GL_FLOAT, false, VERTEX_STRIDE * 4, 0)
+        drawState.vertexState.addAttribute(3, vertexBuffer, 2, GL_FLOAT, false, VERTEX_STRIDE * 4, 12)
 
         // Get the attributes of the element buffer
         drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
@@ -254,8 +256,12 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.vertexBuffer = rc.getBufferObject(lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        val lineVertexBuffer = rc.getBufferObject(lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(lineVertexBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
+        drawStateLines.vertexState.addAttribute(0, lineVertexBuffer, 4, GL_FLOAT, false, 20, 0)
+        drawStateLines.vertexState.addAttribute(1, lineVertexBuffer, 4, GL_FLOAT, false, 20, 80)
+        drawStateLines.vertexState.addAttribute(2, lineVertexBuffer, 4, GL_FLOAT, false, 20, 160)
+        drawStateLines.vertexState.addAttribute(3, lineVertexBuffer, 1, GL_FLOAT, false, 20, 96)
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getBufferObject(lineElementBufferKey) {
@@ -274,7 +280,6 @@ open class Ellipse @JvmOverloads constructor(
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(vertexOrigin)
-        drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
@@ -311,7 +316,6 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to display the shape's interior.
         drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
         drawState.drawElements(GL_TRIANGLE_STRIP, topElements.size, GL_UNSIGNED_SHORT, 0 * Short.SIZE_BYTES /*offset*/)
         if (isExtrude) {
             drawState.texture(null)

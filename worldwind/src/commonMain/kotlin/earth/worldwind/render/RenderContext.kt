@@ -36,6 +36,7 @@ open class RenderContext {
     lateinit var currentLayer: Layer
     lateinit var camera: Camera
     lateinit var renderResourceCache: RenderResourceCache
+    var frameIndex = 0L
     var densityFactor = 1f
     var horizonDistance = 0.0
     var atmosphereAltitude = 0.0
@@ -72,6 +73,7 @@ open class RenderContext {
     val tessellator: GLUtessellator by lazy { GLU.gluNewTess() }
 
     open fun reset() {
+        frameIndex = 0
         densityFactor = 1f
         horizonDistance = 0.0
         atmosphereAltitude = 0.0
@@ -376,6 +378,12 @@ open class RenderContext {
     fun nextPickedObjectId(): Int {
         if (++pickedObjectId > MAX_PICKED_OBJECT_ID) pickedObjectId = 1
         return pickedObjectId
+    }
+
+    fun reservePickedObjectIdRange(range : Int = 1): Int {
+        pickedObjectId += range
+        if (pickedObjectId > MAX_PICKED_OBJECT_ID) pickedObjectId =  range
+        return pickedObjectId - range + 1
     }
 
     @Suppress("UNCHECKED_CAST")

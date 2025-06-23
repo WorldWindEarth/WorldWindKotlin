@@ -55,8 +55,9 @@ open class DrawableLines protected constructor(): Drawable {
         // Disable texturing.
         program.enableTexture(false)
 
-        // Ensure program is in triangles mode
-        program.enableOneVertexMode(false)
+        // Ensure program is in lines mode
+        program.enableLinesMode(true)
+        program.enableVertexColorAndWidth(false)
 
         // Use the leader's color.
         program.loadColor(color)
@@ -80,8 +81,8 @@ open class DrawableLines protected constructor(): Drawable {
         if (!enableDepthTest) dc.gl.disable(GL_DEPTH_TEST)
 
         // Use the leader line as the vertex point attribute.
-        dc.gl.enableVertexAttribArray(1 /*value*/)
-        dc.gl.enableVertexAttribArray(2 /*value*/)
+        dc.gl.enableVertexAttribArray(1 /*pointB*/)
+        dc.gl.enableVertexAttribArray(2 /*pointC*/)
 
         // Use the shape's vertex point attribute and vertex texture coordinate attribute.
         dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20, offset + 0)
@@ -94,7 +95,7 @@ open class DrawableLines protected constructor(): Drawable {
         // Restore the default WorldWind OpenGL state.
         if (!enableDepthTest) dc.gl.enable(GL_DEPTH_TEST)
 
-        dc.gl.disableVertexAttribArray(1 /*value*/)
-        dc.gl.disableVertexAttribArray(2 /*value*/)
+        dc.gl.disableVertexAttribArray(1 /*pointB*/)
+        dc.gl.disableVertexAttribArray(2 /*pointC*/)
     }
 }
