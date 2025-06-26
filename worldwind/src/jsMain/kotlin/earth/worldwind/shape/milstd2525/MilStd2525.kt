@@ -3,6 +3,7 @@ package earth.worldwind.shape.milstd2525
 import earth.worldwind.render.Font
 import earth.worldwind.shape.TextAttributes
 import earth.worldwind.shape.milstd2525.Font.Companion.getTypeString
+import kotlinx.browser.window
 import kotlin.js.collections.JsMap
 
 /**
@@ -13,14 +14,15 @@ actual object MilStd2525 {
     init {
         // Initialize RendererSettings
         val rendererSettings = RendererSettings.getInstance()
-        rendererSettings.setDefaultPixelSize(36)
+        rendererSettings.setDefaultPixelSize(36 * window.devicePixelRatio)
+        rendererSettings.setDeviceDPI(96 * window.devicePixelRatio)
         rendererSettings.setOutlineSPControlMeasures(false) // Do not outline single point control measures
         rendererSettings.setTwoLabelOnly(true) // Show only two labels fo minefield
         rendererSettings.setActionPointDefaultFill(false) // Do not fill action points
         rendererSettings.setScaleMainIcon(true) // Make central icon bigger if no sector modifiers available
 
         // Depending on screen size and DPI you may want to change the font size.
-        rendererSettings.setLabelFont("Arial", "normal", 8)
+        rendererSettings.setLabelFont("Arial", "normal", 8 * window.devicePixelRatio)
         rendererSettings.setMPLabelFont("Arial", "normal", 12)
 
         // Configure modifier text output
