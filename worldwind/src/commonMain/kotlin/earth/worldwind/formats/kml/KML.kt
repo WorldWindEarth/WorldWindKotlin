@@ -17,7 +17,6 @@ import earth.worldwind.formats.kml.models.PolyStyle
 import earth.worldwind.formats.kml.models.Polygon
 import earth.worldwind.formats.kml.models.Style
 import kotlinx.coroutines.channels.ProducerScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -97,10 +96,7 @@ internal class KML {
         ) : KmlEvent
     }
 
-    fun decodeFromReader(reader: Reader): Flow<KmlEvent> {
-        val xmlReader = xmlStreaming.newGenericReader(reader)
-        return channelFlow { decodeWith(xmlReader, parentId = null) }
-    }
+    fun decodeFromReader(reader: Reader) = channelFlow { decodeWith(xmlStreaming.newGenericReader(reader)) }
 
     private suspend fun ProducerScope<KmlEvent>.decodeWith(reader: XmlReader, parentId: String? = null) {
         if (reader.hasNext()) reader.next() else return
@@ -109,8 +105,8 @@ internal class KML {
             when (reader.eventType) {
                 EventType.START_ELEMENT -> when (reader.localName) {
                     KML_TAG -> decodeWith(reader, parentId)
-                    DOCUMENT_TAG -> decodeFeature(reader, parentId = parentId, isDocument = true)
-                    FOLDER_TAG -> decodeFeature(reader, parentId = parentId, isDocument = false)
+                    DOCUMENT_TAG -> decodeFeature(reader, parentId, isDocument = true)
+                    FOLDER_TAG -> decodeFeature(reader, parentId, isDocument = false)
                     PLACEMARK_TAG -> decodePlacemark(reader, parentId)
                     // TODO implement cascading style for reader, same as for text
                     CASCADING_STYLE_TAG -> reader.readIdleTag()
@@ -127,10 +123,7 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodeStyle(reader: XmlReader, parentId: String?) {
         val style = xml.decodeFromReader<Style>(reader)
-        val event = KmlEvent.KmlStyle(
-            parentId = parentId,
-            style = style
-        )
+        val event = KmlEvent.KmlStyle(parentId, style)
         send(event)
     }
 
@@ -192,10 +185,7 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodePlacemark(reader: XmlReader, parentId: String?) {
         val placemark = xml.decodeFromReader<Placemark>(reader)
-        val event = KmlEvent.KmlPlacemark(
-            parentId = parentId,
-            placemark = placemark
-        )
+        val event = KmlEvent.KmlPlacemark(parentId, placemark)
         send(event)
     }
 
