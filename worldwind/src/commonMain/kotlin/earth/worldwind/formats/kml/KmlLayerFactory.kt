@@ -3,6 +3,7 @@ package earth.worldwind.formats.kml
 import earth.worldwind.formats.kml.models.Style
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Renderable
+import earth.worldwind.shape.Label
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -16,19 +17,34 @@ import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 
 @OptIn(XmlUtilInternal::class)
 object KmlLayerFactory {
-    private const val KML_LAYER_NAME = "KML Layer" // TODO Use layer name from file
+    private const val KML_LAYER_NAME = "KML Layer"
     private const val CHUNKS_SIZE = 1000
 
     private val kml = KML()
     private val converter = KmlToRenderableConverter()
 
-    fun createLayer(text: String, scope: CoroutineScope) = createLayer(StringReader(text), scope)
+    fun createLayer(
+        text: String, scope: CoroutineScope,
+        displayName: String? = KML_LAYER_NAME,
+        chunkSize: Int = CHUNKS_SIZE,
+        labelVisibilityThreshold: Double = 0.0
+    ) = createLayer(StringReader(text), scope, displayName, chunkSize, labelVisibilityThreshold)
 
-    fun createLayer(reader: Reader, scope: CoroutineScope) = RenderableLayer(KML_LAYER_NAME).apply {
+    fun createLayer(
+        reader: Reader, scope: CoroutineScope,
+        displayName: String? = KML_LAYER_NAME,
+        chunkSize: Int = CHUNKS_SIZE,
+        labelVisibilityThreshold: Double = 0.0
+    ) = RenderableLayer(displayName).apply {
         scope.launch {
-            import(reader, chunkSize = CHUNKS_SIZE)
+            import(reader, chunkSize)
                 .flowOn(Dispatchers.Default)
-                .collect { list -> addAllRenderables(list) }
+                .collect { list ->
+                    if (labelVisibilityThreshold != 0.0) list.filterIsInstance<Label>().forEach { label ->
+                        label.visibilityThreshold = labelVisibilityThreshold
+                    }
+                    addAllRenderables(list)
+                }
         }
     }
 

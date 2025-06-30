@@ -60,10 +60,10 @@ open class Color @JvmOverloads constructor(
      * @param colorInt the color int specifying the components
      */
     constructor(colorInt: Int): this(
-        red = red(colorInt) / 0xFF.toFloat(),
-        green = green(colorInt) / 0xFF.toFloat(),
-        blue = blue(colorInt) / 0xFF.toFloat(),
-        alpha = alpha(colorInt) / 0xFF.toFloat()
+        red = red(colorInt) / 255f,
+        green = green(colorInt) / 255f,
+        blue = blue(colorInt) / 255f,
+        alpha = alpha(colorInt) / 255f
     )
 
     /**
@@ -100,10 +100,10 @@ open class Color @JvmOverloads constructor(
      * @return this color with its components set to those of the specified color int
      */
     fun set(colorInt: Int) = set(
-        red = red(colorInt) / 0xFF.toFloat(),
-        green = green(colorInt) / 0xFF.toFloat(),
-        blue= blue(colorInt) / 0xFF.toFloat(),
-        alpha = alpha(colorInt) / 0xFF.toFloat()
+        red = red(colorInt) / 255f,
+        green = green(colorInt) / 255f,
+        blue= blue(colorInt) / 255f,
+        alpha = alpha(colorInt) / 255f
     )
 
     /**
@@ -298,6 +298,15 @@ open class Color @JvmOverloads constructor(
         return "rgba($red, $green, $blue, $alpha)"
     }
 
+    /**
+     * Determine contrast background color for any input color
+     * @param threshold brightness (luminance) threshold
+     * @return output contrast color
+     */
+    fun toContrastColor(threshold: Int = 75): Color {
+        return if (luminance(toColorInt()) >= threshold) Color(0f, 0f, 0f) else Color(1f, 1f, 1f)
+    }
+
     companion object {
         /**
          * @param hexString representing hex value
@@ -333,6 +342,13 @@ open class Color @JvmOverloads constructor(
                 }
             } else error("Bad hex value: $hexString")
         }
+
+        /**
+         * Determine NTSC brightness for any input color
+         * @param color input color int
+         * @return NTSC brightness (luminance)
+         */
+        private fun luminance(color: Int) = (299 * red(color) + 587 * green(color) + 114 * blue(color)) / 1000
 
         /**
          * Return the alpha component of a color int. This is the same as saying
