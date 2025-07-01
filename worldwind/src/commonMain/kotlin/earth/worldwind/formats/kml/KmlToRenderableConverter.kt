@@ -15,6 +15,7 @@ import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.AbstractShape
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
@@ -197,11 +198,13 @@ internal class KmlToRenderableConverter {
             earth.worldwind.shape.Placemark(position, label = name).apply {
                 attributes.apply {
                     iconStyle?.scale?.let { imageScale = it }
+                    iconStyle?.icon?.href?.let { imageSource = ImageSource.fromUrlString(it) }
                     iconStyle?.color?.let { imageColor = fromHexABRG(it) }
                     labelAttributes.applyStyle(labelStyle)
                 }
             }
         }.apply {
+            displayName = name // Display name is used to search renderable in layer
             altitudeMode = getAltitudeModeFrom(point.altitudeMode) ?: AltitudeMode.CLAMP_TO_GROUND
         }
     }

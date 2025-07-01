@@ -42,7 +42,7 @@ open class Placemark @JvmOverloads constructor(
      * The label text to draw near the placemark.
      */
     var label: String? = null
-) : AbstractRenderable(if (label.isNullOrEmpty()) "Placemark" else label), Highlightable, Movable {
+) : AbstractRenderable(label), Highlightable, Movable {
     /**
      * The placemark's geographic position.
      */

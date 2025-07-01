@@ -29,7 +29,7 @@ open class Label @JvmOverloads constructor(
      * false. If null and this label is not highlighted, this label displays nothing.
      */
     var attributes: TextAttributes = TextAttributes()
-) : AbstractRenderable(), Highlightable, Movable {
+) : AbstractRenderable(text), Highlightable, Movable {
     /**
      * The label's geographic position.
      */

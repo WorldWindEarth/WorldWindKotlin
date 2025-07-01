@@ -15,14 +15,14 @@
     <Style id="downArrowIcon">
       <IconStyle>
         <Icon>
-          <href>http://maps.google.com/mapfiles/kml/pal4/icon28.png</href>
+          <href>https://maps.google.com/mapfiles/kml/pal4/icon28.png</href>
         </Icon>
       </IconStyle>
     </Style>
     <Style id="globeIcon">
       <IconStyle>
         <Icon>
-          <href>http://maps.google.com/mapfiles/kml/pal3/icon19.png</href>
+          <href>https://maps.google.com/mapfiles/kml/pal3/icon19.png</href>
         </Icon>
       </IconStyle>
       <LineStyle>

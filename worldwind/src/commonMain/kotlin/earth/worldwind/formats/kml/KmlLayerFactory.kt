@@ -36,6 +36,7 @@ object KmlLayerFactory {
         chunkSize: Int = CHUNKS_SIZE,
         labelVisibilityThreshold: Double = 0.0
     ) = RenderableLayer(displayName).apply {
+        isPickEnabled = false // Layer is not pickable by default
         scope.launch {
             import(reader, chunkSize)
                 .flowOn(Dispatchers.Default)

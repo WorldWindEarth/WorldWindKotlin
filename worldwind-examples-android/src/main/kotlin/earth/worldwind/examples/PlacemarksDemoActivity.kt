@@ -427,7 +427,7 @@ Placemarks are conditionally displayed based on the camera distance:
             for (place in places) {
                 // Create and configure a Placemark for this place, using a PlaceLevelOfDetailSelector to
                 // dynamically set the PlacemarkAttributes.
-                val placemark = Placemark(place.position, PlacemarkAttributes(), place.name)
+                val placemark = Placemark(place.position, label = place.name)
                 placemark.levelOfDetailSelector = PlaceLevelOfDetailSelector(resources, place)
                 placemark.isEyeDistanceScaling = true
                 placemark.eyeDistanceScalingThreshold = PlaceLevelOfDetailSelector.LEVEL_1_DISTANCE
