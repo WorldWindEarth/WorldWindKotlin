@@ -37,4 +37,4 @@ jobs:
         GPG_PRIVATE_PASSWORD: ${{ secrets.GPG_PRIVATE_PASSWORD }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-      run: ./gradlew publishAllPublicationsToOssRepository
+      run: ./gradlew publishToSonatype closeSonatypeStagingRepository

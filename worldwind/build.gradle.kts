@@ -193,30 +193,12 @@ val javadocJar = tasks.register<Jar>("javadocJar") {
 
 dokka {
     moduleName.set("WorldWind Kotlin")
-    pluginsConfiguration.html {
-        footerMessage.set("(c) WorldWind Earth")
-    }
-    dokkaPublications.html {
-        outputDirectory.set(dokkaOutputDir)
-    }
+    pluginsConfiguration.html { footerMessage.set("(c) WorldWind Earth") }
+    dokkaPublications.html { outputDirectory.set(dokkaOutputDir) }
 }
 
-val sonatypeUsername: String? = System.getenv("SONATYPE_USERNAME")
-val sonatypePassword: String? = System.getenv("SONATYPE_PASSWORD")
 publishing {
     publications {
-        repositories {
-            maven {
-                name="oss"
-                val releasesRepoUrl = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-                val snapshotsRepoUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-                url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
-                credentials {
-                    username = sonatypeUsername
-                    password = sonatypePassword
-                }
-            }
-        }
         withType<MavenPublication> {
             artifact(javadocJar)
             pom {

@@ -3,9 +3,10 @@ plugins {
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("android") version kotlinVersion apply false
-    id("org.jetbrains.dokka") version "2.0.0" apply false
     id("com.android.library") apply false
     id("com.android.application") apply false
+    id("org.jetbrains.dokka") version "2.0.0" apply false
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
 
 buildscript {
@@ -16,7 +17,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.7.12"
+    version = "1.7.13"
 
     extra.apply {
         set("minSdk", 24)
@@ -27,5 +28,16 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+            username.set(System.getenv("SONATYPE_USERNAME"))
+            password.set(System.getenv("SONATYPE_PASSWORD"))
+        }
     }
 }
