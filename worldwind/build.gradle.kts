@@ -201,22 +201,8 @@ dokka {
     }
 }
 
-val sonatypeUsername: String? = System.getenv("SONATYPE_USERNAME")
-val sonatypePassword: String? = System.getenv("SONATYPE_PASSWORD")
 publishing {
     publications {
-        repositories {
-            maven {
-                name = "oss"
-                val releasesRepoUrl = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
-                val snapshotsRepoUrl = uri("https://ossrh-staging-api.central.sonatype.com/content/repositories/snapshots/")
-                url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
-                credentials {
-                    username = sonatypeUsername
-                    password = sonatypePassword
-                }
-            }
-        }
         withType<MavenPublication> {
             artifact(javadocJar)
             pom {

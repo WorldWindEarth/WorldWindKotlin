@@ -6,6 +6,7 @@ plugins {
     id("org.jetbrains.dokka") version "2.0.0" apply false
     id("com.android.library") apply false
     id("com.android.application") apply false
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
 
 buildscript {
@@ -27,5 +28,16 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+            username.set(System.getenv("SONATYPE_USERNAME"))
+            password.set(System.getenv("SONATYPE_PASSWORD"))
+        }
     }
 }
