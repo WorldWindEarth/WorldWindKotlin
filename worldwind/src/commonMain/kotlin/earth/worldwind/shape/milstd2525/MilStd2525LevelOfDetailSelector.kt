@@ -16,6 +16,8 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
     protected var lastLevelOfDetail = -1
     protected var isHighlighted = false
     protected var isInvalidateRequested = false
+    protected var lastSymbolID: String? = null
+    protected var unfilledAttributes: Map<String, String>? = null
 
     override fun invalidate() { isInvalidateRequested = true }
 
@@ -79,9 +81,19 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
 
     private fun getSimplifiedSymbolID(symbolID: String) = symbolID.substring(0, 6) + "0000" + symbolID.substring(10, 16) + "00000000000000"
 
-    private fun getAttributes(placemark: MilStd2525Placemark) = if (placemark.isFrameFilled) placemark.symbolAttributes
-    else placemark.symbolAttributes?.let { getUnfilledAttributes(placemark.symbolID) + it }
-        ?: getUnfilledAttributes(placemark.symbolID)
+    private fun getAttributes(placemark: MilStd2525Placemark): Map<String, String>? {
+        if (lastSymbolID != placemark.symbolID) {
+            unfilledAttributes = null
+            lastSymbolID = placemark.symbolID
+        }
+
+        val unfilledAttributes = unfilledAttributes ?: getUnfilledAttributes(placemark.symbolID).also {
+            unfilledAttributes = it
+        }
+
+        return if (placemark.isFilled) placemark.symbolAttributes
+        else placemark.symbolAttributes?.let { unfilledAttributes + it } ?: unfilledAttributes
+    }
 
     companion object {
         /**

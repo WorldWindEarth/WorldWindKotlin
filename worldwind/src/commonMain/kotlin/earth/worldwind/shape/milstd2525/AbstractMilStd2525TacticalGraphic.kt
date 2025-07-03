@@ -15,13 +15,22 @@ import kotlin.math.ln
 import kotlin.math.roundToInt
 
 abstract class AbstractMilStd2525TacticalGraphic(
-    protected val symbolID: String, protected val boundingSector: Sector,
-    modifiers: Map<String, String>?, attributes: Map<String, String>?,
+    symbolID: String, boundingSector: Sector, modifiers: Map<String, String>?, attributes: Map<String, String>?
 ) : AbstractSurfaceRenderable(boundingSector), Highlightable {
     override var isHighlighted = false
         set(value) {
             field = value
             reset()
+        }
+    var symbolID = symbolID
+        set(value) {
+            field = value
+            reset()
+        }
+    var boundingSector = Sector(boundingSector)
+        set(value) {
+            field.copy(value)
+            recalculateScaleLimits()
         }
     var modifiers = modifiers
         set(value) {
@@ -74,11 +83,6 @@ abstract class AbstractMilStd2525TacticalGraphic(
     }
 
     init {
-        recalculateScaleLimits()
-    }
-
-    fun setBoundingSector(sector: Sector) {
-        boundingSector.copy(sector)
         recalculateScaleLimits()
     }
 

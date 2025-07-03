@@ -20,7 +20,6 @@ actual object MilStd2525 {
         rendererSettings.outlineSPControlMeasures = false // Do not outline single point control measures
         rendererSettings.twoLabelOnly = true // Show only two labels fo minefield
         rendererSettings.actionPointDefaultFill = false // Do not fill action points
-        rendererSettings.scaleMainIcon = true // Make central icon bigger if no sector modifiers available
 
         // Depending on screen size and DPI you may want to change the font size.
         rendererSettings.setLabelFont("Arial", Font.BOLD, 8)

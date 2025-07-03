@@ -34,7 +34,6 @@ actual object MilStd2525 {
         rendererSettings.outlineSPControlMeasures = false // Do not outline single point control measures
         rendererSettings.twoLabelOnly = true // Show only two labels fo minefield
         rendererSettings.actionPointDefaultFill = false // Do not fill action points
-        rendererSettings.scaleMainIcon = true // Make central icon bigger if no sector modifiers available
 
         // Depending on screen size and DPI you may want to change the font size.
         rendererSettings.setModifierFont("Arial", Typeface.BOLD, context.resources.getDimensionPixelSize(R.dimen.modifier_font_size))
@@ -86,9 +85,9 @@ actual object MilStd2525 {
         SymbolUtilities.getFillColorOfAffiliation(symbolID)
     }?.toHexString()?.let {
         mapOf(
-            MilStdAttributes.FillColor.toString() to "00000000",
-            MilStdAttributes.LineColor.toString() to it,
-            MilStdAttributes.IconColor.toString() to it
+            MilStdAttributes.FillColor to "00000000",
+            MilStdAttributes.LineColor to it,
+            MilStdAttributes.IconColor to it
         )
     } ?: emptyMap()
 }

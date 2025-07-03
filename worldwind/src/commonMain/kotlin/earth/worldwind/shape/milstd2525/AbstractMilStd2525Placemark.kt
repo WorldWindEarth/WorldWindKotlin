@@ -17,7 +17,7 @@ import earth.worldwind.shape.Placemark
  * @param lodSelector Level of detail selector
  */
 abstract class AbstractMilStd2525Placemark(
-    val symbolID: String, position: Position,
+    symbolID: String, position: Position,
     symbolModifiers: Map<String, String>?, symbolAttributes: Map<String, String>?, lodSelector: LevelOfDetailSelector
 ) : Placemark(position) {
 
@@ -34,6 +34,11 @@ abstract class AbstractMilStd2525Placemark(
         }
     }
 
+    var symbolID = symbolID
+        set(value) {
+            field = value
+            invalidate()
+        }
     var symbolModifiers = symbolModifiers
         set(value) {
             field = value
@@ -52,7 +57,7 @@ abstract class AbstractMilStd2525Placemark(
                 invalidate()
             }
         }
-    var isFrameFilled = true
+    var isFilled = true
         set(value) {
             // Do not invalidate state if nothing changed
             if (field != value) {
