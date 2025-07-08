@@ -20,6 +20,7 @@ resources = "0.24.5"
 rules = "1.6.1"
 serialization = "1.8.0"
 tiff = "3.0.0"
+geojson = "0.6.6"
 uri-kmp = "0.0.19"
 xmlutil = "0.91.0"
 
@@ -72,4 +73,5 @@ desugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desuga
 material = { module = "com.google.android.material:material", version.ref = "material" }
 pngj = { module = "ar.com.hjg:pngj", version.ref = "pngj" }
 tiff = { module = "mil.nga:tiff", version.ref = "tiff" }
+geojson = { module = "io.data2viz.geojson:core", version.ref = "geojson" }
 uri-kmp = { module = "com.eygraber:uri-kmp", version.ref = "uri-kmp" }

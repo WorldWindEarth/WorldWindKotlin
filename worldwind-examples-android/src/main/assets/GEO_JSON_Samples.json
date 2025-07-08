@@ -1,0 +1,251 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample Point",
+        "stroke": "#ff0000",
+        "stroke-width": "2",
+        "stroke-opacity": 1,
+        "fill": "#ffaaaa",
+        "fill-opacity": 0.6,
+        "icon": "marker"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          30.5234,
+          50.4501
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample MultiPoint",
+        "stroke": "#00ff00",
+        "stroke-width": 1,
+        "stroke-opacity": 0.8,
+        "fill": "#aaffaa",
+        "fill-opacity": 0.5,
+        "icon": "circle"
+      },
+      "geometry": {
+        "type": "MultiPoint",
+        "coordinates": [
+          [
+            30.5234,
+            50.4501
+          ],
+          [
+            30.5240,
+            50.4510
+          ],
+          [
+            30.5250,
+            50.4495
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample LineString",
+        "stroke": "#0000ff",
+        "stroke-width": 4,
+        "stroke-opacity": 0.9
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            30.5200,
+            50.4500
+          ],
+          [
+            30.5220,
+            50.4520
+          ],
+          [
+            30.5250,
+            50.4490
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample MultiLineString",
+        "stroke": "#ffa500",
+        "stroke-width": 3,
+        "stroke-opacity": 0.7
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [
+              30.5200,
+              50.4500
+            ],
+            [
+              30.5220,
+              50.4520
+            ]
+          ],
+          [
+            [
+              30.5250,
+              50.4490
+            ],
+            [
+              30.5270,
+              50.4480
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample Polygon",
+        "stroke": "#800080",
+        "stroke-width": 2,
+        "stroke-opacity": 1,
+        "fill": "#dda0dd",
+        "fill-opacity": 0.4
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              30.5200,
+              50.4500
+            ],
+            [
+              30.5250,
+              50.4500
+            ],
+            [
+              30.5250,
+              50.4450
+            ],
+            [
+              30.5200,
+              50.4450
+            ],
+            [
+              30.5200,
+              50.4500
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample MultiPolygon",
+        "stroke": "#008080",
+        "stroke-width": 3,
+        "stroke-opacity": 0.8,
+        "fill": "#40e0d0",
+        "fill-opacity": 0.3
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                30.5100,
+                50.4400
+              ],
+              [
+                30.5150,
+                50.4400
+              ],
+              [
+                30.5150,
+                50.4350
+              ],
+              [
+                30.5100,
+                50.4350
+              ],
+              [
+                30.5100,
+                50.4400
+              ]
+            ]
+          ],
+          [
+            [
+              [
+                30.5200,
+                50.4400
+              ],
+              [
+                30.5250,
+                50.4400
+              ],
+              [
+                30.5250,
+                50.4350
+              ],
+              [
+                30.5200,
+                50.4350
+              ],
+              [
+                30.5200,
+                50.4400
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample GeometryCollection",
+        "stroke": "#000000",
+        "stroke-width": 1,
+        "stroke-opacity": 1,
+        "fill": "#cccccc",
+        "fill-opacity": 0.2
+      },
+      "geometry": {
+        "type": "GeometryCollection",
+        "geometries": [
+          {
+            "type": "Point",
+            "coordinates": [
+              30.5300,
+              50.4550
+            ]
+          },
+          {
+            "type": "LineString",
+            "coordinates": [
+              [
+                30.5300,
+                50.4550
+              ],
+              [
+                30.5350,
+                50.4600
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

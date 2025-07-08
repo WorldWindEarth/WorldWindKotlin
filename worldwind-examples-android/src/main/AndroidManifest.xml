@@ -127,6 +127,14 @@
             android:theme="@style/AppTheme.NoActionBar">
         </activity>
         <activity
+            android:name=".GeoJsonDemoActivity"
+            android:configChanges="orientation|screenSize"
+            android:label="@string/title_geo_json_demo"
+            android:launchMode="singleInstance"
+            android:noHistory="true"
+            android:theme="@style/AppTheme.NoActionBar">
+        </activity>
+        <activity
             android:name=".PlacemarksStressTestActivity"
             android:configChanges="orientation|screenSize"
             android:label="@string/title_placemarks_stress_test"
