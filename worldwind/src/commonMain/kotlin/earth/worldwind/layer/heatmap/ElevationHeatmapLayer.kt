@@ -34,7 +34,7 @@ open class ElevationHeatmapLayer: AbstractLayer("Elevation Heatmap") {
     override fun doRender(rc: RenderContext) {
         if (autoHeightLimits) rc.terrain.heightLimits(levelNumberDepth, heightLimits)
 
-        val pool = rc.getDrawablePool<DrawableHeatmap>(DrawableHeatmap.KEY)
+        val pool = rc.getDrawablePool(DrawableHeatmap.KEY)
         val drawable = DrawableHeatmap.obtain(pool)
         heightLimits.copyInto(drawable.heightLimits)
         drawable.colors.forEachIndexed { i, color -> color.copy(colors[i]) }

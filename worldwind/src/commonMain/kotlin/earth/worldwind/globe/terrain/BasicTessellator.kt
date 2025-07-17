@@ -104,7 +104,7 @@ open class BasicTessellator: Tessellator, TileFactory {
         currentSector.union(tile.sector)
 
         // Prepare a drawable for the terrain tile for processing on the OpenGL thread.
-        val pool = rc.getDrawablePool<BasicDrawableTerrain>(BasicDrawableTerrain.KEY)
+        val pool = rc.getDrawablePool(BasicDrawableTerrain.KEY)
         val drawable = BasicDrawableTerrain.obtain(pool)
         prepareDrawableTerrain(rc, tile, drawable)
         rc.offerDrawableTerrain(drawable, tile.sortOrder)

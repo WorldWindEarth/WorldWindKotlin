@@ -55,10 +55,9 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
 
     override fun doRender(rc: RenderContext) {
         checkGlobeState(rc)
-        if (!isWithinProjectionLimits(rc)) return
 
         // Don't render anything if the shape is not visible.
-        if (!intersectsFrustum(rc)) return
+        if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc)) return
 
         // Select the currently active attributes. Don't render anything if the attributes are unspecified.
         determineActiveAttributes(rc)

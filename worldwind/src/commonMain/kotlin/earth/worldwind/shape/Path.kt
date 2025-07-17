@@ -80,14 +80,14 @@ open class Path @JvmOverloads constructor(
         val drawState: DrawShapeState
         val cameraDistance: Double
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceShape>(DrawableSurfaceShape.KEY)
+            val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
         } else {
-            val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
+            val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, OUTLINE_SEGMENT_STRIDE, vertexOrigin)
@@ -167,7 +167,7 @@ open class Path @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's extruded interior.
         if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape && (!rc.isPickMode || activeAttributes.isPickInterior)) {
-            val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
+            val pool = rc.getDrawablePool(DrawableShape.KEY)
             val drawableExtrusion = DrawableShape.obtain(pool)
             val drawStateExtrusion = drawableExtrusion.drawState
 

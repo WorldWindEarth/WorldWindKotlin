@@ -154,7 +154,7 @@ open class Polygon @JvmOverloads constructor(
         val drawableLines: Drawable
         val drawStateLines: DrawShapeState
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceShape>(DrawableSurfaceShape.KEY)
+            val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
@@ -167,7 +167,7 @@ open class Polygon @JvmOverloads constructor(
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
         } else {
-            val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
+            val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
 

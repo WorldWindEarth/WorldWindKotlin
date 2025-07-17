@@ -214,7 +214,7 @@ open class DirectionalSightline @JvmOverloads constructor(
 
     protected open fun makeDrawable(rc: RenderContext) {
         // Obtain a pooled drawable and configure it to draw the sightline's coverage.
-        val pool = rc.getDrawablePool<DrawableSightline>(DrawableSightline.KEY)
+        val pool = rc.getDrawablePool(DrawableSightline.KEY)
         val drawable = DrawableSightline.obtain(pool)
 
         // Choose directional mode

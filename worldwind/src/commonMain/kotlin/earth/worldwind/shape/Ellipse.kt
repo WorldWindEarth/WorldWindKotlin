@@ -204,7 +204,7 @@ open class Ellipse @JvmOverloads constructor(
         val drawableLines: Drawable
         val drawStateLines: DrawShapeState
         if (isSurfaceShape) {
-            val pool = rc.getDrawablePool<DrawableSurfaceShape>(DrawableSurfaceShape.KEY)
+            val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             drawable.offset = rc.globe.offset
@@ -219,7 +219,7 @@ open class Ellipse @JvmOverloads constructor(
 
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
         } else {
-            val pool = rc.getDrawablePool<DrawableShape>(DrawableShape.KEY)
+            val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
 

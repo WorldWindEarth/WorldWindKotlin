@@ -21,7 +21,7 @@ open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractS
 
         // Enqueue a drawable surface texture for processing on the OpenGL thread.
         val program = getShaderProgram(rc)
-        val pool = rc.getDrawablePool<DrawableSurfaceTexture>(DrawableSurfaceTexture.KEY)
+        val pool = rc.getDrawablePool(DrawableSurfaceTexture.KEY)
         val drawable = DrawableSurfaceTexture.obtain(pool).set(
             program, sector, opacity, texture, texture.coordTransform, rc.globe.offset, terrainSector
         )

@@ -32,6 +32,7 @@ jobs:
         FOLDER: worldwind-tutorials/build/dist/js/productionExecutable
         CLEAN: true      
     - name: Publish to Maven Central
+      if: github.ref == 'refs/heads/master'
       env:
         GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         GPG_PRIVATE_PASSWORD: ${{ secrets.GPG_PRIVATE_PASSWORD }}

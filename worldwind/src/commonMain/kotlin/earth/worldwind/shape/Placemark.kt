@@ -286,7 +286,7 @@ open class Placemark @JvmOverloads constructor(
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
-                val pool = rc.getDrawablePool<DrawableLines>(DrawableLines.KEY)
+                val pool = rc.getDrawablePool(DrawableLines.KEY)
                 val drawable = DrawableLines.obtain(pool)
                 prepareDrawableLeader(rc, drawable)
                 rc.offerShapeDrawable(drawable, cameraDistance)
@@ -299,7 +299,7 @@ open class Placemark @JvmOverloads constructor(
         // If the placemark's icon is visible, enqueue a drawable icon for processing on the OpenGL thread.
         imageTransform.boundingRectForUnitSquare(imageBounds)
         if (rc.frustum.intersectsViewport(imageBounds)) {
-            val pool = rc.getDrawablePool<DrawableScreenTexture>(DrawableScreenTexture.KEY)
+            val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
             val drawable = DrawableScreenTexture.obtain(pool)
             prepareDrawableIcon(rc, drawable, activeTexture)
             rc.offerShapeDrawable(drawable, cameraDistance)
@@ -322,7 +322,7 @@ open class Placemark @JvmOverloads constructor(
                 labelTransform.setScale(w * s, h * s, 1.0)
                 labelTransform.boundingRectForUnitSquare(labelBounds)
                 if (rc.frustum.intersectsViewport(labelBounds)) {
-                    val pool = rc.getDrawablePool<DrawableScreenTexture>(DrawableScreenTexture.KEY)
+                    val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
                     val drawable = DrawableScreenTexture.obtain(pool)
                     prepareDrawableLabel(rc, drawable, labelTexture)
                     rc.offerShapeDrawable(drawable, cameraDistance)

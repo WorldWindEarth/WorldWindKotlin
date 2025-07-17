@@ -58,7 +58,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     }
 
     protected open fun renderSky(rc: RenderContext) {
-        val pool = rc.getDrawablePool<DrawableSkyAtmosphere>(DrawableSkyAtmosphere.KEY)
+        val pool = rc.getDrawablePool(DrawableSkyAtmosphere.KEY)
         val drawable = DrawableSkyAtmosphere.obtain(pool)
         val size = 128
         drawable.program = rc.getShaderProgram(SkyProgram.KEY) { SkyProgram() }
@@ -74,7 +74,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
 
     protected open fun renderGround(rc: RenderContext) {
         if (rc.terrain.sector.isEmpty) return  // no terrain surface to render on
-        val pool = rc.getDrawablePool<DrawableGroundAtmosphere>(DrawableGroundAtmosphere.KEY)
+        val pool = rc.getDrawablePool(DrawableGroundAtmosphere.KEY)
         val drawable = DrawableGroundAtmosphere.obtain(pool)
         drawable.program = rc.getShaderProgram(GroundProgram.KEY) { GroundProgram() }
         drawable.lightDirection.copy(activeLightDirection)

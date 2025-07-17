@@ -192,7 +192,7 @@ open class Label @JvmOverloads constructor(
         if (!rc.frustum.intersectsViewport(renderData.screenBounds)) return  // the text is outside the viewport
 
         // Obtain a pooled drawable and configure it to draw the label's text.
-        val pool = rc.getDrawablePool<DrawableScreenTexture>(DrawableScreenTexture.KEY)
+        val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
         val drawable = DrawableScreenTexture.obtain(pool)
 
         // Use the basic GLSL program to draw the text.
