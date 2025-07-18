@@ -10,6 +10,7 @@ import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.buffer.BufferPool
+import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 
@@ -28,6 +29,7 @@ open class DrawContext(val gl: Kgl) {
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
     var isPickMode = false
+    var shapesTexture: Texture? = null
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
     private var textureUnit = GL_TEXTURE0
@@ -41,6 +43,11 @@ open class DrawContext(val gl: Kgl) {
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
+    val texturesCache = object : LruMemoryCache<Any, Texture>(300) {
+        override fun entryRemoved(key: Any, oldValue: Texture, newValue: Texture?, evicted: Boolean) {
+            oldValue.release(this@DrawContext)
+        }
+    }
     /**
      * Returns count of terrain drawables in queue
      */
@@ -167,6 +174,7 @@ open class DrawContext(val gl: Kgl) {
         defaultTextureCache = null
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
+        texturesCache.clear()
     }
 
     fun uploadBuffers() = uploadQueue?.processUploads(this)
