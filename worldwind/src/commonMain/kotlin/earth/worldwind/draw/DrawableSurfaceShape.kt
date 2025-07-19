@@ -16,12 +16,13 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
-    private val identityMatrix3 = Matrix3()
-    private val color = Color()
-    private var opacity = 1.0f
 
     companion object {
         val KEY = DrawableSurfaceShape::class
+
+        private val identityMatrix3 = Matrix3()
+        private val color = Color()
+        private var opacity = 1.0f
 
         @JvmStatic
         fun obtain(pool: Pool<DrawableSurfaceShape>): DrawableSurfaceShape {
