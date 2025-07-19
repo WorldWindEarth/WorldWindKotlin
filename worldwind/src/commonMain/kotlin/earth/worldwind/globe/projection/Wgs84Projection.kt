@@ -297,7 +297,7 @@ open class Wgs84Projection: GeographicProjection {
         }
 
         // Compute lambda
-        val s2 = sqrt(2.0)
+        val s2 = SQRT_2
         val lambda = when {
             (s2 - 1) * x < zpxSqrt + z -> 2 * atan2(x, zpxSqrt + z) // case 1 - -135deg < lambda < 135deg
             zpxSqrt + x < (s2 + 1) * z -> -PI * 0.5 + 2 * atan2(z, zpxSqrt - x) // case 2 - -225deg < lambda < 45deg
@@ -402,5 +402,9 @@ open class Wgs84Projection: GeographicProjection {
 
         // the intersection points were behind the origin of the provided line
         return false
+    }
+
+    companion object {
+        private val SQRT_2 = sqrt(2.0)
     }
 }
