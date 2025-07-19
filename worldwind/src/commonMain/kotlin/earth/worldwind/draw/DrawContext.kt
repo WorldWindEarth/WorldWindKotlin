@@ -29,7 +29,6 @@ open class DrawContext(val gl: Kgl) {
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
     var isPickMode = false
-    var shapesTexture: Texture? = null
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
     private var textureUnit = GL_TEXTURE0

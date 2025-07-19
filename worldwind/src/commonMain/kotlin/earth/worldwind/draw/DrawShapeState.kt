@@ -31,6 +31,20 @@ open class DrawShapeState internal constructor() {
     internal var primCount = 0
     internal val prims = Array(MAX_DRAW_ELEMENTS) { DrawElements() }
 
+    open fun getPrivateHash() : Int
+    {
+        var hash = 1
+        hash = 31 * hash + color.hashCode()
+        hash = 31 * hash + opacity.hashCode()
+        hash = 31 * hash + lineWidth.hashCode()
+        if(texture != null) {
+            hash = 31 * hash + texture.hashCode()
+            hash = 31 * hash + texCoordMatrix.hashCode()
+            hash = 31 * hash + texCoordAttrib.hashCode()
+        }
+        return hash
+    }
+
     open fun reset() {
         program = null
         vertexBuffer = null
