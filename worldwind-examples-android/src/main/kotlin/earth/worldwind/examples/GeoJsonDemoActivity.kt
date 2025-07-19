@@ -21,17 +21,17 @@ open class GeoJsonDemoActivity : GeneralGlobeActivity() {
    Different placemarks and shapes are loaded from a GeoJson file.
     """.trimIndent()
 
-        try {
-            val inputStream = assets.open("GEO_JSON_Samples.json")
-            wwd.mainScope.launch {
-                val text = withContext(Dispatchers.IO) { inputStream.bufferedReader().readText() }
-                GeoJsonLayerFactory.createLayer(
-                    text = text,
+        wwd.mainScope.launch(Dispatchers.IO) {
+            try {
+                val layer = GeoJsonLayerFactory.createLayer(
+                    text = assets.open("GEO_JSON_Samples.json").bufferedReader().readText(),
                     labelVisibilityThreshold = 18000.0, // Set a visibility threshold for labels
-                ).also { wwd.engine.layers.addLayer(it) }
+                )
+                wwd.engine.layers.addLayer(layer)
+                wwd.requestRedraw()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
 
         val lookAt = LookAt(
