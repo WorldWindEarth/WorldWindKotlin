@@ -35,7 +35,7 @@ open class BoundingBox {
     /**
      * The box's radius. (The half-length of its diagonal.)
      */
-    protected var radius = sqrt(3.0)
+    protected var radius = SQRT_3
 
     private val endPoint1 = Vec3()
     private val endPoint2 = Vec3()
@@ -48,7 +48,7 @@ open class BoundingBox {
      *
      * @return true if this bounding box is a unit box, otherwise false
      */
-    val isUnitBox get() = center.x == 0.0 && center.y == 0.0 && center.z == 0.0 && radius == sqrt(3.0)
+    val isUnitBox get() = center.x == 0.0 && center.y == 0.0 && center.z == 0.0 && radius == SQRT_3
 
     /**
      * Sets this bounding box to a unit box centered at the Cartesian origin (0, 0, 0).
@@ -64,7 +64,7 @@ open class BoundingBox {
         s.set(0.0, 1.0, 0.0)
         t.set(0.0, 0.0, 1.0)
 
-        radius = sqrt(3.0)
+        radius = SQRT_3
     }
 
     /**
@@ -343,6 +343,7 @@ open class BoundingBox {
     companion object {
         private const val NUM_LAT = 3
         private const val NUM_LON = 3
+        private val SQRT_3 = sqrt(3.0)
 
         private fun adjustExtremes(
             r: Vec3, rExtremes: DoubleArray, s: Vec3, sExtremes: DoubleArray, t: Vec3, tExtremes: DoubleArray, p: Vec3
