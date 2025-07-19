@@ -1,3 +1,5 @@
+@file:Suppress("ControlFlowWithEmptyBody")
+
 package earth.worldwind.formats.kml
 
 import earth.worldwind.formats.kml.models.AbstractStyle
@@ -16,6 +18,7 @@ import earth.worldwind.formats.kml.models.Point
 import earth.worldwind.formats.kml.models.PolyStyle
 import earth.worldwind.formats.kml.models.Polygon
 import earth.worldwind.formats.kml.models.Style
+import earth.worldwind.formats.kml.models.StyleMap
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.serialization.modules.SerializersModule
@@ -90,15 +93,24 @@ internal class KML {
             val style: Style,
         ) : KmlEvent
 
+        data class KmlStyleMap(
+            val parentId: String?,
+            val styleMap: StyleMap,
+        ) : KmlEvent
+
         data class KmlPlacemark(
             val parentId: String?,
             val placemark: Placemark,
         ) : KmlEvent
     }
 
-    fun decodeFromReader(reader: Reader) = channelFlow { decodeWith(xmlStreaming.newGenericReader(reader)) }
+    fun decodeFromReader(reader: Reader) =
+        channelFlow { decodeWith(xmlStreaming.newGenericReader(reader)) }
 
-    private suspend fun ProducerScope<KmlEvent>.decodeWith(reader: XmlReader, parentId: String? = null) {
+    private suspend fun ProducerScope<KmlEvent>.decodeWith(
+        reader: XmlReader,
+        parentId: String? = null
+    ) {
         if (reader.hasNext()) reader.next() else return
 
         do {
@@ -108,10 +120,11 @@ internal class KML {
                     DOCUMENT_TAG -> decodeFeature(reader, parentId, isDocument = true)
                     FOLDER_TAG -> decodeFeature(reader, parentId, isDocument = false)
                     PLACEMARK_TAG -> decodePlacemark(reader, parentId)
-                    // TODO implement cascading style for reader, same as for text
-                    CASCADING_STYLE_TAG -> reader.readIdleTag()
+                    STYLE_MAP_TAG -> decodeStyleMap(reader, parentId)
+                    CASCADING_STYLE_TAG -> decodeCascadingStyle(reader, parentId)
                     STYLE_TAG -> decodeStyle(reader, parentId)
-                    else -> while (reader.next() != EventType.END_ELEMENT) { } // Skip the content of the element
+                    else -> while (reader.next() != EventType.END_ELEMENT) {
+                    } // Skip the content of the element
                 }
 
                 EventType.END_ELEMENT -> return // end of the element
@@ -119,6 +132,31 @@ internal class KML {
 
             }
         } while (reader.hasNext() && reader.next() != EventType.END_DOCUMENT)
+    }
+
+    private suspend fun ProducerScope<KmlEvent>.decodeStyleMap(
+        reader: XmlReader,
+        parentId: String?
+    ) {
+        val styleMap = xml.decodeFromReader<StyleMap>(reader)
+        val event = KmlEvent.KmlStyleMap(parentId, styleMap)
+        send(event)
+    }
+
+    private suspend fun ProducerScope<KmlEvent>.decodeCascadingStyle(
+        reader: XmlReader,
+        parentId: String?
+    ) {
+        val id = reader.attributes.find { it.localName == ID_ATTRIBUTE }?.value?.ifEmpty { null }
+            ?: return
+
+        do {
+            if (reader.eventType == EventType.START_ELEMENT && reader.localName == STYLE_TAG) {
+                val style = xml.decodeFromReader<Style>(reader)
+                val event = KmlEvent.KmlStyle(parentId, style.copy(id = id))
+                send(event)
+            }
+        } while (reader.hasNext() && reader.next() != EventType.END_ELEMENT)
     }
 
     private suspend fun ProducerScope<KmlEvent>.decodeStyle(reader: XmlReader, parentId: String?) {
@@ -156,6 +194,11 @@ internal class KML {
                         name = it
                     }
 
+                    DOCUMENT_TAG -> {
+                        trySendFeatureEvent()
+                        decodeFeature(reader, parentId = id, isDocument = true)
+                    }
+
                     FOLDER_TAG -> {
                         trySendFeatureEvent()
                         decodeFeature(reader, parentId = id, isDocument = false)
@@ -166,8 +209,8 @@ internal class KML {
                         decodePlacemark(reader, parentId = id)
                     }
 
-                    // TODO implement cascading style for reader, same as for text
-                    CASCADING_STYLE_TAG -> reader.readIdleTag()
+                    STYLE_MAP_TAG -> decodeStyleMap(reader, parentId)
+                    CASCADING_STYLE_TAG -> decodeCascadingStyle(reader, parentId)
                     STYLE_TAG -> decodeStyle(reader, parentId)
                     else -> reader.readIdleTag()
                 }
@@ -183,7 +226,10 @@ internal class KML {
         } while (reader.hasNext() && reader.next() != EventType.END_DOCUMENT)
     }
 
-    private suspend fun ProducerScope<KmlEvent>.decodePlacemark(reader: XmlReader, parentId: String?) {
+    private suspend fun ProducerScope<KmlEvent>.decodePlacemark(
+        reader: XmlReader,
+        parentId: String?
+    ) {
         val placemark = xml.decodeFromReader<Placemark>(reader)
         val event = KmlEvent.KmlPlacemark(parentId, placemark)
         send(event)
@@ -218,6 +264,7 @@ internal class KML {
         private const val FOLDER_TAG = "Folder"
         private const val PLACEMARK_TAG = "Placemark"
         private const val STYLE_TAG = "Style"
+        private const val STYLE_MAP_TAG = "StyleMap"
         private const val CASCADING_STYLE_TAG = ""
         private const val NAME_TAG = "name"
         private const val ID_ATTRIBUTE = "id"
