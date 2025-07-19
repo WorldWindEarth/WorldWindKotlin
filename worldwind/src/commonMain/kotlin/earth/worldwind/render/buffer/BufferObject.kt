@@ -18,6 +18,9 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
         return id.isValid()
     }
 
+    open fun isValid() : Boolean{
+        return  id.isValid()
+    }
     open fun loadBuffer(dc: DrawContext, array: NumericArray) {
         val currentBuffer = dc.currentBuffer(target)
         try {
