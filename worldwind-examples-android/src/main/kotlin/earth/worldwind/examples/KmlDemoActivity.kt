@@ -6,6 +6,8 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 open class KmlDemoActivity : GeneralGlobeActivity() {
 
@@ -18,14 +20,14 @@ open class KmlDemoActivity : GeneralGlobeActivity() {
    Different placemarks and shapes are loaded from a KML file.
     """.trimIndent()
 
-        try {
-            val inputStream = assets.open("KML_Samples.kml")
-            KmlLayerFactory.createLayer(
-                text = inputStream.bufferedReader().readText(),
-                scope = wwd.mainScope,
-            ).also { wwd.engine.layers.addLayer(it) }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        wwd.mainScope.launch(Dispatchers.IO) {
+            try {
+                val layer = KmlLayerFactory.createLayer(assets.open("KML_Samples.kml").bufferedReader())
+                wwd.engine.layers.addLayer(layer)
+                wwd.requestRedraw()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         // And finally, for this demo, position the viewer to look at the placemarks

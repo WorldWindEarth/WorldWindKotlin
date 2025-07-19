@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWindow
 import earth.worldwind.ogc.GpkgLayerFactory
 import earth.worldwind.util.Logger
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class GeoPackageFragment: BasicGlobeFragment() {
@@ -15,7 +16,7 @@ class GeoPackageFragment: BasicGlobeFragment() {
         // Let the super class (BasicGlobeFragment) do the creation
         val wwd = super.createWorldWindow()
 
-        wwd.mainScope.launch {
+        wwd.mainScope.launch(Dispatchers.IO) {
             try {
                 // Unpack the tutorial GeoPackage asset to the Android application cache. GeoPackage relies on the Android
                 // SQLite library which operates only on files in the local Android filesystem.
