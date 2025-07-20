@@ -12,10 +12,10 @@ import kotlin.jvm.JvmStatic
 
 open class DrawableSurfaceShape protected constructor(): Drawable {
     var offset = Globe.Offset.Center
-    var bufferDataVersion = 0L
     val sector = Sector()
     val drawState = DrawShapeState()
-    var hash : Int = 0
+    var bufferDataVersion = 0L
+    private var hash : Int = 0
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
@@ -95,34 +95,28 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         val terrainSector = terrain.sector
 
         // Shapes have been accumulated in the draw context's scratch list.
-        val visibleScratchList = dc.scratchList
-            .filter {
-                val shape = it as DrawableSurfaceShape
-                shape.offset == terrain.offset && shape.sector.intersectsOrNextTo(terrainSector)
-            }
-        if (visibleScratchList.isEmpty()) return null
+        val scratchList = mutableListOf<DrawableSurfaceShape>()
+        for (idx in dc.scratchList.indices) {
+            val shape = dc.scratchList[idx] as DrawableSurfaceShape
+            if (shape.offset == terrain.offset && shape.sector.intersectsOrNextTo(terrainSector)) scratchList.add(shape)
+        }
+        if (scratchList.isEmpty()) return null
 
         var hash = 0
         if (!dc.isPickMode) {
-            for (idx in visibleScratchList.indices) {
-                val shape = visibleScratchList[idx] as DrawableSurfaceShape
-                if(shape.hash == 0) {
-                    //hash = 31 * hash + shape.offset.hashCode()
+            for (idx in scratchList.indices) {
+                val shape = scratchList[idx]
+                if (shape.hash == 0) {
                     hash = 31 * hash + shape.bufferDataVersion.hashCode()
                     hash = 31 * hash + shape.drawState.vertexBuffer.hashCode()
                     hash = 31 * hash + shape.drawState.elementBuffer.hashCode()
                     hash = 31 * hash + shape.drawState.isLine.hashCode()
-                    for (i in 0 until shape.drawState.primCount)
-                    {
+                    for (i in 0 until shape.drawState.primCount) {
                         val prim = shape.drawState.prims[i]
                         hash = 31 * hash + prim.color.hashCode()
                         hash = 31 * hash + prim.opacity.hashCode()
                         hash = 31 * hash + prim.lineWidth.hashCode()
-                        if (prim.texture != null) {
-                            hash = 31 * hash + prim.texture.hashCode()
-                            hash = 31 * hash + prim.texCoordMatrix.hashCode()
-                            hash = 31 * hash + prim.texCoordAttrib.hashCode()
-                        }
+                        hash = 31 * hash + prim.texture.hashCode()
                     }
                     shape.hash = hash
                 }
@@ -166,8 +160,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             )
             program.loadClipDistance((textureMvpMatrix.m[11] / (textureMvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // set value here, but matrix is orthographic and shader clipping won't work as vertices projected orthographically always have .w == 1
             program.loadScreen(colorAttachment.width.toFloat(), colorAttachment.height.toFloat())
-            for (idx in visibleScratchList.indices) {
-                val shape = visibleScratchList[idx] as DrawableSurfaceShape
+            for (idx in scratchList.indices) {
+                val shape = scratchList[idx]
                 if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) continue  // vertex buffer unspecified or failed to bind
                 if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) continue  // element buffer unspecified or failed to bind
 

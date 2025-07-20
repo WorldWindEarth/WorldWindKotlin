@@ -65,8 +65,7 @@ open class DrawShapeState internal constructor() {
         prim.lineWidth = lineWidth
         prim.texture = texture
         prim.texCoordMatrix.copy(texCoordMatrix)
-        prim.texCoordAttrib.size = texCoordAttrib.size
-        prim.texCoordAttrib.offset = texCoordAttrib.offset
+        prim.texCoordAttrib.copy(texCoordAttrib)
     }
 
     internal open class DrawElements {
@@ -85,5 +84,10 @@ open class DrawShapeState internal constructor() {
     open class VertexAttrib {
         var size = 0
         var offset = 0
+
+        fun copy(attrib: VertexAttrib) {
+            size = attrib.size
+            offset = attrib.offset
+        }
     }
 }
