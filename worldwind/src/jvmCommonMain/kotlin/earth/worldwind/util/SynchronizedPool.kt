@@ -1,9 +1,13 @@
 package earth.worldwind.util
 
-actual open class SynchronizedPool<T>: BasicPool<T>() {
-    protected val lock: Any = Any()
+import java.util.concurrent.ConcurrentLinkedQueue
 
-    override fun acquire() = synchronized(lock) { super.acquire() }
+actual open class SynchronizedPool<T> : Pool<T> {
+    private val queue = ConcurrentLinkedQueue<T>()
 
-    override fun release(instance: T?) = synchronized(lock) { super.release(instance) }
+    override fun acquire(): T? = queue.poll()
+
+    override fun release(instance: T?) {
+        queue.offer(instance)
+    }
 }

@@ -1,3 +1,3 @@
 package earth.worldwind.util
 
-expect class SynchronizedPool<T>(): BasicPool<T>
+expect class SynchronizedPool<T>() : Pool<T>

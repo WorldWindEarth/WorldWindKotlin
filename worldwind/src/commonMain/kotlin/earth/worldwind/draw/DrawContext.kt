@@ -135,6 +135,11 @@ open class DrawContext(val gl: Kgl) {
      * otherwise its contents are undefined.
      */
     val scratchList = mutableListOf<Drawable>()
+    val texturesCache = object : LruMemoryCache<Any, Texture>(300) {
+        override fun entryRemoved(key: Any, oldValue: Texture, newValue: Texture?, evicted: Boolean) {
+            oldValue.release(this@DrawContext)
+        }
+    }
 
     fun reset() {
         eyePoint.set(0.0, 0.0, 0.0)

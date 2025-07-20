@@ -159,12 +159,14 @@ open class Polygon @JvmOverloads constructor(
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
+            drawable.bufferDataVersion = bufferDataVersion
             drawable.sector.copy(boundingSector)
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
 
             drawableLines.offset = rc.globe.offset
+            drawableLines.bufferDataVersion = bufferDataVersion
             drawableLines.sector.copy(boundingSector)
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
@@ -257,20 +259,21 @@ open class Polygon @JvmOverloads constructor(
             rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
                 val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
                 computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                drawState.texture(texture)
-                drawState.texCoordMatrix(texCoordMatrix)
+                drawState.texture = texture
+                drawState.texCoordMatrix = texCoordMatrix
             }
-        } ?: drawState.texture(null)
+        } ?: run { drawState.texture = null }
 
         // Configure the drawable to display the shape's interior top.
-        drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
-        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
+        drawState.color = if (rc.isPickMode) pickColor else activeAttributes.interiorColor
+        drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawState.texCoordAttrib.size = 2
+        drawState.texCoordAttrib.offset = 12
         drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_INT, 0 /*offset*/)
 
         // Configure the drawable to display the shape's interior sides.
         if (isExtrude) {
-            drawState.texture(null)
+            drawState.texture = null
             drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, topElements.size * Int.SIZE_BYTES /*offset*/)
         }
     }
@@ -283,15 +286,15 @@ open class Polygon @JvmOverloads constructor(
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
                 val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
                 computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                drawState.texture(texture)
-                drawState.texCoordMatrix(texCoordMatrix)
+                drawState.texture = texture
+                drawState.texCoordMatrix = texCoordMatrix
             }
-        } ?: drawState.texture(null)
+        } ?: run { drawState.texture = null }
 
         // Configure the drawable to display the shape's outline.
-        drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.lineWidth(activeAttributes.outlineWidth)
+        drawState.color = if (rc.isPickMode) pickColor else activeAttributes.outlineColor
+        drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawState.lineWidth = activeAttributes.outlineWidth
         drawState.drawElements(
             GL_TRIANGLES, outlineElements.size,
             GL_UNSIGNED_INT, 0 /*offset*/
@@ -299,13 +302,12 @@ open class Polygon @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawVerticals && isExtrude && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawState.lineWidth(activeAttributes.outlineWidth)
-            drawState.texture(null)
+            drawState.color = if (rc.isPickMode) pickColor else activeAttributes.outlineColor
+            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+            drawState.lineWidth = activeAttributes.outlineWidth
+            drawState.texture = null
             drawState.drawElements(
-                GL_TRIANGLES, verticalElements.size,
-                GL_UNSIGNED_INT, outlineElements.size * Int.SIZE_BYTES /*offset*/
+                GL_TRIANGLES, verticalElements.size, GL_UNSIGNED_INT, outlineElements.size * Int.SIZE_BYTES
             )
         }
     }
