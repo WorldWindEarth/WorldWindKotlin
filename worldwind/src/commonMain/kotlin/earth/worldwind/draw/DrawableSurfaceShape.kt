@@ -88,6 +88,23 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         }
     }
 
+    protected open fun textureHash(): Int {
+        if (hash == 0) {
+            hash = 31 * hash + bufferDataVersion.hashCode()
+            hash = 31 * hash + drawState.vertexBuffer.hashCode()
+            hash = 31 * hash + drawState.elementBuffer.hashCode()
+            hash = 31 * hash + drawState.isLine.hashCode()
+            for (i in 0 until drawState.primCount) {
+                val prim = drawState.prims[i]
+                hash = 31 * hash + prim.color.hashCode()
+                hash = 31 * hash + prim.opacity.hashCode()
+                hash = 31 * hash + prim.lineWidth.hashCode()
+                hash = 31 * hash + prim.texture.hashCode()
+            }
+        }
+        return hash
+    }
+
     protected open fun drawShapesToTexture(dc: DrawContext, terrain: DrawableTerrain): Texture? {
         val program = drawState.program ?: return null
 
@@ -106,21 +123,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         if (!dc.isPickMode) {
             for (idx in scratchList.indices) {
                 val shape = scratchList[idx]
-                if (shape.hash == 0) {
-                    hash = 31 * hash + shape.bufferDataVersion.hashCode()
-                    hash = 31 * hash + shape.drawState.vertexBuffer.hashCode()
-                    hash = 31 * hash + shape.drawState.elementBuffer.hashCode()
-                    hash = 31 * hash + shape.drawState.isLine.hashCode()
-                    for (i in 0 until shape.drawState.primCount) {
-                        val prim = shape.drawState.prims[i]
-                        hash = 31 * hash + prim.color.hashCode()
-                        hash = 31 * hash + prim.opacity.hashCode()
-                        hash = 31 * hash + prim.lineWidth.hashCode()
-                        hash = 31 * hash + prim.texture.hashCode()
-                    }
-                    shape.hash = hash
-                }
-                hash = 31 * shape.hash + terrainSector.hashCode()
+                hash = 31 * shape.textureHash() + terrainSector.hashCode()
             }
 
             val cachedTexture = dc.texturesCache[hash]
