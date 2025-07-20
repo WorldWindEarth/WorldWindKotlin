@@ -19,7 +19,6 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
     companion object {
         val KEY = DrawableSurfaceShape::class
-
         private val identityMatrix3 = Matrix3()
         private val color = Color()
         private var opacity = 1.0f
