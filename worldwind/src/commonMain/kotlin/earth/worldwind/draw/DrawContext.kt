@@ -42,11 +42,6 @@ open class DrawContext(val gl: Kgl) {
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
-    val texturesCache = object : LruMemoryCache<Any, Texture>(300) {
-        override fun entryRemoved(key: Any, oldValue: Texture, newValue: Texture?, evicted: Boolean) {
-            oldValue.release(this@DrawContext)
-        }
-    }
     /**
      * Returns count of terrain drawables in queue
      */
