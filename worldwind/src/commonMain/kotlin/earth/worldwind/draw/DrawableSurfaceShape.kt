@@ -109,15 +109,20 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 if(shape.hash == 0) {
                     //hash = 31 * hash + shape.offset.hashCode()
                     hash = 31 * hash + shape.bufferDataVersion.hashCode()
-                    hash = 31 * hash + shape.sector.hashCode()
+                    hash = 31 * hash + shape.drawState.vertexBuffer.hashCode()
+                    hash = 31 * hash + shape.drawState.elementBuffer.hashCode()
                     hash = 31 * hash + shape.drawState.isLine.hashCode()
-                    hash = 31 * hash + shape.drawState.color.hashCode()
-                    hash = 31 * hash + shape.drawState.opacity.hashCode()
-                    hash = 31 * hash + shape.drawState.lineWidth.hashCode()
-                    if (shape.drawState.texture != null) {
-                        hash = 31 * hash + shape.drawState.texture.hashCode()
-                        hash = 31 * hash + shape.drawState.texCoordMatrix.hashCode()
-                        hash = 31 * hash + shape.drawState.texCoordAttrib.hashCode()
+                    for (i in 0 until shape.drawState.primCount)
+                    {
+                        val prim = shape.drawState.prims[i]
+                        hash = 31 * hash + prim.color.hashCode()
+                        hash = 31 * hash + prim.opacity.hashCode()
+                        hash = 31 * hash + prim.lineWidth.hashCode()
+                        if (prim.texture != null) {
+                            hash = 31 * hash + prim.texture.hashCode()
+                            hash = 31 * hash + prim.texCoordMatrix.hashCode()
+                            hash = 31 * hash + prim.texCoordAttrib.hashCode()
+                        }
                     }
                     shape.hash = hash
                 }
