@@ -15,7 +15,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     val sector = Sector()
     val drawState = DrawShapeState()
     var bufferDataVersion = 0L
-    private var hash : Int = 0
+    private var hash = 0
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
