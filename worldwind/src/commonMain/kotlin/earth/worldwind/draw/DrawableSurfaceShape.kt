@@ -15,6 +15,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     var bufferDataVersion = 0L
     val sector = Sector()
     val drawState = DrawShapeState()
+    var hash : Int = 0
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
@@ -37,6 +38,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         drawState.reset()
         pool?.release(this)
         pool = null
+        hash = 0
     }
 
     override fun draw(dc: DrawContext) {
@@ -104,19 +106,22 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         if (!dc.isPickMode) {
             for (idx in visibleScratchList.indices) {
                 val shape = visibleScratchList[idx] as DrawableSurfaceShape
-                //hash = 31 * hash + shape.offset.hashCode()
-                hash = 31 * hash + shape.bufferDataVersion.hashCode()
-                hash = 31 * hash + shape.sector.hashCode()
-                hash = 31 * hash + shape.drawState.isLine.hashCode()
-                hash = 31 * hash + shape.drawState.color.hashCode()
-                hash = 31 * hash + shape.drawState.opacity.hashCode()
-                hash = 31 * hash + shape.drawState.lineWidth.hashCode()
-                if (shape.drawState.texture != null) {
-                    hash = 31 * hash + shape.drawState.texture.hashCode()
-                    hash = 31 * hash + shape.drawState.texCoordMatrix.hashCode()
-                    hash = 31 * hash + shape.drawState.texCoordAttrib.hashCode()
+                if(shape.hash == 0) {
+                    //hash = 31 * hash + shape.offset.hashCode()
+                    hash = 31 * hash + shape.bufferDataVersion.hashCode()
+                    hash = 31 * hash + shape.sector.hashCode()
+                    hash = 31 * hash + shape.drawState.isLine.hashCode()
+                    hash = 31 * hash + shape.drawState.color.hashCode()
+                    hash = 31 * hash + shape.drawState.opacity.hashCode()
+                    hash = 31 * hash + shape.drawState.lineWidth.hashCode()
+                    if (shape.drawState.texture != null) {
+                        hash = 31 * hash + shape.drawState.texture.hashCode()
+                        hash = 31 * hash + shape.drawState.texCoordMatrix.hashCode()
+                        hash = 31 * hash + shape.drawState.texCoordAttrib.hashCode()
+                    }
+                    shape.hash = hash
                 }
-                hash = 31 * hash + terrainSector.hashCode()
+                hash = 31 * shape.hash + terrainSector.hashCode()
             }
 
             val cachedTexture = dc.texturesCache[hash]
