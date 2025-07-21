@@ -91,8 +91,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     protected open fun textureHash(): Int {
         if (hash == 0) {
             hash = 31 * hash + bufferDataVersion.hashCode()
-            hash = 31 * hash + drawState.vertexBuffer.hashCode()
-            hash = 31 * hash + drawState.elementBuffer.hashCode()
+            hash = 31 * hash + sector.hashCode()
             hash = 31 * hash + drawState.isLine.hashCode()
             for (i in 0 until drawState.primCount) {
                 val prim = drawState.prims[i]
@@ -121,10 +120,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
         var hash = 0
         if (!dc.isPickMode) {
-            for (idx in scratchList.indices) {
-                val shape = scratchList[idx]
-                hash = 31 * shape.textureHash() + terrainSector.hashCode()
-            }
+            hash = terrainSector.hashCode()
+            for (idx in scratchList.indices) hash = 31 * hash + scratchList[idx].textureHash()
 
             val cachedTexture = dc.texturesCache[hash]
             if (cachedTexture != null) return cachedTexture

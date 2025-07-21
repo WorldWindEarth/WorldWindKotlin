@@ -133,7 +133,7 @@ open class DrawContext(val gl: Kgl) {
     /**
      * This cache can be used to store runtime-generated textures by DrawContext thread
      */
-    val texturesCache = object : LruMemoryCache<Any, Texture>(200) {
+    val texturesCache = object : LruMemoryCache<Any, Texture>(128) {
         override fun entryRemoved(key: Any, oldValue: Texture, newValue: Texture?, evicted: Boolean) {
             oldValue.release(this@DrawContext)
         }
