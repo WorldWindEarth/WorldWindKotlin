@@ -85,8 +85,8 @@ open class Path @JvmOverloads constructor(
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
-            drawable.bufferDataVersion = bufferDataVersion
             drawable.sector.copy(boundingSector)
+            drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)

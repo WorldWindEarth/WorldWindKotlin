@@ -14,7 +14,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     var offset = Globe.Offset.Center
     val sector = Sector()
     val drawState = DrawShapeState()
-    var bufferDataVersion = 0L
+    var version = 0
     private var hash = 0
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
@@ -90,9 +90,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
     protected open fun textureHash(): Int {
         if (hash == 0) {
-            hash = 31 * hash + bufferDataVersion.hashCode()
-            hash = 31 * hash + sector.hashCode()
-            hash = 31 * hash + drawState.isLine.hashCode()
+            hash = 31 * version + drawState.isLine.hashCode()
             for (i in 0 until drawState.primCount) {
                 val prim = drawState.prims[i]
                 hash = 31 * hash + prim.color.hashCode()

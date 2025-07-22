@@ -208,16 +208,16 @@ open class Ellipse @JvmOverloads constructor(
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             drawable.offset = rc.globe.offset
-            drawable.bufferDataVersion = bufferDataVersion
             drawable.sector.copy(boundingSector)
+            drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
 
             // Use the basic GLSL program for texture projection.
             drawableLines.offset = rc.globe.offset
-            drawableLines.bufferDataVersion = bufferDataVersion
             drawableLines.sector.copy(boundingSector)
+            drawableLines.version = 31 * hashCode() + bufferDataVersion.hashCode()
 
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
         } else {

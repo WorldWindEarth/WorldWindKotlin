@@ -159,15 +159,15 @@ open class Polygon @JvmOverloads constructor(
             drawState = drawable.drawState
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
-            drawable.bufferDataVersion = bufferDataVersion
             drawable.sector.copy(boundingSector)
+            drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
 
             drawableLines.offset = rc.globe.offset
-            drawableLines.bufferDataVersion = bufferDataVersion
             drawableLines.sector.copy(boundingSector)
+            drawableLines.version = 31 * hashCode() + bufferDataVersion.hashCode()
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
