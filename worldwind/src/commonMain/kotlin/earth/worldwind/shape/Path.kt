@@ -123,8 +123,7 @@ open class Path @JvmOverloads constructor(
         if (activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             activeAttributes.outlineImageSource?.let { outlineImageSource ->
                 rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                    val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                    computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+                    computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                     drawState.texture = texture
                     drawState.texCoordMatrix.copy(texCoordMatrix)
                 }

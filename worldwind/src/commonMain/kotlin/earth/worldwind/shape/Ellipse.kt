@@ -305,8 +305,7 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to use the interior texture when drawing the interior.
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
             rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
-                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+                computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                 drawState.texture = texture
                 drawState.texCoordMatrix.copy(texCoordMatrix)
             }
@@ -330,8 +329,7 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to use the outline texture when drawing the outline.
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
+                computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                 drawState.texture = texture
                 drawState.texCoordMatrix.copy(texCoordMatrix)
             }
