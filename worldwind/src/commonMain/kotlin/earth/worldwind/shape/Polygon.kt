@@ -262,12 +262,12 @@ open class Polygon @JvmOverloads constructor(
                 val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
                 computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
                 drawState.texture = texture
-                drawState.texCoordMatrix = texCoordMatrix
+                drawState.texCoordMatrix.copy(texCoordMatrix)
             }
         } ?: run { drawState.texture = null }
 
         // Configure the drawable to display the shape's interior top.
-        drawState.color = if (rc.isPickMode) pickColor else activeAttributes.interiorColor
+        drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.texCoordAttrib.size = 2
         drawState.texCoordAttrib.offset = 12
@@ -289,12 +289,12 @@ open class Polygon @JvmOverloads constructor(
                 val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
                 computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
                 drawState.texture = texture
-                drawState.texCoordMatrix = texCoordMatrix
+                drawState.texCoordMatrix.copy(texCoordMatrix)
             }
         } ?: run { drawState.texture = null }
 
         // Configure the drawable to display the shape's outline.
-        drawState.color = if (rc.isPickMode) pickColor else activeAttributes.outlineColor
+        drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth
         drawState.drawElements(
@@ -304,7 +304,7 @@ open class Polygon @JvmOverloads constructor(
 
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawVerticals && isExtrude && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color = if (rc.isPickMode) pickColor else activeAttributes.outlineColor
+            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             drawState.lineWidth = activeAttributes.outlineWidth
             drawState.texture = null

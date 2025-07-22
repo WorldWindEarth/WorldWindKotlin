@@ -22,13 +22,11 @@ open class DrawShapeState internal constructor() {
     var enableDepthWrite = true
     var depthOffset = 0.0
     var isLine = false
-    var color = Color()
-        set(value) { field.copy(value) }
+    val color = Color()
     var opacity = 1.0f
     var lineWidth = 1f
     var texture: Texture? = null
-    var texCoordMatrix = Matrix3()
-        set(value) { field.copy(value) }
+    val texCoordMatrix = Matrix3()
     val texCoordAttrib = VertexAttrib()
     internal var primCount = 0
     internal val prims = Array(MAX_DRAW_ELEMENTS) { DrawElements() }
