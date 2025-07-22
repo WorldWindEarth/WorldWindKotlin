@@ -6,6 +6,7 @@ interface Layer {
     var displayName: String?
     var isEnabled: Boolean
     var isPickEnabled: Boolean
+    var isDynamic: Boolean
     var opacity: Float
     var minActiveAltitude: Double
     var maxActiveAltitude: Double

@@ -41,6 +41,11 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
             field = value
             reset()
         }
+    /**
+     * Determines whether surface shape should be batched to terrain textures cache or single color attachment.
+     * Set this flag to true when shape editing is intended and to false when editing is finished.
+     */
+    var isDynamic = false
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
     var maximumIntermediatePoints = 10

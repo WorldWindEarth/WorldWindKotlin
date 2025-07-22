@@ -15,6 +15,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     val sector = Sector()
     val drawState = DrawShapeState()
     var version = 0
+    var isDynamic = false
     private var hash = 0
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
@@ -63,7 +64,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             // Add all shapes that are contiguous in the drawable queue.
             while (true) {
                 val next = dc.peekDrawable() ?: break
-                if (next !is DrawableSurfaceShape) break // check if the drawable at the front of the queue can be batched
+                // check if the drawable at the front of the queue can be batched
+                if (next !is DrawableSurfaceShape || next.isDynamic != isDynamic) break
                 dc.pollDrawable() // take it off the queue
                 scratchList.add(next)
             }
@@ -108,30 +110,34 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         // The terrain's sector defines the geographic region in which to draw.
         val terrainSector = terrain.sector
 
-        // Shapes have been accumulated in the draw context's scratch list.
+        // Filter shapes that intersect current terrain tile and globe offset
         val scratchList = mutableListOf<DrawableSurfaceShape>()
         for (idx in dc.scratchList.indices) {
             val shape = dc.scratchList[idx] as DrawableSurfaceShape
             if (shape.offset == terrain.offset && shape.sector.intersectsOrNextTo(terrainSector)) scratchList.add(shape)
         }
-        if (scratchList.isEmpty()) return null
+        if (scratchList.isEmpty()) return null // Nothing to draw
 
         var hash = 0
-        if (!dc.isPickMode) {
+        val useCache = !dc.isPickMode && !isDynamic // Use single color attachment in pick mode and for dynamic shapes
+        if (useCache) {
+            // Calculate a texture cache key for this terrain tile and shapes batch
             hash = terrainSector.hashCode()
             for (idx in scratchList.indices) hash = 31 * hash + scratchList[idx].textureHash()
 
+            // Use cached texture
             val cachedTexture = dc.texturesCache[hash]
             if (cachedTexture != null) return cachedTexture
         }
 
+        // Redraw shapes to texture and put in cache if required
         val framebuffer = dc.scratchFramebuffer
         val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-        val texture = if (dc.isPickMode) colorAttachment
+        val texture = if (!useCache) colorAttachment
         else Texture(colorAttachment.width, colorAttachment.height, GL_RGBA, GL_UNSIGNED_BYTE, true)
         try {
             if (!framebuffer.bindFramebuffer(dc)) return null // framebuffer failed to bind
-            if (!dc.isPickMode) framebuffer.attachTexture(dc, texture, GL_COLOR_ATTACHMENT0)
+            if (useCache) framebuffer.attachTexture(dc, texture, GL_COLOR_ATTACHMENT0)
 
             // Clear the framebuffer and disable the depth test.
             dc.gl.viewport(0, 0, colorAttachment.width, colorAttachment.height)
@@ -212,9 +218,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                     dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
                 }
             }
-            if (!dc.isPickMode) dc.texturesCache.put(hash, texture, 1)
+            if (useCache) dc.texturesCache.put(hash, texture, 1)
         } finally {
-            if (!dc.isPickMode) framebuffer.attachTexture(dc, colorAttachment, GL_COLOR_ATTACHMENT0)
+            if (useCache) framebuffer.attachTexture(dc, colorAttachment, GL_COLOR_ATTACHMENT0)
             // Restore the default WorldWind OpenGL state.
             dc.bindFramebuffer(KglFramebuffer.NONE)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)

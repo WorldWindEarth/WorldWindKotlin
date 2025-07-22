@@ -87,6 +87,7 @@ open class Path @JvmOverloads constructor(
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
             drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)

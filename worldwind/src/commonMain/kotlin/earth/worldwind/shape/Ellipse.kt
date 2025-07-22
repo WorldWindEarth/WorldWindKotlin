@@ -210,6 +210,7 @@ open class Ellipse @JvmOverloads constructor(
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
             drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
@@ -218,6 +219,7 @@ open class Ellipse @JvmOverloads constructor(
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
             drawableLines.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
         } else {
