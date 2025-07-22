@@ -1,28 +1,32 @@
 package earth.worldwind.examples
 
 import android.os.Bundle
-import earth.worldwind.formats.kml.KmlLayerFactory
+import earth.worldwind.formats.geojson.GeoJsonLayerFactory
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-open class KmlDemoActivity : GeneralGlobeActivity() {
+open class GeoJsonDemoActivity : GeneralGlobeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        aboutBoxTitle = "About the " + resources.getText(R.string.title_kml_demo)
+        aboutBoxTitle = "About the " + resources.getText(R.string.title_geo_json_demo)
         aboutBoxText = """
-   KML interaction demo screen.
+   GeoJson demo screen.
    
-   Different placemarks and shapes are loaded from a KML file.
+   Different placemarks and shapes are loaded from a GeoJson file.
     """.trimIndent()
 
         wwd.mainScope.launch(Dispatchers.IO) {
             try {
-                val layer = KmlLayerFactory.createLayer(assets.open("KML_Samples.kml").bufferedReader())
+                val layer = GeoJsonLayerFactory.createLayer(
+                    text = assets.open("GEO_JSON_Samples.json").bufferedReader().readText(),
+                    labelVisibilityThreshold = 18000.0, // Set a visibility threshold for labels
+                )
                 wwd.engine.layers.addLayer(layer)
                 wwd.requestRedraw()
             } catch (e: Exception) {
@@ -30,11 +34,10 @@ open class KmlDemoActivity : GeneralGlobeActivity() {
             }
         }
 
-        // And finally, for this demo, position the viewer to look at the placemarks
         val lookAt = LookAt(
-            position = Position.fromDegrees(37.42228990140251, -122.0822035425683, 0.0),
-            altitudeMode = AltitudeMode.ABSOLUTE,
-            range = 2e2,
+            position = Position.fromDegrees(50.430, 30.520, 4000.0),
+            altitudeMode = AltitudeMode.RELATIVE_TO_GROUND,
+            range = 4000.0,
             heading = 0.0.degrees,
             tilt = 45.0.degrees,
             roll = 0.0.degrees

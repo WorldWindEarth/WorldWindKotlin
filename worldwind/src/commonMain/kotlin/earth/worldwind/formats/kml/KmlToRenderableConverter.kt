@@ -5,6 +5,8 @@ import earth.worldwind.formats.kml.models.IconStyle
 import earth.worldwind.formats.kml.models.LabelStyle
 import earth.worldwind.formats.kml.models.LineString
 import earth.worldwind.formats.kml.models.LineStyle
+import earth.worldwind.formats.kml.models.LinearRing
+import earth.worldwind.formats.kml.models.MultiGeometry
 import earth.worldwind.formats.kml.models.Placemark
 import earth.worldwind.formats.kml.models.Point
 import earth.worldwind.formats.kml.models.PolyStyle
@@ -90,7 +92,7 @@ internal class KmlToRenderableConverter {
                     alt = parseDouble(start, i)
                 }
 
-                absolute = absolute || alt != null
+                absolute = absolute || (alt != null && alt != 0.0)
 
                 result.add(Position.fromDegrees(lat, lon, alt ?: 0.0))
 
@@ -102,16 +104,45 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    fun convertPlacemarkToRenderable(placemark: Placemark, definedStyle: Style? = null): Renderable? {
+    fun convertPlacemarkToRenderable(
+        placemark: Placemark,
+        definedStyle: Style? = null
+    ): List<Renderable> {
         val style = placemark.stylesList?.firstOrNull() ?: definedStyle
-        val geometry: Geometry = placemark.geometryList?.firstOrNull() ?: return null
+        val geometry: Geometry = placemark.geometryList?.firstOrNull() ?: return emptyList()
+        return getRenderableFrom(geometry, style, placemark.name)
+    }
 
+    private fun getRenderableFrom(
+        geometry: Geometry,
+        style: Style?,
+        name: String?,
+    ): List<Renderable> {
         return when (geometry) {
-            is LineString -> createPathFromLineString(geometry, style, placemark.name)
-            is Polygon -> createPathFromPolygon(geometry, style, placemark.name)
-            is Point -> createPlacemark(geometry, style, placemark.name)
-            else -> null
-        }
+            is MultiGeometry -> {
+                geometry.geometryList?.map { getRenderableFrom(it, style, name) }?.flatten()
+            }
+
+            is LineString -> {
+                listOf(createPathFromLineString(geometry, style, name))
+            }
+
+            is LinearRing -> {
+                listOf(createPathFromLinearRing(geometry, style, name))
+            }
+
+            is Polygon -> {
+                listOf(createPathFromPolygon(geometry, style, name))
+            }
+
+            is Point -> {
+                createPlacemark(geometry, style, name)?.let { listOf(it) }
+            }
+
+            else -> {
+                null
+            }
+        } ?: emptyList()
     }
 
     private fun createPathFromLineString(lineString: LineString, style: Style?, name: String?): Renderable {
@@ -140,6 +171,38 @@ internal class KmlToRenderableConverter {
             applyStyleOnShapeAttributes(style)
         }
     }
+
+    private fun createPathFromLinearRing(
+        linearRing: LinearRing,
+        style: Style?,
+        name: String?
+    ): Renderable {
+        val (positions, isAbsolute) = extractPoints(linearRing.coordinates?.value)
+
+        return Path(positions).apply {
+            altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
+                ?: if (isAbsolute) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
+
+            linearRing.extrude.let { isExtrude = it ?: (altitudeMode == AltitudeMode.ABSOLUTE) }
+            linearRing.tessellate.let { isFollowTerrain = it ?: (altitudeMode != AltitudeMode.ABSOLUTE) }
+
+            // If the path is clamped to the ground and terrain conforming, draw as a great circle.
+            // Otherwise draw as linear segments.
+            pathType = if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain) {
+                PathType.GREAT_CIRCLE
+            } else {
+                PathType.LINEAR
+            }
+
+            name?.let { displayName = it }
+
+            highlightAttributes = ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
+            maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
+
+            applyStyleOnShapeAttributes(style)
+        }
+    }
+
 
     private fun createPathFromPolygon(polygon: Polygon, style: Style?, name: String?): Renderable {
         return earth.worldwind.shape.Polygon().apply {
