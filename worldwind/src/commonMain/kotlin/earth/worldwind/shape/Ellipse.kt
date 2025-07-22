@@ -737,7 +737,7 @@ open class Ellipse @JvmOverloads constructor(
         val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
         val circumferencePixels = computeCircumference() / metersPerPixel
         val circumferenceIntervals = circumferencePixels / maximumPixelsPerInterval
-        val subdivisions = ln(circumferenceIntervals / intervals) / ln(2.0)
+        val subdivisions = log2(circumferenceIntervals / intervals)
         val subdivisionCount = ceil(subdivisions).toInt().coerceAtLeast(0)
         intervals = intervals shl subdivisionCount // subdivide the base intervals to achieve the desired number of intervals
         return intervals.coerceAtMost(maximumIntervals) // don't exceed the maximum number of intervals

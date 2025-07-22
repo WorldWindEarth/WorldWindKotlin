@@ -5,7 +5,7 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import kotlin.math.ln
+import kotlin.math.log2
 import kotlin.math.roundToInt
 
 /**
@@ -167,7 +167,7 @@ open class LevelSet {
         }
         if (levels.isEmpty()) error("This level set is empty")
         val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
-        val level = ln(firstLevelDegreesPerPixel / resolution.inDegrees) / ln(2.0) // fractional level address
+        val level = log2(firstLevelDegreesPerPixel / resolution.inDegrees) // fractional level address
         val levelNumber = level.roundToInt() // nearest neighbor level
         return when {
             levelNumber < 0 -> levels[0] // unable to match the resolution; return the first level

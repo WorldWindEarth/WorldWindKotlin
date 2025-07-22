@@ -8,7 +8,7 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.math.ceil
 import kotlin.math.floor
-import kotlin.math.ln
+import kotlin.math.log2
 
 /**
  * Configuration values for a multi-resolution, hierarchical collection of tiles organized into levels of increasing
@@ -62,7 +62,7 @@ open class LevelSetConfig {
         }
         val degreesPerPixel = toDegrees(radiansPerPixel)
         val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
-        val level = ln(firstLevelDegreesPerPixel / degreesPerPixel) / ln(2.0) // fractional level address
+        val level = log2(firstLevelDegreesPerPixel / degreesPerPixel) // fractional level address
         var levelNumber = ceil(level).toInt() // ceiling captures the resolution
         if (levelNumber < 0) levelNumber = 0 // need at least one level, even if it exceeds the desired resolution
         return levelNumber + 1 // convert level number to level count
@@ -85,7 +85,7 @@ open class LevelSetConfig {
         }
         val degreesPerPixel = toDegrees(radiansPerPixel)
         val firstLevelDegreesPerPixel = firstLevelDelta.latitude.inDegrees / tileHeight
-        val level = ln(firstLevelDegreesPerPixel / degreesPerPixel) / ln(2.0) // fractional level address
+        val level = log2(firstLevelDegreesPerPixel / degreesPerPixel) // fractional level address
         var levelNumber = floor(level).toInt() // floor prevents exceeding the min scale
         if (levelNumber < 0) levelNumber = 0 // need at least one level, even if it exceeds the desired resolution
         return levelNumber + 1 // convert level number to level count

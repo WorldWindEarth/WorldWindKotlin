@@ -11,7 +11,7 @@ import earth.worldwind.render.Renderable
 import earth.worldwind.shape.*
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
-import kotlin.math.ln
+import kotlin.math.log2
 import kotlin.math.roundToInt
 
 abstract class AbstractMilStd2525TacticalGraphic(
@@ -76,10 +76,10 @@ abstract class AbstractMilStd2525TacticalGraphic(
         fun defaultBoundingSector(locations: List<Location>) = Sector().apply { locations.forEach { l -> union(l) } }
 
         private fun computeNearestLoD(equatorialRadius: Double, scale: Double) =
-            (ln(2 * PI * equatorialRadius / ZERO_LEVEL_PX / scale) / ln(2.0)).roundToInt()
+            log2(2.0 * PI * equatorialRadius / ZERO_LEVEL_PX / scale).roundToInt()
 
         private fun computeLoDScale(equatorialRadius: Double, lod: Int) =
-            2 * PI * equatorialRadius / ZERO_LEVEL_PX / (1 shl lod)
+            2.0 * PI * equatorialRadius / ZERO_LEVEL_PX / (1 shl lod)
     }
 
     init {
