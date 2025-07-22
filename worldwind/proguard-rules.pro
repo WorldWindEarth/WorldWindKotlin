@@ -34,3 +34,8 @@
 -dontwarn com.j256.ormlite.**
 -keep class com.j256.ormlite.**
 -keep @com.j256.ormlite.table.DatabaseTable class * { *; }
+
+# GeoJSON deserialization library
+-keep class io.data2viz.geojson.jackson.** {
+   *;
+}
