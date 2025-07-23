@@ -34,7 +34,6 @@ open class Path @JvmOverloads constructor(
     protected val interiorElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
-    protected var bufferDataVersion = 0L
     protected val extrudeVertexBufferKey = Any()
     protected val extrudeElementBufferKey = Any()
     protected val vertexBufferKey = Any()
@@ -86,6 +85,8 @@ open class Path @JvmOverloads constructor(
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
+            drawable.version = computeVersion()
+            drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
@@ -121,10 +122,9 @@ open class Path @JvmOverloads constructor(
         if (activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             activeAttributes.outlineImageSource?.let { outlineImageSource ->
                 rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                    val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                    computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                    drawState.texture(texture)
-                    drawState.texCoordMatrix(texCoordMatrix)
+                    drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
+                    drawState.texture = texture
+                    drawState.texCoordMatrix.copy(texCoordMatrix)
                 }
             }
         }
@@ -132,23 +132,20 @@ open class Path @JvmOverloads constructor(
         // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel. Lines
         // drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
         if (activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawState.lineWidth(activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f)
-            drawState.drawElements(
-                GL_TRIANGLE_STRIP, outlineElements.size,
-                GL_UNSIGNED_INT, 0
-            )
+            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+            drawState.lineWidth = activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f
+            drawState.drawElements(GL_TRIANGLE_STRIP, outlineElements.size, GL_UNSIGNED_INT, 0)
         }
 
         // Disable texturing for the remaining drawable primitives.
-        drawState.texture(null)
+        drawState.texture = null
 
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawState.lineWidth(activeAttributes.outlineWidth)
+            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+            drawState.lineWidth = activeAttributes.outlineWidth
             drawState.drawElements(
                 GL_TRIANGLES, verticalElements.size,
                 GL_UNSIGNED_INT, outlineElements.size * Int.SIZE_BYTES
@@ -186,7 +183,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.elementBuffer = rc.getBufferObject(extrudeElementBufferKey) {
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
-            rc.offerGLBufferUpload(extrudeElementBufferKey,bufferDataVersion) {
+            rc.offerGLBufferUpload(extrudeElementBufferKey, bufferDataVersion) {
                 val array = IntArray(interiorElements.size)
                 var index = 0
                 for (element in interiorElements) array[index++] = element
@@ -199,10 +196,11 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.enableCullFace = false
             drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
             drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite
-            drawStateExtrusion.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
-            drawStateExtrusion.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawStateExtrusion.texture(null)
-            drawStateExtrusion.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
+            drawStateExtrusion.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+            drawStateExtrusion.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+            drawStateExtrusion.texture = null
+            drawStateExtrusion.texCoordAttrib.size = 2
+            drawStateExtrusion.texCoordAttrib.offset = 12
             drawStateExtrusion.drawElements(
                 GL_TRIANGLE_STRIP, interiorElements.size,
                 GL_UNSIGNED_INT, 0

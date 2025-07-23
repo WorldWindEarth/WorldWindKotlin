@@ -6,6 +6,7 @@ import kotlin.jvm.JvmOverloads
 abstract class AbstractLayer @JvmOverloads constructor(override var displayName: String? = null): Layer {
     override var isEnabled = true
     override var isPickEnabled = true
+    override var isDynamic = false
     override var opacity = 1f
     override var minActiveAltitude = Double.NEGATIVE_INFINITY
     override var maxActiveAltitude = Double.POSITIVE_INFINITY

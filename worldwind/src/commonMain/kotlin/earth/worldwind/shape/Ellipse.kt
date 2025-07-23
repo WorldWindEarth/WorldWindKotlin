@@ -146,7 +146,6 @@ open class Ellipse @JvmOverloads constructor(
     protected val lineVertexBufferKey = Any()
     protected val lineElementBufferKey = Any()
     protected var verticalVertexIndex = 0
-    protected var bufferDataVersion = 0L
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val topElements = mutableListOf<Short>()
     protected val sideElements = mutableListOf<Short>()
@@ -209,6 +208,8 @@ open class Ellipse @JvmOverloads constructor(
             drawState = drawable.drawState
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
+            drawable.version = computeVersion()
+            drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
             drawStateLines = drawableLines.drawState
@@ -216,6 +217,8 @@ open class Ellipse @JvmOverloads constructor(
             // Use the basic GLSL program for texture projection.
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
+            drawableLines.version = computeVersion()
+            drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
         } else {
@@ -301,20 +304,20 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to use the interior texture when drawing the interior.
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
             rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
-                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                drawState.texture(texture)
-                drawState.texCoordMatrix(texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
+                drawState.texture = texture
+                drawState.texCoordMatrix.copy(texCoordMatrix)
             }
-        } ?: drawState.texture(null)
+        } ?: run { drawState.texture = null }
 
         // Configure the drawable to display the shape's interior.
-        drawState.color(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
-        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.texCoordAttrib(2 /*size*/, 12 /*offset in bytes*/)
+        drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+        drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawState.texCoordAttrib.size = 2
+        drawState.texCoordAttrib.offset = 12
         drawState.drawElements(GL_TRIANGLE_STRIP, topElements.size, GL_UNSIGNED_SHORT, 0 * Short.SIZE_BYTES /*offset*/)
         if (isExtrude) {
-            drawState.texture(null)
+            drawState.texture = null
             drawState.drawElements(GL_TRIANGLE_STRIP, sideElements.size, GL_UNSIGNED_SHORT, topElements.size * Short.SIZE_BYTES)
         }
     }
@@ -325,29 +328,24 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to use the outline texture when drawing the outline.
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                val metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-                computeRepeatingTexCoordTransform(texture, metersPerPixel, texCoordMatrix)
-                drawState.texture(texture)
-                drawState.texCoordMatrix(texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
+                drawState.texture = texture
+                drawState.texCoordMatrix.copy(texCoordMatrix)
             }
-        } ?: drawState.texture(null)
+        } ?: run { drawState.texture = null }
 
         // Configure the drawable to display the shape's outline.
-        drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-        drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-        drawState.lineWidth(activeAttributes.outlineWidth)
-        drawState.drawElements(
-            GL_TRIANGLE_STRIP, outlineElements.size,
-            GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES
-        )
+        drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+        drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawState.lineWidth = activeAttributes.outlineWidth
+        drawState.drawElements(GL_TRIANGLE_STRIP, outlineElements.size, GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES)
         if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity(if (rc.isPickMode) 1f else rc.currentLayer.opacity)
-            drawState.lineWidth(activeAttributes.outlineWidth)
-            drawState.texture(null)
+            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+            drawState.lineWidth = activeAttributes.outlineWidth
+            drawState.texture = null
             drawState.drawElements(
-                GL_TRIANGLES, verticalElements.size,
-                GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES
+                GL_TRIANGLES, verticalElements.size, GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES
             )
         }
     }

@@ -8,11 +8,15 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
+import kotlin.math.PI
+import kotlin.math.log2
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 abstract class AbstractShape(override var attributes: ShapeAttributes): AbstractRenderable(), Attributable, Highlightable {
     companion object {
         const val NEAR_ZERO_THRESHOLD = 1.0e-10
+        private const val ZERO_LEVEL_PX = 1024
     }
 
     var altitudeMode = AltitudeMode.ABSOLUTE
@@ -41,6 +45,11 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
             field = value
             reset()
         }
+    /**
+     * Determines whether surface shape should be batched to terrain textures cache or single color attachment.
+     * Set this flag to true when shape editing is intended and to false when editing is finished.
+     */
+    var isDynamic = false
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
     var maximumIntermediatePoints = 10
@@ -48,6 +57,7 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     protected var isSurfaceShape = false
     protected var lastGlobeState: Globe.State? = null
     protected var pickedObjectId = 0
+    protected var bufferDataVersion = 0L
     protected val pickColor = Color()
     protected val boundingSector = Sector()
     protected val boundingBox = BoundingBox()
@@ -130,12 +140,30 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
         return sqrt(minDistance2)
     }
 
-    protected open fun computeRepeatingTexCoordTransform(texture: Texture, metersPerPixel: Double, result: Matrix3): Matrix3 {
+    protected open fun computeRepeatingTexCoordTransform(
+        rc: RenderContext, texture: Texture, cameraDistance: Double, result: Matrix3
+    ): Int {
+        var lod = 0
+        val equatorialRadius = rc.globe.equatorialRadius
+        var metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
+        if (isSurfaceShape && !isDynamic && !rc.currentLayer.isDynamic) {
+            // Round scale to nearest terrain LoD
+            lod = computeNearestLoD(equatorialRadius, metersPerPixel)
+            metersPerPixel = computeLoDScale(equatorialRadius, lod)
+        }
         val texCoordMatrix = result.setToIdentity()
         texCoordMatrix.setScale(1.0 / (texture.width * metersPerPixel), 1.0 / (texture.height * metersPerPixel))
         texCoordMatrix.multiplyByMatrix(texture.coordTransform)
-        return texCoordMatrix
+        return lod
     }
+
+    protected open fun computeNearestLoD(equatorialRadius: Double, scale: Double) =
+        log2(2.0 * PI * equatorialRadius / ZERO_LEVEL_PX / scale).roundToInt()
+
+    protected open fun computeLoDScale(equatorialRadius: Double, lod: Int) =
+        2.0 * PI * equatorialRadius / ZERO_LEVEL_PX / (1 shl lod)
+
+    protected open fun computeVersion() = 31 * hashCode() + bufferDataVersion.hashCode()
 
     protected open fun checkGlobeState(rc: RenderContext) {
         if (rc.globeState != lastGlobeState) {

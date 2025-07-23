@@ -22,12 +22,13 @@ open class DrawShapeState internal constructor() {
     var enableDepthWrite = true
     var depthOffset = 0.0
     var isLine = false
-    protected val color = Color()
-    protected var opacity = 1.0f
-    protected var lineWidth = 1f
-    protected var texture: Texture? = null
-    protected val texCoordMatrix = Matrix3()
-    private val texCoordAttrib = VertexAttrib()
+    val color = Color()
+    var opacity = 1.0f
+    var lineWidth = 1f
+    var texture: Texture? = null
+    var textureLod = 0
+    val texCoordMatrix = Matrix3()
+    val texCoordAttrib = VertexAttrib()
     internal var primCount = 0
     internal val prims = Array(MAX_DRAW_ELEMENTS) { DrawElements() }
 
@@ -45,26 +46,12 @@ open class DrawShapeState internal constructor() {
         opacity = 1.0f
         lineWidth = 1f
         texture = null
+        textureLod = 0
         texCoordMatrix.setToIdentity()
         texCoordAttrib.size = 0
         texCoordAttrib.offset = 0
         primCount = 0
         for (idx in 0 until MAX_DRAW_ELEMENTS) prims[idx].texture = null
-    }
-
-    fun color(color: Color) = apply { this.color.copy(color) }
-
-    fun opacity(opacity: Float) = apply { this.opacity = opacity }
-
-    fun lineWidth(width: Float) = apply { lineWidth = width }
-
-    fun texture(texture: Texture?) = apply { this.texture = texture }
-
-    fun texCoordMatrix(matrix: Matrix3) = apply { texCoordMatrix.copy(matrix) }
-
-    fun texCoordAttrib(size: Int, offset: Int) = apply {
-        texCoordAttrib.size = size
-        texCoordAttrib.offset = offset
     }
 
     open fun drawElements(mode: Int, count: Int, type: Int, offset: Int) {
@@ -77,9 +64,9 @@ open class DrawShapeState internal constructor() {
         prim.opacity = opacity
         prim.lineWidth = lineWidth
         prim.texture = texture
+        prim.textureLod = textureLod
         prim.texCoordMatrix.copy(texCoordMatrix)
-        prim.texCoordAttrib.size = texCoordAttrib.size
-        prim.texCoordAttrib.offset = texCoordAttrib.offset
+        prim.texCoordAttrib.copy(texCoordAttrib)
     }
 
     internal open class DrawElements {
@@ -91,12 +78,18 @@ open class DrawShapeState internal constructor() {
         var opacity = 1.0f
         var lineWidth = 0f
         var texture: Texture? = null
+        var textureLod = 0
         val texCoordMatrix = Matrix3()
         val texCoordAttrib = VertexAttrib()
     }
 
-    internal open class VertexAttrib {
+    open class VertexAttrib {
         var size = 0
         var offset = 0
+
+        fun copy(attrib: VertexAttrib) {
+            size = attrib.size
+            offset = attrib.offset
+        }
     }
 }

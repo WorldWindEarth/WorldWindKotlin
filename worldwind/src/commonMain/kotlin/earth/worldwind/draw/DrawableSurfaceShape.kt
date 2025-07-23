@@ -5,6 +5,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.Color
+import earth.worldwind.render.Texture
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
@@ -13,6 +14,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     var offset = Globe.Offset.Center
     val sector = Sector()
     val drawState = DrawShapeState()
+    var version = 0
+    var isDynamic = false
+    private var hash = 0
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
@@ -35,6 +39,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         drawState.reset()
         pool?.release(this)
         pool = null
+        hash = 0
     }
 
     override fun draw(dc: DrawContext) {
@@ -59,7 +64,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             // Add all shapes that are contiguous in the drawable queue.
             while (true) {
                 val next = dc.peekDrawable() ?: break
-                if (next !is DrawableSurfaceShape) break // check if the drawable at the front of the queue can be batched
+                // check if the drawable at the front of the queue can be batched
+                if (next !is DrawableSurfaceShape || next.isDynamic != isDynamic) break
                 dc.pollDrawable() // take it off the queue
                 scratchList.add(next)
             }
@@ -69,9 +75,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 // Get the drawable terrain associated with the draw context.
                 val terrain = dc.getDrawableTerrain(idx)
                 // Draw the accumulated surface shapes to a texture representing the terrain's sector.
-                if (drawShapesToTexture(dc, terrain) > 0) {
+                drawShapesToTexture(dc, terrain)?.let { texture ->
                     // Draw the texture containing the rasterized shapes onto the terrain geometry.
-                    drawTextureToTerrain(dc, terrain)
+                    drawTextureToTerrain(dc, terrain, texture)
                 }
             }
         } finally {
@@ -84,22 +90,57 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         }
     }
 
-    protected open fun drawShapesToTexture(dc: DrawContext, terrain: DrawableTerrain): Int {
-        // Shapes have been accumulated in the draw context's scratch list.
-        val scratchList = dc.scratchList.toTypedArray()
+    protected open fun textureHash(): Int {
+        if (hash == 0) {
+            hash = 31 * version + drawState.isLine.hashCode()
+            for (i in 0 until drawState.primCount) {
+                val prim = drawState.prims[i]
+                hash = 31 * hash + prim.color.hashCode()
+                hash = 31 * hash + prim.opacity.hashCode()
+                hash = 31 * hash + prim.lineWidth.hashCode()
+                hash = 31 * hash + prim.texture.hashCode()
+                hash = 31 * hash + prim.textureLod
+            }
+        }
+        return hash
+    }
+
+    protected open fun drawShapesToTexture(dc: DrawContext, terrain: DrawableTerrain): Texture? {
+        val program = drawState.program ?: return null
 
         // The terrain's sector defines the geographic region in which to draw.
         val terrainSector = terrain.sector
 
-        // Keep track of the number of shapes drawn into the texture.
-        var shapeCount = 0
-        val program = drawState.program ?: return 0
+        // Filter shapes that intersect current terrain tile and globe offset
+        val scratchList = mutableListOf<DrawableSurfaceShape>()
+        for (idx in dc.scratchList.indices) {
+            val shape = dc.scratchList[idx] as DrawableSurfaceShape
+            if (shape.offset == terrain.offset && shape.sector.intersectsOrNextTo(terrainSector)) scratchList.add(shape)
+        }
+        if (scratchList.isEmpty()) return null // Nothing to draw
+
+        var hash = 0
+        val useCache = !dc.isPickMode && !isDynamic // Use single color attachment in pick mode and for dynamic shapes
+        if (useCache) {
+            // Calculate a texture cache key for this terrain tile and shapes batch
+            hash = terrainSector.hashCode()
+            for (idx in scratchList.indices) hash = 31 * hash + scratchList[idx].textureHash()
+
+            // Use cached texture
+            val cachedTexture = dc.texturesCache[hash]
+            if (cachedTexture != null) return cachedTexture
+        }
+
+        // Redraw shapes to texture and put in cache if required
+        val framebuffer = dc.scratchFramebuffer
+        val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
+        val texture = if (!useCache) colorAttachment
+        else Texture(colorAttachment.width, colorAttachment.height, GL_RGBA, GL_UNSIGNED_BYTE, true)
         try {
-            val framebuffer = dc.scratchFramebuffer
-            if (!framebuffer.bindFramebuffer(dc)) return 0 // framebuffer failed to bind
+            if (!framebuffer.bindFramebuffer(dc)) return null // framebuffer failed to bind
+            if (useCache) framebuffer.attachTexture(dc, texture, GL_COLOR_ATTACHMENT0)
 
             // Clear the framebuffer and disable the depth test.
-            val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
             dc.gl.viewport(0, 0, colorAttachment.width, colorAttachment.height)
             dc.gl.clear(GL_COLOR_BUFFER_BIT)
             dc.gl.disable(GL_DEPTH_TEST)
@@ -124,10 +165,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             )
             program.loadClipDistance((textureMvpMatrix.m[11] / (textureMvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // set value here, but matrix is orthographic and shader clipping won't work as vertices projected orthographically always have .w == 1
             program.loadScreen(colorAttachment.width.toFloat(), colorAttachment.height.toFloat())
-            for (element in scratchList) {
-                // Get the shape.
-                val shape = element as DrawableSurfaceShape
-                if (shape.offset != terrain.offset || !shape.sector.intersectsOrNextTo(terrainSector)) continue
+            for (idx in scratchList.indices) {
+                val shape = scratchList[idx]
                 if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) continue  // vertex buffer unspecified or failed to bind
                 if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) continue  // element buffer unspecified or failed to bind
 
@@ -179,29 +218,27 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                     }
                     dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
                 }
-
-                // Accumulate the number of shapes drawn into the texture.
-                shapeCount++
             }
+            if (useCache) dc.texturesCache.put(hash, texture, 1)
         } finally {
+            if (useCache) framebuffer.attachTexture(dc, colorAttachment, GL_COLOR_ATTACHMENT0)
             // Restore the default WorldWind OpenGL state.
             dc.bindFramebuffer(KglFramebuffer.NONE)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_DEPTH_TEST)
             dc.gl.lineWidth(1f)
         }
-        return shapeCount
+        return texture
     }
 
-    protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain) {
+    protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain, texture: Texture) {
         val program = drawState.program ?: return
         try {
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return // terrain vertex attribute failed to bind
             if (!terrain.useVertexPointAttrib(dc, 1 /*vertexPoint*/)) return // terrain vertex attribute failed to bind
             if (!terrain.useVertexPointAttrib(dc, 2 /*vertexPoint*/)) return // terrain vertex attribute failed to bind
             if (!terrain.useVertexTexCoordAttrib(dc, 3 /*vertexTexCoord*/)) return // terrain vertex attribute failed to bind
-            val colorAttachment = dc.scratchFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-            if (!colorAttachment.bindTexture(dc)) return  // framebuffer texture failed to bind
+            if (!texture.bindTexture(dc)) return // texture failed to bind
 
             // Configure the program to draw texture fragments unmodified and aligned with the terrain.
             // TODO consolidate pickMode and enableTexture into a single textureMode
@@ -226,7 +263,6 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         } finally {
             // Unbind color attachment texture to avoid feedback loop
             dc.defaultTexture.bindTexture(dc)
-//            dc.bindTexture(KglTexture.NONE)
         }
     }
 }

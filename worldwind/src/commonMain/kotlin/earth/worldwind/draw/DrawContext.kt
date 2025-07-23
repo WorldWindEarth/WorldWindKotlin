@@ -10,6 +10,7 @@ import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.buffer.BufferPool
+import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 
@@ -129,6 +130,14 @@ open class DrawContext(val gl: Kgl) {
      * otherwise its contents are undefined.
      */
     val scratchList = mutableListOf<Drawable>()
+    /**
+     * This cache can be used to store runtime-generated textures by DrawContext thread
+     */
+    val texturesCache = object : LruMemoryCache<Any, Texture>(128) {
+        override fun entryRemoved(key: Any, oldValue: Texture, newValue: Texture?, evicted: Boolean) {
+            oldValue.release(this@DrawContext)
+        }
+    }
 
     fun reset() {
         eyePoint.set(0.0, 0.0, 0.0)
@@ -167,6 +176,7 @@ open class DrawContext(val gl: Kgl) {
         defaultTextureCache = null
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
+        texturesCache.clear()
     }
 
     fun uploadBuffers() = uploadQueue?.processUploads(this)
