@@ -57,6 +57,8 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     protected var isSurfaceShape = false
     protected var lastGlobeState: Globe.State? = null
     protected var pickedObjectId = 0
+    protected var bufferDataVersion = 0L
+    protected var lastLod = 0
     protected val pickColor = Color()
     protected val boundingSector = Sector()
     protected val boundingBox = BoundingBox()
@@ -146,7 +148,8 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
         var metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
         if (isSurfaceShape && !isDynamic && !rc.currentLayer.isDynamic) {
             // Round scale to nearest terrain LoD
-            metersPerPixel = computeLoDScale(equatorialRadius, computeNearestLoD(equatorialRadius, metersPerPixel))
+            lastLod = computeNearestLoD(equatorialRadius, metersPerPixel)
+            metersPerPixel = computeLoDScale(equatorialRadius, lastLod)
         }
         val texCoordMatrix = result.setToIdentity()
         texCoordMatrix.setScale(1.0 / (texture.width * metersPerPixel), 1.0 / (texture.height * metersPerPixel))
@@ -159,6 +162,11 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
 
     protected open fun computeLoDScale(equatorialRadius: Double, lod: Int) =
         2.0 * PI * equatorialRadius / ZERO_LEVEL_PX / (1 shl lod)
+
+    protected open fun computeVersion(): Int {
+        val version = 31 * hashCode() + bufferDataVersion.hashCode()
+        return 31 * version + lastLod
+    }
 
     protected open fun checkGlobeState(rc: RenderContext) {
         if (rc.globeState != lastGlobeState) {

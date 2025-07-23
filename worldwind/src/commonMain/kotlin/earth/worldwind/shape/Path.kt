@@ -34,7 +34,6 @@ open class Path @JvmOverloads constructor(
     protected val interiorElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
-    protected var bufferDataVersion = 0L
     protected val extrudeVertexBufferKey = Any()
     protected val extrudeElementBufferKey = Any()
     protected val vertexBufferKey = Any()
@@ -86,7 +85,7 @@ open class Path @JvmOverloads constructor(
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
-            drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawable.version = computeVersion()
             drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)

@@ -146,7 +146,6 @@ open class Ellipse @JvmOverloads constructor(
     protected val lineVertexBufferKey = Any()
     protected val lineElementBufferKey = Any()
     protected var verticalVertexIndex = 0
-    protected var bufferDataVersion = 0L
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val topElements = mutableListOf<Short>()
     protected val sideElements = mutableListOf<Short>()
@@ -209,7 +208,7 @@ open class Ellipse @JvmOverloads constructor(
             drawState = drawable.drawState
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
-            drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawable.version = computeVersion()
             drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
@@ -218,7 +217,7 @@ open class Ellipse @JvmOverloads constructor(
             // Use the basic GLSL program for texture projection.
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
-            drawableLines.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawableLines.version = computeVersion()
             drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)

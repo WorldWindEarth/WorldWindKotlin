@@ -41,7 +41,6 @@ open class Polygon @JvmOverloads constructor(
     protected val sideElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
-    protected var bufferDataVersion = 0L
     protected val vertexBufferKey = Any()
     protected val elementBufferKey = Any()
     protected val vertexLinesBufferKey = Any()
@@ -160,7 +159,7 @@ open class Polygon @JvmOverloads constructor(
             cameraDistance = cameraDistanceGeographic(rc, boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(boundingSector)
-            drawable.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawable.version = computeVersion()
             drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             drawableLines = DrawableSurfaceShape.obtain(pool)
@@ -168,7 +167,7 @@ open class Polygon @JvmOverloads constructor(
 
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(boundingSector)
-            drawableLines.version = 31 * hashCode() + bufferDataVersion.hashCode()
+            drawableLines.version = computeVersion()
             drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
