@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@armyc2.c5isr.renderer/mil-sym-ts-web@2.2.4":
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/@armyc2.c5isr.renderer/mil-sym-ts-web/-/mil-sym-ts-web-2.2.4.tgz#2bdb68318d23ae80512e9fc717a4c740fac069fd"
-  integrity sha512-/Zp6QNgwUkwbaQgSAcJjRqUYd7jHZpNu0pyi1De5r5HwNurGykhxk/YSJRc9BsXosbzAVIctJfn/YHHhnyRMtQ==
+"@armyc2.c5isr.renderer/mil-sym-ts-web@2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@armyc2.c5isr.renderer/mil-sym-ts-web/-/mil-sym-ts-web-2.3.0.tgz#bbdde091f455aa995d186489d46ce9914e864324"
+  integrity sha512-lY8sus4MOta9g44WW7DzwJUHVobePWi5pYYFAEc9jsieujOVxaf+J9sefpXHM18SHgtg0VRZ8R1ad4PRw6OJfA==
 
 "@colors/colors@1.5.0":
   version "1.5.0"
