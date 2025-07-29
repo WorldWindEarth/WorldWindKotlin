@@ -1,7 +1,6 @@
 package earth.worldwind.globe
 
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.elevation.ElevationModel
 import earth.worldwind.globe.geoid.EGM96Geoid
 import earth.worldwind.globe.geoid.Geoid
@@ -96,7 +95,23 @@ open class Globe(
     /**
      * Used to compare states during rendering to determine whether globe-state dependent cached values must be updated.
      */
-    data class State(private val ellipsoid: Ellipsoid, private val projectionName: String, private val ve: Double)
+    data class State(private val ellipsoid: Ellipsoid, private val projectionName: String, private val ve: Double) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is State) return false
+            if (ve != other.ve) return false
+            if (ellipsoid != other.ellipsoid) return false
+            if (projectionName != other.projectionName) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = ve.hashCode()
+            result = 31 * result + ellipsoid.hashCode()
+            result = 31 * result + projectionName.hashCode()
+            return result
+        }
+    }
 
     /**
      * Indicates the radius in meters of the globe's ellipsoid at a specified location.
@@ -214,16 +229,16 @@ open class Globe(
     fun getElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
         elevationModel.getElevationGrid(gridSector, gridWidth, gridHeight, result)
         // Apply Gravitational Model offset
-        val minLat = gridSector.minLatitude.inDegrees
-        val minLon = gridSector.minLongitude.inDegrees
+        val minLat = gridSector.minLatitude
+        val minLon = gridSector.minLongitude
         val deltaLat = gridSector.deltaLatitude.inDegrees / (gridHeight - 1)
         val deltaLon = gridSector.deltaLongitude.inDegrees / (gridWidth - 1)
         var h = 0
         for (i in 0 until gridHeight) {
-            val lat = minLat + i * deltaLat
+            val lat = minLat.plusDegrees(i * deltaLat)
             for (j in 0 until gridWidth) {
-                val lon = minLon + j * deltaLon
-                result[h++] += geoid.getOffset(lat.degrees, lon.degrees)
+                val lon = minLon.plusDegrees(j * deltaLon)
+                result[h++] += geoid.getOffset(lat, lon)
             }
         }
     }

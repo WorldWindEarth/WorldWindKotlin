@@ -1,6 +1,7 @@
 package earth.worldwind.util
 
-import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.Angle.Companion.NEG180
+import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.BoundingBox
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
@@ -72,16 +73,16 @@ abstract class AbstractTile(
     protected open fun nearestPoint(rc: RenderContext): Vec3 {
         val cameraPosition = rc.camera.position
         // determine the nearest latitude
-        val nearestLat = cameraPosition.latitude.inDegrees.coerceIn(sector.minLatitude.inDegrees, sector.maxLatitude.inDegrees)
+        val nearestLat = cameraPosition.latitude.coerceIn(sector.minLatitude, sector.maxLatitude)
         // determine the nearest longitude and account for the antimeridian discontinuity
-        val lonDifference = cameraPosition.longitude.inDegrees - sector.centroidLongitude.inDegrees
+        val lonDifference = cameraPosition.longitude - sector.centroidLongitude
         val nearestLon = when {
-            lonDifference < -180.0 -> sector.maxLongitude.inDegrees
-            lonDifference > 180.0 -> sector.minLongitude.inDegrees
-            else -> cameraPosition.longitude.inDegrees.coerceIn(sector.minLongitude.inDegrees, sector.maxLongitude.inDegrees)
+            lonDifference < NEG180 -> sector.maxLongitude
+            lonDifference > POS180 -> sector.minLongitude
+            else -> cameraPosition.longitude.coerceIn(sector.minLongitude, sector.maxLongitude)
         }
         val minHeight = heightLimits[0].toDouble()
-        return rc.globe.geographicToCartesian(nearestLat.degrees, nearestLon.degrees, minHeight, nearestPoint)
+        return rc.globe.geographicToCartesian(nearestLat, nearestLon, minHeight, nearestPoint)
     }
 
     protected open fun getExtent(rc: RenderContext): BoundingBox {

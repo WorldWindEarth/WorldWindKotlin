@@ -2,7 +2,6 @@ package earth.worldwind.shape
 
 import earth.worldwind.PickedObject
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
@@ -110,15 +109,9 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     }
 
     protected open fun cameraDistanceGeographic(rc: RenderContext, boundingSector: Sector): Double {
-        val lat = rc.camera.position.latitude.inDegrees.coerceIn(
-            boundingSector.minLatitude.inDegrees,
-            boundingSector.maxLatitude.inDegrees
-        )
-        val lon = rc.camera.position.longitude.inDegrees.coerceIn(
-            boundingSector.minLongitude.inDegrees,
-            boundingSector.maxLongitude.inDegrees
-        )
-        val point = rc.geographicToCartesian(lat.degrees, lon.degrees, 0.0, AltitudeMode.CLAMP_TO_GROUND, scratchPoint)
+        val lat = rc.camera.position.latitude.coerceIn(boundingSector.minLatitude, boundingSector.maxLatitude)
+        val lon = rc.camera.position.longitude.coerceIn(boundingSector.minLongitude, boundingSector.maxLongitude)
+        val point = rc.geographicToCartesian(lat, lon, 0.0, AltitudeMode.CLAMP_TO_GROUND, scratchPoint)
         return point.distanceTo(rc.cameraPoint)
     }
 

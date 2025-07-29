@@ -6,8 +6,8 @@ import earth.worldwind.frame.Frame
 import earth.worldwind.frame.FrameController
 import earth.worldwind.frame.FrameMetrics
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.globe.Globe
 import earth.worldwind.globe.terrain.BasicTessellator
@@ -615,7 +615,7 @@ open class WorldWind @JvmOverloads constructor(
         lookAt.heading = lookAt.heading.normalize180()
 
         // Clamp tilt to between 0 and +90 to prevent the viewer from going upside down.
-        lookAt.tilt = lookAt.tilt.inDegrees.coerceIn(0.0, 90.0).degrees
+        lookAt.tilt = lookAt.tilt.coerceIn(ZERO, POS90)
 
         // Normalize heading to between -180 and +180.
         lookAt.roll = lookAt.roll.normalize180()

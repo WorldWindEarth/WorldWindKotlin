@@ -789,13 +789,13 @@ value class Angle private constructor(
 
     fun normalizeLongitude() = if (inDegrees in -180.0..180.0) this else normalizeLongitude(inDegrees).degrees
 
-    fun clampAngle180() = inDegrees.coerceIn(-180.0, 180.0).degrees
+    fun clampAngle180() = coerceIn(NEG180, POS180)
 
-    fun clampAngle360() = inDegrees.coerceIn(0.0, 360.0).degrees
+    fun clampAngle360() = coerceIn(ZERO, POS360)
 
-    fun clampLatitude() = inDegrees.coerceIn(-90.0, 90.0).degrees
+    fun clampLatitude() = coerceIn(NEG90, POS90)
 
-    fun clampLongitude() = inDegrees.coerceIn(-180.0, 180.0).degrees
+    fun clampLongitude() = coerceIn(NEG180, POS180)
 
     fun toDMS(): DoubleArray {
         var angle = inDegrees
@@ -866,7 +866,8 @@ value class Angle private constructor(
      *
      * @return -1 if this angle is smaller, 0 if both are equal and +1 if this angle is larger.
      */
-    override operator fun compareTo(other: Angle) = inDegrees.compareTo(other.inDegrees)
+    override operator fun compareTo(other: Angle) =
+        if (inDegrees < other.inDegrees) -1 else if (inDegrees > other.inDegrees) 1 else 0
 
     override fun toString() = "$inDegrees°"
 }
