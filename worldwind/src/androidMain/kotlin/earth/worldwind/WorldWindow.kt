@@ -4,6 +4,7 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
+import android.os.Looper
 import android.util.AttributeSet
 import android.view.Choreographer
 import android.view.Choreographer.FrameCallback
@@ -58,6 +59,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     protected val frameQueue = ConcurrentLinkedQueue<Frame>()
     protected val pickQueue = ConcurrentLinkedQueue<Frame>()
     protected var currentFrame: Frame? = null
+    protected var redrawJob: Job? = null
     protected var isWaitingForRedraw = false
     /**
      * Control memory consumption and trim render resource cache when system os low on memory
@@ -122,6 +124,8 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
 
         // Cancel any outstanding request redraw messages.
         Choreographer.getInstance().removeFrameCallback(this)
+        redrawJob?.cancel()
+        redrawJob = null
         isWaitingForRedraw = false
     }
 
@@ -233,13 +237,17 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
      * called from any thread.
      */
     fun requestRedraw() {
-        mainScope.launch(Dispatchers.Main.immediate) {
-            // Suppress duplicate redraw requests, request that occur while the WorldWindow is paused, and requests that
-            // occur before we have an Android surface to draw to.
-            if (!isWaitingForRedraw && !engine.viewport.isEmpty) {
-                Choreographer.getInstance().postFrameCallback(this@WorldWindow)
-                isWaitingForRedraw = true
-            }
+        // Forward calls to requestRedraw to the main thread.
+        if (Thread.currentThread() != Looper.getMainLooper().thread) redrawJob = mainScope.launch { doRequestRedraw() }
+        else doRequestRedraw()
+    }
+
+    private fun doRequestRedraw() {
+        // Suppress duplicate redraw requests, request that occur while the WorldWindow is paused, and requests that
+        // occur before we have an Android surface to draw to.
+        if (!isWaitingForRedraw && !engine.viewport.isEmpty) {
+            Choreographer.getInstance().postFrameCallback(this)
+            isWaitingForRedraw = true
         }
     }
 

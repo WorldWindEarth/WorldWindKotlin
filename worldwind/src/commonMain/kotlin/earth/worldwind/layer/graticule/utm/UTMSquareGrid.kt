@@ -71,7 +71,7 @@ internal class UTMSquareGrid(
                 positions.add(p1)
                 positions.add(p2)
             }
-            if (positions.size > 0) {
+            if (positions.isNotEmpty()) {
                 p1 = positions[0]
                 p2 = positions[1]
                 val polyline = layer.createLineRenderable(ArrayList(positions), PathType.GREAT_CIRCLE)
