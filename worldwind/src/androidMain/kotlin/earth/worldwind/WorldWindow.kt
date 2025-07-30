@@ -286,11 +286,13 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         // Set the WorldWind's new viewport dimensions.
         engine.setupViewport(width, height)
 
-        // Store current screen density factor
-        engine.densityFactor = context.resources.displayMetrics.density
+        mainScope.launch {
+            // Store current screen density factor
+            engine.densityFactor = context.resources.displayMetrics.density
 
-        // Redraw this WorldWindow with the new viewport.
-        requestRedraw()
+            // Redraw this WorldWindow with the new viewport.
+            doRequestRedraw()
+        }
     }
 
     override fun onDrawFrame(unused: GL10) {
@@ -337,7 +339,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         mainScope.launch {
             WorldWind.events.collect {
                 when (it) {
-                    is WorldWind.Event.RequestRedraw -> requestRedraw()
+                    is WorldWind.Event.RequestRedraw -> doRequestRedraw()
                     is WorldWind.Event.UnmarkResourceAbsent -> {
                         engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(it.resourceId)
                     }
@@ -405,7 +407,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     protected open fun renderFrame(frame: Frame) {
         // Propagate redraw requests submitted during rendering. The render context provides a layer of indirection that
         // insulates rendering code from establishing a dependency on a specific WorldWindow.
-        if (engine.renderFrame(frame)) requestRedraw()
+        if (engine.renderFrame(frame)) doRequestRedraw()
 
         // Enqueue the frame for processing on the OpenGL thread as soon as possible and wake the OpenGL thread.
         if (frame.isPickMode) pickQueue.offer(frame) else frameQueue.offer(frame)

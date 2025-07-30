@@ -19,6 +19,7 @@ import earth.worldwind.util.Logger
 import earth.worldwind.util.kgl.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -144,7 +145,8 @@ open class WorldWind @JvmOverloads constructor(
         dc.contextLost()
 
         // Set the WorldWindow's depth bits.
-        depthBits = dc.gl.getParameteri(GL_DEPTH_BITS)
+        val bits = dc.gl.getParameteri(GL_DEPTH_BITS)
+        renderResourceCache.mainScope.launch { depthBits = bits }
     }
 
     /**
@@ -153,16 +155,18 @@ open class WorldWind @JvmOverloads constructor(
     open fun setupViewport(width: Int, height: Int) {
         dc.gl.viewport(0, 0, width, height)
 
-        // Keep pixel scale by adapting field of view on view port resize
-        if (isKeepScale && viewport.height != 0) {
-            try {
-                camera.fieldOfView = (2.0 * atan(tan(camera.fieldOfView.inRadians / 2.0) * height / viewport.height)).radians
-            } catch (_: IllegalArgumentException) {
-                // Keep original field of view in case new one does not fit requirements
+        renderResourceCache.mainScope.launch {
+            // Keep pixel scale by adapting field of view on view port resize
+            if (isKeepScale && viewport.height != 0) {
+                try {
+                    camera.fieldOfView = (2.0 * atan(tan(camera.fieldOfView.inRadians / 2.0) * height / viewport.height)).radians
+                } catch (_: IllegalArgumentException) {
+                    // Keep original field of view in case new one does not fit requirements
+                }
             }
-        }
 
-        viewport.set(0, 0, width, height)
+            viewport.set(0, 0, width, height)
+        }
     }
 
     /**
