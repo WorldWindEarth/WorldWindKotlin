@@ -23,7 +23,7 @@ import java.nio.*
 import kotlin.math.roundToInt
 
 open class ElevationDecoder: Closeable {
-    protected val httpClient = DefaultHttpClient()
+    protected val httpClient by lazy { DefaultHttpClient() }
 
     override fun close() = httpClient.close()
 

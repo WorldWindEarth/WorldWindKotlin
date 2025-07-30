@@ -20,7 +20,7 @@ import java.io.File
 import java.net.URL
 
 open class ImageDecoder(val context: Context): Closeable {
-    protected val httpClient = DefaultHttpClient()
+    protected val httpClient by lazy { DefaultHttpClient() }
 
     override fun close() = httpClient.close()
 

@@ -16,7 +16,7 @@ import java.net.URL
 import javax.imageio.ImageIO
 
 open class ImageDecoder: Closeable {
-    protected val httpClient = DefaultHttpClient()
+    protected val httpClient by lazy { DefaultHttpClient() }
 
     override fun close() = httpClient.close()
 
