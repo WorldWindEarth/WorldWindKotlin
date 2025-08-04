@@ -191,7 +191,9 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
         am.getMemoryInfo(mi)
 
         // Assemble the current WorldWind frame metrics.
-        val fm = wwd.engine.frameMetrics as BasicFrameMetrics
+        val fm = (wwd.engine.frameMetrics as? BasicFrameMetrics) ?: BasicFrameMetrics().also {
+            wwd.engine.frameMetrics = it
+        }
 
         // Print a log message with the system memory, WorldWind cache usage, and WorldWind average frame time.
         log(

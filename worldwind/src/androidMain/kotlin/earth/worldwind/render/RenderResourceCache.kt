@@ -3,6 +3,7 @@ package earth.worldwind.render
 import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.opengl.GLSurfaceView
 import dev.icerock.moko.resources.FileResource
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
@@ -17,20 +18,23 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import io.ktor.client.network.sockets.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentLinkedQueue
+import javax.microedition.khronos.egl.EGL10
+import javax.microedition.khronos.egl.EGLConfig
+import javax.microedition.khronos.egl.EGLContext
+import javax.microedition.khronos.egl.EGLDisplay
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache @JvmOverloads constructor(
     val context: Context, capacity: Long = recommendedCapacity(context), lowWater: Long = (capacity * 0.75).toLong()
-): LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
+): LruMemoryCache<Any, RenderResource>(capacity, lowWater), GLSurfaceView.EGLContextFactory {
     companion object {
         protected const val STALE_AGE = 300L
+        protected const val EGL_CONTEXT_CLIENT_VERSION = 0x3098
+        protected const val EGL_VERSION = 2
 
         @JvmStatic
         fun recommendedCapacity(context: Context) =
@@ -48,6 +52,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     protected val evictionQueue = ConcurrentLinkedQueue<RenderResource>()
     protected val remoteRetrievals = mutableSetOf<ImageSource>()
     protected val localRetrievals = mutableSetOf<ImageSource>()
+    protected val contextList = mutableListOf<EGLContext>()
     /**
      * Main render resource retrieval scope
      */
@@ -68,6 +73,22 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         localRetrievals.clear()
         absentResourceList.clear()
         age = 0
+    }
+
+    override fun createContext(egl: EGL10, display: EGLDisplay, eglConfig: EGLConfig): EGLContext = synchronized(this) {
+        val attribList = intArrayOf(EGL_CONTEXT_CLIENT_VERSION, EGL_VERSION, EGL10.EGL_NONE)
+        val shareContext = if (contextList.isEmpty()) EGL10.EGL_NO_CONTEXT else contextList[0]
+        if (contextList.isEmpty()) mainScope.launch { clear() } // Clear the render resource cache on the main thread.
+        return egl.eglCreateContext(display, eglConfig, shareContext, attribList).also { contextList += it }
+    }
+
+    override fun destroyContext(egl: EGL10, display: EGLDisplay, context: EGLContext) = synchronized(this) {
+        contextList -= context
+        egl.eglDestroyContext(display, context)
+        if (contextList.isEmpty()) {
+            mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
+            mainScope.launch { clear() } // Clear the render resource cache; it's entries are now invalid.
+        }
     }
 
     actual fun incAge() { ++age }
@@ -91,7 +112,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
      */
     @JvmOverloads
     fun trimStale(staleAge: Long = STALE_AGE) {
-        val trimmedCapacity = trimToAge(age - staleAge)
+        val trimmedCapacity = trimToAge(age - staleAge * contextList.size)
         if (isLoggable(DEBUG)) log(DEBUG, "Trimmed resources to %,.0f KB".format(trimmedCapacity / 1024.0))
     }
 

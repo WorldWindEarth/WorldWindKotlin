@@ -6,7 +6,7 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.NumericArray
 import kotlin.math.max
 
-open class UploadQueue internal constructor(){
+open class UploadQueue internal constructor() {
     protected var size = 0
     protected var entries = arrayOfNulls<Entry>(size)
     val count get() = size
@@ -24,12 +24,12 @@ open class UploadQueue internal constructor(){
             entries = newEntries
         }
         val entry = entries[size] ?: Entry().also { entries[size] = it }
-        entry.set(array, buffer)
+        entry.array = array
+        entry.buffer = buffer
         size++
     }
 
-    fun processUploads(dc : DrawContext)
-    {
+    fun processUploads(dc: DrawContext) {
         var position = 0
         while (position < size) {
             val next = entries[position++] ?: break
@@ -45,21 +45,13 @@ open class UploadQueue internal constructor(){
     }
 
     fun clearUploads() {
-        for (idx in 0 until size) {
-            entries[idx]?.recycle()
-        }
+        for (idx in 0 until size) entries[idx]?.recycle()
         size = 0
     }
 
     protected open class Entry {
-
         var array: NumericArray? = null
         var buffer: BufferObject? = null
-
-        fun set(array: NumericArray?, buffer: BufferObject?) {
-            this.array = array
-            this.buffer = buffer
-        }
 
         fun recycle() {
             array = null

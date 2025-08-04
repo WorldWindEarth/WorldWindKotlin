@@ -41,6 +41,8 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected var levelSetTriStripElements: ShortArray? = null
     protected val levelSetLineElementRange = Range()
     protected val levelSetTriStripElementRange = Range()
+    protected val levelSetVertexTexCordKey = Any()
+    protected val levelSetElementKey = Any()
     protected var levelSetVertexTexCoordBuffer: BufferObject? = null
     protected var levelSetElementBuffer: BufferObject? = null
     protected var lastGlobeState: Globe.State? = null
@@ -164,16 +166,16 @@ open class BasicTessellator: Tessellator, TileFactory {
         val triStripElements = levelSetTriStripElements ?: assembleTriStripElements(numLat, numLon).also { levelSetTriStripElements = it }
 
         // Retrieve or create the level set's OpenGL vertex tex coord buffer object.
-        levelSetVertexTexCoordBuffer = rc.getBufferObject(LEVEL_SET_VERTEX_TEX_COORD_KEY) {
+        levelSetVertexTexCoordBuffer = rc.getBufferObject(levelSetVertexTexCordKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(LEVEL_SET_VERTEX_TEX_COORD_KEY, 1) { NumericArray.Floats(vertexTexCoords) }
+        rc.offerGLBufferUpload(levelSetVertexTexCordKey, 1) { NumericArray.Floats(vertexTexCoords) }
 
         // Retrieve or create the level set's OpenGL element buffer object.
-        levelSetElementBuffer = rc.getBufferObject(LEVEL_SET_ELEMENT_KEY) {
+        levelSetElementBuffer = rc.getBufferObject(levelSetElementKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(LEVEL_SET_ELEMENT_KEY, 1) {
+        rc.offerGLBufferUpload(levelSetElementKey, 1) {
             NumericArray.Shorts(lineElements + triStripElements).also {
                 levelSetLineElementRange.upper = lineElements.size
                 levelSetTriStripElementRange.lower = lineElements.size
@@ -261,10 +263,5 @@ open class BasicTessellator: Tessellator, TileFactory {
             }
         }
         return result
-    }
-
-    companion object {
-        private val LEVEL_SET_VERTEX_TEX_COORD_KEY = BasicTessellator::class.simpleName + ".vertexTexCoordKey"
-        private val LEVEL_SET_ELEMENT_KEY = BasicTessellator::class.simpleName + ".elementKey"
     }
 }

@@ -34,9 +34,9 @@ open class WorldWindow(
      */
     val canvas: HTMLCanvasElement,
     /**
-     * Render resource cache capacity in bytes
+     * Render resource cache
      */
-    cacheCapacity: Long = RenderResourceCache.recommendedCapacity(),
+    renderResourceCache: RenderResourceCache = RenderResourceCache(),
     /**
      * The adapter coverts child window event to parent window events.
      */
@@ -44,7 +44,7 @@ open class WorldWindow(
 ) {
     /**
      * Real current window where canvas located.
-     * Provides correct classes from correct window for instancing and interaction.
+     * Provides correct classes from the correct window for instancing and interaction.
      */
     protected val currentWindow get() = canvas.ownerDocument?.defaultView ?: error("Canvas isn't attached to a document")
 
@@ -59,7 +59,7 @@ open class WorldWindow(
     /**
      * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
      */
-    open val engine = WorldWind(WebKgl(gl), RenderResourceCache(cacheCapacity))
+    open val engine = WorldWind(WebKgl(gl), renderResourceCache)
     /**
      * List of registered event listeners for the specified event type on this WorldWindow's canvas.
      */
@@ -285,6 +285,9 @@ open class WorldWindow(
         // Cancel all async jobs but keep scope reusable
         mainScope.coroutineContext.cancelChildren()
 
+        // Clear the render resource cache; it's entries are now invalid.
+        engine.renderResourceCache.clear()
+
         // Remove all cached WebGL resources, which are now invalid.
         engine.reset()
     }
@@ -299,9 +302,6 @@ open class WorldWindow(
 
         // Specify the default WorldWind OpenGL state.
         engine.setupDrawContext()
-
-        // Store current screen density factor
-        engine.densityFactor = currentWindow.devicePixelRatio.toFloat()
 
         // Enable WebGL depth texture extension to be able to use GL_DEPTH_COMPONENT texture format
         gl.getExtension("WEBGL_depth_texture")
@@ -369,16 +369,17 @@ open class WorldWindow(
 
     protected open fun resize() {
         // Check if canvas size is changed
-        val width = (gl.canvas.clientWidth * engine.densityFactor).roundToInt()
-        val height = (gl.canvas.clientHeight * engine.densityFactor).roundToInt()
+        val densityFactor = currentWindow.devicePixelRatio.toFloat()
+        val width = (gl.canvas.clientWidth * densityFactor).roundToInt()
+        val height = (gl.canvas.clientHeight * densityFactor).roundToInt()
 
-        if (gl.canvas.width != width || gl.canvas.height != height || engine.viewport.isEmpty) {
+        if (engine.viewport.isEmpty || gl.canvas.width != width || gl.canvas.height != height || engine.densityFactor != densityFactor) {
             // Make the canvas drawing buffer size match its screen size.
             gl.canvas.width = width
             gl.canvas.height = height
 
             // Set the WebGL viewport to match the canvas drawing buffer size.
-            engine.setupViewport(gl.drawingBufferWidth, gl.drawingBufferHeight)
+            engine.setupViewport(gl.drawingBufferWidth, gl.drawingBufferHeight, densityFactor)
 
             // Cause this WorldWindow to redraw with the new size.
             requestRedraw()

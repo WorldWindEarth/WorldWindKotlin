@@ -49,19 +49,12 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
         }
     }
 
-    protected fun loadBufferObjectData(dc: DrawContext, array: NumericArray)
-    {
+    protected open fun loadBufferObjectData(dc: DrawContext, array: NumericArray) {
         byteCount = array.byteCount
         when (array) {
-            is NumericArray.Floats -> {
-                dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
-            }
-            is NumericArray.Ints -> {
-                dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
-            }
-            is NumericArray.Shorts -> {
-                dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
-            }
+            is NumericArray.Floats -> dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
+            is NumericArray.Ints -> dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
+            is NumericArray.Shorts -> dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
         }
     }
 }

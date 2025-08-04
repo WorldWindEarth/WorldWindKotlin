@@ -332,12 +332,11 @@ open class RenderContext {
     }
 
     fun offerGLBufferUpload(key: Any, newVersion: Long, arrayBuilder: () -> NumericArray) {
-        renderResourceCache[key].also {
+        (renderResourceCache[key] as? BufferObject)?.let { buffer ->
             renderResourceCache.update(key, newVersion) {
-                arrayBuilder().run {
-                    uploadQueue?.queueBufferUpload(it as BufferObject, this)
-                    this.byteCount
-                }
+                val array = arrayBuilder()
+                uploadQueue?.queueBufferUpload(buffer, array)
+                array.byteCount
             }
         }
     }

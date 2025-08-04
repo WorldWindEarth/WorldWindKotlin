@@ -14,6 +14,7 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.BlueMarbleLandsatLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
+import earth.worldwind.render.RenderResourceCache
 
 /**
  * This activity manifests two side-by-side globes with an adjustable splitter
@@ -29,6 +30,7 @@ open class MultiGlobeActivity: AbstractMainActivity() {
      */
     protected val worldWindows = mutableListOf<WorldWindow>()
     override val wwd get() = worldWindows[0]
+    protected lateinit var renderResourceCache: RenderResourceCache
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Establish the activity content
@@ -37,6 +39,7 @@ open class MultiGlobeActivity: AbstractMainActivity() {
         aboutBoxTitle = "About the " + resources.getText(R.string.title_multi_globe)
         aboutBoxText = "Demonstrates multiple globes."
         deviceOrientation = resources.configuration.orientation
+        renderResourceCache = RenderResourceCache(this)
         performLayout()
     }
 
@@ -77,7 +80,7 @@ open class MultiGlobeActivity: AbstractMainActivity() {
 
     private fun createWorldWindow(): WorldWindow {
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
-        val wwd = WorldWindow(this)
+        val wwd = WorldWindow(this, renderResourceCache = renderResourceCache)
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())

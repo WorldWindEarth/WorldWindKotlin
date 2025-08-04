@@ -19,7 +19,6 @@ import earth.worldwind.util.Logger
 import earth.worldwind.util.kgl.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -36,7 +35,7 @@ open class WorldWind @JvmOverloads constructor(
     /**
      * Platform-dependent GPU resource cache manager.
      */
-    var renderResourceCache: RenderResourceCache,
+    val renderResourceCache: RenderResourceCache,
     /**
      * Planet or celestial object approximated by a reference ellipsoid and elevation models.
      */
@@ -119,9 +118,6 @@ open class WorldWind @JvmOverloads constructor(
      * Reset internal WorldWind state to initial values.
      */
     open fun reset() {
-        // Clear the render resource cache; it's entries are now invalid.
-        renderResourceCache.clear()
-
         // Clear the viewport dimensions.
         viewport.setEmpty()
 
@@ -145,28 +141,27 @@ open class WorldWind @JvmOverloads constructor(
         dc.contextLost()
 
         // Set the WorldWindow's depth bits.
-        val bits = dc.gl.getParameteri(GL_DEPTH_BITS)
-        renderResourceCache.mainScope.launch { depthBits = bits }
+        depthBits = dc.gl.getParameteri(GL_DEPTH_BITS)
     }
 
     /**
      * Apply new viewport dimensions.
      */
-    open fun setupViewport(width: Int, height: Int) {
-        dc.gl.viewport(0, 0, width, height)
-
-        renderResourceCache.mainScope.launch {
-            // Keep pixel scale by adapting field of view on view port resize
-            if (isKeepScale && viewport.height != 0) {
-                try {
-                    camera.fieldOfView = (2.0 * atan(tan(camera.fieldOfView.inRadians / 2.0) * height / viewport.height)).radians
-                } catch (_: IllegalArgumentException) {
-                    // Keep original field of view in case new one does not fit requirements
-                }
+    open fun setupViewport(width: Int, height: Int, density: Float) {
+        // Keep pixel scale by adapting field of view on view port resize
+        if (isKeepScale && viewport.height != 0) {
+            try {
+                camera.fieldOfView = (2.0 * atan(tan(camera.fieldOfView.inRadians / 2.0) * height / viewport.height)).radians
+            } catch (_: IllegalArgumentException) {
+                // Keep the original field of view in case new one does not fit requirements
             }
-
-            viewport.set(0, 0, width, height)
         }
+
+        // Apply new viewport size for next frames
+        viewport.set(0, 0, width, height)
+
+        // Store current screen density factor
+        densityFactor = density
     }
 
     /**

@@ -10,7 +10,6 @@ import android.view.Choreographer
 import android.view.Choreographer.FrameCallback
 import android.view.MotionEvent
 import android.view.SurfaceHolder
-import earth.worldwind.frame.BasicFrameMetrics
 import earth.worldwind.frame.Frame
 import earth.worldwind.geom.Line
 import earth.worldwind.geom.Vec2
@@ -34,15 +33,18 @@ import kotlin.math.roundToInt
  * Provides a WorldWind window that implements a virtual globe inside the Android view hierarchy. By default, World
  * Window is configured to display an ellipsoidal globe using the WGS 84 reference values.
  */
-open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
+open class WorldWindow @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null, configChooser: EGLConfigChooser? = null,
+    renderResourceCache: RenderResourceCache = RenderResourceCache(context)
+) : GLSurfaceView(context, attrs), FrameCallback, GLSurfaceView.Renderer {
     /**
-     * Main WorldWindow scope to execute jobs which should be cancelled on GL surface destroy
+     * Main WorldWindow scope to execute jobs which should be canceled on GL surface destruction
      */
     val mainScope get() = engine.renderResourceCache.mainScope
     /**
      * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic
      */
-    open val engine = WorldWind(AndroidKgl(), RenderResourceCache(context), frameMetrics = BasicFrameMetrics())
+    open val engine = WorldWind(AndroidKgl(), renderResourceCache)
     /**
      * Current WorldWindow camera and gestures controller
      */
@@ -78,35 +80,11 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         protected const val MAX_FRAME_QUEUE_SIZE = 2
     }
 
-    /**
-     * Constructs a WorldWindow associated with the specified application context and EGL configuration chooser. This is
-     * the constructor to use when creating a WorldWindow from code.
-     */
-    @JvmOverloads
-    constructor(context: Context, configChooser: EGLConfigChooser? = null): super(context) { this.init(configChooser) }
-
-    /**
-     * Constructs a WorldWindow associated with the specified application context and attributes from an XML tag. This
-     * constructor is included to provide support for creating WorldWindow from an Android XML layout file, and is not
-     * intended to be used directly.
-     * <br>
-     * This is called when a view is being constructed from an XML file, supplying attributes that were specified in the
-     * XML file. This version uses a default style of 0, so the only attribute values applied are those in the Context's
-     * Theme and the given AttributeSet.
-     */
-    constructor(context: Context, attrs: AttributeSet): super(context, attrs) { this.init(null) }
-
-    /**
-     * Prepares this WorldWindow for drawing and event handling.
-     *
-     * @param configChooser optional argument for choosing an EGL configuration; may be null
-     */
-    protected open fun init(configChooser: EGLConfigChooser?) {
-        // Set up to render on demand to an OpenGL ES 2.x context
+    init {
         setEGLConfigChooser(configChooser)
-        setEGLContextClientVersion(2) // must be called before setRenderer
+        setEGLContextFactory(renderResourceCache)
         setRenderer(this)
-        renderMode = RENDERMODE_WHEN_DIRTY // must be called after setRenderer
+        renderMode = RENDERMODE_WHEN_DIRTY
     }
 
     /**
@@ -277,18 +255,12 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
         // Specify the default WorldWind OpenGL state.
         engine.setupDrawContext()
-
-        // Clear the render resource cache on the main thread.
-        mainScope.launch { engine.renderResourceCache.clear() }
     }
 
     override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
-        // Set the WorldWind's new viewport dimensions.
-        engine.setupViewport(width, height)
-
         mainScope.launch {
-            // Store current screen density factor
-            engine.densityFactor = context.resources.displayMetrics.density
+            // Set the WorldWind's new viewport dimensions and current screen density factor.
+            engine.setupViewport(width, height, context.resources.displayMetrics.density)
 
             // Redraw this WorldWindow with the new viewport.
             doRequestRedraw()
@@ -301,7 +273,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         // All frames must be processed or threads waiting on a frame to finish may block indefinitely.
         pickQueue.poll()?.let { pickFrame ->
             try {
-                engine.drawFrame(pickFrame)
+                synchronized(engine.renderResourceCache) { engine.drawFrame(pickFrame) }
             } catch (e: Exception) {
                 logMessage(
                     ERROR, "WorldWindow", "onDrawFrame", "Exception while processing pick in OpenGL thread", e
@@ -323,7 +295,7 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
         // Process and display the Drawables accumulated in the last frame taken from the front of the queue. This frame
         // may be drawn multiple times if the OpenGL thread executes more often than the WorldWindow enqueues frames.
         try {
-            currentFrame?.let { engine.drawFrame(it) }
+            currentFrame?.let { synchronized(engine.renderResourceCache) { engine.drawFrame(it) } }
         } catch (e: Exception) {
             logMessage(
                 ERROR, "WorldWindow", "onDrawFrame",
@@ -350,9 +322,6 @@ open class WorldWindow : GLSurfaceView, FrameCallback, GLSurfaceView.Renderer {
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         super.surfaceDestroyed(holder)
-
-        // Cancel all async jobs but keep scope reusable
-        mainScope.coroutineContext.cancelChildren()
 
         // Reset the WorldWindow's internal state.
         reset()

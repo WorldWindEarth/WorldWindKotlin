@@ -97,10 +97,16 @@ open class BasicFrameController: FrameController {
     }
 
     override fun drawFrame(dc: DrawContext) {
+        setViewport(dc)
         clearFrame(dc)
         uploadBuffers(dc)
         drawDrawables(dc)
         if (dc.isPickMode) resolvePick(dc)
+    }
+
+    protected open fun setViewport(dc: DrawContext) {
+        // Set view port every frame to fix issues with shared EGL context
+        dc.gl.viewport(0, 0, dc.viewport.width, dc.viewport.height)
     }
 
     protected open fun clearFrame(dc: DrawContext) {
