@@ -18,7 +18,6 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
 
     protected open class Entry<K, V>(val key: K, val value: V, var size: Int) {
         var lastUsed = 0L
-        var version = 0L
     }
 
     init {
@@ -60,13 +59,9 @@ open class LruMemoryCache<K, V> @JvmOverloads constructor(
         value
     }
 
-    open fun update(key: K, newVersion: Long, update: () -> Int) = entries[key]?.run {
-        if (version < newVersion) {
-            version = newVersion
-            val newSize = update()
-            usedCapacity += newSize - size
-            size = newSize
-        }
+    open fun updateSize(key: K, newSize: Int) = entries[key]?.run {
+        usedCapacity += newSize - size
+        size = newSize
     }
 
     open fun trimToAge(maxAge: Long): Int {

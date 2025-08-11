@@ -333,10 +333,10 @@ open class RenderContext {
 
     fun offerGLBufferUpload(key: Any, newVersion: Long, arrayBuilder: () -> NumericArray) {
         (renderResourceCache[key] as? BufferObject)?.let { buffer ->
-            renderResourceCache.update(key, newVersion) {
+            if (buffer.version < newVersion) {
                 val array = arrayBuilder()
-                uploadQueue?.queueBufferUpload(buffer, array)
-                array.byteCount
+                uploadQueue?.queueBufferUpload(buffer, array, newVersion)
+                renderResourceCache.updateSize(key, array.byteCount)
             }
         }
     }

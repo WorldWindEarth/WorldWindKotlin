@@ -10,6 +10,7 @@ import earth.worldwind.util.kgl.KglBuffer
 
 open class BufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
     protected var id = KglBuffer.NONE
+    var version = 0L
 
     override fun release(dc: DrawContext) { deleteBufferObject(dc) }
 

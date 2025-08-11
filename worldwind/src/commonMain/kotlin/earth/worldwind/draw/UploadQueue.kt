@@ -15,7 +15,7 @@ open class UploadQueue internal constructor() {
         protected const val MIN_CAPACITY_INCREMENT = 12
     }
 
-    fun queueBufferUpload(buffer: BufferObject, array: NumericArray) {
+    fun queueBufferUpload(buffer: BufferObject, array: NumericArray, version: Long) {
         val capacity = entries.size
         if (capacity == size) {
             val increment = max(capacity shr 1, MIN_CAPACITY_INCREMENT)
@@ -26,6 +26,7 @@ open class UploadQueue internal constructor() {
         val entry = entries[size] ?: Entry().also { entries[size] = it }
         entry.array = array
         entry.buffer = buffer
+        entry.version = version
         size++
     }
 
@@ -34,7 +35,14 @@ open class UploadQueue internal constructor() {
         while (position < size) {
             val next = entries[position++] ?: break
             try {
-                next.array?.let { next.buffer?.loadBuffer(dc, it) }
+                next.array?.let { array ->
+                    next.buffer?.let { buffer ->
+                        if (buffer.version < next.version) {
+                            buffer.loadBuffer(dc, array)
+                            buffer.version = next.version
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 logMessage(
                     ERROR, "UploadQueue", "processUploads",
@@ -52,10 +60,12 @@ open class UploadQueue internal constructor() {
     protected open class Entry {
         var array: NumericArray? = null
         var buffer: BufferObject? = null
+        var version = 0L
 
         fun recycle() {
             array = null
             buffer = null
+            version = 0L
         }
     }
 }
