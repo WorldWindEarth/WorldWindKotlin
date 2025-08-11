@@ -8,7 +8,6 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 open class GeoJsonDemoActivity : GeneralGlobeActivity() {
 
