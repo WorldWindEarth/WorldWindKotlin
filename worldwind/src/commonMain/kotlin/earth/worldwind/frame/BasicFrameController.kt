@@ -56,8 +56,8 @@ open class BasicFrameController: FrameController {
         // Compute viewing distance and pixel size based on available terrain
         if (!rc.globe.is2D) adjustViewingParameters(rc)
 
-        // Render the terrain picked object or remember the last terrain for future intersect operations
-        if (rc.isPickMode) renderTerrainPickedObject(rc) else lastTerrains[globeOffset] = rc.terrain
+        // Render the terrain picked object or transparent terrain and remember the last terrain for future intersect operations
+        if (rc.isPickMode) renderTerrainPickedObject(rc) else renderTerrain(rc).also { lastTerrains[globeOffset] = rc.terrain }
 
         // Render all layers on specified globe offset
         rc.layers.render(rc)
@@ -73,13 +73,26 @@ open class BasicFrameController: FrameController {
         rc.pixelSize = rc.pixelSizeAtDistance(rc.viewingDistance)
     }
 
+    protected open fun renderTerrain(rc: RenderContext) {
+        if (rc.terrain.sector.isEmpty) return  // no terrain to pick
+
+        // Enqueue drawable for processing on the OpenGL thread that displays terrain in the transparent color.
+        // This is required to modify depth buffer and correctly cut the interior of 3D shapes by the terrain.
+        val pool = rc.getDrawablePool(DrawableSurfaceColor.KEY)
+        val drawable = obtain(pool)
+        drawable.color.set(0f, 0f, 0f, 0f)
+        drawable.opacity = 1.0f // Just to be sure to reset opacity
+        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
+    }
+
     protected open fun renderTerrainPickedObject(rc: RenderContext) {
         if (rc.terrain.sector.isEmpty) return  // no terrain to pick
 
         // Acquire a unique picked object ID for terrain.
         val pickedObjectId = rc.nextPickedObjectId()
 
-        // Enqueue a drawable for processing on the OpenGL thread that displays terrain in the unique pick color.
+        // Enqueue drawable for processing on the OpenGL thread that displays terrain in the unique pick color.
         val pool = rc.getDrawablePool(DrawableSurfaceColor.KEY)
         val drawable = obtain(pool)
         identifierToUniqueColor(pickedObjectId, drawable.color)
