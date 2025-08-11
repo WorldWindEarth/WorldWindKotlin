@@ -33,6 +33,7 @@ import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.core.impl.multiplatform.Reader
 import nl.adaptivity.xmlutil.serialization.XML
 import nl.adaptivity.xmlutil.xmlStreaming
+import kotlin.random.Random
 
 @OptIn(XmlUtilInternal::class)
 internal class KML {
@@ -78,28 +79,28 @@ internal class KML {
 
         data class KmlDocument(
             override val parentId: String?,
-            override val id: String? = null,
-            override val name: String? = null,
+            override val id: String,
+            override val name: String,
         ) : Group()
 
         data class KmlFolder(
             override val parentId: String?,
-            override val id: String? = null,
-            override val name: String? = null,
+            override val id: String,
+            override val name: String,
         ) : Group()
 
         data class KmlStyle(
-            val parentId: String?,
+            val parentId: String,
             val style: Style,
         ) : KmlEvent
 
         data class KmlStyleMap(
-            val parentId: String?,
+            val parentId: String,
             val styleMap: StyleMap,
         ) : KmlEvent
 
         data class KmlPlacemark(
-            val parentId: String?,
+            val parentId: String,
             val placemark: Placemark,
         ) : KmlEvent
     }
@@ -109,7 +110,7 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodeWith(
         reader: XmlReader,
-        parentId: String? = null
+        parentId: String = "Root",
     ) {
         if (reader.hasNext()) reader.next() else return
 
@@ -136,7 +137,7 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodeStyleMap(
         reader: XmlReader,
-        parentId: String?
+        parentId: String
     ) {
         val styleMap = xml.decodeFromReader<StyleMap>(reader)
         val event = KmlEvent.KmlStyleMap(parentId, styleMap)
@@ -145,7 +146,7 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodeCascadingStyle(
         reader: XmlReader,
-        parentId: String?
+        parentId: String
     ) {
         val id = reader.attributes.find { it.localName == ID_ATTRIBUTE }?.value?.ifEmpty { null }
             ?: return
@@ -159,7 +160,7 @@ internal class KML {
         } while (reader.hasNext() && reader.next() != EventType.END_ELEMENT)
     }
 
-    private suspend fun ProducerScope<KmlEvent>.decodeStyle(reader: XmlReader, parentId: String?) {
+    private suspend fun ProducerScope<KmlEvent>.decodeStyle(reader: XmlReader, parentId: String) {
         val style = xml.decodeFromReader<Style>(reader)
         val event = KmlEvent.KmlStyle(parentId, style)
         send(event)
@@ -167,18 +168,22 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodeFeature(
         reader: XmlReader,
-        parentId: String?,
+        parentId: String,
         isDocument: Boolean
     ) {
         var name: String? = null
         var isEventSend = false
-        val id = reader.attributes.find { it.localName == ID_ATTRIBUTE }?.value?.ifEmpty { null }
+        val id = reader.attributes
+            .find { it.localName == ID_ATTRIBUTE }?.value
+            ?.ifEmpty { null } ?: Random.nextLong().toString()
 
         suspend fun trySendFeatureEvent() {
             if (isEventSend) return // Avoid sending the event multiple times
 
-            val event = if (isDocument) KmlEvent.KmlDocument(parentId, id, name)
-            else KmlEvent.KmlFolder(parentId, id, name)
+            val prefix = if (isDocument) "Document" else "Folder"
+            val finalName = name ?: "$prefix $id"
+            val event = if (isDocument) KmlEvent.KmlDocument(parentId, id, finalName)
+            else KmlEvent.KmlFolder(parentId, id, finalName)
             send(event)
             isEventSend = true
         }
@@ -228,7 +233,7 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodePlacemark(
         reader: XmlReader,
-        parentId: String?
+        parentId: String,
     ) {
         val placemark = xml.decodeFromReader<Placemark>(reader)
         val event = KmlEvent.KmlPlacemark(parentId, placemark)
