@@ -219,6 +219,7 @@ object GeoJsonLayerFactory {
             properties.strokeColor?.let { outlineColor = it }
             properties.fillColor?.let { interiorColor = it }
             properties.strokeWidth?.let { outlineWidth = it.toFloat() }
+            maximumIntermediatePoints = 0 // Disable intermediate points for better performance
 
             isPickInterior = false // Allow picking outline only
 
