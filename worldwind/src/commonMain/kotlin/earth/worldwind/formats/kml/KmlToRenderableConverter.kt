@@ -132,7 +132,7 @@ internal class KmlToRenderableConverter {
             }
 
             is Polygon -> {
-                listOf(createPathFromPolygon(geometry, style, name))
+                listOf(createPolygonFromPolygon(geometry, style, name))
             }
 
             is Point -> {
@@ -145,7 +145,7 @@ internal class KmlToRenderableConverter {
         } ?: emptyList()
     }
 
-    private fun createPathFromLineString(lineString: LineString, style: Style?, name: String?): Renderable {
+    private fun createPathFromLineString(lineString: LineString, style: Style?, name: String?): Path {
         val (positions, isAbsolute) = extractPoints(lineString.coordinates?.value)
 
         return Path(positions).apply {
@@ -176,7 +176,7 @@ internal class KmlToRenderableConverter {
         linearRing: LinearRing,
         style: Style?,
         name: String?
-    ): Renderable {
+    ): Path {
         val (positions, isAbsolute) = extractPoints(linearRing.coordinates?.value)
 
         return Path(positions).apply {
@@ -204,7 +204,7 @@ internal class KmlToRenderableConverter {
     }
 
 
-    private fun createPathFromPolygon(polygon: Polygon, style: Style?, name: String?): Renderable {
+    private fun createPolygonFromPolygon(polygon: Polygon, style: Style?, name: String?): earth.worldwind.shape.Polygon {
         return earth.worldwind.shape.Polygon().apply {
             polygon.extrude?.let { isExtrude = it }
             polygon.tessellate?.let { isFollowTerrain = it }
