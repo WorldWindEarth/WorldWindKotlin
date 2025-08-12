@@ -5,6 +5,7 @@ import earth.worldwind.ogc.GpkgLayerFactory
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class GeoPackageFragment: BasicGlobeFragment() {
     /**
@@ -16,15 +17,17 @@ class GeoPackageFragment: BasicGlobeFragment() {
         // Let the super class (BasicGlobeFragment) do the creation
         val wwd = super.createWorldWindow()
 
-        wwd.mainScope.launch(Dispatchers.IO) {
+        wwd.mainScope.launch {
             try {
-                // Unpack the tutorial GeoPackage asset to the Android application cache. GeoPackage relies on the Android
-                // SQLite library which operates only on files in the local Android filesystem.
-                val geoPackageFile = TutorialUtil.unpackAsset(requireContext(), "geopackage_tutorial.gpkg")
+                val layer = withContext(Dispatchers.IO) {
+                    // Unpack the tutorial GeoPackage asset to the Android application cache. GeoPackage relies on the Android
+                    // SQLite library which operates only on files in the local Android filesystem.
+                    val geoPackageFile = TutorialUtil.unpackAsset(requireContext(), "geopackage_tutorial.gpkg")
 
-                // Create an OGC GeoPackage layer to display a high resolution monochromatic image of Naval Air Station
-                // Oceana in Virginia Beach, VA.
-                val layer = GpkgLayerFactory.createLayer(geoPackageFile.path)
+                    // Create an OGC GeoPackage layer to display a high resolution monochromatic image of Naval Air Station
+                    // Oceana in Virginia Beach, VA.
+                    GpkgLayerFactory.createLayer(geoPackageFile.path)
+                }
 
                 // Add the finished GeoPackage layer to the WorldWindow.
                 wwd.engine.layers.addLayer(layer)

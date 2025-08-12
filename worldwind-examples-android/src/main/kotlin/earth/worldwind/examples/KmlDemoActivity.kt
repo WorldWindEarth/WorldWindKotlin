@@ -8,6 +8,7 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 open class KmlDemoActivity : GeneralGlobeActivity() {
 
@@ -20,10 +21,11 @@ open class KmlDemoActivity : GeneralGlobeActivity() {
    Different placemarks and shapes are loaded from a KML file.
     """.trimIndent()
 
-        wwd.mainScope.launch(Dispatchers.IO) {
+        wwd.mainScope.launch {
             try {
-                val reader = assets.open("KML_Samples.kml").bufferedReader()
-                val layers = KmlLayerFactory.createLayers(reader)
+                val layers = withContext(Dispatchers.IO) {
+                    KmlLayerFactory.createLayers(assets.open("KML_Samples.kml").bufferedReader())
+                }
                 wwd.engine.layers.addAllLayers(layers)
                 wwd.requestRedraw()
             } catch (e: Exception) {

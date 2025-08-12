@@ -8,6 +8,7 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 open class GeoJsonDemoActivity : GeneralGlobeActivity() {
 
@@ -20,12 +21,14 @@ open class GeoJsonDemoActivity : GeneralGlobeActivity() {
    Different placemarks and shapes are loaded from a GeoJson file.
     """.trimIndent()
 
-        wwd.mainScope.launch(Dispatchers.IO) {
+        wwd.mainScope.launch {
             try {
-                val layer = GeoJsonLayerFactory.createLayer(
-                    text = assets.open("GEO_JSON_Samples.json").bufferedReader().readText(),
-                    labelVisibilityThreshold = 18000.0, // Set a visibility threshold for labels
-                )
+                val layer = withContext(Dispatchers.IO) {
+                    GeoJsonLayerFactory.createLayer(
+                        text = assets.open("GEO_JSON_Samples.json").bufferedReader().readText(),
+                        labelVisibilityThreshold = 18000.0, // Set a visibility threshold for labels
+                    )
+                }
                 wwd.engine.layers.addLayer(layer)
                 wwd.requestRedraw()
             } catch (e: Exception) {
