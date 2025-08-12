@@ -63,4 +63,15 @@ package earth.worldwind.util.glu
  * @author Java Port: Nathan Parker Burg, August 2003
  * @author Kotlin Port: Eugene Maksymenko, April 2022
  */
-interface GLUtessellator 
+interface GLUtessellator {
+    fun gluDeleteTess()
+    fun gluTessProperty(which: Int, value: Double)
+    fun gluGetTessProperty(which: Int, value: DoubleArray, value_offset: Int)
+    fun gluTessNormal(x: Double, y: Double, z: Double)
+    fun gluTessCallback(which: Int, aCallback: GLUtessellatorCallback?)
+    fun gluTessVertex(coords: DoubleArray, coords_offset: Int, data: Any?)
+    fun gluTessBeginPolygon(data: Any?)
+    fun gluTessBeginContour()
+    fun gluTessEndContour()
+    fun gluTessEndPolygon()
+}

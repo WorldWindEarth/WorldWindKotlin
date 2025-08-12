@@ -200,11 +200,11 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         }
     }
 
-    fun gluDeleteTess() {
+    override fun gluDeleteTess() {
         requireState(TessState.T_DORMANT)
     }
 
-    fun gluTessProperty(which: Int, value: Double) {
+    override fun gluTessProperty(which: Int, value: Double) {
         when (which) {
             GLU.GLU_TESS_TOLERANCE -> {
                 if (value < 0.0 || value > 1.0) callErrorOrErrorData(GLU.GLU_INVALID_VALUE)
@@ -234,7 +234,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
     /**
      * Returns tessellator property
      */
-    fun gluGetTessProperty(which: Int, value: DoubleArray, value_offset: Int) {
+    override fun gluGetTessProperty(which: Int, value: DoubleArray, value_offset: Int) {
         when (which) {
             GLU.GLU_TESS_TOLERANCE -> value[value_offset] = relTolerance
             GLU.GLU_TESS_WINDING_RULE -> value[value_offset] = windingRule.toDouble()
@@ -246,13 +246,13 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         }
     }
 
-    fun gluTessNormal(x: Double, y: Double, z: Double) {
+    override fun gluTessNormal(x: Double, y: Double, z: Double) {
         normal[0] = x
         normal[1] = y
         normal[2] = z
     }
 
-    fun gluTessCallback(which: Int, aCallback: GLUtessellatorCallback?) {
+    override fun gluTessCallback(which: Int, aCallback: GLUtessellatorCallback?) {
         when (which) {
             GLU.GLU_TESS_BEGIN -> callBegin = aCallback ?: NULL_CB
             GLU.GLU_TESS_BEGIN_DATA -> callBeginData = aCallback ?: NULL_CB
@@ -340,7 +340,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         return true
     }
 
-    fun gluTessVertex(coords: DoubleArray, coords_offset: Int, vertexData: Any?) {
+    override fun gluTessVertex(coords: DoubleArray, coords_offset: Int, vertexData: Any?) {
         var tooLarge = false
         val clamped = DoubleArray(3)
         requireState(TessState.T_IN_CONTOUR)
@@ -383,7 +383,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         }
     }
 
-    fun gluTessBeginPolygon(data: Any?) {
+    override fun gluTessBeginPolygon(data: Any?) {
         requireState(TessState.T_DORMANT)
         state = TessState.T_IN_POLYGON
         cacheCount = 0
@@ -392,7 +392,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         polygonData = data
     }
 
-    fun gluTessBeginContour() {
+    override fun gluTessBeginContour() {
         requireState(TessState.T_IN_POLYGON)
         state = TessState.T_IN_CONTOUR
         lastEdge = null
@@ -406,12 +406,12 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         }
     }
 
-    fun gluTessEndContour() {
+    override fun gluTessEndContour() {
         requireState(TessState.T_IN_CONTOUR)
         state = TessState.T_IN_POLYGON
     }
 
-    fun gluTessEndPolygon() {
+    override fun gluTessEndPolygon() {
         try {
             requireState(TessState.T_IN_POLYGON)
             state = TessState.T_DORMANT

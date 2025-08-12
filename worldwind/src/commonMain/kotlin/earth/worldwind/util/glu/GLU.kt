@@ -97,9 +97,7 @@ object GLU {
      *
      * @see .gluTessCallback gluTessCallback
      */
-    fun gluDeleteTess(tessellator: GLUtessellator) {
-        (tessellator as GLUtessellatorImpl).gluDeleteTess()
-    }
+    fun gluDeleteTess(tessellator: GLUtessellator) = tessellator.gluDeleteTess()
 
     /**
      * **gluTessProperty** is used to control properites stored in a
@@ -180,9 +178,7 @@ object GLU {
      *
      * @see .gluNewTess         gluNewTess
      */
-    fun gluTessProperty(tessellator: GLUtessellator, which: Int, value: Double) {
-        (tessellator as GLUtessellatorImpl).gluTessProperty(which, value)
-    }
+    fun gluTessProperty(tessellator: GLUtessellator, which: Int, value: Double) = tessellator.gluTessProperty(which, value)
 
     /**
      * **gluGetTessProperty** retrieves properties stored in a tessellation
@@ -208,9 +204,7 @@ object GLU {
      */
     fun gluGetTessProperty(
         tessellator: GLUtessellator, which: Int, value: DoubleArray, value_offset: Int
-    ) {
-        (tessellator as GLUtessellatorImpl).gluGetTessProperty(which, value, value_offset)
-    }
+    ) = tessellator.gluGetTessProperty(which, value, value_offset)
 
     /**
      * **gluTessNormal** describes a normal for a polygon that the program is
@@ -247,9 +241,7 @@ object GLU {
      *
      * @see .gluTessEndPolygon   gluTessEndPolygon
      */
-    fun gluTessNormal(tessellator: GLUtessellator, x: Double, y: Double, z: Double) {
-        (tessellator as GLUtessellatorImpl).gluTessNormal(x, y, z)
-    }
+    fun gluTessNormal(tessellator: GLUtessellator, x: Double, y: Double, z: Double) = tessellator.gluTessNormal(x, y, z)
 
     /**
      * **gluTessCallback** is used to indicate a callback to be used by a
@@ -495,9 +487,7 @@ object GLU {
      */
     fun gluTessCallback(
         tessellator: GLUtessellator, which: Int, aCallback: GLUtessellatorCallback?
-    ) {
-        (tessellator as GLUtessellatorImpl).gluTessCallback(which, aCallback)
-    }
+    ) = tessellator.gluTessCallback(which, aCallback)
 
     /**
      * **gluTessVertex** describes a vertex on a polygon that the program
@@ -539,9 +529,7 @@ object GLU {
      */
     fun gluTessVertex(
         tessellator: GLUtessellator, coords: DoubleArray, coords_offset: Int, data: Any
-    ) {
-        (tessellator as GLUtessellatorImpl).gluTessVertex(coords, coords_offset, data)
-    }
+    ) = tessellator.gluTessVertex(coords, coords_offset, data)
 
     /**
      * **gluTessBeginPolygon** and
@@ -591,9 +579,7 @@ object GLU {
      *
      * @see.gluTessEndPolygon gluTessEndPolygon
      */
-    fun gluTessBeginPolygon(tessellator: GLUtessellator, data: Any) {
-        (tessellator as GLUtessellatorImpl).gluTessBeginPolygon(data)
-    }
+    fun gluTessBeginPolygon(tessellator: GLUtessellator, data: Any) = tessellator.gluTessBeginPolygon(data)
 
     /**
      * **gluTessBeginContour** and
@@ -629,9 +615,7 @@ object GLU {
      *
      * @see.gluTessEndPolygon gluTessEndPolygon
      */
-    fun gluTessBeginContour(tessellator: GLUtessellator) {
-        (tessellator as GLUtessellatorImpl).gluTessBeginContour()
-    }
+    fun gluTessBeginContour(tessellator: GLUtessellator) = tessellator.gluTessBeginContour()
 
     /**
      * **gluTessEndContour** and
@@ -664,9 +648,7 @@ object GLU {
      *
      * @see .gluTessEndPolygon   gluTessEndPolygon
      */
-    fun gluTessEndContour(tessellator: GLUtessellator) {
-        (tessellator as GLUtessellatorImpl).gluTessEndContour()
-    }
+    fun gluTessEndContour(tessellator: GLUtessellator) = tessellator.gluTessEndContour()
 
     /**
      * **gluTessEndPolygon** and
@@ -701,9 +683,7 @@ object GLU {
      *
      * @see .gluTessBeginPolygon gluTessBeginPolygon
      */
-    fun gluTessEndPolygon(tessellator: GLUtessellator) {
-        (tessellator as GLUtessellatorImpl).gluTessEndPolygon()
-    }
+    fun gluTessEndPolygon(tessellator: GLUtessellator) = tessellator.gluTessEndPolygon()
 
     //----------------------------------------------------------------------
     // GLU constants
