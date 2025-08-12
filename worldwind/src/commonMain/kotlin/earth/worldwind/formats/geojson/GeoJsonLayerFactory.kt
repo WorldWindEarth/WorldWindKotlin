@@ -10,6 +10,7 @@ import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.TextAttributes
+import io.data2viz.geojson.Feature
 import io.data2viz.geojson.FeatureCollection
 import io.data2viz.geojson.Geometry
 import io.data2viz.geojson.GeometryCollection
@@ -40,7 +41,18 @@ object GeoJsonLayerFactory {
         }
 
         val renderables = withContext(Dispatchers.Default) {
-            val featureCollection = text.toGeoJsonObject() as FeatureCollection
+            val featureCollection = when (val geoJsonObject = text.toGeoJsonObject()) {
+                is FeatureCollection -> geoJsonObject
+                else -> {
+                    val feature = when (geoJsonObject) {
+                        is Feature -> geoJsonObject
+                        is Geometry -> Feature(geoJsonObject)
+                        else -> null
+                    }
+                    val array = feature?.let { arrayOf(feature) } ?: emptyArray()
+                    FeatureCollection(array)
+                }
+            }
             val features = featureCollection.features
 
             val geometriesWithProperties = features.associate { feature ->
@@ -162,42 +174,47 @@ object GeoJsonLayerFactory {
 
             is Point -> {
                 getPositionFrom(geometry.coordinates)?.let { position ->
-                    val renderable = if (properties.icon != null) {
-                        Placemark(position, label = properties.name).apply {
-                            // Display name is used to search renderable in layer
-                            displayName = properties.name
-                            altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                            attributes.apply {
-                                try {
-                                    properties.icon?.let {
-                                        if (isValidHttpsUrl(it)) {
-                                            imageSource = ImageSource.fromUrlString(it)
+                    val renderable =
+                        if (properties.icon != null || properties.name.isNullOrBlank()) {
+                            Placemark(position, label = properties.name).apply {
+                                // Display name is used to search renderable in layer
+                                displayName = properties.name
+                                altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
+                                attributes.apply {
+                                    try {
+                                        properties.icon?.let {
+                                            if (isValidHttpsUrl(it)) {
+                                                imageSource = ImageSource.fromUrlString(it)
 
-                                            properties.iconOffset?.let { (x, y) ->
-                                                attributes.imageOffset.set(
-                                                    OffsetMode.PIXELS, x,
-                                                    OffsetMode.INSET_PIXELS, y,
-                                                )
-                                                attributes.labelAttributes.textOffset.set(
-                                                    OffsetMode.PIXELS, -x / 2.0,
-                                                    OffsetMode.INSET_PIXELS, y / 2.0
-                                                )
+                                                properties.iconOffset?.let { (x, y) ->
+                                                    attributes.imageOffset.set(
+                                                        OffsetMode.PIXELS, x,
+                                                        OffsetMode.INSET_PIXELS, y,
+                                                    )
+                                                    attributes.labelAttributes.textOffset.set(
+                                                        OffsetMode.PIXELS, -x / 2.0,
+                                                        OffsetMode.INSET_PIXELS, y / 2.0
+                                                    )
+                                                }
                                             }
                                         }
+                                    } catch (e: Exception) {
+                                        // cant load image, ignore
                                     }
-                                } catch (e: Exception) {
-                                    // cant load image, ignore
-                                }
 
-                                labelAttributes.applyStyle(properties)
+                                    if (imageSource == null) {
+                                        imageScale = 24.0 // Default scale for placemark icon
+                                    }
+
+                                    labelAttributes.applyStyle(properties)
+                                }
+                            }
+                        } else {
+                            Label(position, properties.name).apply {
+                                altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
+                                attributes.applyStyle(properties)
                             }
                         }
-                    } else {
-                        Label(position, properties.name).apply {
-                            altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                            attributes.applyStyle(properties)
-                        }
-                    }
                     listOf(renderable)
                 }
             }
