@@ -99,15 +99,19 @@ internal object Sweep {
      */
     private fun addWinding(eDst: GLUhalfEdge, eSrc: GLUhalfEdge) {
         eDst.winding += eSrc.winding
-        eDst.sym!!.winding += eSrc.sym!!.winding
+        eDst.sym.winding += eSrc.sym.winding
     }
 
     private fun regionBelow(r: ActiveRegion): ActiveRegion {
-        return Dict.dictKey(Dict.dictPred(r.nodeUp!!)) as ActiveRegion
+        return Dict.dictKey(Dict.dictPred(r.nodeUp)) as ActiveRegion
     }
 
-    private fun regionAbove(r: ActiveRegion): ActiveRegion? {
-        return Dict.dictKey(Dict.dictSucc(r.nodeUp!!)) as ActiveRegion?
+    private fun regionAbove(r: ActiveRegion): ActiveRegion {
+        return Dict.dictKey(Dict.dictSucc(r.nodeUp)) as ActiveRegion
+    }
+
+    private fun regionAboveOrNull(r: ActiveRegion): ActiveRegion? {
+        return Dict.dictKey(Dict.dictSucc(r.nodeUp)) as ActiveRegion?
     }
 
     /**
@@ -122,33 +126,31 @@ internal object Sweep {
      * we sort the edges by slope (they would otherwise compare equally).
      */
     fun edgeLeq(tess: GLUtessellatorImpl, reg1: ActiveRegion, reg2: ActiveRegion): Boolean {
-        val event = tess.event!!
+        val event = tess.event
         val e1 = reg1.eUp
         val e2 = reg2.eUp
-        if (e1.sym?.org === event) {
-            return if (e2.sym?.org === event) {
+        if (e1.sym.org === event) {
+            return if (e2.sym.org === event) {
                 /**
                  * Two edges right of the sweep line which meet at the sweep event.
                  * Sort them by slope.
                  */
-                if (Geom.vertLeq(e1.org!!, e2.org!!)) {
-                    Geom.edgeSign(e2.sym?.org!!, e1.org!!, e2.org!!) <= 0
-                } else Geom.edgeSign(e1.sym?.org!!, e2.org!!, e1.org!!) >= 0
-            } else Geom.edgeSign(e2.sym?.org!!, event, e2.org!!) <= 0
+                if (Geom.vertLeq(e1.org, e2.org)) {
+                    Geom.edgeSign(e2.sym.org, e1.org, e2.org) <= 0
+                } else Geom.edgeSign(e1.sym.org, e2.org, e1.org) >= 0
+            } else Geom.edgeSign(e2.sym.org, event, e2.org) <= 0
         }
-        if (e2.sym?.org === event) {
-            return Geom.edgeSign(e1.sym?.org!!, event, e1.org!!) >= 0
-        }
+        if (e2.sym.org === event) return Geom.edgeSign(e1.sym.org, event, e1.org) >= 0
 
         /* General case - compute signed distance *from* e1, e2 to event */
-        val t1 = Geom.edgeEval(e1.sym?.org!!, event, e1.org!!)
-        val t2 = Geom.edgeEval(e2.sym?.org!!, event, e2.org!!)
+        val t1 = Geom.edgeEval(e1.sym.org, event, e1.org)
+        val t2 = Geom.edgeEval(e2.sym.org, event, e2.org)
         return t1 >= t2
     }
 
     fun deleteRegion(reg: ActiveRegion) {
         reg.eUp.activeRegion = null
-        Dict.dictDelete(reg.nodeUp!!) /* __gl_dictListDelete */
+        Dict.dictDelete(reg.nodeUp) /* glDictListDelete */
     }
 
     /**
@@ -162,13 +164,13 @@ internal object Sweep {
         return true
     }
 
-    fun topLeftRegion(reg: ActiveRegion): ActiveRegion? {
+    fun topLeftRegion(reg: ActiveRegion): ActiveRegion {
         var reg = reg
         val org = reg.eUp.org
 
         /* Find the region above the uppermost edge with the same origin */
         do {
-            reg = regionAbove(reg)!!
+            reg = regionAbove(reg)
         } while (reg.eUp.org === org)
 
         /**
@@ -176,21 +178,21 @@ internal object Sweep {
          * now is the time to fix it.
          */
         if (reg.fixUpperEdge) {
-            val e = Mesh.glMeshConnect(regionBelow(reg).eUp.sym!!, reg.eUp.lNext!!)
-            if (!fixUpperEdge(reg, e)) return null
-            reg = regionAbove(reg)!!
+            val e = Mesh.glMeshConnect(regionBelow(reg).eUp.sym, reg.eUp.lNext)
+            if (!fixUpperEdge(reg, e)) error("This should never happen") //return null
+            reg = regionAbove(reg)
         }
         return reg
     }
 
     fun topRightRegion(reg: ActiveRegion): ActiveRegion {
         var reg = reg
-        val dst = reg.eUp.sym?.org
+        val dst = reg.eUp.sym.org
 
         /* Find the region above the uppermost edge with the same destination */
         do {
-            reg = regionAbove(reg)!!
-        } while (reg.eUp.sym?.org === dst)
+            reg = regionAbove(reg)
+        } while (reg.eUp.sym.org === dst)
         return reg
     }
 
@@ -206,8 +208,8 @@ internal object Sweep {
         eNewUp: GLUhalfEdge
     ): ActiveRegion {
         val regNew = ActiveRegion(eNewUp)
-        /* __gl_dictListInsertBefore */
-        regNew.nodeUp = Dict.dictInsertBefore(tess.dict!!, regAbove.nodeUp!!, regNew)
+        /* glDictListInsertBefore */
+        regNew.nodeUp = Dict.dictInsertBefore(tess.dict, regAbove.nodeUp, regNew)
         regNew.fixUpperEdge = false
         regNew.sentinel = false
         regNew.dirty = false
@@ -228,7 +230,7 @@ internal object Sweep {
     }
 
     fun computeWinding(tess: GLUtessellatorImpl, reg: ActiveRegion) {
-        reg.windingNumber = regionAbove(reg)!!.windingNumber + reg.eUp.winding
+        reg.windingNumber = regionAbove(reg).windingNumber + reg.eUp.winding
         reg.inside = isWindingInside(tess, reg.windingNumber)
     }
 
@@ -241,9 +243,9 @@ internal object Sweep {
      */
     fun finishRegion(reg: ActiveRegion)  {
         val e = reg.eUp
-        val f = e.lFace!!
+        val f = e.lFace
         f.inside = reg.inside
-        f.anEdge = e /* optimization for __gl_meshTessellateMonoRegion() */
+        f.anEdge = e /* optimization for glMeshTessellateMonoRegion() */
         deleteRegion(reg)
     }
 
@@ -282,13 +284,13 @@ internal object Sweep {
                  * If the edge below was a temporary edge introduced by
                  * ConnectRightVertex, now is the time to fix it.
                  */
-                e = Mesh.glMeshConnect(ePrev.oNext?.sym!!, e.sym!!)
+                e = Mesh.glMeshConnect(ePrev.oNext.sym, e.sym)
                 if (!fixUpperEdge(reg, e)) throw RuntimeException()
             }
 
             /* Relink edges so that ePrev.Onext == e */
             if (ePrev.oNext !== e) {
-                if (!Mesh.glMeshSplice(e.sym?.lNext!!, e)) throw RuntimeException()
+                if (!Mesh.glMeshSplice(e.sym.lNext, e)) throw RuntimeException()
                 if (!Mesh.glMeshSplice(ePrev, e)) throw RuntimeException()
             }
             finishRegion(regPrev) /* may change reg.eUp */
@@ -313,14 +315,13 @@ internal object Sweep {
         eFirst: GLUhalfEdge, eLast: GLUhalfEdge?, eTopLeft: GLUhalfEdge?,
         cleanUp: Boolean
     ) {
-        var eTopLeft = eTopLeft
         var firstTime = true
 
         /* Insert the new right-going edges in the dictionary */
         var e = eFirst
         do {
-            addRegionBelow(tess, regUp, e.sym!!)
-            e = e.oNext!!
+            addRegionBelow(tess, regUp, e.sym)
+            e = e.oNext
         } while (e !== eLast)
 
         /**
@@ -328,20 +329,17 @@ internal object Sweep {
          * updating the winding numbers of each region, and re-linking the mesh
          * edges to match the dictionary ordering (if necessary).
          */
-        if (eTopLeft == null) {
-            eTopLeft = regionBelow(regUp).eUp.sym?.oNext
-        }
         var regPrev = regUp
-        var ePrev = eTopLeft!!
+        var ePrev = eTopLeft ?: regionBelow(regUp).eUp.sym.oNext
         var reg: ActiveRegion
         while (true) {
             reg = regionBelow(regPrev)
-            e = reg.eUp.sym!!
+            e = reg.eUp.sym
             if (e.org !== ePrev.org) break
             if (e.oNext !== ePrev) {
                 /* Unlink e from its current position, and relink below ePrev */
-                if (!Mesh.glMeshSplice(e.sym?.lNext!!, e)) throw RuntimeException()
-                if (!Mesh.glMeshSplice(ePrev.sym?.lNext!!, e)) throw RuntimeException()
+                if (!Mesh.glMeshSplice(e.sym.lNext, e)) throw RuntimeException()
+                if (!Mesh.glMeshSplice(ePrev.sym.lNext, e)) throw RuntimeException()
             }
             /* Compute the winding number and "inside" flag for the new regions */
             reg.windingNumber = regPrev.windingNumber - e.winding
@@ -349,7 +347,7 @@ internal object Sweep {
 
             /**
              * Check for two outgoing edges with same slope -- process these
-             * before any intersection tests (see example in __gl_computeInterior).
+             * before any intersection tests (see example in glComputeInterior).
              */
             regPrev.dirty = true
             if (!firstTime && checkForRightSplice(tess, regPrev)) {
@@ -403,9 +401,9 @@ internal object Sweep {
     fun spliceMergeVertices(tess: GLUtessellatorImpl, e1: GLUhalfEdge, e2: GLUhalfEdge) {
         val data = arrayOfNulls<Any>(4)
         val weights = floatArrayOf(0.5f, 0.5f, 0.0f, 0.0f)
-        data[0] = e1.org?.data
-        data[1] = e2.org?.data
-        callCombine(tess, e1.org!!, data, weights, false)
+        data[0] = e1.org.data
+        data[1] = e2.org.data
+        callCombine(tess, e1.org, data, weights, false)
         if (!Mesh.glMeshSplice(e1, e2)) throw RuntimeException()
     }
 
@@ -486,29 +484,29 @@ internal object Sweep {
         val regLo = regionBelow(regUp)
         val eUp = regUp.eUp
         val eLo = regLo.eUp
-        if (Geom.vertLeq(eUp.org!!, eLo.org!!)) {
-            if (Geom.edgeSign(eLo.sym?.org!!, eUp.org!!, eLo.org!!) > 0) return false
+        if (Geom.vertLeq(eUp.org, eLo.org)) {
+            if (Geom.edgeSign(eLo.sym.org, eUp.org, eLo.org) > 0) return false
 
             /* eUp.Org appears to be below eLo */
-            if (!Geom.vertEq(eUp.org!!, eLo.org!!)) {
+            if (!Geom.vertEq(eUp.org, eLo.org)) {
                 /* Splice eUp.Org into eLo */
-                Mesh.glMeshSplitEdge(eLo.sym!!)
-                if (!Mesh.glMeshSplice(eUp, eLo.sym?.lNext!!)) throw RuntimeException()
+                Mesh.glMeshSplitEdge(eLo.sym)
+                if (!Mesh.glMeshSplice(eUp, eLo.sym.lNext)) throw RuntimeException()
                 regLo.dirty = true
                 regUp.dirty = regLo.dirty
             } else if (eUp.org !== eLo.org) {
                 /* merge the two vertices, discarding eUp.Org */
-                tess.pq?.pqDelete(eUp.org?.pqHandle!!) /* __gl_pqSortDelete */
-                spliceMergeVertices(tess, eLo.sym?.lNext!!, eUp)
+                tess.pq.pqDelete(eUp.org.pqHandle) /* glPqSortDelete */
+                spliceMergeVertices(tess, eLo.sym.lNext, eUp)
             }
         } else {
-            if (Geom.edgeSign(eUp.sym?.org!!, eLo.org!!, eUp.org!!) < 0) return false
+            if (Geom.edgeSign(eUp.sym.org, eLo.org, eUp.org) < 0) return false
 
             /* eLo.Org appears to be above eUp, so splice eLo.Org into eUp */
             regUp.dirty = true
-            regionAbove(regUp)?.dirty = regUp.dirty
-            Mesh.glMeshSplitEdge(eUp.sym!!)
-            if (!Mesh.glMeshSplice(eLo.sym?.lNext!!, eUp)) throw RuntimeException()
+            regionAbove(regUp).dirty = regUp.dirty
+            Mesh.glMeshSplitEdge(eUp.sym)
+            if (!Mesh.glMeshSplice(eLo.sym.lNext, eUp)) throw RuntimeException()
         }
         return true
     }
@@ -535,24 +533,24 @@ internal object Sweep {
         val regLo = regionBelow(regUp)
         val eUp = regUp.eUp
         val eLo = regLo.eUp
-        if (Geom.vertLeq(eUp.sym?.org!!, eLo.sym?.org!!)) {
-            if (Geom.edgeSign(eUp.sym?.org!!, eLo.sym?.org!!, eUp.org!!) < 0) return false
+        if (Geom.vertLeq(eUp.sym.org, eLo.sym.org)) {
+            if (Geom.edgeSign(eUp.sym.org, eLo.sym.org, eUp.org) < 0) return false
 
             /* eLo.Sym.Org is above eUp, so splice eLo.Sym.Org into eUp */
             regUp.dirty = true
-            regionAbove(regUp)?.dirty = regUp.dirty
+            regionAbove(regUp).dirty = regUp.dirty
             val e = Mesh.glMeshSplitEdge(eUp)
-            if (!Mesh.glMeshSplice(eLo.sym!!, e)) throw RuntimeException()
-            e.lFace?.inside = regUp.inside
+            if (!Mesh.glMeshSplice(eLo.sym, e)) throw RuntimeException()
+            e.lFace.inside = regUp.inside
         } else {
-            if (Geom.edgeSign(eLo.sym?.org!!, eUp.sym?.org!!, eLo.org!!) > 0) return false
+            if (Geom.edgeSign(eLo.sym.org, eUp.sym.org, eLo.org) > 0) return false
 
             /* eUp.Sym.Org is below eLo, so splice eUp.Sym.Org into eLo */
             regLo.dirty = true
             regUp.dirty = regLo.dirty
             val e = Mesh.glMeshSplitEdge(eLo)
-            if (!Mesh.glMeshSplice(eUp.lNext!!, eLo.sym!!)) throw RuntimeException()
-            e.sym?.lFace?.inside = regUp.inside
+            if (!Mesh.glMeshSplice(eUp.lNext, eLo.sym)) throw RuntimeException()
+            e.sym.lFace.inside = regUp.inside
         }
         return true
     }
@@ -571,10 +569,10 @@ internal object Sweep {
         var regLo = regionBelow(regUp)
         var eUp = regUp.eUp
         var eLo = regLo.eUp
-        val orgUp = eUp.org!!
-        val orgLo = eLo.org!!
-        val dstUp = eUp.sym?.org!!
-        val dstLo = eLo.sym?.org!!
+        val orgUp = eUp.org
+        val orgLo = eLo.org
+        val dstUp = eUp.sym.org
+        val dstLo = eLo.sym.org
         val isect = GLUvertex()
         if (orgUp === orgLo) return false /* right endpoints are the same */
         val tMinUp = orgUp.t.coerceAtMost(dstUp.t)
@@ -589,7 +587,7 @@ internal object Sweep {
         /* At this point the edges intersect, at least marginally */
         debugEvent(tess)
         Geom.edgeIntersect(dstUp, orgUp, dstLo, orgLo, isect)
-        if (Geom.vertLeq(isect, tess.event!!)) {
+        if (Geom.vertLeq(isect, tess.event)) {
             /**
              * The intersection point lies slightly to the left of the sweep line,
              * so move it until it''s slightly to the right of the sweep line.
@@ -597,8 +595,8 @@ internal object Sweep {
              * in the first place).  The easiest and safest thing to do is
              * replace the intersection by tess.event.
              */
-            isect.s = tess.event!!.s
-            isect.t = tess.event!!.t
+            isect.s = tess.event.s
+            isect.t = tess.event.t
         }
         /**
          * Similarly, if the computed intersection lies to the right of the
@@ -617,10 +615,10 @@ internal object Sweep {
             checkForRightSplice(tess, regUp)
             return false
         }
-        if ((!Geom.vertEq(dstUp, tess.event!!)
-                    && Geom.edgeSign(dstUp, tess.event!!, isect) >= 0)
-            || (!Geom.vertEq(dstLo, tess.event!!)
-                    && Geom.edgeSign(dstLo, tess.event!!, isect) <= 0)
+        if ((!Geom.vertEq(dstUp, tess.event)
+                    && Geom.edgeSign(dstUp, tess.event, isect) >= 0)
+            || (!Geom.vertEq(dstLo, tess.event)
+                    && Geom.edgeSign(dstLo, tess.event, isect) <= 0)
         ) {
             /**
              * Very unusual -- the new upper or lower edge would pass on the
@@ -629,24 +627,24 @@ internal object Sweep {
              */
             if (dstLo === tess.event) {
                 /* Splice dstLo into eUp, and process the new region(s) */
-                Mesh.glMeshSplitEdge(eUp.sym!!)
-                if (!Mesh.glMeshSplice(eLo.sym!!, eUp)) throw RuntimeException()
-                regUp = topLeftRegion(regUp)!!
+                Mesh.glMeshSplitEdge(eUp.sym)
+                if (!Mesh.glMeshSplice(eLo.sym, eUp)) throw RuntimeException()
+                regUp = topLeftRegion(regUp)
                 eUp = regionBelow(regUp).eUp
                 finishLeftRegions(regionBelow(regUp), regLo)
-                addRightEdges(tess, regUp, eUp.sym?.lNext!!, eUp, eUp, true)
+                addRightEdges(tess, regUp, eUp.sym.lNext, eUp, eUp, true)
                 return true
             }
             if (dstUp === tess.event) {
                 /* Splice dstUp into eLo, and process the new region(s) */
-                Mesh.glMeshSplitEdge(eLo.sym!!)
-                if (!Mesh.glMeshSplice(eUp.lNext!!, eLo.sym?.lNext!!)) throw RuntimeException()
+                Mesh.glMeshSplitEdge(eLo.sym)
+                if (!Mesh.glMeshSplice(eUp.lNext, eLo.sym.lNext)) throw RuntimeException()
                 regLo = regUp
                 regUp = topRightRegion(regUp)
-                val e = regionBelow(regUp).eUp.sym?.oNext
-                regLo.eUp = eLo.sym?.lNext!!
+                val e = regionBelow(regUp).eUp.sym.oNext
+                regLo.eUp = eLo.sym.lNext
                 eLo = finishLeftRegions(regLo, null)
-                addRightEdges(tess, regUp, eLo.oNext!!, eUp.sym?.oNext, e, true)
+                addRightEdges(tess, regUp, eLo.oNext, eUp.sym.oNext, e, true)
                 return true
             }
             /**
@@ -654,19 +652,19 @@ internal object Sweep {
              * edge passes on the wrong side of tess.event, split it
              * (and wait for ConnectRightVertex to splice it appropriately).
              */
-            if (Geom.edgeSign(dstUp, tess.event!!, isect) >= 0) {
+            if (Geom.edgeSign(dstUp, tess.event, isect) >= 0) {
                 regUp.dirty = true
-                regionAbove(regUp)?.dirty = regUp.dirty
-                Mesh.glMeshSplitEdge(eUp.sym!!)
-                eUp.org?.s = tess.event!!.s
-                eUp.org?.t = tess.event!!.t
+                regionAbove(regUp).dirty = regUp.dirty
+                Mesh.glMeshSplitEdge(eUp.sym)
+                eUp.org.s = tess.event.s
+                eUp.org.t = tess.event.t
             }
-            if (Geom.edgeSign(dstLo, tess.event!!, isect) <= 0) {
+            if (Geom.edgeSign(dstLo, tess.event, isect) <= 0) {
                 regLo.dirty = true
                 regUp.dirty = regLo.dirty
-                Mesh.glMeshSplitEdge(eLo.sym!!)
-                eLo.org?.s = tess.event!!.s
-                eLo.org?.t = tess.event!!.t
+                Mesh.glMeshSplitEdge(eLo.sym)
+                eLo.org.s = tess.event.s
+                eLo.org.t = tess.event.t
             }
             /* leave the rest for ConnectRightVertex */
             return false
@@ -681,16 +679,16 @@ internal object Sweep {
          * the mesh (ie. eUp.Lface) to be smaller than the faces in the
          * unprocessed original contours (which will be eLo.Sym.Lnext.Lface).
          */
-        Mesh.glMeshSplitEdge(eUp.sym!!)
-        Mesh.glMeshSplitEdge(eLo.sym!!)
-        if (!Mesh.glMeshSplice(eLo.sym?.lNext!!, eUp)) throw RuntimeException()
-        eUp.org?.s = isect.s
-        eUp.org?.t = isect.t
-        eUp.org?.pqHandle = tess.pq!!.pqInsert(eUp.org) /* __gl_pqSortInsert */
-        getIntersectData(tess, eUp.org!!, orgUp, dstUp, orgLo, dstLo)
+        Mesh.glMeshSplitEdge(eUp.sym)
+        Mesh.glMeshSplitEdge(eLo.sym)
+        if (!Mesh.glMeshSplice(eLo.sym.lNext, eUp)) throw RuntimeException()
+        eUp.org.s = isect.s
+        eUp.org.t = isect.t
+        eUp.org.pqHandle = tess.pq.pqInsert(eUp.org) /* glPqSortInsert */
+        getIntersectData(tess, eUp.org, orgUp, dstUp, orgLo, dstLo)
         regLo.dirty = true
         regUp.dirty = regLo.dirty
-        regionAbove(regUp)?.dirty = regUp.dirty
+        regionAbove(regUp).dirty = regUp.dirty
         return false
     }
 
@@ -714,13 +712,13 @@ internal object Sweep {
             }
             if (!regUp.dirty) {
                 regLo = regUp
-                regUp = regionAbove(regUp) ?: return
+                regUp = regionAboveOrNull(regUp) ?: return
                 if (!regUp.dirty) return /* We've walked all the dirty regions */
             }
             regUp.dirty = false
             var eUp = regUp.eUp
             var eLo = regLo.eUp
-            if (eUp.sym?.org !== eLo.sym?.org) {
+            if (eUp.sym.org !== eLo.sym.org) {
                 /* Check that the edge ordering is obeyed at the Dst vertices. */
                 if (checkForLeftSplice(regUp)) {
 
@@ -737,14 +735,14 @@ internal object Sweep {
                     } else if (regUp.fixUpperEdge) {
                         deleteRegion(regUp)
                         if (!Mesh.glMeshDelete(eUp)) throw RuntimeException()
-                        regUp = regionAbove(regLo)!!
+                        regUp = regionAbove(regLo)
                         eUp = regUp.eUp
                     }
                 }
             }
             if (eUp.org !== eLo.org) {
-                if (eUp.sym?.org !== eLo.sym?.org && !regUp.fixUpperEdge && !regLo.fixUpperEdge
-                    && (eUp.sym?.org === tess.event || eLo.sym?.org === tess.event)
+                if (eUp.sym.org !== eLo.sym.org && !regUp.fixUpperEdge && !regLo.fixUpperEdge
+                    && (eUp.sym.org === tess.event || eLo.sym.org === tess.event)
                 ) {
                     /**
                      * When all else fails in CheckForIntersect(), it uses tess.event
@@ -767,12 +765,12 @@ internal object Sweep {
                     checkForRightSplice(tess, regUp)
                 }
             }
-            if (eUp.org === eLo.org && eUp.sym?.org === eLo.sym?.org) {
+            if (eUp.org === eLo.org && eUp.sym.org === eLo.sym.org) {
                 /* A degenerate loop consisting of only two edges -- delete it. */
                 addWinding(eLo, eUp)
                 deleteRegion(regUp)
                 if (!Mesh.glMeshDelete(eUp)) throw RuntimeException()
-                regUp = regionAbove(regLo)!!
+                regUp = regionAbove(regLo)
             }
         }
     }
@@ -814,12 +812,12 @@ internal object Sweep {
     ) {
         var regUp = regUp
         var eBottomLeft = eBottomLeft
-        var eTopLeft = eBottomLeft.oNext!!
+        var eTopLeft = eBottomLeft.oNext
         val regLo = regionBelow(regUp)
         val eUp = regUp.eUp
         val eLo = regLo.eUp
         var degenerate = false
-        if (eUp.sym?.org !== eLo.sym?.org) {
+        if (eUp.sym.org !== eLo.sym.org) {
             checkForIntersect(tess, regUp)
         }
 
@@ -827,20 +825,20 @@ internal object Sweep {
          * Possible new degeneracies: upper or lower edge of regUp may pass
          * through vEvent, or may coincide with new intersection vertex
          */
-        if (Geom.vertEq(eUp.org!!, tess.event!!)) {
-            if (!Mesh.glMeshSplice(eTopLeft.sym?.lNext!!, eUp)) throw RuntimeException()
-            regUp = topLeftRegion(regUp)!!
+        if (Geom.vertEq(eUp.org, tess.event)) {
+            if (!Mesh.glMeshSplice(eTopLeft.sym.lNext, eUp)) throw RuntimeException()
+            regUp = topLeftRegion(regUp)
             eTopLeft = regionBelow(regUp).eUp
             finishLeftRegions(regionBelow(regUp), regLo)
             degenerate = true
         }
-        if (Geom.vertEq(eLo.org!!, tess.event!!)) {
-            if (!Mesh.glMeshSplice(eBottomLeft, eLo.sym?.lNext!!)) throw RuntimeException()
+        if (Geom.vertEq(eLo.org, tess.event)) {
+            if (!Mesh.glMeshSplice(eBottomLeft, eLo.sym.lNext)) throw RuntimeException()
             eBottomLeft = finishLeftRegions(regLo, null)
             degenerate = true
         }
         if (degenerate) {
-            addRightEdges(tess, regUp, eBottomLeft.oNext!!, eTopLeft, eTopLeft, true)
+            addRightEdges(tess, regUp, eBottomLeft.oNext, eTopLeft, eTopLeft, true)
             return
         }
 
@@ -848,15 +846,15 @@ internal object Sweep {
          * Non-degenerate situation -- need to add a temporary, fixable edge.
          * Connect to the closer of eLo.Org, eUp.Org.
          */
-        var eNew = if (Geom.vertLeq(eLo.org!!, eUp.org!!)) eLo.sym?.lNext!! else eUp
-        eNew = Mesh.glMeshConnect(eBottomLeft.oNext?.sym!!, eNew)
+        var eNew = if (Geom.vertLeq(eLo.org, eUp.org)) eLo.sym.lNext else eUp
+        eNew = Mesh.glMeshConnect(eBottomLeft.oNext.sym, eNew)
 
         /**
          * Prevent cleanup, otherwise eNew might disappear before we've even
          * had a chance to mark it as a temporary edge.
          */
         addRightEdges(tess, regUp, eNew, eNew.oNext, eNew.oNext, false)
-        eNew.sym?.activeRegion?.fixUpperEdge = true
+        eNew.sym.activeRegion?.fixUpperEdge = true
         walkDirtyRegions(tess, regUp)
     }
 
@@ -880,31 +878,30 @@ internal object Sweep {
     ) {
         var regUp = regUp
         val e = regUp.eUp
-        if (Geom.vertEq(e.org!!, vEvent)) {
+        if (Geom.vertEq(e.org, vEvent)) {
             /**
              * e.Org is an unprocessed vertex - just combine them, and wait
              * for e.Org to be pulled from the queue
              */
-            spliceMergeVertices(tess, e, vEvent.anEdge!!)
+            spliceMergeVertices(tess, e, vEvent.anEdge)
             return
         }
-        if (!Geom.vertEq(e.sym?.org!!, vEvent)) {
+        if (!Geom.vertEq(e.sym.org, vEvent)) {
             /* General case -- splice vEvent into edge e which passes through it */
-            Mesh.glMeshSplitEdge(e.sym!!)
+            Mesh.glMeshSplitEdge(e.sym)
             if (regUp.fixUpperEdge) {
                 /* This edge was fixable -- delete unused portion of original edge */
-                if (!Mesh.glMeshDelete(e.oNext!!)) throw RuntimeException()
+                if (!Mesh.glMeshDelete(e.oNext)) throw RuntimeException()
                 regUp.fixUpperEdge = false
             }
-            if (!Mesh.glMeshSplice(vEvent.anEdge!!, e)) throw RuntimeException()
+            if (!Mesh.glMeshSplice(vEvent.anEdge, e)) throw RuntimeException()
             sweepEvent(tess, vEvent) /* recurse */
             return
         }
         regUp = topRightRegion(regUp)
         val reg = regionBelow(regUp)
-        var eTopRight = reg.eUp.sym!!
+        var eTopRight = reg.eUp.sym
         val eLast = eTopRight.oNext
-        var eTopLeft = eLast
         if (reg.fixUpperEdge) {
             /**
              * Here e.Sym.Org has only a single fixable edge going right.
@@ -912,14 +909,12 @@ internal object Sweep {
              */
             deleteRegion(reg)
             if (!Mesh.glMeshDelete(eTopRight)) throw RuntimeException()
-            eTopRight = eTopLeft?.sym?.lNext!!
+            eTopRight = eLast.sym.lNext
         }
-        if (!Mesh.glMeshSplice(vEvent.anEdge!!, eTopRight)) throw RuntimeException()
-        if (!Geom.edgeGoesLeft(eTopLeft!!)) {
-            /* e.Sym.Org had no left-going edges -- indicate this to AddRightEdges() */
-            eTopLeft = null
-        }
-        addRightEdges(tess, regUp, eTopRight.oNext!!, eLast, eTopLeft, true)
+        if (!Mesh.glMeshSplice(vEvent.anEdge, eTopRight)) throw RuntimeException()
+        /* e.Sym.Org had no left-going edges -- indicate this to AddRightEdges() */
+        val eTopLeft = if (Geom.edgeGoesLeft(eLast)) eLast else null
+        addRightEdges(tess, regUp, eTopRight.oNext, eLast, eTopLeft, true)
     }
 
     /**
@@ -939,14 +934,14 @@ internal object Sweep {
      */
     fun connectLeftVertex(tess: GLUtessellatorImpl, vEvent: GLUvertex) {
         /* Get a pointer to the active region containing vEvent */
-        val tmp = ActiveRegion(vEvent.anEdge?.sym!!)
-        val regUp = Dict.dictKey(Dict.dictSearch(tess.dict!!, tmp)) as ActiveRegion
+        val tmp = ActiveRegion(vEvent.anEdge.sym)
+        val regUp = Dict.dictKey(Dict.dictSearch(tess.dict, tmp)) as ActiveRegion
         val regLo = regionBelow(regUp)
         val eUp = regUp.eUp
         val eLo = regLo.eUp
 
         /* Try merging with U or L first */
-        if (Geom.edgeSign(eUp.sym?.org!!, vEvent, eUp.org!!) == 0.0) {
+        if (Geom.edgeSign(eUp.sym.org, vEvent, eUp.org) == 0.0) {
             connectLeftDegenerate(tess, regUp, vEvent)
             return
         }
@@ -955,13 +950,13 @@ internal object Sweep {
          * Connect vEvent to rightmost processed vertex of either chain.
          * e.Sym.Org is the vertex that we will connect to vEvent.
          */
-        val reg = if (Geom.vertLeq(eLo.sym?.org!!, eUp.sym?.org!!)) regUp else regLo
+        val reg = if (Geom.vertLeq(eLo.sym.org, eUp.sym.org)) regUp else regLo
         if (regUp.inside || reg.fixUpperEdge) {
             val eNew = if (reg === regUp) {
-                Mesh.glMeshConnect(vEvent.anEdge?.sym!!, eUp.lNext!!)
+                Mesh.glMeshConnect(vEvent.anEdge.sym, eUp.lNext)
             } else {
-                val tempHalfEdge = Mesh.glMeshConnect(eLo.sym?.oNext?.sym!!, vEvent.anEdge!!)
-                tempHalfEdge.sym!!
+                val tempHalfEdge = Mesh.glMeshConnect(eLo.sym.oNext.sym, vEvent.anEdge)
+                tempHalfEdge.sym
             }
             if (reg.fixUpperEdge) {
                 if (!fixUpperEdge(reg, eNew)) throw RuntimeException()
@@ -974,7 +969,7 @@ internal object Sweep {
              * The new vertex is in a region which does not belong to the polygon.
              * We don''t need to connect this vertex to the rest of the mesh.
              */
-            addRightEdges(tess, regUp, vEvent.anEdge!!, vEvent.anEdge, null, true)
+            addRightEdges(tess, regUp, vEvent.anEdge, vEvent.anEdge, null, true)
         }
     }
 
@@ -991,14 +986,16 @@ internal object Sweep {
          * already in the dictionary.  In this case we don't need to waste
          * time searching for the location to insert new edges.
          */
-        var e = vEvent.anEdge!!
-        while (e.activeRegion == null) {
-            e = e.oNext!!
+        var e = vEvent.anEdge
+        var activeRegion = e.activeRegion
+        while (activeRegion == null) {
+            e = e.oNext
             if (e === vEvent.anEdge) {
                 /* All edges go right -- not incident to any processed edges */
                 connectLeftVertex(tess, vEvent)
                 return
             }
+            activeRegion = e.activeRegion
         }
 
         /**
@@ -1009,15 +1006,7 @@ internal object Sweep {
          * to their winding number, and delete the edges from the dictionary.
          * This takes care of all the left-going edges from vEvent.
          */
-        /**
-         * Processing consists of two phases: first we "finish" all the
-         * active regions where both the upper and lower edges terminate
-         * at vEvent (ie. vEvent is closing off these regions).
-         * We mark these faces "inside" or "outside" the polygon according
-         * to their winding number, and delete the edges from the dictionary.
-         * This takes care of all the left-going edges from vEvent.
-         */
-        val regUp = topLeftRegion(e.activeRegion!!)!!
+        val regUp = topLeftRegion(activeRegion)
         val reg = regionBelow(regUp)
         val eTopLeft = reg.eUp
         val eBottomLeft = finishLeftRegions(reg, null)
@@ -1032,7 +1021,7 @@ internal object Sweep {
             /* No right-going edges -- add a temporary "fixable" edge */
             connectRightVertex(tess, regUp, eBottomLeft)
         } else {
-            addRightEdges(tess, regUp, eBottomLeft.oNext!!, eTopLeft, eTopLeft, true)
+            addRightEdges(tess, regUp, eBottomLeft.oNext, eTopLeft, eTopLeft, true)
         }
     }
 
@@ -1048,19 +1037,19 @@ internal object Sweep {
      * to avoid special cases at the top and bottom.
      */
     fun addSentinel(tess: GLUtessellatorImpl, t: Double) {
-        val e = Mesh.glMeshMakeEdge(tess.mesh!!)
-        e.org?.s = SENTINEL_COORD
-        e.org?.t = t
-        e.sym?.org?.s = -SENTINEL_COORD
-        e.sym?.org?.t = t
-        tess.event = e.sym?.org /* initialize it */
+        val e = Mesh.glMeshMakeEdge(tess.mesh)
+        e.org.s = SENTINEL_COORD
+        e.org.t = t
+        e.sym.org.s = -SENTINEL_COORD
+        e.sym.org.t = t
+        tess.event = e.sym.org /* initialize it */
         val reg = ActiveRegion(e)
         reg.windingNumber = 0
         reg.inside = false
         reg.fixUpperEdge = false
         reg.sentinel = true
         reg.dirty = false
-        reg.nodeUp = Dict.dictInsert(tess.dict!!, reg) /* __gl_dictListInsertBefore */
+        reg.nodeUp = Dict.dictInsert(tess.dict, reg) /* glDictListInsertBefore */
     }
 
     /**
@@ -1068,11 +1057,11 @@ internal object Sweep {
      * This order is maintained in a dynamic dictionary.
      */
     fun initEdgeDict(tess: GLUtessellatorImpl) {
-        /* __gl_dictListNewDict */
+        /* glDictListNewDict */
         tess.dict = Dict.dictNewDict(
             tess,
             object : DictLeq {
-                override fun leq(frame: Any, key1: Any?, key2: Any?): Boolean {
+                override fun leq(frame: Any, key1: Any, key2: Any): Boolean {
                     return edgeLeq(
                         tess,
                         key1 as ActiveRegion,
@@ -1087,46 +1076,46 @@ internal object Sweep {
 
     fun doneEdgeDict(tess: GLUtessellatorImpl) {
         while (true) {
-            val reg = Dict.dictKey(Dict.dictMin(tess.dict!!)) as ActiveRegion? ?: break
+            val reg = Dict.dictKey(Dict.dictMin(tess.dict)) as ActiveRegion? ?: break
             /**
              * At the end of all processing, the dictionary should contain
              * only the two sentinel edges, plus at most one "fixable" edge
              * created by ConnectRightVertex().
              */
             deleteRegion(reg)
-            /*    __gl_meshDelete( reg.eUp )*/
+            /*    glMeshDelete( reg.eUp )*/
         }
-        Dict.dictDeleteDict(tess.dict!!) /* __gl_dictListDeleteDict */
+        Dict.dictDeleteDict(tess.dict) /* glDictListDeleteDict */
     }
 
     /**
      * Remove zero-length edges, and contours with fewer than 3 vertices.
      */
     fun removeDegenerateEdges(tess: GLUtessellatorImpl) {
-        val eHead = tess.mesh?.eHead!!
+        val eHead = tess.mesh.eHead
 
         /*LINTED*/
-        var e = eHead.next!!
+        var e = eHead.next
         while (e !== eHead) {
-            var eNext = e.next!!
-            var eLnext = e.lNext!!
-            if (Geom.vertEq(e.org!!, e.sym?.org!!) && e.lNext?.lNext !== e) {
+            var eNext = e.next
+            var eLnext = e.lNext
+            if (Geom.vertEq(e.org, e.sym.org) && e.lNext.lNext !== e) {
                 /* Zero-length edge, contour has at least 3 edges */
                 spliceMergeVertices(tess, eLnext, e) /* deletes e.Org */
                 if (!Mesh.glMeshDelete(e)) throw RuntimeException() /* e is a self-loop */
                 e = eLnext
-                eLnext = e.lNext!!
+                eLnext = e.lNext
             }
             if (eLnext.lNext === e) {
                 /* Degenerate contour (one or two edges) */
                 if (eLnext !== e) {
                     if (eLnext === eNext || eLnext === eNext.sym) {
-                        eNext = eNext.next!!
+                        eNext = eNext.next
                     }
                     if (!Mesh.glMeshDelete(eLnext)) throw RuntimeException()
                 }
                 if (e === eNext || e === eNext.sym) {
-                    eNext = eNext.next!!
+                    eNext = eNext.next
                 }
                 if (!Mesh.glMeshDelete(e)) throw RuntimeException()
             }
@@ -1139,26 +1128,24 @@ internal object Sweep {
      * order in which vertices cross the sweep line.
      */
     fun initPriorityQ(tess: GLUtessellatorImpl): Boolean {
-        /* __gl_pqSortNewPriorityQ */
-        tess.pq =
-            PriorityQ.pqNewPriorityQ()
-        val pq = tess.pq!!
-        val vHead = tess.mesh?.vHead!!
-        var v = vHead.next!!
+        /* glPqSortNewPriorityQ */
+        tess.pq = PriorityQ.pqNewPriorityQ()
+        val vHead = tess.mesh.vHead
+        var v = vHead.next
         while (v !== vHead) {
-            v.pqHandle = pq.pqInsert(v) /* __gl_pqSortInsert */
-            v = v.next!!
+            v.pqHandle = tess.pq.pqInsert(v) /* glPqSortInsert */
+            v = v.next
         }
-        if (!pq.pqInit()) { /* __gl_pqSortInit */
-            tess.pq?.pqDeletePriorityQ() /* __gl_pqSortDeletePriorityQ */
-            tess.pq = null
+        if (!tess.pq.pqInit()) { /* glPqSortInit */
+            tess.pq.pqDeletePriorityQ() /* glPqSortDeletePriorityQ */
+            //tess.pq = null
             return false
         }
         return true
     }
 
     fun donePriorityQ(tess: GLUtessellatorImpl) {
-        tess.pq?.pqDeletePriorityQ() /* __gl_pqSortDeletePriorityQ */
+        tess.pq.pqDeletePriorityQ() /* glPqSortDeletePriorityQ */
     }
 
     /**
@@ -1176,13 +1163,13 @@ internal object Sweep {
      * will sometimes be keeping a pointer to that edge.
      */
     fun removeDegenerateFaces(mesh: GLUmesh): Boolean {
-        var f = mesh.fHead.next!!
+        var f = mesh.fHead.next
         while (f !== mesh.fHead) {
-            val fNext = f.next!!
-            val e = f.anEdge!!
-            if (e.lNext?.lNext === e) {
+            val fNext = f.next
+            val e = f.anEdge
+            if (e.lNext.lNext === e) {
                 /* A face with only two edges */
-                addWinding(e.oNext!!, e)
+                addWinding(e.oNext, e)
                 if (!Mesh.glMeshDelete(e)) return false
             }
             f = fNext
@@ -1191,7 +1178,7 @@ internal object Sweep {
     }
 
     /**
-     * __gl_computeInterior( tess ) computes the planar arrangement specified
+     * glComputeInterior( tess ) computes the planar arrangement specified
      * by the given contours, and further subdivides this arrangement
      * into regions.  Each region is marked "inside" if it belongs
      * to the polygon, according to the rule given by tess.windingRule.
@@ -1211,11 +1198,11 @@ internal object Sweep {
         if (!initPriorityQ(tess)) return false /* if error */
         initEdgeDict(tess)
 
-        /* __gl_pqSortExtractMin */
+        /* glPqSortExtractMin */
         while (true) {
-            val v = tess.pq?.pqExtractMin() as GLUvertex? ?: break
+            val v = tess.pq.pqExtractMin() as GLUvertex? ?: break
             while (true) {
-                var vNext = tess.pq?.pqMinimum() as GLUvertex? /* __gl_pqSortMinimum */
+                var vNext = tess.pq.pqMinimum() as GLUvertex? /* glPqSortMinimum */
                 if (vNext == null || !Geom.vertEq(vNext, v)) break
 
                 /**
@@ -1233,25 +1220,21 @@ internal object Sweep {
                  * gap between them.  This kind of error is especially obvious
                  * when using boundary extraction (GLU_TESS_BOUNDARY_ONLY).
                  */
-                vNext = tess.pq?.pqExtractMin() as GLUvertex /* __gl_pqSortExtractMin*/
-                spliceMergeVertices(tess, v.anEdge!!, vNext.anEdge!!)
+                vNext = tess.pq.pqExtractMin() as GLUvertex /* glPqSortExtractMin*/
+                spliceMergeVertices(tess, v.anEdge, vNext.anEdge)
             }
             sweepEvent(tess, v)
         }
 
         /* Set tess.event for debugging purposes */
-        /* __GL_DICTLISTKEY */
-        /* __GL_DICTLISTMIN */
-        tess.event = (Dict.dictKey(
-            Dict.dictMin(
-                tess.dict!!
-            )
-        ) as ActiveRegion).eUp.org
+        /* GL_DICTLISTKEY */
+        /* GL_DICTLISTMIN */
+        tess.event = (Dict.dictKey(Dict.dictMin(tess.dict)) as ActiveRegion).eUp.org
         debugEvent(tess)
         doneEdgeDict(tess)
         donePriorityQ(tess)
-        if (!removeDegenerateFaces(tess.mesh!!)) return false
-        Mesh.glMeshCheckMesh(tess.mesh!!)
+        if (!removeDegenerateFaces(tess.mesh)) return false
+        Mesh.glMeshCheckMesh(tess.mesh)
         return true
     }
 }

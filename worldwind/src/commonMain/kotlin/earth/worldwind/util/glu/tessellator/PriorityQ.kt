@@ -62,13 +62,9 @@ abstract class PriorityQ {
         var node = 0
     }
 
-    interface Leq {
-        fun leq(key1: Any?, key2: Any?): Boolean
-    }
-
     abstract fun pqDeletePriorityQ()
     abstract fun pqInit(): Boolean
-    abstract fun pqInsert(keyNew: Any?): Int
+    abstract fun pqInsert(keyNew: Any): Int
     abstract fun pqExtractMin(): Any?
     abstract fun pqDelete(hCurr: Int)
     abstract fun pqMinimum(): Any?

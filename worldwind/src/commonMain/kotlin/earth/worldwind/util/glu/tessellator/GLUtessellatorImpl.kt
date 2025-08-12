@@ -69,7 +69,8 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
     /**
      *  stores the input contours, and eventually the tessellation itself
      */
-    var mesh: GLUmesh? = null
+    lateinit var mesh: GLUmesh
+    private var isMeshInitialized = false
 
     /*** state needed for projecting onto the sweep plane  */
     /**
@@ -101,15 +102,15 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
     /**
      * edge dictionary for sweep line
      */
-    var dict: Dict? = null
+    lateinit var dict: Dict
     /**
      * priority queue of vertex events
      */
-    var pq: PriorityQ? = null
+    lateinit var pq: PriorityQ
     /**
      * current sweep event being processed
      */
-    var event: GLUvertex? = null
+    lateinit var event: GLUvertex
 
     /*** state needed for rendering callbacks (see render.c)  */
     /**
@@ -164,10 +165,10 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         /**
          * Return the tessellator to its original dormant state.
          */
-        mesh?.let { Mesh.glMeshDeleteMesh(it) }
+        if (isMeshInitialized) { Mesh.glMeshDeleteMesh(mesh) }
         state = TessState.T_DORMANT
         lastEdge = null
-        mesh = null
+        isMeshInitialized = false
     }
 
     private fun requireState(newState: Int) {
@@ -234,13 +235,13 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
     /**
      * Returns tessellator property
      */
-    override fun gluGetTessProperty(which: Int, value: DoubleArray, value_offset: Int) {
+    override fun gluGetTessProperty(which: Int, value: DoubleArray, valueOffset: Int) {
         when (which) {
-            GLU.GLU_TESS_TOLERANCE -> value[value_offset] = relTolerance
-            GLU.GLU_TESS_WINDING_RULE -> value[value_offset] = windingRule.toDouble()
-            GLU.GLU_TESS_BOUNDARY_ONLY -> value[value_offset] = if (boundaryOnly) 1.0 else 0.0
+            GLU.GLU_TESS_TOLERANCE -> value[valueOffset] = relTolerance
+            GLU.GLU_TESS_WINDING_RULE -> value[valueOffset] = windingRule.toDouble()
+            GLU.GLU_TESS_BOUNDARY_ONLY -> value[valueOffset] = if (boundaryOnly) 1.0 else 0.0
             else -> {
-                value[value_offset] = 0.0
+                value[valueOffset] = 0.0
                 callErrorOrErrorData(GLU.GLU_INVALID_ENUM)
             }
         }
@@ -291,22 +292,22 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         var e = lastEdge
         if (e == null) {
             /* Make a self-loop (one vertex, one edge). */
-            e = Mesh.glMeshMakeEdge(mesh!!)
-            if (!Mesh.glMeshSplice(e, e.sym!!)) return false
+            e = Mesh.glMeshMakeEdge(mesh)
+            if (!Mesh.glMeshSplice(e, e.sym)) return false
         } else {
             /**
              * Create a new vertex and edge which immediately follow e
              * in the ordering around the left face.
              */
             Mesh.glMeshSplitEdge(e)
-            e = e.lNext!!
+            e = e.lNext
         }
 
         /* The new vertex is now e.Org. */
-        e.org?.data = vertexData
-        e.org!!.coords[0] = coords[0]
-        e.org!!.coords[1] = coords[1]
-        e.org!!.coords[2] = coords[2]
+        e.org.data = vertexData
+        e.org.coords[0] = coords[0]
+        e.org.coords[1] = coords[1]
+        e.org.coords[2] = coords[2]
 
         /**
          * The winding of an edge says how the winding number changes as we
@@ -315,12 +316,12 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
          * the winding number of the region inside the contour.
          */
         e.winding = 1
-        e.sym?.winding = -1
+        e.sym.winding = -1
         lastEdge = e
         return true
     }
 
-    private fun cacheVertex(coords: DoubleArray, vertexData: Any?) {
+    private fun cacheVertex(coords: DoubleArray, vertexData: Any) {
         val v = cache[cacheCount]
         v.data = vertexData
         v.coords[0] = coords[0]
@@ -331,6 +332,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
 
     private fun flushCache(): Boolean {
         mesh = Mesh.glMeshNewMesh()
+        isMeshInitialized = true
         for (i in 0 until cacheCount) {
             val vertex = cache[i]
             if (!addVertex(vertex.coords, vertex.data)) return false
@@ -340,7 +342,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         return true
     }
 
-    override fun gluTessVertex(coords: DoubleArray, coords_offset: Int, vertexData: Any?) {
+    override fun gluTessVertex(coords: DoubleArray, coordsOffset: Int, vertexData: Any) {
         var tooLarge = false
         val clamped = DoubleArray(3)
         requireState(TessState.T_IN_CONTOUR)
@@ -353,7 +355,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         }
         var i = 0
         while (i < 3) {
-            var x = coords[i + coords_offset]
+            var x = coords[i + coordsOffset]
             if (x < -GLU.GLU_TESS_MAX_COORD) {
                 x = -GLU.GLU_TESS_MAX_COORD
                 tooLarge = true
@@ -368,7 +370,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         if (tooLarge) {
             callErrorOrErrorData(GLU.GLU_TESS_COORD_TOO_LARGE)
         }
-        if (mesh == null) {
+        if (!isMeshInitialized) {
             if (cacheCount < TESS_MAX_CACHE) {
                 cacheVertex(clamped, vertexData)
                 return
@@ -388,7 +390,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         state = TessState.T_IN_POLYGON
         cacheCount = 0
         flushCacheOnNextVertex = false
-        mesh = null
+        isMeshInitialized = false
         polygonData = data
     }
 
@@ -415,7 +417,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         try {
             requireState(TessState.T_IN_POLYGON)
             state = TessState.T_DORMANT
-            if (this.mesh == null) {
+            if (!isMeshInitialized) {
                 if (!flagBoundary /*&& callMesh == NULL_CB*/) {
                     /**
                      * Try some special code to make the easy cases go quickly
@@ -438,7 +440,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
             Normal.glProjectPolygon(this)
 
             /**
-             * __gl_computeInterior( tess ) computes the planar arrangement specified
+             * glComputeInterior( tess ) computes the planar arrangement specified
              * by the given contours, and further subdivides this arrangement
              * into regions.  Each region is marked "inside" if it belongs
              * to the polygon, according to the rule given by windingRule.
@@ -447,7 +449,6 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
             if (!Sweep.glComputeInterior(this)) {
                 throw RuntimeException() /* could've used a label */
             }
-            val mesh = this.mesh!!
             if (!fatalError) {
                 /**
                  * If the user wants only the boundary contours, we throw away all edges
@@ -476,7 +477,7 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
 //                     * the freedom for an implementation to not generate the exterior
 //                     * faces in the first place.
 //                     */
-//                    TessMono.__gl_meshDiscardExterior(mesh);
+//                    TessMono.glMeshDiscardExterior(mesh);
 //                    callMesh.mesh(mesh);		/* user wants the mesh itself */
 //                    mesh = null;
 //                    polygonData = null;
@@ -492,19 +493,19 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
     }
 
     fun callBeginOrBeginData(a: Int) {
-        if (callBeginData !== NULL_CB) callBeginData.beginData(a, polygonData!!) else callBegin.begin(a)
+        if (callBeginData !== NULL_CB) callBeginData.beginData(a, polygonData) else callBegin.begin(a)
     }
 
-    fun callVertexOrVertexData(a: Any) {
-        if (callVertexData !== NULL_CB) callVertexData.vertexData(a, polygonData!!) else callVertex.vertex(a)
+    fun callVertexOrVertexData(a: Any?) {
+        if (callVertexData !== NULL_CB) callVertexData.vertexData(a, polygonData) else callVertex.vertex(a)
     }
 
     fun callEdgeFlagOrEdgeFlagData(a: Boolean) {
-        if (callEdgeFlagData !== NULL_CB) callEdgeFlagData.edgeFlagData(a, polygonData!!) else callEdgeFlag.edgeFlag(a)
+        if (callEdgeFlagData !== NULL_CB) callEdgeFlagData.edgeFlagData(a, polygonData) else callEdgeFlag.edgeFlag(a)
     }
 
     fun callEndOrEndData() {
-        if (callEndData !== NULL_CB) callEndData.endData(polygonData!!) else callEnd.end()
+        if (callEndData !== NULL_CB) callEndData.endData(polygonData) else callEnd.end()
     }
 
     fun callCombineOrCombineData(
@@ -513,12 +514,12 @@ class GLUtessellatorImpl private constructor() : GLUtessellator {
         weights: FloatArray,
         outData: Array<Any?>
     ) {
-        if (callCombineData !== NULL_CB) callCombineData.combineData(coords, vertexData, weights, outData, polygonData!!)
+        if (callCombineData !== NULL_CB) callCombineData.combineData(coords, vertexData, weights, outData, polygonData)
         else callCombine.combine(coords, vertexData, weights, outData)
     }
 
     fun callErrorOrErrorData(a: Int) {
-        if (callErrorData !== NULL_CB) callErrorData.errorData(a, polygonData!!) else callError.error(a)
+        if (callErrorData !== NULL_CB) callErrorData.errorData(a, polygonData) else callError.error(a)
     }
 
     companion object {

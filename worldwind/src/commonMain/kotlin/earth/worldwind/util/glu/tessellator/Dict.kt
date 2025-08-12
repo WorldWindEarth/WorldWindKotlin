@@ -59,7 +59,7 @@ class Dict private constructor(
 ) {
 
     interface DictLeq {
-        fun leq(frame: Any, key1: Any?, key2: Any?): Boolean
+        fun leq(frame: Any, key1: Any, key2: Any): Boolean
     }
 
     companion object {
@@ -75,15 +75,16 @@ class Dict private constructor(
 //            dict.leq = null
         }
 
-        fun dictInsert(dict: Dict, key: Any?): DictNode {
+        fun dictInsert(dict: Dict, key: Any): DictNode {
             return dictInsertBefore(dict, dict.head, key)
         }
 
-        fun dictInsertBefore(dict: Dict, node: DictNode, key: Any?): DictNode {
+        fun dictInsertBefore(dict: Dict, node: DictNode, key: Any): DictNode {
             var n = node
             do {
                 n = n.prev
-            } while (n.key != null && !dict.leq.leq(dict.frame, n.key, key))
+                val nKey = n.key
+            } while (nKey != null && !dict.leq.leq(dict.frame, nKey, key))
             val newNode = DictNode(key).apply {
                 prev = n
                 next = n.next
@@ -108,11 +109,12 @@ class Dict private constructor(
             node.prev.next = node.next
         }
 
-        fun dictSearch(dict: Dict, key: Any?): DictNode {
+        fun dictSearch(dict: Dict, key: Any): DictNode {
             var node = dict.head
             do {
                 node = node.next
-            } while (node.key != null && !dict.leq.leq(dict.frame, key, node.key))
+                val nodeKey = node.key
+            } while (nodeKey != null && !dict.leq.leq(dict.frame, key, nodeKey))
             return node
         }
     }

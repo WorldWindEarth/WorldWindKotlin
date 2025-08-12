@@ -258,9 +258,9 @@ internal object Geom {
     /* Versions of VertLeq, EdgeSign, EdgeEval with s and t transposed. */
     fun transLeq(u: GLUvertex, v: GLUvertex) = u.t < v.t || u.t == v.t && u.s <= v.s
 
-    fun edgeGoesLeft(e: GLUhalfEdge) = vertLeq(e.sym?.org!!, e.org!!)
+    fun edgeGoesLeft(e: GLUhalfEdge) = vertLeq(e.sym.org, e.org)
 
-    fun edgeGoesRight(e: GLUhalfEdge) = vertLeq(e.org!!, e.sym?.org!!)
+    fun edgeGoesRight(e: GLUhalfEdge) = vertLeq(e.org, e.sym.org)
 
     fun vertL1dist(u: GLUvertex, v: GLUvertex) = abs(u.s - v.s) + abs(u.t - v.t)
 }

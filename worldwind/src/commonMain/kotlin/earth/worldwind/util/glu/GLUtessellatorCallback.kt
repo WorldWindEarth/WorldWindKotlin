@@ -103,7 +103,7 @@ interface GLUtessellatorCallback {
 	 *
 	 * @see .begin   begin
 	 */
-	fun beginData(type: Int, polygonData: Any)
+	fun beginData(type: Int, polygonData: Any?)
 
 	/**
 	 * The **edgeFlag** callback method is similar to
@@ -147,7 +147,7 @@ interface GLUtessellatorCallback {
 	 *
 	 * @see .edgeFlag edgeFlag
 	 */
-	fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any)
+	fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?)
 
 	/**
 	 * The **vertex** callback method is invoked between the [begin] and [end] callback methods.
@@ -165,7 +165,7 @@ interface GLUtessellatorCallback {
 	 *
 	 * @see .vertexData vertexData
 	 */
-	fun vertex(vertexData: Any)
+	fun vertex(vertexData: Any?)
 
 	/**
 	 * The same as the [vertex][vertex] callback method except
@@ -182,7 +182,7 @@ interface GLUtessellatorCallback {
 	 *
 	 * @see .vertex vertex
 	 */
-	fun vertexData(vertexData: Any, polygonData: Any)
+	fun vertexData(vertexData: Any?, polygonData: Any?)
 
 	/**
 	 * The end callback serves the same purpose as
@@ -211,7 +211,7 @@ interface GLUtessellatorCallback {
 	 *
 	 * @see .end       end
 	 */
-	fun endData(polygonData: Any)
+	fun endData(polygonData: Any?)
 
 	/**
 	 * The **combine** callback method is called to create a new vertex when
@@ -300,7 +300,7 @@ interface GLUtessellatorCallback {
 	 * @see .combine combine
 	 */
 	fun combineData(
-		coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any
+		coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any?
 	)
 
 	/**
@@ -348,5 +348,5 @@ interface GLUtessellatorCallback {
 	 *
 	 * @see .error error
 	 */
-	fun errorData(errnum: Int, polygonData: Any)
+	fun errorData(errnum: Int, polygonData: Any?)
 }

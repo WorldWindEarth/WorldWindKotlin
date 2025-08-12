@@ -56,27 +56,27 @@ class GLUhalfEdge(val first: Boolean) {
     /**
      * doubly-linked list (prev==Sym->next)
      */
-    var next: GLUhalfEdge? = null
+    lateinit var next: GLUhalfEdge
     /**
      * same edge, opposite direction
      */
-    var sym: GLUhalfEdge? = null
+    lateinit var sym: GLUhalfEdge
     /**
      * next edge CCW around origin
      */
-    var oNext: GLUhalfEdge? = null
+    lateinit var oNext: GLUhalfEdge
     /**
      * next edge CCW around left face
      */
-    var lNext: GLUhalfEdge? = null
+    lateinit var lNext: GLUhalfEdge
     /**
      * origin vertex (Overtex too long)
      */
-    var org: GLUvertex? = null
+    lateinit var org: GLUvertex
     /**
      * left face
      */
-    var lFace: GLUface? = null
+    lateinit var lFace: GLUface
 
     /* Internal data (keep hidden) */
     /**

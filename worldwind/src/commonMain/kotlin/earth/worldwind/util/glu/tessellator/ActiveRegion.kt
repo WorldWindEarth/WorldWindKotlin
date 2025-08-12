@@ -61,7 +61,7 @@ internal class ActiveRegion(
     /**
      * dictionary node corresponding to eUp
      */
-    var nodeUp: DictNode? = null
+    lateinit var nodeUp: DictNode
     /**
      * used to determine which regions are inside the polygon
      */

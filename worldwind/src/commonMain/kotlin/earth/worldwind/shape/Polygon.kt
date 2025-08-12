@@ -50,14 +50,14 @@ open class Polygon @JvmOverloads constructor(
     protected var texCoord1d = 0.0
     protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
         override fun combineData(
-            coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any
+            coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any?
         ) = tessCombine(polygonData as RenderContext, coords, data, weight, outData)
 
-        override fun vertexData(vertexData: Any, polygonData: Any) = tessVertex(polygonData as RenderContext, vertexData)
+        override fun vertexData(vertexData: Any?, polygonData: Any?) = tessVertex(polygonData as RenderContext, vertexData)
 
-        override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any) = tessEdgeFlag(polygonData as RenderContext, boundaryEdge)
+        override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?) = tessEdgeFlag(polygonData as RenderContext, boundaryEdge)
 
-        override fun errorData(errnum: Int, polygonData: Any) = tessError(polygonData as RenderContext, errnum)
+        override fun errorData(errnum: Int, polygonData: Any?) = tessError(polygonData as RenderContext, errnum)
     }
     private val point = Vec3()
     private val prevPoint = Vec3()
@@ -725,7 +725,7 @@ open class Polygon @JvmOverloads constructor(
         outData[0] = addVertex(rc, coords[1].degrees /*lat*/, coords[0].degrees /*lon*/, coords[2] /*alt*/, VERTEX_COMBINED /*type*/)
     }
 
-    protected open fun tessVertex(rc: RenderContext, vertexData: Any) {
+    protected open fun tessVertex(rc: RenderContext, vertexData: Any?) {
         tessVertices[tessVertexCount] = vertexData as Int
         tessEdgeFlags[tessVertexCount] = tessEdgeFlag
         if (tessVertexCount < 2) {

@@ -54,5 +54,5 @@ package earth.worldwind.util.glu.tessellator
 
 class CachedVertex {
     val coords = DoubleArray(3)
-    var data: Any? = null
+    lateinit var data: Any
 }

@@ -106,7 +106,7 @@ internal object Normal {
     }
 
     fun computeNormal(tess: GLUtessellatorImpl, norm: DoubleArray) {
-        val vHead = tess.mesh?.vHead!!
+        val vHead = tess.mesh.vHead
         val maxVal = DoubleArray(3)
         val minVal = DoubleArray(3)
         val minVert = arrayOfNulls<GLUvertex>(3)
@@ -120,7 +120,7 @@ internal object Normal {
         minVal[2] = 2 * GLU.GLU_TESS_MAX_COORD
         minVal[1] = minVal[2]
         minVal[0] = minVal[1]
-        var v = vHead.next!!
+        var v = vHead.next
         while (v !== vHead) {
             var i = 0
             while (i < 3) {
@@ -135,7 +135,7 @@ internal object Normal {
                 }
                 ++i
             }
-            v = v.next!!
+            v = v.next
         }
 
         /**
@@ -162,12 +162,12 @@ internal object Normal {
          * (Length of normal == twice the triangle area)
          */
         var maxLen2 = 0.0
-        val v1 = minVert[i]!!
-        val v2 = maxVert[i]!!
+        val v1 = minVert[i] ?: error("This should never happen")
+        val v2 = maxVert[i] ?: error("This should never happen")
         d1[0] = v1.coords[0] - v2.coords[0]
         d1[1] = v1.coords[1] - v2.coords[1]
         d1[2] = v1.coords[2] - v2.coords[2]
-        v = vHead.next!!
+        v = vHead.next
         while (v !== vHead) {
             d2[0] = v.coords[0] - v2.coords[0]
             d2[1] = v.coords[1] - v2.coords[1]
@@ -182,7 +182,7 @@ internal object Normal {
                 norm[1] = tNorm[1]
                 norm[2] = tNorm[2]
             }
-            v = v.next!!
+            v = v.next
         }
         if (maxLen2 <= 0) {
             /* All points lie on a single line -- any decent normal will do */
@@ -194,33 +194,33 @@ internal object Normal {
     }
 
     fun checkOrientation(tess: GLUtessellatorImpl) {
-        val fHead = tess.mesh?.fHead!!
-        val vHead = tess.mesh?.vHead!!
+        val fHead = tess.mesh.fHead
+        val vHead = tess.mesh.vHead
 
         /**
          *  When we compute the normal automatically, we choose the orientation
          * so that the the sum of the signed areas of all contours is non-negative.
          */
         var area = 0.0
-        var f = fHead.next!!
+        var f = fHead.next
         while (f !== fHead) {
-            var e = f.anEdge!!
+            var e = f.anEdge
             if (e.winding <= 0) {
-                f = f.next!!
+                f = f.next
                 continue
             }
             do {
-                area += (e.org!!.s - e.sym!!.org!!.s) * (e.org!!.t + e.sym!!.org!!.t)
-                e = e.lNext!!
+                area += (e.org.s - e.sym.org.s) * (e.org.t + e.sym.org.t)
+                e = e.lNext
             } while (e !== f.anEdge)
-            f = f.next!!
+            f = f.next
         }
         if (area < 0) {
             /* Reverse the orientation by flipping all the t-coordinates */
-            var v = vHead.next!!
+            var v = vHead.next
             while (v !== vHead) {
                 v.t = -v.t
-                v = v.next!!
+                v = v.next
             }
             tess.tUnit[0] = -tess.tUnit[0]
             tess.tUnit[1] = -tess.tUnit[1]
@@ -233,7 +233,7 @@ internal object Normal {
      * of the polygon.
      */
     fun glProjectPolygon(tess: GLUtessellatorImpl) {
-        val vHead = tess.mesh?.vHead!!
+        val vHead = tess.mesh.vHead
         val norm = DoubleArray(3)
         var computedNormal = false
         norm[0] = tess.normal[0]
@@ -279,11 +279,11 @@ internal object Normal {
         }
 
         /* Project the vertices onto the sweep plane */
-        var v = vHead.next!!
+        var v = vHead.next
         while (v !== vHead) {
             v.s = dot(v.coords, sUnit)
             v.t = dot(v.coords, tUnit)
-            v = v.next!!
+            v = v.next
         }
         if (computedNormal) {
             checkOrientation(tess)

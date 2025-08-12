@@ -65,7 +65,7 @@ internal class PriorityQHeap : PriorityQ() {
         handles[1].key = null
     }
 
-    /* really __gl_pqHeapDeletePriorityQ */
+    /* really glPqHeapDeletePriorityQ */
     override fun pqDeletePriorityQ() {
         handles = emptyArray()
         nodes = emptyArray()
@@ -112,7 +112,7 @@ internal class PriorityQHeap : PriorityQ() {
         }
     }
 
-    /* really __gl_pqHeapInit */
+    /* really glPqHeapInit */
     override fun pqInit(): Boolean {
         /* This method of building a heap is O(n), rather than O(n lg n). */
         var i = size
@@ -124,9 +124,9 @@ internal class PriorityQHeap : PriorityQ() {
         return true
     }
 
-    /* really __gl_pqHeapInsert */
+    /* really glPqHeapInsert */
     /* returns LONG_MAX iff out of memory */
-    override fun pqInsert(keyNew: Any?): Int {
+    override fun pqInsert(keyNew: Any): Int {
         val free: Int
         val curr = ++size
         if (curr * 2 > max) {
@@ -150,7 +150,7 @@ internal class PriorityQHeap : PriorityQ() {
         return free
     }
 
-    /* really __gl_pqHeapExtractMin */
+    /* really glPqHeapExtractMin */
     override fun pqExtractMin(): Any? {
         val n = nodes
         val h = handles
@@ -169,7 +169,7 @@ internal class PriorityQHeap : PriorityQ() {
         return min
     }
 
-    /* really __gl_pqHeapDelete */
+    /* really glPqHeapDelete */
     override fun pqDelete(hCurr: Int) {
         val n = nodes
         val h = handles

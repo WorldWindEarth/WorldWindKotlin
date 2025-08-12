@@ -66,10 +66,10 @@ package earth.worldwind.util.glu
 interface GLUtessellator {
     fun gluDeleteTess()
     fun gluTessProperty(which: Int, value: Double)
-    fun gluGetTessProperty(which: Int, value: DoubleArray, value_offset: Int)
+    fun gluGetTessProperty(which: Int, value: DoubleArray, valueOffset: Int)
     fun gluTessNormal(x: Double, y: Double, z: Double)
     fun gluTessCallback(which: Int, aCallback: GLUtessellatorCallback?)
-    fun gluTessVertex(coords: DoubleArray, coords_offset: Int, data: Any?)
+    fun gluTessVertex(coords: DoubleArray, coordsOffset: Int, vertexData: Any)
     fun gluTessBeginPolygon(data: Any?)
     fun gluTessBeginContour()
     fun gluTessEndContour()

@@ -54,7 +54,7 @@ package earth.worldwind.util.glu.tessellator
 
 internal object TessMono {
     /**
-     * __gl_meshTessellateMonoRegion( face ) tessellates a monotone region
+     * glMeshTessellateMonoRegion( face ) tessellates a monotone region
      * (what else would it do??)  The region must consist of a single
      * loop of half-edges (see mesh.h) oriented CCW.  "Monotone" in this
      * case means that any vertical line intersects the interior of the
@@ -88,55 +88,55 @@ internal object TessMono {
          * Since the sweep goes from left to right, face->anEdge should
          * be close to the edge we want.
          */
-        var up = face.anEdge!!
-        while (Geom.vertLeq(up.sym?.org!!, up.org!!)) {
-            up = up.oNext?.sym!!
+        var up = face.anEdge
+        while (Geom.vertLeq(up.sym.org, up.org)) {
+            up = up.oNext.sym
         }
-        while (Geom.vertLeq(up.org!!, up.sym?.org!!)) {
-            up = up.lNext!!
+        while (Geom.vertLeq(up.org, up.sym.org)) {
+            up = up.lNext
         }
-        var lo = up.oNext?.sym!!
+        var lo = up.oNext.sym
         while (up.lNext !== lo) {
-            if (Geom.vertLeq(up.sym?.org!!, lo.org!!)) {
+            if (Geom.vertLeq(up.sym.org, lo.org)) {
                 /**
                  * up.Sym.Org is on the left.  It is safe to form triangles from lo.Org.
                  * The EdgeGoesLeft test guarantees progress even when some triangles
                  * are CW, given that the upper and lower chains are truly monotone.
                  */
-                while (lo.lNext !== up && (Geom.edgeGoesLeft(lo.lNext!!)
-                            || Geom.edgeSign(lo.org!!, lo.sym?.org!!, lo.lNext?.sym?.org!!) <= 0)
+                while (lo.lNext !== up && (Geom.edgeGoesLeft(lo.lNext)
+                            || Geom.edgeSign(lo.org, lo.sym.org, lo.lNext.sym.org) <= 0)
                 ) {
-                    val tempHalfEdge = Mesh.glMeshConnect(lo.lNext!!, lo)
-                    lo = tempHalfEdge.sym!!
+                    val tempHalfEdge = Mesh.glMeshConnect(lo.lNext, lo)
+                    lo = tempHalfEdge.sym
                 }
-                lo = lo.oNext?.sym!!
+                lo = lo.oNext.sym
             } else {
                 /* lo.Org is on the left.  We can make CCW triangles from up.Sym.Org. */
-                while (lo.lNext !== up && (Geom.edgeGoesRight(up.oNext?.sym!!)
-                            || Geom.edgeSign(up.sym?.org!!, up.org!!, up.oNext?.sym?.org!!) >= 0)
+                while (lo.lNext !== up && (Geom.edgeGoesRight(up.oNext.sym)
+                            || Geom.edgeSign(up.sym.org, up.org, up.oNext.sym.org) >= 0)
                 ) {
-                    val tempHalfEdge = Mesh.glMeshConnect(up, up.oNext?.sym!!)
-                    up = tempHalfEdge.sym!!
+                    val tempHalfEdge = Mesh.glMeshConnect(up, up.oNext.sym)
+                    up = tempHalfEdge.sym
                 }
-                up = up.lNext!!
+                up = up.lNext
             }
         }
-        while (lo.lNext?.lNext !== up) {
-            val tempHalfEdge = Mesh.glMeshConnect(lo.lNext!!, lo)
-            lo = tempHalfEdge.sym!!
+        while (lo.lNext.lNext !== up) {
+            val tempHalfEdge = Mesh.glMeshConnect(lo.lNext, lo)
+            lo = tempHalfEdge.sym
         }
     }
 
     /**
-     * __gl_meshTessellateInterior( mesh ) tessellates each region of
+     * glMeshTessellateInterior( mesh ) tessellates each region of
      * the mesh which is marked "inside" the polygon.  Each such region
      * must be monotone.
      */
     fun glMeshTessellateInterior(mesh: GLUmesh): Boolean {
-        var f = mesh.fHead.next!!
+        var f = mesh.fHead.next
         while (f !== mesh.fHead) {
             /* Make sure we don''t try to tessellate the new triangles. */
-            val next = f.next!!
+            val next = f.next
             if (f.inside) {
                 glMeshTessellateMonoRegion(f)
             }
@@ -146,16 +146,16 @@ internal object TessMono {
     }
 
     /**
-     * __gl_meshDiscardExterior( mesh ) zaps (ie. sets to NULL) all faces
+     * glMeshDiscardExterior( mesh ) zaps (ie. sets to NULL) all faces
      * which are not marked "inside" the polygon.  Since further mesh operations
      * on NULL faces are not allowed, the main purpose is to clean up the
      * mesh so that exterior loops are not represented in the data structure.
      */
     fun glMeshDiscardExterior(mesh: GLUmesh) {
-        var f = mesh.fHead.next!!
+        var f = mesh.fHead.next
         while (f !== mesh.fHead) {
             /* Since f will be destroyed, save its next pointer. */
-            val next = f.next!!
+            val next = f.next
             if (!f.inside) {
                 Mesh.glMeshZapFace(f)
             }
@@ -164,7 +164,7 @@ internal object TessMono {
     }
 
     /**
-     * __gl_meshSetWindingNumber( mesh, value, keepOnlyBoundary ) resets the
+     * glMeshSetWindingNumber( mesh, value, keepOnlyBoundary ) resets the
      * winding numbers on all edges so that regions marked "inside" the
      * polygon have a winding number of "value", and regions outside
      * have a winding number of 0.
@@ -173,13 +173,12 @@ internal object TessMono {
      * separate an interior region from an exterior one.
      */
     fun glMeshSetWindingNumber(mesh: GLUmesh, value: Int, keepOnlyBoundary: Boolean): Boolean {
-        var e = mesh.eHead.next!!
+        var e = mesh.eHead.next
         while (e !== mesh.eHead) {
-            val eNext = e.next!!
-            if (e.sym?.lFace?.inside != e.lFace?.inside) {
-
+            val eNext = e.next
+            if (e.sym.lFace.inside != e.lFace.inside) {
                 /* This is a boundary edge (one side is interior, one is exterior). */
-                e.winding = if (e.lFace!!.inside) value else -value
+                e.winding = if (e.lFace.inside) value else -value
             } else {
 
                 /* Both regions are interior, or both are exterior. */

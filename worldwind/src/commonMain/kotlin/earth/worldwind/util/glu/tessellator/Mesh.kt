@@ -53,6 +53,9 @@
 package earth.worldwind.util.glu.tessellator
 
 internal object Mesh {
+    private val nullOrg = GLUvertex() // Simulation of undefined Vertex to avoid null asserts
+    private val nullFace = GLUface() // Simulation of undefined Face to avoid null asserts
+
     /************************ Utility Routines  */
     /**
      * MakeEdge creates a new pair of half-edges which form their own loop.
@@ -66,30 +69,30 @@ internal object Mesh {
 
         /* Make sure eNext points to the first edge of the edge pair */
         if (!next.first) {
-            next = next.sym!!
+            next = next.sym
         }
 
         /**
          * Insert in circular doubly-linked list before eNext.
          * Note that the prev pointer is stored in Sym->next.
          */
-        val ePrev = next.sym?.next!!
+        val ePrev = next.sym.next
         eSym.next = ePrev
-        ePrev.sym?.next = e
+        ePrev.sym.next = e
         e.next = next
-        next.sym?.next = eSym
+        next.sym.next = eSym
         e.sym = eSym
         e.oNext = e
         e.lNext = eSym
-        e.org = null
-        e.lFace = null
+        e.org = nullOrg
+        e.lFace = nullFace
         e.winding = 0
         e.activeRegion = null
         eSym.sym = e
         eSym.oNext = eSym
         eSym.lNext = e
-        eSym.org = null
-        eSym.lFace = null
+        eSym.org = nullOrg
+        eSym.lFace = nullFace
         eSym.winding = 0
         eSym.activeRegion = null
         return e
@@ -100,13 +103,13 @@ internal object Mesh {
      * CS348a notes (see mesh.h).  Basically it modifies the mesh so that
      * a->Onext and b->Onext are exchanged.  This can have various effects
      * depending on whether a and b belong to different face or vertex rings.
-     * For more explanation see __gl_meshSplice() below.
+     * For more explanation see glMeshSplice() below.
      */
     fun splice(a: GLUhalfEdge, b: GLUhalfEdge) {
-        val aONext = a.oNext!!
-        val bONext = b.oNext!!
-        aONext.sym?.lNext = b
-        bONext.sym?.lNext = a
+        val aONext = a.oNext
+        val bONext = b.oNext
+        aONext.sym.lNext = b
+        bONext.sym.lNext = a
         a.oNext = bONext
         b.oNext = aONext
     }
@@ -120,7 +123,7 @@ internal object Mesh {
      */
     fun makeVertex(newVertex: GLUvertex, eOrig: GLUhalfEdge, vNext: GLUvertex) {
         /* insert in circular doubly-linked list before vNext */
-        val vPrev = vNext.prev!!
+        val vPrev = vNext.prev
         newVertex.prev = vPrev
         vPrev.next = newVertex
         newVertex.next = vNext
@@ -133,7 +136,7 @@ internal object Mesh {
         var e = eOrig
         do {
             e.org = newVertex
-            e = e.oNext!!
+            e = e.oNext
         } while (e !== eOrig)
     }
 
@@ -146,7 +149,7 @@ internal object Mesh {
      */
     fun makeFace(newFace: GLUface, eOrig: GLUhalfEdge, fNext: GLUface) {
         /* insert in circular doubly-linked list before fNext */
-        val fPrev = fNext.prev!!
+        val fPrev = fNext.prev
         newFace.prev = fPrev
         fPrev.next = newFace
         newFace.next = fNext
@@ -166,7 +169,7 @@ internal object Mesh {
         var e = eOrig
         do {
             e.lFace = newFace
-            e = e.lNext!!
+            e = e.lNext
         } while (e !== eOrig)
     }
 
@@ -179,33 +182,33 @@ internal object Mesh {
 
         /* Half-edges are allocated in pairs, see EdgePair above */
         if (!del.first) {
-            del = del.sym!!
+            del = del.sym
         }
 
         /* delete from circular doubly-linked list */
-        val eNext = del.next!!
-        val ePrev = del.sym?.next!!
-        eNext.sym?.next = ePrev
-        ePrev.sym?.next = eNext
+        val eNext = del.next
+        val ePrev = del.sym.next
+        eNext.sym.next = ePrev
+        ePrev.sym.next = eNext
     }
 
     /**
      * KillVertex( vDel ) destroys a vertex and removes it from the global
      * vertex list.  It updates the vertex loop to point to a given new vertex.
      */
-    fun killVertex(vDel: GLUvertex, newOrg: GLUvertex?) {
-        val eStart = vDel.anEdge!!
+    fun killVertex(vDel: GLUvertex, newOrg: GLUvertex) {
+        val eStart = vDel.anEdge
 
         /* change the origin of all affected edges */
         var e = eStart
         do {
             e.org = newOrg
-            e = e.oNext!!
+            e = e.oNext
         } while (e !== eStart)
 
         /* delete from circular doubly-linked list */
-        val vPrev = vDel.prev!!
-        val vNext = vDel.next!!
+        val vPrev = vDel.prev
+        val vNext = vDel.next
         vNext.prev = vPrev
         vPrev.next = vNext
     }
@@ -214,26 +217,26 @@ internal object Mesh {
      * KillFace( fDel ) destroys a face and removes it from the global face
      * list.  It updates the face loop to point to a given new face.
      */
-    fun killFace(fDel: GLUface, newLface: GLUface?) {
-        val eStart = fDel.anEdge!!
+    fun killFace(fDel: GLUface, newLface: GLUface) {
+        val eStart = fDel.anEdge
 
         /* change the left face of all affected edges */
         var e = eStart
         do {
             e.lFace = newLface
-            e = e.lNext!!
+            e = e.lNext
         } while (e !== eStart)
 
         /* delete from circular doubly-linked list */
-        val fPrev = fDel.prev!!
-        val fNext = fDel.next!!
+        val fPrev = fDel.prev
+        val fNext = fDel.next
         fNext.prev = fPrev
         fPrev.next = fNext
     }
 
     /****************** Basic Edge Operations  */
     /**
-     * __gl_meshMakeEdge creates one edge, two vertices, and a loop (face).
+     * glMeshMakeEdge creates one edge, two vertices, and a loop (face).
      * The loop consists of the two new half-edges.
      */
     fun glMeshMakeEdge(mesh: GLUmesh): GLUhalfEdge {
@@ -242,13 +245,13 @@ internal object Mesh {
         val newFace = GLUface()
         val e = makeEdge(mesh.eHead)
         makeVertex(newVertex1, e, mesh.vHead)
-        makeVertex(newVertex2, e.sym!!, mesh.vHead)
+        makeVertex(newVertex2, e.sym, mesh.vHead)
         makeFace(newFace, e, mesh.fHead)
         return e
     }
 
     /**
-     * __gl_meshSplice( eOrg, eDst ) is the basic operation for changing the
+     * glMeshSplice( eOrg, eDst ) is the basic operation for changing the
      * mesh connectivity and topology.  It changes the mesh so that
      *	eOrg->Onext <- OLD( eDst->Onext )
      *	eDst->Onext <- OLD( eOrg->Onext )
@@ -278,12 +281,12 @@ internal object Mesh {
         if (eDst.org !== eOrg.org) {
             /* We are merging two disjoint vertices -- destroy eDst->Org */
             joiningVertices = true
-            killVertex(eDst.org!!, eOrg.org)
+            killVertex(eDst.org, eOrg.org)
         }
         if (eDst.lFace !== eOrg.lFace) {
             /* We are connecting two disjoint loops -- destroy eDst.Lface */
             joiningLoops = true
-            killFace(eDst.lFace!!, eOrg.lFace)
+            killFace(eDst.lFace, eOrg.lFace)
         }
 
         /* Change the edge structure */
@@ -295,8 +298,8 @@ internal object Mesh {
              * We split one vertex into two -- the new vertex is eDst.Org.
              * Make sure the old vertex points to a valid half-edge.
              */
-            makeVertex(newVertex, eDst, eOrg.org!!)
-            eOrg.org?.anEdge = eOrg
+            makeVertex(newVertex, eDst, eOrg.org)
+            eOrg.org.anEdge = eOrg
         }
         if (!joiningLoops) {
             val newFace = GLUface()
@@ -305,46 +308,46 @@ internal object Mesh {
              * We split one loop into two -- the new loop is eDst.Lface.
              * Make sure the old face points to a valid half-edge.
              */
-            makeFace(newFace, eDst, eOrg.lFace!!)
-            eOrg.lFace?.anEdge = eOrg
+            makeFace(newFace, eDst, eOrg.lFace)
+            eOrg.lFace.anEdge = eOrg
         }
         return true
     }
 
     /**
-     * __gl_meshDelete( eDel ) removes the edge eDel.  There are several cases:
+     * glMeshDelete( eDel ) removes the edge eDel.  There are several cases:
      * if (eDel.Lface != eDel.Rface), we join two loops into one; the loop
      * eDel.Lface is deleted.  Otherwise, we are splitting one loop into two;
      * the newly created loop will contain eDel.Dst.  If the deletion of eDel
      * would create isolated vertices, those are deleted as well.
      *
-     * This function could be implemented as two calls to __gl_meshSplice
+     * This function could be implemented as two calls to glMeshSplice
      * plus a few calls to memFree, but this would allocate and delete
      * unnecessary vertices and faces.
      */
     fun glMeshDelete(eDel: GLUhalfEdge): Boolean {
-        val eDelSym = eDel.sym!!
+        val eDelSym = eDel.sym
         var joiningLoops = false
 
         /** First step: disconnect the origin vertex eDel.Org.  We make all
          * changes to get a consistent mesh in this "intermediate" state.
          */
-        if (eDel.lFace !== eDel.sym?.lFace) {
+        if (eDel.lFace !== eDel.sym.lFace) {
             /* We are joining two loops into one -- remove the left face */
             joiningLoops = true
-            killFace(eDel.lFace!!, eDel.sym?.lFace)
+            killFace(eDel.lFace, eDel.sym.lFace)
         }
         if (eDel.oNext === eDel) {
-            killVertex(eDel.org!!, null)
+            killVertex(eDel.org, nullOrg)
         } else {
             /* Make sure that eDel.Org and eDel.Sym.Lface point to valid half-edges */
-            eDel.sym?.lFace?.anEdge = eDel.sym?.lNext
-            eDel.org?.anEdge = eDel.oNext
-            splice(eDel, eDel.sym?.lNext!!)
+            eDel.sym.lFace.anEdge = eDel.sym.lNext
+            eDel.org.anEdge = eDel.oNext
+            splice(eDel, eDel.sym.lNext)
             if (!joiningLoops) {
                 val newFace = GLUface()
                 /* We are splitting one loop into two -- create a new loop for eDel. */
-                makeFace(newFace, eDel, eDel.lFace!!)
+                makeFace(newFace, eDel, eDel.lFace)
             }
         }
 
@@ -353,13 +356,13 @@ internal object Mesh {
          * may have been deleted.  Now we disconnect eDel.Dst.
          */
         if (eDelSym.oNext === eDelSym) {
-            killVertex(eDelSym.org!!, null)
-            killFace(eDelSym.lFace!!, null)
+            killVertex(eDelSym.org, nullOrg)
+            killFace(eDelSym.lFace, nullFace)
         } else {
             /* Make sure that eDel.Dst and eDel.Lface point to valid half-edges */
-            eDel.lFace?.anEdge = eDelSym.sym?.lNext
-            eDelSym.org?.anEdge = eDelSym.oNext
-            splice(eDelSym, eDelSym.sym?.lNext!!)
+            eDel.lFace.anEdge = eDelSym.sym.lNext
+            eDelSym.org.anEdge = eDelSym.oNext
+            splice(eDelSym, eDelSym.sym.lNext)
         }
 
         /* Any isolated vertices or faces have already been freed. */
@@ -373,22 +376,22 @@ internal object Mesh {
      * operations above.  They are provided for convenience and efficiency.
      */
     /**
-     * __gl_meshAddEdgeVertex( eOrg ) creates a new edge eNew such that
+     * glMeshAddEdgeVertex( eOrg ) creates a new edge eNew such that
      * eNew == eOrg.Lnext, and eNew.Dst is a newly created vertex.
      * eOrg and eNew will have the same left face.
      */
     fun glMeshAddEdgeVertex(eOrg: GLUhalfEdge): GLUhalfEdge {
         val eNew = makeEdge(eOrg)
-        val eNewSym = eNew.sym!!
+        val eNewSym = eNew.sym
 
         /* Connect the new edge appropriately */
-        splice(eNew, eOrg.lNext!!)
+        splice(eNew, eOrg.lNext)
 
         /* Set the vertex and face information */
-        eNew.org = eOrg.sym?.org
+        eNew.org = eOrg.sym.org
         run {
             val newVertex = GLUvertex()
-            makeVertex(newVertex, eNewSym, eNew.org!!)
+            makeVertex(newVertex, eNewSym, eNew.org)
         }
         eNewSym.lFace = eOrg.lFace
         eNew.lFace = eNewSym.lFace
@@ -396,29 +399,29 @@ internal object Mesh {
     }
 
     /**
-     *  __gl_meshSplitEdge( eOrg ) splits eOrg into two edges eOrg and eNew,
+     *  glMeshSplitEdge( eOrg ) splits eOrg into two edges eOrg and eNew,
      * such that eNew == eOrg.Lnext.  The new vertex is eOrg.Sym.Org == eNew.Org.
      * eOrg and eNew will have the same left face.
      */
     fun glMeshSplitEdge(eOrg: GLUhalfEdge): GLUhalfEdge {
         val tempHalfEdge = glMeshAddEdgeVertex(eOrg)
-        val eNew = tempHalfEdge.sym!!
+        val eNew = tempHalfEdge.sym
 
         /* Disconnect eOrg from eOrg.Sym.Org and connect it to eNew.Org */
-        splice(eOrg.sym!!, eOrg.sym?.sym?.lNext!!)
-        splice(eOrg.sym!!, eNew)
+        splice(eOrg.sym, eOrg.sym.sym.lNext)
+        splice(eOrg.sym, eNew)
 
         /* Set the vertex and face information */
-        eOrg.sym?.org = eNew.org
-        eNew.sym?.org?.anEdge = eNew.sym /* may have pointed to eOrg.Sym */
-        eNew.sym?.lFace = eOrg.sym?.lFace
+        eOrg.sym.org = eNew.org
+        eNew.sym.org.anEdge = eNew.sym /* may have pointed to eOrg.Sym */
+        eNew.sym.lFace = eOrg.sym.lFace
         eNew.winding = eOrg.winding /* copy old winding information */
-        eNew.sym?.winding = eOrg.sym!!.winding
+        eNew.sym.winding = eOrg.sym.winding
         return eNew
     }
 
     /**
-     * __gl_meshConnect( eOrg, eDst ) creates a new edge from eOrg.Sym.Org
+     * glMeshConnect( eOrg, eDst ) creates a new edge from eOrg.Sym.Org
      * to eDst.Org, and returns the corresponding half-edge eNew.
      * If eOrg.Lface == eDst.Lface, this splits one loop into two,
      * and the newly created loop is eNew.Lface.  Otherwise, two disjoint
@@ -431,36 +434,36 @@ internal object Mesh {
     fun glMeshConnect(eOrg: GLUhalfEdge, eDst: GLUhalfEdge): GLUhalfEdge {
         var joiningLoops = false
         val eNew = makeEdge(eOrg)
-        val eNewSym = eNew.sym!!
+        val eNewSym = eNew.sym
         if (eDst.lFace !== eOrg.lFace) {
             /* We are connecting two disjoint loops -- destroy eDst.Lface */
             joiningLoops = true
-            killFace(eDst.lFace!!, eOrg.lFace)
+            killFace(eDst.lFace, eOrg.lFace)
         }
 
         /* Connect the new edge appropriately */
-        splice(eNew, eOrg.lNext!!)
+        splice(eNew, eOrg.lNext)
         splice(eNewSym, eDst)
 
         /* Set the vertex and face information */
-        eNew.org = eOrg.sym?.org
+        eNew.org = eOrg.sym.org
         eNewSym.org = eDst.org
         eNewSym.lFace = eOrg.lFace
         eNew.lFace = eNewSym.lFace
 
         /* Make sure the old face points to a valid half-edge */
-        eOrg.lFace?.anEdge = eNewSym
+        eOrg.lFace.anEdge = eNewSym
         if (!joiningLoops) {
             val newFace = GLUface()
             /* We split one loop into two -- the new loop is eNew.Lface */
-            makeFace(newFace, eNew, eOrg.lFace!!)
+            makeFace(newFace, eNew, eOrg.lFace)
         }
         return eNew
     }
 
     /******************** Other Operations  */
     /**
-     * __gl_meshZapFace( fZap ) destroys a face and removes it from the
+     * glMeshZapFace( fZap ) destroys a face and removes it from the
      * global face list.  All edges of fZap will have a null pointer as their
      * left face.  Any edges which also have a null pointer as their right face
      * are deleted entirely (along with any isolated vertices this produces).
@@ -468,44 +471,44 @@ internal object Mesh {
      * in any order.  Zapped faces cannot be used in further mesh operations!
      */
     fun glMeshZapFace(fZap: GLUface) {
-        val eStart = fZap.anEdge!!
+        val eStart = fZap.anEdge
 
         /* walk around face, deleting edges whose right face is also null */
-        var eNext = eStart.lNext!!
+        var eNext = eStart.lNext
         do {
             val e = eNext
-            eNext = e.lNext!!
-            e.lFace = null
-            if (e.sym?.lFace == null) {
-                /* delete the edge -- see __gl_MeshDelete above */
+            eNext = e.lNext
+            e.lFace = nullFace
+            if (e.sym.lFace === nullFace) {
+                /* delete the edge -- see glMeshDelete above */
                 if (e.oNext === e) {
-                    killVertex(e.org!!, null)
+                    killVertex(e.org, nullOrg)
                 } else {
                     /* Make sure that e.Org points to a valid half-edge */
-                    e.org?.anEdge = e.oNext
-                    splice(e, e.sym?.lNext!!)
+                    e.org.anEdge = e.oNext
+                    splice(e, e.sym.lNext)
                 }
-                val eSym = e.sym!!
+                val eSym = e.sym
                 if (eSym.oNext === eSym) {
-                    killVertex(eSym.org!!, null)
+                    killVertex(eSym.org, nullOrg)
                 } else {
                     /* Make sure that eSym.Org points to a valid half-edge */
-                    eSym.org?.anEdge = eSym.oNext
-                    splice(eSym, eSym.sym?.lNext!!)
+                    eSym.org.anEdge = eSym.oNext
+                    splice(eSym, eSym.sym.lNext)
                 }
                 killEdge(e)
             }
         } while (e !== eStart)
 
         /* delete from circular doubly-linked list */
-        val fPrev = fZap.prev!!
-        val fNext = fZap.next!!
+        val fPrev = fZap.prev
+        val fNext = fZap.next
         fNext.prev = fPrev
         fPrev.next = fNext
     }
 
     /**
-     * __gl_meshNewMesh() creates a new mesh with no edges, no vertices,
+     * glMeshNewMesh() creates a new mesh with no edges, no vertices,
      * and no loops (what we usually call a "face").
      */
     fun glMeshNewMesh(): GLUmesh {
@@ -516,29 +519,29 @@ internal object Mesh {
         val eSym = mesh.eHeadSym
         v.prev = v
         v.next = v.prev
-        v.anEdge = null
+        //v.anEdge = null
         v.data = null
         f.prev = f
         f.next = f.prev
-        f.anEdge = null
+        //f.anEdge = null
         f.data = null
         f.trail = null
         f.marked = false
         f.inside = false
         e.next = e
         e.sym = eSym
-        e.oNext = null
-        e.lNext = null
-        e.org = null
-        e.lFace = null
+        //e.oNext = null
+        //e.lNext = null
+        e.org = nullOrg
+        e.lFace = nullFace
         e.winding = 0
         e.activeRegion = null
         eSym.next = eSym
         eSym.sym = e
-        eSym.oNext = null
-        eSym.lNext = null
-        eSym.org = null
-        eSym.lFace = null
+        //eSym.oNext = null
+        //eSym.lNext = null
+        eSym.org = nullOrg
+        eSym.lFace = nullFace
         eSym.winding = 0
         eSym.activeRegion = null
         return mesh
@@ -558,22 +561,22 @@ internal object Mesh {
 
         /* Add the faces, vertices, and edges of mesh2 to those of mesh1 */
         if (f2.next !== f2) {
-            f1.prev?.next = f2.next
-            f2.next?.prev = f1.prev
-            f2.prev?.next = f1
+            f1.prev.next = f2.next
+            f2.next.prev = f1.prev
+            f2.prev.next = f1
             f1.prev = f2.prev
         }
         if (v2.next !== v2) {
-            v1.prev?.next = v2.next
-            v2.next?.prev = v1.prev
-            v2.prev?.next = v1
+            v1.prev.next = v2.next
+            v2.next.prev = v1.prev
+            v2.prev.next = v1
             v1.prev = v2.prev
         }
         if (e2.next !== e2) {
-            e1.sym?.next?.sym?.next = e2.next
-            e2.next?.sym?.next = e1.sym?.next
-            e2.sym?.next?.sym?.next = e1
-            e1.sym?.next = e2.sym?.next
+            e1.sym.next.sym.next = e2.next
+            e2.next.sym.next = e1.sym.next
+            e2.sym.next.sym.next = e1
+            e1.sym.next = e2.sym.next
         }
         return mesh1
     }
@@ -584,34 +587,34 @@ internal object Mesh {
     fun glMeshDeleteMeshZap(mesh: GLUmesh) {
         val fHead = mesh.fHead
         while (fHead.next !== fHead) {
-            glMeshZapFace(fHead.next!!)
+            glMeshZapFace(fHead.next)
         }
     }
 
     /**
-     * __gl_meshDeleteMesh( mesh ) will free all storage for any valid mesh.
+     * glMeshDeleteMesh( mesh ) will free all storage for any valid mesh.
      */
     fun glMeshDeleteMesh(mesh: GLUmesh) {
-        var f = mesh.fHead.next!!
+        var f = mesh.fHead.next
         while (f !== mesh.fHead) {
-            val fNext = f.next!!
+            val fNext = f.next
             f = fNext
         }
-        var v = mesh.vHead.next!!
+        var v = mesh.vHead.next
         while (v !== mesh.vHead) {
-            val vNext = v.next!!
+            val vNext = v.next
             v = vNext
         }
-        var e = mesh.eHead.next!!
+        var e = mesh.eHead.next
         while (e !== mesh.eHead) {
             /* One call frees both e and e.Sym (see EdgePair above) */
-            val eNext = e.next!!
+            val eNext = e.next
             e = eNext
         }
     }
 
     /**
-     * __gl_meshCheckMesh( mesh ) checks a mesh for self-consistency.
+     * glMeshCheckMesh( mesh ) checks a mesh for self-consistency.
      */
     fun glMeshCheckMesh(mesh: GLUmesh) {
         val fHead = mesh.fHead
@@ -619,25 +622,25 @@ internal object Mesh {
         val eHead = mesh.eHead
         var fPrev = fHead
         while (true) {
-            val f = fPrev.next!!
+            val f = fPrev.next
             if (f === fHead) break
-            var e = f.anEdge!!
-            do e = e.lNext!! while (e !== f.anEdge)
+            var e = f.anEdge
+            do e = e.lNext while (e !== f.anEdge)
             fPrev = f
         }
         var vPrev = vHead
         while (true) {
-            val v = vPrev.next!!
+            val v = vPrev.next
             if (v === vHead) break
-            var e = v.anEdge!!
+            var e = v.anEdge
             do {
-                e = e.oNext!!
+                e = e.oNext
             } while (e !== v.anEdge)
             vPrev = v
         }
         var ePrev = eHead
         while (true) {
-            val e = ePrev.next!!
+            val e = ePrev.next
             if (e === eHead) break
             ePrev = e
         }

@@ -56,15 +56,15 @@ class GLUface {
     /**
      * next face (never NULL)
      */
-    var next: GLUface? = null
+    lateinit var next: GLUface
     /**
      * previous face (never NULL)
      */
-    var prev: GLUface? = null
+    lateinit var prev: GLUface
     /**
      * a half edge with this left face
      */
-    var anEdge: GLUhalfEdge? = null
+    lateinit var anEdge: GLUhalfEdge
     /**
      * room for client's data
      */

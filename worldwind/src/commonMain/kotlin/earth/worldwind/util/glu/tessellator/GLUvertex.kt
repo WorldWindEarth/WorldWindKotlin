@@ -56,15 +56,15 @@ class GLUvertex {
     /**
      * next vertex (never NULL)
      */
-    var next: GLUvertex? = null
+    lateinit var next: GLUvertex
     /**
      * previous vertex (never NULL)
      */
-    var prev: GLUvertex? = null
+    lateinit var prev: GLUvertex
     /**
      * a half-edge with this origin
      */
-    var anEdge: GLUhalfEdge? = null
+    lateinit var anEdge: GLUhalfEdge
     /**
      * client's data
      */

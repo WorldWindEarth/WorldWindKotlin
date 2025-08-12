@@ -67,7 +67,7 @@ internal object Render {
 
     /************************ Strips and Fans decomposition  */
     /**
-     * __gl_renderMesh( tess, mesh ) takes a mesh and breaks it into triangle
+     * glRenderMesh( tess, mesh ) takes a mesh and breaks it into triangle
      * fans, strips, and separate triangles.  A substantial effort is made
      * to use as few rendering primitives as possible (ie. to make the fans
      * and strips as large as possible).
@@ -77,12 +77,12 @@ internal object Render {
     fun glRenderMesh(tess: GLUtessellatorImpl, mesh: GLUmesh) {
         /* Make a list of separate triangles so we can render them all at once */
         tess.lonelyTriList = null
-        var f = mesh.fHead.next!!
+        var f = mesh.fHead.next
         while (f !== mesh.fHead) {
             f.marked = false
-            f = f.next!!
+            f = f.next
         }
-        f = mesh.fHead.next!!
+        f = mesh.fHead.next
         while (f !== mesh.fHead) {
             /**
              * We examine all faces in an arbitrary order.  Whenever we find
@@ -92,7 +92,7 @@ internal object Render {
             if (f.inside && !f.marked) {
                 renderMaximumFaceGroup(tess, f)
             }
-            f = f.next!!
+            f = f.next
         }
         if (tess.lonelyTriList != null) {
             renderLonelyTriangles(tess, tess.lonelyTriList)
@@ -109,7 +109,7 @@ internal object Render {
      * triangles (a greedy approach).
      */
     fun renderMaximumFaceGroup(tess: GLUtessellatorImpl, fOrig: GLUface) {
-        val e = fOrig.anEdge!!
+        val e = fOrig.anEdge
         var max = FaceCount()
         max.size = 1
         max.eStart = e
@@ -119,11 +119,11 @@ internal object Render {
             if (newFace.size > max.size) {
                 max = newFace
             }
-            newFace = maximumFan(e.lNext!!)
+            newFace = maximumFan(e.lNext)
             if (newFace.size > max.size) {
                 max = newFace
             }
-            newFace = maximumFan(e.oNext?.sym!!)
+            newFace = maximumFan(e.oNext.sym)
             if (newFace.size > max.size) {
                 max = newFace
             }
@@ -131,16 +131,16 @@ internal object Render {
             if (newFace.size > max.size) {
                 max = newFace
             }
-            newFace = maximumStrip(e.lNext!!)
+            newFace = maximumStrip(e.lNext)
             if (newFace.size > max.size) {
                 max = newFace
             }
-            newFace = maximumStrip(e.oNext?.sym!!)
+            newFace = maximumStrip(e.oNext.sym)
             if (newFace.size > max.size) {
                 max = newFace
             }
         }
-        max.render?.render(tess, max.eStart!!, max.size)
+        max.render?.render(tess, e, max.size)
     }
 
     /* Macros which keep track of faces we have marked temporarily, and allow
@@ -177,16 +177,16 @@ internal object Render {
         val newFace = FaceCount(0, null, renderFan)
         var trail: GLUface? = null
         var e = eOrig
-        while (!marked(e.lFace!!)) {
-            trail = addToTrail(e.lFace!!, trail)
+        while (!marked(e.lFace)) {
+            trail = addToTrail(e.lFace, trail)
             ++newFace.size
-            e = e.oNext!!
+            e = e.oNext
         }
         e = eOrig
-        while (!marked(e.sym?.lFace!!)) {
-            trail = addToTrail(e.sym?.lFace!!, trail)
+        while (!marked(e.sym.lFace)) {
+            trail = addToTrail(e.sym.lFace, trail)
             ++newFace.size
-            e = e.sym?.lNext!!
+            e = e.sym.lNext
         }
         newFace.eStart = e
         /*LINTED*/
@@ -215,25 +215,25 @@ internal object Render {
         var tailSize = 0L
         var trail: GLUface? = null
         var e = eOrig
-        while (!marked(e.lFace!!)) {
-            trail = addToTrail(e.lFace!!, trail)
+        while (!marked(e.lFace)) {
+            trail = addToTrail(e.lFace, trail)
             ++tailSize
-            e = e.lNext?.sym!!
-            if (marked(e.lFace!!)) break
-            trail = addToTrail(e.lFace!!, trail)
+            e = e.lNext.sym
+            if (marked(e.lFace)) break
+            trail = addToTrail(e.lFace, trail)
             ++tailSize
-            e = e.oNext!!
+            e = e.oNext
         }
         val eTail = e
         e = eOrig
-        while (!marked(e.sym?.lFace!!)) {
-            trail = addToTrail(e.sym?.lFace!!, trail)
+        while (!marked(e.sym.lFace)) {
+            trail = addToTrail(e.sym.lFace, trail)
             ++headSize
-            e = e.sym?.lNext!!
-            if (marked(e.sym?.lFace!!)) break
-            trail = addToTrail(e.sym?.lFace!!, trail)
+            e = e.sym.lNext
+            if (marked(e.sym.lFace)) break
+            trail = addToTrail(e.sym.lFace, trail)
             ++headSize
-            e = e.sym?.oNext?.sym!!
+            e = e.sym.oNext.sym
         }
         val eHead = e
         newFace.size = tailSize + headSize
@@ -268,21 +268,21 @@ internal object Render {
         tess.callBeginOrBeginData(GL_TRIANGLES)
         while (f != null) {
             /* Loop once for each edge (there will always be 3 edges) */
-            var e = f.anEdge!!
+            var e = f.anEdge
             do {
                 if (tess.flagBoundary) {
                     /**
                      * Set the "edge state" to true just before we output the
                      * first vertex of each edge on the polygon boundary.
                      */
-                    val newState = if (!e.sym!!.lFace!!.inside) 1 else 0
+                    val newState = if (!e.sym.lFace.inside) 1 else 0
                     if (edgeState != newState) {
                         edgeState = newState
                         tess.callEdgeFlagOrEdgeFlagData(edgeState != 0)
                     }
                 }
-                tess.callVertexOrVertexData(e.org?.data!!)
-                e = e.lNext!!
+                tess.callVertexOrVertexData(e.org.data)
+                e = e.lNext
             } while (e !== f.anEdge)
             f = f.trail
         }
@@ -291,23 +291,23 @@ internal object Render {
 
     /************************ Boundary contour decomposition  */
     /**
-     * __gl_renderBoundary( tess, mesh ) takes a mesh, and outputs one
+     * glRenderBoundary( tess, mesh ) takes a mesh, and outputs one
      * contour for each face marked "inside".  The rendering output is
      * provided as callbacks (see the api).
      */
     fun glRenderBoundary(tess: GLUtessellatorImpl, mesh: GLUmesh) {
-        var f = mesh.fHead.next!!
+        var f = mesh.fHead.next
         while (f !== mesh.fHead) {
             if (f.inside) {
                 tess.callBeginOrBeginData(GL_LINE_LOOP)
-                var e = f.anEdge!!
+                var e = f.anEdge
                 do {
-                    tess.callVertexOrVertexData(e.org?.data!!)
-                    e = e.lNext!!
+                    tess.callVertexOrVertexData(e.org.data)
+                    e = e.lNext
                 } while (e !== f.anEdge)
                 tess.callEndOrEndData()
             }
-            f = f.next!!
+            f = f.next
         }
     }
 
@@ -394,7 +394,7 @@ internal object Render {
     }
 
     /**
-     * __gl_renderCache( tess ) takes a single contour and tries to render it
+     * glRenderCache( tess ) takes a single contour and tries to render it
      * as a triangle fan.  This handles convex polygons, as well as some
      * non-convex polygons if we get lucky.
      *
@@ -437,17 +437,17 @@ internal object Render {
                 GLU.GLU_TESS_WINDING_ABS_GEQ_TWO -> return true
             }
             tess.callBeginOrBeginData(if (tess.boundaryOnly) GL_LINE_LOOP else if (tess.cacheCount > 3) GL_TRIANGLE_FAN else GL_TRIANGLES)
-            tess.callVertexOrVertexData(v[0].data!!)
+            tess.callVertexOrVertexData(v[0].data)
             if (sign > 0) {
                 var vc = 1
                 while (vc < vn) {
-                    tess.callVertexOrVertexData(v[vc].data!!)
+                    tess.callVertexOrVertexData(v[vc].data)
                     ++vc
                 }
             } else {
                 var vc = vn - 1
                 while (vc > 0) {
-                    tess.callVertexOrVertexData(v[vc].data!!)
+                    tess.callVertexOrVertexData(v[vc].data)
                     --vc
                 }
             }
@@ -461,24 +461,17 @@ internal object Render {
      * to be able to render it later, once we have determined which
      * primitive is able to use the most triangles.
      */
-    internal class FaceCount {
-        constructor()
-        constructor(size: Long, eStart: GLUhalfEdge?, render: RenderCallBack?) {
-            this.size = size
-            this.eStart = eStart
-            this.render = render
-        }
-
+    internal class FaceCount(
         /**
          * number of triangles used
          */
-        var size = 0L
+        var size: Long = 0L,
         /**
          * edge where this primitive starts
          */
-        var eStart: GLUhalfEdge? = null
+        var eStart: GLUhalfEdge? = null,
         var render: RenderCallBack? = null
-    }
+    )
 
     internal interface RenderCallBack {
         fun render(tess: GLUtessellatorImpl, e: GLUhalfEdge, size: Long)
@@ -490,7 +483,7 @@ internal object Render {
          * the separate triangles at once.
          */
         override fun render(tess: GLUtessellatorImpl, e: GLUhalfEdge, size: Long) {
-            tess.lonelyTriList = addToTrail(e.lFace!!, tess.lonelyTriList)
+            tess.lonelyTriList = addToTrail(e.lFace, tess.lonelyTriList)
         }
     }
 
@@ -504,13 +497,13 @@ internal object Render {
             var e = e
             var size = size
             tess.callBeginOrBeginData(GL_TRIANGLE_FAN)
-            tess.callVertexOrVertexData(e.org?.data!!)
-            tess.callVertexOrVertexData(e.sym?.org?.data!!)
-            while (!marked(e.lFace!!)) {
-                e.lFace?.marked = true
+            tess.callVertexOrVertexData(e.org.data)
+            tess.callVertexOrVertexData(e.sym.org.data)
+            while (!marked(e.lFace)) {
+                e.lFace.marked = true
                 --size
-                e = e.oNext!!
-                tess.callVertexOrVertexData(e.sym?.org?.data!!)
+                e = e.oNext
+                tess.callVertexOrVertexData(e.sym.org.data)
             }
             tess.callEndOrEndData()
         }
@@ -526,18 +519,18 @@ internal object Render {
             var e = e
             var size = size
             tess.callBeginOrBeginData(GL_TRIANGLE_STRIP)
-            tess.callVertexOrVertexData(e.org?.data!!)
-            tess.callVertexOrVertexData(e.sym?.org?.data!!)
-            while (!marked(e.lFace!!)) {
-                e.lFace?.marked = true
+            tess.callVertexOrVertexData(e.org.data)
+            tess.callVertexOrVertexData(e.sym.org.data)
+            while (!marked(e.lFace)) {
+                e.lFace.marked = true
                 --size
-                e = e.lNext?.sym!!
-                tess.callVertexOrVertexData(e.org?.data!!)
-                if (marked(e.lFace!!)) break
-                e.lFace?.marked = true
+                e = e.lNext.sym
+                tess.callVertexOrVertexData(e.org.data)
+                if (marked(e.lFace)) break
+                e.lFace.marked = true
                 --size
-                e = e.oNext!!
-                tess.callVertexOrVertexData(e.sym?.org?.data!!)
+                e = e.oNext
+                tess.callVertexOrVertexData(e.sym.org.data)
             }
             tess.callEndOrEndData()
         }
