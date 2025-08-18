@@ -79,7 +79,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
         return true
     }
 
-    private fun getSimplifiedSymbolID(symbolID: String) = symbolID.substring(0, 6) + "0000" + symbolID.substring(10, 16) + "00000000000000"
+    private fun getSimplifiedSymbolID(symbolID: String) = symbolID.substring(0, 6) + "0000" + symbolID.substring(10)
 
     private fun getAttributes(placemark: MilStd2525Placemark): Map<String, String>? {
         if (lastSymbolID != placemark.symbolID) {
