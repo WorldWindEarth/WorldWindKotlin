@@ -5,7 +5,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
-open class SightlineProgram : AbstractShaderProgram() {
+class SightlineProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             uniform mat4 mvpMatrix;
@@ -67,11 +67,11 @@ open class SightlineProgram : AbstractShaderProgram() {
     )
     override val attribBindings = arrayOf("vertexPoint")
 
-    protected var mvpMatrixId = KglUniformLocation.NONE
-    protected var slpMatrixId = KglUniformLocation.NONE
-    protected var rangeId = KglUniformLocation.NONE
-    protected var depthSamplerId = KglUniformLocation.NONE
-    protected var colorId = KglUniformLocation.NONE
+    private var mvpMatrixId = KglUniformLocation.NONE
+    private var slpMatrixId = KglUniformLocation.NONE
+    private var rangeId = KglUniformLocation.NONE
+    private var depthSamplerId = KglUniformLocation.NONE
+    private var colorId = KglUniformLocation.NONE
     private val array = FloatArray(32)
 
     override fun initProgram(dc: DrawContext) {

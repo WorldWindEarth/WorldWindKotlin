@@ -8,7 +8,7 @@ import earth.worldwind.util.kgl.*
 
 /**
  * Represents an OpenGL shading language (GLSL) shader program and provides methods for identifying and accessing shader
- * variables. Shader programs are configured by calling `setProgramSources` to specify the the GLSL vertex
+ * variables. Shader programs are configured by calling `setProgramSources` to specify the GLSL vertex
  * shader and fragment shader source code, then made current by calling `useProgram`.
  */
 abstract class AbstractShaderProgram: RenderResource {
@@ -30,7 +30,7 @@ abstract class AbstractShaderProgram: RenderResource {
      * Indicates the OpenGL program object associated with this GPU program.
      */
     protected var program = KglProgram.NONE
-    protected var mustBuildProgram = true
+    private var mustBuildProgram = true
 
     override fun release(dc: DrawContext) = deleteProgram(dc)
 

@@ -6,7 +6,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
-open class TriangleShaderProgram : AbstractShaderProgram() {
+class TriangleShaderProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             uniform mat4 mvpMatrix;
@@ -123,31 +123,31 @@ open class TriangleShaderProgram : AbstractShaderProgram() {
     )
     override val attribBindings = arrayOf("pointA", "pointB", "pointC", "vertexTexCoord")
 
-    protected var enablePickMode = false
-    protected var enableTexture = false
-    protected var enableOneVertexMode = false
-    protected val mvpMatrix = Matrix4()
-    protected val texCoordMatrix = Matrix3()
-    protected val color = Color()
-    protected var opacity = 1.0f
-    protected var lineWidth = 1.0f
-    protected var miterLengthCutoff = 2.0f // should be greater than 1.0
-    protected var screenX = 1.0f
-    protected var screenY = 1.0f
-    protected var clipDistance = 0.0f
+    private var enablePickMode = false
+    private var enableTexture = false
+    private var enableOneVertexMode = false
+    private val mvpMatrix = Matrix4()
+    private val texCoordMatrix = Matrix3()
+    private val color = Color()
+    private var opacity = 1.0f
+    private var lineWidth = 1.0f
+    private var miterLengthCutoff = 2.0f // should be greater than 1.0
+    private var screenX = 1.0f
+    private var screenY = 1.0f
+    private var clipDistance = 0.0f
 
-    protected var mvpMatrixId = KglUniformLocation.NONE
-    protected var colorId = KglUniformLocation.NONE
-    protected var opacityId = KglUniformLocation.NONE
-    protected var lineWidthId = KglUniformLocation.NONE
-    protected var miterLengthCutoffId = KglUniformLocation.NONE
-    protected var screenId = KglUniformLocation.NONE
-    protected var enablePickModeId = KglUniformLocation.NONE
-    protected var enableTextureId = KglUniformLocation.NONE
-    protected var enableOneVertexModeId = KglUniformLocation.NONE
-    protected var texCoordMatrixId = KglUniformLocation.NONE
-    protected var texSamplerId = KglUniformLocation.NONE
-    protected var clipDistanceId = KglUniformLocation.NONE
+    private var mvpMatrixId = KglUniformLocation.NONE
+    private var colorId = KglUniformLocation.NONE
+    private var opacityId = KglUniformLocation.NONE
+    private var lineWidthId = KglUniformLocation.NONE
+    private var miterLengthCutoffId = KglUniformLocation.NONE
+    private var screenId = KglUniformLocation.NONE
+    private var enablePickModeId = KglUniformLocation.NONE
+    private var enableTextureId = KglUniformLocation.NONE
+    private var enableOneVertexModeId = KglUniformLocation.NONE
+    private var texCoordMatrixId = KglUniformLocation.NONE
+    private var texSamplerId = KglUniformLocation.NONE
+    private var clipDistanceId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {

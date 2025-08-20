@@ -1,6 +1,6 @@
 package earth.worldwind.layer.atmosphere
 
-open class GroundProgram: AbstractAtmosphereProgram() {
+class GroundProgram: AbstractAtmosphereProgram() {
     override var programSources = arrayOf(
         """
             precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */

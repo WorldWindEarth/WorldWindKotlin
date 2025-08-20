@@ -10,7 +10,7 @@ import earth.worldwind.util.kgl.KglUniformLocation
 // TODO index to select the state for a surface tile. This reduces the uniform calls when many surface tiles intersect
 // TODO one terrain tile.
 // TODO Try class representing transform with a specific scale+translate object that can be uploaded to a GLSL vec4
-open class SurfaceTextureProgram : AbstractShaderProgram() {
+class SurfaceTextureProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             uniform bool enableTexture;
@@ -78,13 +78,13 @@ open class SurfaceTextureProgram : AbstractShaderProgram() {
 
     val mvpMatrix = Matrix4()
     val texCoordMatrix = arrayOf(Matrix3(), Matrix3())
-    protected var enablePickModeId = KglUniformLocation.NONE
-    protected var enableTextureId = KglUniformLocation.NONE
-    protected var mvpMatrixId = KglUniformLocation.NONE
-    protected var texCoordMatrixId = KglUniformLocation.NONE
-    protected var texSamplerId = KglUniformLocation.NONE
-    protected var colorId = KglUniformLocation.NONE
-    protected var opacityId = KglUniformLocation.NONE
+    private var enablePickModeId = KglUniformLocation.NONE
+    private var enableTextureId = KglUniformLocation.NONE
+    private var mvpMatrixId = KglUniformLocation.NONE
+    private var texCoordMatrixId = KglUniformLocation.NONE
+    private var texSamplerId = KglUniformLocation.NONE
+    private var colorId = KglUniformLocation.NONE
+    private var opacityId = KglUniformLocation.NONE
     private val mvpMatrixArray = FloatArray(16)
     private val texCoordMatrixArray = FloatArray(9 * 2)
     private val color = Color()

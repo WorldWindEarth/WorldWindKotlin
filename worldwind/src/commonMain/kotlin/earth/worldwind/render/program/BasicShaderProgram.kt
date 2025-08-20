@@ -6,7 +6,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
-open class BasicShaderProgram : AbstractShaderProgram() {
+class BasicShaderProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             uniform bool enableTexture;
@@ -58,19 +58,19 @@ open class BasicShaderProgram : AbstractShaderProgram() {
     )
     override val attribBindings = arrayOf("vertexPoint", "vertexTexCoord")
 
-    protected var enablePickMode = false
-    protected var enableTexture = false
-    protected val mvpMatrix = Matrix4()
-    protected val texCoordMatrix = Matrix3()
-    protected val color = Color()
-    protected var opacity = 1.0f
-    protected var enablePickModeId = KglUniformLocation.NONE
-    protected var enableTextureId = KglUniformLocation.NONE
-    protected var mvpMatrixId = KglUniformLocation.NONE
-    protected var texCoordMatrixId = KglUniformLocation.NONE
-    protected var texSamplerId = KglUniformLocation.NONE
-    protected var colorId = KglUniformLocation.NONE
-    protected var opacityId = KglUniformLocation.NONE
+    private var enablePickMode = false
+    private var enableTexture = false
+    private val mvpMatrix = Matrix4()
+    private val texCoordMatrix = Matrix3()
+    private val color = Color()
+    private var opacity = 1.0f
+    private var enablePickModeId = KglUniformLocation.NONE
+    private var enableTextureId = KglUniformLocation.NONE
+    private var mvpMatrixId = KglUniformLocation.NONE
+    private var texCoordMatrixId = KglUniformLocation.NONE
+    private var texSamplerId = KglUniformLocation.NONE
+    private var colorId = KglUniformLocation.NONE
+    private var opacityId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {

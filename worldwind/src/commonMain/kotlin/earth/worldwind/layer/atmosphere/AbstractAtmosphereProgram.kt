@@ -12,34 +12,34 @@ import kotlin.math.pow
 // TODO Correctly compute the atmosphere color for eye positions beneath the atmosphere
 // TODO Test the effect of working in local coordinates (reference point) on the GLSL atmosphere programs
 abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
-    protected var fragModeId = KglUniformLocation.NONE
-    protected var mvpMatrixId = KglUniformLocation.NONE
-    protected var texCoordMatrixId = KglUniformLocation.NONE
-    protected var texSamplerId = KglUniformLocation.NONE
-    protected var vertexOriginId = KglUniformLocation.NONE
-    protected var eyePointId = KglUniformLocation.NONE
-    protected var eyeMagnitudeId = KglUniformLocation.NONE
-    protected var eyeMagnitude2Id = KglUniformLocation.NONE
-    protected var lightDirectionId = KglUniformLocation.NONE
-    protected var invWavelengthId = KglUniformLocation.NONE
-    protected var atmosphereRadiusId = KglUniformLocation.NONE
-    protected var atmosphereRadius2Id = KglUniformLocation.NONE
-    protected var globeRadiusId = KglUniformLocation.NONE
-    protected var krESunId = KglUniformLocation.NONE
-    protected var kmESunId = KglUniformLocation.NONE
-    protected var kr4PIId = KglUniformLocation.NONE
-    protected var km4PIId = KglUniformLocation.NONE
-    protected var scaleId = KglUniformLocation.NONE
-    protected var scaleDepthId = KglUniformLocation.NONE
-    protected var scaleOverScaleDepthId = KglUniformLocation.NONE
-    protected var gId = KglUniformLocation.NONE
-    protected var g2Id = KglUniformLocation.NONE
-    protected var exposureId = KglUniformLocation.NONE
+    private var fragModeId = KglUniformLocation.NONE
+    private var mvpMatrixId = KglUniformLocation.NONE
+    private var texCoordMatrixId = KglUniformLocation.NONE
+    private var texSamplerId = KglUniformLocation.NONE
+    private var vertexOriginId = KglUniformLocation.NONE
+    private var eyePointId = KglUniformLocation.NONE
+    private var eyeMagnitudeId = KglUniformLocation.NONE
+    private var eyeMagnitude2Id = KglUniformLocation.NONE
+    private var lightDirectionId = KglUniformLocation.NONE
+    private var invWavelengthId = KglUniformLocation.NONE
+    private var atmosphereRadiusId = KglUniformLocation.NONE
+    private var atmosphereRadius2Id = KglUniformLocation.NONE
+    private var globeRadiusId = KglUniformLocation.NONE
+    private var krESunId = KglUniformLocation.NONE
+    private var kmESunId = KglUniformLocation.NONE
+    private var kr4PIId = KglUniformLocation.NONE
+    private var km4PIId = KglUniformLocation.NONE
+    private var scaleId = KglUniformLocation.NONE
+    private var scaleDepthId = KglUniformLocation.NONE
+    private var scaleOverScaleDepthId = KglUniformLocation.NONE
+    private var gId = KglUniformLocation.NONE
+    private var g2Id = KglUniformLocation.NONE
+    private var exposureId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     /**
      * Frag color indicates the atmospheric scattering color components written to the fragment color. Accepted values
-     * are [FRAGMODE_PRIMARY], [FRAGMODE_SECONDARY] and [FRAGMODE_PRIMARY_TEX_BLEND].
+     * are [PRIMARY], [SECONDARY] and [PRIMARY_TEX_BLEND].
      */
     enum class FragMode(val asInt : Int) {
         PRIMARY(1),

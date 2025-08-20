@@ -10,7 +10,7 @@ import earth.worldwind.util.kgl.KglUniformLocation
 // TODO to select the state for a surface tile. This reduces the uniform calls when many surface tiles intersect
 // TODO one terrain tile.
 // TODO Try class representing transform with a specific scale+translate object that can be uploaded to a GLSL vec4
-open class ElevationHeatmapProgram : AbstractShaderProgram() {
+class ElevationHeatmapProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             uniform mat4 mvpMatrix;
@@ -57,15 +57,15 @@ open class ElevationHeatmapProgram : AbstractShaderProgram() {
     override val attribBindings = arrayOf("vertexPoint", "vertexTexCoord")
 
     val mvpMatrix = Matrix4()
-    protected var scaleId = KglUniformLocation.NONE
-    protected var offsetId = KglUniformLocation.NONE
-    protected var color0Id = KglUniformLocation.NONE
-    protected var color1Id = KglUniformLocation.NONE
-    protected var color2Id = KglUniformLocation.NONE
-    protected var color3Id = KglUniformLocation.NONE
-    protected var color4Id = KglUniformLocation.NONE
-    protected var opacityId = KglUniformLocation.NONE
-    protected var mvpMatrixId = KglUniformLocation.NONE
+    private var scaleId = KglUniformLocation.NONE
+    private var offsetId = KglUniformLocation.NONE
+    private var color0Id = KglUniformLocation.NONE
+    private var color1Id = KglUniformLocation.NONE
+    private var color2Id = KglUniformLocation.NONE
+    private var color3Id = KglUniformLocation.NONE
+    private var color4Id = KglUniformLocation.NONE
+    private var opacityId = KglUniformLocation.NONE
+    private var mvpMatrixId = KglUniformLocation.NONE
     private val mvpMatrixArray = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {

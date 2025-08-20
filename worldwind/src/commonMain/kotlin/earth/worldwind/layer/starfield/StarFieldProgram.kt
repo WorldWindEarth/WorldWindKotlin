@@ -9,7 +9,7 @@ import earth.worldwind.util.kgl.KglUniformLocation
 /**
  * StarFieldProgram is a GLSL program that draws points representing stars.
  */
-open class StarFieldProgram : AbstractShaderProgram() {
+class StarFieldProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             //.x = declination
@@ -78,20 +78,20 @@ open class StarFieldProgram : AbstractShaderProgram() {
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint")
-    protected var mvpMatrixId = KglUniformLocation.NONE
-    protected var numDaysId = KglUniformLocation.NONE
-    protected var magnitudeRangeId = KglUniformLocation.NONE
-    protected var textureUnitId = KglUniformLocation.NONE
-    protected var textureEnabledId = KglUniformLocation.NONE
+    private var mvpMatrixId = KglUniformLocation.NONE
+    private var numDaysId = KglUniformLocation.NONE
+    private var magnitudeRangeId = KglUniformLocation.NONE
+    private var textureUnitId = KglUniformLocation.NONE
+    private var textureEnabledId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
-        mvpMatrixId = gl.getUniformLocation(program, "mvpMatrix");
-        numDaysId = gl.getUniformLocation(program, "numDays");
-        magnitudeRangeId = gl.getUniformLocation(program, "magnitudeRange");
-        textureUnitId = gl.getUniformLocation(program, "textureSampler");
-        textureEnabledId = gl.getUniformLocation(program, "textureEnabled");
+        mvpMatrixId = gl.getUniformLocation(program, "mvpMatrix")
+        numDaysId = gl.getUniformLocation(program, "numDays")
+        magnitudeRangeId = gl.getUniformLocation(program, "magnitudeRange")
+        textureUnitId = gl.getUniformLocation(program, "textureSampler")
+        textureEnabledId = gl.getUniformLocation(program, "textureEnabled")
     }
 
     /**
@@ -126,7 +126,7 @@ open class StarFieldProgram : AbstractShaderProgram() {
      *
      * @param unit The texture unit.
      */
-    fun loadTextureUnit(unit: Int) = gl.uniform1i(textureUnitId, unit - GL_TEXTURE0);
+    fun loadTextureUnit(unit: Int) = gl.uniform1i(textureUnitId, unit - GL_TEXTURE0)
 
     /**
      * Loads the specified boolean as the value of this program's 'textureEnabledLocation' uniform variable.

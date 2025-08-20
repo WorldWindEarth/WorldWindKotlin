@@ -1,6 +1,6 @@
 package earth.worldwind.layer.atmosphere
 
-open class SkyProgram : AbstractAtmosphereProgram() {
+class SkyProgram : AbstractAtmosphereProgram() {
     override var programSources = arrayOf(
         """
             const int SAMPLE_COUNT = 2;
