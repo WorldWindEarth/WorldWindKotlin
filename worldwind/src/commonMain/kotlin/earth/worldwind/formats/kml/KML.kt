@@ -12,6 +12,7 @@ import earth.worldwind.formats.kml.models.LabelStyle
 import earth.worldwind.formats.kml.models.LineString
 import earth.worldwind.formats.kml.models.LineStyle
 import earth.worldwind.formats.kml.models.LinearRing
+import earth.worldwind.formats.kml.models.LookAt
 import earth.worldwind.formats.kml.models.MultiGeometry
 import earth.worldwind.formats.kml.models.Placemark
 import earth.worldwind.formats.kml.models.Point
@@ -75,18 +76,21 @@ internal class KML {
             abstract val parentId: String?
             abstract val id: String?
             abstract val name: String?
+            abstract val lookAt: LookAt?
         }
 
         data class KmlDocument(
             override val parentId: String?,
             override val id: String,
             override val name: String,
+            override val lookAt: LookAt?
         ) : Group()
 
         data class KmlFolder(
             override val parentId: String?,
             override val id: String,
             override val name: String,
+            override val lookAt: LookAt?
         ) : Group()
 
         data class KmlStyle(
@@ -172,6 +176,7 @@ internal class KML {
         isDocument: Boolean
     ) {
         var name: String? = null
+        var lookAt: LookAt? = null
         var isEventSend = false
         val id = reader.attributes
             .find { it.localName == ID_ATTRIBUTE }?.value
@@ -182,8 +187,8 @@ internal class KML {
 
             val prefix = if (isDocument) "Document" else "Folder"
             val finalName = name ?: "$prefix $id"
-            val event = if (isDocument) KmlEvent.KmlDocument(parentId, id, finalName)
-            else KmlEvent.KmlFolder(parentId, id, finalName)
+            val event = if (isDocument) KmlEvent.KmlDocument(parentId, id, finalName, lookAt)
+            else KmlEvent.KmlFolder(parentId, id, finalName, lookAt)
             send(event)
             isEventSend = true
         }
@@ -217,6 +222,7 @@ internal class KML {
                     STYLE_MAP_TAG -> decodeStyleMap(reader, parentId)
                     CASCADING_STYLE_TAG -> decodeCascadingStyle(reader, parentId)
                     STYLE_TAG -> decodeStyle(reader, parentId)
+                    LOOK_AT_TAG -> { lookAt = xml.decodeFromReader(reader) }
                     else -> reader.readIdleTag()
                 }
 
@@ -272,6 +278,7 @@ internal class KML {
         private const val STYLE_MAP_TAG = "StyleMap"
         private const val CASCADING_STYLE_TAG = ""
         private const val NAME_TAG = "name"
+        private const val LOOK_AT_TAG = "LookAt"
         private const val ID_ATTRIBUTE = "id"
     }
 }
