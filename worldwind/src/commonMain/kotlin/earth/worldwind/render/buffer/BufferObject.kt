@@ -1,6 +1,7 @@
 package earth.worldwind.render.buffer
 
 import earth.worldwind.draw.DrawContext
+import earth.worldwind.geom.Range
 import earth.worldwind.render.RenderResource
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -9,6 +10,7 @@ import earth.worldwind.util.kgl.GL_STATIC_DRAW
 import earth.worldwind.util.kgl.KglBuffer
 
 open class BufferObject(protected val target: Int, var byteCount: Int) : RenderResource {
+    var ranges: Array<Range>? = null
     protected var id = KglBuffer.NONE
     var version = 0L
 
