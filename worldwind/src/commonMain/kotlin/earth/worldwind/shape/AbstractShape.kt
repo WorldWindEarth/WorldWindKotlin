@@ -168,6 +168,7 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     protected open fun reset() {
         boundingBox.setToUnitBox()
         boundingSector.setEmpty()
+        ++bufferDataVersion
     }
 
     protected abstract fun makeDrawable(rc: RenderContext)

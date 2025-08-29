@@ -142,10 +142,7 @@ open class Polygon @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (boundaries.isEmpty()) return  // nothing to draw
 
-        if (mustAssembleGeometry(rc)) {
-            assembleGeometry(rc)
-            ++bufferDataVersion
-        }
+        if (mustAssembleGeometry(rc)) assembleGeometry(rc)
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable

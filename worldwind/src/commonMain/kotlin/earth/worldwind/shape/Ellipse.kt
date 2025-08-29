@@ -137,13 +137,11 @@ open class Ellipse @JvmOverloads constructor(
      * Will always be even.
      */
     protected var activeIntervals = 0
+    protected val bufferKeys = mutableMapOf<Int, BufferKey>()
     protected var vertexArray = FloatArray(0)
     protected var vertexIndex = 0
-    protected val vertexBufferKey = Any()
     protected var lineVertexArray = FloatArray(0)
     protected var lineVertexIndex = 0
-    protected val lineVertexBufferKey = Any()
-    protected val lineElementBufferKey = Any()
     protected var verticalVertexIndex = 0
     // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
     protected val verticalElements = mutableListOf<Int>()
@@ -160,6 +158,12 @@ open class Ellipse @JvmOverloads constructor(
         require(majorRadius >= 0 && minorRadius >= 0) {
             logMessage(ERROR, "Ellipse", "constructor", "invalidRadius")
         }
+    }
+
+    protected class BufferKey {
+        val vertexBufferKey = Any()
+        val lineVertexBufferKey = Any()
+        val lineElementBufferKey = Any()
     }
 
     companion object {
@@ -246,10 +250,7 @@ open class Ellipse @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (majorRadius == 0.0 && minorRadius == 0.0) return  // nothing to draw
 
-        if (mustAssembleGeometry(rc)) {
-            assembleGeometry(rc)
-            ++bufferDataVersion
-        }
+        if (mustAssembleGeometry(rc)) assembleGeometry(rc)
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
@@ -289,9 +290,12 @@ open class Ellipse @JvmOverloads constructor(
         // Use the basic GLSL program to draw the shape.
         drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
+        // Obtain buffer keys for current active intervals count
+        val keys = bufferKeys[activeIntervals] ?: BufferKey().also { bufferKeys[activeIntervals] = it }
+
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
+        drawState.vertexBuffer = rc.getBufferObject(keys.vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        rc.offerGLBufferUpload(keys.vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
 
         // Get the attributes of the element buffer
         val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
@@ -308,14 +312,14 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.vertexBuffer = rc.getBufferObject(lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(lineVertexBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
+        drawStateLines.vertexBuffer = rc.getBufferObject(keys.lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        rc.offerGLBufferUpload(keys.lineVertexBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawStateLines.elementBuffer = rc.getBufferObject(lineElementBufferKey) {
+        drawStateLines.elementBuffer = rc.getBufferObject(keys.lineElementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(lineElementBufferKey, bufferDataVersion) {
+        rc.offerGLBufferUpload(keys.lineElementBufferKey, bufferDataVersion) {
             val array = IntArray(outlineElements.size + verticalElements.size)
             var index = 0
             for (element in outlineElements) array[index++] = element
