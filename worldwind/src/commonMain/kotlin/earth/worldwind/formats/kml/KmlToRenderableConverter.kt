@@ -1,5 +1,7 @@
 package earth.worldwind.formats.kml
 
+import earth.worldwind.formats.forceHttps
+import earth.worldwind.formats.isValidHttpsUrl
 import earth.worldwind.formats.kml.models.Geometry
 import earth.worldwind.formats.kml.models.IconStyle
 import earth.worldwind.formats.kml.models.LabelStyle
@@ -28,6 +30,7 @@ import earth.worldwind.shape.TextAttributes
 internal class KmlToRenderableConverter {
     companion object {
         private const val HIGHLIGHT_INCREMENT = 4f
+        private const val DEFAULT_IMAGE_SCALE = 1.0
 
         private val spaceCharsRegex by lazy { "[\\s\\n\\t\\r\\u00A0\\u200B\\u202F\\u2009]".toRegex() }
 
@@ -104,9 +107,11 @@ internal class KmlToRenderableConverter {
         }
     }
 
+    var density = 1.0f
+
     fun convertPlacemarkToRenderable(
         placemark: Placemark,
-        definedStyle: Style? = null
+        definedStyle: Style? = null,
     ): List<Renderable> {
         val style = placemark.stylesList?.firstOrNull() ?: definedStyle
         val geometry: Geometry = placemark.geometryList?.firstOrNull() ?: return emptyList()
@@ -145,7 +150,11 @@ internal class KmlToRenderableConverter {
         } ?: emptyList()
     }
 
-    private fun createPathFromLineString(lineString: LineString, style: Style?, name: String?): Path {
+    private fun createPathFromLineString(
+        lineString: LineString,
+        style: Style?,
+        name: String?
+    ): Path {
         val (positions, isAbsolute) = extractPoints(lineString.coordinates?.value)
 
         return Path(positions).apply {
@@ -153,7 +162,9 @@ internal class KmlToRenderableConverter {
                 ?: if (isAbsolute) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
 
             lineString.extrude.let { isExtrude = it ?: (altitudeMode == AltitudeMode.ABSOLUTE) }
-            lineString.tessellate.let { isFollowTerrain = it ?: (altitudeMode != AltitudeMode.ABSOLUTE) }
+            lineString.tessellate.let {
+                isFollowTerrain = it ?: (altitudeMode != AltitudeMode.ABSOLUTE)
+            }
 
             // If the path is clamped to the ground and terrain conforming, draw as a great circle.
             // Otherwise draw as linear segments.
@@ -165,7 +176,8 @@ internal class KmlToRenderableConverter {
 
             name?.let { displayName = it }
 
-            highlightAttributes = ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
+            highlightAttributes =
+                ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
             maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
 
             applyStyleOnShapeAttributes(style)
@@ -184,7 +196,9 @@ internal class KmlToRenderableConverter {
                 ?: if (isAbsolute) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
 
             linearRing.extrude.let { isExtrude = it ?: (altitudeMode == AltitudeMode.ABSOLUTE) }
-            linearRing.tessellate.let { isFollowTerrain = it ?: (altitudeMode != AltitudeMode.ABSOLUTE) }
+            linearRing.tessellate.let {
+                isFollowTerrain = it ?: (altitudeMode != AltitudeMode.ABSOLUTE)
+            }
 
             // If the path is clamped to the ground and terrain conforming, draw as a great circle.
             // Otherwise draw as linear segments.
@@ -196,7 +210,8 @@ internal class KmlToRenderableConverter {
 
             name?.let { displayName = it }
 
-            highlightAttributes = ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
+            highlightAttributes =
+                ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
             maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
 
             applyStyleOnShapeAttributes(style)
@@ -204,7 +219,11 @@ internal class KmlToRenderableConverter {
     }
 
 
-    private fun createPolygonFromPolygon(polygon: Polygon, style: Style?, name: String?): earth.worldwind.shape.Polygon {
+    private fun createPolygonFromPolygon(
+        polygon: Polygon,
+        style: Style?,
+        name: String?
+    ): earth.worldwind.shape.Polygon {
         return earth.worldwind.shape.Polygon().apply {
             polygon.extrude?.let { isExtrude = it }
             polygon.tessellate?.let { isFollowTerrain = it }
@@ -239,7 +258,8 @@ internal class KmlToRenderableConverter {
 
             name?.let { displayName = it }
 
-            highlightAttributes = ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
+            highlightAttributes =
+                ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
             maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
 
             applyStyleOnShapeAttributes(style)
@@ -260,10 +280,24 @@ internal class KmlToRenderableConverter {
         } else {
             earth.worldwind.shape.Placemark(position, label = name).apply {
                 attributes.apply {
-                    iconStyle?.scale?.let { imageScale = it }
-                    iconStyle?.icon?.href?.let { imageSource = ImageSource.fromUrlString(it) }
+                    imageScale = (iconStyle?.scale ?: DEFAULT_IMAGE_SCALE) * density
+                    iconStyle?.icon?.href
+                        ?.let(::forceHttps)
+                        ?.let {
+                            try {
+                                if (isValidHttpsUrl(it)) {
+                                    imageSource = ImageSource.fromUrlString(it)
+                                }
+                            } catch (e: Exception) {
+                                // Ignore malformed URL
+                            }
+                        }
                     iconStyle?.color?.let { imageColor = fromHexABRG(it) }
                     labelAttributes.applyStyle(labelStyle)
+                    // if icon is present move label, so it doesn't overlap the icon
+                    if (imageSource != null) {
+                        labelAttributes.textOffset = Offset.topRight()
+                    }
                 }
             }
         }.apply {

@@ -6,7 +6,6 @@ import earth.worldwind.formats.kml.models.StyleMap
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
@@ -45,30 +44,41 @@ object KmlLayerFactory {
     suspend fun createLayer(
         text: String,
         displayName: String? = KML_LAYER_NAME,
-        labelVisibilityThreshold: Double = 0.0
-    ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold)
+        labelVisibilityThreshold: Double = 0.0,
+        density: Float = 1.0f,
+    ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold, density)
 
     suspend fun createLayer(
         reader: Reader,
         displayName: String? = KML_LAYER_NAME,
-        labelVisibilityThreshold: Double = 0.0
-    ) = RenderableLayer(displayName).apply {
-        decodeFromReader(reader).map { data ->
-            setLayerData(labelVisibilityThreshold, data)
+        labelVisibilityThreshold: Double = 0.0,
+        density: Float = 1.0f,
+    ): RenderableLayer {
+        converter.density = density
+        return RenderableLayer(displayName).apply {
+            decodeFromReader(reader).map { data ->
+                setLayerData(labelVisibilityThreshold, data)
+            }
         }
     }
 
     suspend fun createLayers(
         text: String,
-        labelVisibilityThreshold: Double = 0.0
-    ) = createLayers(StringReader(text), labelVisibilityThreshold)
+        labelVisibilityThreshold: Double = 0.0,
+        density: Float = 1.0f,
+    ) = createLayers(StringReader(text), labelVisibilityThreshold, density)
 
     suspend fun createLayers(
         reader: Reader,
-        labelVisibilityThreshold: Double = 0.0
-    ) = decodeFromReader(reader).map { data ->
-        RenderableLayer(data.displayName).apply {
-            setLayerData(labelVisibilityThreshold, data)
+        labelVisibilityThreshold: Double = 0.0,
+        density: Float = 1.0f,
+    ): List<RenderableLayer> {
+        converter.density = density
+
+        return decodeFromReader(reader).map { data ->
+            RenderableLayer(data.displayName).apply {
+                setLayerData(labelVisibilityThreshold, data)
+            }
         }
     }
 

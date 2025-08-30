@@ -1,5 +1,7 @@
 package earth.worldwind.formats.geojson
 
+import earth.worldwind.formats.forceHttps
+import earth.worldwind.formats.isValidHttpsUrl
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
@@ -182,22 +184,24 @@ object GeoJsonLayerFactory {
                                 altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
                                 attributes.apply {
                                     try {
-                                        properties.icon?.let {
-                                            if (isValidHttpsUrl(it)) {
-                                                imageSource = ImageSource.fromUrlString(it)
+                                        properties.icon
+                                            ?.let(::forceHttps)
+                                            ?.let {
+                                                if (isValidHttpsUrl(it)) {
+                                                    imageSource = ImageSource.fromUrlString(it)
 
-                                                properties.iconOffset?.let { (x, y) ->
-                                                    attributes.imageOffset.set(
-                                                        OffsetMode.PIXELS, x,
-                                                        OffsetMode.INSET_PIXELS, y,
-                                                    )
-                                                    attributes.labelAttributes.textOffset.set(
-                                                        OffsetMode.PIXELS, -x / 2.0,
-                                                        OffsetMode.INSET_PIXELS, y / 2.0
-                                                    )
+                                                    properties.iconOffset?.let { (x, y) ->
+                                                        attributes.imageOffset.set(
+                                                            OffsetMode.PIXELS, x,
+                                                            OffsetMode.INSET_PIXELS, y,
+                                                        )
+                                                        attributes.labelAttributes.textOffset.set(
+                                                            OffsetMode.PIXELS, -x / 2.0,
+                                                            OffsetMode.INSET_PIXELS, y / 2.0
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
                                     } catch (e: Exception) {
                                         // cant load image, ignore
                                     }
@@ -249,15 +253,6 @@ object GeoJsonLayerFactory {
         apply {
             scale = properties.labelScale ?: 1.0
         }
-    }
-
-    private fun isValidHttpsUrl(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        val httpsUrlRegex = Regex(
-            pattern = "^https://[\\w.-]+(?:\\.[\\w.-]+)+(?:/\\S*)?$",
-            options = setOf(RegexOption.IGNORE_CASE)
-        )
-        return httpsUrlRegex.matches(url)
     }
 
     data class Properties(val properties: LinkedHashMap<String, Any?> = LinkedHashMap()) {
