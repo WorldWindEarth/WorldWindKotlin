@@ -293,6 +293,9 @@ internal class KmlToRenderableConverter {
                             }
                         }
                     iconStyle?.color?.let { imageColor = fromHexABRG(it) }
+
+                    attributes.isDrawLeader = point.extrude ?: false
+
                     labelAttributes.applyStyle(labelStyle)
                     // if icon is present move label, so it doesn't overlap the icon
                     if (imageSource != null) {
