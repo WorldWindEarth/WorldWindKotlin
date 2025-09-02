@@ -132,27 +132,13 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
-    /**
-     * The number of intervals used for generating geometry. Clamped between MIN_INTERVALS and maximumIntervals.
-     * Will always be even.
-     */
-    protected var activeIntervals = 0
-    protected val bufferKeys = mutableMapOf<Int, BufferKey>()
+    protected val vertexOrigin = Vec3()
     protected var vertexArray = FloatArray(0)
-    protected var vertexIndex = 0
     protected var lineVertexArray = FloatArray(0)
-    protected var lineVertexIndex = 0
-    protected var verticalVertexIndex = 0
-    // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
+    // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
     protected val verticalElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
-    protected val vertexOrigin = Vec3()
-    protected var texCoord1d = 0.0
-    protected val texCoord2d = Vec3()
-    protected val texCoordMatrix = Matrix3()
-    protected val modelToTexCoord = Matrix4()
-    protected var cameraDistance = 0.0
-    protected val prevPoint = Vec3()
+    protected val bufferKeys = mutableMapOf<Int, BufferKey>()
 
     init {
         require(majorRadius >= 0 && minorRadius >= 0) {
@@ -196,9 +182,21 @@ open class Ellipse @JvmOverloads constructor(
          */
         protected val elementBufferKeys = mutableMapOf<Int, Any>()
 
-        private val scratchPosition = Position()
-        private val scratchPoint = Vec3()
-        private val scratchVertPoint = Vec3()
+        /**
+         * The number of intervals used for generating geometry. Clamped between MIN_INTERVALS and maximumIntervals.
+         * Will always be even.
+         */
+        protected var activeIntervals = 0
+        protected var vertexIndex = 0
+        protected var lineVertexIndex = 0
+        protected var verticalVertexIndex = 0
+
+        protected val prevPoint = Vec3()
+        protected val texCoord2d = Vec3()
+        protected val texCoordMatrix = Matrix3()
+        protected val modelToTexCoord = Matrix4()
+        protected val scratchLocation = Location()
+        protected var texCoord1d = 0.0
 
         protected fun assembleElements(intervals: Int, elementBuffer: BufferObject): ShortArray {
             // Create temporary storage for elements
@@ -257,6 +255,7 @@ open class Ellipse @JvmOverloads constructor(
         val drawState: DrawShapeState
         val drawableLines: Drawable
         val drawStateLines: DrawShapeState
+        val cameraDistance: Double
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
@@ -327,8 +326,8 @@ open class Ellipse @JvmOverloads constructor(
             NumericArray.Ints(array)
         }
 
-        drawInterior(rc, drawState)
-        drawOutline(rc, drawStateLines)
+        drawInterior(rc, drawState, cameraDistance)
+        drawOutline(rc, drawStateLines, cameraDistance)
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(vertexOrigin)
@@ -353,7 +352,7 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
-    protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState) {
+    protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState, cameraDistance: Double) {
         if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
 
         // Configure the drawable to use the interior texture when drawing the interior.
@@ -379,7 +378,7 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
-    protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState) {
+    protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState, cameraDistance: Double) {
         if (!activeAttributes.isDrawOutline || rc.isPickMode && !activeAttributes.isPickOutline) return
 
         // Configure the drawable to use the outline texture when drawing the outline.
@@ -425,8 +424,8 @@ open class Ellipse @JvmOverloads constructor(
         if (isSurfaceShape) {
             vertexOrigin.set(center.longitude.inDegrees, center.latitude.inDegrees, center.altitude)
         } else {
-            rc.geographicToCartesian(center, altitudeMode, scratchPoint)
-            vertexOrigin.set(scratchPoint.x, scratchPoint.y, scratchPoint.z)
+            rc.geographicToCartesian(center, altitudeMode, point)
+            vertexOrigin.set(point.x, point.y, point.z)
         }
 
         // Determine the number of spine points
@@ -469,7 +468,8 @@ open class Ellipse @JvmOverloads constructor(
         var spineIdx = 0
         val spineRadius = DoubleArray(spineCount)
 
-        var firstLoc = Position()
+        var firstLoc: Position? = null
+        var firstPoint: Vec3? = null
         // Iterate around the ellipse to add vertices
         for (i in 0 until activeIntervals) {
             val radians = deltaRadians * i
@@ -480,25 +480,32 @@ open class Ellipse @JvmOverloads constructor(
             // Calculate the great circle location given this activeIntervals step (azimuthDegrees) a correction value to
             // start from an east-west aligned major axis (90.0) and the user specified user heading value
             val azimuth = heading.plusDegrees(azimuthDegrees + headingAdjustment)
-            val loc = center.greatCircleLocation(azimuth, arcRadius, scratchPosition)
+            val loc = center.greatCircleLocation(azimuth, arcRadius, scratchLocation)
+            calcPoint(rc, loc.latitude, loc.longitude, center.altitude)
             addVertex(rc, loc.latitude, loc.longitude, center.altitude, arrayOffset, isExtrude)
             // Add the major arc radius for the spine points. Spine points are vertically coincident with exterior
             // points. The first and middle most point do not have corresponding spine points.
             if (i > 0 && i < activeIntervals / 2) spineRadius[spineIdx++] = x
             if (i < 1) {
                 firstLoc = Position(loc.latitude, loc.longitude, center.altitude)
-                addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, true)
+                firstPoint = Vec3(point)
+                addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, addIndices = true)
             }
-            addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, true)
+            addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, addIndices = true)
         }
 
-        addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, firstLoc.altitude, verticalVertexIndex, false)
-        addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, firstLoc.altitude, verticalVertexIndex, false)
+        // Add additional dummy vertex with the same data after the last vertex.
+        if (firstLoc != null && firstPoint != null) {
+            point.copy(firstPoint) // Restore vertex point value from first point
+            addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, firstLoc.altitude, verticalVertexIndex, addIndices = false)
+            addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, firstLoc.altitude, verticalVertexIndex, addIndices = false)
+        }
 
         // Add the interior spine point vertices
         for (i in 0 until spineCount) {
-            center.greatCircleLocation(heading.plusDegrees(headingAdjustment), spineRadius[i], scratchPosition)
-            addVertex(rc, scratchPosition.latitude, scratchPosition.longitude, center.altitude, arrayOffset, false)
+            center.greatCircleLocation(heading.plusDegrees(headingAdjustment), spineRadius[i], scratchLocation)
+            calcPoint(rc, scratchLocation.latitude, scratchLocation.longitude, center.altitude, isExtrudedSkirt = false)
+            addVertex(rc, scratchLocation.latitude, scratchLocation.longitude, center.altitude, arrayOffset, isExtrudedSkirt = false)
         }
 
         // Compute the shape's bounding sector from its assembled coordinates.
@@ -517,7 +524,6 @@ open class Ellipse @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset : Int, addIndices : Boolean
     ) {
         val vertex = lineVertexIndex / VERTEX_STRIDE
-        val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
         if (lineVertexIndex == 0) texCoord1d = 0.0
         else texCoord1d += point.distanceTo(prevPoint)
         prevPoint.copy(point)
@@ -586,7 +592,6 @@ open class Ellipse @JvmOverloads constructor(
                 outlineElements.add(vertex + 3)
             }
             if (isExtrude && addIndices) {
-                val vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, scratchVertPoint)
                 val index =  verticalVertexIndex / VERTEX_STRIDE
 
                 // first vertices, that simulate pointA for next vertices
@@ -704,8 +709,6 @@ open class Ellipse @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset: Int, isExtrudedSkirt: Boolean
     ) {
         var offsetVertexIndex = vertexIndex + offset
-        val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
-        var point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, scratchPoint)
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
@@ -721,10 +724,9 @@ open class Ellipse @JvmOverloads constructor(
             vertexArray[vertexIndex++] = texCoord2d.x.toFloat()
             vertexArray[vertexIndex++] = texCoord2d.y.toFloat()
             if (isExtrudedSkirt) {
-                point = rc.geographicToCartesian(latitude, longitude, 0.0, AltitudeMode.CLAMP_TO_GROUND, scratchPoint)
-                vertexArray[offsetVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                vertexArray[offsetVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                vertexArray[offsetVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
+                vertexArray[offsetVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+                vertexArray[offsetVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+                vertexArray[offsetVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
                 vertexArray[offsetVertexIndex++] = 0f //unused
                 vertexArray[offsetVertexIndex] = 0f //unused
             }
@@ -732,7 +734,7 @@ open class Ellipse @JvmOverloads constructor(
     }
 
     protected open fun determineModelToTexCoord(rc: RenderContext) {
-        val point = rc.geographicToCartesian(center, altitudeMode, scratchPoint)
+        rc.geographicToCartesian(center, altitudeMode, point)
         rc.globe.cartesianToLocalTransform(point.x, point.y, point.z, modelToTexCoord)
         modelToTexCoord.invertOrthonormal()
     }
@@ -747,7 +749,7 @@ open class Ellipse @JvmOverloads constructor(
     protected open fun computeIntervals(rc: RenderContext): Int {
         var intervals = MIN_INTERVALS
         if (intervals >= maximumIntervals) return intervals // use at least the minimum number of intervals
-        val centerPoint = rc.geographicToCartesian(center, altitudeMode, scratchPoint)
+        val centerPoint = rc.geographicToCartesian(center, altitudeMode, point)
         val maxRadius = max(majorRadius, minorRadius)
         val cameraDistance = centerPoint.distanceTo(rc.cameraPoint) - maxRadius
         if (cameraDistance <= 0) return maximumIntervals // use the maximum number of intervals when the camera is very close

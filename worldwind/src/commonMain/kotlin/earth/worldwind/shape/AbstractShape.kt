@@ -7,17 +7,13 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
+import kotlin.jvm.JvmStatic
 import kotlin.math.PI
 import kotlin.math.log2
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 abstract class AbstractShape(override var attributes: ShapeAttributes): AbstractRenderable(), Attributable, Highlightable {
-    companion object {
-        const val NEAR_ZERO_THRESHOLD = 1.0e-10
-        private const val ZERO_LEVEL_PX = 1024
-    }
-
     var altitudeMode = AltitudeMode.ABSOLUTE
         set(value) {
             field = value
@@ -52,16 +48,25 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
     var maximumIntermediatePoints = 10
-    protected lateinit var activeAttributes: ShapeAttributes
     protected var isSurfaceShape = false
     protected var lastGlobeState: Globe.State? = null
     protected var lastTimestamp = 0L
-    protected var pickedObjectId = 0
     protected var bufferDataVersion = 0L
-    protected val pickColor = Color()
     protected val boundingSector = Sector()
     protected val boundingBox = BoundingBox()
-    private val scratchPoint = Vec3()
+
+    companion object {
+        const val NEAR_ZERO_THRESHOLD = 1.0e-10
+        private const val ZERO_LEVEL_PX = 1024
+        @JvmStatic
+        protected lateinit var activeAttributes: ShapeAttributes
+        @JvmStatic
+        protected val pickColor = Color()
+        @JvmStatic
+        protected val point = Vec3()
+        @JvmStatic
+        protected val vertPoint = Vec3()
+    }
 
     override fun doRender(rc: RenderContext) {
         // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
@@ -78,6 +83,7 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
 
         // Keep track of the drawable count to determine whether this shape has enqueued drawables.
         val drawableCount = rc.drawableCount
+        var pickedObjectId = 0
         if (rc.isPickMode) {
             pickedObjectId = rc.nextPickedObjectId()
             PickedObject.identifierToUniqueColor(pickedObjectId, pickColor)
@@ -113,7 +119,7 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     protected open fun cameraDistanceGeographic(rc: RenderContext, boundingSector: Sector): Double {
         val lat = rc.camera.position.latitude.coerceIn(boundingSector.minLatitude, boundingSector.maxLatitude)
         val lon = rc.camera.position.longitude.coerceIn(boundingSector.minLongitude, boundingSector.maxLongitude)
-        val point = rc.geographicToCartesian(lat, lon, 0.0, AltitudeMode.CLAMP_TO_GROUND, scratchPoint)
+        val point = rc.geographicToCartesian(lat, lon, 0.0, AltitudeMode.CLAMP_TO_GROUND, point)
         return point.distanceTo(rc.cameraPoint)
     }
 
@@ -176,6 +182,15 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
         boundingBox.setToUnitBox()
         boundingSector.setEmpty()
         ++bufferDataVersion
+    }
+
+    protected open fun calcPoint(rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, isExtrudedSkirt: Boolean = isExtrude) {
+        val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
+        rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
+        if (!isSurfaceShape && isExtrudedSkirt) {
+            if (altitude == 0.0) vertPoint.copy(point)
+            else rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
+        }
     }
 
     protected abstract fun makeDrawable(rc: RenderContext)

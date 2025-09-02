@@ -25,12 +25,10 @@ open class Path @JvmOverloads constructor(
             field = value
             reset()
         }
+    protected val vertexOrigin = Vec3()
     protected var vertexArray = FloatArray(0)
-    protected var vertexIndex = 0
-    protected var verticalIndex = 0
     protected var extrudeVertexArray = FloatArray(0)
-    protected var extrudeIndex = 0
-    // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
+    // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
     protected val interiorElements = mutableListOf<Int>()
     protected val outlineElements = mutableListOf<Int>()
     protected val verticalElements = mutableListOf<Int>()
@@ -38,13 +36,6 @@ open class Path @JvmOverloads constructor(
     protected val extrudeElementBufferKey = Any()
     protected val vertexBufferKey = Any()
     protected val elementBufferKey = Any()
-    protected val vertexOrigin = Vec3()
-    protected var texCoord1d = 0.0
-    private val point = Vec3()
-    private val verticalPoint = Vec3()
-    private val prevPoint = Vec3()
-    private val texCoordMatrix = Matrix3()
-    private val intermediateLocation = Location()
 
     companion object {
         protected const val VERTEX_STRIDE = 5 // 5 floats
@@ -55,6 +46,15 @@ open class Path @JvmOverloads constructor(
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
         }
+
+        protected var vertexIndex = 0
+        protected var verticalIndex = 0
+        protected var extrudeIndex = 0
+
+        protected val prevPoint = Vec3()
+        protected val texCoordMatrix = Matrix3()
+        protected val intermediateLocation = Location()
+        protected var texCoord1d = 0.0
     }
 
     override fun reset() {
@@ -228,19 +228,24 @@ open class Path @JvmOverloads constructor(
         outlineElements.clear()
         verticalElements.clear()
 
-        // Add the first vertex.
+        // Add the first vertex. Add additional dummy vertex with the same data before the first vertex.
         var begin = positions[0]
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, true /*intermediate*/, true)
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, false /*intermediate*/, true)
+        calcPoint(rc, begin.latitude, begin.longitude, begin.altitude)
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = true)
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = false, addIndices = true)
 
         // Add the remaining vertices, inserting vertices along each edge as indicated by the path's properties.
         for (idx in 1 until positions.size) {
             val end = positions[idx]
             addIntermediateVertices(rc, begin, end)
-            addVertex(rc, end.latitude, end.longitude, end.altitude, false /*intermediate*/, idx != (positions.size - 1))
+            val addIndices = idx != positions.size - 1
+            calcPoint(rc, end.latitude, end.longitude, end.altitude)
+            addVertex(rc, end.latitude, end.longitude, end.altitude, intermediate = false, addIndices)
             begin = end
         }
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude,true /*intermediate*/, false)
+
+        // Add additional dummy vertex with the same data after the last vertex.
+        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
         if (isSurfaceShape) {
@@ -283,7 +288,8 @@ open class Path @JvmOverloads constructor(
                 RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
                 else -> {}
             }
-            addVertex(rc, loc.latitude, loc.longitude, alt, true /*intermediate*/, true /*addIndices*/)
+            calcPoint(rc, loc.latitude, loc.longitude, alt)
+            addVertex(rc, loc.latitude, loc.longitude, alt, intermediate = true, addIndices = true)
             dist += deltaDist
             alt += deltaAlt
         }
@@ -293,11 +299,8 @@ open class Path @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, addIndices : Boolean
     ) {
         val vertex = vertexIndex / VERTEX_STRIDE
-        val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
-        val point = rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
         if (vertexIndex == 0) {
-            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
-            else vertexOrigin.copy(point)
+            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude) else vertexOrigin.copy(point)
             texCoord1d = 0.0
         } else {
             texCoord1d += point.distanceTo(prevPoint)
@@ -370,7 +373,6 @@ open class Path @JvmOverloads constructor(
                 outlineElements.add(vertex + 3)
             }
             if (isExtrude) {
-                val vertPoint = rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, verticalPoint)
                 val extrudeVertex =  extrudeIndex / VERTEX_STRIDE
 
                 extrudeVertexArray[extrudeIndex++] = (point.x - vertexOrigin.x).toFloat()
