@@ -55,6 +55,7 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     protected lateinit var activeAttributes: ShapeAttributes
     protected var isSurfaceShape = false
     protected var lastGlobeState: Globe.State? = null
+    protected var lastTimestamp = 0L
     protected var pickedObjectId = 0
     protected var bufferDataVersion = 0L
     protected val pickColor = Color()
@@ -63,12 +64,16 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     private val scratchPoint = Vec3()
 
     override fun doRender(rc: RenderContext) {
+        // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
+        isSurfaceShape = rc.globe.is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
+
+        // Reset shape in some cases
         checkGlobeState(rc)
 
         // Don't render anything if the shape is not visible.
         if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc)) return
 
-        // Select the currently active attributes. Don't render anything if the attributes are unspecified.
+        // Select the currently active attributes.
         determineActiveAttributes(rc)
 
         // Keep track of the drawable count to determine whether this shape has enqueued drawables.
@@ -77,9 +82,6 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
             pickedObjectId = rc.nextPickedObjectId()
             PickedObject.identifierToUniqueColor(pickedObjectId, pickColor)
         }
-
-        // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
-        isSurfaceShape = rc.globe.is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
 
         // Enqueue drawables for processing on the OpenGL thread.
         makeDrawable(rc)
@@ -159,9 +161,14 @@ abstract class AbstractShape(override var attributes: ShapeAttributes): Abstract
     protected open fun computeVersion() = 31 * hashCode() + bufferDataVersion.hashCode()
 
     protected open fun checkGlobeState(rc: RenderContext) {
-        if (rc.globeState != lastGlobeState) {
+        val globeState = rc.globeState
+        val timestamp = rc.elevationModelTimestamp
+        // Reset shape in case of Globe Ellipsoid, Projection, Vertical Exaggeration or Elevation Model details changed
+        // Elevation timestamp takes into account only for non-surface shapes with terrain-dependent altitude types
+        if (globeState != lastGlobeState || timestamp != lastTimestamp && !isSurfaceShape && altitudeMode != AltitudeMode.ABSOLUTE) {
             reset()
-            lastGlobeState = rc.globeState
+            lastGlobeState = globeState
+            lastTimestamp = timestamp
         }
     }
 
