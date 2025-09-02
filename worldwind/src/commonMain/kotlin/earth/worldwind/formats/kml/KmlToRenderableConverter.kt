@@ -3,8 +3,11 @@ package earth.worldwind.formats.kml
 import earth.worldwind.formats.forceHttps
 import earth.worldwind.formats.isValidHttpsUrl
 import earth.worldwind.formats.kml.models.Geometry
+import earth.worldwind.formats.kml.models.GroundOverlay
+import earth.worldwind.formats.kml.models.Icon
 import earth.worldwind.formats.kml.models.IconStyle
 import earth.worldwind.formats.kml.models.LabelStyle
+import earth.worldwind.formats.kml.models.LatLonBox
 import earth.worldwind.formats.kml.models.LineString
 import earth.worldwind.formats.kml.models.LineStyle
 import earth.worldwind.formats.kml.models.LinearRing
@@ -15,8 +18,10 @@ import earth.worldwind.formats.kml.models.PolyStyle
 import earth.worldwind.formats.kml.models.Polygon
 import earth.worldwind.formats.kml.models.Style
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.Sector
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
@@ -25,12 +30,14 @@ import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.PathType
 import earth.worldwind.shape.ShapeAttributes
+import earth.worldwind.shape.SurfaceImage
 import earth.worldwind.shape.TextAttributes
 
 internal class KmlToRenderableConverter {
     companion object {
         private const val HIGHLIGHT_INCREMENT = 4f
         private const val DEFAULT_IMAGE_SCALE = 1.0
+        private const val DEFAULT_DENSITY = 1.0f
 
         private val spaceCharsRegex by lazy { "[\\s\\n\\t\\r\\u00A0\\u200B\\u202F\\u2009]".toRegex() }
 
@@ -107,7 +114,18 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    var density = 1.0f
+    private var density = DEFAULT_DENSITY
+    private var resources: Map<String, ImageSource> = emptyMap()
+
+    fun init(density: Float = DEFAULT_DENSITY, resources: Map<String, ImageSource> = emptyMap()) {
+        this.density = density
+        this.resources = resources
+    }
+
+    fun clear() {
+        density = DEFAULT_DENSITY
+        resources = emptyMap()
+    }
 
     fun convertPlacemarkToRenderable(
         placemark: Placemark,
@@ -116,6 +134,14 @@ internal class KmlToRenderableConverter {
         val style = placemark.stylesList?.firstOrNull() ?: definedStyle
         val geometry: Geometry = placemark.geometryList?.firstOrNull() ?: return emptyList()
         return getRenderableFrom(geometry, style, placemark.name)
+    }
+
+    fun convertGroundOverlayToRenderable(groundOverlay: GroundOverlay): List<Renderable> {
+        val surfaceImage = SurfaceImage(
+            sector = groundOverlay.latLonBox?.toSector() ?: return emptyList(),
+            imageSource = groundOverlay.icon?.toImageSource() ?: return emptyList(),
+        )
+        return listOf(surfaceImage)
     }
 
     private fun getRenderableFrom(
@@ -281,17 +307,7 @@ internal class KmlToRenderableConverter {
             earth.worldwind.shape.Placemark(position, label = name).apply {
                 attributes.apply {
                     imageScale = (iconStyle?.scale ?: DEFAULT_IMAGE_SCALE) * density
-                    iconStyle?.icon?.href
-                        ?.let(::forceHttps)
-                        ?.let {
-                            try {
-                                if (isValidHttpsUrl(it)) {
-                                    imageSource = ImageSource.fromUrlString(it)
-                                }
-                            } catch (e: Exception) {
-                                // Ignore malformed URL
-                            }
-                        }
+                    imageSource = iconStyle?.icon?.toImageSource()
                     iconStyle?.color?.let { imageColor = fromHexABRG(it) }
 
                     attributes.isDrawLeader = point.extrude ?: false
@@ -307,6 +323,34 @@ internal class KmlToRenderableConverter {
             displayName = name // Display name is used to search renderable in layer
             altitudeMode = getAltitudeModeFrom(point.altitudeMode) ?: AltitudeMode.CLAMP_TO_GROUND
         }
+    }
+
+    private fun Icon.toImageSource(): ImageSource? {
+        return href
+            ?.let(::forceHttps)
+            ?.let {
+                try {
+                    resources[it.substringAfterLast('/')]
+                        ?: if (isValidHttpsUrl(it)) ImageSource.fromUrlString(it) else null
+                } catch (e: Exception) {
+                    // Ignore malformed URL
+                    null
+                }
+            }
+    }
+
+    private fun LatLonBox.toSector(): Sector? {
+        val north = north ?: return null
+        val south = south ?: return null
+        val east = east ?: return null
+        val west = west ?: return null
+
+        return Sector(
+            Angle.fromDegrees(south),
+            Angle.fromDegrees(north),
+            Angle.fromDegrees(west),
+            Angle.fromDegrees(east)
+        )
     }
 
     private fun TextAttributes.applyStyle(labelStyle: LabelStyle?) {

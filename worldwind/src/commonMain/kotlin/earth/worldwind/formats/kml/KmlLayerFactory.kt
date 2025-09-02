@@ -10,6 +10,7 @@ import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Renderable
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.Ellipse
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
@@ -46,19 +47,24 @@ object KmlLayerFactory {
         displayName: String? = KML_LAYER_NAME,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
-    ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold, density)
+        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
+    ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold, density, resources)
 
     suspend fun createLayer(
         reader: Reader,
         displayName: String? = KML_LAYER_NAME,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
+        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
     ): RenderableLayer {
-        converter.density = density
+        converter.init(density, resources)
+
         return RenderableLayer(displayName).apply {
             decodeFromReader(reader).map { data ->
                 setLayerData(labelVisibilityThreshold, data)
             }
+        }.also {
+            converter.clear()
         }
     }
 
@@ -66,19 +72,23 @@ object KmlLayerFactory {
         text: String,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
-    ) = createLayers(StringReader(text), labelVisibilityThreshold, density)
+        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
+    ) = createLayers(StringReader(text), labelVisibilityThreshold, density, resources)
 
     suspend fun createLayers(
         reader: Reader,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
+        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
     ): List<RenderableLayer> {
-        converter.density = density
+        converter.init(density, resources)
 
         return decodeFromReader(reader).map { data ->
             RenderableLayer(data.displayName).apply {
                 setLayerData(labelVisibilityThreshold, data)
             }
+        }.also {
+            converter.clear()
         }
     }
 
@@ -183,6 +193,11 @@ object KmlLayerFactory {
                             definedStyle = style,
                         ).forEach { renderable -> renderables[event.parentId]?.add(renderable) }
                     }
+                }
+
+                is KML.KmlEvent.KmlGroundOverlay -> {
+                    converter.convertGroundOverlayToRenderable(event.groundOverlay)
+                        .let { renderable -> renderables[event.parentId]?.addAll(renderable) }
                 }
             }
         }

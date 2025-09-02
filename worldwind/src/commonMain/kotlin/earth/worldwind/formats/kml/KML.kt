@@ -7,6 +7,7 @@ import earth.worldwind.formats.kml.models.Document
 import earth.worldwind.formats.kml.models.Feature
 import earth.worldwind.formats.kml.models.Folder
 import earth.worldwind.formats.kml.models.Geometry
+import earth.worldwind.formats.kml.models.GroundOverlay
 import earth.worldwind.formats.kml.models.IconStyle
 import earth.worldwind.formats.kml.models.LabelStyle
 import earth.worldwind.formats.kml.models.LineString
@@ -107,6 +108,11 @@ internal class KML {
             val parentId: String,
             val placemark: Placemark,
         ) : KmlEvent
+
+        data class KmlGroundOverlay(
+            val parentId: String,
+            val groundOverlay: GroundOverlay,
+        ) : KmlEvent
     }
 
     fun decodeFromReader(reader: Reader) =
@@ -125,6 +131,7 @@ internal class KML {
                     DOCUMENT_TAG -> decodeFeature(reader, parentId, isDocument = true)
                     FOLDER_TAG -> decodeFeature(reader, parentId, isDocument = false)
                     PLACEMARK_TAG -> decodePlacemark(reader, parentId)
+                    GROUND_OVERLAY_TAG -> decodeGroundOverlay(reader, parentId)
                     STYLE_MAP_TAG -> decodeStyleMap(reader, parentId)
                     CASCADING_STYLE_TAG -> decodeCascadingStyle(reader, parentId)
                     STYLE_TAG -> decodeStyle(reader, parentId)
@@ -219,10 +226,18 @@ internal class KML {
                         decodePlacemark(reader, parentId = id)
                     }
 
+                    GROUND_OVERLAY_TAG -> {
+                        trySendFeatureEvent()
+                        decodeGroundOverlay(reader, parentId = id)
+                    }
+
                     STYLE_MAP_TAG -> decodeStyleMap(reader, parentId)
                     CASCADING_STYLE_TAG -> decodeCascadingStyle(reader, parentId)
                     STYLE_TAG -> decodeStyle(reader, parentId)
-                    LOOK_AT_TAG -> { lookAt = xml.decodeFromReader(reader) }
+                    LOOK_AT_TAG -> {
+                        lookAt = xml.decodeFromReader(reader)
+                    }
+
                     else -> reader.readIdleTag()
                 }
 
@@ -243,6 +258,15 @@ internal class KML {
     ) {
         val placemark = xml.decodeFromReader<Placemark>(reader)
         val event = KmlEvent.KmlPlacemark(parentId, placemark)
+        send(event)
+    }
+
+    private suspend fun ProducerScope<KmlEvent>.decodeGroundOverlay(
+        reader: XmlReader,
+        parentId: String,
+    ) {
+        val groundOverlay = xml.decodeFromReader<GroundOverlay>(reader)
+        val event = KmlEvent.KmlGroundOverlay(parentId, groundOverlay)
         send(event)
     }
 
@@ -279,6 +303,7 @@ internal class KML {
         private const val CASCADING_STYLE_TAG = ""
         private const val NAME_TAG = "name"
         private const val LOOK_AT_TAG = "LookAt"
+        private const val GROUND_OVERLAY_TAG = "GroundOverlay"
         private const val ID_ATTRIBUTE = "id"
     }
 }

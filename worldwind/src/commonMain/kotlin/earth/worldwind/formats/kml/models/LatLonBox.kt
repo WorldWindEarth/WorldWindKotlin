@@ -4,15 +4,15 @@ import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
 
 @Serializable
-internal data class GroundOverlay(
+internal data class LatLonBox(
     @XmlElement
-    var name: String? = null,
+    var north: Double? = null,
     @XmlElement
-    var visibility: Int? = null,
+    var south: Double? = null,
     @XmlElement
-    var description: String? = null,
+    var east: Double? = null,
     @XmlElement
-    var latLonBox: LatLonBox? = null,
+    var west: Double? = null,
     @XmlElement
-    var icon: Icon? = null,
-) : AbstractKml()
+    var rotation: Double? = null,
+): AbstractStyle()
