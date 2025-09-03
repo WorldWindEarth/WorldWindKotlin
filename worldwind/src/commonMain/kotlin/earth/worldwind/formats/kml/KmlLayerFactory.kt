@@ -9,13 +9,16 @@ import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.shape.AbstractShape
 import earth.worldwind.shape.Ellipse
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.Polygon
+import earth.worldwind.shape.SurfaceImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.adaptivity.xmlutil.XmlUtilInternal
@@ -47,7 +50,7 @@ object KmlLayerFactory {
         displayName: String? = KML_LAYER_NAME,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
-        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
     ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold, density, resources)
 
     suspend fun createLayer(
@@ -55,7 +58,7 @@ object KmlLayerFactory {
         displayName: String? = KML_LAYER_NAME,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
-        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
     ): RenderableLayer {
         converter.init(density, resources)
 
@@ -72,14 +75,14 @@ object KmlLayerFactory {
         text: String,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
-        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
     ) = createLayers(StringReader(text), labelVisibilityThreshold, density, resources)
 
     suspend fun createLayers(
         reader: Reader,
         labelVisibilityThreshold: Double = 0.0,
         density: Float = 1.0f,
-        resources: Map<String, ImageSource>, // key is the resource href, value is the reader to read it from
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
     ): List<RenderableLayer> {
         converter.init(density, resources)
 
@@ -105,8 +108,12 @@ object KmlLayerFactory {
         addAllRenderables(data.renderables)
 
         putUserProperty(KML_LAYER_ID_KEY, data.id)
-        putUserProperty(KML_LAYER_SECTOR_KEY, computeSector(data.renderables))
-        data.lookAt?.let { putUserProperty(KML_LAYER_LOOK_AT_KEY, data.lookAt) }
+        computeSector(data.renderables)?.let {
+            putUserProperty(KML_LAYER_SECTOR_KEY, it)
+        }
+        data.lookAt?.let {
+            putUserProperty(KML_LAYER_LOOK_AT_KEY, data.lookAt)
+        }
     }
 
     private suspend fun decodeFromReader(
@@ -252,7 +259,9 @@ object KmlLayerFactory {
     private fun computeSector(
         renderables: List<Renderable>,
         marginFraction: Double = 0.05
-    ): Sector {
+    ): Sector? {
+        if(renderables.isEmpty()) return null
+
         var minLat = Double.POSITIVE_INFINITY
         var maxLat = Double.NEGATIVE_INFINITY
         var minLon = Double.POSITIVE_INFINITY
@@ -293,6 +302,7 @@ object KmlLayerFactory {
                     if (lon - lonDelta < minLon) minLon = lon - lonDelta
                     if (lon + lonDelta > maxLon) maxLon = lon + lonDelta
                 }
+                is AbstractSurfaceRenderable -> renderable.sector
             }
         }
 
@@ -300,6 +310,11 @@ object KmlLayerFactory {
         val deltaLon = maxLon - minLon
         val latMargin = deltaLat * marginFraction
         val lonMargin = deltaLon * marginFraction
+
+        // verify sector values is valid
+        val values = setOf(maxLon, maxLat, minLon, minLat)
+        if(values.contains(Double.POSITIVE_INFINITY)) return null
+        if(values.contains(Double.NEGATIVE_INFINITY)) return null
 
         return Sector.fromDegrees(
             minLatDegrees = minLat - latMargin,
