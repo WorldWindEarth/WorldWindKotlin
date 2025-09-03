@@ -44,14 +44,12 @@ internal class KmlToRenderableConverter {
         /**
          * optimized method to get coordinates from a string
          */
-        private fun extractPoints(input: String?): Pair<List<Position>, Boolean> {
-            var absolute = false
-
+        private fun extractPoints(input: String?): List<Position> {
             // Normalize input by trimming leading/trailing whitespaces
             // and replacing all forms of space with a single space
             val normalizedInput = input?.trim()?.replace(spaceCharsRegex, " ")
 
-            if (normalizedInput.isNullOrBlank()) return Pair(emptyList(), false)
+            if (normalizedInput.isNullOrBlank()) return emptyList()
 
             val result = mutableListOf<Position>()
             val length = normalizedInput.length
@@ -102,15 +100,13 @@ internal class KmlToRenderableConverter {
                     alt = parseDouble(start, i)
                 }
 
-                absolute = absolute || (alt != null && alt != 0.0)
-
                 result.add(Position.fromDegrees(lat, lon, alt ?: 0.0))
 
                 // Skip the space between coordinate sets
                 while (i < length && normalizedInput[i] == ' ') i++
             }
 
-            return result to absolute
+            return result
         }
     }
 
@@ -180,70 +176,37 @@ internal class KmlToRenderableConverter {
         lineString: LineString,
         style: Style?,
         name: String?
-    ): Path {
-        val (positions, isAbsolute) = extractPoints(lineString.coordinates?.value)
+    ) = Path(extractPoints(lineString.coordinates?.value)).apply {
+        altitudeMode = getAltitudeModeFrom(lineString.altitudeMode)
+        lineString.extrude?.let { isExtrude = it }
+        pathType = getPathTypeBy(altitudeMode, lineString.tessellate)
 
-        return Path(positions).apply {
-            altitudeMode = getAltitudeModeFrom(lineString.altitudeMode)
-                ?: if (isAbsolute) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
 
-            lineString.extrude.let { isExtrude = it ?: (altitudeMode == AltitudeMode.ABSOLUTE) }
-            lineString.tessellate.let {
-                isFollowTerrain = it ?: (altitudeMode != AltitudeMode.ABSOLUTE)
-            }
+        name?.let { displayName = it }
 
-            // If the path is clamped to the ground and terrain conforming, draw as a great circle.
-            // Otherwise draw as linear segments.
-            pathType = if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain) {
-                PathType.GREAT_CIRCLE
-            } else {
-                PathType.LINEAR
-            }
+        highlightAttributes =
+            ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
+        maximumIntermediatePoints = getMaxIntermediatePoints(lineString.tessellate)
 
-            name?.let { displayName = it }
-
-            highlightAttributes =
-                ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
-            maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
-
-            applyStyleOnShapeAttributes(style)
-        }
+        applyStyleOnShapeAttributes(style)
     }
 
     private fun createPathFromLinearRing(
         linearRing: LinearRing,
         style: Style?,
         name: String?
-    ): Path {
-        val (positions, isAbsolute) = extractPoints(linearRing.coordinates?.value)
+    ) = Path(extractPoints(linearRing.coordinates?.value)).apply {
+        altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
+        linearRing.extrude?.let { isExtrude = it }
+        pathType = getPathTypeBy(altitudeMode, linearRing.tessellate)
+        name?.let { displayName = it }
 
-        return Path(positions).apply {
-            altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
-                ?: if (isAbsolute) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
+        highlightAttributes =
+            ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
+        maximumIntermediatePoints = getMaxIntermediatePoints(linearRing.tessellate)
 
-            linearRing.extrude.let { isExtrude = it ?: (altitudeMode == AltitudeMode.ABSOLUTE) }
-            linearRing.tessellate.let {
-                isFollowTerrain = it ?: (altitudeMode != AltitudeMode.ABSOLUTE)
-            }
-
-            // If the path is clamped to the ground and terrain conforming, draw as a great circle.
-            // Otherwise draw as linear segments.
-            pathType = if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain) {
-                PathType.GREAT_CIRCLE
-            } else {
-                PathType.LINEAR
-            }
-
-            name?.let { displayName = it }
-
-            highlightAttributes =
-                ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
-            maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
-
-            applyStyleOnShapeAttributes(style)
-        }
+        applyStyleOnShapeAttributes(style)
     }
-
 
     private fun createPolygonFromPolygon(
         polygon: Polygon,
@@ -251,16 +214,13 @@ internal class KmlToRenderableConverter {
         name: String?
     ): earth.worldwind.shape.Polygon {
         return earth.worldwind.shape.Polygon().apply {
+            altitudeMode = getAltitudeModeFrom(polygon.altitudeMode)
             polygon.extrude?.let { isExtrude = it }
-            polygon.tessellate?.let { isFollowTerrain = it }
-
-            altitudeMode = getAltitudeModeFrom(polygon.altitudeMode) ?: AltitudeMode.CLAMP_TO_GROUND
 
             polygon.outerBoundaryIs?.let {
                 it.value?.forEach { linearRing ->
                     linearRing.coordinates?.value?.let { value ->
-                        val (positions, _) = extractPoints(value)
-                        addBoundary(positions)
+                        addBoundary(extractPoints(value))
                     }
                 }
             }
@@ -268,33 +228,40 @@ internal class KmlToRenderableConverter {
             polygon.innerBoundaryIs?.let {
                 it.value?.forEach { linearRing ->
                     linearRing.coordinates?.value?.let { value ->
-                        val (positions, _) = extractPoints(value)
-                        addBoundary(positions)
+                        addBoundary(extractPoints(value))
                     }
                 }
             }
 
-            // If the path is clamped to the ground and terrain conforming, draw as a great circle.
-            // Otherwise draw as linear segments.
-            pathType = if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain) {
-                PathType.GREAT_CIRCLE
-            } else {
-                PathType.LINEAR
-            }
+            pathType = getPathTypeBy(altitudeMode, polygon.tessellate)
 
             name?.let { displayName = it }
 
             highlightAttributes =
                 ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
-            maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
+            maximumIntermediatePoints = getMaxIntermediatePoints(polygon.tessellate)
 
             applyStyleOnShapeAttributes(style)
         }
     }
 
+    private fun getPathTypeBy(altitudeMode: AltitudeMode, tessellate: Boolean?): PathType {
+        // If the path is clamped to the ground and terrain conforming, draw as a great circle.
+        // Otherwise draw as linear segments.
+        return if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && tessellate == true) {
+            PathType.GREAT_CIRCLE
+        } else {
+            PathType.LINEAR
+        }
+    }
+
+    private fun getMaxIntermediatePoints(tessellate: Boolean?): Int {
+        // if not tessellate disable intermediate points for performance reasons
+        return if (tessellate == true) 10 else 0
+    }
+
     private fun createPlacemark(point: Point, style: Style?, name: String?): Renderable? {
-        val (positions, _) = extractPoints(point.coordinates?.value)
-        val position = positions.firstOrNull() ?: return null
+        val position = extractPoints(point.coordinates?.value).firstOrNull() ?: return null
 
         val iconStyle = style?.stylesList?.filterIsInstance<IconStyle>()?.firstOrNull()
         val labelStyle = style?.stylesList?.filterIsInstance<LabelStyle>()?.firstOrNull()
@@ -321,7 +288,7 @@ internal class KmlToRenderableConverter {
             }
         }.apply {
             displayName = name // Display name is used to search renderable in layer
-            altitudeMode = getAltitudeModeFrom(point.altitudeMode) ?: AltitudeMode.CLAMP_TO_GROUND
+            altitudeMode = getAltitudeModeFrom(point.altitudeMode)
         }
     }
 
@@ -332,7 +299,7 @@ internal class KmlToRenderableConverter {
                 try {
                     resources[it.substringAfterLast('/')]
                         ?: if (isValidHttpsUrl(it)) ImageSource.fromUrlString(it) else null
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Ignore malformed URL
                     null
                 }
@@ -389,6 +356,6 @@ internal class KmlToRenderableConverter {
         "absolute" -> AltitudeMode.ABSOLUTE
         "clampToGround" -> AltitudeMode.CLAMP_TO_GROUND
         "relativeToGround" -> AltitudeMode.RELATIVE_TO_GROUND
-        else -> null
+        else -> AltitudeMode.CLAMP_TO_GROUND
     }
 }
