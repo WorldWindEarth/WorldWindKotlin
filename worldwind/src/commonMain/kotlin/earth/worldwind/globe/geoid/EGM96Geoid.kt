@@ -3,6 +3,8 @@ package earth.worldwind.globe.geoid
 import dev.icerock.moko.resources.AssetResource
 import earth.worldwind.MR
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.normalizeAngle360
+import earth.worldwind.geom.Angle.Companion.normalizeLatitude
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -38,8 +40,8 @@ open class EGM96Geoid(
         // Return 0 for all offsets if the file not loaded yet or failed to load.
         if (!isInitialized) return 0f
 
-        val lat = latitude.inDegrees
-        val lon = if (longitude.inDegrees >= 0.0) longitude.inDegrees else longitude.inDegrees + 360.0
+        val lat = normalizeLatitude(latitude.inDegrees) // Protects logic from possible latitude outside -90..90 range
+        val lon = normalizeAngle360(longitude.inDegrees) // Further logic expects longitude to be between 0 and 360
 
         var topRow = ((90.0 - lat) / INTERVAL).toInt()
         if (lat <= -90.0) topRow = NUM_ROWS - 2

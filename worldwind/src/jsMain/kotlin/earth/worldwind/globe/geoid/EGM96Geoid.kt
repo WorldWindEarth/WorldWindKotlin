@@ -20,4 +20,4 @@ actual fun loadData(offsetsFile: AssetResource, scope: CoroutineScope) {
     }
 }
 
-actual fun getValue(k: Int) = deltas?.get(k) ?: 0
+actual fun getValue(k: Int) = deltas?.let { if (k in 0 until it.length) it[k] else 0 } ?: 0
