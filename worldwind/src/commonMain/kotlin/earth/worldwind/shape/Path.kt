@@ -156,7 +156,7 @@ open class Path @JvmOverloads constructor(
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
 
         // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
+        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, zOrder = 0.0)
         else rc.offerShapeDrawable(drawable, cameraDistance)
 
         // Configure the drawable to display the shape's extruded interior.
@@ -251,7 +251,7 @@ open class Path @JvmOverloads constructor(
         if (isSurfaceShape) {
             boundingSector.setEmpty()
             boundingSector.union(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
-            boundingSector.translate(vertexOrigin.y /*latitude*/, vertexOrigin.x /*longitude*/)
+            boundingSector.translate(deltaLatitudeDegrees = vertexOrigin.y, deltaLongitudeDegrees = vertexOrigin.x)
             boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
         } else {
             boundingBox.setToPoints(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
@@ -378,14 +378,14 @@ open class Path @JvmOverloads constructor(
                 extrudeVertexArray[extrudeIndex++] = (point.x - vertexOrigin.x).toFloat()
                 extrudeVertexArray[extrudeIndex++] = (point.y - vertexOrigin.y).toFloat()
                 extrudeVertexArray[extrudeIndex++] = (point.z - vertexOrigin.z).toFloat()
-                extrudeVertexArray[extrudeIndex++] = 0f  /*unused*/
-                extrudeVertexArray[extrudeIndex++] = 0f  /*unused*/
+                extrudeVertexArray[extrudeIndex++] = 0f // unused
+                extrudeVertexArray[extrudeIndex++] = 0f // unused
 
                 extrudeVertexArray[extrudeIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 extrudeVertexArray[extrudeIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 extrudeVertexArray[extrudeIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                extrudeVertexArray[extrudeIndex++] = 0f /*unused*/
-                extrudeVertexArray[extrudeIndex++] = 0f  /*unused*/
+                extrudeVertexArray[extrudeIndex++] = 0f // unused
+                extrudeVertexArray[extrudeIndex++] = 0f // unused
 
                 interiorElements.add(extrudeVertex)
                 interiorElements.add(extrudeVertex + 1)

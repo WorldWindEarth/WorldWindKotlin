@@ -243,8 +243,8 @@ open class Polygon @JvmOverloads constructor(
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape|| activeAttributes.interiorColor.alpha >= 1.0) {
-            rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
-            rc.offerSurfaceDrawable(drawableLines, 0.0 /*zOrder*/)
+            rc.offerSurfaceDrawable(drawable, zOrder = 0.0)
+            rc.offerSurfaceDrawable(drawableLines, zOrder = 0.0)
         } else {
             rc.offerShapeDrawable(drawableLines, cameraDistance)
             rc.offerShapeDrawable(drawable, cameraDistance)
@@ -268,12 +268,12 @@ open class Polygon @JvmOverloads constructor(
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.texCoordAttrib.size = 2
         drawState.texCoordAttrib.offset = 12
-        drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_INT, 0 /*offset*/)
+        drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_INT, offset = 0)
 
         // Configure the drawable to display the shape's interior sides.
         if (isExtrude) {
             drawState.texture = null
-            drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, topElements.size * Int.SIZE_BYTES /*offset*/)
+            drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, offset = topElements.size * Int.SIZE_BYTES)
         }
     }
 
@@ -295,7 +295,7 @@ open class Polygon @JvmOverloads constructor(
         drawState.lineWidth = activeAttributes.outlineWidth
         drawState.drawElements(
             GL_TRIANGLES, outlineElements.size,
-            GL_UNSIGNED_INT, 0 /*offset*/
+            GL_UNSIGNED_INT, offset = 0
         )
 
         // Configure the drawable to display the shape's extruded verticals.
@@ -412,13 +412,16 @@ open class Polygon @JvmOverloads constructor(
         if (isSurfaceShape) {
             boundingSector.setEmpty()
             boundingSector.union(vertexArray, vertexIndex, VERTEX_STRIDE)
-            boundingSector.translate(vertexOrigin.y /*lat*/, vertexOrigin.x /*lon*/)
+            boundingSector.translate(deltaLatitudeDegrees = vertexOrigin.y, deltaLongitudeDegrees = vertexOrigin.x)
             boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
         } else {
             boundingBox.setToPoints(vertexArray, vertexIndex, VERTEX_STRIDE)
             boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
             boundingSector.setEmpty() // Cartesian shape bounding sector is unused
         }
+
+        // Adjust final vertex array size to save memory (and fix cameraDistanceCartesian calculation)
+        vertexArray = vertexArray.copyOf(vertexIndex)
     }
 
     protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
@@ -464,7 +467,7 @@ open class Polygon @JvmOverloads constructor(
             tessCoords[0] = longitude.inDegrees
             tessCoords[1] = latitude.inDegrees
             tessCoords[2] = altitude
-            GLU.gluTessVertex(rc.tessellator, tessCoords, 0 /*coords_offset*/, vertex)
+            GLU.gluTessVertex(rc.tessellator, tessCoords, coords_offset = 0, vertex)
         }
         if (vertex == 0) {
             if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude) else vertexOrigin.copy(point)
@@ -485,8 +488,8 @@ open class Polygon @JvmOverloads constructor(
                 vertexArray[vertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
                 vertexArray[vertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
                 vertexArray[vertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                vertexArray[vertexIndex++] = 0f /*unused*/
-                vertexArray[vertexIndex++] = 0f /*unused*/
+                vertexArray[vertexIndex++] = 0f // unused
+                vertexArray[vertexIndex++] = 0f // unused
             }
         }
         return vertex

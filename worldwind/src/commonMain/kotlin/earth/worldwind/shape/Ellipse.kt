@@ -344,8 +344,8 @@ open class Ellipse @JvmOverloads constructor(
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape) {
-            rc.offerSurfaceDrawable(drawable, 0.0 /*zOrder*/)
-            rc.offerSurfaceDrawable(drawableLines, 0.0 /*zOrder*/)
+            rc.offerSurfaceDrawable(drawable, zOrder = 0.0)
+            rc.offerSurfaceDrawable(drawableLines, zOrder = 0.0)
         } else {
             rc.offerShapeDrawable(drawableLines, cameraDistance)
             rc.offerShapeDrawable(drawable, cameraDistance)
@@ -425,7 +425,7 @@ open class Ellipse @JvmOverloads constructor(
             vertexOrigin.set(center.longitude.inDegrees, center.latitude.inDegrees, center.altitude)
         } else {
             rc.geographicToCartesian(center, altitudeMode, point)
-            vertexOrigin.set(point.x, point.y, point.z)
+            vertexOrigin.copy(point)
         }
 
         // Determine the number of spine points
@@ -512,7 +512,7 @@ open class Ellipse @JvmOverloads constructor(
         if (isSurfaceShape) {
             boundingSector.setEmpty()
             boundingSector.union(vertexArray, vertexArray.size, VERTEX_STRIDE)
-            boundingSector.translate(vertexOrigin.y /*lat*/, vertexOrigin.x /*lon*/)
+            boundingSector.translate(deltaLatitudeDegrees = vertexOrigin.y, deltaLongitudeDegrees = vertexOrigin.x)
             boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
         } else {
             boundingBox.setToPoints(vertexArray, vertexArray.size, VERTEX_STRIDE)
