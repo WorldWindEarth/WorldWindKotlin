@@ -1,5 +1,9 @@
 package earth.worldwind.formats.geojson
 
+import earth.worldwind.formats.DEFAULT_DENSITY
+import earth.worldwind.formats.DEFAULT_IMAGE_SCALE
+import earth.worldwind.formats.DEFAULT_LABEL_VISIBILITY_THRESHOLD
+import earth.worldwind.formats.DEFAULT_PLACEMARK_ICON_SIZE
 import earth.worldwind.formats.forceHttps
 import earth.worldwind.formats.isValidHttpsUrl
 import earth.worldwind.geom.OffsetMode
@@ -34,7 +38,8 @@ object GeoJsonLayerFactory {
     suspend fun createLayer(
         text: String,
         displayName: String? = GEO_JSON_LAYER_NAME,
-        labelVisibilityThreshold: Double = 0.0,
+        density: Float = DEFAULT_DENSITY,
+        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
         customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
     ): RenderableLayer {
 
@@ -64,7 +69,7 @@ object GeoJsonLayerFactory {
                 Pair(feature.geometry, Properties(properties))
             }
 
-            convertRenderablesFrom(geometriesWithProperties, customLogicToApplyProperties)
+            convertRenderablesFrom(geometriesWithProperties, customLogicToApplyProperties, density)
         }
 
         renderables.forEach { renderable ->
@@ -81,9 +86,10 @@ object GeoJsonLayerFactory {
     private fun convertRenderablesFrom(
         geometriesWithProperties: Map<Geometry, Properties>,
         customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit,
+        density: Float,
     ) = geometriesWithProperties
         .map { (geometry, properties) ->
-            convertToRenderable(geometry, properties)
+            convertToRenderable(geometry, properties, density)
                 .onEach { it.customLogicToApplyProperties(properties.properties) }
         }
         .flatten()
@@ -91,12 +97,13 @@ object GeoJsonLayerFactory {
     private fun convertToRenderable(
         geometry: Geometry,
         properties: Properties,
+        density: Float,
     ): List<Renderable> {
         return when (geometry) {
 
             is GeometryCollection -> {
                 geometry.geometries
-                    .map { convertToRenderable(it, properties) }
+                    .map { convertToRenderable(it, properties, density) }
                     .flatten()
             }
 
@@ -202,13 +209,15 @@ object GeoJsonLayerFactory {
                                                     }
                                                 }
                                             }
-                                    } catch (e: Exception) {
+                                    } catch (_: Exception) {
                                         // cant load image, ignore
                                     }
 
-                                    if (imageSource == null) {
-                                        imageScale = 24.0 // Default scale for placemark icon
-                                    }
+                                    imageScale = if (imageSource == null) {
+                                        properties.iconScale ?: DEFAULT_PLACEMARK_ICON_SIZE
+                                    } else {
+                                        DEFAULT_IMAGE_SCALE
+                                    } * density
 
                                     labelAttributes.applyStyle(properties)
                                 }
@@ -276,6 +285,8 @@ object GeoJsonLayerFactory {
                 val y = (offsetList.getOrNull(1) as? Number)?.toDouble() ?: DEFAULT_ICON_OFFSET
                 x to y
             }
+        val iconScale: Double?
+            get() = properties["icon-scale"].let { it as? Double ?: it as? Int }?.toDouble()
         val labelScale: Double?
             get() = properties["label-scale"].let { it as? Double ?: it as? Int }?.toDouble()
 

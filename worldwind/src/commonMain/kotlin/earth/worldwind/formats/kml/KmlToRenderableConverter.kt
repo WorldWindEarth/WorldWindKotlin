@@ -1,5 +1,8 @@
 package earth.worldwind.formats.kml
 
+import earth.worldwind.formats.DEFAULT_DENSITY
+import earth.worldwind.formats.DEFAULT_IMAGE_SCALE
+import earth.worldwind.formats.HIGHLIGHT_INCREMENT
 import earth.worldwind.formats.forceHttps
 import earth.worldwind.formats.isValidHttpsUrl
 import earth.worldwind.formats.kml.models.Geometry
@@ -35,10 +38,6 @@ import earth.worldwind.shape.TextAttributes
 
 internal class KmlToRenderableConverter {
     companion object {
-        private const val HIGHLIGHT_INCREMENT = 4f
-        private const val DEFAULT_IMAGE_SCALE = 1.0
-        private const val DEFAULT_DENSITY = 1.0f
-
         private val spaceCharsRegex by lazy { "[\\s\\n\\t\\r\\u00A0\\u200B\\u202F\\u2009]".toRegex() }
 
         /**
