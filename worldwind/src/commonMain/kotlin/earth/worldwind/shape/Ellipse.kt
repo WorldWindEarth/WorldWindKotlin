@@ -134,6 +134,11 @@ open class Ellipse @JvmOverloads constructor(
             field = value
             reset()
         }
+    /**
+     * The number of intervals used for generating geometry. Clamped between MIN_INTERVALS and maximumIntervals.
+     * Will always be even.
+     */
+    protected var activeIntervals = 0
     protected val vertexOrigin = Vec3()
     protected var vertexArray = FloatArray(0)
     protected var lineVertexArray = FloatArray(0)
@@ -184,11 +189,6 @@ open class Ellipse @JvmOverloads constructor(
          */
         protected val elementBufferKeys = mutableMapOf<Int, Any>()
 
-        /**
-         * The number of intervals used for generating geometry. Clamped between MIN_INTERVALS and maximumIntervals.
-         * Will always be even.
-         */
-        protected var activeIntervals = 0
         protected var vertexIndex = 0
         protected var lineVertexIndex = 0
         protected var verticalVertexIndex = 0
