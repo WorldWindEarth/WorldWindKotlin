@@ -2,7 +2,7 @@ package earth.worldwind.formats.kml
 
 import earth.worldwind.formats.DEFAULT_DENSITY
 import earth.worldwind.formats.DEFAULT_LABEL_VISIBILITY_THRESHOLD
-import earth.worldwind.formats.METERS_PER_LATITUDE_DEGREE
+import earth.worldwind.formats.computeSector
 import earth.worldwind.formats.kml.models.LookAt
 import earth.worldwind.formats.kml.models.Style
 import earth.worldwind.formats.kml.models.StyleMap
@@ -248,79 +248,6 @@ object KmlLayerFactory {
             heading = Angle.fromDegrees(heading ?: 0.0),
             tilt = Angle.fromDegrees(tilt ?: 0.0),
             roll = ZERO
-        )
-    }
-
-    /**
-     * Compute a bounding sector for a list of renderables. The sector is expanded by a margin
-     * fraction to ensure the renderables are not too close to the edge of the sector.
-     */
-    private fun computeSector(
-        renderables: List<Renderable>,
-        marginFraction: Double = 0.05
-    ): Sector? {
-        if (renderables.isEmpty()) return null
-
-        var minLat = Double.POSITIVE_INFINITY
-        var maxLat = Double.NEGATIVE_INFINITY
-        var minLon = Double.POSITIVE_INFINITY
-        var maxLon = Double.NEGATIVE_INFINITY
-
-        fun Position.check() {
-            val lat = latitude.inDegrees
-            val lon = longitude.inDegrees
-
-            if (lat < minLat) minLat = lat
-            if (lat > maxLat) maxLat = lat
-            if (lon < minLon) minLon = lon
-            if (lon > maxLon) maxLon = lon
-        }
-
-        renderables.forEach { renderable ->
-            when (renderable) {
-                is Label -> renderable.position.check()
-                is Placemark -> renderable.position.check()
-                is Path -> renderable.positions.forEach { it.check() }
-                is Polygon -> {
-                    for (index in 0 until renderable.boundaryCount) {
-                        renderable.getBoundary(index).forEach { it.check() }
-                    }
-                }
-
-                is Ellipse -> {
-                    val majorRadius = renderable.majorRadius
-                    val minorRadius = renderable.minorRadius
-                    val center = renderable.center
-                    val lat = center.latitude.inDegrees
-                    val lon = center.longitude.inDegrees
-                    val latDelta = (majorRadius / METERS_PER_LATITUDE_DEGREE)
-                    val lonDelta =
-                        (minorRadius / (METERS_PER_LATITUDE_DEGREE * cos(center.latitude.inRadians)))
-                    if (lat - latDelta < minLat) minLat = lat - latDelta
-                    if (lat + latDelta > maxLat) maxLat = lat + latDelta
-                    if (lon - lonDelta < minLon) minLon = lon - lonDelta
-                    if (lon + lonDelta > maxLon) maxLon = lon + lonDelta
-                }
-
-                is AbstractSurfaceRenderable -> renderable.sector
-            }
-        }
-
-        val deltaLat = maxLat - minLat
-        val deltaLon = maxLon - minLon
-        val latMargin = deltaLat * marginFraction
-        val lonMargin = deltaLon * marginFraction
-
-        // verify sector values is valid
-        val values = setOf(maxLon, maxLat, minLon, minLat)
-        if (values.contains(Double.POSITIVE_INFINITY)) return null
-        if (values.contains(Double.NEGATIVE_INFINITY)) return null
-
-        return Sector.fromDegrees(
-            minLatDegrees = minLat - latMargin,
-            minLonDegrees = minLon - lonMargin,
-            deltaLatDegrees = deltaLat + 2 * latMargin,
-            deltaLonDegrees = deltaLon + 2 * lonMargin
         )
     }
 }

@@ -4,6 +4,7 @@ import earth.worldwind.formats.DEFAULT_DENSITY
 import earth.worldwind.formats.DEFAULT_IMAGE_SCALE
 import earth.worldwind.formats.DEFAULT_LABEL_VISIBILITY_THRESHOLD
 import earth.worldwind.formats.DEFAULT_PLACEMARK_ICON_SIZE
+import earth.worldwind.formats.computeSector
 import earth.worldwind.formats.forceHttps
 import earth.worldwind.formats.isValidHttpsUrl
 import earth.worldwind.geom.OffsetMode
@@ -30,10 +31,13 @@ import io.data2viz.geojson.Position
 import io.data2viz.geojson.toGeoJsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
 object GeoJsonLayerFactory {
 
     private const val GEO_JSON_LAYER_NAME = "Geo Json Layer"
+    const val GEO_JSON_LAYER_ID_KEY = "GeoJsonLayerId"
+    const val GEO_JSON_LAYER_SECTOR_KEY = "GeoJsonLayerSector"
 
     suspend fun createLayer(
         text: String,
@@ -47,17 +51,18 @@ object GeoJsonLayerFactory {
             isPickEnabled = false // Layer is not pickable by default
         }
 
-        val renderables = withContext(Dispatchers.Default) {
-            val featureCollection = when (val geoJsonObject = text.toGeoJsonObject()) {
-                is FeatureCollection -> geoJsonObject
+        val (renderables, id) = withContext(Dispatchers.Default) {
+            val geoJsonObject = text.toGeoJsonObject()
+            val (featureCollection, id) = when (geoJsonObject) {
+                is FeatureCollection -> geoJsonObject to Random.nextLong().toString()
                 else -> {
-                    val feature = when (geoJsonObject) {
-                        is Feature -> geoJsonObject
-                        is Geometry -> Feature(geoJsonObject)
-                        else -> null
+                    val (feature, id) = when (geoJsonObject) {
+                        is Feature -> geoJsonObject to geoJsonObject.id
+                        is Geometry -> Feature(geoJsonObject) to null
+                        else -> null to null
                     }
                     val array = feature?.let { arrayOf(feature) } ?: emptyArray()
-                    FeatureCollection(array)
+                    FeatureCollection(array) to (id ?: Random.nextLong()).toString()
                 }
             }
             val features = featureCollection.features
@@ -69,7 +74,11 @@ object GeoJsonLayerFactory {
                 Pair(feature.geometry, Properties(properties))
             }
 
-            convertRenderablesFrom(geometriesWithProperties, customLogicToApplyProperties, density)
+            convertRenderablesFrom(
+                geometriesWithProperties,
+                customLogicToApplyProperties,
+                density
+            ) to id
         }
 
         renderables.forEach { renderable ->
@@ -80,7 +89,13 @@ object GeoJsonLayerFactory {
 
         layer.addAllRenderables(renderables)
 
-        return layer
+        return layer.apply {
+            addAllRenderables(renderables)
+            putUserProperty(GEO_JSON_LAYER_ID_KEY, id)
+            computeSector(renderables)?.let {
+                putUserProperty(GEO_JSON_LAYER_SECTOR_KEY, it)
+            }
+        }
     }
 
     private fun convertRenderablesFrom(
