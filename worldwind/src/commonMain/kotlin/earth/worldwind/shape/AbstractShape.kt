@@ -50,7 +50,11 @@ abstract class AbstractShape(
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
     var maximumIntermediatePoints = 10
-    protected var isSurfaceShape = false
+    /**
+     * Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
+     */
+    protected val isSurfaceShape get() = is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
+    protected var is2D = false
     protected var lastGlobeState: Globe.State? = null
     protected var lastTimestamp = 0L
     protected var bufferDataVersion = 0L
@@ -71,9 +75,6 @@ abstract class AbstractShape(
     }
 
     override fun doRender(rc: RenderContext) {
-        // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
-        isSurfaceShape = rc.globe.is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
-
         // Reset shape in some cases
         checkGlobeState(rc)
 
@@ -177,6 +178,7 @@ abstract class AbstractShape(
             reset()
             lastGlobeState = globeState
             lastTimestamp = timestamp
+            is2D = rc.globe.is2D
         }
     }
 
