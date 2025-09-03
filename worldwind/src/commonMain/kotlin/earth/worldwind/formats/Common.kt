@@ -2,13 +2,13 @@ package earth.worldwind.formats
 
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
-import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Ellipse
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.Polygon
+import earth.worldwind.shape.SurfaceImage
 import kotlin.math.cos
 
 private const val METERS_PER_LATITUDE_DEGREE = 111_320.0
@@ -69,7 +69,14 @@ internal fun computeSector(
                 if (lon + lonDelta > maxLon) maxLon = lon + lonDelta
             }
 
-            is AbstractSurfaceRenderable -> renderable.sector
+            is SurfaceImage -> {
+                renderable.sector.run {
+                    if (minLatitude.inDegrees < minLat) minLat = minLatitude.inDegrees
+                    if (maxLatitude.inDegrees > maxLat) maxLat = maxLatitude.inDegrees
+                    if (minLongitude.inDegrees < minLon) minLon = minLongitude.inDegrees
+                    if (maxLongitude.inDegrees > maxLon) maxLon = maxLongitude.inDegrees
+                }
+            }
         }
     }
 
