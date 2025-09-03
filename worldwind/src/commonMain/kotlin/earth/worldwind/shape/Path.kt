@@ -5,6 +5,7 @@ import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
@@ -20,6 +21,11 @@ import kotlin.jvm.JvmOverloads
 open class Path @JvmOverloads constructor(
     positions: List<Position>, attributes: ShapeAttributes = ShapeAttributes()
 ): AbstractShape(attributes) {
+    override val referencePosition: Position get() {
+        val sector = Sector()
+        for (position in positions) sector.union(position)
+        return Position(sector.centroidLatitude, sector.centroidLongitude, 0.0)
+    }
     var positions = positions
         set(value) {
             field = value
@@ -64,6 +70,13 @@ open class Path @JvmOverloads constructor(
         interiorElements.clear()
         outlineElements.clear()
         verticalElements.clear()
+    }
+
+    override fun moveTo(globe: Globe, position: Position) {
+        val refPos = referencePosition
+        val distance = refPos.greatCircleDistance(position)
+        val azimuth = refPos.greatCircleAzimuth(position)
+        for (pos in positions) pos.greatCircleLocation(azimuth, distance, pos)
     }
 
     override fun makeDrawable(rc: RenderContext) {

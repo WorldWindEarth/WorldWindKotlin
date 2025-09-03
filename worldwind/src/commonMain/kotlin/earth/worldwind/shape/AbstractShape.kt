@@ -13,8 +13,10 @@ import kotlin.math.log2
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-abstract class AbstractShape(override var attributes: ShapeAttributes): AbstractRenderable(), Attributable, Highlightable {
-    var altitudeMode = AltitudeMode.ABSOLUTE
+abstract class AbstractShape(
+    override var attributes: ShapeAttributes
+): AbstractRenderable(), Attributable, Highlightable, Movable {
+    override var altitudeMode = AltitudeMode.ABSOLUTE
         set(value) {
             field = value
             reset()

@@ -177,7 +177,7 @@ open class Placemark @JvmOverloads constructor(
      * @param globe    not used.
      * @param position the new position of the shape's reference position.
      */
-    override fun moveTo(globe: Globe, position: Position) { this.position = position }
+    override fun moveTo(globe: Globe, position: Position) { this.position.copy(position) }
 
     /**
      * Performs the rendering; called by the public render method.

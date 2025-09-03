@@ -6,6 +6,7 @@ import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
@@ -29,6 +30,11 @@ import kotlin.jvm.JvmOverloads
 open class Polygon @JvmOverloads constructor(
     positions: List<Position> = emptyList(), attributes: ShapeAttributes = ShapeAttributes()
 ): AbstractShape(attributes) {
+    override val referencePosition: Position get() {
+        val sector = Sector()
+        for (boundary in boundaries) for (position in boundary) sector.union(position)
+        return Position(sector.centroidLatitude, sector.centroidLongitude, 0.0)
+    }
     val boundaryCount get() = boundaries.size
     protected val boundaries = mutableListOf(positions)
     protected val vertexOrigin = Vec3()
@@ -138,6 +144,13 @@ open class Polygon @JvmOverloads constructor(
         sideElements.clear()
         outlineElements.clear()
         verticalElements.clear()
+    }
+
+    override fun moveTo(globe: Globe, position: Position) {
+        val refPos = referencePosition
+        val distance = refPos.greatCircleDistance(position)
+        val azimuth = refPos.greatCircleAzimuth(position)
+        for (boundary in boundaries) for (pos in boundary) pos.greatCircleLocation(azimuth, distance, pos)
     }
 
     override fun makeDrawable(rc: RenderContext) {

@@ -7,6 +7,7 @@ import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.toDegrees
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
@@ -52,6 +53,7 @@ import kotlin.math.*
 open class Ellipse @JvmOverloads constructor(
     center: Position, majorRadius: Double, minorRadius: Double, attributes: ShapeAttributes = ShapeAttributes()
 ): AbstractShape(attributes) {
+    override val referencePosition get() = center
     /**
      * The ellipse's geographic center position.
      */
@@ -244,6 +246,8 @@ open class Ellipse @JvmOverloads constructor(
 
         protected fun computeIndexOffset(intervals: Int) = intervals + computeNumberSpinePoints(intervals)
     }
+
+    override fun moveTo(globe: Globe, position: Position) { center.copy(position) }
 
     override fun makeDrawable(rc: RenderContext) {
         if (majorRadius == 0.0 && minorRadius == 0.0) return  // nothing to draw

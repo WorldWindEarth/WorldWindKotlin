@@ -1,6 +1,8 @@
 package earth.worldwind.shape
 
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Position
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import kotlin.test.*
 
@@ -9,7 +11,9 @@ class AbstractShapeTest {
      * A simple concrete implementation of AbstractShape for testing.
      */
     private class AbstractShapeImpl(attributes: ShapeAttributes = ShapeAttributes()) : AbstractShape(attributes) {
+        override val referencePosition get() = Position()
         override fun reset() {}
+        override fun moveTo(globe: Globe, position: Position) {}
         override fun makeDrawable(rc: RenderContext) {}
     }
 
