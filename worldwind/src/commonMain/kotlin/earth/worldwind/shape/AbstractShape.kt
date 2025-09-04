@@ -188,10 +188,13 @@ abstract class AbstractShape(
         ++bufferDataVersion
     }
 
-    protected open fun calcPoint(rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, isExtrudedSkirt: Boolean = isExtrude) {
+    protected open fun calcPoint(
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double,
+        isAbsolute: Boolean = false, isExtrudedSkirt: Boolean = isExtrude
+    ) {
         val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
-        rc.geographicToCartesian(latitude, longitude, altitude, altitudeMode, point)
-        if (!isSurfaceShape && isExtrudedSkirt) {
+        rc.geographicToCartesian(latitude, longitude, altitude, if (isAbsolute) AltitudeMode.ABSOLUTE else altitudeMode, point)
+        if (isExtrudedSkirt && !isSurfaceShape) {
             if (altitude == 0.0) vertPoint.copy(point)
             else rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
         }

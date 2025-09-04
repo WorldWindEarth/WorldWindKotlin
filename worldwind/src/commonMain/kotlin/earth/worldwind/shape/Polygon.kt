@@ -49,6 +49,7 @@ open class Polygon @JvmOverloads constructor(
     protected val elementBufferKey = Any()
     protected val vertexLinesBufferKey = Any()
     protected val elementLinesBufferKey = Any()
+    protected val isPlain get() = altitudeMode == AltitudeMode.RELATIVE_TO_GROUND && isExtrude && !isFollowTerrain
     protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
         override fun combineData(
             coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any?
@@ -84,6 +85,7 @@ open class Polygon @JvmOverloads constructor(
         protected val modelToTexCoord = Matrix4()
         protected val intermediateLocation = Location()
         protected var texCoord1d = 0.0
+        protected var refAlt = 0.0
 
         protected val tessCoords = DoubleArray(3)
         protected val tessVertices = IntArray(3)
@@ -365,6 +367,12 @@ open class Polygon @JvmOverloads constructor(
         outlineElements.clear()
         verticalElements.clear()
 
+        // Get reference point altitude
+        refAlt = if (isPlain) {
+            val refPos = referencePosition
+            rc.globe.getElevation(refPos.latitude, refPos.longitude)
+        } else 0.0
+
         // Compute a matrix that transforms from Cartesian coordinates to shape texture coordinates.
         determineModelToTexCoord(rc)
         val tess = rc.tessellator
@@ -383,32 +391,36 @@ open class Polygon @JvmOverloads constructor(
             // Add the boundary's first vertex. Add additional dummy vertex with the same data before the first vertex.
             val pos0 = positions[0]
             var begin = pos0
-            calcPoint(rc, begin.latitude, begin.longitude, begin.altitude)
-            addVertex(rc, begin.latitude, begin.longitude, begin.altitude, type = VERTEX_ORIGINAL)
-            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, isIntermediate = true, addIndices = true)
-            addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, isIntermediate = false, addIndices = true)
+            var beginAltitude = begin.altitude + refAlt
+            calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain)
+            addVertex(rc, begin.latitude, begin.longitude, beginAltitude, type = VERTEX_ORIGINAL)
+            addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = true)
+            addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = false, addIndices = true)
 
             // Add the remaining boundary vertices, tessellating each edge as indicated by the polygon's properties.
             for (idx in 1 until positions.size) {
                 val end = positions[idx]
                 val addIndices = idx != positions.size - 1 || end != pos0 // check if there is implicit closing edge
                 addIntermediateVertices(rc, begin, end)
-                calcPoint(rc, end.latitude, end.longitude, end.altitude)
-                addVertex(rc, end.latitude, end.longitude, end.altitude, type = VERTEX_ORIGINAL)
-                addLineVertex(rc, end.latitude, end.longitude, end.altitude, isIntermediate = false, addIndices)
+                val endAltitude = end.altitude + refAlt
+                calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlain)
+                addVertex(rc, end.latitude, end.longitude, endAltitude, type = VERTEX_ORIGINAL)
+                addLineVertex(rc, end.latitude, end.longitude, endAltitude, isIntermediate = false, addIndices)
                 begin = end
+                beginAltitude = endAltitude
             }
 
             // Tessellate the implicit closing edge if the boundary is not already closed.
             if (begin != pos0) {
                 addIntermediateVertices(rc, begin, pos0)
                 // Add additional dummy vertex with the same data after the last vertex.
-                calcPoint(rc, pos0.latitude, pos0.longitude, pos0.altitude, isExtrudedSkirt = false)
-                addLineVertex(rc, pos0.latitude, pos0.longitude, pos0.altitude, isIntermediate = true, addIndices = false)
-                addLineVertex(rc, pos0.latitude, pos0.longitude, pos0.altitude, isIntermediate = true, addIndices = false)
+                val pos0Altitude = pos0.altitude + refAlt
+                calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
+                addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
             } else {
-                calcPoint(rc, begin.latitude, begin.longitude, begin.altitude, isExtrudedSkirt = false)
-                addLineVertex(rc, begin.latitude, begin.longitude, begin.altitude, isIntermediate = true, addIndices = false)
+                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
             }
             // Drop last six indices as they are used for connecting segments and there's no next segment for last vertices (check addLineVertex)
             outlineElements.subList(outlineElements.size - 6, outlineElements.size).clear()
@@ -457,7 +469,7 @@ open class Polygon @JvmOverloads constructor(
         val deltaDist = length / numSubsegments
         val deltaAlt = (end.altitude - begin.altitude) / numSubsegments
         var dist = deltaDist
-        var alt = begin.altitude + deltaAlt
+        var alt = begin.altitude + deltaAlt + refAlt
         for (idx in 1 until numSubsegments) {
             val loc = intermediateLocation
             when (pathType) {
@@ -465,7 +477,7 @@ open class Polygon @JvmOverloads constructor(
                 RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
                 else -> {}
             }
-            calcPoint(rc, loc.latitude, loc.longitude, alt)
+            calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
             addVertex(rc, loc.latitude, loc.longitude, alt, type = VERTEX_INTERMEDIATE)
             addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = true)
             dist += deltaDist
@@ -741,7 +753,7 @@ open class Polygon @JvmOverloads constructor(
         val latitude = coords[1].degrees
         val longitude = coords[0].degrees
         val altitude = coords[2]
-        calcPoint(rc, latitude, longitude, altitude)
+        calcPoint(rc, latitude, longitude, altitude, isAbsolute = isPlain)
         outData[0] = addVertex(rc, latitude, longitude, altitude, type = VERTEX_COMBINED)
     }
 
