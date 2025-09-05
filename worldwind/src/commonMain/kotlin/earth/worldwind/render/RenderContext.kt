@@ -290,6 +290,9 @@ open class RenderContext {
     ): Vec3 {
         when (altitudeMode) {
             ABSOLUTE -> globe.geographicToCartesian(latitude, longitude, altitude, result)
+            ABOVE_SEA_LEVEL -> globe.geographicToCartesian(
+                latitude, longitude, altitude + globe.geoid.getOffset(latitude, longitude), result
+            )
             CLAMP_TO_GROUND -> if (!terrain.surfacePoint(latitude, longitude, result)) globe.run {
                 // Use elevation model height as a fallback
                 val elevation = getElevation(latitude, longitude)

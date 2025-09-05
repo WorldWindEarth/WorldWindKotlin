@@ -356,7 +356,7 @@ internal class KmlToRenderableConverter {
     }
 
     private fun getAltitudeModeFrom(value: String?) = when (value) {
-        "absolute" -> AltitudeMode.ABSOLUTE
+        "absolute" -> AltitudeMode.ABOVE_SEA_LEVEL
         "clampToGround" -> AltitudeMode.CLAMP_TO_GROUND
         "relativeToGround" -> AltitudeMode.RELATIVE_TO_GROUND
         else -> AltitudeMode.CLAMP_TO_GROUND

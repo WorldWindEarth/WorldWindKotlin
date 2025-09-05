@@ -21,6 +21,7 @@ abstract class AbstractEGM96Geoid(
     protected val offsetsFile: AssetResource,
     protected val scope: CoroutineScope
 ) : Geoid {
+    override val displayName = "EGM96"
     private var isLoadDataRequested = false
     protected abstract val isInitialized: Boolean
 

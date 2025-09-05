@@ -590,6 +590,10 @@ open class WorldWind @JvmOverloads constructor(
             AltitudeMode.ABSOLUTE -> globe.geographicToCartesianTransform(
                 position.latitude, position.longitude, position.altitude, result
             )
+            AltitudeMode.ABOVE_SEA_LEVEL -> globe.geographicToCartesianTransform(
+                position.latitude, position.longitude,
+                position.altitude + globe.geoid.getOffset(position.latitude, position.longitude), result
+            )
             AltitudeMode.CLAMP_TO_GROUND -> globe.geographicToCartesianTransform(
                 position.latitude, position.longitude, globe.getElevation(position.latitude, position.longitude), result
             )

@@ -20,6 +20,7 @@ import kotlin.math.min
  * @param offsetsFile a path pointing to a file with the geoid offsets.
  */
 open class EGM2008Geoid(protected val offsetsFile: AssetResource): Geoid {
+    override val displayName = "EGM2008"
     protected val offsetCache = LruMemoryCache<Int, FloatArray>((CACHE_SIZE * 8) / 10, CACHE_SIZE)
 
     override fun getOffset(latitude: Angle, longitude: Angle) = getOffset(latitude.inDegrees, longitude.inDegrees)

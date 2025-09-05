@@ -7,6 +7,11 @@ import earth.worldwind.geom.Angle
  */
 interface Geoid {
     /**
+     * This Gravitational Model display name.
+     */
+    val displayName: String
+
+    /**
      * Calculates Gravitational Model offset at specified location
      *
      * @param latitude Input latitude
