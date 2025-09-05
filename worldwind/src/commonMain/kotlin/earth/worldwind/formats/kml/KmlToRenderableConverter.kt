@@ -1,7 +1,9 @@
 package earth.worldwind.formats.kml
 
 import earth.worldwind.formats.DEFAULT_DENSITY
+import earth.worldwind.formats.DEFAULT_FILL_COLOR
 import earth.worldwind.formats.DEFAULT_IMAGE_SCALE
+import earth.worldwind.formats.DEFAULT_LINE_COLOR
 import earth.worldwind.formats.HIGHLIGHT_INCREMENT
 import earth.worldwind.formats.forceHttps
 import earth.worldwind.formats.isValidHttpsUrl
@@ -37,6 +39,10 @@ import earth.worldwind.shape.SurfaceImage
 import earth.worldwind.shape.TextAttributes
 
 internal class KmlToRenderableConverter {
+
+    var defaultLineColor = DEFAULT_LINE_COLOR
+    var defaultFillColor = DEFAULT_FILL_COLOR
+
     companion object {
         private val spaceCharsRegex by lazy { "[\\s\\n\\t\\r\\u00A0\\u200B\\u202F\\u2009]".toRegex() }
 
@@ -178,8 +184,8 @@ internal class KmlToRenderableConverter {
     ) = Path(extractPoints(lineString.coordinates?.value)).apply {
         altitudeMode = getAltitudeModeFrom(lineString.altitudeMode)
         lineString.extrude?.let { isExtrude = it }
-        pathType = getPathTypeBy(altitudeMode, lineString.tessellate)
-
+        lineString.tessellate?.let { isFollowTerrain = it }
+        pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
 
         name?.let { displayName = it }
 
@@ -197,7 +203,9 @@ internal class KmlToRenderableConverter {
     ) = Path(extractPoints(linearRing.coordinates?.value)).apply {
         altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
         linearRing.extrude?.let { isExtrude = it }
-        pathType = getPathTypeBy(altitudeMode, linearRing.tessellate)
+        linearRing.tessellate?.let { isFollowTerrain = it }
+        pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
+
         name?.let { displayName = it }
 
         highlightAttributes =
@@ -215,6 +223,7 @@ internal class KmlToRenderableConverter {
         return earth.worldwind.shape.Polygon().apply {
             altitudeMode = getAltitudeModeFrom(polygon.altitudeMode)
             polygon.extrude?.let { isExtrude = it }
+            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
 
             polygon.outerBoundaryIs?.let {
                 it.value?.forEach { linearRing ->
@@ -232,8 +241,6 @@ internal class KmlToRenderableConverter {
                 }
             }
 
-            pathType = getPathTypeBy(altitudeMode, polygon.tessellate)
-
             name?.let { displayName = it }
 
             highlightAttributes =
@@ -244,10 +251,10 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    private fun getPathTypeBy(altitudeMode: AltitudeMode, tessellate: Boolean?): PathType {
+    private fun getPathTypeBy(altitudeMode: AltitudeMode, isFollowTerrain: Boolean?): PathType {
         // If the path is clamped to the ground and terrain conforming, draw as a great circle.
         // Otherwise draw as linear segments.
-        return if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && tessellate == true) {
+        return if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain == true) {
             PathType.GREAT_CIRCLE
         } else {
             PathType.LINEAR
@@ -337,6 +344,10 @@ internal class KmlToRenderableConverter {
 
     private fun AbstractShape.applyStyleOnShapeAttributes(style: Style?) {
         attributes.apply {
+            // set defaults
+            outlineColor = defaultLineColor
+            interiorColor = defaultFillColor
+
             val lineStyle = style?.stylesList?.filterIsInstance<LineStyle>()?.firstOrNull()
             val polyStyle = style?.stylesList?.filterIsInstance<PolyStyle>()?.firstOrNull()
 
@@ -348,6 +359,8 @@ internal class KmlToRenderableConverter {
 
             // Disable depths write for translucent shapes to avoid conflict with always on top Placemarks
             if (interiorColor.alpha < 1.0f) isDepthWrite = false
+
+            isDrawVerticals = true
         }
     }
 

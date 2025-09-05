@@ -1,7 +1,9 @@
 package earth.worldwind.formats.kml
 
 import earth.worldwind.formats.DEFAULT_DENSITY
+import earth.worldwind.formats.DEFAULT_FILL_COLOR
 import earth.worldwind.formats.DEFAULT_LABEL_VISIBILITY_THRESHOLD
+import earth.worldwind.formats.DEFAULT_LINE_COLOR
 import earth.worldwind.formats.computeSector
 import earth.worldwind.formats.kml.models.LookAt
 import earth.worldwind.formats.kml.models.Style
@@ -10,22 +12,15 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Position
-import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
-import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.shape.Ellipse
 import earth.worldwind.shape.Label
-import earth.worldwind.shape.Path
-import earth.worldwind.shape.Placemark
-import earth.worldwind.shape.Polygon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.adaptivity.xmlutil.XmlUtilInternal
 import nl.adaptivity.xmlutil.core.impl.multiplatform.Reader
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
-import kotlin.math.cos
 
 @OptIn(XmlUtilInternal::class)
 object KmlLayerFactory {
@@ -36,6 +31,20 @@ object KmlLayerFactory {
     const val KML_LAYER_ID_KEY = "KMLLayerId"
     const val KML_LAYER_SECTOR_KEY = "KMLLayerSector"
     const val KML_LAYER_LOOK_AT_KEY = "KMLLayerLookAt"
+
+    var defaultLineColor = DEFAULT_LINE_COLOR
+        get() = converter.defaultLineColor
+        set(value) {
+            converter.defaultLineColor = value
+            field = value
+        }
+
+    var defaultFillColor = DEFAULT_FILL_COLOR
+        get() = converter.defaultFillColor
+        set(value) {
+            converter.defaultFillColor = value
+            field = value
+        }
 
     private data class KmlLayerData(
         val id: String,

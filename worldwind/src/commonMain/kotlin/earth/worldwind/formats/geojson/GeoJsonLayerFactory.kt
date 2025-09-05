@@ -1,12 +1,15 @@
 package earth.worldwind.formats.geojson
 
 import earth.worldwind.formats.DEFAULT_DENSITY
+import earth.worldwind.formats.DEFAULT_FILL_COLOR
 import earth.worldwind.formats.DEFAULT_IMAGE_SCALE
 import earth.worldwind.formats.DEFAULT_LABEL_VISIBILITY_THRESHOLD
+import earth.worldwind.formats.DEFAULT_LINE_COLOR
 import earth.worldwind.formats.DEFAULT_PLACEMARK_ICON_SIZE
 import earth.worldwind.formats.computeSector
 import earth.worldwind.formats.forceHttps
 import earth.worldwind.formats.isValidHttpsUrl
+import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
@@ -34,6 +37,9 @@ import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 object GeoJsonLayerFactory {
+
+    var defaultLineColor = DEFAULT_LINE_COLOR
+    var defaultFillColor = DEFAULT_FILL_COLOR
 
     private const val GEO_JSON_LAYER_NAME = "Geo Json Layer"
     const val GEO_JSON_LAYER_ID_KEY = "GeoJsonLayerId"
@@ -130,8 +136,8 @@ object GeoJsonLayerFactory {
                 }.flatten()
 
                 val renderable = earth.worldwind.shape.Polygon(positions).apply {
-                    altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                    isFollowTerrain = true
+                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     applyStyleOnShapeAttributes(properties)
                 }
                 listOf(renderable)
@@ -147,8 +153,8 @@ object GeoJsonLayerFactory {
 
                     if (positions.isNotEmpty()) {
                         earth.worldwind.shape.Polygon(positions).apply {
-                            altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                            isFollowTerrain = true
+                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                             applyStyleOnShapeAttributes(properties)
                         }
                     } else null
@@ -161,8 +167,8 @@ object GeoJsonLayerFactory {
                 }
 
                 val renderable = Path(positions).apply {
-                    altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                    isFollowTerrain = true
+                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     applyStyleOnShapeAttributes(properties)
                 }
                 listOf(renderable)
@@ -174,8 +180,8 @@ object GeoJsonLayerFactory {
                 }
 
                 val renderable = Path(positions).apply {
-                    altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                    isFollowTerrain = true
+                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     applyStyleOnShapeAttributes(properties)
                 }
                 listOf(renderable)
@@ -188,8 +194,8 @@ object GeoJsonLayerFactory {
                     }
                     if (positions.isNotEmpty()) {
                         Path(positions).apply {
-                            altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                            isFollowTerrain = true
+                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                             applyStyleOnShapeAttributes(properties)
                         }
                     } else null
@@ -203,7 +209,7 @@ object GeoJsonLayerFactory {
                             Placemark(position, label = properties.name).apply {
                                 // Display name is used to search renderable in layer
                                 displayName = properties.name
-                                altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
+                                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                 attributes.apply {
                                     try {
                                         properties.icon
@@ -239,7 +245,7 @@ object GeoJsonLayerFactory {
                             }
                         } else {
                             Label(position, properties.name).apply {
-                                altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
+                                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                 attributes.applyStyle(properties)
                             }
                         }
@@ -261,6 +267,10 @@ object GeoJsonLayerFactory {
 
     private fun AbstractShape.applyStyleOnShapeAttributes(properties: Properties) {
         attributes.apply {
+            // set defaults
+            outlineColor = defaultLineColor
+            interiorColor = defaultFillColor
+
             properties.strokeColor?.let { outlineColor = it }
             properties.fillColor?.let { interiorColor = it }
             properties.strokeWidth?.let { outlineWidth = it.toFloat() }
@@ -270,6 +280,8 @@ object GeoJsonLayerFactory {
 
             // Disable depths write for translucent shapes to avoid conflict with always on top Placemarks
             if (interiorColor.alpha < 1.0f) isDepthWrite = false
+
+            isDrawVerticals = true
         }
     }
 
