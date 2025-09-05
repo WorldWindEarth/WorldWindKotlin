@@ -26,6 +26,7 @@ open class GeoJsonDemoActivity : GeneralGlobeActivity() {
                 val layer = withContext(Dispatchers.IO) {
                     GeoJsonLayerFactory.createLayer(
                         text = assets.open("GEO_JSON_Samples.json").bufferedReader().readText(),
+                        density = resources.displayMetrics.density,
                         labelVisibilityThreshold = 18000.0, // Set a visibility threshold for labels
                     )
                 }

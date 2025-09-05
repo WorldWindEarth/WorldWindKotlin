@@ -4,25 +4,17 @@
     <name>KML Samples</name>
     <open>1</open>
     <description>Unleash your creativity with the help of these examples!</description>
-    <Style id="style_7fdfff">
-      <IconStyle>
-        <scale>0</scale>
-      </IconStyle>
-      <LabelStyle>
-        <color>ffffdf7f</color>
-      </LabelStyle>
-    </Style>
     <Style id="downArrowIcon">
       <IconStyle>
         <Icon>
-          <href>https://maps.google.com/mapfiles/kml/pal4/icon28.png</href>
+          <href>http://maps.google.com/mapfiles/kml/pal4/icon28.png</href>
         </Icon>
       </IconStyle>
     </Style>
     <Style id="globeIcon">
       <IconStyle>
         <Icon>
-          <href>https://maps.google.com/mapfiles/kml/pal3/icon19.png</href>
+          <href>http://maps.google.com/mapfiles/kml/pal3/icon19.png</href>
         </Icon>
       </IconStyle>
       <LineStyle>
@@ -131,6 +123,24 @@
         </Point>
       </Placemark>
       <Placemark>
+        <name>Floating placemark</name>
+        <visibility>0</visibility>
+        <description>Floats a defined distance above the ground.</description>
+        <LookAt>
+          <longitude>-122.0839597145766</longitude>
+          <latitude>37.42222904525232</latitude>
+          <altitude>0</altitude>
+          <heading>-148.4122922628044</heading>
+          <tilt>40.5575073395506</tilt>
+          <range>500.6566641072245</range>
+        </LookAt>
+        <styleUrl>#downArrowIcon</styleUrl>
+        <Point>
+          <altitudeMode>relativeToGround</altitudeMode>
+          <coordinates>-122.084075,37.4220033612141,50</coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
         <name>Extruded placemark</name>
         <visibility>0</visibility>
         <description>Tethered to the ground by a customizable
@@ -147,27 +157,297 @@
         <Point>
           <extrude>1</extrude>
           <altitudeMode>relativeToGround</altitudeMode>
-          <coordinates>-122.0822035425683,37.42276990900251,50</coordinates>
-        </Point>
-      </Placemark>
-      <Placemark>
-        <name>Colored placemark</name>
-        <styleUrl>#style_7fdfff</styleUrl>
-        <Point>
-          <altitudeMode>relativeToGround</altitudeMode>
-          <coordinates>-122.0822035425683,37.42206990900251,50</coordinates>
+          <coordinates>-122.0857667006183,37.42156927867553,50</coordinates>
         </Point>
       </Placemark>
     </Folder>
     <Folder>
+      <name>Styles and Markup</name>
+      <visibility>0</visibility>
+      <description>With KML it is easy to create rich, descriptive markup to
+        annotate and enrich your placemarks</description>
+      <LookAt>
+        <longitude>-122.0845787422371</longitude>
+        <latitude>37.42215078726837</latitude>
+        <altitude>0</altitude>
+        <heading>-148.4126777488172</heading>
+        <tilt>40.55750733930874</tilt>
+        <range>365.2646826292919</range>
+      </LookAt>
+      <styleUrl>#noDrivingDirections</styleUrl>
+      <Document>
+        <name>Highlighted Icon</name>
+        <visibility>0</visibility>
+        <description>Place your mouse over the icon to see it display the new
+          icon</description>
+        <LookAt>
+          <longitude>-122.0856552124024</longitude>
+          <latitude>37.4224281311035</latitude>
+          <altitude>0</altitude>
+          <heading>0</heading>
+          <tilt>0</tilt>
+          <range>265.8520424250024</range>
+        </LookAt>
+        <Style id="highlightPlacemark">
+          <IconStyle>
+            <Icon>
+              <href>http://maps.google.com/mapfiles/kml/paddle/red-stars.png</href>
+            </Icon>
+          </IconStyle>
+        </Style>
+        <Style id="normalPlacemark">
+          <IconStyle>
+            <Icon>
+              <href>http://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href>
+            </Icon>
+          </IconStyle>
+        </Style>
+        <StyleMap id="exampleStyleMap">
+          <Pair>
+            <key>normal</key>
+            <styleUrl>#normalPlacemark</styleUrl>
+          </Pair>
+          <Pair>
+            <key>highlight</key>
+            <styleUrl>#highlightPlacemark</styleUrl>
+          </Pair>
+        </StyleMap>
+        <Placemark>
+          <name>Roll over this icon</name>
+          <visibility>0</visibility>
+          <styleUrl>#exampleStyleMap</styleUrl>
+          <Point>
+            <coordinates>-122.0856545755255,37.42243077405461,0</coordinates>
+          </Point>
+        </Placemark>
+      </Document>
+      <Placemark>
+        <name>Descriptive HTML</name>
+        <visibility>0</visibility>
+        <description><![CDATA[Click on the blue link!<br><br>
+Placemark descriptions can be enriched by using many standard HTML tags.<br>
+For example:
+<hr>
+Styles:<br>
+<i>Italics</i>,
+<b>Bold</b>,
+<u>Underlined</u>,
+<s>Strike Out</s>,
+subscript<sub>subscript</sub>,
+superscript<sup>superscript</sup>,
+<big>Big</big>,
+<small>Small</small>,
+<tt>Typewriter</tt>,
+<em>Emphasized</em>,
+<strong>Strong</strong>,
+<code>Code</code>
+<hr>
+Fonts:<br>
+<font color="red">red by name</font>,
+<font color="#408010">leaf green by hexadecimal RGB</font>
+<br>
+<font size=1>size 1</font>,
+<font size=2>size 2</font>,
+<font size=3>size 3</font>,
+<font size=4>size 4</font>,
+<font size=5>size 5</font>,
+<font size=6>size 6</font>,
+<font size=7>size 7</font>
+<br>
+<font face=times>Times</font>,
+<font face=verdana>Verdana</font>,
+<font face=arial>Arial</font><br>
+<hr>
+Links:
+<br>
+<a href="http://earth.google.com/">Google Earth!</a>
+<br>
+ or:  Check out our website at www.google.com
+<hr>
+Alignment:<br>
+<p align=left>left</p>
+<p align=center>center</p>
+<p align=right>right</p>
+<hr>
+Ordered Lists:<br>
+<ol><li>First</li><li>Second</li><li>Third</li></ol>
+<ol type="a"><li>First</li><li>Second</li><li>Third</li></ol>
+<ol type="A"><li>First</li><li>Second</li><li>Third</li></ol>
+<hr>
+Unordered Lists:<br>
+<ul><li>A</li><li>B</li><li>C</li></ul>
+<ul type="circle"><li>A</li><li>B</li><li>C</li></ul>
+<ul type="square"><li>A</li><li>B</li><li>C</li></ul>
+<hr>
+Definitions:<br>
+<dl>
+<dt>Google:</dt><dd>The best thing since sliced bread</dd>
+</dl>
+<hr>
+Centered:<br><center>
+Time present and time past<br>
+Are both perhaps present in time future,<br>
+And time future contained in time past.<br>
+If all time is eternally present<br>
+All time is unredeemable.<br>
+</center>
+<hr>
+Block Quote:
+<br>
+<blockquote>
+We shall not cease from exploration<br>
+And the end of all our exploring<br>
+Will be to arrive where we started<br>
+And know the place for the first time.<br>
+<i>-- T.S. Eliot</i>
+</blockquote>
+<br>
+<hr>
+Headings:<br>
+<h1>Header 1</h1>
+<h2>Header 2</h2>
+<h3>Header 3</h3>
+<h3>Header 4</h4>
+<h3>Header 5</h5>
+<hr>
+Images:<br>
+<i>Remote image</i><br>
+<img src="//developers.google.com/kml/documentation/images/googleSample.png"><br>
+<i>Scaled image</i><br>
+<img src="//developers.google.com/kml/documentation/images/googleSample.png" width=100><br>
+<hr>
+Simple Tables:<br>
+<table border="1" padding="1">
+<tr><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr>
+<tr><td>a</td><td>b</td><td>c</td><td>d</td><td>e</td></tr>
+</table>
+<br>
+[Did you notice that double-clicking on the placemark doesn't cause the viewer to take you anywhere? This is because it is possible to directly author a "placeless placemark". If you look at the code for this example, you will see that it has neither a point coordinate nor a LookAt element.]]]></description>
+      </Placemark>
+    </Folder>
+    <Folder>
+      <name>Ground Overlays</name>
+      <visibility>0</visibility>
+      <description>Examples of ground overlays</description>
+      <GroundOverlay>
+        <name>Large-scale overlay on terrain</name>
+        <visibility>0</visibility>
+        <description>Overlay shows Mount Etna erupting on July 13th, 2001.</description>
+        <LookAt>
+          <longitude>15.02468937557116</longitude>
+          <latitude>37.67395167941667</latitude>
+          <altitude>0</altitude>
+          <heading>-16.5581842842829</heading>
+          <tilt>58.31228652890705</tilt>
+          <range>30350.36838438907</range>
+        </LookAt>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/etna.jpg</href>
+        </Icon>
+        <LatLonBox>
+          <north>37.91904192681665</north>
+          <south>37.46543388598137</south>
+          <east>15.35832653742206</east>
+          <west>14.60128369746704</west>
+          <rotation>-0.1556640799496235</rotation>
+        </LatLonBox>
+      </GroundOverlay>
+    </Folder>
+    <Folder>
+      <name>Screen Overlays</name>
+      <visibility>0</visibility>
+      <description>Screen overlays have to be authored directly in KML. These
+        examples illustrate absolute and dynamic positioning in screen space.</description>
+      <ScreenOverlay>
+        <name>Simple crosshairs</name>
+        <visibility>0</visibility>
+        <description>This screen overlay uses fractional positioning to put the
+          image in the exact center of the screen</description>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/crosshairs.png</href>
+        </Icon>
+        <overlayXY x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
+        <size x="0" y="0" xunits="pixels" yunits="pixels"/>
+      </ScreenOverlay>
+      <ScreenOverlay>
+        <name>Absolute Positioning: Top left</name>
+        <visibility>0</visibility>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/top_left.jpg</href>
+        </Icon>
+        <overlayXY x="0" y="1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0" y="1" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0" y="0" xunits="fraction" yunits="fraction"/>
+      </ScreenOverlay>
+      <ScreenOverlay>
+        <name>Absolute Positioning: Top right</name>
+        <visibility>0</visibility>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/top_right.jpg</href>
+        </Icon>
+        <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="1" y="1" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0" y="0" xunits="fraction" yunits="fraction"/>
+      </ScreenOverlay>
+      <ScreenOverlay>
+        <name>Absolute Positioning: Bottom left</name>
+        <visibility>0</visibility>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/bottom_left.jpg</href>
+        </Icon>
+        <overlayXY x="0" y="-1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0" y="0" xunits="fraction" yunits="fraction"/>
+      </ScreenOverlay>
+      <ScreenOverlay>
+        <name>Absolute Positioning: Bottom right</name>
+        <visibility>0</visibility>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/bottom_right.jpg</href>
+        </Icon>
+        <overlayXY x="1" y="-1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="1" y="0" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0" y="0" xunits="fraction" yunits="fraction"/>
+      </ScreenOverlay>
+      <ScreenOverlay>
+        <name>Dynamic Positioning: Top of screen</name>
+        <visibility>0</visibility>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/dynamic_screenoverlay.jpg</href>
+        </Icon>
+        <overlayXY x="0" y="1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0" y="1" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="1" y="0.2" xunits="fraction" yunits="fraction"/>
+      </ScreenOverlay>
+      <ScreenOverlay>
+        <name>Dynamic Positioning: Right of screen</name>
+        <visibility>0</visibility>
+        <Icon>
+          <href>http://developers.google.com/kml/documentation/images/dynamic_right.jpg</href>
+        </Icon>
+        <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="1" y="1" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0" y="1" xunits="fraction" yunits="fraction"/>
+      </ScreenOverlay>
+    </Folder>
+    <Folder>
       <name>Paths</name>
+      <visibility>0</visibility>
       <description>Examples of paths. Note that the tessellate tag is by default
         set to 0. If you want to create tessellated lines, they must be authored
         (or edited) directly in KML.</description>
       <Placemark>
         <name>Tessellated</name>
-        <description>If the &lt;tessellate&gt; tag has a value of 1, the line will contour to the
-          underlying terrain</description>
+        <visibility>0</visibility>
+        <description><![CDATA[If the <tessellate> tag has a value of 1, the line will contour to the underlying terrain]]></description>
         <LookAt>
           <longitude>-112.0822680013139</longitude>
           <latitude>36.09825589333556</latitude>
@@ -178,14 +458,14 @@
         </LookAt>
         <LineString>
           <tessellate>1</tessellate>
-          <coordinates>-121.91634283263451,37.43525990237421,0.0
-            -121.92194582486931,37.41899113047944,0.0</coordinates>
+          <coordinates> -112.0814237830345,36.10677870477137,0
+            -112.0870267752693,36.0905099328766,0 </coordinates>
         </LineString>
       </Placemark>
       <Placemark>
         <name>Untessellated</name>
-        <description>If the &lt;tessellate&gt; tag has a value of 0, the line follow a simple
-          straight-line path from point to point</description>
+        <visibility>0</visibility>
+        <description><![CDATA[If the <tessellate> tag has a value of 0, the line follow a simple straight-line path from point to point]]></description>
         <LookAt>
           <longitude>-112.0822680013139</longitude>
           <latitude>36.09825589333556</latitude>
@@ -196,12 +476,13 @@
         </LookAt>
         <LineString>
           <tessellate>0</tessellate>
-          <coordinates>-121.91554127919501,37.435215797682794,0.0
-            -121.92016162491501,37.41897718372706,0.0</coordinates>
+          <coordinates> -112.080622229595,36.10673460007995,0
+            -112.085242575315,36.09049598612422,0 </coordinates>
         </LineString>
       </Placemark>
       <Placemark>
         <name>Absolute</name>
+        <visibility>0</visibility>
         <description>Transparent purple line</description>
         <LookAt>
           <longitude>-112.2719329043177</longitude>
@@ -215,15 +496,17 @@
         <LineString>
           <tessellate>1</tessellate>
           <altitudeMode>absolute</altitudeMode>
-          <coordinates>-122.10057397820202,37.4229579236283,2357.0
-            -122.10095750242382,37.42190728598955,2357.0
-            -122.10173295094532,37.42099178537165,2357.0 -122.10270173304451,37.4203794711828,2357.0
-            -122.10377480069522,37.41979499172154,2357.0
-            -122.10440012132192,37.41884891835494,2357.0
-            -122.10444590516111,37.41780291247569,2357.0
-            -122.10393350632762,37.41699035820756,2357.0 -122.10307193113391,37.4160193335824,2357.0
-            -122.10197786720312,37.41530805022852,2357.0
-            -122.10065650833212,37.414944320615874,2357.0</coordinates>
+          <coordinates> -112.265654928602,36.09447672602546,2357
+            -112.2660384528238,36.09342608838671,2357
+            -112.2668139013453,36.09251058776881,2357
+            -112.2677826834445,36.09189827357996,2357
+            -112.2688557510952,36.0913137941187,2357
+            -112.2694810717219,36.0903677207521,2357
+            -112.2695268555611,36.08932171487285,2357
+            -112.2690144567276,36.08850916060472,2357
+            -112.2681528815339,36.08753813597956,2357
+            -112.2670588176031,36.08682685262568,2357
+            -112.2657374587321,36.08646312301303,2357 </coordinates>
         </LineString>
       </Placemark>
       <Placemark>
@@ -243,16 +526,17 @@
           <extrude>1</extrude>
           <tessellate>1</tessellate>
           <altitudeMode>absolute</altitudeMode>
-          <coordinates>-122.08999758337912,37.40803071905931,2357.0
-            -122.08984675357382,37.40965203252406,2357.0
-            -122.09016955650631,37.41108881067563,2357.0 -122.09137306543762,37.4124378034879,2357.0
-            -122.09294294724492,37.41359520805097,2357.0
-            -122.09444089850221,37.41432474999678,2357.0
-            -122.09574068435522,37.41460754308873,2357.0
-            -122.09699247825601,37.41474138845431,2357.0
-            -122.09823954244952,37.41469639620375,2357.0
-            -122.09941543424442,37.414760177055584,2357.0
-            -122.10061600505892,37.41497718850928,2357.0</coordinates>
+          <coordinates> -112.2550785337791,36.07954952145647,2357
+            -112.2549277039738,36.08117083492122,2357
+            -112.2552505069063,36.08260761307279,2357
+            -112.2564540158376,36.08395660588506,2357
+            -112.2580238976449,36.08511401044813,2357
+            -112.2595218489022,36.08584355239394,2357
+            -112.2608216347552,36.08612634548589,2357
+            -112.262073428656,36.08626019085147,2357
+            -112.2633204928495,36.08621519860091,2357
+            -112.2644963846444,36.08627897945274,2357
+            -112.2656969554589,36.08649599090644,2357 </coordinates>
         </LineString>
       </Placemark>
       <Placemark>
@@ -271,12 +555,17 @@
         <LineString>
           <tessellate>1</tessellate>
           <altitudeMode>relativeToGround</altitudeMode>
-          <coordinates>-122.08820356493472,37.427350634894,645.0
-            -122.08896566171451,37.42767690225539,645.0 -122.08965371654702,37.42833118126462,645.0
-            -122.09041239525402,37.4289943038203,645.0 -122.09123475944682,37.42956561703703,645.0
-            -122.09172235724392,37.430078418483724,645.0 -122.09241306092102,37.43052443303151,645.0
-            -122.09332965683082,37.43077251755939,645.0 -122.09457794839722,37.430881210466424,645.0
-            -122.09597716954872,37.43061296633691,645.0 -122.09754757587932,37.43005131197503,645.0</coordinates>
+          <coordinates> -112.2532845153347,36.09886943729116,645
+            -112.2540466121145,36.09919570465255,645
+            -112.254734666947,36.09984998366178,645
+            -112.255493345654,36.10051310621746,645
+            -112.2563157098468,36.10108441943419,645
+            -112.2568033076439,36.10159722088088,645
+            -112.257494011321,36.10204323542867,645
+            -112.2584106072308,36.10229131995655,645
+            -112.2596588987972,36.10240001286358,645
+            -112.2610581199487,36.10213176873407,645
+            -112.2626285262793,36.10157011437219,645 </coordinates>
         </LineString>
       </Placemark>
       <Placemark>
@@ -296,12 +585,17 @@
           <extrude>1</extrude>
           <tessellate>1</tessellate>
           <altitudeMode>relativeToGround</altitudeMode>
-          <coordinates>-122.10058246773592,37.422933344829794,630.0
-            -122.10014294370971,37.42369035882347,630.0 -122.09942704823952,37.42428883625191,630.0
-            -122.09880179248172,37.424766920443474,630.0 -122.09849373314061,37.42527395711523,630.0
-            -122.09849023184071,37.42588158632183,630.0 -122.09894870278252,37.42653033195823,630.0
-            -122.09924677013802,37.42728457160585,630.0 -122.09916270582711,37.42811764550572,630.0
-            -122.09883391830422,37.4290350087753,630.0 -122.09760854694741,37.42997182583653,630.0</coordinates>
+          <coordinates> -112.2656634181359,36.09445214722695,630
+            -112.2652238941097,36.09520916122063,630
+            -112.2645079986395,36.09580763864907,630
+            -112.2638827428817,36.09628572284063,630
+            -112.2635746835406,36.09679275951239,630
+            -112.2635711822407,36.09740038871899,630
+            -112.2640296531825,36.09804913435539,630
+            -112.264327720538,36.09880337400301,630
+            -112.2642436562271,36.09963644790288,630
+            -112.2639148687042,36.10055381117246,630
+            -112.2626894973474,36.10149062823369,630 </coordinates>
         </LineString>
       </Placemark>
     </Folder>

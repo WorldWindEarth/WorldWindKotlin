@@ -1,5 +1,15 @@
 package earth.worldwind.formats.geojson
 
+import earth.worldwind.formats.DEFAULT_DENSITY
+import earth.worldwind.formats.DEFAULT_FILL_COLOR
+import earth.worldwind.formats.DEFAULT_IMAGE_SCALE
+import earth.worldwind.formats.DEFAULT_LABEL_VISIBILITY_THRESHOLD
+import earth.worldwind.formats.DEFAULT_LINE_COLOR
+import earth.worldwind.formats.DEFAULT_PLACEMARK_ICON_SIZE
+import earth.worldwind.formats.computeSector
+import earth.worldwind.formats.forceHttps
+import earth.worldwind.formats.isValidHttpsUrl
+import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
@@ -24,15 +34,22 @@ import io.data2viz.geojson.Position
 import io.data2viz.geojson.toGeoJsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
 object GeoJsonLayerFactory {
 
+    var defaultLineColor = DEFAULT_LINE_COLOR
+    var defaultFillColor = DEFAULT_FILL_COLOR
+
     private const val GEO_JSON_LAYER_NAME = "Geo Json Layer"
+    const val GEO_JSON_LAYER_ID_KEY = "GeoJsonLayerId"
+    const val GEO_JSON_LAYER_SECTOR_KEY = "GeoJsonLayerSector"
 
     suspend fun createLayer(
         text: String,
         displayName: String? = GEO_JSON_LAYER_NAME,
-        labelVisibilityThreshold: Double = 0.0,
+        density: Float = DEFAULT_DENSITY,
+        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
         customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
     ): RenderableLayer {
 
@@ -40,17 +57,18 @@ object GeoJsonLayerFactory {
             isPickEnabled = false // Layer is not pickable by default
         }
 
-        val renderables = withContext(Dispatchers.Default) {
-            val featureCollection = when (val geoJsonObject = text.toGeoJsonObject()) {
-                is FeatureCollection -> geoJsonObject
+        val (renderables, id) = withContext(Dispatchers.Default) {
+            val geoJsonObject = text.toGeoJsonObject()
+            val (featureCollection, id) = when (geoJsonObject) {
+                is FeatureCollection -> geoJsonObject to Random.nextLong().toString()
                 else -> {
-                    val feature = when (geoJsonObject) {
-                        is Feature -> geoJsonObject
-                        is Geometry -> Feature(geoJsonObject)
-                        else -> null
+                    val (feature, id) = when (geoJsonObject) {
+                        is Feature -> geoJsonObject to geoJsonObject.id
+                        is Geometry -> Feature(geoJsonObject) to null
+                        else -> null to null
                     }
                     val array = feature?.let { arrayOf(feature) } ?: emptyArray()
-                    FeatureCollection(array)
+                    FeatureCollection(array) to (id ?: Random.nextLong()).toString()
                 }
             }
             val features = featureCollection.features
@@ -62,7 +80,11 @@ object GeoJsonLayerFactory {
                 Pair(feature.geometry, Properties(properties))
             }
 
-            convertRenderablesFrom(geometriesWithProperties, customLogicToApplyProperties)
+            convertRenderablesFrom(
+                geometriesWithProperties,
+                customLogicToApplyProperties,
+                density
+            ) to id
         }
 
         renderables.forEach { renderable ->
@@ -73,15 +95,22 @@ object GeoJsonLayerFactory {
 
         layer.addAllRenderables(renderables)
 
-        return layer
+        return layer.apply {
+            addAllRenderables(renderables)
+            putUserProperty(GEO_JSON_LAYER_ID_KEY, id)
+            computeSector(renderables)?.let {
+                putUserProperty(GEO_JSON_LAYER_SECTOR_KEY, it)
+            }
+        }
     }
 
     private fun convertRenderablesFrom(
         geometriesWithProperties: Map<Geometry, Properties>,
         customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit,
+        density: Float,
     ) = geometriesWithProperties
         .map { (geometry, properties) ->
-            convertToRenderable(geometry, properties)
+            convertToRenderable(geometry, properties, density)
                 .onEach { it.customLogicToApplyProperties(properties.properties) }
         }
         .flatten()
@@ -89,12 +118,13 @@ object GeoJsonLayerFactory {
     private fun convertToRenderable(
         geometry: Geometry,
         properties: Properties,
+        density: Float,
     ): List<Renderable> {
         return when (geometry) {
 
             is GeometryCollection -> {
                 geometry.geometries
-                    .map { convertToRenderable(it, properties) }
+                    .map { convertToRenderable(it, properties, density) }
                     .flatten()
             }
 
@@ -106,8 +136,8 @@ object GeoJsonLayerFactory {
                 }.flatten()
 
                 val renderable = earth.worldwind.shape.Polygon(positions).apply {
-                    altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                    isFollowTerrain = true
+                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     applyStyleOnShapeAttributes(properties)
                 }
                 listOf(renderable)
@@ -123,8 +153,8 @@ object GeoJsonLayerFactory {
 
                     if (positions.isNotEmpty()) {
                         earth.worldwind.shape.Polygon(positions).apply {
-                            altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                            isFollowTerrain = true
+                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                             applyStyleOnShapeAttributes(properties)
                         }
                     } else null
@@ -137,8 +167,8 @@ object GeoJsonLayerFactory {
                 }
 
                 val renderable = Path(positions).apply {
-                    altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                    isFollowTerrain = true
+                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     applyStyleOnShapeAttributes(properties)
                 }
                 listOf(renderable)
@@ -150,8 +180,8 @@ object GeoJsonLayerFactory {
                 }
 
                 val renderable = Path(positions).apply {
-                    altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                    isFollowTerrain = true
+                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     applyStyleOnShapeAttributes(properties)
                 }
                 listOf(renderable)
@@ -164,8 +194,8 @@ object GeoJsonLayerFactory {
                     }
                     if (positions.isNotEmpty()) {
                         Path(positions).apply {
-                            altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
-                            isFollowTerrain = true
+                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                             applyStyleOnShapeAttributes(properties)
                         }
                     } else null
@@ -179,39 +209,43 @@ object GeoJsonLayerFactory {
                             Placemark(position, label = properties.name).apply {
                                 // Display name is used to search renderable in layer
                                 displayName = properties.name
-                                altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
+                                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                 attributes.apply {
                                     try {
-                                        properties.icon?.let {
-                                            if (isValidHttpsUrl(it)) {
-                                                imageSource = ImageSource.fromUrlString(it)
+                                        properties.icon
+                                            ?.let(::forceHttps)
+                                            ?.let {
+                                                if (isValidHttpsUrl(it)) {
+                                                    imageSource = ImageSource.fromUrlString(it)
 
-                                                properties.iconOffset?.let { (x, y) ->
-                                                    attributes.imageOffset.set(
-                                                        OffsetMode.PIXELS, x,
-                                                        OffsetMode.INSET_PIXELS, y,
-                                                    )
-                                                    attributes.labelAttributes.textOffset.set(
-                                                        OffsetMode.PIXELS, -x / 2.0,
-                                                        OffsetMode.INSET_PIXELS, y / 2.0
-                                                    )
+                                                    properties.iconOffset?.let { (x, y) ->
+                                                        attributes.imageOffset.set(
+                                                            OffsetMode.PIXELS, x,
+                                                            OffsetMode.INSET_PIXELS, y,
+                                                        )
+                                                        attributes.labelAttributes.textOffset.set(
+                                                            OffsetMode.PIXELS, -x / 2.0,
+                                                            OffsetMode.INSET_PIXELS, y / 2.0
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
-                                    } catch (e: Exception) {
+                                    } catch (_: Exception) {
                                         // cant load image, ignore
                                     }
 
-                                    if (imageSource == null) {
-                                        imageScale = 24.0 // Default scale for placemark icon
-                                    }
+                                    imageScale = if (imageSource == null) {
+                                        properties.iconScale ?: DEFAULT_PLACEMARK_ICON_SIZE
+                                    } else {
+                                        DEFAULT_IMAGE_SCALE
+                                    } * density
 
                                     labelAttributes.applyStyle(properties)
                                 }
                             }
                         } else {
                             Label(position, properties.name).apply {
-                                altitudeMode = earth.worldwind.geom.AltitudeMode.CLAMP_TO_GROUND
+                                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                 attributes.applyStyle(properties)
                             }
                         }
@@ -233,6 +267,10 @@ object GeoJsonLayerFactory {
 
     private fun AbstractShape.applyStyleOnShapeAttributes(properties: Properties) {
         attributes.apply {
+            // set defaults
+            outlineColor = defaultLineColor
+            interiorColor = defaultFillColor
+
             properties.strokeColor?.let { outlineColor = it }
             properties.fillColor?.let { interiorColor = it }
             properties.strokeWidth?.let { outlineWidth = it.toFloat() }
@@ -242,6 +280,8 @@ object GeoJsonLayerFactory {
 
             // Disable depths write for translucent shapes to avoid conflict with always on top Placemarks
             if (interiorColor.alpha < 1.0f) isDepthWrite = false
+
+            isDrawVerticals = true
         }
     }
 
@@ -249,15 +289,6 @@ object GeoJsonLayerFactory {
         apply {
             scale = properties.labelScale ?: 1.0
         }
-    }
-
-    private fun isValidHttpsUrl(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        val httpsUrlRegex = Regex(
-            pattern = "^https://[\\w.-]+(?:\\.[\\w.-]+)+(?:/\\S*)?$",
-            options = setOf(RegexOption.IGNORE_CASE)
-        )
-        return httpsUrlRegex.matches(url)
     }
 
     data class Properties(val properties: LinkedHashMap<String, Any?> = LinkedHashMap()) {
@@ -281,6 +312,8 @@ object GeoJsonLayerFactory {
                 val y = (offsetList.getOrNull(1) as? Number)?.toDouble() ?: DEFAULT_ICON_OFFSET
                 x to y
             }
+        val iconScale: Double?
+            get() = properties["icon-scale"].let { it as? Double ?: it as? Int }?.toDouble()
         val labelScale: Double?
             get() = properties["label-scale"].let { it as? Double ?: it as? Int }?.toDouble()
 

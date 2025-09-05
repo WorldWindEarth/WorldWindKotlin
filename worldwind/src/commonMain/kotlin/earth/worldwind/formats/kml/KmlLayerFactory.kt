@@ -1,27 +1,26 @@
 package earth.worldwind.formats.kml
 
+import earth.worldwind.formats.DEFAULT_DENSITY
+import earth.worldwind.formats.DEFAULT_FILL_COLOR
+import earth.worldwind.formats.DEFAULT_LABEL_VISIBILITY_THRESHOLD
+import earth.worldwind.formats.DEFAULT_LINE_COLOR
+import earth.worldwind.formats.computeSector
 import earth.worldwind.formats.kml.models.LookAt
 import earth.worldwind.formats.kml.models.Style
 import earth.worldwind.formats.kml.models.StyleMap
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.ZERO
-import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Position
-import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Renderable
-import earth.worldwind.shape.Ellipse
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.Label
-import earth.worldwind.shape.Path
-import earth.worldwind.shape.Placemark
-import earth.worldwind.shape.Polygon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.adaptivity.xmlutil.XmlUtilInternal
 import nl.adaptivity.xmlutil.core.impl.multiplatform.Reader
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
-import kotlin.math.cos
 
 @OptIn(XmlUtilInternal::class)
 object KmlLayerFactory {
@@ -33,7 +32,26 @@ object KmlLayerFactory {
     const val KML_LAYER_SECTOR_KEY = "KMLLayerSector"
     const val KML_LAYER_LOOK_AT_KEY = "KMLLayerLookAt"
 
-    private val METERS_PER_LATITUDE_DEGREE = 111_320.0
+    var defaultIconColor = DEFAULT_LINE_COLOR
+        get() = converter.defaultIconColor
+        set(value) {
+            converter.defaultIconColor = value
+            field = value
+        }
+
+    var defaultLineColor = DEFAULT_LINE_COLOR
+        get() = converter.defaultLineColor
+        set(value) {
+            converter.defaultLineColor = value
+            field = value
+        }
+
+    var defaultFillColor = DEFAULT_FILL_COLOR
+        get() = converter.defaultFillColor
+        set(value) {
+            converter.defaultFillColor = value
+            field = value
+        }
 
     private data class KmlLayerData(
         val id: String,
@@ -45,30 +63,50 @@ object KmlLayerFactory {
     suspend fun createLayer(
         text: String,
         displayName: String? = KML_LAYER_NAME,
-        labelVisibilityThreshold: Double = 0.0
-    ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold)
+        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
+        density: Float = DEFAULT_DENSITY,
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
+    ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold, density, resources)
 
     suspend fun createLayer(
         reader: Reader,
         displayName: String? = KML_LAYER_NAME,
-        labelVisibilityThreshold: Double = 0.0
-    ) = RenderableLayer(displayName).apply {
-        decodeFromReader(reader).map { data ->
-            setLayerData(labelVisibilityThreshold, data)
+        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
+        density: Float = DEFAULT_DENSITY,
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
+    ): RenderableLayer {
+        converter.init(density, resources)
+
+        return RenderableLayer(displayName).apply {
+            decodeFromReader(reader).map { data ->
+                setLayerData(labelVisibilityThreshold, data)
+            }
+        }.also {
+            converter.clear()
         }
     }
 
     suspend fun createLayers(
         text: String,
-        labelVisibilityThreshold: Double = 0.0
-    ) = createLayers(StringReader(text), labelVisibilityThreshold)
+        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
+        density: Float = DEFAULT_DENSITY,
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
+    ) = createLayers(StringReader(text), labelVisibilityThreshold, density, resources)
 
     suspend fun createLayers(
         reader: Reader,
-        labelVisibilityThreshold: Double = 0.0
-    ) = decodeFromReader(reader).map { data ->
-        RenderableLayer(data.displayName).apply {
-            setLayerData(labelVisibilityThreshold, data)
+        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
+        density: Float = DEFAULT_DENSITY,
+        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
+    ): List<RenderableLayer> {
+        converter.init(density, resources)
+
+        return decodeFromReader(reader).map { data ->
+            RenderableLayer(data.displayName).apply {
+                setLayerData(labelVisibilityThreshold, data)
+            }
+        }.also {
+            converter.clear()
         }
     }
 
@@ -85,8 +123,12 @@ object KmlLayerFactory {
         addAllRenderables(data.renderables)
 
         putUserProperty(KML_LAYER_ID_KEY, data.id)
-        putUserProperty(KML_LAYER_SECTOR_KEY, computeSector(data.renderables))
-        data.lookAt?.let { putUserProperty(KML_LAYER_LOOK_AT_KEY, data.lookAt) }
+        computeSector(data.renderables)?.let {
+            putUserProperty(KML_LAYER_SECTOR_KEY, it)
+        }
+        data.lookAt?.let {
+            putUserProperty(KML_LAYER_LOOK_AT_KEY, data.lookAt)
+        }
     }
 
     private suspend fun decodeFromReader(
@@ -174,6 +216,11 @@ object KmlLayerFactory {
                         ).forEach { renderable -> renderables[event.parentId]?.add(renderable) }
                     }
                 }
+
+                is KML.KmlEvent.KmlGroundOverlay -> {
+                    converter.convertGroundOverlayToRenderable(event.groundOverlay)
+                        .let { renderable -> renderables[event.parentId]?.addAll(renderable) }
+                }
             }
         }
 
@@ -217,70 +264,6 @@ object KmlLayerFactory {
             heading = Angle.fromDegrees(heading ?: 0.0),
             tilt = Angle.fromDegrees(tilt ?: 0.0),
             roll = ZERO
-        )
-    }
-
-    /**
-     * Compute a bounding sector for a list of renderables. The sector is expanded by a margin
-     * fraction to ensure the renderables are not too close to the edge of the sector.
-     */
-    private fun computeSector(
-        renderables: List<Renderable>,
-        marginFraction: Double = 0.05
-    ): Sector {
-        var minLat = Double.POSITIVE_INFINITY
-        var maxLat = Double.NEGATIVE_INFINITY
-        var minLon = Double.POSITIVE_INFINITY
-        var maxLon = Double.NEGATIVE_INFINITY
-
-        fun Position.check() {
-            val lat = latitude.inDegrees
-            val lon = longitude.inDegrees
-
-            if (lat < minLat) minLat = lat
-            if (lat > maxLat) maxLat = lat
-            if (lon < minLon) minLon = lon
-            if (lon > maxLon) maxLon = lon
-        }
-
-        renderables.forEach { renderable ->
-            when (renderable) {
-                is Label -> renderable.position.check()
-                is Placemark -> renderable.position.check()
-                is Path -> renderable.positions.forEach { it.check() }
-                is Polygon -> {
-                    for (index in 0 until renderable.boundaryCount) {
-                        renderable.getBoundary(index).forEach { it.check() }
-                    }
-                }
-
-                is Ellipse -> {
-                    val majorRadius = renderable.majorRadius
-                    val minorRadius = renderable.minorRadius
-                    val center = renderable.center
-                    val lat = center.latitude.inDegrees
-                    val lon = center.longitude.inDegrees
-                    val latDelta = (majorRadius / METERS_PER_LATITUDE_DEGREE)
-                    val lonDelta =
-                        (minorRadius / (METERS_PER_LATITUDE_DEGREE * cos(center.latitude.inRadians)))
-                    if (lat - latDelta < minLat) minLat = lat - latDelta
-                    if (lat + latDelta > maxLat) maxLat = lat + latDelta
-                    if (lon - lonDelta < minLon) minLon = lon - lonDelta
-                    if (lon + lonDelta > maxLon) maxLon = lon + lonDelta
-                }
-            }
-        }
-
-        val deltaLat = maxLat - minLat
-        val deltaLon = maxLon - minLon
-        val latMargin = deltaLat * marginFraction
-        val lonMargin = deltaLon * marginFraction
-
-        return Sector.fromDegrees(
-            minLatDegrees = minLat - latMargin,
-            minLonDegrees = minLon - lonMargin,
-            deltaLatDegrees = deltaLat + 2 * latMargin,
-            deltaLonDegrees = deltaLon + 2 * lonMargin
         )
     }
 }

@@ -1,5 +1,6 @@
 package earth.worldwind.formats.kml.models
 
+import earth.worldwind.formats.kml.serializer.FlexibleBooleanSerializer
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
@@ -22,5 +23,12 @@ internal data class Point(
 
     @XmlSerialName("coordinates")
     @XmlElement
-    var coordinates: Coordinate? = null
+    var coordinates: Coordinate? = null,
+
+    /**
+     * enable the line down to the ground.
+     */
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    @XmlElement
+    var extrude: Boolean? = null,
 ) : Geometry()

@@ -24,7 +24,10 @@ open class KmlDemoActivity : GeneralGlobeActivity() {
         wwd.mainScope.launch {
             try {
                 val layers = withContext(Dispatchers.IO) {
-                    KmlLayerFactory.createLayers(assets.open("KML_Samples.kml").bufferedReader())
+                    KmlLayerFactory.createLayers(
+                        reader = assets.open("KML_Samples.kml").bufferedReader(),
+                        density = resources.displayMetrics.density,
+                    )
                 }
                 wwd.engine.layers.addAllLayers(layers)
                 wwd.requestRedraw()
