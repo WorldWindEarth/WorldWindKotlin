@@ -1,6 +1,9 @@
 package earth.worldwind.globe.geoid
 
 import earth.worldwind.geom.Angle
+import earth.worldwind.globe.geoid.AbstractEGM96Geoid.Companion.INTERVAL
+import earth.worldwind.globe.geoid.AbstractEGM96Geoid.Companion.NUM_COLS
+import earth.worldwind.globe.geoid.AbstractEGM96Geoid.Companion.NUM_ROWS
 import kotlinx.coroutines.test.TestScope
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,21 +39,21 @@ class EGM96GeoidTest {
         // Code below is directly copied from the getOffset method accept where static class references were added
         val lat = latitude.inDegrees
         val lon = if (longitude.inDegrees >= 0.0) longitude.inDegrees else longitude.inDegrees + 360.0
-        var topRow = ((90.0 - lat) / EGM96Geoid.INTERVAL).toInt()
-        if (lat <= -90.0) topRow = EGM96Geoid.NUM_ROWS - 2
+        var topRow = ((90.0 - lat) / INTERVAL).toInt()
+        if (lat <= -90.0) topRow = NUM_ROWS - 2
         val bottomRow = topRow + 1
         // Note that the number of columns does not repeat the column at 0 longitude, so we must force the right
         // column to 0 for any longitude that's less than one interval from 360, and force the left column to the
         // last column of the grid.
-        var leftCol = (lon / EGM96Geoid.INTERVAL).toInt()
+        var leftCol = (lon / INTERVAL).toInt()
         var rightCol = leftCol + 1
-        if (lon >= 360.0 - EGM96Geoid.INTERVAL) {
-            leftCol = EGM96Geoid.NUM_COLS - 1
+        if (lon >= 360.0 - INTERVAL) {
+            leftCol = NUM_COLS - 1
             rightCol = 0
         }
         // Determine the functions determination of the top lat and left lon
-        val latTop = 90.0 - topRow * EGM96Geoid.INTERVAL
-        val lonLeft = leftCol * EGM96Geoid.INTERVAL
+        val latTop = 90.0 - topRow * INTERVAL
+        val lonLeft = leftCol * INTERVAL
         // Ensure the top latitude matches our expected latitude
         // This shows that the method has determined a row and column to query the dataset that corresponds with our
         // latitude value
@@ -82,23 +85,23 @@ class EGM96GeoidTest {
         // Code below is directly copied from the getOffset method accept where static class references were added
         val lat = latitude.inDegrees
         val lon = if (longitude.inDegrees >= 0.0) longitude.inDegrees else longitude.inDegrees + 360.0
-        var topRow = ((90.0 - lat) / EGM96Geoid.INTERVAL).toInt()
-        if (lat <= -90.0) topRow = EGM96Geoid.NUM_ROWS - 2
+        var topRow = ((90.0 - lat) / INTERVAL).toInt()
+        if (lat <= -90.0) topRow = NUM_ROWS - 2
         val bottomRow = topRow + 1
         // Note that the number of columns does not repeat the column at 0 longitude, so we must force the right
         // column to 0 for any longitude that's less than one interval from 360, and force the left column to the
         // last column of the grid.
-        var leftCol = (lon / EGM96Geoid.INTERVAL).toInt()
+        var leftCol = (lon / INTERVAL).toInt()
         var rightCol = leftCol + 1
-        if (lon >= 360.0 - EGM96Geoid.INTERVAL) {
-            leftCol = EGM96Geoid.NUM_COLS - 1
+        if (lon >= 360.0 - INTERVAL) {
+            leftCol = NUM_COLS - 1
             rightCol = 0
         }
         // Determine the functions determination of the top lat and left lon
-        val latTop = 90.0 - topRow * EGM96Geoid.INTERVAL
+        val latTop = 90.0 - topRow * INTERVAL
         // Need the bottom grid value for our own linear interpolation determination
-        val latBottom = 90.0 - bottomRow * EGM96Geoid.INTERVAL
-        val lonLeft = leftCol * EGM96Geoid.INTERVAL
+        val latBottom = 90.0 - bottomRow * INTERVAL
+        val lonLeft = leftCol * INTERVAL
         // Find the offset values of the top and bottom grid points
         val bottomOffsetValue = egm96.getPostOffset(bottomRow, leftCol) / 100f
         val topOffsetValue = egm96.getPostOffset(topRow, leftCol) / 100f
@@ -133,21 +136,21 @@ class EGM96GeoidTest {
         // Code below is directly copied from the getOffset method accept where static class references were added
         val lat = latitude.inDegrees
         val lon = if (longitude.inDegrees >= 0.0) longitude.inDegrees else longitude.inDegrees + 360.0
-        var topRow = ((90.0 - lat) / EGM96Geoid.INTERVAL).toInt()
-        if (lat <= -90.0) topRow = EGM96Geoid.NUM_ROWS - 2
+        var topRow = ((90.0 - lat) / INTERVAL).toInt()
+        if (lat <= -90.0) topRow = NUM_ROWS - 2
         val bottomRow = topRow + 1
         // Note that the number of columns does not repeat the column at 0 longitude, so we must force the right
         // column to 0 for any longitude that's less than one interval from 360, and force the left column to the
         // last column of the grid.
-        var leftCol = (lon / EGM96Geoid.INTERVAL).toInt()
+        var leftCol = (lon / INTERVAL).toInt()
         var rightCol = leftCol + 1
-        if (lon >= 360.0 - EGM96Geoid.INTERVAL) {
-            leftCol = EGM96Geoid.NUM_COLS - 1
+        if (lon >= 360.0 - INTERVAL) {
+            leftCol = NUM_COLS - 1
             rightCol = 0
         }
         // Determine the functions determination of the top lat and left lon
-        val latTop = 90.0 - topRow * EGM96Geoid.INTERVAL
-        val lonLeft = leftCol * EGM96Geoid.INTERVAL
+        val latTop = 90.0 - topRow * INTERVAL
+        val lonLeft = leftCol * INTERVAL
         // Ensure the top latitude matches our expected latitude
         // This shows that the method has determined a row and column to query the dataset that corresponds with our
         // latitude value
@@ -180,23 +183,23 @@ class EGM96GeoidTest {
         // Code below is directly copied from the getOffset method accept where static class references were added
         val lat = latitude.inDegrees
         val lon = if (longitude.inDegrees >= 0) longitude.inDegrees else longitude.inDegrees + 360.0
-        var topRow = ((90.0 - lat) / EGM96Geoid.INTERVAL).toInt()
-        if (lat <= -90.0) topRow = EGM96Geoid.NUM_ROWS - 2
+        var topRow = ((90.0 - lat) / INTERVAL).toInt()
+        if (lat <= -90.0) topRow = NUM_ROWS - 2
         val bottomRow = topRow + 1
         // Note that the number of columns does not repeat the column at 0 longitude, so we must force the right
         // column to 0 for any longitude that's less than one interval from 360, and force the left column to the
         // last column of the grid.
-        var leftCol = (lon / EGM96Geoid.INTERVAL).toInt()
+        var leftCol = (lon / INTERVAL).toInt()
         var rightCol = leftCol + 1
-        if (lon >= 360.0 - EGM96Geoid.INTERVAL) {
-            leftCol = EGM96Geoid.NUM_COLS - 1
+        if (lon >= 360.0 - INTERVAL) {
+            leftCol = NUM_COLS - 1
             rightCol = 0
         }
         // Determine the functions determination of the top lat and left lon
-        val latTop = 90 - topRow * EGM96Geoid.INTERVAL
-        val lonLeft = leftCol * EGM96Geoid.INTERVAL
+        val latTop = 90 - topRow * INTERVAL
+        val lonLeft = leftCol * INTERVAL
         // Need the right longitude for our own interpolation testing
-        val lonRight = rightCol * EGM96Geoid.INTERVAL
+        val lonRight = rightCol * INTERVAL
         // Find the offset values of the top and bottom grid points
         val leftOffsetValue = egm96.getPostOffset(topRow, leftCol) / 100.0
         val rightOffsetValue = egm96.getPostOffset(topRow, rightCol) / 100.0
