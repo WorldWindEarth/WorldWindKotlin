@@ -27,6 +27,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     private var lastCameraHeading = 0.0
     private var lastCameraTilt = 0.0
     private var lastFOV = 0.0
+    private var lastVE = 0.0
     private var lastGlobeState: Globe.State? = null
     private var lastGlobeOffset: Globe.Offset? = null
 
@@ -190,9 +191,10 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
     abstract fun getTypeFor(resolution: Double): String
 
     /**
-     * Determines whether the grid should be updated. It returns true if:   * the eye has moved more than 1% of its
-     * altitude above ground * the view FOV, heading or pitch have changed more than 1 degree  * vertical
-     * exaggeration has changed  `RenderContext`.
+     * Determines whether the grid should be updated. It returns true if:
+     * the eye has moved more than 1% of its altitude above ground;
+     * the view FOV, heading or pitch have changed more than 1 degree;
+     * vertical exaggeration has changed.
      *
      * @return true if the graticule should be updated.
      */
@@ -202,6 +204,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         if (abs(lastFOV - rc.camera.fieldOfView.inDegrees) > 1) return true
         if (rc.cameraPoint.distanceTo(lastCameraPoint) > computeAltitudeAboveGround(rc) / 100) return true
         if (rc.globeState != lastGlobeState) return true
+        if (rc.globe.verticalExaggeration != lastVE) return true
         return false
     }
 
@@ -212,6 +215,7 @@ abstract class AbstractGraticuleLayer(name: String): AbstractLayer(name) {
         lastCameraHeading = rc.camera.heading.inDegrees
         lastCameraTilt = rc.camera.tilt.inDegrees
         lastGlobeState = rc.globeState
+        lastVE = rc.globe.verticalExaggeration
     }
 
     fun computeLabelOffset(rc: RenderContext): Location {

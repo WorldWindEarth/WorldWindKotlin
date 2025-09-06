@@ -22,6 +22,7 @@ abstract class AbstractTile(
     protected val extent by lazy { BoundingBox() }
     protected open val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
+    protected var extentVE = 0.0
     protected var extentGlobeState: Globe.State? = null
     protected var extentGlobeOffset: Globe.Offset? = null
     private val nearestPoint = Vec3()
@@ -91,14 +92,16 @@ abstract class AbstractTile(
         if (timestamp != heightLimitsTimestamp) {
             if (globe.is2D) heightLimits.fill(0f) else calcHeightLimits(globe)
         }
+        val ve = rc.globe.verticalExaggeration
         val state = rc.globeState
         val offset = rc.globe.offset
-        if (timestamp != heightLimitsTimestamp || state != extentGlobeState || offset != extentGlobeOffset) {
+        if (timestamp != heightLimitsTimestamp || ve != extentVE || state != extentGlobeState || offset != extentGlobeOffset) {
             val minHeight = heightLimits[0]
             val maxHeight = heightLimits[1]
             extent.setToSector(sector, globe, minHeight, maxHeight)
         }
         heightLimitsTimestamp = timestamp
+        extentVE = ve
         extentGlobeState = state
         extentGlobeOffset = offset
         return extent

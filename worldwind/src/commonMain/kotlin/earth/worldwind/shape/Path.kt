@@ -70,6 +70,11 @@ open class Path @JvmOverloads constructor(
         protected var texCoord1d = 0.0
     }
 
+    override fun resetGlobeState(globeState: Globe.State?) {
+        super.resetGlobeState(globeState)
+        data[globeState]?.refreshVertexArray = true
+    }
+
     override fun reset() {
         super.reset()
         data.values.forEach { it.refreshVertexArray = true }

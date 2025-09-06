@@ -57,6 +57,8 @@ abstract class AbstractShape(
     open class BoundingData {
         val boundingSector = Sector()
         val boundingBox = BoundingBox()
+        var lastVE = 0.0
+        var lastTimestamp = 0L
     }
 
     companion object {
@@ -80,6 +82,9 @@ abstract class AbstractShape(
 
         // Don't render anything if the shape is not visible.
         if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc)) return
+
+        // Adjust to terrain changes
+        checkTerrainState(rc)
 
         // Select the currently active attributes.
         determineActiveAttributes(rc)
@@ -172,6 +177,21 @@ abstract class AbstractShape(
         2.0 * PI * equatorialRadius / ZERO_LEVEL_PX / (1 shl lod)
 
     protected open fun computeVersion() = 31 * hashCode() + bufferDataVersion.hashCode()
+
+    protected open fun checkTerrainState(rc: RenderContext) = with(currentBoundindData) {
+        val ve = rc.globe.verticalExaggeration
+        val timestamp = rc.elevationModelTimestamp // TODO Use rc.terrain.hash instead of elevation model timestamp
+        val isTerrainDependent = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
+        if (isTerrainDependent && !isSurfaceShape && (ve != lastVE || timestamp != lastTimestamp)) {
+            resetGlobeState(rc.globeState)
+            lastVE = ve
+            lastTimestamp = timestamp
+        }
+    }
+
+    protected open fun resetGlobeState(globeState: Globe.State?) {
+        ++bufferDataVersion
+    }
 
     protected open fun reset() {
         boundingData.clear()

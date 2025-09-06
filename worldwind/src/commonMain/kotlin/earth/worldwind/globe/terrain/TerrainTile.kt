@@ -24,6 +24,7 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
      */
     protected val minTerrainElevation = -Short.MAX_VALUE.toFloat()
     protected var heightTimestamp = 0L
+    protected var globeVE = 0.0
     protected var globeState: Globe.State? = null
     protected var globeOffset: Globe.Offset? = null
     var sortOrder = 0.0
@@ -51,9 +52,10 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
             }
             updateHeightBufferKey()
         }
+        val ve = rc.globe.verticalExaggeration
         val state = rc.globeState
         val offset = rc.globe.offset
-        if (timestamp != heightTimestamp || state != globeState || offset != globeOffset) {
+        if (timestamp != heightTimestamp || ve != globeVE || state != globeState || offset != globeOffset) {
             val rowStride = (tileWidth + 2) * 3
             globe.geographicToCartesian(sector.centroidLatitude, sector.centroidLongitude, 0.0, origin)
             globe.geographicToCartesianGrid(
@@ -65,6 +67,7 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
             updatePointBufferKey()
         }
         heightTimestamp = timestamp
+        globeVE = ve
         globeState = state
         globeOffset = offset
         sortOrder = drawSortOrder(rc)

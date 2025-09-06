@@ -251,6 +251,16 @@ open class Ellipse @JvmOverloads constructor(
         protected fun computeIndexOffset(intervals: Int) = intervals + computeNumberSpinePoints(intervals)
     }
 
+    override fun resetGlobeState(globeState: Globe.State?) {
+        super.resetGlobeState(globeState)
+        data.entries.forEach {
+            if (it.key.first == globeState) {
+                it.value.refreshVertexArray = true
+                it.value.refreshLineVertexArray = true
+            }
+        }
+    }
+
     override fun reset() {
         super.reset()
         data.values.forEach {

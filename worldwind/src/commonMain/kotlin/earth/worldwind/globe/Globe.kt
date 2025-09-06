@@ -57,7 +57,7 @@ open class Globe(
     /**
      * Current globe state.
      */
-    val state get() = State(ellipsoid, projection.displayName, geoid.displayName, verticalExaggeration)
+    val state get() = State(ellipsoid, projection.displayName, geoid.displayName)
     /**
      * The globe offset in 2D continuous projection. Center is the default for 3D.
      */
@@ -95,14 +95,10 @@ open class Globe(
     /**
      * Used to compare states during rendering to determine whether globe-state dependent cached values must be updated.
      */
-    data class State(
-        private val ellipsoid: Ellipsoid, private val projectionName: String,
-        private val geoidName: String, private val ve: Double
-    ) {
+    data class State(private val ellipsoid: Ellipsoid, private val projectionName: String, private val geoidName: String) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is State) return false
-            if (ve != other.ve) return false
             if (ellipsoid != other.ellipsoid) return false
             if (geoidName != other.geoidName) return false
             if (projectionName != other.projectionName) return false
@@ -110,8 +106,7 @@ open class Globe(
         }
 
         override fun hashCode(): Int {
-            var result = ve.hashCode()
-            result = 31 * result + ellipsoid.hashCode()
+            var result = ellipsoid.hashCode()
             result = 31 * result + geoidName.hashCode()
             result = 31 * result + projectionName.hashCode()
             return result

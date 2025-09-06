@@ -146,6 +146,14 @@ open class Polygon @JvmOverloads constructor(
         reset()
     }
 
+    override fun resetGlobeState(globeState: Globe.State?) {
+        super.resetGlobeState(globeState)
+        data[globeState]?.let {
+            it.refreshVertexArray = true
+            it.refreshLineVertexArray = true
+        }
+    }
+
     override fun reset() {
         super.reset()
         data.values.forEach { it.refreshVertexArray = true }
