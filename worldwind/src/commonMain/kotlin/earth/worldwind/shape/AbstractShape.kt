@@ -58,7 +58,7 @@ abstract class AbstractShape(
         val boundingSector = Sector()
         val boundingBox = BoundingBox()
         var lastVE = 0.0
-        var lastTimestamp = 0L
+        var lastTerrainHash = 0
     }
 
     companion object {
@@ -180,16 +180,20 @@ abstract class AbstractShape(
 
     protected open fun checkTerrainState(rc: RenderContext) = with(currentBoundindData) {
         val ve = rc.globe.verticalExaggeration
-        val timestamp = rc.elevationModelTimestamp // TODO Use rc.terrain.hash instead of elevation model timestamp
+        val terrainHash = rc.terrain.hash
         val isTerrainDependent = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        if (isTerrainDependent && !isSurfaceShape && (ve != lastVE || timestamp != lastTimestamp)) {
+        if (isTerrainDependent && !isSurfaceShape && (ve != lastVE || terrainHash != lastTerrainHash)) {
             resetGlobeState(rc.globeState)
             lastVE = ve
-            lastTimestamp = timestamp
+            lastTerrainHash = terrainHash
         }
     }
 
     protected open fun resetGlobeState(globeState: Globe.State?) {
+        boundingData[globeState]?.let {
+            it.boundingSector.setEmpty()
+            it.boundingBox.setToUnitBox()
+        }
         ++bufferDataVersion
     }
 

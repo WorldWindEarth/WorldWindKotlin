@@ -34,6 +34,17 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
 
     public override val heightLimits get() = super.heightLimits
 
+    /**
+     * Simple hash is based on tile timestamp, assuming if timestamp changed than elevation data also updated
+     */
+    open fun simpleHash(): Int {
+        var hash = level.levelNumber
+        hash += 31 * hash + row
+        hash += 31 * hash + column
+        hash += 31 * hash + heightTimestamp.hashCode()
+        return hash
+    }
+
     open fun prepare(rc: RenderContext) {
         val globe = rc.globe
         val tileWidth = level.tileWidth
@@ -85,11 +96,11 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         return buffer
     }
 
-    protected fun updateHeightBufferKey() {
+    protected open fun updateHeightBufferKey() {
         heightBufferKey = "TerrainTile.heights.$tileKey.${bufferSequence++}"
     }
 
-    protected fun updatePointBufferKey() {
+    protected open fun updatePointBufferKey() {
         pointBufferKey = "TerrainTile.points.$tileKey.${bufferSequence++}"
     }
 
