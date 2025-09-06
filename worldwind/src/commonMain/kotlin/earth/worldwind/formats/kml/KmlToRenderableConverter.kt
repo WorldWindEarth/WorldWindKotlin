@@ -282,8 +282,9 @@ internal class KmlToRenderableConverter {
                 displayName = name // Display name is used to search renderable in layer
                 altitudeMode = getAltitudeModeFrom(point.altitudeMode)
                 attributes.apply {
-                    imageScale = (iconStyle?.scale ?: DEFAULT_IMAGE_SCALE) * density
-                    imageSource = iconStyle?.icon?.toImageSource() ?: ImageSource.fromResource(MR.images.kml_placemark)
+                    imageScale = iconStyle?.scale ?: DEFAULT_IMAGE_SCALE
+                    imageSource = iconStyle?.icon?.toImageSource()?.also { imageScale *= density }
+                        ?: ImageSource.fromResource(MR.images.kml_placemark) // Do not scale default placemark
                     imageColor = iconStyle?.color?.let { fromHexABRG(it) } ?: defaultIconColor
                     imageOffset = if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND) Offset.bottomCenter() else Offset.center()
 
