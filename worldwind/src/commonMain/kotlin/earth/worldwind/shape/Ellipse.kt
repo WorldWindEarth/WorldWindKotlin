@@ -139,13 +139,7 @@ open class Ellipse @JvmOverloads constructor(
      * Will always be even.
      */
     protected var activeIntervals = 0
-    protected val vertexOrigin = Vec3()
-    protected var vertexArray = FloatArray(0)
-    protected var lineVertexArray = FloatArray(0)
-    // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
-    protected val verticalElements = mutableListOf<Int>()
-    protected val outlineElements = mutableListOf<Int>()
-    protected val bufferKeys = mutableMapOf<Int, BufferKey>()
+    protected val data = mutableMapOf<Pair<Globe.State?, Int>, EllipseData>()
 
     init {
         require(majorRadius >= 0 && minorRadius >= 0) {
@@ -153,10 +147,18 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
-    protected class BufferKey {
+    open class EllipseData {
+        val vertexOrigin = Vec3()
+        var vertexArray = FloatArray(0)
+        var lineVertexArray = FloatArray(0)
+        // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
+        val verticalElements = mutableListOf<Int>()
+        val outlineElements = mutableListOf<Int>()
         val vertexBufferKey = Any()
         val lineVertexBufferKey = Any()
         val lineElementBufferKey = Any()
+        var refreshVertexArray = true
+        var refreshLineVertexArray = true
     }
 
     companion object {
@@ -188,6 +190,8 @@ open class Ellipse @JvmOverloads constructor(
          * RenderResourceCache and subject to the restrictions and behavior of that cache.
          */
         protected val elementBufferKeys = mutableMapOf<Int, Any>()
+
+        protected lateinit var currentData: EllipseData
 
         protected var vertexIndex = 0
         protected var lineVertexIndex = 0
@@ -247,6 +251,14 @@ open class Ellipse @JvmOverloads constructor(
         protected fun computeIndexOffset(intervals: Int) = intervals + computeNumberSpinePoints(intervals)
     }
 
+    override fun reset() {
+        super.reset()
+        data.values.forEach {
+            it.refreshVertexArray = true
+            it.refreshLineVertexArray = true
+        }
+    }
+
     override fun moveTo(globe: Globe, position: Position) { center.copy(position) }
 
     override fun makeDrawable(rc: RenderContext) {
@@ -265,7 +277,7 @@ open class Ellipse @JvmOverloads constructor(
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             drawable.offset = rc.globe.offset
-            drawable.sector.copy(boundingSector)
+            drawable.sector.copy(currentBoundindData.boundingSector)
             drawable.version = computeVersion()
             drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
@@ -274,11 +286,11 @@ open class Ellipse @JvmOverloads constructor(
 
             // Use the basic GLSL program for texture projection.
             drawableLines.offset = rc.globe.offset
-            drawableLines.sector.copy(boundingSector)
+            drawableLines.sector.copy(currentBoundindData.boundingSector)
             drawableLines.version = computeVersion()
             drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
-            cameraDistance = cameraDistanceGeographic(rc, boundingSector)
+            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
@@ -287,18 +299,15 @@ open class Ellipse @JvmOverloads constructor(
             drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
 
-            cameraDistance = boundingBox.distanceTo(rc.cameraPoint)
+            cameraDistance = currentBoundindData.boundingBox.distanceTo(rc.cameraPoint)
         }
 
         // Use the basic GLSL program to draw the shape.
         drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
-        // Obtain buffer keys for current active intervals count
-        val keys = bufferKeys[activeIntervals] ?: BufferKey().also { bufferKeys[activeIntervals] = it }
-
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(keys.vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(keys.vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
+        drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) { NumericArray.Floats(currentData.vertexArray) }
 
         // Get the attributes of the element buffer
         val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
@@ -315,18 +324,18 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.vertexBuffer = rc.getBufferObject(keys.lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(keys.lineVertexBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
+        drawStateLines.vertexBuffer = rc.getBufferObject(currentData.lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
+        rc.offerGLBufferUpload(currentData.lineVertexBufferKey, bufferDataVersion) { NumericArray.Floats(currentData.lineVertexArray) }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawStateLines.elementBuffer = rc.getBufferObject(keys.lineElementBufferKey) {
+        drawStateLines.elementBuffer = rc.getBufferObject(currentData.lineElementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(keys.lineElementBufferKey, bufferDataVersion) {
-            val array = IntArray(outlineElements.size + verticalElements.size)
+        rc.offerGLBufferUpload(currentData.lineElementBufferKey, bufferDataVersion) {
+            val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
             var index = 0
-            for (element in outlineElements) array[index++] = element
-            for (element in verticalElements) array[index++] = element
+            for (element in currentData.outlineElements) array[index++] = element
+            for (element in currentData.verticalElements) array[index++] = element
             NumericArray.Ints(array)
         }
 
@@ -334,14 +343,14 @@ open class Ellipse @JvmOverloads constructor(
         drawOutline(rc, drawStateLines, cameraDistance)
 
         // Configure the drawable according to the shape's attributes.
-        drawState.vertexOrigin.copy(vertexOrigin)
+        drawState.vertexOrigin.copy(currentData.vertexOrigin)
         drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
 
         // Configure the drawable according to the shape's attributes.
-        drawStateLines.vertexOrigin.copy(vertexOrigin)
+        drawStateLines.vertexOrigin.copy(currentData.vertexOrigin)
         drawStateLines.enableCullFace = false
         drawStateLines.enableDepthTest = activeAttributes.isDepthTest
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
@@ -398,26 +407,24 @@ open class Ellipse @JvmOverloads constructor(
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth
-        drawState.drawElements(GL_TRIANGLE_STRIP, outlineElements.size, GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES)
+        drawState.drawElements(GL_TRIANGLE_STRIP, currentData.outlineElements.size, GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES)
         if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             drawState.lineWidth = activeAttributes.outlineWidth
             drawState.texture = null
             drawState.drawElements(
-                GL_TRIANGLES, verticalElements.size, GL_UNSIGNED_INT, (outlineElements.size) * Int.SIZE_BYTES
+                GL_TRIANGLES, currentData.verticalElements.size, GL_UNSIGNED_INT, currentData.outlineElements.size * Int.SIZE_BYTES
             )
         }
     }
 
     protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
         val calculatedIntervals = computeIntervals(rc)
-        val sanitizedIntervals = sanitizeIntervals(calculatedIntervals)
-        if (vertexArray.isEmpty() || isExtrude && !isSurfaceShape && lineVertexArray.isEmpty() || sanitizedIntervals != activeIntervals) {
-            activeIntervals = sanitizedIntervals
-            return true
-        }
-        return false
+        activeIntervals = sanitizeIntervals(calculatedIntervals)
+        val dataKey = rc.globeState to activeIntervals
+        currentData = data[dataKey] ?: EllipseData().also { data[dataKey] = it }
+        return currentData.refreshVertexArray || isExtrude && !isSurfaceShape && currentData.refreshLineVertexArray
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
@@ -426,10 +433,10 @@ open class Ellipse @JvmOverloads constructor(
 
         // Use the ellipse's center position as the local origin for vertex positions.
         if (isSurfaceShape) {
-            vertexOrigin.set(center.longitude.inDegrees, center.latitude.inDegrees, center.altitude)
+            currentData.vertexOrigin.set(center.longitude.inDegrees, center.latitude.inDegrees, center.altitude)
         } else {
             rc.geographicToCartesian(center, altitudeMode, point)
-            vertexOrigin.copy(point)
+            currentData.vertexOrigin.copy(point)
         }
 
         // Determine the number of spine points
@@ -437,16 +444,22 @@ open class Ellipse @JvmOverloads constructor(
 
         // Clear the shape's vertex array. The array will accumulate values as the shapes's geometry is assembled.
         vertexIndex = 0
-        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray((activeIntervals * 2 + spineCount) * VERTEX_STRIDE)
-        else FloatArray((activeIntervals + spineCount) * VERTEX_STRIDE)
+        currentData.vertexArray = if (isExtrude && !isSurfaceShape) {
+            FloatArray((activeIntervals * 2 + spineCount) * VERTEX_STRIDE)
+        } else {
+            FloatArray((activeIntervals + spineCount) * VERTEX_STRIDE)
+        }
 
         lineVertexIndex = 0
         verticalVertexIndex = (activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE
-        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray((activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE + (activeIntervals + 1) * VERTICAL_LINE_SEGMENT_STRIDE)
-        else FloatArray((activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE)
+        currentData.lineVertexArray = if (isExtrude && !isSurfaceShape) {
+            FloatArray((activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE + (activeIntervals + 1) * VERTICAL_LINE_SEGMENT_STRIDE)
+        } else {
+            FloatArray((activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE)
+        }
 
-        verticalElements.clear()
-        outlineElements.clear()
+        currentData.verticalElements.clear()
+        currentData.outlineElements.clear()
 
         // Check if minor radius is less than major in which case we need to flip the definitions and change the phase
         val isStandardAxisOrientation = majorRadius > minorRadius
@@ -512,21 +525,27 @@ open class Ellipse @JvmOverloads constructor(
             addVertex(rc, scratchLocation.latitude, scratchLocation.longitude, center.altitude, arrayOffset, isExtrudedSkirt = false)
         }
 
+        // Reset update flags
+        currentData.refreshVertexArray = false
+        currentData.refreshLineVertexArray = false
+
         // Compute the shape's bounding sector from its assembled coordinates.
-        if (isSurfaceShape) {
-            boundingSector.setEmpty()
-            boundingSector.union(vertexArray, vertexArray.size, VERTEX_STRIDE)
-            boundingSector.translate(deltaLatitudeDegrees = vertexOrigin.y, deltaLongitudeDegrees = vertexOrigin.x)
-            boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
-        } else {
-            boundingBox.setToPoints(vertexArray, vertexArray.size, VERTEX_STRIDE)
-            boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
-            boundingSector.setEmpty()
+        with(currentBoundindData) {
+            if (isSurfaceShape) {
+                boundingSector.setEmpty()
+                boundingSector.union(currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE)
+                boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
+                boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
+            } else {
+                boundingBox.setToPoints(currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE)
+                boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
+                boundingSector.setEmpty()
+            }
         }
     }
     protected open fun addLineVertex(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset : Int, addIndices : Boolean
-    ) {
+    ) = with(currentData) {
         val vertex = lineVertexIndex / VERTEX_STRIDE
         if (lineVertexIndex == 0) texCoord1d = 0.0
         else texCoord1d += point.distanceTo(prevPoint)
@@ -711,7 +730,7 @@ open class Ellipse @JvmOverloads constructor(
 
     protected open fun addVertex(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset: Int, isExtrudedSkirt: Boolean
-    ) {
+    ) = with(currentData) {
         var offsetVertexIndex = vertexIndex + offset
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (isSurfaceShape) {
@@ -768,15 +787,9 @@ open class Ellipse @JvmOverloads constructor(
 
     protected open fun sanitizeIntervals(intervals: Int) = if (intervals % 2 == 0) intervals else intervals - 1
 
-    open fun computeCircumference(): Double {
+    internal open fun computeCircumference(): Double {
         val a = majorRadius
         val b = minorRadius
         return PI * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)))
-    }
-
-    override fun reset() {
-        super.reset()
-        vertexArray = FloatArray(0)
-        lineVertexArray = FloatArray(0)
     }
 }

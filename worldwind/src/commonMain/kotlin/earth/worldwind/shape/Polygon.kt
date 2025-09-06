@@ -37,18 +37,7 @@ open class Polygon @JvmOverloads constructor(
     }
     val boundaryCount get() = boundaries.size
     protected val boundaries = mutableListOf(positions)
-    protected val vertexOrigin = Vec3()
-    protected var vertexArray = FloatArray(0)
-    protected var lineVertexArray = FloatArray(0)
-    // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
-    protected val topElements = mutableListOf<Int>()
-    protected val sideElements = mutableListOf<Int>()
-    protected val outlineElements = mutableListOf<Int>()
-    protected val verticalElements = mutableListOf<Int>()
-    protected val vertexBufferKey = Any()
-    protected val elementBufferKey = Any()
-    protected val vertexLinesBufferKey = Any()
-    protected val elementLinesBufferKey = Any()
+    protected val data = mutableMapOf<Globe.State?, PolygonData>()
     protected val isPlain get() = altitudeMode == AltitudeMode.RELATIVE_TO_GROUND && isExtrude && !isFollowTerrain
     protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
         override fun combineData(
@@ -60,6 +49,23 @@ open class Polygon @JvmOverloads constructor(
         override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?) = tessEdgeFlag(polygonData as RenderContext, boundaryEdge)
 
         override fun errorData(errnum: Int, polygonData: Any?) = tessError(polygonData as RenderContext, errnum)
+    }
+
+    open class PolygonData {
+        val vertexOrigin = Vec3()
+        var vertexArray = FloatArray(0)
+        var lineVertexArray = FloatArray(0)
+        // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
+        val topElements = mutableListOf<Int>()
+        val sideElements = mutableListOf<Int>()
+        val outlineElements = mutableListOf<Int>()
+        val verticalElements = mutableListOf<Int>()
+        val vertexBufferKey = Any()
+        val elementBufferKey = Any()
+        val vertexLinesBufferKey = Any()
+        val elementLinesBufferKey = Any()
+        var refreshVertexArray = true
+        var refreshLineVertexArray = true
     }
 
     companion object {
@@ -74,6 +80,8 @@ open class Polygon @JvmOverloads constructor(
         protected const val VERTEX_ORIGINAL = 0
         protected const val VERTEX_INTERMEDIATE = 1
         protected const val VERTEX_COMBINED = 2
+
+        protected lateinit var currentData: PolygonData
 
         protected var vertexIndex = 0
         protected var lineVertexIndex = 0
@@ -140,12 +148,7 @@ open class Polygon @JvmOverloads constructor(
 
     override fun reset() {
         super.reset()
-        vertexArray = FloatArray(0)
-        lineVertexArray = FloatArray(0)
-        topElements.clear()
-        sideElements.clear()
-        outlineElements.clear()
-        verticalElements.clear()
+        data.values.forEach { it.refreshVertexArray = true }
     }
 
     override fun moveTo(globe: Globe, position: Position) {
@@ -170,9 +173,9 @@ open class Polygon @JvmOverloads constructor(
             val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
-            cameraDistance = cameraDistanceGeographic(rc, boundingSector)
+            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
             drawable.offset = rc.globe.offset
-            drawable.sector.copy(boundingSector)
+            drawable.sector.copy(currentBoundindData.boundingSector)
             drawable.version = computeVersion()
             drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
@@ -180,7 +183,7 @@ open class Polygon @JvmOverloads constructor(
             drawStateLines = drawableLines.drawState
 
             drawableLines.offset = rc.globe.offset
-            drawableLines.sector.copy(boundingSector)
+            drawableLines.sector.copy(currentBoundindData.boundingSector)
             drawableLines.version = computeVersion()
             drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
         } else {
@@ -191,27 +194,31 @@ open class Polygon @JvmOverloads constructor(
             drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
 
-            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, VERTEX_STRIDE, vertexOrigin)
+            cameraDistance = cameraDistanceCartesian(
+                rc, currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE, currentData.vertexOrigin
+            )
         }
 
         // Use the basic GLSL program to draw the shape.
         drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
+        drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
+        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) {
+            NumericArray.Floats(currentData.vertexArray)
+        }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
+        drawState.elementBuffer = rc.getBufferObject(currentData.elementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
-            val array = IntArray(topElements.size + sideElements.size)
+        rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
+            val array = IntArray(currentData.topElements.size + currentData.sideElements.size)
             var index = 0
-            for (element in topElements) array[index++] = element
-            for (element in sideElements) array[index++] = element
+            for (element in currentData.topElements) array[index++] = element
+            for (element in currentData.sideElements) array[index++] = element
             NumericArray.Ints(array)
         }
 
@@ -222,20 +229,22 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawStateLines.vertexBuffer = rc.getBufferObject(vertexLinesBufferKey) {
+        drawStateLines.vertexBuffer = rc.getBufferObject(currentData.vertexLinesBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(vertexLinesBufferKey, bufferDataVersion) { NumericArray.Floats(lineVertexArray) }
+        rc.offerGLBufferUpload(currentData.vertexLinesBufferKey, bufferDataVersion) {
+            NumericArray.Floats(currentData.lineVertexArray)
+        }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawStateLines.elementBuffer = rc.getBufferObject(elementLinesBufferKey) {
+        drawStateLines.elementBuffer = rc.getBufferObject(currentData.elementLinesBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(elementLinesBufferKey, bufferDataVersion) {
-            val array = IntArray(outlineElements.size + verticalElements.size)
+        rc.offerGLBufferUpload(currentData.elementLinesBufferKey, bufferDataVersion) {
+            val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
             var index = 0
-            for (element in outlineElements) array[index++] = element
-            for (element in verticalElements) array[index++] = element
+            for (element in currentData.outlineElements) array[index++] = element
+            for (element in currentData.verticalElements) array[index++] = element
             NumericArray.Ints(array)
         }
 
@@ -244,14 +253,14 @@ open class Polygon @JvmOverloads constructor(
 
         // Configure the drawable according to the shape's attributes. Disable triangle backface culling when we're
         // displaying a polygon without extruded sides, so we want to draw the top and the bottom.
-        drawState.vertexOrigin.copy(vertexOrigin)
+        drawState.vertexOrigin.copy(currentData.vertexOrigin)
         drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
 
         // Configure the drawable according to the shape's attributes.
-        drawStateLines.vertexOrigin.copy(vertexOrigin)
+        drawStateLines.vertexOrigin.copy(currentData.vertexOrigin)
         drawStateLines.enableCullFace = false
         drawStateLines.enableDepthTest = activeAttributes.isDepthTest
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
@@ -283,12 +292,15 @@ open class Polygon @JvmOverloads constructor(
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.texCoordAttrib.size = 2
         drawState.texCoordAttrib.offset = 12
-        drawState.drawElements(GL_TRIANGLES, topElements.size, GL_UNSIGNED_INT, offset = 0)
+        drawState.drawElements(GL_TRIANGLES, currentData.topElements.size, GL_UNSIGNED_INT, offset = 0)
 
         // Configure the drawable to display the shape's interior sides.
         if (isExtrude) {
             drawState.texture = null
-            drawState.drawElements(GL_TRIANGLES, sideElements.size, GL_UNSIGNED_INT, offset = topElements.size * Int.SIZE_BYTES)
+            drawState.drawElements(
+                GL_TRIANGLES, currentData.sideElements.size,
+                GL_UNSIGNED_INT, offset = currentData.topElements.size * Int.SIZE_BYTES
+            )
         }
     }
 
@@ -309,7 +321,7 @@ open class Polygon @JvmOverloads constructor(
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth
         drawState.drawElements(
-            GL_TRIANGLES, outlineElements.size,
+            GL_TRIANGLES, currentData.outlineElements.size,
             GL_UNSIGNED_INT, offset = 0
         )
 
@@ -320,12 +332,16 @@ open class Polygon @JvmOverloads constructor(
             drawState.lineWidth = activeAttributes.outlineWidth
             drawState.texture = null
             drawState.drawElements(
-                GL_TRIANGLES, verticalElements.size, GL_UNSIGNED_INT, outlineElements.size * Int.SIZE_BYTES
+                GL_TRIANGLES, currentData.verticalElements.size,
+                GL_UNSIGNED_INT, currentData.outlineElements.size * Int.SIZE_BYTES
             )
         }
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty() || isExtrude && !isSurfaceShape && lineVertexArray.isEmpty()
+    protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
+        currentData = data[rc.globeState] ?: PolygonData().also { data[rc.globeState] = it }
+        return currentData.refreshVertexArray || isExtrude && !isSurfaceShape && currentData.refreshLineVertexArray
+    }
 
     protected open fun assembleGeometry(rc: RenderContext) {
         // Determine the number of vertexes
@@ -355,17 +371,20 @@ open class Polygon @JvmOverloads constructor(
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
         vertexIndex = 0
-        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(vertexCount * 2 * VERTEX_STRIDE)
+        currentData.vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(vertexCount * 2 * VERTEX_STRIDE)
         else if (!isSurfaceShape) FloatArray(vertexCount * VERTEX_STRIDE)
         else FloatArray((vertexCount + boundaries.size) * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
-        topElements.clear()
-        sideElements.clear()
+        currentData.topElements.clear()
+        currentData.sideElements.clear()
         lineVertexIndex = 0
         verticalVertexIndex = lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE
-        lineVertexArray = if (isExtrude && !isSurfaceShape) FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE + verticalVertexCount * VERTICAL_LINE_SEGMENT_STRIDE)
-        else FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE)
-        outlineElements.clear()
-        verticalElements.clear()
+        currentData.lineVertexArray = if (isExtrude && !isSurfaceShape) {
+            FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE + verticalVertexCount * VERTICAL_LINE_SEGMENT_STRIDE)
+        } else {
+            FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE)
+        }
+        currentData.outlineElements.clear()
+        currentData.verticalElements.clear()
 
         // Get reference point altitude
         refAlt = if (isPlain) {
@@ -423,7 +442,7 @@ open class Polygon @JvmOverloads constructor(
                 addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
             }
             // Drop last six indices as they are used for connecting segments and there's no next segment for last vertices (check addLineVertex)
-            outlineElements.subList(outlineElements.size - 6, outlineElements.size).clear()
+            currentData.outlineElements.subList(currentData.outlineElements.size - 6, currentData.outlineElements.size).clear()
 
             GLU.gluTessEndContour(tess)
         }
@@ -433,20 +452,26 @@ open class Polygon @JvmOverloads constructor(
         GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, null)
 
+        // Reset update flags
+        currentData.refreshVertexArray = false
+        currentData.refreshLineVertexArray = false
+
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
-        if (isSurfaceShape) {
-            boundingSector.setEmpty()
-            boundingSector.union(vertexArray, vertexIndex, VERTEX_STRIDE)
-            boundingSector.translate(deltaLatitudeDegrees = vertexOrigin.y, deltaLongitudeDegrees = vertexOrigin.x)
-            boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
-        } else {
-            boundingBox.setToPoints(vertexArray, vertexIndex, VERTEX_STRIDE)
-            boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
-            boundingSector.setEmpty() // Cartesian shape bounding sector is unused
+        with(currentBoundindData) {
+            if (isSurfaceShape) {
+                boundingSector.setEmpty()
+                boundingSector.union(currentData.vertexArray, vertexIndex, VERTEX_STRIDE)
+                boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
+                boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
+            } else {
+                boundingBox.setToPoints(currentData.vertexArray, vertexIndex, VERTEX_STRIDE)
+                boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
+                boundingSector.setEmpty() // Cartesian shape bounding sector is unused
+            }
         }
 
         // Adjust final vertex array size to save memory (and fix cameraDistanceCartesian calculation)
-        vertexArray = vertexArray.copyOf(vertexIndex)
+        currentData.vertexArray = currentData.vertexArray.copyOf(vertexIndex)
     }
 
     protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
@@ -485,7 +510,9 @@ open class Polygon @JvmOverloads constructor(
         }
     }
 
-    protected open fun addVertex(rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, type: Int): Int {
+    protected open fun addVertex(
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, type: Int
+    ): Int = with(currentData) {
         val vertex = vertexIndex / VERTEX_STRIDE
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (type != VERTEX_COMBINED) {
@@ -495,7 +522,8 @@ open class Polygon @JvmOverloads constructor(
             GLU.gluTessVertex(rc.tessellator, tessCoords, coords_offset = 0, vertex)
         }
         if (vertex == 0) {
-            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude) else vertexOrigin.copy(point)
+            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
+            else vertexOrigin.copy(point)
         }
         if (isSurfaceShape) {
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
@@ -517,12 +545,12 @@ open class Polygon @JvmOverloads constructor(
                 vertexArray[vertexIndex++] = 0f // unused
             }
         }
-        return vertex
+        vertex
     }
 
     protected open fun addLineVertex(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, isIntermediate : Boolean, addIndices : Boolean
-    ) {
+    ) = with(currentData) {
         val vertex = lineVertexIndex / VERTEX_STRIDE
         if (lineVertexIndex == 0) texCoord1d = 0.0
         else texCoord1d += point.distanceTo(prevPoint)
@@ -748,7 +776,9 @@ open class Polygon @JvmOverloads constructor(
         modelToTexCoord.invertOrthonormal()
     }
 
-    protected open fun tessCombine(rc: RenderContext, coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>) {
+    protected open fun tessCombine(
+        rc: RenderContext, coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>
+    ) {
         ensureVertexArrayCapacity() // Increment array size to fit combined vertexes
         val latitude = coords[1].degrees
         val longitude = coords[0].degrees
@@ -757,7 +787,7 @@ open class Polygon @JvmOverloads constructor(
         outData[0] = addVertex(rc, latitude, longitude, altitude, type = VERTEX_COMBINED)
     }
 
-    protected open fun tessVertex(rc: RenderContext, vertexData: Any?) {
+    protected open fun tessVertex(rc: RenderContext, vertexData: Any?) = with(currentData) {
         tessVertices[tessVertexCount] = vertexData as Int
         tessEdgeFlags[tessVertexCount] = tessEdgeFlag
         if (tessVertexCount < 2) {
@@ -808,12 +838,12 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun ensureVertexArrayCapacity() {
-        val size = vertexArray.size
+        val size = currentData.vertexArray.size
         if (size == vertexIndex) {
             val increment = (size shr 1).coerceAtLeast(12)
             val newArray = FloatArray(size + increment)
-            vertexArray.copyInto(newArray)
-            vertexArray = newArray
+            currentData.vertexArray.copyInto(newArray)
+            currentData.vertexArray = newArray
         }
     }
 }

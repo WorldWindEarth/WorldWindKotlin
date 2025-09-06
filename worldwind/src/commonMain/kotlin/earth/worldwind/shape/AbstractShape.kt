@@ -50,20 +50,20 @@ abstract class AbstractShape(
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
     var maximumIntermediatePoints = 10
-    /**
-     * Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
-     */
-    protected val isSurfaceShape get() = is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
-    protected var is2D = false
-    protected var lastGlobeState: Globe.State? = null
-    protected var lastTimestamp = 0L
+    protected var isSurfaceShape = false
     protected var bufferDataVersion = 0L
-    protected val boundingSector = Sector()
-    protected val boundingBox = BoundingBox()
+    protected val boundingData = mutableMapOf<Globe.State?, BoundingData>()
+
+    open class BoundingData {
+        val boundingSector = Sector()
+        val boundingBox = BoundingBox()
+    }
 
     companion object {
         const val NEAR_ZERO_THRESHOLD = 1.0e-10
         private const val ZERO_LEVEL_PX = 1024
+        @JvmStatic
+        protected lateinit var currentBoundindData: BoundingData
         @JvmStatic
         protected lateinit var activeAttributes: ShapeAttributes
         @JvmStatic
@@ -75,8 +75,8 @@ abstract class AbstractShape(
     }
 
     override fun doRender(rc: RenderContext) {
-        // Reset shape in some cases
-        checkGlobeState(rc)
+    	// Get or create available bounding data for current Globe state
+        currentBoundindData = boundingData[rc.globeState] ?: BoundingData().also { boundingData[rc.globeState] = it }
 
         // Don't render anything if the shape is not visible.
         if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc)) return
@@ -91,6 +91,9 @@ abstract class AbstractShape(
             pickedObjectId = rc.nextPickedObjectId()
             PickedObject.identifierToUniqueColor(pickedObjectId, pickColor)
         }
+
+        // Determine whether the shape geometry must be assembled as Cartesian geometry or as geographic geometry.
+        isSurfaceShape = rc.globe.is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
 
         // Enqueue drawables for processing on the OpenGL thread.
         makeDrawable(rc)
@@ -109,10 +112,11 @@ abstract class AbstractShape(
      */
     protected open fun isWithinProjectionLimits(rc: RenderContext) = true
 
-    protected open fun intersectsFrustum(rc: RenderContext) =
+    protected open fun intersectsFrustum(rc: RenderContext) = with(currentBoundindData) {
         (boundingBox.isUnitBox || boundingBox.intersectsFrustum(rc.frustum)) &&
                 // This is a temporary solution. Surface shapes should also use bounding box.
                 (boundingSector.isEmpty || boundingSector.intersects(rc.terrain.sector))
+        }
 
     protected open fun determineActiveAttributes(rc: RenderContext) {
         val highlightAttributes = highlightAttributes
@@ -169,22 +173,8 @@ abstract class AbstractShape(
 
     protected open fun computeVersion() = 31 * hashCode() + bufferDataVersion.hashCode()
 
-    protected open fun checkGlobeState(rc: RenderContext) {
-        val globeState = rc.globeState
-        val timestamp = rc.elevationModelTimestamp
-        // Reset shape in case of Globe Ellipsoid, Projection, Vertical Exaggeration or Elevation Model details changed
-        // Elevation timestamp takes into account only for non-surface shapes with terrain-dependent altitude types
-        if (globeState != lastGlobeState || timestamp != lastTimestamp && !isSurfaceShape && altitudeMode != AltitudeMode.ABSOLUTE) {
-            reset()
-            lastGlobeState = globeState
-            lastTimestamp = timestamp
-            is2D = rc.globe.is2D
-        }
-    }
-
     protected open fun reset() {
-        boundingBox.setToUnitBox()
-        boundingSector.setEmpty()
+        boundingData.clear()
         ++bufferDataVersion
     }
 

@@ -31,17 +31,22 @@ open class Path @JvmOverloads constructor(
             field = value
             reset()
         }
-    protected val vertexOrigin = Vec3()
-    protected var vertexArray = FloatArray(0)
-    protected var extrudeVertexArray = FloatArray(0)
-    // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
-    protected val interiorElements = mutableListOf<Int>()
-    protected val outlineElements = mutableListOf<Int>()
-    protected val verticalElements = mutableListOf<Int>()
-    protected val extrudeVertexBufferKey = Any()
-    protected val extrudeElementBufferKey = Any()
-    protected val vertexBufferKey = Any()
-    protected val elementBufferKey = Any()
+    protected val data = mutableMapOf<Globe.State?, PathData>()
+
+    open class PathData {
+        val vertexOrigin = Vec3()
+        var vertexArray = FloatArray(0)
+        var extrudeVertexArray = FloatArray(0)
+        // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
+        val interiorElements = mutableListOf<Int>()
+        val outlineElements = mutableListOf<Int>()
+        val verticalElements = mutableListOf<Int>()
+        val extrudeVertexBufferKey = Any()
+        val extrudeElementBufferKey = Any()
+        val vertexBufferKey = Any()
+        val elementBufferKey = Any()
+        var refreshVertexArray = true
+    }
 
     companion object {
         protected const val VERTEX_STRIDE = 5 // 5 floats
@@ -52,6 +57,8 @@ open class Path @JvmOverloads constructor(
             resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
             wrapMode = WrapMode.REPEAT
         }
+
+        protected lateinit var currentData: PathData
 
         protected var vertexIndex = 0
         protected var verticalIndex = 0
@@ -65,11 +72,7 @@ open class Path @JvmOverloads constructor(
 
     override fun reset() {
         super.reset()
-        vertexArray = FloatArray(0)
-        extrudeVertexArray = FloatArray(0)
-        interiorElements.clear()
-        outlineElements.clear()
-        verticalElements.clear()
+        data.values.forEach { it.refreshVertexArray = true }
     }
 
     override fun moveTo(globe: Globe, position: Position) {
@@ -92,16 +95,18 @@ open class Path @JvmOverloads constructor(
             val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
-            cameraDistance = cameraDistanceGeographic(rc, boundingSector)
+            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
             drawable.offset = rc.globe.offset
-            drawable.sector.copy(boundingSector)
+            drawable.sector.copy(currentBoundindData.boundingSector)
             drawable.version = computeVersion()
             drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
-            cameraDistance = cameraDistanceCartesian(rc, vertexArray, vertexArray.size, OUTLINE_SEGMENT_STRIDE, vertexOrigin)
+            cameraDistance = cameraDistanceCartesian(
+                rc, currentData.vertexArray, currentData.vertexArray.size, OUTLINE_SEGMENT_STRIDE, currentData.vertexOrigin
+            )
         }
 
         // Use triangles mode to draw lines
@@ -111,20 +116,22 @@ open class Path @JvmOverloads constructor(
         drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
         // Assemble the drawable's OpenGL vertex buffer object.
-        drawState.vertexBuffer = rc.getBufferObject(vertexBufferKey) {
+        drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(vertexBufferKey, bufferDataVersion) { NumericArray.Floats(vertexArray) }
+        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) {
+            NumericArray.Floats(currentData.vertexArray)
+        }
 
         // Assemble the drawable's OpenGL element buffer object.
-        drawState.elementBuffer = rc.getBufferObject(elementBufferKey) {
+        drawState.elementBuffer = rc.getBufferObject(currentData.elementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(elementBufferKey, bufferDataVersion) {
-            val array = IntArray(outlineElements.size + verticalElements.size)
+        rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
+            val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
             var index = 0
-            for (element in outlineElements) array[index++] = element
-            for (element in verticalElements) array[index++] = element
+            for (element in currentData.outlineElements) array[index++] = element
+            for (element in currentData.verticalElements) array[index++] = element
             NumericArray.Ints(array)
         }
 
@@ -145,7 +152,7 @@ open class Path @JvmOverloads constructor(
             drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             drawState.lineWidth = activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f
-            drawState.drawElements(GL_TRIANGLE_STRIP, outlineElements.size, GL_UNSIGNED_INT, 0)
+            drawState.drawElements(GL_TRIANGLE_STRIP, currentData.outlineElements.size, GL_UNSIGNED_INT, 0)
         }
 
         // Disable texturing for the remaining drawable primitives.
@@ -157,13 +164,13 @@ open class Path @JvmOverloads constructor(
             drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             drawState.lineWidth = activeAttributes.outlineWidth
             drawState.drawElements(
-                GL_TRIANGLES, verticalElements.size,
-                GL_UNSIGNED_INT, outlineElements.size * Int.SIZE_BYTES
+                GL_TRIANGLES, currentData.verticalElements.size,
+                GL_UNSIGNED_INT, currentData.outlineElements.size * Int.SIZE_BYTES
             )
         }
 
         // Configure the drawable according to the shape's attributes.
-        drawState.vertexOrigin.copy(vertexOrigin)
+        drawState.vertexOrigin.copy(currentData.vertexOrigin)
         drawState.enableCullFace = false
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
@@ -184,24 +191,26 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
 
             // Assemble the drawable's OpenGL vertex buffer object.
-            drawStateExtrusion.vertexBuffer = rc.getBufferObject(extrudeVertexBufferKey) {
+            drawStateExtrusion.vertexBuffer = rc.getBufferObject(currentData.extrudeVertexBufferKey) {
                 BufferObject(GL_ARRAY_BUFFER, 0)
             }
-            rc.offerGLBufferUpload(extrudeVertexBufferKey, bufferDataVersion) { NumericArray.Floats(extrudeVertexArray) }
+            rc.offerGLBufferUpload(currentData.extrudeVertexBufferKey, bufferDataVersion) {
+                NumericArray.Floats(currentData.extrudeVertexArray)
+            }
 
             // Assemble the drawable's OpenGL element buffer object.
-            drawStateExtrusion.elementBuffer = rc.getBufferObject(extrudeElementBufferKey) {
+            drawStateExtrusion.elementBuffer = rc.getBufferObject(currentData.extrudeElementBufferKey) {
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
-            rc.offerGLBufferUpload(extrudeElementBufferKey, bufferDataVersion) {
-                val array = IntArray(interiorElements.size)
+            rc.offerGLBufferUpload(currentData.extrudeElementBufferKey, bufferDataVersion) {
+                val array = IntArray(currentData.interiorElements.size)
                 var index = 0
-                for (element in interiorElements) array[index++] = element
+                for (element in currentData.interiorElements) array[index++] = element
                  NumericArray.Ints(array)
             }
 
             // Configure the drawable according to the shape's attributes.
-            drawStateExtrusion.vertexOrigin.copy(vertexOrigin)
+            drawStateExtrusion.vertexOrigin.copy(currentData.vertexOrigin)
             drawStateExtrusion.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
             drawStateExtrusion.enableCullFace = false
             drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
@@ -212,7 +221,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.texCoordAttrib.size = 2
             drawStateExtrusion.texCoordAttrib.offset = 12
             drawStateExtrusion.drawElements(
-                GL_TRIANGLE_STRIP, interiorElements.size,
+                GL_TRIANGLE_STRIP, currentData.interiorElements.size,
                 GL_UNSIGNED_INT, 0
             )
 
@@ -220,7 +229,10 @@ open class Path @JvmOverloads constructor(
         }
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext) = vertexArray.isEmpty()
+    protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
+        currentData = data[rc.globeState] ?: PathData().also { data[rc.globeState] = it }
+        return currentData.refreshVertexArray
+    }
 
     protected open fun assembleGeometry(rc: RenderContext) {
         // Determine the number of vertexes
@@ -229,17 +241,21 @@ open class Path @JvmOverloads constructor(
 
         // Separate vertex array for interior polygon
         extrudeIndex = 0
-        extrudeVertexArray = if(isExtrude && !isSurfaceShape)  FloatArray((vertexCount + 2) * EXTRUDE_SEGMENT_STRIDE) else FloatArray(0)
-        interiorElements.clear()
+        currentData.extrudeVertexArray = if (isExtrude && !isSurfaceShape)
+            FloatArray((vertexCount + 2) * EXTRUDE_SEGMENT_STRIDE) else FloatArray(0)
+        currentData.interiorElements.clear()
 
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
         vertexIndex = 0
         verticalIndex = if (isExtrude && !isSurfaceShape) (vertexCount + 2) * OUTLINE_SEGMENT_STRIDE else 0
-        vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(verticalIndex + positions.size * VERTICAL_SEGMENT_STRIDE)
-        else FloatArray((vertexCount + 2) * OUTLINE_SEGMENT_STRIDE)
-        outlineElements.clear()
-        verticalElements.clear()
+        currentData.vertexArray = if (isExtrude && !isSurfaceShape) {
+            FloatArray(verticalIndex + positions.size * VERTICAL_SEGMENT_STRIDE)
+        } else {
+            FloatArray((vertexCount + 2) * OUTLINE_SEGMENT_STRIDE)
+        }
+        currentData.outlineElements.clear()
+        currentData.verticalElements.clear()
 
         // Add the first vertex. Add additional dummy vertex with the same data before the first vertex.
         var begin = positions[0]
@@ -260,16 +276,21 @@ open class Path @JvmOverloads constructor(
         // Add additional dummy vertex with the same data after the last vertex.
         addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
 
+        // Reset update flag
+        currentData.refreshVertexArray = false
+
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
-        if (isSurfaceShape) {
-            boundingSector.setEmpty()
-            boundingSector.union(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
-            boundingSector.translate(deltaLatitudeDegrees = vertexOrigin.y, deltaLongitudeDegrees = vertexOrigin.x)
-            boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
-        } else {
-            boundingBox.setToPoints(vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
-            boundingBox.translate(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z)
-            boundingSector.setEmpty() // Cartesian shape bounding sector is unused
+        with(currentBoundindData) {
+            if (isSurfaceShape) {
+                boundingSector.setEmpty()
+                boundingSector.union(currentData.vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
+                boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
+                boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
+            } else {
+                boundingBox.setToPoints(currentData.vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
+                boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
+                boundingSector.setEmpty() // Cartesian shape bounding sector is unused
+            }
         }
     }
 
@@ -310,10 +331,11 @@ open class Path @JvmOverloads constructor(
 
     protected open fun addVertex(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, intermediate: Boolean, addIndices : Boolean
-    ) {
+    ) = with(currentData) {
         val vertex = vertexIndex / VERTEX_STRIDE
         if (vertexIndex == 0) {
-            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude) else vertexOrigin.copy(point)
+            if (isSurfaceShape) vertexOrigin.set(longitude.inDegrees, latitude.inDegrees, altitude)
+            else vertexOrigin.copy(point)
             texCoord1d = 0.0
         } else {
             texCoord1d += point.distanceTo(prevPoint)
