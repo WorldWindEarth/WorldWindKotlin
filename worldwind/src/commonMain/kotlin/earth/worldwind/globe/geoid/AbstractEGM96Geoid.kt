@@ -1,6 +1,7 @@
 package earth.worldwind.globe.geoid
 
 import dev.icerock.moko.resources.AssetResource
+import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.normalizeAngle360
 import earth.worldwind.geom.Angle.Companion.normalizeLatitude
@@ -31,7 +32,10 @@ abstract class AbstractEGM96Geoid(
     fun ensureDataLoaded() {
         if (!isLoadDataRequested) {
             isLoadDataRequested = true
-            scope.launch { loadData(offsetsFile) }
+            scope.launch {
+                loadData(offsetsFile)
+                WorldWind.requestRedraw() // Update frame including Gravitational Model
+            }
         }
     }
 
