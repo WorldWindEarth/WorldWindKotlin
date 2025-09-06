@@ -188,8 +188,8 @@ internal class KmlToRenderableConverter {
         name: String?
     ) = Path(extractPoints(lineString.coordinates?.value)).apply {
         altitudeMode = getAltitudeModeFrom(lineString.altitudeMode)
-        lineString.extrude?.let { isExtrude = it }
-        lineString.tessellate?.let { isFollowTerrain = it }
+        isExtrude = lineString.extrude == true
+        isFollowTerrain = lineString.tessellate == true
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
 
         name?.let { displayName = it }
@@ -205,8 +205,8 @@ internal class KmlToRenderableConverter {
         name: String?
     ) = Path(extractPoints(linearRing.coordinates?.value)).apply {
         altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
-        linearRing.extrude?.let { isExtrude = it }
-        linearRing.tessellate?.let { isFollowTerrain = it }
+        isExtrude = linearRing.extrude == true
+        isFollowTerrain = linearRing.tessellate == true
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
 
         name?.let { displayName = it }
@@ -223,7 +223,8 @@ internal class KmlToRenderableConverter {
     ): earth.worldwind.shape.Polygon {
         return earth.worldwind.shape.Polygon().apply {
             altitudeMode = getAltitudeModeFrom(polygon.altitudeMode)
-            polygon.extrude?.let { isExtrude = it }
+            isExtrude = polygon.extrude == true
+            // Clamp to ground polygon is always on texture, even if tessellate is not true
             isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
             pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
 
@@ -251,10 +252,10 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    private fun getPathTypeBy(altitudeMode: AltitudeMode, isFollowTerrain: Boolean?): PathType {
+    private fun getPathTypeBy(altitudeMode: AltitudeMode, isFollowTerrain: Boolean): PathType {
         // If the path is clamped to the ground and terrain conforming, draw as a great circle.
         // Otherwise draw as linear segments.
-        return if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain == true) {
+        return if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain) {
             PathType.GREAT_CIRCLE
         } else {
             PathType.LINEAR
@@ -287,7 +288,7 @@ internal class KmlToRenderableConverter {
 
                     labelAttributes.applyStyle(labelStyle)
                     // if icon is present move label, so it doesn't overlap the icon
-                    if (imageSource != null) labelAttributes.textOffset = Offset(PIXELS, -32.0, FRACTION, 0.4)
+                    if (imageSource != null) labelAttributes.textOffset = Offset(PIXELS, -32.0, FRACTION, 0.1)
                 }
             }
         }
@@ -344,7 +345,7 @@ internal class KmlToRenderableConverter {
 
             outlineColor = lineStyle?.color?.let { fromHexABRG(it) } ?: defaultLineColor
             interiorColor = polyStyle?.color?.let { fromHexABRG(it) } ?: defaultFillColor
-            lineStyle?.width?.let { outlineWidth = it }
+            outlineWidth = lineStyle?.width ?: density
 
             isPickInterior = false // Allow picking outline only
 
