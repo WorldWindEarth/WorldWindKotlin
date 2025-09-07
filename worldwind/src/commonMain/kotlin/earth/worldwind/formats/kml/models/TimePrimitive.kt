@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * This is an abstract element and cannot be used directly in a KML file.
- * It provides a placeholder object for all derived Geometry objects.
+ * This element is extended by the [TimeSpan] and [TimeStamp] elements.
  */
 @Serializable
-internal abstract class Geometry : Object()
+internal abstract class TimePrimitive : Object()

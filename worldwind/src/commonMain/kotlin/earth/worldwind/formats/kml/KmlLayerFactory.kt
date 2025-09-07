@@ -165,7 +165,7 @@ object KmlLayerFactory {
                     if (styleMapId != null) {
                         styleMaps[styleMapId] = styleMap
 
-                        val styleId = styleMap.pairs?.firstOrNull()?.styleUrl?.removePrefix("#")
+                        val styleId = styleMap.pairs.firstOrNull()?.styleUrl?.removePrefix("#")
                         val style = styles[styleId]?.also { styles[styleMapId] = it }
 
                         if (style != null) {
@@ -186,7 +186,7 @@ object KmlLayerFactory {
                     val styleId = style.id
 
                     val finalId = styleMaps.entries.find { (_, value) ->
-                        value.pairs?.any { it.styleUrl?.removePrefix("#") == styleId } == true
+                        value.pairs.any { it.styleUrl.removePrefix("#") == styleId }
                     }?.key ?: styleId
 
                     if (finalId != null) {
@@ -248,22 +248,16 @@ object KmlLayerFactory {
             }
     }
 
-    private fun LookAt.toGeomLookAt(): earth.worldwind.geom.LookAt? {
-        val latitude = latitude ?: return null
-        val longitude = longitude ?: return null
-        val range = range ?: return null
-
-        return earth.worldwind.geom.LookAt(
-            position = Position.fromDegrees(
-                latitudeDegrees = latitude,
-                longitudeDegrees = longitude,
-                altitude = altitude ?: 0.0
-            ),
-            altitudeMode = AltitudeMode.ABSOLUTE,
-            range = range,
-            heading = Angle.fromDegrees(heading ?: 0.0),
-            tilt = Angle.fromDegrees(tilt ?: 0.0),
-            roll = ZERO
-        )
-    }
+    private fun LookAt.toGeomLookAt() = earth.worldwind.geom.LookAt(
+        position = Position.fromDegrees(
+            latitudeDegrees = latitude,
+            longitudeDegrees = longitude,
+            altitude = altitude
+        ),
+        altitudeMode = AltitudeMode.ABSOLUTE,
+        range = range,
+        heading = Angle.fromDegrees(heading),
+        tilt = Angle.fromDegrees(tilt),
+        roll = ZERO
+    )
 }

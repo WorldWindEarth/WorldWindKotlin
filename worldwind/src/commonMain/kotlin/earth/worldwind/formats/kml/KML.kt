@@ -2,39 +2,16 @@
 
 package earth.worldwind.formats.kml
 
-import earth.worldwind.formats.kml.models.AbstractStyle
-import earth.worldwind.formats.kml.models.Document
-import earth.worldwind.formats.kml.models.Feature
-import earth.worldwind.formats.kml.models.Folder
-import earth.worldwind.formats.kml.models.Geometry
-import earth.worldwind.formats.kml.models.GroundOverlay
-import earth.worldwind.formats.kml.models.IconStyle
-import earth.worldwind.formats.kml.models.LabelStyle
-import earth.worldwind.formats.kml.models.LineString
-import earth.worldwind.formats.kml.models.LineStyle
-import earth.worldwind.formats.kml.models.LinearRing
-import earth.worldwind.formats.kml.models.LookAt
-import earth.worldwind.formats.kml.models.MultiGeometry
-import earth.worldwind.formats.kml.models.Placemark
-import earth.worldwind.formats.kml.models.Point
-import earth.worldwind.formats.kml.models.PolyStyle
-import earth.worldwind.formats.kml.models.Polygon
-import earth.worldwind.formats.kml.models.Style
-import earth.worldwind.formats.kml.models.StyleMap
+import earth.worldwind.formats.kml.models.*
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import nl.adaptivity.xmlutil.EventType
-import nl.adaptivity.xmlutil.XmlDeclMode
-import nl.adaptivity.xmlutil.XmlReader
-import nl.adaptivity.xmlutil.XmlUtilInternal
-import nl.adaptivity.xmlutil.attributes
+import nl.adaptivity.xmlutil.*
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.core.impl.multiplatform.Reader
 import nl.adaptivity.xmlutil.serialization.XML
-import nl.adaptivity.xmlutil.xmlStreaming
 import kotlin.random.Random
 
 @OptIn(XmlUtilInternal::class)
@@ -45,6 +22,7 @@ internal class KML {
             subclass(Document::class)
             subclass(Folder::class)
             subclass(Placemark::class)
+            subclass(GroundOverlay::class)
         }
         polymorphic(Geometry::class) {
             subclass(LinearRing::class)
@@ -53,11 +31,23 @@ internal class KML {
             subclass(Point::class)
             subclass(Polygon::class)
         }
-        polymorphic(AbstractStyle::class) {
+        polymorphic(ColorStyle::class) {
             subclass(IconStyle::class)
             subclass(LabelStyle::class)
             subclass(LineStyle::class)
             subclass(PolyStyle::class)
+        }
+        polymorphic(AbstractView::class) {
+            subclass(Camera::class)
+            subclass(LookAt::class)
+        }
+        polymorphic(TimePrimitive::class) {
+            subclass(TimeSpan::class)
+            subclass(TimeStamp::class)
+        }
+        polymorphic(StyleSelector::class) {
+            subclass(Style::class)
+            subclass(StyleMap::class)
         }
     }
 

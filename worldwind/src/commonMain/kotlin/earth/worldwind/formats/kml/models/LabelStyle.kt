@@ -3,12 +3,17 @@ package earth.worldwind.formats.kml.models
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
 
+/**
+ * Specifies how the [name] of a Feature is drawn in the 3D viewer.
+ * A custom color, color mode, and scale for the label (name) can be specified.
+ */
 @Serializable
 internal data class LabelStyle(
+    override val id: String? = null,
+
+    /**
+     * Resizes the label.
+     */
     @XmlElement
-    var scale: Double? = null,
-    @XmlElement
-    var color: String? = null,
-    @XmlElement
-    var width: Float? = null,
-) : AbstractStyle()
+    val scale: Float = 1.0f,
+) : ColorStyle()

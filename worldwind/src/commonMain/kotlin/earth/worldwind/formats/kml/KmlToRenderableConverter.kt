@@ -2,45 +2,19 @@ package earth.worldwind.formats.kml
 
 import earth.worldwind.MR
 import earth.worldwind.formats.*
-import earth.worldwind.formats.DEFAULT_DENSITY
-import earth.worldwind.formats.DEFAULT_FILL_COLOR
-import earth.worldwind.formats.DEFAULT_IMAGE_SCALE
-import earth.worldwind.formats.DEFAULT_LINE_COLOR
-import earth.worldwind.formats.HIGHLIGHT_INCREMENT
-import earth.worldwind.formats.forceHttps
-import earth.worldwind.formats.isValidHttpsUrl
-import earth.worldwind.formats.kml.models.Geometry
-import earth.worldwind.formats.kml.models.GroundOverlay
-import earth.worldwind.formats.kml.models.Icon
-import earth.worldwind.formats.kml.models.IconStyle
-import earth.worldwind.formats.kml.models.LabelStyle
-import earth.worldwind.formats.kml.models.LatLonBox
-import earth.worldwind.formats.kml.models.LineString
-import earth.worldwind.formats.kml.models.LineStyle
-import earth.worldwind.formats.kml.models.LinearRing
-import earth.worldwind.formats.kml.models.MultiGeometry
+import earth.worldwind.formats.kml.models.*
+import earth.worldwind.formats.kml.models.AltitudeMode as KMLAltitudeMode
 import earth.worldwind.formats.kml.models.Placemark
-import earth.worldwind.formats.kml.models.Point
-import earth.worldwind.formats.kml.models.PolyStyle
 import earth.worldwind.formats.kml.models.Polygon
-import earth.worldwind.formats.kml.models.Style
+import earth.worldwind.geom.*
 import earth.worldwind.geom.AltitudeMode
-import earth.worldwind.geom.Angle
-import earth.worldwind.geom.Offset
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.OffsetMode.FRACTION
 import earth.worldwind.geom.OffsetMode.PIXELS
-import earth.worldwind.geom.Position
-import earth.worldwind.geom.Sector
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.shape.AbstractShape
-import earth.worldwind.shape.Label
-import earth.worldwind.shape.Path
-import earth.worldwind.shape.PathType
-import earth.worldwind.shape.ShapeAttributes
-import earth.worldwind.shape.SurfaceImage
-import earth.worldwind.shape.TextAttributes
+import earth.worldwind.shape.*
 
 internal class KmlToRenderableConverter {
 
@@ -54,12 +28,12 @@ internal class KmlToRenderableConverter {
         /**
          * optimized method to get coordinates from a string
          */
-        private fun extractPoints(input: String?, altitudeOffset: Double? = 0.0): List<Position> {
+        private fun extractPoints(input: String, altitudeOffset: Double = 0.0): List<Position> {
             // Normalize input by trimming leading/trailing whitespaces
             // and replacing all forms of space with a single space
-            val normalizedInput = input?.trim()?.replace(spaceCharsRegex, " ")
+            val normalizedInput = input.trim().replace(spaceCharsRegex, " ")
 
-            if (normalizedInput.isNullOrBlank()) return emptyList()
+            if (normalizedInput.isBlank()) return emptyList()
 
             val result = mutableListOf<Position>()
             val length = normalizedInput.length
@@ -107,7 +81,7 @@ internal class KmlToRenderableConverter {
                     i++ // Skip the comma
                     start = i
                     while (i < length && normalizedInput[i] != ' ') i++
-                    alt = parseDouble(start, i) + (altitudeOffset ?: 0.0)
+                    alt = parseDouble(start, i) + altitudeOffset
                 }
 
                 result.add(Position.fromDegrees(lat, lon, alt ?: 0.0))
@@ -137,7 +111,7 @@ internal class KmlToRenderableConverter {
         placemark: Placemark,
         definedStyle: Style? = null,
     ): List<Renderable> {
-        val style = placemark.stylesList?.firstOrNull() ?: definedStyle
+        val style = placemark.styleSelector as? Style ?: definedStyle // TODO Add support of StyleMap
         val geometry: Geometry = placemark.geometryList?.firstOrNull() ?: return emptyList()
         return getRenderableFrom(geometry, style, placemark.name)
     }
@@ -186,7 +160,7 @@ internal class KmlToRenderableConverter {
         lineString: LineString,
         style: Style?,
         name: String?
-    ) = Path(extractPoints(lineString.coordinates?.value, lineString.altitudeOffset)).apply {
+    ) = Path(extractPoints(lineString.coordinates.value, lineString.altitudeOffset)).apply {
         altitudeMode = getAltitudeModeFrom(lineString.altitudeMode)
         isExtrude = lineString.extrude == true
         isFollowTerrain = lineString.tessellate == true
@@ -204,7 +178,7 @@ internal class KmlToRenderableConverter {
         linearRing: LinearRing,
         style: Style?,
         name: String?
-    ) = Path(extractPoints(linearRing.coordinates?.value, linearRing.altitudeOffset)).apply {
+    ) = Path(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset)).apply {
         altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
         isExtrude = linearRing.extrude == true
         isFollowTerrain = linearRing.tessellate == true
@@ -232,18 +206,14 @@ internal class KmlToRenderableConverter {
             maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
 
             polygon.outerBoundaryIs?.let {
-                it.value?.forEach { linearRing ->
-                    linearRing.coordinates?.value?.let { value ->
-                        addBoundary(extractPoints(value, linearRing.altitudeOffset))
-                    }
+                it.value.let { linearRing ->
+                    addBoundary(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset))
                 }
             }
 
             polygon.innerBoundaryIs?.let {
-                it.value?.forEach { linearRing ->
-                    linearRing.coordinates?.value?.let { value ->
-                        addBoundary(extractPoints(value, linearRing.altitudeOffset))
-                    }
+                it.value.forEach { linearRing ->
+                    addBoundary(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset))
                 }
             }
 
@@ -266,10 +236,10 @@ internal class KmlToRenderableConverter {
     }
 
     private fun createPlacemark(point: Point, style: Style?, name: String?): Renderable? {
-        val position = extractPoints(point.coordinates?.value).firstOrNull() ?: return null
+        val position = extractPoints(point.coordinates.value).firstOrNull() ?: return null
 
-        val iconStyle = style?.stylesList?.filterIsInstance<IconStyle>()?.firstOrNull()
-        val labelStyle = style?.stylesList?.filterIsInstance<LabelStyle>()?.firstOrNull()
+        val iconStyle = style?.styles?.filterIsInstance<IconStyle>()?.firstOrNull()
+        val labelStyle = style?.styles?.filterIsInstance<LabelStyle>()?.firstOrNull()
 
         return if (iconStyle?.scale == 0.0) {
             Label(position, name).apply {
@@ -286,7 +256,8 @@ internal class KmlToRenderableConverter {
                     imageSource = iconStyle?.icon?.toImageSource()?.also { imageScale *= density }
                         ?: ImageSource.fromResource(MR.images.kml_placemark) // Do not scale default placemark
                     imageColor = iconStyle?.color?.let { fromHexABRG(it) } ?: defaultIconColor
-                    imageOffset = if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND) Offset.bottomCenter() else Offset.center()
+                    imageOffset = iconStyle?.hotSpot?.let { Offset(getOffsetModeFrom(it.xunits), it.x, getOffsetModeFrom(it.yunits), it.y) }
+                        ?: if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND) Offset.bottomCenter() else Offset.center()
 
                     attributes.isDrawLeader = point.extrude == true
 
@@ -312,19 +283,7 @@ internal class KmlToRenderableConverter {
             }
     }
 
-    private fun LatLonBox.toSector(): Sector? {
-        val north = north ?: return null
-        val south = south ?: return null
-        val east = east ?: return null
-        val west = west ?: return null
-
-        return Sector(
-            Angle.fromDegrees(south),
-            Angle.fromDegrees(north),
-            Angle.fromDegrees(west),
-            Angle.fromDegrees(east)
-        )
-    }
+    private fun LatLonBox.toSector() = Sector(south.degrees, north.degrees, west.degrees, east.degrees)
 
     private fun TextAttributes.applyStyle(labelStyle: LabelStyle?) {
         apply {
@@ -332,7 +291,6 @@ internal class KmlToRenderableConverter {
                 textColor = fromHexABRG(it)
                 outlineColor = textColor.toContrastColor()
             }
-            labelStyle?.width?.let { outlineWidth = it }
             textOffset = Offset.center()
         }
     }
@@ -344,8 +302,8 @@ internal class KmlToRenderableConverter {
 
     private fun AbstractShape.applyStyleOnShapeAttributes(style: Style?) {
         attributes.apply {
-            val lineStyle = style?.stylesList?.filterIsInstance<LineStyle>()?.firstOrNull()
-            val polyStyle = style?.stylesList?.filterIsInstance<PolyStyle>()?.firstOrNull()
+            val lineStyle = style?.styles?.filterIsInstance<LineStyle>()?.firstOrNull()
+            val polyStyle = style?.styles?.filterIsInstance<PolyStyle>()?.firstOrNull()
 
             outlineColor = lineStyle?.color?.let { fromHexABRG(it) } ?: defaultLineColor
             interiorColor = polyStyle?.color?.let { fromHexABRG(it) } ?: defaultFillColor
@@ -360,10 +318,16 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    private fun getAltitudeModeFrom(value: String?) = when (value) {
-        "absolute" -> AltitudeMode.ABOVE_SEA_LEVEL
-        "clampToGround" -> AltitudeMode.CLAMP_TO_GROUND
-        "relativeToGround" -> AltitudeMode.RELATIVE_TO_GROUND
+    private fun getAltitudeModeFrom(value: KMLAltitudeMode?) = when (value) {
+        KMLAltitudeMode.absolute -> AltitudeMode.ABOVE_SEA_LEVEL
+        KMLAltitudeMode.clampToGround -> AltitudeMode.CLAMP_TO_GROUND
+        KMLAltitudeMode.relativeToGround -> AltitudeMode.RELATIVE_TO_GROUND
         else -> AltitudeMode.CLAMP_TO_GROUND
+    }
+
+    private fun getOffsetModeFrom(value: HotSpotUnits) = when (value) {
+        HotSpotUnits.pixels -> OffsetMode.PIXELS
+        HotSpotUnits.fraction -> OffsetMode.FRACTION
+        HotSpotUnits.insetPixels -> OffsetMode.INSET_PIXELS
     }
 }
