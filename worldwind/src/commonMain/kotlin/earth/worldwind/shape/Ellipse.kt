@@ -177,6 +177,10 @@ open class Ellipse @JvmOverloads constructor(
          * Key for the Range object in the element buffer describing the extruded sides of the Ellipse.
          */
         protected const val SIDE_RANGE = 1
+        /**
+         * Key for the Range object in the element buffer describing the bottom of the Ellipse.
+         */
+        protected const val BASE_RANGE = 2
 
         protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
         protected val defaultOutlineImageOptions = ImageOptions().apply {
@@ -241,8 +245,29 @@ open class Ellipse @JvmOverloads constructor(
             elements.add(offset.toShort())
             val sideRange = Range(topRange.upper, elements.size)
 
+            idx = intervals.plus(offset).toShort()
+
+            // Add the anchor leg
+            elements.add(0.plus(offset).toShort())
+            elements.add(1.plus(offset).toShort())
+            // Tessellate the interior
+            for (i in intervals - 1 downTo  2) {
+                // Add the corresponding interior spine point if this isn't the vertex following the last vertex for the
+                // negative major axis
+                if (i != intervals / 2 + 1) if (i > intervals / 2) elements.add(--idx) else elements.add(idx++)
+                // Add the degenerate triangle at the negative major axis in order to flip the triangle strip back towards
+                // the positive axis
+                if (i == intervals / 2) elements.add(i.plus(offset).toShort())
+                // Add the exterior vertex
+                elements.add(i.plus(offset).toShort())
+            }
+            // Complete the strip
+            elements.add(--idx)
+            elements.add(0.plus(offset).toShort())
+            val baseRange = Range(sideRange.upper, elements.size)
+
             // Generate a buffer for the element
-            elementBuffer.ranges = arrayOf(topRange, sideRange)
+            elementBuffer.ranges = arrayOf(topRange, sideRange, baseRange)
             return elements.toShortArray()
         }
 
@@ -394,10 +419,14 @@ open class Ellipse @JvmOverloads constructor(
         drawState.texCoordAttrib.offset = 12
         val top = drawState.elementBuffer?.ranges?.get(TOP_RANGE)!!
         drawState.drawElements(GL_TRIANGLE_STRIP, top.length, GL_UNSIGNED_SHORT, top.lower * Short.SIZE_BYTES)
-        if (isExtrude) {
+        if (isExtrude && !isSurfaceShape) {
             val side = drawState.elementBuffer?.ranges?.get(SIDE_RANGE)!!
             drawState.texture = null
             drawState.drawElements(GL_TRIANGLE_STRIP, side.length, GL_UNSIGNED_SHORT, side.lower * Short.SIZE_BYTES)
+            if (baseAltitude != 0.0) {
+                val base = drawState.elementBuffer?.ranges?.get(BASE_RANGE)!!
+                drawState.drawElements(GL_TRIANGLE_STRIP, base.length, GL_UNSIGNED_SHORT, base.lower * Short.SIZE_BYTES)
+            }
         }
     }
 
@@ -419,9 +448,6 @@ open class Ellipse @JvmOverloads constructor(
         drawState.lineWidth = activeAttributes.outlineWidth
         drawState.drawElements(GL_TRIANGLE_STRIP, currentData.outlineElements.size, GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES)
         if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
-            drawState.lineWidth = activeAttributes.outlineWidth
             drawState.texture = null
             drawState.drawElements(
                 GL_TRIANGLES, currentData.verticalElements.size, GL_UNSIGNED_INT, currentData.outlineElements.size * Int.SIZE_BYTES

@@ -9,7 +9,7 @@ import earth.worldwind.render.program.TriangleShaderProgram
 
 open class DrawShapeState internal constructor() {
     companion object {
-        const val MAX_DRAW_ELEMENTS = 4
+        const val MAX_DRAW_ELEMENTS = 5
     }
 
     var program: TriangleShaderProgram? = null

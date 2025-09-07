@@ -27,7 +27,7 @@ abstract class AbstractShape(
             reset()
         }
     /**
-     * Draw sides of the shape which extend from the defined position and altitude to the ground.
+     * Draw sides of the shape which extend from the defined position and altitude to [baseAltitude] level.
      */
     var isExtrude = false
         set(value) {
@@ -38,6 +38,14 @@ abstract class AbstractShape(
      * Determines whether this shape's geometry follows the terrain surface or is fixed at a constant altitude.
      */
     var isFollowTerrain = false
+        set(value) {
+            field = value
+            reset()
+        }
+    /**
+     * Base altitude level of shape sides. Is dependent on [altitudeMode]. Ground level by default.
+     */
+    var baseAltitude = 0.0
         set(value) {
             field = value
             reset()
@@ -209,8 +217,8 @@ abstract class AbstractShape(
         val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
         rc.geographicToCartesian(latitude, longitude, altitude, if (isAbsolute) AltitudeMode.ABSOLUTE else altitudeMode, point)
         if (isExtrudedSkirt && !isSurfaceShape) {
-            if (altitude == 0.0) vertPoint.copy(point)
-            else rc.geographicToCartesian(latitude, longitude, 0.0, altitudeMode, vertPoint)
+            if (altitude == baseAltitude) vertPoint.copy(point)
+            else rc.geographicToCartesian(latitude, longitude, baseAltitude, altitudeMode, vertPoint)
         }
     }
 

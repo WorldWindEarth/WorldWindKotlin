@@ -58,6 +58,7 @@ open class Polygon @JvmOverloads constructor(
         // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
         val topElements = mutableListOf<Int>()
         val sideElements = mutableListOf<Int>()
+        val baseElements = mutableListOf<Int>()
         val outlineElements = mutableListOf<Int>()
         val verticalElements = mutableListOf<Int>()
         val vertexBufferKey = Any()
@@ -223,10 +224,11 @@ open class Polygon @JvmOverloads constructor(
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
         rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
-            val array = IntArray(currentData.topElements.size + currentData.sideElements.size)
+            val array = IntArray(currentData.topElements.size + currentData.sideElements.size + currentData.baseElements.size)
             var index = 0
             for (element in currentData.topElements) array[index++] = element
             for (element in currentData.sideElements) array[index++] = element
+            for (element in currentData.baseElements.asReversed()) array[index++] = element
             NumericArray.Ints(array)
         }
 
@@ -302,13 +304,22 @@ open class Polygon @JvmOverloads constructor(
         drawState.texCoordAttrib.offset = 12
         drawState.drawElements(GL_TRIANGLES, currentData.topElements.size, GL_UNSIGNED_INT, offset = 0)
 
-        // Configure the drawable to display the shape's interior sides.
-        if (isExtrude) {
+        if (isExtrude && !isSurfaceShape) {
             drawState.texture = null
+
+            // Configure the drawable to display the shape's interior sides.
             drawState.drawElements(
                 GL_TRIANGLES, currentData.sideElements.size,
                 GL_UNSIGNED_INT, offset = currentData.topElements.size * Int.SIZE_BYTES
             )
+
+            // Configure the drawable to display the shape's interior bottom.
+            if (baseAltitude != 0.0) {
+                drawState.drawElements(
+                    GL_TRIANGLES, currentData.baseElements.size,
+                    GL_UNSIGNED_INT, offset = (currentData.topElements.size + currentData.sideElements.size) * Int.SIZE_BYTES
+                )
+            }
         }
     }
 
@@ -328,16 +339,10 @@ open class Polygon @JvmOverloads constructor(
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth
-        drawState.drawElements(
-            GL_TRIANGLES, currentData.outlineElements.size,
-            GL_UNSIGNED_INT, offset = 0
-        )
+        drawState.drawElements(GL_TRIANGLES, currentData.outlineElements.size, GL_UNSIGNED_INT, offset = 0)
 
         // Configure the drawable to display the shape's extruded verticals.
-        if (activeAttributes.isDrawVerticals && isExtrude && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
-            drawState.lineWidth = activeAttributes.outlineWidth
+        if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
             drawState.texture = null
             drawState.drawElements(
                 GL_TRIANGLES, currentData.verticalElements.size,
@@ -384,6 +389,7 @@ open class Polygon @JvmOverloads constructor(
         else FloatArray((vertexCount + boundaries.size) * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
         currentData.topElements.clear()
         currentData.sideElements.clear()
+        currentData.baseElements.clear()
         lineVertexIndex = 0
         verticalVertexIndex = lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE
         currentData.lineVertexArray = if (isExtrude && !isSurfaceShape) {
@@ -560,8 +566,7 @@ open class Polygon @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, isIntermediate : Boolean, addIndices : Boolean
     ) = with(currentData) {
         val vertex = lineVertexIndex / VERTEX_STRIDE
-        if (lineVertexIndex == 0) texCoord1d = 0.0
-        else texCoord1d += point.distanceTo(prevPoint)
+        if (lineVertexIndex == 0) texCoord1d = 0.0 else texCoord1d += point.distanceTo(prevPoint)
         prevPoint.copy(point)
         val upperLeftCorner = encodeOrientationVector(-1f, 1f)
         val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
@@ -810,6 +815,11 @@ open class Polygon @JvmOverloads constructor(
         topElements.add(v0)
         topElements.add(v1)
         topElements.add(v2)
+        if (baseAltitude != 0.0 && isExtrude && !isSurfaceShape) {
+            baseElements.add(v0.inc())
+            baseElements.add(v1.inc())
+            baseElements.add(v2.inc())
+        }
         if (tessEdgeFlags[0] && isExtrude && !isSurfaceShape) {
             sideElements.add(v0)
             sideElements.add(v0.inc())

@@ -164,7 +164,9 @@ open class Path @JvmOverloads constructor(
         drawState.texture = null
 
         // Configure the drawable to display the shape's extruded verticals.
-        if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude && (!rc.isPickMode || activeAttributes.isPickOutline)) {
+        if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape
+            && (!rc.isPickMode || activeAttributes.isPickOutline)
+        ) {
             drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
             drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             drawState.lineWidth = activeAttributes.outlineWidth
@@ -185,7 +187,9 @@ open class Path @JvmOverloads constructor(
         else rc.offerShapeDrawable(drawable, cameraDistance)
 
         // Configure the drawable to display the shape's extruded interior.
-        if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape && (!rc.isPickMode || activeAttributes.isPickInterior)) {
+        if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape
+            && (!rc.isPickMode || activeAttributes.isPickInterior)
+        ) {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             val drawableExtrusion = DrawableShape.obtain(pool)
             val drawStateExtrusion = drawableExtrusion.drawState
