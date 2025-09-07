@@ -275,8 +275,8 @@ open class Polygon @JvmOverloads constructor(
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape|| activeAttributes.interiorColor.alpha >= 1.0) {
-            rc.offerSurfaceDrawable(drawable, zOrder = 0.0)
-            rc.offerSurfaceDrawable(drawableLines, zOrder = 0.0)
+            rc.offerSurfaceDrawable(drawable, zOrder)
+            rc.offerSurfaceDrawable(drawableLines, zOrder)
         } else {
             rc.offerShapeDrawable(drawableLines, cameraDistance)
             rc.offerShapeDrawable(drawable, cameraDistance)

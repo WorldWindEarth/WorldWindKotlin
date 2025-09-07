@@ -25,7 +25,7 @@ open class SurfaceImage(sector: Sector, var imageSource: ImageSource): AbstractS
         val drawable = DrawableSurfaceTexture.obtain(pool).set(
             program, sector, opacity, texture, texture.coordTransform, rc.globe.offset, terrainSector
         )
-        rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
+        rc.offerSurfaceDrawable(drawable, zOrder)
 
         // Enqueue a picked object that associates the drawable surface texture with this surface image.
         if (rc.isPickMode) {

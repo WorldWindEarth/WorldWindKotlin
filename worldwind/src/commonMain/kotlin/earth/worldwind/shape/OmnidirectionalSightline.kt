@@ -187,6 +187,6 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
         drawable.program = rc.getShaderProgram(SightlineProgram.KEY) { SightlineProgram() }
 
         // Enqueue a drawable for processing on the OpenGL thread.
-        rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
+        rc.offerSurfaceDrawable(drawable, zOrder)
     }
 }

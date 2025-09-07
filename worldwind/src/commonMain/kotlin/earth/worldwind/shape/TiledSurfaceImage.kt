@@ -220,7 +220,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
             val drawable = DrawableSurfaceTexture.obtain(pool).set(
                 activeProgram, tile.sector, opacity, texture, texture.coordTransform, rc.globe.offset
             )
-            rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
+            rc.offerSurfaceDrawable(drawable, zOrder)
         } else if (ancestorTile != null && ancestorTexture != null && (
             // Use ancestor tile if it is allowed or previous level tile is still loading
             useAncestorTileTexture || tile.level.levelNumber - ancestorTile.level.levelNumber <= 1
@@ -233,7 +233,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
             val drawable = DrawableSurfaceTexture.obtain(pool).set(
                 activeProgram, tile.sector, opacity, ancestorTexture, ancestorTexCoordMatrix, rc.globe.offset
             )
-            rc.offerSurfaceDrawable(drawable, 0.0 /*z-order*/)
+            rc.offerSurfaceDrawable(drawable, zOrder)
         }
     }
 

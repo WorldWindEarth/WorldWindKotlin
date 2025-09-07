@@ -120,7 +120,9 @@ internal class KmlToRenderableConverter {
         val surfaceImage = SurfaceImage(
             sector = groundOverlay.latLonBox?.toSector() ?: return emptyList(),
             imageSource = groundOverlay.icon?.toImageSource() ?: return emptyList(),
-        )
+        ).apply {
+            zOrder = groundOverlay.drawOrder.toDouble()
+        }
         return listOf(surfaceImage)
     }
 
@@ -166,6 +168,7 @@ internal class KmlToRenderableConverter {
         isFollowTerrain = lineString.tessellate == true
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
         maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
+        zOrder = lineString.drawOrder.toDouble()
 
         name?.let { displayName = it }
 

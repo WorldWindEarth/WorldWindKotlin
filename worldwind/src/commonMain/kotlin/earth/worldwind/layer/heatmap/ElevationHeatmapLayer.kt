@@ -8,6 +8,7 @@ import earth.worldwind.render.RenderContext
 open class ElevationHeatmapLayer: AbstractLayer("Elevation Heatmap") {
     override var isPickEnabled = false // Elevation Heatmap is not pickable
     override var opacity = 0.5f // Elevation Heatmap is semi-transparent by default
+    var zOrder = 0.0
     /**
      * RGB colors for five thresholds of heatmap
      */
@@ -41,6 +42,6 @@ open class ElevationHeatmapLayer: AbstractLayer("Elevation Heatmap") {
         drawable.opacity = opacity
         drawable.offset = rc.globe.offset
         drawable.program = rc.getShaderProgram(ElevationHeatmapProgram.KEY) { ElevationHeatmapProgram() }
-        rc.offerSurfaceDrawable(drawable, 0.0)
+        rc.offerSurfaceDrawable(drawable, zOrder)
     }
 }

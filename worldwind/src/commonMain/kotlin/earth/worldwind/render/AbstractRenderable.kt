@@ -6,6 +6,7 @@ abstract class AbstractRenderable @JvmOverloads constructor(override var display
     override var isEnabled = true
     override var isPickEnabled = true
     override var pickDelegate: Any? = null
+    override var zOrder = 0.0
     private var userProperties: MutableMap<Any, Any>? = null
 
     @Suppress("UNCHECKED_CAST")

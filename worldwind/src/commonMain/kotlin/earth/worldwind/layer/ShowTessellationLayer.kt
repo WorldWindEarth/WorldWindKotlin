@@ -7,6 +7,7 @@ import earth.worldwind.render.program.BasicShaderProgram
 
 class ShowTessellationLayer: AbstractLayer("Terrain Tessellation") {
     override var isPickEnabled = false
+    var zOrder = 1.0 // z-order after surface textures
     var color = Color()
         set(value) {
             field.copy(value)
@@ -19,6 +20,6 @@ class ShowTessellationLayer: AbstractLayer("Terrain Tessellation") {
         val program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
         val pool = rc.getDrawablePool(DrawableTessellation.KEY)
         val drawable = DrawableTessellation.obtain(pool).set(program, color, opacity)
-        rc.offerSurfaceDrawable(drawable, 1.0 /*z-order after surface textures*/)
+        rc.offerSurfaceDrawable(drawable, zOrder)
     }
 }

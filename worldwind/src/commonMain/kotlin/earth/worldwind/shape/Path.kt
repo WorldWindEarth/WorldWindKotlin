@@ -181,7 +181,7 @@ open class Path @JvmOverloads constructor(
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
 
         // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, zOrder = 0.0)
+        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, zOrder)
         else rc.offerShapeDrawable(drawable, cameraDistance)
 
         // Configure the drawable to display the shape's extruded interior.
