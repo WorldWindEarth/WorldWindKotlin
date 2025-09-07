@@ -54,7 +54,7 @@ internal class KmlToRenderableConverter {
         /**
          * optimized method to get coordinates from a string
          */
-        private fun extractPoints(input: String?): List<Position> {
+        private fun extractPoints(input: String?, altitudeOffset: Double? = 0.0): List<Position> {
             // Normalize input by trimming leading/trailing whitespaces
             // and replacing all forms of space with a single space
             val normalizedInput = input?.trim()?.replace(spaceCharsRegex, " ")
@@ -107,7 +107,7 @@ internal class KmlToRenderableConverter {
                     i++ // Skip the comma
                     start = i
                     while (i < length && normalizedInput[i] != ' ') i++
-                    alt = parseDouble(start, i)
+                    alt = parseDouble(start, i) + (altitudeOffset ?: 0.0)
                 }
 
                 result.add(Position.fromDegrees(lat, lon, alt ?: 0.0))
@@ -186,7 +186,7 @@ internal class KmlToRenderableConverter {
         lineString: LineString,
         style: Style?,
         name: String?
-    ) = Path(extractPoints(lineString.coordinates?.value)).apply {
+    ) = Path(extractPoints(lineString.coordinates?.value, lineString.altitudeOffset)).apply {
         altitudeMode = getAltitudeModeFrom(lineString.altitudeMode)
         isExtrude = lineString.extrude == true
         isFollowTerrain = lineString.tessellate == true
@@ -204,7 +204,7 @@ internal class KmlToRenderableConverter {
         linearRing: LinearRing,
         style: Style?,
         name: String?
-    ) = Path(extractPoints(linearRing.coordinates?.value)).apply {
+    ) = Path(extractPoints(linearRing.coordinates?.value, linearRing.altitudeOffset)).apply {
         altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
         isExtrude = linearRing.extrude == true
         isFollowTerrain = linearRing.tessellate == true
@@ -234,7 +234,7 @@ internal class KmlToRenderableConverter {
             polygon.outerBoundaryIs?.let {
                 it.value?.forEach { linearRing ->
                     linearRing.coordinates?.value?.let { value ->
-                        addBoundary(extractPoints(value))
+                        addBoundary(extractPoints(value, linearRing.altitudeOffset))
                     }
                 }
             }
@@ -242,7 +242,7 @@ internal class KmlToRenderableConverter {
             polygon.innerBoundaryIs?.let {
                 it.value?.forEach { linearRing ->
                     linearRing.coordinates?.value?.let { value ->
-                        addBoundary(extractPoints(value))
+                        addBoundary(extractPoints(value, linearRing.altitudeOffset))
                     }
                 }
             }

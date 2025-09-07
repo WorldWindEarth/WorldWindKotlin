@@ -9,7 +9,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 internal data class LinearRing(
     @XmlSerialName(prefix = "gx", value = "altitudeOffset")
     @XmlElement
-    var altitudeOffset: Int? = null,
+    var altitudeOffset: Double? = null,
 
     /**
      * extends the line down to the ground.
