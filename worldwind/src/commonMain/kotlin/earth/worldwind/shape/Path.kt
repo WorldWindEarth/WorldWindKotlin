@@ -140,41 +140,7 @@ open class Path @JvmOverloads constructor(
             NumericArray.Ints(array)
         }
 
-        // Configure the drawable to use the outline texture when drawing the outline.
-        if (activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            activeAttributes.outlineImageSource?.let { outlineImageSource ->
-                rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                    drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
-                    drawState.texture = texture
-                    drawState.texCoordMatrix.copy(texCoordMatrix)
-                }
-            }
-        }
-
-        // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel. Lines
-        // drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
-        if (activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)) {
-            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
-            drawState.lineWidth = activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f
-            drawState.drawElements(GL_TRIANGLE_STRIP, currentData.outlineElements.size, GL_UNSIGNED_INT, 0)
-        }
-
-        // Disable texturing for the remaining drawable primitives.
-        drawState.texture = null
-
-        // Configure the drawable to display the shape's extruded verticals.
-        if (activeAttributes.isDrawOutline && activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape
-            && (!rc.isPickMode || activeAttributes.isPickOutline)
-        ) {
-            drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
-            drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
-            drawState.lineWidth = activeAttributes.outlineWidth
-            drawState.drawElements(
-                GL_TRIANGLES, currentData.verticalElements.size,
-                GL_UNSIGNED_INT, currentData.outlineElements.size * Int.SIZE_BYTES
-            )
-        }
+        drawOutline(rc, drawState, cameraDistance)
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(currentData.vertexOrigin)
@@ -186,10 +152,43 @@ open class Path @JvmOverloads constructor(
         if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, zOrder)
         else rc.offerShapeDrawable(drawable, cameraDistance)
 
+        drawInterior(rc, drawState, cameraDistance)
+    }
+
+    protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState, cameraDistance: Double) {
+        if (!activeAttributes.isDrawOutline || rc.isPickMode && !activeAttributes.isPickOutline) return
+
+        // Configure the drawable to use the outline texture when drawing the outline.
+        activeAttributes.outlineImageSource?.let { outlineImageSource ->
+            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
+                drawState.texture = texture
+                drawState.texCoordMatrix.copy(texCoordMatrix)
+            }
+        }
+
+        // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel.
+        // Lines drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
+        drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+        drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawState.lineWidth = activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f
+        drawState.drawElements(GL_TRIANGLE_STRIP, currentData.outlineElements.size, GL_UNSIGNED_INT, 0)
+
+        // Configure the drawable to display the shape's extruded verticals.
+        if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
+            drawState.texture = null
+            drawState.drawElements(
+                GL_TRIANGLES, currentData.verticalElements.size,
+                GL_UNSIGNED_INT, currentData.outlineElements.size * Int.SIZE_BYTES
+            )
+        }
+    }
+
+    protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState, cameraDistance: Double) {
+        if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
+
         // Configure the drawable to display the shape's extruded interior.
-        if (activeAttributes.isDrawInterior && isExtrude && !isSurfaceShape
-            && (!rc.isPickMode || activeAttributes.isPickInterior)
-        ) {
+        if (isExtrude && !isSurfaceShape) {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             val drawableExtrusion = DrawableShape.obtain(pool)
             val drawStateExtrusion = drawableExtrusion.drawState
@@ -212,10 +211,7 @@ open class Path @JvmOverloads constructor(
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(currentData.extrudeElementBufferKey, bufferDataVersion) {
-                val array = IntArray(currentData.interiorElements.size)
-                var index = 0
-                for (element in currentData.interiorElements) array[index++] = element
-                 NumericArray.Ints(array)
+                NumericArray.Ints(currentData.interiorElements.toIntArray())
             }
 
             // Configure the drawable according to the shape's attributes.
@@ -229,10 +225,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.texture = null
             drawStateExtrusion.texCoordAttrib.size = 2
             drawStateExtrusion.texCoordAttrib.offset = 12
-            drawStateExtrusion.drawElements(
-                GL_TRIANGLE_STRIP, currentData.interiorElements.size,
-                GL_UNSIGNED_INT, 0
-            )
+            drawStateExtrusion.drawElements(GL_TRIANGLE_STRIP, currentData.interiorElements.size, GL_UNSIGNED_INT, 0)
 
             rc.offerShapeDrawable(drawableExtrusion, cameraDistance)
         }
