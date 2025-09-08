@@ -282,31 +282,31 @@ open class RenderContext {
      * @param altitude     the position's altitude in meters
      * @param altitudeMode an altitude mode indicating how to interpret the position's altitude component
      * @param result       a pre-allocated [Vec3] in which to store the computed X, Y and Z Cartesian coordinates
+     * @param useEM        use the most detailed elevation model data instead of current terrain LoD
      *
      * @return the result argument, set to the computed Cartesian coordinates
      */
     fun geographicToCartesian(
-        latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, result: Vec3
+        latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, result: Vec3, useEM: Boolean = false
     ): Vec3 {
         when (altitudeMode) {
             ABSOLUTE -> globe.geographicToCartesian(latitude, longitude, altitude, result)
-            ABOVE_SEA_LEVEL -> globe.geographicToCartesian(
-                latitude, longitude, altitude + globe.geoid.getOffset(latitude, longitude), result
-            )
-            CLAMP_TO_GROUND -> if (!terrain.surfacePoint(latitude, longitude, result)) globe.run {
-                // Use elevation model height as a fallback
-                val elevation = getElevation(latitude, longitude)
-                geographicToCartesian(latitude, longitude, elevation, result)
+            ABOVE_SEA_LEVEL -> with(globe) {
+                geographicToCartesian(latitude, longitude, altitude + geoid.getOffset(latitude, longitude), result)
             }
-            RELATIVE_TO_GROUND -> if (terrain.surfacePoint(latitude, longitude, result)) {
-                // Offset along the normal vector at the terrain surface point.
-                if (altitude != 0.0) globe.geographicToCartesianNormal(latitude, longitude, scratchVector).also {
-                    result.add(scratchVector.multiply(altitude * globe.verticalExaggeration))
-                }
-            } else globe.run {
+            CLAMP_TO_GROUND -> if (useEM || !terrain.surfacePoint(latitude, longitude, result)) with(globe) {
                 // Use elevation model height as a fallback
-                val elevation = altitude + getElevation(latitude, longitude)
-                geographicToCartesian(latitude, longitude, elevation, result)
+                geographicToCartesian(latitude, longitude, getElevation(latitude, longitude), result)
+            }
+            RELATIVE_TO_GROUND -> if (useEM || terrain.surfacePoint(latitude, longitude, result)) with(globe) {
+                if (useEM) geographicToCartesian(latitude, longitude, getElevation(latitude, longitude), result)
+                // Offset along the normal vector at the terrain surface point.
+                if (altitude != 0.0) geographicToCartesianNormal(latitude, longitude, scratchVector).also {
+                    result.add(scratchVector.multiply(altitude * verticalExaggeration))
+                }
+            } else with(globe) {
+                // Use elevation model height as a fallback
+                geographicToCartesian(latitude, longitude, altitude + getElevation(latitude, longitude), result)
             }
         }
         return result

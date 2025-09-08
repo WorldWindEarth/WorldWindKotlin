@@ -66,7 +66,7 @@ abstract class AbstractShape(
         val boundingSector = Sector()
         val boundingBox = BoundingBox()
         var lastVE = 0.0
-        var lastTerrainHash = 0
+        var lastTimestamp = 0L
     }
 
     companion object {
@@ -188,12 +188,12 @@ abstract class AbstractShape(
 
     protected open fun checkTerrainState(rc: RenderContext) = with(currentBoundindData) {
         val ve = rc.globe.verticalExaggeration
-        val terrainHash = rc.terrain.hash
+        val timestamp = rc.elevationModelTimestamp
         val isTerrainDependent = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        if (isTerrainDependent && !isSurfaceShape && (ve != lastVE || terrainHash != lastTerrainHash)) {
+        if (isTerrainDependent && !isSurfaceShape && (ve != lastVE || timestamp != lastTimestamp)) {
             resetGlobeState(rc.globeState)
             lastVE = ve
-            lastTerrainHash = terrainHash
+            lastTimestamp = timestamp
         }
     }
 
@@ -214,11 +214,12 @@ abstract class AbstractShape(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double,
         isAbsolute: Boolean = false, isExtrudedSkirt: Boolean = isExtrude
     ) {
-        val altitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
-        rc.geographicToCartesian(latitude, longitude, altitude, if (isAbsolute) AltitudeMode.ABSOLUTE else altitudeMode, point)
+        val baseAltitudeMode = if (isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
+        val topAltitudeMode = if (isAbsolute) AltitudeMode.ABSOLUTE else baseAltitudeMode
+        rc.geographicToCartesian(latitude, longitude, altitude, topAltitudeMode, point, useEM = true)
         if (isExtrudedSkirt && !isSurfaceShape) {
             if (altitude == baseAltitude) vertPoint.copy(point)
-            else rc.geographicToCartesian(latitude, longitude, baseAltitude, altitudeMode, vertPoint)
+            else rc.geographicToCartesian(latitude, longitude, baseAltitude, baseAltitudeMode, vertPoint, useEM = true)
         }
     }
 

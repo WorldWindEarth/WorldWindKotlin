@@ -29,11 +29,6 @@ interface Terrain {
     val sector: Sector
 
     /**
-     * Current terrain hash based on Terrain Tiles height timestamps
-     */
-    val hash: Int
-
-    /**
      * Computes the first intersection of this terrain with a specified line in Cartesian coordinates. The line is
      * interpreted as a ray; intersection points behind the line's origin are ignored. If the line does not intersect
      * the geometric surface modeled by this terrain, this returns false and does not modify the result argument.

@@ -14,11 +14,6 @@ open class BasicTerrain(
     protected val tiles = tiles.toList()
     override val sector = Sector(sector)
     private val intersectPoint = Vec3()
-    override val hash = let {
-        var hash = 0
-        for (tile in tiles) hash += 31 * hash + tile.simpleHash()
-        hash
-    }
 
     override fun intersect(line: Line, result: Vec3): Boolean {
         var found = false
