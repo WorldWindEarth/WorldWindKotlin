@@ -3,14 +3,13 @@ package earth.worldwind.formats.kml
 import earth.worldwind.MR
 import earth.worldwind.formats.*
 import earth.worldwind.formats.kml.models.*
-import earth.worldwind.formats.kml.models.AltitudeMode as KMLAltitudeMode
+import earth.worldwind.formats.kml.models.AltitudeMode
 import earth.worldwind.formats.kml.models.Placemark
 import earth.worldwind.formats.kml.models.Polygon
 import earth.worldwind.geom.*
-import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.AltitudeMode.*
 import earth.worldwind.geom.Angle.Companion.degrees
-import earth.worldwind.geom.OffsetMode.FRACTION
-import earth.worldwind.geom.OffsetMode.PIXELS
+import earth.worldwind.geom.OffsetMode.*
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
@@ -107,12 +106,9 @@ internal class KmlToRenderableConverter {
         resources = emptyMap()
     }
 
-    fun convertPlacemarkToRenderable(
-        placemark: Placemark,
-        definedStyle: Style? = null,
-    ): List<Renderable> {
+    fun convertPlacemarkToRenderable(placemark: Placemark, definedStyle: Style? = null): List<Renderable> {
         val style = placemark.styleSelector as? Style ?: definedStyle // TODO Add support of StyleMap
-        val geometry: Geometry = placemark.geometryList?.firstOrNull() ?: return emptyList()
+        val geometry: Geometry = placemark.geometries.firstOrNull() ?: return emptyList()
         return getRenderableFrom(geometry, style, placemark.name)
     }
 
@@ -126,46 +122,21 @@ internal class KmlToRenderableConverter {
         return listOf(surfaceImage)
     }
 
-    private fun getRenderableFrom(
-        geometry: Geometry,
-        style: Style?,
-        name: String?,
-    ): List<Renderable> {
-        return when (geometry) {
-            is MultiGeometry -> {
-                geometry.geometryList?.map { getRenderableFrom(it, style, name) }?.flatten()
-            }
-
-            is LineString -> {
-                listOf(createPathFromLineString(geometry, style, name))
-            }
-
-            is LinearRing -> {
-                listOf(createPathFromLinearRing(geometry, style, name))
-            }
-
-            is Polygon -> {
-                listOf(createPolygonFromPolygon(geometry, style, name))
-            }
-
-            is Point -> {
-                createPlacemark(geometry, style, name)?.let { listOf(it) }
-            }
-
-            else -> {
-                null
-            }
-        } ?: emptyList()
-    }
+    private fun getRenderableFrom(geometry: Geometry, style: Style?, name: String?): List<Renderable> = when (geometry) {
+        is MultiGeometry -> geometry.geometries.map { getRenderableFrom(it, style, name) }.flatten()
+        is LineString -> listOf(createPathFromLineString(geometry, style, name))
+        is LinearRing -> listOf(createPathFromLinearRing(geometry, style, name))
+        is Polygon -> listOf(createPolygonFromPolygon(geometry, style, name))
+        is Point -> createPlacemark(geometry, style, name)?.let { listOf(it) }
+        else -> null
+    } ?: emptyList()
 
     private fun createPathFromLineString(
-        lineString: LineString,
-        style: Style?,
-        name: String?
+        lineString: LineString, style: Style?, name: String?
     ) = Path(extractPoints(lineString.coordinates.value, lineString.altitudeOffset)).apply {
         altitudeMode = getAltitudeModeFrom(lineString.altitudeMode)
-        isExtrude = lineString.extrude == true
-        isFollowTerrain = lineString.tessellate == true
+        isExtrude = lineString.extrude
+        isFollowTerrain = lineString.tessellate
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
         maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
         zOrder = lineString.drawOrder.toDouble()
@@ -178,13 +149,11 @@ internal class KmlToRenderableConverter {
     }
 
     private fun createPathFromLinearRing(
-        linearRing: LinearRing,
-        style: Style?,
-        name: String?
+        linearRing: LinearRing, style: Style?, name: String?
     ) = Path(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset)).apply {
         altitudeMode = getAltitudeModeFrom(linearRing.altitudeMode)
-        isExtrude = linearRing.extrude == true
-        isFollowTerrain = linearRing.tessellate == true
+        isExtrude = linearRing.extrude
+        isFollowTerrain = linearRing.tessellate
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
         maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
 
@@ -196,42 +165,38 @@ internal class KmlToRenderableConverter {
     }
 
     private fun createPolygonFromPolygon(
-        polygon: Polygon,
-        style: Style?,
-        name: String?
-    ): earth.worldwind.shape.Polygon {
-        return earth.worldwind.shape.Polygon().apply {
-            altitudeMode = getAltitudeModeFrom(polygon.altitudeMode)
-            isExtrude = polygon.extrude == true
-            // Clamp to ground polygon is always on texture, even if tessellate is not true
-            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
-            pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
-            maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
+        polygon: Polygon, style: Style?, name: String?
+    ) = earth.worldwind.shape.Polygon().apply {
+        altitudeMode = getAltitudeModeFrom(polygon.altitudeMode)
+        isExtrude = polygon.extrude
+        // Clamp to ground polygon is always on texture, even if tessellate is not true
+        isFollowTerrain = altitudeMode == CLAMP_TO_GROUND
+        pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
+        maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
 
-            polygon.outerBoundaryIs?.let {
-                it.value.let { linearRing ->
-                    addBoundary(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset))
-                }
+        polygon.outerBoundaryIs?.let {
+            it.value.let { linearRing ->
+                addBoundary(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset))
             }
-
-            polygon.innerBoundaryIs?.let {
-                it.value.forEach { linearRing ->
-                    addBoundary(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset))
-                }
-            }
-
-            name?.let { displayName = it }
-
-            highlightAttributes = ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
-
-            applyStyleOnShapeAttributes(style)
         }
+
+        polygon.innerBoundaryIs?.let {
+            it.value.forEach { linearRing ->
+                addBoundary(extractPoints(linearRing.coordinates.value, linearRing.altitudeOffset))
+            }
+        }
+
+        name?.let { displayName = it }
+
+        highlightAttributes = ShapeAttributes(attributes).apply { outlineWidth += HIGHLIGHT_INCREMENT }
+
+        applyStyleOnShapeAttributes(style)
     }
 
-    private fun getPathTypeBy(altitudeMode: AltitudeMode, isFollowTerrain: Boolean): PathType {
+    private fun getPathTypeBy(altitudeMode: earth.worldwind.geom.AltitudeMode, isFollowTerrain: Boolean): PathType {
         // If the path is clamped to the ground and terrain conforming, draw as a great circle.
         // Otherwise draw as linear segments.
-        return if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain) {
+        return if (altitudeMode == CLAMP_TO_GROUND && isFollowTerrain) {
             PathType.GREAT_CIRCLE
         } else {
             PathType.LINEAR
@@ -259,10 +224,11 @@ internal class KmlToRenderableConverter {
                     imageSource = iconStyle?.icon?.toImageSource()?.also { imageScale *= density }
                         ?: ImageSource.fromResource(MR.images.kml_placemark) // Do not scale default placemark
                     imageColor = iconStyle?.color?.let { fromHexABRG(it) } ?: defaultIconColor
-                    imageOffset = iconStyle?.hotSpot?.let { Offset(getOffsetModeFrom(it.xunits), it.x, getOffsetModeFrom(it.yunits), it.y) }
-                        ?: if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND) Offset.bottomCenter() else Offset.center()
+                    imageOffset = iconStyle?.hotSpot?.let {
+                        Offset(getOffsetModeFrom(it.xunits), it.x, getOffsetModeFrom(it.yunits), it.y)
+                    } ?: if (altitudeMode == CLAMP_TO_GROUND) Offset.bottomCenter() else Offset.center()
 
-                    attributes.isDrawLeader = point.extrude == true
+                    attributes.isDrawLeader = point.extrude
 
                     labelAttributes.applyStyle(labelStyle)
                     // if icon is present move label, so it doesn't overlap the icon
@@ -272,18 +238,14 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    private fun Icon.toImageSource(): ImageSource? {
-        return href
-            ?.let(::forceHttps)
-            ?.let {
-                try {
-                    resources[it.substringAfterLast('/')]
-                        ?: if (isValidHttpsUrl(it)) ImageSource.fromUrlString(it) else null
-                } catch (_: Exception) {
-                    // Ignore malformed URL
-                    null
-                }
-            }
+    private fun Icon.toImageSource() = href?.let(::forceHttps)?.let {
+        try {
+            resources[it.substringAfterLast('/')]
+                ?: if (isValidHttpsUrl(it)) ImageSource.fromUrlString(it) else null
+        } catch (_: Exception) {
+            // Ignore malformed URL
+            null
+        }
     }
 
     private fun LatLonBox.toSector() = Sector(south.degrees, north.degrees, west.degrees, east.degrees)
@@ -321,16 +283,16 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    private fun getAltitudeModeFrom(value: KMLAltitudeMode?) = when (value) {
-        KMLAltitudeMode.absolute -> AltitudeMode.ABOVE_SEA_LEVEL
-        KMLAltitudeMode.clampToGround -> AltitudeMode.CLAMP_TO_GROUND
-        KMLAltitudeMode.relativeToGround -> AltitudeMode.RELATIVE_TO_GROUND
-        else -> AltitudeMode.CLAMP_TO_GROUND
+    private fun getAltitudeModeFrom(value: AltitudeMode?) = when (value) {
+        AltitudeMode.absolute -> ABOVE_SEA_LEVEL
+        AltitudeMode.clampToGround, AltitudeMode.clampToSeaFloor -> CLAMP_TO_GROUND
+        AltitudeMode.relativeToGround, AltitudeMode.relativeToSeaFloor -> RELATIVE_TO_GROUND
+        else -> CLAMP_TO_GROUND
     }
 
     private fun getOffsetModeFrom(value: HotSpotUnits) = when (value) {
-        HotSpotUnits.pixels -> OffsetMode.PIXELS
-        HotSpotUnits.fraction -> OffsetMode.FRACTION
-        HotSpotUnits.insetPixels -> OffsetMode.INSET_PIXELS
+        HotSpotUnits.pixels -> PIXELS
+        HotSpotUnits.fraction -> FRACTION
+        HotSpotUnits.insetPixels -> INSET_PIXELS
     }
 }

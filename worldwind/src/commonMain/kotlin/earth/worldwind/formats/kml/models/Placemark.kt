@@ -28,5 +28,5 @@ internal data class Placemark(
         ]
     )
     @XmlElement
-    val geometryList: List<Geometry>? = null,
+    val geometries: List<Geometry> = emptyList(),
 ) : Feature()

@@ -21,7 +21,7 @@ internal data class Point(
      */
     @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
-    val extrude: Boolean? = null,
+    val extrude: Boolean = false,
 
     /**
      * Specifies how altitude components in the <coordinates> element are interpreted.

@@ -23,5 +23,5 @@ internal data class MultiGeometry(
         ]
     )
     @XmlElement
-    val geometryList: List<Geometry>? = null,
+    val geometries: List<Geometry> = emptyList(),
 ) : Geometry()
