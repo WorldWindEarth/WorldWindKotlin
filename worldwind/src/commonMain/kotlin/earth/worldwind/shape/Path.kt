@@ -8,9 +8,6 @@ import earth.worldwind.geom.*
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.image.ImageOptions
-import earth.worldwind.render.image.ResamplingMode
-import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.NumericArray
@@ -53,10 +50,6 @@ open class Path @JvmOverloads constructor(
         protected const val EXTRUDE_SEGMENT_STRIDE = 2 * VERTEX_STRIDE // 2 vertices
         protected const val OUTLINE_SEGMENT_STRIDE = 4 * VERTEX_STRIDE // 4 vertices
         protected const val VERTICAL_SEGMENT_STRIDE = 4 * OUTLINE_SEGMENT_STRIDE // 4 points per 4 vertices per vertical line
-        protected val defaultOutlineImageOptions = ImageOptions().apply {
-            resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
-            wrapMode = WrapMode.REPEAT
-        }
 
         protected lateinit var currentData: PathData
 

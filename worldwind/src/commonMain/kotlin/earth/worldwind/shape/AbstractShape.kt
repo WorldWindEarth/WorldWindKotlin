@@ -7,6 +7,9 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
+import earth.worldwind.render.image.ImageOptions
+import earth.worldwind.render.image.ResamplingMode
+import earth.worldwind.render.image.WrapMode
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
 import kotlin.math.log2
@@ -72,6 +75,13 @@ abstract class AbstractShape(
     companion object {
         const val NEAR_ZERO_THRESHOLD = 1.0e-10
         private const val ZERO_LEVEL_PX = 1024
+        @JvmStatic
+        protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
+        @JvmStatic
+        protected val defaultOutlineImageOptions = ImageOptions().apply {
+            wrapMode = WrapMode.REPEAT
+            resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
+        }
         @JvmStatic
         protected lateinit var currentBoundindData: BoundingData
         @JvmStatic

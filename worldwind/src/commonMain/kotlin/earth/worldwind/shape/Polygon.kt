@@ -9,9 +9,6 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.image.ImageOptions
-import earth.worldwind.render.image.ResamplingMode
-import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.Logger.ERROR
@@ -73,11 +70,6 @@ open class Polygon @JvmOverloads constructor(
         protected const val VERTEX_STRIDE = 5
         protected const val OUTLINE_LINE_SEGMENT_STRIDE = 4 * VERTEX_STRIDE
         protected const val VERTICAL_LINE_SEGMENT_STRIDE = 4 * OUTLINE_LINE_SEGMENT_STRIDE // 4 points per 4 vertices per vertical line
-        protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
-        protected val defaultOutlineImageOptions = ImageOptions().apply {
-            wrapMode = WrapMode.REPEAT
-            resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
-        }
         protected const val VERTEX_ORIGINAL = 0
         protected const val VERTEX_INTERMEDIATE = 1
         protected const val VERTEX_COMBINED = 2

@@ -10,9 +10,6 @@ import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.image.ImageOptions
-import earth.worldwind.render.image.ResamplingMode
-import earth.worldwind.render.image.WrapMode
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -181,12 +178,6 @@ open class Ellipse @JvmOverloads constructor(
          * Key for the Range object in the element buffer describing the bottom of the Ellipse.
          */
         protected const val BASE_RANGE = 2
-
-        protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
-        protected val defaultOutlineImageOptions = ImageOptions().apply {
-            wrapMode = WrapMode.REPEAT
-            resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
-        }
 
         /**
          * Simple interval count based cache of the keys for element buffers. Element buffers are dependent only on the
