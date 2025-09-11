@@ -12,7 +12,7 @@ import nl.adaptivity.xmlutil.serialization.XmlValue
  * Do not include spaces between the three values that describe a coordinate.
  */
 @Serializable
-internal data class Coordinate(@XmlValue(true) val value: String) : AbstractKml() {
+internal data class Coordinate(@XmlValue(true) val value: String) {
     override fun toString() = value
 
     companion object {

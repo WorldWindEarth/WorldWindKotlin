@@ -125,8 +125,7 @@ internal class KML {
                     STYLE_MAP_TAG -> decodeStyleMap(reader, parentId)
                     CASCADING_STYLE_TAG -> decodeCascadingStyle(reader, parentId)
                     STYLE_TAG -> decodeStyle(reader, parentId)
-                    else -> while (reader.next() != EventType.END_ELEMENT) {
-                    } // Skip the content of the element
+                    else -> while (reader.next() != EventType.END_ELEMENT) { } // Skip the content of the element
                 }
 
                 EventType.END_ELEMENT -> return // end of the element

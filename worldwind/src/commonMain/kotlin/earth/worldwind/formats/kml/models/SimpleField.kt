@@ -27,4 +27,4 @@ internal data class SimpleField(
      */
     @XmlElement
     val displayName: String? = null,
-) : AbstractKml()
+)

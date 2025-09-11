@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlValue
 
 @Serializable
-internal data class Coordinates(@XmlValue(true) val value: String) : AbstractKml() {
+internal data class Coordinates(@XmlValue(true) val value: String) {
     override fun toString() = value
 }

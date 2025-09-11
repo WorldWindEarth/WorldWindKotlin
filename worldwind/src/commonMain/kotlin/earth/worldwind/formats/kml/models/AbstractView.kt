@@ -19,4 +19,4 @@ internal abstract class AbstractView(
      */
     @XmlSerialName(prefix = "gx", value = "horizFov")
     val horizFov: Double = 60.0
-) : AbstractKml()
+)

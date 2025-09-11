@@ -9,9 +9,6 @@ import nl.adaptivity.xmlutil.serialization.XmlValue
  * In Google Earth, if a Placemark contains both a description and a Snippet, the <Snippet> appears beneath the Placemark in the Places panel, and the <description> appears in the Placemark's description balloon. This tag does not support HTML markup. <Snippet> has a maxLines attribute, an integer that specifies the maximum number of lines to display.
  */
 @Serializable
-internal data class Snippet(
-    @XmlValue(true) val value: String,
-    val maxLines: Int = 2,
-) : AbstractKml() {
+internal data class Snippet(@XmlValue(true) val value: String, val maxLines: Int = 2) {
     override fun toString() = value
 }
