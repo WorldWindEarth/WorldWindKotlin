@@ -49,11 +49,7 @@ open class DrawableShape protected constructor(): Drawable {
             program.loadClipDistance((dc.projection.m[11] / (dc.projection.m[10] - 1.0)).toFloat() / 2.0f)  // nearPlane / 2.0f
             mvpMatrix.copy(dc.modelviewProjection)
         }
-        mvpMatrix.multiplyByTranslation(
-            drawState.vertexOrigin.x,
-            drawState.vertexOrigin.y,
-            drawState.vertexOrigin.z
-        )
+        mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
         program.loadModelviewProjection(mvpMatrix)
 
         // Disable triangle back face culling if requested.
@@ -120,7 +116,6 @@ open class DrawableShape protected constructor(): Drawable {
         if (!drawState.enableDepthTest) dc.gl.enable(GL_DEPTH_TEST)
         if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
         dc.gl.lineWidth(1f)
-        dc.gl.enable(GL_CULL_FACE)
         dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/)
         dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
         dc.gl.disableVertexAttribArray(3 /*vertexTexCoord*/)
