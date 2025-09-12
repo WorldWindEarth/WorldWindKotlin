@@ -20,6 +20,7 @@ open class DrawContext(val gl: Kgl) {
     val projection = Matrix4()
     val modelview = Matrix4()
     val modelviewProjection = Matrix4()
+    val modelviewNormalTransform = Matrix4()
 //    val infiniteProjection = Matrix4()
     val screenProjection = Matrix4()
     var uploadQueue: UploadQueue? = null
@@ -145,6 +146,7 @@ open class DrawContext(val gl: Kgl) {
         projection.setToIdentity()
         modelview.setToIdentity()
         modelviewProjection.setToIdentity()
+        modelviewNormalTransform.setToIdentity()
         screenProjection.setToIdentity()
 //        infiniteProjection.setToIdentity()
         uploadQueue = null

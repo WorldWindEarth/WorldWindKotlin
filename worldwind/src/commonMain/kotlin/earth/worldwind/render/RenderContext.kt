@@ -319,7 +319,7 @@ open class RenderContext {
         return renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.programLength) } } as T
     }
 
-    fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions?, retrieve: Boolean = true) =
+    fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions? = null, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
 
     fun getBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as BufferObject

@@ -6,6 +6,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
+import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
@@ -106,7 +107,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     }
 
     protected open fun drawShapesToTexture(dc: DrawContext, terrain: DrawableTerrain): Texture? {
-        val program = drawState.program ?: return null
+        val program = drawState.program as? TriangleShaderProgram ?: return null
 
         // The terrain's sector defines the geographic region in which to draw.
         val terrainSector = terrain.sector
@@ -232,7 +233,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     }
 
     protected open fun drawTextureToTerrain(dc: DrawContext, terrain: DrawableTerrain, texture: Texture) {
-        val program = drawState.program ?: return
+        val program = drawState.program as? TriangleShaderProgram ?: return
         try {
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) return // terrain vertex attribute failed to bind
             if (!terrain.useVertexPointAttrib(dc, 1 /*vertexPoint*/)) return // terrain vertex attribute failed to bind

@@ -350,4 +350,56 @@ open class Vec3(
     }
 
     override fun toString() = "Vec3(x=$x, y=$y, z=$z)"
+
+    companion object {
+        /**
+         * Computes the average of a specified array of vectors.
+         * @param vectors The vectors whose average to compute.
+         * @param result A pre-allocated Vec3 in which to return the computed average.
+         * @returns The result argument set to the average of the specified array of vectors.
+         * result argument is null or undefined.
+         */
+        fun average(vectors: List<Vec3>, result: Vec3): Vec3 {
+            require(vectors.isNotEmpty()) {
+                logMessage(ERROR, "Vec3", "average", "missingArray")
+            }
+
+            val count = vectors.size
+
+            result.x = 0.0
+            result.y = 0.0
+            result.z = 0.0
+
+            for (i in vectors.indices) {
+                val vec = vectors[i]
+
+                result.x += vec.x / count
+                result.y += vec.y / count
+                result.z += vec.z / count
+            }
+
+            return result
+        }
+
+        /**
+         * Computes the normal vector of a specified triangle.
+         *
+         * @param a The triangle's first vertex.
+         * @param b The triangle's second vertex.
+         * @param c The triangle's third vertex.
+         * @returns The triangle's unit-normal vector.
+         */
+        fun computeTriangleNormal(a: Vec3, b: Vec3, c: Vec3): Vec3 {
+            val x = ((b.y - a.y) * (c.z - a.z)) - ((b.z - a.z) * (c.y - a.y))
+            val y = ((b.z - a.z) * (c.x - a.x)) - ((b.x - a.x) * (c.z - a.z))
+            val z = ((b.x - a.x) * (c.y - a.y)) - ((b.y - a.y) * (c.x - a.x))
+            var length = (x * x) + (y * y) + (z * z)
+
+            if (length == 0.0) return Vec3(x, y, z)
+
+            length = sqrt(length)
+
+            return Vec3(x / length, y / length, z / length)
+        }
+    }
 }

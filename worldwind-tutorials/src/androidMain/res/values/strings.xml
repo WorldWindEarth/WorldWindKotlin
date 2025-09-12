@@ -19,6 +19,8 @@
     <string name="title_placemarks">Placemarks</string>
     <string name="title_placemarks_picking">Placemark Picking</string>
     <string name="title_polygons">Polygons</string>
+    <string name="title_geographic_meshes">Geographic meshes</string>
+    <string name="title_triangle_meshes">Triangle meshes</string>
     <string name="title_shapes_dash_and_fill">Shapes Dash and Fill</string>
     <string name="title_milstd2525">MilStd2525 graphics</string>
     <string name="title_show_tessellation">Show Tessellation</string>

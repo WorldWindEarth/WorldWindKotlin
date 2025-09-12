@@ -5,14 +5,14 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
-import earth.worldwind.render.program.TriangleShaderProgram
+import earth.worldwind.render.program.AbstractShaderProgram
 
 open class DrawShapeState internal constructor() {
     companion object {
         const val MAX_DRAW_ELEMENTS = 5
     }
 
-    var program: TriangleShaderProgram? = null
+    var program: AbstractShaderProgram? = null
     var vertexBuffer: BufferObject? = null
     var elementBuffer: BufferObject? = null
     val vertexOrigin = Vec3()
@@ -20,6 +20,7 @@ open class DrawShapeState internal constructor() {
     var enableCullFace = true
     var enableDepthTest = true
     var enableDepthWrite = true
+    var enableLighting = false
     var depthOffset = 0.0
     var isLine = false
     val color = Color()
@@ -40,6 +41,7 @@ open class DrawShapeState internal constructor() {
         vertexStride = 0
         enableCullFace = true
         enableDepthTest = true
+        enableLighting = false
         isLine = false
         depthOffset = 0.0
         color.set(1f, 1f, 1f, 1f)
@@ -63,6 +65,7 @@ open class DrawShapeState internal constructor() {
         prim.color.copy(color)
         prim.opacity = opacity
         prim.lineWidth = lineWidth
+        prim.depthOffset = depthOffset
         prim.texture = texture
         prim.textureLod = textureLod
         prim.texCoordMatrix.copy(texCoordMatrix)
@@ -77,6 +80,7 @@ open class DrawShapeState internal constructor() {
         val color = Color()
         var opacity = 1.0f
         var lineWidth = 0f
+        var depthOffset = 0.0
         var texture: Texture? = null
         var textureLod = 0
         val texCoordMatrix = Matrix3()

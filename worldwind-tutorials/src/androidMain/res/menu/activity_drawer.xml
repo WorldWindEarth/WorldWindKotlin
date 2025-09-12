@@ -66,6 +66,14 @@
             android:icon="@android:drawable/ic_menu_myplaces"
             android:title="@string/title_ellipses"/>
         <item
+            android:id="@+id/nav_geographic_meshes_activity"
+            android:icon="@android:drawable/ic_menu_myplaces"
+            android:title="@string/title_geographic_meshes"/>
+        <item
+            android:id="@+id/nav_triangle_meshes_activity"
+            android:icon="@android:drawable/ic_menu_myplaces"
+            android:title="@string/title_triangle_meshes"/>
+        <item
             android:id="@+id/nav_labels_activity"
             android:icon="@android:drawable/ic_menu_edit"
             android:title="@string/title_labels"/>

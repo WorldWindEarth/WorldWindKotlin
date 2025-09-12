@@ -11,6 +11,14 @@ multiplatformResources {
 }
 
 kotlin {
+    jvm {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+        testRuns["test"].executionTask.configure {
+            useJUnit()
+        }
+    }
     js(IR) {
         binaries.executable()
         browser {

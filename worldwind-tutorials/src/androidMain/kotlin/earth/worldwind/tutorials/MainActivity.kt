@@ -281,6 +281,16 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/polygons_tutorial.html",
                 R.string.title_polygons
             )
+            R.id.nav_geographic_meshes_activity -> loadTutorial(
+                GeographicMeshesFragment::class.java,
+                "file:///android_asset/geographic_meshes_tutorial.html",
+                R.string.title_geographic_meshes
+            )
+            R.id.nav_triangle_meshes_activity -> loadTutorial(
+                TriangleMeshesFragment::class.java,
+                "file:///android_asset/triangle_meshes_tutorial.html",
+                R.string.title_triangle_meshes
+            )
             R.id.nav_shapes_dash_and_fill -> loadTutorial(
                 ShapesDashAndFillFragment::class.java,
                 "file:///android_asset/shapes_dash_and_fill.html",

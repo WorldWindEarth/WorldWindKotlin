@@ -34,6 +34,8 @@ fun main() {
             "Paths" to PathsTutorial(wwd.engine),
             "Polygons" to PolygonsTutorial(wwd.engine),
             "Ellipses" to EllipsesTutorial(wwd.engine),
+            "Geographic meshes" to GeographicMeshesTutorial(wwd.engine),
+            "Triangle meshes" to TriangleMeshesTutorial(wwd.engine),
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
             "Labels" to LabelsTutorial(wwd.engine),
             "Sight line" to SightlineTutorial(wwd.engine),
