@@ -17,7 +17,6 @@ actual object MilStd2525 {
         rendererSettings.setDefaultPixelSize(36 * window.devicePixelRatio)
         rendererSettings.setDeviceDPI(96 * window.devicePixelRatio)
         rendererSettings.setOutlineSPControlMeasures(false) // Do not outline single point control measures
-        rendererSettings.setTwoLabelOnly(true) // Show only two labels fo minefield
         rendererSettings.setActionPointDefaultFill(false) // Do not fill action points
 
         // Depending on screen size and DPI you may want to change the font size.

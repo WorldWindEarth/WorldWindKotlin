@@ -4374,13 +4374,6 @@ external class RendererSettings {
     fun getTwoLabelOnly(): Boolean
 
     /**
-     * Set a boolean indicating between the use of ENY labels in all segments (false) or
-     * to only set 2 labels one at the north and the other one at the south of the graphic (true).
-     * @param TwoLabelOnly
-     */
-    fun setTwoLabelOnly(TwoLabelOnly: Boolean): Unit
-
-    /**
      * When true, if the main icon is normally small to allow room for sector modifiers,
      * make it larger when no sector modifiers are present for better visibility.
      * @param scaleMainIcon

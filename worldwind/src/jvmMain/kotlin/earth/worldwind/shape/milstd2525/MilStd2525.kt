@@ -18,7 +18,6 @@ actual object MilStd2525 {
         val rendererSettings = RendererSettings.getInstance()
         rendererSettings.defaultPixelSize = 36
         rendererSettings.outlineSPControlMeasures = false // Do not outline single point control measures
-        rendererSettings.twoLabelOnly = true // Show only two labels fo minefield
         rendererSettings.actionPointDefaultFill = false // Do not fill action points
 
         // Depending on screen size and DPI you may want to change the font size.
