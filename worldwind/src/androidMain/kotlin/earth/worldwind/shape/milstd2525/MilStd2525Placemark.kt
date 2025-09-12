@@ -13,7 +13,7 @@ import java.lang.ref.WeakReference
  * Shared low-fidelity images are used when far away from the camera, whereas unique high-fidelity images are used
  * when near the camera. The high-fidelity images that are no longer in view are automatically freed, if necessary,
  * to release memory resources. The Placemark's symbol is lazily created (and recreated if necessary) via an
- * ImageSource.BitmapFactory.
+ * ImageSource.ImageFactory.
  * See the [MilStd2525Placemark.getPlacemarkAttributes] for more information about resource caching/sharing
  * and the bitmap factory.
  *
@@ -72,7 +72,7 @@ actual open class MilStd2525Placemark actual constructor(
                         OffsetMode.INSET_PIXELS, h.toDouble() / 2.0
                     )
                 }.also {
-                    imageSource = ImageSource.fromBitmapFactory(it)
+                    imageSource = ImageSource.fromImageFactory(it)
                 }
                 MilStd2525.applyTextAttributes(labelAttributes)
                 minimumImageScale = MINIMUM_IMAGE_SCALE
@@ -86,7 +86,7 @@ actual open class MilStd2525Placemark actual constructor(
         private val symbolModifiers: Map<String, String>?,
         private val symbolAttributes: Map<String, String>?,
         private val onRender: (x: Int, y: Int, w: Int, h: Int) -> Unit
-    ) : ImageSource.BitmapFactory {
+    ) : ImageSource.ImageFactory {
         override val isRunBlocking = true
 
         override suspend fun createBitmap() = MilStd2525.renderImage(symbolCode, symbolModifiers, symbolAttributes)?.let {

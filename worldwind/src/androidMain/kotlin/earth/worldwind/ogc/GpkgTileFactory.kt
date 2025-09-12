@@ -23,5 +23,5 @@ actual fun buildImageSource(
         }
         else -> Bitmap.CompressFormat.PNG
     }
-    return ImageSource.fromBitmapFactory(GpkgBitmapFactory(geoPackage, content, zoomLevel, column, gpkgRow, format))
+    return ImageSource.fromImageFactory(GpkgImageFactory(geoPackage, content, zoomLevel, column, gpkgRow, format))
 }

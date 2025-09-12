@@ -139,8 +139,8 @@ actual open class RenderResourceCache @JvmOverloads constructor(
                     put(imageSource, it, it.byteCount)
                 }
             }
-            imageSource.isBitmapFactory -> {
-                val factory = imageSource.asBitmapFactory()
+            imageSource.isImageFactory -> {
+                val factory = imageSource.asImageFactory()
                 if (factory.isRunBlocking) {
                     // Bitmap factory makes easy operations, so a texture may be created and put into the cache immediately.
                     return runBlocking {

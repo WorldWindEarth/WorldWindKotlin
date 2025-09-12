@@ -19,5 +19,5 @@ actual fun buildImageSource(
         }
         else -> Bitmap.CompressFormat.PNG
     }
-    return ImageSource.fromBitmapFactory(ATAKBitmapFactory(tilesDao, readOnly, contentKey, key, format))
+    return ImageSource.fromImageFactory(ATAKImageFactory(tilesDao, readOnly, contentKey, key, format))
 }

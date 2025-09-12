@@ -19,5 +19,5 @@ actual fun buildImageSource(
         }
         else -> Bitmap.CompressFormat.PNG
     }
-    return ImageSource.fromBitmapFactory(RMapsBitmapFactory(tilesDao, readOnly, contentKey, x, y, z, format))
+    return ImageSource.fromImageFactory(RMapsImageFactory(tilesDao, readOnly, contentKey, x, y, z, format))
 }

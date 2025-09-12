@@ -27,7 +27,7 @@ open class ImageDecoder(val context: Context): Closeable {
     open suspend fun decodeImage(imageSource: ImageSource, imageOptions: ImageOptions?) = withContext(Dispatchers.IO) {
         when {
             imageSource.isBitmap -> imageSource.asBitmap()
-            imageSource.isBitmapFactory -> imageSource.asBitmapFactory().createBitmap()
+            imageSource.isImageFactory -> imageSource.asImageFactory().createBitmap()
             imageSource.isResource -> decodeResource(imageSource.asResource(), imageOptions)
             imageSource.isFile -> decodeFile(imageSource.asFile(), imageOptions)
             imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageOptions)

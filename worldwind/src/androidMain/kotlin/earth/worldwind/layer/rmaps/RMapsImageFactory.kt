@@ -11,7 +11,7 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.ResourcePostprocessor
 import java.io.ByteArrayOutputStream
 
-open class RMapsBitmapFactory(
+open class RMapsImageFactory(
     protected val tilesDao: Dao<RMapsTiles, *>,
     protected val isReadOnly: Boolean,
     protected val contentKey: String,
@@ -20,7 +20,7 @@ open class RMapsBitmapFactory(
     protected val z: Int,
     protected val format: Bitmap.CompressFormat,
     protected val quality: Int = 100
-): ImageSource.BitmapFactory, ResourcePostprocessor {
+): ImageSource.ImageFactory, ResourcePostprocessor {
     override suspend fun createBitmap(): Bitmap? {
         // Attempt to read the RMap tile data
         val image = tilesDao.queryBuilder().where().eq(X, x).and().eq(Y, y).and().eq(Z, z).and().eq(S, 0)
@@ -47,7 +47,7 @@ open class RMapsBitmapFactory(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is RMapsBitmapFactory) return false
+        if (other !is RMapsImageFactory) return false
         if (contentKey != other.contentKey) return false
         if (x != other.x) return false
         if (y != other.y) return false
@@ -63,5 +63,5 @@ open class RMapsBitmapFactory(
         return result
     }
 
-    override fun toString() = "RMapsBitmapFactory(contentKey=$contentKey, x=$x, y=$y, z=$z)"
+    override fun toString() = "RMapsImageFactory(contentKey=$contentKey, x=$x, y=$y, z=$z)"
 }

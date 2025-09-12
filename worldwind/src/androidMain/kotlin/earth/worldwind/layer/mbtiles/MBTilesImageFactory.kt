@@ -10,7 +10,7 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.ResourcePostprocessor
 import java.io.ByteArrayOutputStream
 
-open class MBTilesBitmapFactory(
+open class MBTilesImageFactory(
     protected val tilesDao: Dao<MBTiles, *>,
     protected val isReadOnly: Boolean,
     protected val contentKey: String,
@@ -19,7 +19,7 @@ open class MBTilesBitmapFactory(
     protected val row: Int,
     protected val format: Bitmap.CompressFormat,
     protected val quality: Int = 100
-): ImageSource.BitmapFactory, ResourcePostprocessor {
+): ImageSource.ImageFactory, ResourcePostprocessor {
     override suspend fun createBitmap(): Bitmap? {
         // Attempt to read the ATAK tile data
         val tile = tilesDao.queryBuilder().where().eq(ZOOM_LEVEL, zoom)
@@ -45,7 +45,7 @@ open class MBTilesBitmapFactory(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is MBTilesBitmapFactory) return false
+        if (other !is MBTilesImageFactory) return false
         if (contentKey != other.contentKey) return false
         if (zoom != other.zoom) return false
         if (column != other.column) return false
@@ -61,5 +61,5 @@ open class MBTilesBitmapFactory(
         return result
     }
 
-    override fun toString() = "MBTilesBitmapFactory(contentKey=$contentKey, zoom=$zoom, column=$column, row=$row)"
+    override fun toString() = "MBTilesImageFactory(contentKey=$contentKey, zoom=$zoom, column=$column, row=$row)"
 }

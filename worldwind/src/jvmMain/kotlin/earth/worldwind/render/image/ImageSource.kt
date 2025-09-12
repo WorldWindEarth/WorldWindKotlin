@@ -59,7 +59,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          * @return the new image source
          */
         @JvmStatic
-        fun fromImageFactory(factory: ImageFactory) = ImageSource(factory)
+        actual fun fromImageFactory(factory: ImageFactory) = ImageSource(factory)
 
         /**
          * Constructs an image source with a [File].
@@ -217,7 +217,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      * Factory for delegating construction of images. WorldWind shapes configured with a ImageFactory construct
      * their images lazily, typically when the shape becomes visible on screen.
      */
-    interface ImageFactory {
+    actual interface ImageFactory {
         /**
          * Image factory runs asynchronously by default, but this behavior can be changed by overriding current attribute.
          */
@@ -253,6 +253,6 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
             }
         }
 
-        override fun toString() = "LineStippleBitmapFactory factor=$factor, pattern=" + (pattern.toInt() and 0xFFFF).toString(16).uppercase()
+        override fun toString() = "LineStippleImageFactory factor=$factor, pattern=" + (pattern.toInt() and 0xFFFF).toString(16).uppercase()
     }
 }

@@ -8,7 +8,7 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.ResourcePostprocessor
 import java.io.ByteArrayOutputStream
 
-open class GpkgBitmapFactory(
+open class GpkgImageFactory(
     protected val geoPackage: GeoPackage,
     protected val content: GpkgContent,
     protected val zoomLevel: Int,
@@ -16,7 +16,7 @@ open class GpkgBitmapFactory(
     protected val tileRow: Int,
     protected val format: Bitmap.CompressFormat,
     protected val quality: Int = 100
-): ImageSource.BitmapFactory, ResourcePostprocessor {
+): ImageSource.ImageFactory, ResourcePostprocessor {
     override suspend fun createBitmap(): Bitmap? {
         // Attempt to read the GeoPackage tile user data
         val tileUserData = geoPackage.readTileUserData(content, zoomLevel, tileColumn, tileRow) ?: return null
@@ -36,7 +36,7 @@ open class GpkgBitmapFactory(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is GpkgBitmapFactory) return false
+        if (other !is GpkgImageFactory) return false
         if (content.tableName != other.content.tableName) return false
         if (zoomLevel != other.zoomLevel) return false
         if (tileColumn != other.tileColumn) return false
@@ -52,5 +52,5 @@ open class GpkgBitmapFactory(
         return result
     }
 
-    override fun toString() = "GpkgBitmapFactory(tableName=${content.tableName}, zoomLevel=$zoomLevel, tileColumn=$tileColumn, tileRow=$tileRow)"
+    override fun toString() = "GpkgImageFactory(tableName=${content.tableName}, zoomLevel=$zoomLevel, tileColumn=$tileColumn, tileRow=$tileRow)"
 }

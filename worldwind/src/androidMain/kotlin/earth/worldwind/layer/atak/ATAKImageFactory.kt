@@ -7,14 +7,14 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.ResourcePostprocessor
 import java.io.ByteArrayOutputStream
 
-open class ATAKBitmapFactory(
+open class ATAKImageFactory(
     protected val tilesDao: Dao<ATAKTiles, Int>,
     protected val isReadOnly: Boolean,
     protected val contentKey: String,
     protected val key: Int,
     protected val format: Bitmap.CompressFormat,
     protected val quality: Int = 100
-): ImageSource.BitmapFactory, ResourcePostprocessor {
+): ImageSource.ImageFactory, ResourcePostprocessor {
     override suspend fun createBitmap(): Bitmap? {
         // Attempt to read the ATAK tile data
         val tile = tilesDao.queryForId(key)?.tile ?: return null
@@ -38,7 +38,7 @@ open class ATAKBitmapFactory(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is ATAKBitmapFactory) return false
+        if (other !is ATAKImageFactory) return false
         if (contentKey != other.contentKey) return false
         if (key != other.key) return false
         return true
@@ -50,5 +50,5 @@ open class ATAKBitmapFactory(
         return result
     }
 
-    override fun toString() = "ATAKBitmapFactory(contentKey=$contentKey, key=$key)"
+    override fun toString() = "ATAKImageFactory(contentKey=$contentKey, key=$key)"
 }

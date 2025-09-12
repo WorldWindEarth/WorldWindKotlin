@@ -19,5 +19,5 @@ actual fun buildImageSource(
         }
         else -> Bitmap.CompressFormat.PNG
     }
-    return ImageSource.fromBitmapFactory(MBTilesBitmapFactory(tilesDao, readOnly, contentKey, zoom, column, row, format))
+    return ImageSource.fromImageFactory(MBTilesImageFactory(tilesDao, readOnly, contentKey, zoom, column, row, format))
 }

@@ -54,7 +54,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          *
          * @return the new image source
          */
-        fun fromImageFactory(factory: ImageFactory) = ImageSource(factory)
+        actual fun fromImageFactory(factory: ImageFactory) = ImageSource(factory)
 
         /**
          * Constructs an image source with an [URL]. The image's dimensions should be no greater than 2048 x 2048.
@@ -174,7 +174,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      * Factory for delegating construction of images. WorldWind shapes configured with a ImageFactory construct
      * their images lazily, typically when the shape becomes visible on screen.
      */
-    interface ImageFactory {
+    actual interface ImageFactory {
         /**
          * Returns the image associated with this factory. This method may be called more than once and may be called
          * from a non-UI thread. Each invocation must return an image with equivalent content, dimensions and

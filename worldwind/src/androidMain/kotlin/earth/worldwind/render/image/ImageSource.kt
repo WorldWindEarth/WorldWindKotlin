@@ -19,7 +19,7 @@ import java.net.URL
  * - Uniform Resource Locator [URL]
  * - Local image [File]
  * - Android [Bitmap]
- * - WorldWind [ImageSource.BitmapFactory]
+ * - WorldWind [ImageSource.ImageFactory]
  * - Android resource identifier
  * - Multi-platform resource identifier
  * <br>
@@ -29,7 +29,7 @@ import java.net.URL
  */
 actual open class ImageSource protected constructor(source: Any): AbstractSource(source) {
     actual companion object {
-        protected val lineStippleFactories = mutableMapOf<Any, BitmapFactory>()
+        protected val lineStippleFactories = mutableMapOf<Any, ImageFactory>()
 
         /**
          * Constructs an image source with a multi-platform resource identifier.
@@ -68,15 +68,15 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         }
 
         /**
-         * Constructs an image source with a [BitmapFactory]. WorldWind shapes configured with a bitmap factory image source
+         * Constructs an image source with a [ImageFactory]. WorldWind shapes configured with a bitmap factory image source
          * construct their bitmaps lazily, typically when the shape becomes visible on screen.
          *
-         * @param factory the [BitmapFactory] to use as an image source
+         * @param factory the [ImageFactory] to use as an image source
          *
          * @return the new image source
          */
         @JvmStatic
-        fun fromBitmapFactory(factory: BitmapFactory) = ImageSource(factory)
+        actual fun fromImageFactory(factory: ImageFactory) = ImageSource(factory)
 
         /**
          * Constructs a bitmap image source with a line stipple pattern. The result is a one-dimensional bitmap with pixels
@@ -99,7 +99,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
             val lFactor = factor.toLong() and 0xFFFFFFFFL
             val lPattern = pattern.toLong() and 0xFFFFL
             val key = lFactor shl 32 or lPattern
-            val factory = lineStippleFactories[key] ?: LineStippleBitmapFactory(factor, pattern).also {
+            val factory = lineStippleFactories[key] ?: LineStippleImageFactory(factor, pattern).also {
                 lineStippleFactories[key] = it
             }
             return ImageSource(factory)
@@ -168,7 +168,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
             is ImageResource -> fromResource(source)
             is Int -> fromResource(source)
             is Bitmap -> fromBitmap(source)
-            is BitmapFactory -> fromBitmapFactory(source)
+            is ImageFactory -> fromImageFactory(source)
             is File -> fromFile(source)
             is URL -> fromUrl(source)
             else -> ImageSource(source)
@@ -186,7 +186,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
     /**
      * Indicates whether this image source is a bitmap factory.
      */
-    val isBitmapFactory get() = source is BitmapFactory
+    val isImageFactory get() = source is ImageFactory
     /**
      * Indicates whether this image source is a [File].
      */
@@ -209,10 +209,10 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
     fun asBitmap() = source as Bitmap
 
     /**
-     * @return the source [BitmapFactory]. Call isBitmapFactory to determine whether the source is a bitmap
+     * @return the source [ImageFactory]. Call isImageFactory to determine whether the source is a bitmap
      * factory.
      */
-    fun asBitmapFactory() = source as BitmapFactory
+    fun asImageFactory() = source as ImageFactory
 
     /**
      * @return the source [File]. Call [isFile] to determine whether the source is a [File].
@@ -228,17 +228,17 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         is ImageResource -> "Resource: $source"
         is Int -> "Resource: $source"
         is Bitmap -> "Bitmap: $source"
-        is BitmapFactory -> "BitmapFactory: $source"
+        is ImageFactory -> "ImageFactory: $source"
         is File -> "File: $source"
         is URL -> "URL: $source"
         else -> super.toString()
     }
 
     /**
-     * Factory for delegating construction of bitmap images. WorldWind shapes configured with a BitmapFactory construct
+     * Factory for delegating construction of bitmap images. WorldWind shapes configured with a ImageFactory construct
      * their bitmaps lazily, typically when the shape becomes visible on screen.
      */
-    interface BitmapFactory {
+    actual interface ImageFactory {
         /**
          * Bitmap factory runs asynchronously by default, but this behavior can be changed by overriding current attribute.
          */
@@ -257,7 +257,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         suspend fun createBitmap(): Bitmap?
     }
 
-    protected open class LineStippleBitmapFactory(protected val factor: Int, protected val pattern: Short): BitmapFactory {
+    protected open class LineStippleImageFactory(protected val factor: Int, protected val pattern: Short): ImageFactory {
         override suspend fun createBitmap(): Bitmap {
             val pixels = if (factor <= 0) {
                 IntArray(16) { Color.WHITE }
@@ -276,6 +276,6 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
             }
         }
 
-        override fun toString() = "LineStippleBitmapFactory factor=$factor, pattern=" + (pattern.toInt() and 0xFFFF).toString(16).uppercase()
+        override fun toString() = "LineStippleImageFactory factor=$factor, pattern=" + (pattern.toInt() and 0xFFFF).toString(16).uppercase()
     }
 }

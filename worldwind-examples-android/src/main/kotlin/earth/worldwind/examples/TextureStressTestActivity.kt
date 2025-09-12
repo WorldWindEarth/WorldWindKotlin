@@ -7,7 +7,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.ShowTessellationLayer
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.render.image.ImageSource.Companion.fromBitmapFactory
+import earth.worldwind.render.image.ImageSource.Companion.fromImageFactory
 import earth.worldwind.shape.SurfaceImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,7 +45,7 @@ open class TextureStressTestActivity : BasicGlobeActivity() {
     protected open fun addImage() {
         // Create an image source with a unique factory instance. This pattern is used in order to force WorldWind to
         // allocate a new OpenGL texture object for each surface image from a single bitmap instance.
-        val imageSource = fromBitmapFactory(object : ImageSource.BitmapFactory {
+        val imageSource = fromImageFactory(object : ImageSource.ImageFactory {
             override suspend fun createBitmap() = bitmap
         })
 
