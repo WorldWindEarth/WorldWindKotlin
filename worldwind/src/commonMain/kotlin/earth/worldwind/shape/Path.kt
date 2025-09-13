@@ -74,9 +74,11 @@ open class Path @JvmOverloads constructor(
 
     override fun moveTo(globe: Globe, position: Position) {
         val refPos = referencePosition
-        val distance = refPos.greatCircleDistance(position)
-        val azimuth = refPos.greatCircleAzimuth(position)
-        for (pos in positions) pos.greatCircleLocation(azimuth, distance, pos)
+        for (pos in positions) {
+            val distance = refPos.greatCircleDistance(pos)
+            val azimuth = refPos.greatCircleAzimuth(pos)
+            position.greatCircleLocation(azimuth, distance, pos)
+        }
         reset()
     }
 

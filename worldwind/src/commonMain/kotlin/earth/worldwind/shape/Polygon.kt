@@ -153,9 +153,11 @@ open class Polygon @JvmOverloads constructor(
 
     override fun moveTo(globe: Globe, position: Position) {
         val refPos = referencePosition
-        val distance = refPos.greatCircleDistance(position)
-        val azimuth = refPos.greatCircleAzimuth(position)
-        for (boundary in boundaries) for (pos in boundary) pos.greatCircleLocation(azimuth, distance, pos)
+        for (boundary in boundaries) for (pos in boundary) {
+            val distance = refPos.greatCircleDistance(pos)
+            val azimuth = refPos.greatCircleAzimuth(pos)
+            position.greatCircleLocation(azimuth, distance, pos)
+        }
         reset()
     }
 
