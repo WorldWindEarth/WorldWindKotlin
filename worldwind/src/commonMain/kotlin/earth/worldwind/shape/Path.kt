@@ -58,7 +58,6 @@ open class Path @JvmOverloads constructor(
         protected var extrudeIndex = 0
 
         protected val prevPoint = Vec3()
-        protected val texCoordMatrix = Matrix3()
         protected val intermediateLocation = Location()
         protected var texCoord1d = 0.0
     }
@@ -154,9 +153,8 @@ open class Path @JvmOverloads constructor(
         // Configure the drawable to use the outline texture when drawing the outline.
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                 drawState.texture = texture
-                drawState.texCoordMatrix.copy(texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
         }
 
