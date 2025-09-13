@@ -194,7 +194,6 @@ open class Ellipse @JvmOverloads constructor(
 
         protected val prevPoint = Vec3()
         protected val texCoord2d = Vec3()
-        protected val texCoordMatrix = Matrix3()
         protected val modelToTexCoord = Matrix4()
         protected val scratchLocation = Location()
         protected var texCoord1d = 0.0
@@ -285,7 +284,10 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
-    override fun moveTo(globe: Globe, position: Position) { center.copy(position) }
+    override fun moveTo(globe: Globe, position: Position) {
+        center.copy(position)
+        reset()
+    }
 
     override fun makeDrawable(rc: RenderContext) {
         if (majorRadius == 0.0 && minorRadius == 0.0) return  // nothing to draw
@@ -397,9 +399,8 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to use the interior texture when drawing the interior.
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
             rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                 drawState.texture = texture
-                drawState.texCoordMatrix.copy(texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
         } ?: run { drawState.texture = null }
 
@@ -427,9 +428,8 @@ open class Ellipse @JvmOverloads constructor(
         // Configure the drawable to use the outline texture when drawing the outline.
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                 drawState.texture = texture
-                drawState.texCoordMatrix.copy(texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
         } ?: run { drawState.texture = null }
 

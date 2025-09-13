@@ -82,7 +82,6 @@ open class Polygon @JvmOverloads constructor(
 
         protected val prevPoint = Vec3()
         protected val texCoord2d = Vec3()
-        protected val texCoordMatrix = Matrix3()
         protected val modelToTexCoord = Matrix4()
         protected val intermediateLocation = Location()
         protected var texCoord1d = 0.0
@@ -157,6 +156,7 @@ open class Polygon @JvmOverloads constructor(
         val distance = refPos.greatCircleDistance(position)
         val azimuth = refPos.greatCircleAzimuth(position)
         for (boundary in boundaries) for (pos in boundary) pos.greatCircleLocation(azimuth, distance, pos)
+        reset()
     }
 
     override fun makeDrawable(rc: RenderContext) {
@@ -268,7 +268,7 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
 
         // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape|| activeAttributes.interiorColor.alpha >= 1.0) {
+        if (isSurfaceShape || activeAttributes.interiorColor.alpha >= 1.0) {
             rc.offerSurfaceDrawable(drawable, zOrder)
             rc.offerSurfaceDrawable(drawableLines, zOrder)
         } else {
@@ -283,9 +283,8 @@ open class Polygon @JvmOverloads constructor(
         // Configure the drawable to use the interior texture when drawing the interior.
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
             rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                 drawState.texture = texture
-                drawState.texCoordMatrix.copy(texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
         } ?: run { drawState.texture = null }
 
@@ -321,9 +320,8 @@ open class Polygon @JvmOverloads constructor(
         // Configure the drawable to use the outline texture when drawing the outline.
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, texCoordMatrix)
                 drawState.texture = texture
-                drawState.texCoordMatrix.copy(texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
         } ?: run { drawState.texture = null }
 

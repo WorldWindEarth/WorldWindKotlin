@@ -152,9 +152,7 @@ open class DirectionalSightline @JvmOverloads constructor(
      * @param globe    not used.
      * @param position the new position of the sightline's reference position.
      */
-    override fun moveTo(globe: Globe, position: Position) {
-        this.position = position
-    }
+    override fun moveTo(globe: Globe, position: Position) { this.position.copy(position) }
 
     override fun doRender(rc: RenderContext) {
         // Compute this sightline's center point in Cartesian coordinates.
