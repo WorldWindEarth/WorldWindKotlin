@@ -87,25 +87,25 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         val y = moveEvent.y.toDouble()
         draggingJob?.cancel()
         draggingJob = wwd.mainScope.launch {
-            val (renderable, toPosition) = awaitPickResult(true)
-            if (isDraggingArmed && toPosition != null && renderable is Renderable) {
+            val (renderable, fromPosition) = awaitPickResult(true)
+            if (isDraggingArmed && fromPosition != null && renderable is Renderable) {
                 // Signal that dragging is in progress
                 isDragging = true
 
                 // First we compute the screen coordinates of the position's "ground" point. We'll apply the
                 // screen X and Y drag distances to this point, from which we'll compute a new position,
                 // wherein we restore the original position's altitude.
-                val fromPosition = Position(toPosition)
+                val toPosition = Position()
                 val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                 if (clapToGround && wwd.engine.pickTerrainPosition(x, y, toPosition)
                     || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
                     && wwd.engine.screenPointToGroundPosition(dragRefPt.x - distanceX, dragRefPt.y - distanceY, toPosition)) {
                     // Restore original altitude
                     toPosition.altitude = fromPosition.altitude
-                    // Update movable position
-                    if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
                     // Notify callback
                     callback.onRenderableMoved(renderable, fromPosition, toPosition)
+                    // Update movable position
+                    if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
                     // Reflect the change in position on the globe.
                     wwd.requestRedraw()
                 } else {

@@ -145,15 +145,15 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                 val callback = callback
                 val renderable = pickedRenderable
                 // Reference position is a priority during movement
-                val toPosition = if (renderable is Movable) renderable.referencePosition else pickedPosition
-                if (toPosition != null && renderable != null && callback != null) {
+                val fromPosition = if (renderable is Movable) renderable.referencePosition else pickedPosition
+                if (fromPosition != null && renderable != null && callback != null) {
                     // Signal that dragging is in progress
                     isDragging = true
 
                     // First we compute the screen coordinates of the position's "ground" point. We'll apply the
                     // screen X and Y drag distances to this point, from which we'll compute a new position,
                     // wherein we restore the original position's altitude.
-                    val fromPosition = Position(toPosition)
+                    val toPosition = Position()
                     val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                     val movePoint = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
                     if (clapToGround && wwd.engine.pickTerrainPosition(movePoint.x, movePoint.y, toPosition)
@@ -167,10 +167,10 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                         lastTranslation.set(recognizer.translationX, recognizer.translationY)
                         // Restore original altitude
                         toPosition.altitude = fromPosition.altitude
-                        // Update movable position
-                        if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
                         // Notify callback
                         callback.onRenderableMoved(renderable, fromPosition, toPosition)
+                        // Update movable position
+                        if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
                         // Reflect the change in position on the globe.
                         wwd.requestRedraw()
                     } else {
