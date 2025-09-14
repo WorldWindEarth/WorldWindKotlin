@@ -1351,6 +1351,27 @@ open class Matrix4 private constructor(
     }
 
     /**
+     * Extracts and returns a new matrix whose upper 3x3 entries are identical to those of this matrix,
+     * and whose fourth row and column are 0 except for a 1 in the diagonal position.
+     * @returns The upper 3x3 matrix of this matrix.
+     */
+    fun upper3By3(result: Matrix4 = Matrix4()): Matrix4 {
+        result.m[0] = m[0]
+        result.m[1] = m[1]
+        result.m[2] = m[2]
+
+        result.m[4] = m[4]
+        result.m[5] = m[5]
+        result.m[6] = m[6]
+
+        result.m[8] = m[8]
+        result.m[9] = m[9]
+        result.m[10] = m[10]
+
+        return result;
+    }
+
+    /**
      * Projects a Cartesian point to screen coordinates. This method assumes this matrix represents an inverse
      * modelview-projection matrix. The result of this method is undefined if this matrix is not an inverse
      * modelview-projection matrix.

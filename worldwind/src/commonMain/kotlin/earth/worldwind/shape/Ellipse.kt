@@ -376,12 +376,14 @@ open class Ellipse @JvmOverloads constructor(
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
+        drawState.enableLighting = activeAttributes.isLightingEnabled
 
         // Configure the drawable according to the shape's attributes.
         drawStateLines.vertexOrigin.copy(currentData.vertexOrigin)
         drawStateLines.enableCullFace = false
         drawStateLines.enableDepthTest = activeAttributes.isDepthTest
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
+        drawStateLines.enableLighting = activeAttributes.isLightingEnabled
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape) {

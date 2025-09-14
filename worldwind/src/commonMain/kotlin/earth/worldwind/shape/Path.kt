@@ -142,6 +142,7 @@ open class Path @JvmOverloads constructor(
         drawState.enableCullFace = false
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
+        drawState.enableLighting = activeAttributes.isLightingEnabled
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, zOrder)
@@ -214,6 +215,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.enableCullFace = false
             drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
             drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite
+            drawStateExtrusion.enableLighting = activeAttributes.isLightingEnabled
             drawStateExtrusion.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawStateExtrusion.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             drawStateExtrusion.texture = null

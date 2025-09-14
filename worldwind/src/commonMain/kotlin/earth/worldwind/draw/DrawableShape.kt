@@ -1,6 +1,7 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
 import earth.worldwind.util.kgl.GL_DEPTH_TEST
@@ -32,7 +33,7 @@ open class DrawableShape protected constructor(): Drawable {
 
     override fun draw(dc: DrawContext) {
         // TODO shape batching
-        val program = drawState.program ?: return // program unspecified
+        val program = drawState.program as? TriangleShaderProgram ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
         if (drawState.elementBuffer?.bindBuffer(dc) != true) return  // element buffer unspecified or failed to bind
@@ -99,12 +100,8 @@ open class DrawableShape protected constructor(): Drawable {
                 program.loadLineWidth(prim.lineWidth)
             } else {
                 dc.gl.vertexAttribPointer(
-                    3 /*vertexTexCoord*/,
-                    prim.texCoordAttrib.size,
-                    GL_FLOAT,
-                    false,
-                    drawState.vertexStride,
-                    prim.texCoordAttrib.offset
+                    3 /*vertexTexCoord*/, prim.texCoordAttrib.size, GL_FLOAT, false,
+                    drawState.vertexStride, prim.texCoordAttrib.offset
                 )
                 dc.gl.lineWidth(prim.lineWidth)
             }

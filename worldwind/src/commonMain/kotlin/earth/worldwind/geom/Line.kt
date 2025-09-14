@@ -205,6 +205,89 @@ open class Line {
         return tMin != Double.POSITIVE_INFINITY
     }
 
+    /**
+     * Computes the Cartesian intersection point(s) of a specified line with a non-indexed list of
+     * triangle vertices.
+     * @param points The list of triangle vertices arranged such that each
+     * 3-tuple, (i,i+1,i+2), specifies a triangle.
+     * @param results The Cartesian intersection point(s) if any.
+     * @returns true if the line intersects any triangle, otherwise false
+     */
+    fun computeTriangleListIntersection(points: List<Vec3>, results: MutableList<Vec3>): Boolean {
+        var iPoint = Vec3()
+        for (i in points.indices step 3) {
+            if (computeTriangleIntersection(points[i], points[i + 1], points[i + 2], iPoint)) {
+                results.add(iPoint)
+                iPoint = Vec3()
+            }
+        }
+        return results.isNotEmpty()
+    }
+
+    /**
+     * Computes the Cartesian intersection point of a specified line with a triangle. Taken from Moller and Trumbore.
+     * @param vertex0 The triangle's first vertex.
+     * @param vertex1 The triangle's second vertex.
+     * @param vertex2 The triangle's third vertex.
+     * @param result A pre-allocated Vec3 instance in which to return the computed point.
+     * @returns true if the line intersects the triangle, otherwise false
+     * @see https://www.cs.virginia.edu/~gfx/Courses/2003/ImageSynthesis/papers/Acceleration/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf
+     */
+    fun computeTriangleIntersection(vertex0: Vec3, vertex1: Vec3, vertex2: Vec3, result: Vec3): Boolean {
+        val vx = direction.x
+        val vy = direction.y
+        val vz = direction.z
+        val sx = origin.x
+        val sy = origin.y
+        val sz = origin.z
+
+        // find vectors for two edges sharing point a: vertex1 - vertex0 and vertex2 - vertex0
+        val edge1x = vertex1.x - vertex0.x
+        val edge1y = vertex1.y - vertex0.y
+        val edge1z = vertex1.z - vertex0.z
+        val edge2x = vertex2.x - vertex0.x
+        val edge2y = vertex2.y - vertex0.y
+        val edge2z = vertex2.z - vertex0.z
+
+        // Compute cross product of line direction and edge2
+        val px = (vy * edge2z) - (vz * edge2y)
+        val py = (vz * edge2x) - (vx * edge2z)
+        val pz = (vx * edge2y) - (vy * edge2x)
+
+        // Get determinant
+        val det = edge1x * px + edge1y * py + edge1z * pz // edge1 dot p
+        if (det > -EPSILON && det < EPSILON) return false // if det is near zero then ray lies in plane of triangle
+
+        val invDet = 1.0 / det
+
+        // Compute distance for vertex A to ray origin: origin - vertex0
+        val tx = sx - vertex0.x
+        val ty = sy - vertex0.y
+        val tz = sz - vertex0.z
+
+        // Calculate u parameter and test bounds: 1/det * t dot p
+        val u = invDet * (tx * px + ty * py + tz * pz)
+        if (u < -EPSILON || u > 1 + EPSILON) return false
+
+        // Prepare to test v parameter: t cross edge1
+        val qx = (ty * edge1z) - (tz * edge1y)
+        val qy = (tz * edge1x) - (tx * edge1z)
+        val qz = (tx * edge1y) - (ty * edge1x)
+
+        // Calculate v parameter and test bounds: 1/det * dir dot q
+        val v = invDet * (vx * qx + vy * qy + vz * qz)
+        if (v < -EPSILON || u + v > 1 + EPSILON) return false
+
+        // Calculate the point of intersection on the line: t = 1/det * edge2 dot q
+        val t = invDet * (edge2x * qx + edge2y * qy + edge2z * qz)
+        if (t < 0) return false else {
+            result.x = sx + vx * t
+            result.y = sy + vy * t
+            result.z = sz + vz * t
+            return true
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Line) return false
@@ -218,4 +301,8 @@ open class Line {
     }
 
     override fun toString() = "Line(origin=$origin, direction=$direction)"
+
+    companion object {
+        private const val EPSILON = 0.00001
+    }
 }

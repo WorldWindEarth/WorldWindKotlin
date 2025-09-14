@@ -4,6 +4,7 @@
 package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWindow
+import earth.worldwind.geom.Line
 import earth.worldwind.gesture.SelectDragCallback
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.globe.projection.MercatorProjection
@@ -17,6 +18,8 @@ import earth.worldwind.shape.Movable
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.w3c.dom.*
+import org.w3c.dom.events.EventListener
+import org.w3c.dom.pointerevents.PointerEvent
 
 fun main() {
     // Register an event listener to be called when the page is loaded.
@@ -34,6 +37,30 @@ fun main() {
             "Paths" to PathsTutorial(wwd.engine),
             "Polygons" to PolygonsTutorial(wwd.engine),
             "Ellipses" to EllipsesTutorial(wwd.engine),
+            "Geographic meshes" to GeographicMeshesTutorial(wwd.engine).also {
+                // Add click handler to detect intersections
+                wwd.addEventListener("click", EventListener { e ->
+                    if (!it.isStarted || e !is PointerEvent) return@EventListener
+                    val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
+                    val clickRay = Line()
+                    if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
+                        it.pickMesh(clickRay, wwd.engine.globe)
+                        wwd.requestRedraw()
+                    }
+                })
+            },
+            "Triangle meshes" to TriangleMeshesTutorial(wwd.engine).also {
+                // Add click handler to detect intersections
+                wwd.addEventListener("click", EventListener { e ->
+                    if (!it.isStarted || e !is PointerEvent) return@EventListener
+                    val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
+                    val clickRay = Line()
+                    if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
+                        it.pickMesh(clickRay, wwd.engine.globe)
+                        wwd.requestRedraw()
+                    }
+                })
+            },
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
             "Labels" to LabelsTutorial(wwd.engine),
             "Sight line" to SightlineTutorial(wwd.engine),

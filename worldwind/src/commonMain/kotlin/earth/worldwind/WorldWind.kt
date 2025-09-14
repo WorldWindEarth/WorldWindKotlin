@@ -495,6 +495,10 @@ open class WorldWind @JvmOverloads constructor(
             frame.viewport.width.toDouble(), frame.viewport.height.toDouble()
         )
 
+        // The matrix that transforms normal vectors in model coordinates to normal vectors in eye coordinates.
+        // Typically used to transform a shape's normal vectors during lighting calculations.
+        dc.modelviewNormalTransform.copy(Matrix4().invertOrthonormalMatrix(frame.modelview).upper3By3().transpose())
+
         // Process the drawables in the frame's drawable queue and drawable terrain data structures.
         dc.uploadQueue = frame.uploadQueue
         dc.drawableQueue = frame.drawableQueue
