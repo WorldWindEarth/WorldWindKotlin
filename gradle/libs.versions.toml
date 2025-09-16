@@ -14,6 +14,9 @@ mil-sym-android = "2.7.0"
 mil-sym-java = "2.4.0"
 mil-sym-ts = "2.5.0"
 mockk = "1.13.17"
+geopackage-core = "6.6.7"
+geopackage-android = "6.7.4"
+geopackage-java = "6.6.5"
 ormlite = "6.1"
 pngj = "2.1.0"
 resources = "0.24.5"
@@ -64,6 +67,10 @@ lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
 lwjgl-openal = { module = "org.lwjgl:lwjgl-openal", version.ref = "lwjgl" }
 lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
 lwjgl-stb = { module = "org.lwjgl:lwjgl-stb", version.ref = "lwjgl" }
+
+geopackage-core = { module = "mil.nga.geopackage:geopackage-core", version.ref = "geopackage-core" }
+geopackage-android = { module = "mil.nga.geopackage:geopackage-android", version.ref = "geopackage-android" }
+geopackage-java = { module = "mil.nga.geopackage:geopackage", version.ref = "geopackage-java" }
 
 ormlite-core = { module = "com.j256.ormlite:ormlite-core", version.ref = "ormlite" }
 ormlite-android = { module = "com.j256.ormlite:ormlite-android", version.ref = "ormlite" }

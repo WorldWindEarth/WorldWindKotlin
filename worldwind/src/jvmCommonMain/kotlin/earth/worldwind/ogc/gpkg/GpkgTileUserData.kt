@@ -17,8 +17,8 @@ import java.io.Serializable
  */
 @DatabaseTable(tableName = "sample_tile_pyramid")
 class GpkgTileUserData : Serializable {
-    @DatabaseField(columnName = ID, dataType = DataType.INTEGER, generatedId = true)
-    var id: Int = 0
+    @DatabaseField(columnName = ID, dataType = DataType.LONG, generatedId = true)
+    var id: Long = 0L
     @DatabaseField(columnName = ZOOM_LEVEL, dataType = DataType.INTEGER, canBeNull = false, uniqueCombo = true)
     var zoomLevel: Int = 0
     @DatabaseField(columnName = TILE_COLUMN, dataType = DataType.INTEGER, canBeNull = false, uniqueCombo = true)

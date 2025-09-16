@@ -64,6 +64,9 @@ kotlin {
             dependsOn(commonMain.get())
             dependencies {
                 implementation(libs.ktor.client.okhttp)
+                implementation(libs.geopackage.core.get().toString()) {
+                    exclude(group = "com.j256.ormlite")
+                }
                 compileOnly(libs.ormlite.core)
             }
         }
@@ -88,6 +91,7 @@ kotlin {
                 implementation(libs.lwjgl.stb)
 
                 implementation(libs.mil.sym.java)
+                implementation(libs.geopackage.java)
                 implementation(libs.ormlite.jdbc)
             }
         }
@@ -114,6 +118,7 @@ kotlin {
                 implementation(libs.androidx.annotation)
                 implementation(libs.androidx.appcompat.resources)
                 implementation(libs.mil.sym.android)
+                implementation(libs.geopackage.android)
                 implementation(libs.ormlite.android)
             }
         }

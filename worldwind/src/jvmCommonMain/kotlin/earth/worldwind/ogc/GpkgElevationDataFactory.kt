@@ -29,8 +29,8 @@ open class GpkgElevationDataFactory(
         // Decode the tile user data either as TIFF32 or PNG16
         return if (isFloat) elevationDecoder.decodeTiff(tileUserData.tileData)
         else elevationDecoder.decodePng(
-            tileUserData.tileData, griddedTile.scale, griddedTile.offset,
-            griddedCoverage.scale, griddedCoverage.offset, griddedCoverage.dataNull
+            tileUserData.tileData, griddedTile.scale.toFloat(), griddedTile.offset.toFloat(),
+            griddedCoverage.scale.toFloat(), griddedCoverage.offset.toFloat(), griddedCoverage.dataNull.toFloat()
         )
     }
 
@@ -45,9 +45,9 @@ open class GpkgElevationDataFactory(
     }
 
     protected open fun encodeToImage(resource: Buffer): ByteArray? {
-        val matrix = content.tileMatrices?.firstOrNull { it.zoomLevel == zoomLevel } ?: return null
-        val tileWidth = matrix.tileWidth
-        val tileHeight = matrix.tileHeight
+        val matrix = geoPackage.getTileMatrix(content, zoomLevel) ?: return null
+        val tileWidth = matrix.tileWidth.toInt()
+        val tileHeight = matrix.tileHeight.toInt()
         return when (resource) {
             is FloatBuffer -> if (isFloat) {
                 elevationDecoder.encodeTiff(resource, tileWidth, tileHeight)

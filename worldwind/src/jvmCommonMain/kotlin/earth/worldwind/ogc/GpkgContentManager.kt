@@ -12,6 +12,8 @@ import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.COVERAGE
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.EPSG_3857
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FLOAT
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.INTEGER
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.CacheTileFactory
@@ -127,7 +129,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             require(config.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) { "Invalid tile origin" }
             require(config.firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) { "Invalid first level delta" }
             require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
-            require(content.tileMatrices?.map { it.zoomLevel }?.sorted()?.get(0) == 0) { "Invalid level offset" }
+            require(content.tileMatrix?.minOf { it.zoomLevel } == 0L) { "Invalid level offset" }
             if (imageFormat.equals("image/webp", true)) requireNotNull(geoPackage.getExtension(
                 tableName = contentKey, columnName = "tile_data", extensionName = "gpkg_webp"
             )) { "WEBP extension missed" }
@@ -159,7 +161,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 val metadata = geoPackage.getGriddedCoverage(content)
                 requireNotNull(metadata) { "Missing gridded coverage metadata for '${content.tableName}'" }
                 val matrixSet = geoPackage.buildTileMatrixSet(content)
-                val factory = GpkgElevationSourceFactory(geoPackage, content, metadata.datatype == "float")
+                val factory = GpkgElevationSourceFactory(geoPackage, content, metadata.dataType == FLOAT)
                 val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
                 when (service?.type) {
                     Wcs100ElevationCoverage.SERVICE_TYPE -> Wcs100ElevationCoverage(
@@ -207,7 +209,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             // Check if the current layer fits cache content
             val matrixSet = geoPackage.buildTileMatrixSet(content)
             require(matrixSet.sector.equals(coverage.tileMatrixSet.sector, TOLERANCE)) { "Invalid sector" }
-            requireNotNull(geoPackage.getGriddedCoverage(content)?.datatype == if (isFloat) "float" else "integer") { "Invalid data type" }
+            val dataType = if (isFloat) FLOAT else INTEGER
+            requireNotNull(geoPackage.getGriddedCoverage(content)?.dataType == dataType) { "Invalid data type" }
             // Check and update web service config
             if (coverage is WebElevationCoverage) {
                 val serviceType = geoPackage.getWebService(content)?.type

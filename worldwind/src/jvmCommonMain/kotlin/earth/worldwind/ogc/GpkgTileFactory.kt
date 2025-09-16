@@ -48,7 +48,7 @@ open class GpkgTileFactory(
 
     protected open fun getImageSource(level: Level, row: Int, column: Int) =
         // Attempt to find the GeoPackage tile matrix associated with the WorldWind level.
-        content.tileMatrices?.firstOrNull { it.zoomLevel == level.levelNumber }?.let { tileMatrix ->
+        geoPackage.getTileMatrix(content, level.levelNumber)?.let { tileMatrix ->
             // Convert the WorldWind tile row to the equivalent GeoPackage tile row.
             val gpkgRow = level.levelHeight / level.tileHeight - row - 1
             if (column < tileMatrix.matrixWidth && gpkgRow < tileMatrix.matrixHeight) {
