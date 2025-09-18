@@ -212,7 +212,7 @@ open class WorldWind @JvmOverloads constructor(
         camera.roll = lookAt.roll // roll passes straight through
 
         // Check if camera altitude is not under the surface
-        val position = camera.position
+        val position = globe.getAbsolutePosition(camera.position, camera.altitudeMode)
         val elevation = if (globe.is2D) COLLISION_THRESHOLD
         else globe.getElevation(position.latitude, position.longitude) + COLLISION_THRESHOLD
         if (elevation > position.altitude) {
