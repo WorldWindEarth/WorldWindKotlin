@@ -19,10 +19,12 @@ actual open class EGM96Geoid actual constructor(
         super.release()
         deltas = null
     }
-    actual override suspend fun loadData(offsetsFile: AssetResource) = withContext(Dispatchers.IO) {
-        val bytes = with(offsetsFile) { resourcesClassLoader.getResourceAsStream(filePath)?.use { it.readBytes() } }
-            ?: throw FileNotFoundException("Couldn't open resource as stream at: ${offsetsFile.filePath}")
-        deltas = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN).asShortBuffer()
+    actual override suspend fun loadData(offsetsFile: AssetResource) {
+        deltas = withContext(Dispatchers.IO) {
+            val bytes = with(offsetsFile) { resourcesClassLoader.getResourceAsStream(filePath)?.use { it.readBytes() } }
+                ?: throw FileNotFoundException("Couldn't open resource as stream at: ${offsetsFile.filePath}")
+            ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN).asShortBuffer()
+        }
     }
 
     actual override fun getValue(k: Int) = deltas?.let { if (k in 0..it.limit()) it[k] else 0 } ?: 0
