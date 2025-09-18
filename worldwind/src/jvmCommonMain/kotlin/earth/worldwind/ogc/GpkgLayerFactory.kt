@@ -3,6 +3,7 @@ package earth.worldwind.ogc
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
 import earth.worldwind.ogc.gpkg.GeoPackage
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FEATURES
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.LevelSet
@@ -37,6 +38,13 @@ object GpkgLayerFactory {
                     }
                     surfaceImage.displayName = content.identifier
                     addRenderable(surfaceImage)
+                } catch (e: IllegalArgumentException) {
+                    logMessage(WARN, "GpkgLayerFactory", "createGeoPackageLayer", e.message!!)
+                }
+            }
+            for (content in geoPackage.getContent(FEATURES, layerNames)) {
+                try {
+                    addAllRenderables(geoPackage.getRenderables(content))
                 } catch (e: IllegalArgumentException) {
                     logMessage(WARN, "GpkgLayerFactory", "createGeoPackageLayer", e.message!!)
                 }

@@ -4,6 +4,7 @@ import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
+import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
@@ -12,6 +13,7 @@ import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.COVERAGE
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.EPSG_3857
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FEATURES
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FLOAT
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.INTEGER
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
@@ -19,7 +21,8 @@ import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.ContentManager
 import earth.worldwind.util.LevelSet
-import earth.worldwind.util.Logger
+import earth.worldwind.util.Logger.WARN
+import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
@@ -50,7 +53,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         geoPackage.getContent(TILES, contentKeys).mapNotNull { content ->
             // Try to build the level set. It may fail due to unsupported projection or other requirements.
             runCatching { geoPackage.buildLevelSetConfig(content) }.onFailure {
-                Logger.logMessage(Logger.WARN, "GpkgContentManager", "getImageLayers", it.message!!)
+                logMessage(WARN, "GpkgContentManager", "getImageLayers", it.message!!)
             }.getOrNull()?.let { config ->
                 // Check if valid WEB service config available and try to create a Web Layer. May fail on big metadata.
                 runCatching { geoPackage.getWebService(content) }.getOrNull()?.let { service ->
@@ -102,7 +105,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                             tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(geoPackage, content, service.outputFormat)
                         }
                     }.onFailure {
-                        Logger.logMessage(Logger.WARN, "GpkgContentManager", "getImageLayers", it.message!!)
+                        logMessage(WARN, "GpkgContentManager", "getImageLayers", it.message!!)
                     }.getOrNull()
                 } ?: TiledImageLayer(
                     content.identifier, if (content.srs?.id == EPSG_3857) {
@@ -198,7 +201,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                     geoPackage.getBoundingSector(content)?.let { sector.copy(it) }
                 }
             }.onFailure {
-                Logger.logMessage(Logger.WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
+                logMessage(WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
             }.getOrNull()
         }
 
@@ -229,6 +232,20 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
     }
 
     override suspend fun deleteContent(contentKey: String) = geoPackage.deleteContent(contentKey)
+
+    suspend fun getFeatureLayersCount() = geoPackage.countContent(FEATURES).toInt()
+
+    suspend fun getFeatureLayers(contentKeys: List<String>?) = geoPackage.getContent(FEATURES, contentKeys)
+        .mapNotNull { content ->
+            runCatching {
+                RenderableLayer(geoPackage.getRenderables(content)).apply {
+                    displayName = content.identifier
+                    isPickEnabled = false
+                }
+            }.onFailure {
+                logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message!!)
+            }.getOrNull()
+        }
 
     companion object {
         private const val TOLERANCE = 1e-6

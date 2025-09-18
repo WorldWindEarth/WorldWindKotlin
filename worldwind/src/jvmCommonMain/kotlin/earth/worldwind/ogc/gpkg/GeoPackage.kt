@@ -5,6 +5,7 @@ import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
 import com.j256.ormlite.table.DatabaseTableConfig
 import com.j256.ormlite.table.TableUtils
+import earth.worldwind.MR
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
@@ -13,10 +14,14 @@ import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.MercatorSector
+import earth.worldwind.render.Renderable
+import earth.worldwind.render.image.ImageSource
+import earth.worldwind.shape.PathType
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import mil.nga.color.Color
 import mil.nga.geopackage.GeoPackageCore
 import mil.nga.geopackage.contents.ContentsDataType
 import mil.nga.geopackage.dgiwg.CoordinateReferenceSystem
@@ -27,6 +32,7 @@ import mil.nga.geopackage.extension.coverage.GriddedCoverage
 import mil.nga.geopackage.extension.coverage.GriddedCoverageDataType
 import mil.nga.geopackage.extension.coverage.GriddedTile
 import mil.nga.geopackage.tiles.user.TileTable
+import mil.nga.sf.*
 import java.util.*
 import kotlin.math.*
 import mil.nga.geopackage.contents.Contents as GpkgContent
@@ -36,9 +42,27 @@ import mil.nga.geopackage.extension.coverage.GriddedTile as GpkgGriddedTile
 import mil.nga.geopackage.tiles.matrix.TileMatrix as GpkgTileMatrix
 import mil.nga.geopackage.tiles.matrixset.TileMatrixSet as GpkgTileMatrixSet
 
-typealias GpkgContent = GpkgContent
+typealias GpkgContent = mil.nga.geopackage.contents.Contents
+
+expect class StyleRow {
+    fun getColor(): Color?
+    fun getFillColor(): Color?
+    fun getWidth(): Double?
+}
+
+expect class IconRow {
+    fun getAnchorU(): Double?
+    fun getAnchorV(): Double?
+}
+
+expect class FeatureStyle {
+    fun getStyle(): StyleRow?
+    fun getIcon(): IconRow?
+}
 
 expect fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPackageCore
+expect fun getFeatureList(geoPackage: GeoPackageCore, tableName: String): List<Pair<Geometry, FeatureStyle?>>
+expect fun buildImageSource(iconRow: IconRow): ImageSource
 
 open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val geoPackage = openOrCreateGeoPackage(pathName, isReadOnly)
@@ -74,14 +98,14 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (contentDao.isTableExists) {
             val builder = contentDao.queryBuilder()
             val where = builder.where().eq(GpkgContent.COLUMN_DATA_TYPE, dataType)
-            if (tableNames != null) where.and().`in`(GpkgContent.TABLE_NAME, tableNames)
+            if (tableNames != null) where.and().`in`(GpkgContent.COLUMN_TABLE_NAME, tableNames)
             where.query()
         } else emptyList()
     }
 
     suspend fun getWebService(content: GpkgContent): GpkgWebService? = withContext(Dispatchers.IO) {
         if (webServiceDao.isTableExists) {
-            webServiceDao.queryBuilder().where().eq(GpkgWebService.TABLE_NAME, content.tableName).queryForFirst()
+            webServiceDao.queryBuilder().where().eq(GpkgWebService.COLUMN_TABLE_NAME, content.tableName).queryForFirst()
         } else null
     }
 
@@ -96,7 +120,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         tableName: String, columnName: String, extensionName: String
     ): GpkgExtension? = withContext(Dispatchers.IO) {
         if (extensionDao.isTableExists){
-            extensionDao.queryBuilder().where().eq(GpkgExtension.TABLE_NAME, tableName)
+            extensionDao.queryBuilder().where().eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
                 .and().eq(GpkgExtension.COLUMN_COLUMN_NAME, columnName).and().eq(GpkgExtension.COLUMN_EXTENSION_NAME, extensionName)
                 .queryForFirst()
         } else null
@@ -157,6 +181,21 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             griddedTile.mean = mean?.toDouble()
             griddedTile.standardDeviation = stdDev?.toDouble()
             griddedTileDao.createOrUpdate(griddedTile)
+        }
+    }
+
+    @Throws(IllegalArgumentException::class)
+    suspend fun getRenderables(content: GpkgContent) = withContext(Dispatchers.IO) {
+        require(content.dataTypeName.equals(FEATURES, ignoreCase = true)) {
+            "Unsupported GeoPackage content data_type: ${content.dataTypeName}"
+        }
+        val srs = content.srs?.also { srsDao.refresh(it) }
+        require(srs != null && srs.organization.equals(EPSG, ignoreCase = true)
+                && (srs.organizationCoordsysId == EPSG_3857 || srs.organizationCoordsysId == EPSG_4326)) {
+            "Unsupported GeoPackage spatial reference system: ${srs?.srsName ?: "undefined"}"
+        }
+        getFeatureList(geoPackage, content.tableName).flatMap { (geometry, style) ->
+            geometryToRenderables(geometry, style, srs.srsId)
         }
     }
 
@@ -532,7 +571,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
         // Remove all extensions related to specified content table
         if (extensionDao.isTableExists) extensionDao.deleteBuilder().apply {
-            where().eq(GpkgExtension.TABLE_NAME, content.tableName)
+            where().eq(GpkgExtension.COLUMN_TABLE_NAME, content.tableName)
         }.delete()
 
         // Remove web service settings if exists
@@ -607,6 +646,70 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         sector.maxLongitude.inDegrees, sector.maxLatitude.inDegrees
     )
 
+    protected open fun geometryToRenderables(
+        geometry: Geometry, style: FeatureStyle?, srsId: Long
+    ): List<Renderable> = when(geometry) {
+        is Point -> listOf(
+            earth.worldwind.shape.Placemark.createWithImage(
+                buildPosition(geometry, srsId), ImageSource.fromResource(MR.images.kml_placemark)
+            ).apply {
+                altitudeMode = if (geometry.is3D) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
+                attributes.isDrawLeader = geometry.is3D
+                style?.getIcon()?.let { icon ->
+                    val x = icon.getAnchorU() ?: 0.5 // middle of icon
+                    val y = icon.getAnchorV() ?: 1.0 // bottom of icon
+                    attributes.apply {
+                        imageSource = buildImageSource(icon)
+                        imageOffset = Offset(OffsetMode.FRACTION, x, OffsetMode.FRACTION, y)
+                    }
+                }
+            }
+        )
+        is LineString -> listOf(
+            earth.worldwind.shape.Path(geometry.points.map { buildPosition(it, srsId) }).apply {
+                pathType = PathType.LINEAR
+                altitudeMode = if (geometry.is3D) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
+                isFollowTerrain = !geometry.is3D
+                isExtrude = geometry.is3D
+                attributes.apply {
+                    outlineWidth = style?.getStyle()?.getWidth()?.toFloat() ?: defaultOutlineWidth
+                    outlineColor = style?.getStyle()?.getColor()?.let { earth.worldwind.render.Color(it.colorWithAlpha) }
+                        ?: earth.worldwind.render.Color(defaultOutlineColor)
+                    interiorColor = style?.getStyle()?.getFillColor()?.let { earth.worldwind.render.Color(it.colorWithAlpha) }
+                        ?: earth.worldwind.render.Color(defaultInteriorColor)
+                }
+            }
+        )
+        is Polygon -> listOf(
+            earth.worldwind.shape.Polygon().apply {
+                geometry.rings.forEach { ring -> addBoundary(ring.points.map { buildPosition(it, srsId) }) }
+                pathType = PathType.LINEAR
+                altitudeMode = if (geometry.is3D) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
+                isFollowTerrain = !geometry.is3D
+                isExtrude = geometry.is3D
+                attributes.apply {
+                    outlineWidth = style?.getStyle()?.getWidth()?.toFloat() ?: defaultOutlineWidth
+                    outlineColor = style?.getStyle()?.getColor()?.let { earth.worldwind.render.Color(it.colorWithAlpha) }
+                        ?: earth.worldwind.render.Color(defaultOutlineColor)
+                    interiorColor = style?.getStyle()?.getFillColor()?.let { earth.worldwind.render.Color(it.colorWithAlpha) }
+                        ?: earth.worldwind.render.Color(defaultInteriorColor)
+                }
+            }
+        )
+        is MultiPoint -> geometry.points.flatMap { point -> geometryToRenderables(point, style, srsId) }
+        is MultiLineString -> geometry.lineStrings.flatMap { lineString -> geometryToRenderables(lineString, style, srsId) }
+        is MultiPolygon -> geometry.polygons.flatMap { polygon -> geometryToRenderables(polygon, style, srsId) }
+        is CompoundCurve -> geometry.lineStrings.flatMap { lineString -> geometryToRenderables(lineString, style, srsId) }
+        is GeometryCollection<*> -> geometry.geometries.flatMap { child -> geometryToRenderables(child, style, srsId) }
+        else -> emptyList() // TODO Add support af all other geometries
+    }
+
+    protected open fun buildPosition(point: Point, srsId: Long) = Position(
+        latitude = if (srsId == EPSG_3857) latFromEPSG3857(point.y) else point.y.degrees,
+        longitude = if (srsId == EPSG_3857) lonFromEPSG3857(point.x) else point.x.degrees,
+        altitude = point.z ?: 0.0
+    )
+
     @Synchronized
     protected open fun getTileUserDataDao(tableName: String) = tileUserDataDao[tableName] ?: object : BaseDaoImpl<GpkgTileUserData, Int>(
         connectionSource, DatabaseTableConfig(GpkgTileUserData::class.java, tableName, null)
@@ -627,8 +730,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val EPSG_3857 = CoordinateReferenceSystem.EPSG_3857.code
         val EPSG_4326 = CoordinateReferenceSystem.EPSG_4326.code
         val TILES = ContentsDataType.TILES.name.lowercase()
+        val FEATURES = ContentsDataType.FEATURES.name.lowercase()
         const val COVERAGE = CoverageDataCore.GRIDDED_COVERAGE
         val FLOAT = GriddedCoverageDataType.FLOAT
         val INTEGER = GriddedCoverageDataType.INTEGER
+        var defaultOutlineWidth = 1f
+        var defaultOutlineColor = earth.worldwind.render.Color(0f, 0f, 0f, 1f)
+        var defaultInteriorColor = earth.worldwind.render.Color(0f, 0f, 0f, 0f)
     }
 }
