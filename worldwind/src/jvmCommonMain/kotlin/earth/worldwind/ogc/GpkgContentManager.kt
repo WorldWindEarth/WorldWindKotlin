@@ -26,6 +26,8 @@ import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
+import mil.nga.geopackage.extension.WebPExtension
+import mil.nga.geopackage.tiles.user.TileTable
 import java.io.File
 
 class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false): ContentManager {
@@ -134,7 +136,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
             require(content.tileMatrix?.minOf { it.zoomLevel } == 0L) { "Invalid level offset" }
             if (imageFormat.equals("image/webp", true)) requireNotNull(geoPackage.getExtension(
-                tableName = contentKey, columnName = "tile_data", extensionName = "gpkg_webp"
+                tableName = contentKey, TileTable.COLUMN_TILE_DATA, WebPExtension.EXTENSION_NAME
             )) { "WEBP extension missed" }
             // Check and update web service config
             if (layer is WebImageLayer) {
@@ -235,19 +237,27 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
 
     suspend fun getFeatureLayersCount() = geoPackage.countContent(FEATURES).toInt()
 
-    suspend fun getFeatureLayers(contentKeys: List<String>?) = geoPackage.getContent(FEATURES, contentKeys)
+    suspend fun getFeatureLayers(contentKeys: List<String>? = null) = geoPackage.getContent(FEATURES, contentKeys)
         .mapNotNull { content ->
             runCatching {
                 RenderableLayer(geoPackage.getRenderables(content)).apply {
                     displayName = content.identifier
                     isPickEnabled = false
+                    putUserProperty(FEATURE_CONTENT_KEY, content.tableName)
+                    putUserProperty(FEATURE_LAST_CHANGE_KEY, Instant.fromEpochMilliseconds(content.lastChange.time))
+                    geoPackage.getBoundingSector(content)?.let { putUserProperty(FEATURE_BOUNDING_SECTOR_KEY, it) }
                 }
             }.onFailure {
                 logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message!!)
             }.getOrNull()
         }
 
+    suspend fun getFeatureLayerSize(contentKey: String) = geoPackage.readFeaturesDataSize(contentKey)
+
     companion object {
+        const val FEATURE_CONTENT_KEY = "featureContentKey"
+        const val FEATURE_LAST_CHANGE_KEY = "featureLastChange"
+        const val FEATURE_BOUNDING_SECTOR_KEY = "featureBoundingSector"
         private const val TOLERANCE = 1e-6
     }
 }
