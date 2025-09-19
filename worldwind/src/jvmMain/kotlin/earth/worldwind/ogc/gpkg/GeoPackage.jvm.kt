@@ -6,7 +6,10 @@ import mil.nga.geopackage.GeoPackageCore
 import mil.nga.geopackage.GeoPackageManager
 import mil.nga.geopackage.extension.nga.style.FeatureStyleExtension
 import mil.nga.sf.Geometry
+import java.awt.Image
+import java.awt.image.BufferedImage
 import java.io.File
+import kotlin.math.roundToInt
 
 actual typealias StyleRow = mil.nga.geopackage.extension.nga.style.StyleRow
 actual typealias IconRow = mil.nga.geopackage.extension.nga.style.IconRow
@@ -27,4 +30,16 @@ actual fun getFeatureList(geoPackage: GeoPackageCore, tableName: String): List<P
     }
 }
 
-actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromImage(iconRow.dataImage)
+actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromImage(iconRow.dataImage.let { image ->
+    val width = iconRow.width?.roundToInt() ?: image.width
+    val height = iconRow.height?.roundToInt() ?: image.height
+    if (width != image.width || height != image.height) {
+        val scaledImage = image.getScaledInstance(width, height, Image.SCALE_SMOOTH)
+        BufferedImage(width, height, image.type).apply {
+            createGraphics().apply {
+                drawImage(scaledImage, 0, 0, null)
+                dispose()
+            }
+        }
+    } else image
+})

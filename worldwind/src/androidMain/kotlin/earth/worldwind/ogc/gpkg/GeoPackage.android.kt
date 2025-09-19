@@ -11,6 +11,8 @@ import mil.nga.geopackage.db.GeoPackageTableCreator
 import mil.nga.geopackage.extension.nga.style.FeatureStyleExtension
 import mil.nga.sf.Geometry
 import java.io.File
+import kotlin.math.roundToInt
+import androidx.core.graphics.scale
 
 actual typealias StyleRow = mil.nga.geopackage.extension.nga.style.StyleRow
 actual typealias IconRow = mil.nga.geopackage.extension.nga.style.IconRow
@@ -43,4 +45,8 @@ actual fun getFeatureList(geoPackage: GeoPackageCore, tableName: String): List<P
     }
 }
 
-actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromBitmap(iconRow.dataBitmap)
+actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromBitmap(iconRow.dataBitmap.let { bitmap ->
+    val width = iconRow.width?.roundToInt() ?: bitmap.width
+    val height = iconRow.height?.roundToInt() ?: bitmap.height
+    bitmap.scale(width, height)
+})
