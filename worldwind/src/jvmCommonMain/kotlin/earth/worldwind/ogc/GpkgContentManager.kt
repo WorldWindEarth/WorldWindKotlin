@@ -247,6 +247,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             }.getOrNull()
         }
 
+    suspend fun getFeatureLayerSize(contentKey: String) = geoPackage.readFeaturesDataSize(contentKey)
+
     companion object {
         private const val TOLERANCE = 1e-6
     }

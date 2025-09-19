@@ -31,6 +31,7 @@ import mil.nga.geopackage.extension.coverage.CoverageDataCore
 import mil.nga.geopackage.extension.coverage.GriddedCoverage
 import mil.nga.geopackage.extension.coverage.GriddedCoverageDataType
 import mil.nga.geopackage.extension.coverage.GriddedTile
+import mil.nga.geopackage.features.columns.GeometryColumns
 import mil.nga.geopackage.tiles.user.TileTable
 import mil.nga.sf.*
 import java.util.*
@@ -126,8 +127,24 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         } else null
     }
 
+    suspend fun readFeaturesDataSize(tableName: String) = withContext(Dispatchers.IO) {
+        var result = 0L
+        val dao = geoPackage.geometryColumnsDao
+        if (dao.isTableExists) {
+            dao.queryBuilder().selectColumns(GeometryColumns.COLUMN_COLUMN_NAME)
+                .where().eq(GeometryColumns.COLUMN_TABLE_NAME, tableName)
+                .queryForFirst()?.columnName?.let { columnName ->
+                    if (geoPackage.featureTables.contains(tableName)) {
+                        result = dao.queryRawValue("SELECT SUM(LENGTH($columnName)) FROM '$tableName'")
+                    }
+                }
+        }
+        result
+    }
+
     suspend fun readTilesDataSize(tableName: String) = withContext(Dispatchers.IO) {
-        getTileUserDataDao(tableName).queryRawValue("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'")
+        val dao = getTileUserDataDao(tableName)
+        if (dao.isTableExists) dao.queryRawValue("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'") else 0L
     }
 
     suspend fun readTileUserData(
