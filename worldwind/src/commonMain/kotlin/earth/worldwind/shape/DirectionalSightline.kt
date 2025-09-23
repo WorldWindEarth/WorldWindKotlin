@@ -85,7 +85,7 @@ open class DirectionalSightline @JvmOverloads constructor(
     var range = range
         set(value) {
             require(value >= 0) {
-                logMessage(ERROR, "DirectionalSightline", "setRange", "invalidRange")
+                logMessage(ERROR, "DirectionalSightline", "setRange", "The range $value is invalid")
             }
             field = value
         }
@@ -142,7 +142,7 @@ open class DirectionalSightline @JvmOverloads constructor(
 
     init {
         require(range >= 0) {
-            logMessage(ERROR, "OmnidirectionalSightline", "constructor", "invalidRange")
+            logMessage(ERROR, "DirectionalSightline", "constructor", "The range $range is invalid")
         }
     }
 

@@ -70,7 +70,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
     var range = range
         set(value) {
             require(value >= 0) {
-                logMessage(ERROR, "OmnidirectionalSightline", "setRange", "invalidRange")
+                logMessage(ERROR, "OmnidirectionalSightline", "setRange", "The range $value is invalid")
             }
             field = value
         }
@@ -107,7 +107,7 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
 
     init {
         require(range >= 0) {
-            logMessage(ERROR, "OmnidirectionalSightline", "constructor", "invalidRange")
+            logMessage(ERROR, "OmnidirectionalSightline", "constructor", "The range $range is invalid")
         }
     }
 

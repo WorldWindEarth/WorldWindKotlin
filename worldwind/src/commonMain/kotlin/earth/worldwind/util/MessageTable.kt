@@ -13,7 +13,6 @@ val messageTable = mapOf(
     "invalidNumIntervals" to "The number of intervals is invalid",
     "invalidNumLevels" to "The number of levels is invalid",
     "invalidRadius" to "The radius is invalid",
-    "invalidRange" to "The range is invalid",
     "invalidResolution" to "The resolution is invalid",
     "invalidStride" to "The stride is invalid",
     "invalidTileDelta" to "The tile delta is invalid",
