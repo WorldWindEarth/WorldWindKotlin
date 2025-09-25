@@ -18,7 +18,7 @@ interface CacheTileFactory : TileFactory {
     /**
      * Last modified date of cache content
      */
-    suspend fun lastModifiedDate(): Instant
+    suspend fun lastModifiedDate(): Instant?
 
     /**
      * Estimated cache content size in bytes

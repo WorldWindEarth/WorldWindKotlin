@@ -244,7 +244,7 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                     displayName = content.identifier
                     isPickEnabled = false
                     putUserProperty(FEATURE_CONTENT_KEY, content.tableName)
-                    putUserProperty(FEATURE_LAST_CHANGE_KEY, Instant.fromEpochMilliseconds(content.lastChange.time))
+                    content.lastChange?.let { putUserProperty(FEATURE_LAST_CHANGE_KEY, Instant.fromEpochMilliseconds(it.time)) }
                     geoPackage.getBoundingSector(content)?.let { putUserProperty(FEATURE_BOUNDING_SECTOR_KEY, it) }
                 }
             }.onFailure {
