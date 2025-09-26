@@ -573,34 +573,33 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
         // Remove specified content table and gridded tile data
-        tileUserDataDao[tableName]?.let { TableUtils.dropTable(it, true) }
-        tileUserDataDao -= tableName
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
-            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
+            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, tableName)
         }.delete()
-
-        if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(content.tableName)?.let { tileMatrixSet ->
-            // Remove tile matrix set related to specified content table
-            tileMatrixSetDao.delete(tileMatrixSet)
-
-            // Remove gridded coverage metadata if exists
-            if (griddedCoverageDao.isTableExists) griddedCoverageDao.deleteBuilder().apply {
-                where().eq(GpkgGriddedCoverage.COLUMN_TILE_MATRIX_SET_NAME, tileMatrixSet.tableName)
-            }.delete()
-        }
+        tileUserDataDao.remove(tableName)?.let { TableUtils.dropTable(it, true) }
 
         // Remove all tile matrices related to specified content table
         if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
-            where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, content.tableName)
+            where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, tableName)
         }.delete()
+
+        if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(tableName)?.let { tileMatrixSet ->
+            // Remove gridded coverage metadata if exists
+            if (griddedCoverageDao.isTableExists) griddedCoverageDao.deleteBuilder().apply {
+                where().eq(GpkgGriddedCoverage.COLUMN_TILE_MATRIX_SET_NAME, tableName)
+            }.delete()
+
+            // Remove tile matrix set related to specified content table
+            tileMatrixSetDao.delete(tileMatrixSet)
+        }
 
         // Remove all extensions related to specified content table
         if (extensionDao.isTableExists) extensionDao.deleteBuilder().apply {
-            where().eq(GpkgExtension.COLUMN_TABLE_NAME, content.tableName)
+            where().eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
         }.delete()
 
         // Remove web service settings if exists
-        if (webServiceDao.isTableExists) webServiceDao.deleteById(content.tableName)
+        if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
 
         // Remove metadata of specified content table
         contentDao.delete(content)
