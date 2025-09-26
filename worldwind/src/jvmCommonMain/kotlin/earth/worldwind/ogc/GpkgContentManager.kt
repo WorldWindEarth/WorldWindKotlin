@@ -46,7 +46,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
     override suspend fun contentSize() = withContext(Dispatchers.IO) { File(pathName).length() }
 
     override suspend fun lastModifiedDate() = withContext(Dispatchers.IO) {
-        Instant.fromEpochMilliseconds(File(pathName).lastModified())
+        val file = File(pathName)
+        if (file.exists()) Instant.fromEpochMilliseconds(file.lastModified()) else null
     }
 
     override suspend fun getImageLayersCount() = geoPackage.countContent(TILES).toInt()

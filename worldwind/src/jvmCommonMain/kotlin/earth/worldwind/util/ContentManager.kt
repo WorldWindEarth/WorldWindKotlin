@@ -15,7 +15,7 @@ interface ContentManager {
     /**
      * Last modification date of any content in this manager
      */
-    suspend fun lastModifiedDate(): Instant
+    suspend fun lastModifiedDate(): Instant?
 
     /**
      * Number of image layers in content manager
