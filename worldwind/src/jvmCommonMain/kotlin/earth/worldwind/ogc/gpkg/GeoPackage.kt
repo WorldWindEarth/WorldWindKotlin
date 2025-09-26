@@ -332,14 +332,15 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val deltaX = tms.maxX - tms.minX
         val deltaY = tms.maxY - tms.minY
         initializeTileMatrices(content) // Ensure foreign collection exists
-        val tm = content.tileMatrix?.associateBy { it.zoomLevel.toInt() }
+        val ctm = content.tileMatrix ?: error("Tile Matrix foreign collection must not be empty at this point")
+        val tm = ctm.associateBy { it.zoomLevel.toInt() }.toMutableMap().also { tileMatrixCache[content.tableName] = it }
         for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
-            tm?.get(levelNumber) ?: run {
+            if (!tm.containsKey(levelNumber)) {
                 val matrixWidth = levelWidth / tileWidth
                 val matrixHeight = levelHeight / tileHeight
                 val pixelXSize = deltaX / levelWidth
                 val pixelYSize = deltaY / levelHeight
-                content.tileMatrix?.add(GpkgTileMatrix().also {
+                val matrix = GpkgTileMatrix().also {
                     it.contents = content
                     it.zoomLevel = levelNumber.toLong()
                     it.matrixWidth = matrixWidth.toLong()
@@ -348,7 +349,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                     it.tileHeight = tileHeight.toLong()
                     it.pixelXSize = pixelXSize
                     it.pixelYSize = pixelYSize
-                })
+                }
+                ctm.add(matrix)
+                tm[levelNumber] = matrix
             }
         }
     }
@@ -501,11 +504,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val deltaX = tms.maxX - tms.minX
         val deltaY = tms.maxY - tms.minY
         initializeTileMatrices(content) // Ensure foreign collection exists
-        val tm = content.tileMatrix?.associateBy { it.zoomLevel.toInt() }
-        for (tileMatrix in tileMatrixSet.entries) tm?.get(tileMatrix.ordinal) ?: tileMatrix.run {
+        val ctm = content.tileMatrix ?: error("Tile Matrix foreign collection must not be empty at this point")
+        val tm = ctm.associateBy { it.zoomLevel.toInt() }.toMutableMap().also { tileMatrixCache[content.tableName] = it }
+        for (tileMatrix in tileMatrixSet.entries) if (!tm.containsKey(tileMatrix.ordinal)) with(tileMatrix) {
             val pixelXSize = deltaX / matrixWidth / tileWidth
             val pixelYSize = deltaY / matrixHeight / tileHeight
-            content.tileMatrix?.add(GpkgTileMatrix().also {
+            val matrix = GpkgTileMatrix().also {
                 it.contents = content
                 it.zoomLevel = ordinal.toLong()
                 it.matrixWidth = matrixWidth.toLong()
@@ -514,7 +518,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 it.tileHeight = tileHeight.toLong()
                 it.pixelXSize = pixelXSize
                 it.pixelYSize = pixelYSize
-            })
+            }
+            ctm.add(matrix)
+            tm[ordinal] = matrix
         }
     }
 
@@ -551,7 +557,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             TableUtils.createTable(it)
         }
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
-            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content)
+            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
         }.delete()
     }
 
@@ -570,7 +576,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         tileUserDataDao[tableName]?.let { TableUtils.dropTable(it, true) }
         tileUserDataDao -= tableName
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
-            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content)
+            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
         }.delete()
 
         if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(content.tableName)?.let { tileMatrixSet ->
@@ -585,7 +591,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
         // Remove all tile matrices related to specified content table
         if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
-            where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, content)
+            where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, content.tableName)
         }.delete()
 
         // Remove all extensions related to specified content table
