@@ -13,10 +13,10 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.SunPosition
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Constructs a layer showing stars and the Sun around the Earth.

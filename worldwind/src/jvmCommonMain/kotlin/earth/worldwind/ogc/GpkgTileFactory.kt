@@ -9,7 +9,7 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.Level
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 open class GpkgTileFactory(
     protected val geoPackage: GeoPackage,

@@ -13,7 +13,7 @@ import earth.worldwind.util.NumericArray
 import earth.worldwind.util.SunPosition
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     override var isPickEnabled = false

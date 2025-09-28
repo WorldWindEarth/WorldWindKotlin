@@ -4,7 +4,7 @@ import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.TiledImageLayer
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 interface ContentManager {
     /**

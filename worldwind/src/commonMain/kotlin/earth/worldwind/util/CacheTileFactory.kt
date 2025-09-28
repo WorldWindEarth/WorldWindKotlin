@@ -1,6 +1,6 @@
 package earth.worldwind.util
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * Tile factory with cache support.

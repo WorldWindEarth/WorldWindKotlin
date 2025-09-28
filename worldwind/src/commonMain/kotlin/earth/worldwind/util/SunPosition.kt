@@ -4,10 +4,11 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Location
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.*
+import kotlin.time.Instant
 
 /**
  * Provides utilities for determining the Sun geographic and celestial location.
@@ -75,8 +76,8 @@ object SunPosition {
     fun computeJulianDate(instant: Instant): Double {
         val date = instant.toLocalDateTime(TimeZone.UTC)
         var year = date.year
-        var month = date.monthNumber + 1
-        val day = date.dayOfMonth
+        var month = date.month.number + 1
+        val day = date.day
         val hour = date.hour
         val minute = date.minute
         val second = date.second

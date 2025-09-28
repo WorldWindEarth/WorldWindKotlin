@@ -12,8 +12,8 @@ import earth.worldwind.util.Level
 import earth.worldwind.util.ormlite.initConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
 import java.io.File
+import kotlin.time.Instant
 
 expect fun buildImageSource(
     tilesDao: Dao<ATAKTiles, Int>, readOnly: Boolean, contentKey: String, key: Int, imageFormat: String?

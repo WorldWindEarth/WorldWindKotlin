@@ -9,11 +9,11 @@ import earth.worldwind.shape.PathType
 import earth.worldwind.shape.PathType.GREAT_CIRCLE
 import earth.worldwind.shape.PathType.RHUMB_LINE
 import earth.worldwind.util.format.format
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.offsetIn
 import kotlin.jvm.JvmStatic
 import kotlin.math.*
+import kotlin.time.Clock
 
 /**
  * Geographic location with a latitude and longitude.

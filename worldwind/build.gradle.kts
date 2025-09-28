@@ -102,9 +102,6 @@ kotlin {
             dependencies {
                 implementation(libs.ktor.client.js)
                 implementation(npm("@armyc2.c5isr.renderer/mil-sym-ts-web", libs.versions.mil.sym.ts.get()))
-                // IC internal error: can not find library org.jetbrains.kotlin:kotlinx-atomicfu-runtime
-                // https://youtrack.jetbrains.com/issue/KT-57235
-                implementation(libs.kotlinx.atomicfu.runtime)
             }
         }
         jsTest {
@@ -138,6 +135,7 @@ kotlin {
                 @Suppress("OPT_IN_USAGE")
                 compilerOptions {
                     freeCompilerArgs.add("-Xexpect-actual-classes")
+                    optIn.add("kotlin.time.ExperimentalTime")
                 }
             }
         }

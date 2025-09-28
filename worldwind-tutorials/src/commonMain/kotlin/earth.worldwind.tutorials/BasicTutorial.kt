@@ -3,7 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 class BasicTutorial(private val engine: WorldWind): AbstractTutorial() {
 

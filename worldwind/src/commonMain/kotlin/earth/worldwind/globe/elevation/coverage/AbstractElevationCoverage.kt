@@ -3,7 +3,7 @@ package earth.worldwind.globe.elevation.coverage
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISSING_DATA
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 abstract class AbstractElevationCoverage: ElevationCoverage {
     final override val sector = Sector().setFullSphere() // Real data availability sector can be smaller than TMS sector

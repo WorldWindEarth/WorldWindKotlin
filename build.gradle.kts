@@ -1,5 +1,5 @@
 plugins {
-    val kotlinVersion = "2.1.20"
+    val kotlinVersion = "2.2.20"
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("android") version kotlinVersion apply false
@@ -17,12 +17,12 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.8.12"
+    version = "1.9.0"
 
     extra.apply {
         set("minSdk", 24)
-        set("targetSdk", 35)
-        set("versionCode", 17)
+        set("targetSdk", 36)
+        set("versionCode", 18)
     }
 
     repositories {

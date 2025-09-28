@@ -1,6 +1,6 @@
 package earth.worldwind.globe.elevation
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 interface CacheSourceFactory : ElevationSourceFactory {
     /**

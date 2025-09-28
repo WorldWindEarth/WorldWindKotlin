@@ -1,6 +1,6 @@
 package earth.worldwind.util.format
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 actual fun convertToInstant(t: Any) = when (t) {
     is java.time.LocalDateTime -> Instant.fromEpochSeconds(t.atZone(java.time.ZoneId.systemDefault()).toEpochSecond())

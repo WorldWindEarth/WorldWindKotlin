@@ -25,10 +25,10 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
 import mil.nga.geopackage.extension.WebPExtension
 import mil.nga.geopackage.tiles.user.TileTable
 import java.io.File
+import kotlin.time.Instant
 
 class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false): ContentManager {
     private val geoPackage by lazy { GeoPackage(pathName, isReadOnly) }

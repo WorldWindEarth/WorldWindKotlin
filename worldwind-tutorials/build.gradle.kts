@@ -52,6 +52,7 @@ kotlin {
                 @Suppress("OPT_IN_USAGE")
                 compilerOptions {
                     freeCompilerArgs.add("-Xexpect-actual-classes")
+                    optIn.add("kotlin.time.ExperimentalTime")
                 }
             }
         }

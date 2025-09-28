@@ -7,7 +7,7 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.util.SunPosition
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 open class DayNightCycleActivity : BasicGlobeActivity(), FrameCallback {

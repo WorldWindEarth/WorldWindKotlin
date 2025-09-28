@@ -10,7 +10,7 @@ internal class Specification(val parent: StringFormat, var index: Int) {
     private var stage = Stage.FLAGS
     private var size: Int = -1
     private var fractionalPartSize: Int = -1
-    private var positioninig = Positioning.RIGHT
+    private var positioning = Positioning.RIGHT
     private var fillChar = ' '
     private var currentPart = StringBuilder()
     //    private var pos = 0
@@ -25,7 +25,7 @@ internal class Specification(val parent: StringFormat, var index: Int) {
             when (val ch = parent.nextChar()) {
                 '-', '^' -> {
                     if (!isScanningFlags) invalidFormat("unexpected $ch")
-                    positioninig = if (ch == '-') Positioning.LEFT else Positioning.CENTER
+                    positioning = if (ch == '-') Positioning.LEFT else Positioning.CENTER
                 }
                 '+' -> {
                     if (!isScanningFlags) invalidFormat("unexpected $ch")
@@ -123,8 +123,8 @@ internal class Specification(val parent: StringFormat, var index: Int) {
             // Date fields
             'B' -> getMonthName(time.month.number)
             'b', 'h' -> getAbbreviatedMonthName(time.month.number)
-            'e' -> time.dayOfMonth.toString()
-            'd' -> "%02s".format(time.dayOfMonth)
+            'e' -> time.day.toString()
+            'd' -> "%02s".format(time.day)
             'm' -> "%02s".format(time.month.number)
             'A' -> getWeekDayName(time.dayOfWeek)
             'a' -> getAbbreviatedWeekDayName(time.dayOfWeek)
@@ -201,7 +201,7 @@ internal class Specification(val parent: StringFormat, var index: Int) {
         else {
             var padStart = 0
             var padEnd = 0
-            when (positioninig) {
+            when (positioning) {
                 Positioning.LEFT -> padEnd = size - l
                 Positioning.RIGHT -> padStart = size - l
                 Positioning.CENTER -> {

@@ -11,8 +11,8 @@ import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.BasicTextureProgram
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
-import kotlinx.datetime.Clock
 import kotlin.random.Random
+import kotlin.time.Clock
 
 /**
  * Provides an abstract base class for mesh shapes.

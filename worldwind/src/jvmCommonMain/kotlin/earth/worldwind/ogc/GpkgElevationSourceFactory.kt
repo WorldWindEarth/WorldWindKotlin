@@ -5,7 +5,7 @@ import earth.worldwind.globe.elevation.CacheSourceFactory
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 open class GpkgElevationSourceFactory(
     protected val geoPackage: GeoPackage,
