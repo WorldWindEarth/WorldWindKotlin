@@ -216,8 +216,11 @@ open class WorldWind @JvmOverloads constructor(
         val elevation = if (globe.is2D) COLLISION_THRESHOLD
         else globe.getElevation(position.latitude, position.longitude) + COLLISION_THRESHOLD
         if (elevation > position.altitude) {
-            // Set camera altitude above the surface
+            // Set position altitude above the surface
             position.altitude = elevation
+            // Apply new absolute position back to camera
+            camera.position.copy(position)
+            camera.altitudeMode = AltitudeMode.ABSOLUTE
             // Compute new camera point
             globe.geographicToCartesian(position.latitude, position.longitude, position.altitude, scratchPoint)
             // Compute look at point
