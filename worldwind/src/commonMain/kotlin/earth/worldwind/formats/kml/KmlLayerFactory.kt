@@ -31,6 +31,7 @@ object KmlLayerFactory {
     const val KML_LAYER_ID_KEY = "KMLLayerId"
     const val KML_LAYER_SECTOR_KEY = "KMLLayerSector"
     const val KML_LAYER_LOOK_AT_KEY = "KMLLayerLookAt"
+    const val KML_DEFAULT_IMAGE_SOURCE_KEY = "KMLDefaultImageSource"
 
     var defaultIconColor = DEFAULT_LINE_COLOR
         get() = converter.defaultIconColor

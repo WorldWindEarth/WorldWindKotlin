@@ -2,6 +2,7 @@ package earth.worldwind.formats.kml
 
 import earth.worldwind.MR
 import earth.worldwind.formats.*
+import earth.worldwind.formats.kml.KmlLayerFactory.KML_DEFAULT_IMAGE_SOURCE_KEY
 import earth.worldwind.formats.kml.models.*
 import earth.worldwind.formats.kml.models.AltitudeMode
 import earth.worldwind.formats.kml.models.Placemark
@@ -219,20 +220,24 @@ internal class KmlToRenderableConverter {
             earth.worldwind.shape.Placemark(position, label = name).apply {
                 displayName = name // Display name is used to search renderable in layer
                 altitudeMode = getAltitudeModeFrom(point.altitudeMode)
+                isBillboardingEnabled = true // Prevent icons from going underground
                 attributes.apply {
                     imageScale = iconStyle?.scale ?: DEFAULT_IMAGE_SCALE
-                    imageSource = iconStyle?.icon?.toImageSource()?.also { imageScale *= density }
-                        ?: ImageSource.fromResource(MR.images.kml_placemark) // Do not scale default placemark
                     imageColor = iconStyle?.color?.let { fromHexABRG(it) } ?: defaultIconColor
                     imageOffset = iconStyle?.hotSpot?.let {
                         Offset(getOffsetModeFrom(it.xunits), it.x, getOffsetModeFrom(it.yunits), it.y)
-                    } ?: if (altitudeMode == CLAMP_TO_GROUND) Offset.bottomCenter() else Offset.center()
+                    } ?: Offset.center()
+                    imageSource = iconStyle?.icon?.toImageSource()?.also {
+                        imageScale *= density // Apply density only to external KML icons
+                    } ?: resources[KML_DEFAULT_IMAGE_SOURCE_KEY] ?: ImageSource.fromResource(MR.images.kml_placemark).also {
+                        imageOffset.set(PIXELS, 10.0, PIXELS, 3.0) // Special offset for default push pin
+                    }
 
-                    attributes.isDrawLeader = point.extrude
+                    isDrawLeader = point.extrude
 
                     labelAttributes.applyStyle(labelStyle)
                     // if icon is present move label, so it doesn't overlap the icon
-                    if (imageSource != null) labelAttributes.textOffset = Offset(PIXELS, -32.0, FRACTION, 0.1)
+                    if (imageSource != null) labelAttributes.textOffset = Offset(PIXELS, -34.0, FRACTION, 0.1)
                 }
             }
         }
