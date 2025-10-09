@@ -286,7 +286,7 @@ open class Polygon @JvmOverloads constructor(
 
         // Configure the drawable to use the interior texture when drawing the interior.
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
-            rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
+            rc.getTexture(interiorImageSource)?.let { texture ->
                 drawState.texture = texture
                 drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
