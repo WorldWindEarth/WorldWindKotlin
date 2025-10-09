@@ -32,6 +32,10 @@ object KmlLayerFactory {
     const val KML_LAYER_SECTOR_KEY = "KMLLayerSector"
     const val KML_LAYER_LOOK_AT_KEY = "KMLLayerLookAt"
 
+    // key to set default image resource in recources map when creating layers
+    // this icon will be used when no icon is defined in the KML file
+    const val DEFAULT_ICON_KEY = "__default_icon__"
+
     var defaultIconColor = DEFAULT_LINE_COLOR
         get() = converter.defaultIconColor
         set(value) {
