@@ -7,24 +7,26 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.shape.SurfaceImage
+import earth.worldwind.shape.TextureQuad
 
 class SurfaceImageTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
     private val layer = RenderableLayer("Surface image").apply {
         // Configure a Surface Image to display an Android resource showing the WorldWindEarth logo.
         addRenderable(
-            SurfaceImage(
+            TextureQuad(
                 Sector.fromDegrees(37.46, 15.5, 0.5, 0.6),
-                ImageSource.fromResource(MR.images.worldwind_logo)
+                ShapeAttributes().apply { interiorImageSource = ImageSource.fromResource(MR.images.worldwind_logo) }
             )
         )
 
         // Configure a Surface Image to display a remote image showing Mount Etna erupting on July 13th, 2001.
         addRenderable(
-            SurfaceImage(
+            TextureQuad(
                 Sector.fromDegrees(37.46543388598137, 14.60128369746704, 0.45360804083528, 0.75704283995502),
-                ImageSource.fromUrlString("https://worldwind.arc.nasa.gov/android/tutorials/data/etna.jpg")
+                ShapeAttributes().apply { interiorImageSource = ImageSource.fromUrlString("https://worldwind.arc.nasa.gov/android/tutorials/data/etna.jpg") }
             )
         )
     }
