@@ -2,6 +2,7 @@ package earth.worldwind.formats.kml
 
 import earth.worldwind.MR
 import earth.worldwind.formats.*
+import earth.worldwind.formats.kml.KmlLayerFactory.DEFAULT_ICON_KEY
 import earth.worldwind.formats.kml.models.*
 import earth.worldwind.formats.kml.models.AltitudeMode
 import earth.worldwind.formats.kml.models.Placemark
@@ -221,13 +222,20 @@ internal class KmlToRenderableConverter {
                 altitudeMode = getAltitudeModeFrom(point.altitudeMode)
                 attributes.apply {
                     imageScale = iconStyle?.scale ?: DEFAULT_IMAGE_SCALE
-                    imageSource = iconStyle?.icon?.toImageSource()?.also { imageScale *= density }
-                        ?: ImageSource.fromResource(MR.images.kml_placemark) // Do not scale default placemark
+                    imageSource = run {
+                        iconStyle?.icon?.toImageSource()
+                            ?.also { imageScale *= density }
+                            ?.also { imageOffset = getImageOffset(iconStyle, altitudeMode) }
+                    } ?: run {
+                        resources[DEFAULT_ICON_KEY]
+                            // Do not scale default icon from resources
+                            ?.also { imageOffset = Offset.center() }
+                    } ?: run {
+                        ImageSource.fromResource(MR.images.kml_placemark)
+                            // Do not scale default placemark
+                            .also { imageOffset = getImageOffset(iconStyle, altitudeMode) }
+                    }
                     imageColor = iconStyle?.color?.let { fromHexABRG(it) } ?: defaultIconColor
-                    imageOffset = iconStyle?.hotSpot?.let {
-                        Offset(getOffsetModeFrom(it.xunits), it.x, getOffsetModeFrom(it.yunits), it.y)
-                    } ?: if (altitudeMode == CLAMP_TO_GROUND) Offset.bottomCenter() else Offset.center()
-
                     attributes.isDrawLeader = point.extrude
 
                     labelAttributes.applyStyle(labelStyle)
@@ -237,6 +245,21 @@ internal class KmlToRenderableConverter {
             }
         }
     }
+
+    private fun getImageOffset(
+        iconStyle: IconStyle?,
+        altitudeMode: earth.worldwind.geom.AltitudeMode,
+    ): Offset =
+        iconStyle?.hotSpot?.let {
+            Offset(
+                getOffsetModeFrom(it.xunits), it.x,
+                getOffsetModeFrom(it.yunits), it.y
+            )
+        } ?: if (altitudeMode == CLAMP_TO_GROUND) {
+            Offset.bottomCenter()
+        } else {
+            Offset.center()
+        }
 
     private fun Icon.toImageSource() = href?.let(::forceHttps)?.let {
         try {
