@@ -7,7 +7,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("ServiceProvider", OWS11_NAMESPACE, OWS11_PREFIX)
 data class OwsServiceProvider(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ProviderName", OWS11_NAMESPACE, OWS11_PREFIX)
     val providerName: String,
     @XmlSerialName("ProviderSite", OWS11_NAMESPACE, OWS11_PREFIX)

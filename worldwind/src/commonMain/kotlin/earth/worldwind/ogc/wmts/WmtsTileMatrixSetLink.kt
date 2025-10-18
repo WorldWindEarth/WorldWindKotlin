@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("TileMatrixSetLink", WMTS10_NAMESPACE, WMTS10_PREFIX)
 data class WmtsTileMatrixSetLink(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("TileMatrixSet", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val identifier: String,
     @XmlSerialName("TileMatrixSetLimits", WMTS10_NAMESPACE, WMTS10_PREFIX)

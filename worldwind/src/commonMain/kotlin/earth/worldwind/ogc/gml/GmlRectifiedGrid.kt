@@ -10,7 +10,7 @@ data class GmlRectifiedGrid(
     override val id: String,
     override val srsName: String? = null,
     override val srsDimension: String? = null,
-    @XmlElement(true) // In GridType this property is defined as an element
+    @XmlElement // In GridType this property is defined as an element
     override val axisLabels: String? = null,
     override val uomLabels: String? = null,
     override val dimension: Int,

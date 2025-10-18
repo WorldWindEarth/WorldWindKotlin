@@ -23,6 +23,8 @@ import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
+    private const val SERVICE = "WMS"
+    private const val VERSION = "1.3.0"
     private const val DEFAULT_WMS_NUM_LEVELS = 20
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
@@ -56,10 +58,18 @@ object WmsLayerFactory {
         )
     }
 
+    /**
+     * Attempts to retrieve a Web Map Service (WMS) capabilities
+     *
+     * @param serviceAddress the WMS service address
+     * @return WMS 1.3.0 map service capabilities
+     */
+    suspend fun getCapabilities(serviceAddress: String) = decodeWmsCapabilities(retrieveWmsCapabilities(serviceAddress))
+
     private suspend fun retrieveWmsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
-            .appendQueryParameter("VERSION", "1.3.0")
-            .appendQueryParameter("SERVICE", "WMS")
+            .appendQueryParameter("VERSION", VERSION)
+            .appendQueryParameter("SERVICE", SERVICE)
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
         httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()

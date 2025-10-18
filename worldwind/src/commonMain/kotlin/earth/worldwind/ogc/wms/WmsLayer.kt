@@ -12,13 +12,13 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 data class WmsLayer(
     // Properties of the Layer element
     val layers: List<WmsLayer> = emptyList(),
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Name", WMS_NAMESPACE, WMS_PREFIX)
     val name: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Title", WMS_NAMESPACE, WMS_PREFIX)
     val title: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Abstract", WMS_NAMESPACE, WMS_PREFIX)
     val abstract: String? = null,
     @XmlSerialName("KeywordList", WMS_NAMESPACE, WMS_PREFIX)
@@ -38,10 +38,10 @@ data class WmsLayer(
     val dataUrls: List<WmsInfoUrl> = emptyList(),
     @XmlSerialName("FeatureListURL", WMS_NAMESPACE, WMS_PREFIX)
     val featureListUrls: List<WmsInfoUrl> = emptyList(),
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MaxScaleDenominator", WMS_NAMESPACE, WMS_PREFIX)
     private val _maxScaleDenominator: Double? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MinScaleDenominator", WMS_NAMESPACE, WMS_PREFIX)
     private val _minScaleDenominator: Double? = null,
     // Properties of the Layer attributes

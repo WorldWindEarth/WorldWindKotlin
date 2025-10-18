@@ -7,10 +7,10 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("ContactPersonPrimary", WMS_NAMESPACE, WMS_PREFIX)
 data class WmsContactPersonPrimary(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ContactPerson", WMS_NAMESPACE, WMS_PREFIX)
     val contactPerson: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ContactOrganization", WMS_NAMESPACE, WMS_PREFIX)
     val contactOrganization: String
 )

@@ -7,7 +7,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("Attribution", WMS_NAMESPACE, WMS_PREFIX)
 data class WmsAttribution(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Title", WMS_NAMESPACE, WMS_PREFIX)
     val title: String? = null,
     val onlineResource: WmsOnlineResource? = null,

@@ -7,13 +7,13 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("Style", WMS_NAMESPACE, WMS_PREFIX)
 data class WmsStyle(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Name", WMS_NAMESPACE, WMS_PREFIX)
     val name: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Title", WMS_NAMESPACE, WMS_PREFIX)
     val title: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Abstract", WMS_NAMESPACE, WMS_PREFIX)
     val abstract: String? = null,
     @XmlSerialName("LegendURL", WMS_NAMESPACE, WMS_PREFIX)

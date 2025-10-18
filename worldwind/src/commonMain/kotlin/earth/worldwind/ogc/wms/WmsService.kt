@@ -8,19 +8,19 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("Service", WMS_NAMESPACE, WMS_PREFIX)
 data class WmsService(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Name", WMS_NAMESPACE, WMS_PREFIX)
     val name: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Title", WMS_NAMESPACE, WMS_PREFIX)
     val title: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Abstract", WMS_NAMESPACE, WMS_PREFIX)
     val abstract: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Fees", WMS_NAMESPACE, WMS_PREFIX)
     val fees: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("AccessConstraints", WMS_NAMESPACE, WMS_PREFIX)
     val accessConstraints: String? = null,
     @XmlSerialName("KeywordList", WMS_NAMESPACE, WMS_PREFIX)
@@ -28,13 +28,13 @@ data class WmsService(
     val keywordList: List<String> = listOf(),
     val onlineResource: WmsOnlineResource,
     val contactInformation: WmsContactInformation? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MaxWidth", WMS_NAMESPACE, WMS_PREFIX)
     val maxWidth: Int? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MaxHeight", WMS_NAMESPACE, WMS_PREFIX)
     val maxHeight: Int? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("LayerLimit", WMS_NAMESPACE, WMS_PREFIX)
     val layerLimit: Int? = null
 ) {

@@ -7,19 +7,19 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("TileMatrixLimits", WMTS10_NAMESPACE, WMTS10_PREFIX)
 data class WmtsTileMatrixLimits(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("TileMatrix", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val tileMatrixIdentifier: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MinTileRow", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val minTileRow: Int,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MaxTileRow", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val maxTileRow: Int,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MinTileCol", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val minTileCol: Int,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MaxTileCol", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val maxTileCol: Int
 )

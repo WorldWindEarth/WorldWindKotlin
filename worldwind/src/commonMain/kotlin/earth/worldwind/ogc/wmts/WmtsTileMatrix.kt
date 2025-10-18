@@ -8,34 +8,34 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("TileMatrix", WMTS10_NAMESPACE, WMTS10_PREFIX)
 data class WmtsTileMatrix(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Title", OWS11_NAMESPACE, OWS11_PREFIX)
     override val title: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Abstract", OWS11_NAMESPACE, OWS11_PREFIX)
     override val abstract: String? = null,
     @XmlSerialName("Keywords", OWS11_NAMESPACE, OWS11_PREFIX)
     @XmlChildrenName("Keyword", OWS11_NAMESPACE, OWS11_PREFIX)
     override val keywords: List<String> = emptyList(),
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Identifier", OWS11_NAMESPACE, OWS11_PREFIX)
     val identifier: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ScaleDenominator", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val scaleDenominator: Double,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("TopLeftCorner", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val topLeftCorner: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("TileWidth", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val tileWidth: Int,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("TileHeight", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val tileHeight: Int,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MatrixWidth", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val matrixWidth: Int,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("MatrixHeight", WMTS10_NAMESPACE, WMTS10_PREFIX)
     val matrixHeight: Int
 ): OwsDescription()

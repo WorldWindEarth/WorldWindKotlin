@@ -13,8 +13,10 @@ import earth.worldwind.ogc.gml.GmlRectifiedGrid
 import earth.worldwind.ogc.gml.serializersModule
 import earth.worldwind.ogc.wcs.Wcs201CoverageDescription
 import earth.worldwind.ogc.wcs.Wcs201CoverageDescriptions
+import earth.worldwind.ogc.wcs.Wcs201Capabilities
 import earth.worldwind.util.Logger.makeMessage
 import earth.worldwind.util.http.DefaultHttpClient
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -69,9 +71,32 @@ open class Wcs201ElevationCoverage private constructor(
     }
 
     companion object {
-        const val SERVICE_TYPE = "WCS 2.0.1"
+        private const val SERVICE = "WCS"
+        private const val VERSION = "2.0.1"
+        const val SERVICE_TYPE = "$SERVICE $VERSION"
 
         private val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
+
+        /**
+         * Attempts to retrieve a Web Coverage Service (WCS) capabilities
+         *
+         * @param serviceAddress the WCS service address
+         * @return WCS 2.0.1 elevation service capabilities
+         */
+        suspend fun getCapabilities(serviceAddress: String) = decodeWcsCapabilities(retrieveWcsCapabilities(serviceAddress))
+
+        private suspend fun retrieveWcsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
+            val serviceUri = Uri.parse(serviceAddress).buildUpon()
+                .appendQueryParameter("VERSION", VERSION)
+                .appendQueryParameter("SERVICE", SERVICE)
+                .appendQueryParameter("REQUEST", "GetCapabilities")
+                .build()
+            httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
+        }
+
+        private suspend fun decodeWcsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {
+            xml.decodeFromString<Wcs201Capabilities>(xmlText)
+        }
 
         /**
          * Attempts to construct a Web Coverage Service (WCS) elevation coverage with the provided service address and
@@ -158,10 +183,10 @@ open class Wcs201ElevationCoverage private constructor(
         }
 
         @Throws(OwsException::class)
-        private suspend fun describeCoverage(serviceAddress: String, coverageId: String) = DefaultHttpClient().use {
+        suspend fun describeCoverage(serviceAddress: String, coverageId: String) = DefaultHttpClient().use {
             val serviceUri = Uri.parse(serviceAddress).buildUpon()
-                .appendQueryParameter("VERSION", "2.0.1")
-                .appendQueryParameter("SERVICE", "WCS")
+                .appendQueryParameter("VERSION", VERSION)
+                .appendQueryParameter("SERVICE", SERVICE)
                 .appendQueryParameter("REQUEST", "DescribeCoverage")
                 .appendQueryParameter("COVERAGEID", coverageId)
                 .build()

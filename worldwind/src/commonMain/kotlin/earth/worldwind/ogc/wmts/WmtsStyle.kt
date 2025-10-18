@@ -8,16 +8,16 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("Style", WMTS10_NAMESPACE, WMTS10_PREFIX)
 data class WmtsStyle(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Title", OWS11_NAMESPACE, OWS11_PREFIX)
     override val title: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Abstract", OWS11_NAMESPACE, OWS11_PREFIX)
     override val abstract: String? = null,
     @XmlSerialName("Keywords", OWS11_NAMESPACE, OWS11_PREFIX)
     @XmlChildrenName("Keyword", OWS11_NAMESPACE, OWS11_PREFIX)
     override val keywords: List<String> = emptyList(),
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Identifier", OWS11_NAMESPACE, OWS11_PREFIX)
     val identifier: String,
     val isDefault: Boolean = false,

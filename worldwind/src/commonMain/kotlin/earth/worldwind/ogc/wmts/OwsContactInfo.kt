@@ -10,10 +10,10 @@ data class OwsContactInfo(
     val phone: OwsPhone? = null,
     val address: OwsAddress? = null,
     val onlineResource: OwsOnlineResource? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("HoursOfService", OWS11_NAMESPACE, OWS11_PREFIX)
     val hoursOfService: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ContactInstructions", OWS11_NAMESPACE, OWS11_PREFIX)
     val contactInstructions: String? = null
 )

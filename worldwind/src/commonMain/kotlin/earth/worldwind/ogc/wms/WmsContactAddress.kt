@@ -7,22 +7,22 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("ContactAddress", WMS_NAMESPACE, WMS_PREFIX)
 data class WmsContactAddress(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("AddressType", WMS_NAMESPACE, WMS_PREFIX)
     val addressType: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Address", WMS_NAMESPACE, WMS_PREFIX)
     val address: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("City", WMS_NAMESPACE, WMS_PREFIX)
     val city: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("StateOrProvince", WMS_NAMESPACE, WMS_PREFIX)
     val stateOrProvince: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("PostCode", WMS_NAMESPACE, WMS_PREFIX)
     val postCode: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("Country", WMS_NAMESPACE, WMS_PREFIX)
     val country: String
 )

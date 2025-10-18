@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("CoverageDescription", WCS20_NAMESPACE, WCS20_PREFIX)
 data class Wcs201CoverageDescription(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("CoverageId", WCS20_NAMESPACE, WCS20_PREFIX)
     override val id: String,
     @XmlSerialName("boundedBy", GML32_NAMESPACE, GML32_PREFIX)

@@ -30,6 +30,8 @@ import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmtsLayerFactory {
+    private const val SERVICE = "WMTS"
+    private const val VERSION = "1.0.0"
     private const val PIXEL_SIZE = 0.28E-3 // Standardized rendering pixel size (0.28mm)
     private const val STYLE_TEMPLATE = "{style}"
     private const val TILE_MATRIX_SET_TEMPLATE = "{TileMatrixSet}"
@@ -65,10 +67,18 @@ object WmtsLayerFactory {
         )
     }
 
+    /**
+     * Attempts to retrieve a Web Map Tile Service (WMTS) capabilities
+     *
+     * @param serviceAddress the WMTS service address
+     * @return WMTS 1.0.0 map service capabilities
+     */
+    suspend fun getCapabilities(serviceAddress: String) = decodeWmtsCapabilities(retrieveWmtsCapabilities(serviceAddress))
+
     private suspend fun retrieveWmtsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
-            .appendQueryParameter("VERSION", "1.0.0")
-            .appendQueryParameter("SERVICE", "WMTS")
+            .appendQueryParameter("VERSION", VERSION)
+            .appendQueryParameter("SERVICE", SERVICE)
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
         httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
@@ -141,8 +151,8 @@ object WmtsLayerFactory {
     private fun buildWmtsKvpTemplate(
         kvpServiceAddress: String, layer: String, format: String, styleIdentifier: String, tileMatrixSet: String
     ) = Uri.parse(kvpServiceAddress).buildUpon()
-        .appendQueryParameter("VERSION", "1.0.0")
-        .appendQueryParameter("SERVICE", "WMTS")
+        .appendQueryParameter("VERSION", VERSION)
+        .appendQueryParameter("SERVICE", SERVICE)
         .appendQueryParameter("REQUEST", "GetTile")
         .appendQueryParameter("LAYER", layer)
         .appendQueryParameter("STYLE", styleIdentifier)

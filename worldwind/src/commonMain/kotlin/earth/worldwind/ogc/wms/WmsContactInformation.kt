@@ -7,16 +7,16 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @Serializable
 @XmlSerialName("ContactInformation", WMS_NAMESPACE, WMS_PREFIX)
 data class WmsContactInformation(
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ContactPosition", WMS_NAMESPACE, WMS_PREFIX)
     val position: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ContactVoiceTelephone", WMS_NAMESPACE, WMS_PREFIX)
     val voiceTelephone: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ContactFacsimileNumber", WMS_NAMESPACE, WMS_PREFIX)
     val facsimileTelephone: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("ContactElectronicMailAddress", WMS_NAMESPACE, WMS_PREFIX)
     val electronicMailAddress: String? = null,
     val contactAddress: WmsContactAddress? = null,

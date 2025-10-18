@@ -10,10 +10,10 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @XmlSerialName("BoundingBox", OWS11_NAMESPACE, OWS11_PREFIX)
 data class OwsBoundingBox(
     val crs: String? = null,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("LowerCorner", OWS11_NAMESPACE, OWS11_PREFIX)
     val lowerCorner: String,
-    @XmlElement(true)
+    @XmlElement
     @XmlSerialName("UpperCorner", OWS11_NAMESPACE, OWS11_PREFIX)
     val upperCorner: String
 ) {
