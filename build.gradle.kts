@@ -5,7 +5,7 @@ plugins {
     kotlin("android") version kotlinVersion apply false
     id("com.android.library") apply false
     id("com.android.application") apply false
-    id("org.jetbrains.dokka") version "2.0.0" apply false
+    id("org.jetbrains.dokka") version "2.1.0" apply false
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
 
