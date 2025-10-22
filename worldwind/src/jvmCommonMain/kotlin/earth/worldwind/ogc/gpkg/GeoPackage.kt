@@ -3,6 +3,7 @@ package earth.worldwind.ogc.gpkg
 import com.j256.ormlite.dao.BaseDaoImpl
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
+import com.j256.ormlite.misc.TransactionManager
 import com.j256.ormlite.table.DatabaseTableConfig
 import com.j256.ormlite.table.TableUtils
 import earth.worldwind.MR
@@ -16,34 +17,38 @@ import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.shape.Path
 import earth.worldwind.shape.PathType
+import earth.worldwind.shape.Placemark
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mil.nga.color.Color
+import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackageCore
+import mil.nga.geopackage.contents.Contents
 import mil.nga.geopackage.contents.ContentsDataType
-import mil.nga.geopackage.dgiwg.CoordinateReferenceSystem
-import mil.nga.geopackage.extension.ExtensionScopeType
 import mil.nga.geopackage.extension.WebPExtension
-import mil.nga.geopackage.extension.coverage.CoverageDataCore
-import mil.nga.geopackage.extension.coverage.GriddedCoverage
-import mil.nga.geopackage.extension.coverage.GriddedCoverageDataType
-import mil.nga.geopackage.extension.coverage.GriddedTile
+import mil.nga.geopackage.extension.coverage.*
 import mil.nga.geopackage.features.columns.GeometryColumns
 import mil.nga.geopackage.tiles.user.TileTable
+import mil.nga.proj.ProjectionConstants
 import mil.nga.sf.*
 import java.util.*
 import kotlin.math.*
-import mil.nga.geopackage.contents.Contents as GpkgContent
 import mil.nga.geopackage.extension.Extensions as GpkgExtension
 import mil.nga.geopackage.extension.coverage.GriddedCoverage as GpkgGriddedCoverage
 import mil.nga.geopackage.extension.coverage.GriddedTile as GpkgGriddedTile
 import mil.nga.geopackage.tiles.matrix.TileMatrix as GpkgTileMatrix
 import mil.nga.geopackage.tiles.matrixset.TileMatrixSet as GpkgTileMatrixSet
 
-typealias GpkgContent = mil.nga.geopackage.contents.Contents
+typealias GpkgContent = Contents
+
+expect abstract class CoverageData<TImage: CoverageDataImage>: CoverageDataCore<TImage> {
+    override fun getValues(prequest: CoverageDataRequest, width: Int?, height: Int?): CoverageDataResults
+    override fun getValuesUnbounded(request: CoverageDataRequest): CoverageDataResults
+}
 
 expect class StyleRow {
     fun getColor(): Color?
@@ -62,6 +67,10 @@ expect class FeatureStyle {
 }
 
 expect fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPackageCore
+expect fun createCoverageData(
+    geoPackage: GeoPackageCore, tableName: String, identifier: String?, contentsBoundingBox: BoundingBox?,
+    contentsSrsId: Long, tileBoundingBox: BoundingBox?, tileSrsId: Long, isFloat: Boolean
+): CoverageData<*>
 expect fun getFeatureList(geoPackage: GeoPackageCore, tableName: String): List<Pair<Geometry, FeatureStyle?>>
 expect fun buildImageSource(iconRow: IconRow): ImageSource
 
@@ -143,14 +152,14 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     suspend fun readTilesDataSize(tableName: String) = withContext(Dispatchers.IO) {
-        val dao = getTileUserDataDao(tableName)
+        val dao = getOrCreateTileUserDataDao(tableName)
         if (dao.isTableExists) dao.queryRawValue("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'") else 0L
     }
 
     suspend fun readTileUserData(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int
     ): GpkgTileUserData? = withContext(Dispatchers.IO) {
-        getTileUserDataDao(content.tableName).queryBuilder().where().eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
+        getOrCreateTileUserDataDao(content.tableName).queryBuilder().where().eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
             .and().eq(GpkgTileUserData.TILE_COLUMN, tileColumn).and().eq(GpkgTileUserData.TILE_ROW, tileRow)
             .queryForFirst()
     }
@@ -166,7 +175,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             it.tileRow = tileRow
         }
         tileUserData.tileData = tileData // Replace tile data
-        getTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
+        getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
         // Update content last modified date
         content.lastChange = Date()
         contentDao.update(content)
@@ -232,8 +241,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         require(!tm.isNullOrEmpty()) { "Unsupported GeoPackage tile matrix" }
         // Determine tile matrix zoom range. Not the same as tile metrics min and max zoom level!
         val zoomLevels = tm.keys.sorted()
-        val minZoom = zoomLevels.first().toInt()
-        val maxZoom = zoomLevels.last().toInt()
+        val minZoom = zoomLevels.first()
+        val maxZoom = zoomLevels.last()
         val minTileMatrix = tm[minZoom]!!
         val tmsSector = buildSector(tms.minX, tms.minY, tms.maxX, tms.maxY, tms.srs.srsId)
         val contentSector = getBoundingSector(content) ?: tmsSector
@@ -256,58 +265,59 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     ): GpkgContent = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
-        // Ensure the necessary tables created
-        createBaseTables()
-        createTileTable(tableName)
-
-        // Write the necessary SRS data
-        writeDefaultSpatialReferenceSystems()
-        val srs = if (levelSet.sector is MercatorSector) CoordinateReferenceSystem.EPSG_3857.createSpatialReferenceSystem()
-        else CoordinateReferenceSystem.EPSG_4326.createSpatialReferenceSystem()
-        srsDao.createOrUpdate(srs)
-
-        // Define bounding boxes. Content bounding box can be smaller than matrix set bounding box.
-        val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
-        val contentBox = if (levelSet.sector != levelSet.tileOrigin) buildBoundingBox(levelSet.sector, srs.id) else matrixBox
-
-        // Create or update content metadata
-        val content = GpkgContent().also {
-            it.tableName = tableName
-            it.dataTypeName = TILES
-            it.identifier = layer.displayName ?: tableName
-            it.lastChange = Date()
-            it.minX = contentBox[0]
-            it.minY = contentBox[1]
-            it.maxX = contentBox[2]
-            it.maxY = contentBox[3]
-            it.srs = srs
-        }
-        contentDao.createOrUpdate(content)
-
-        // Process WebLayer
-        if (layer is WebImageLayer) {
-            // Write web service metadata
-            if (setupWebLayer) setupWebLayer(layer, content)
+        TransactionManager.callInTransaction(connectionSource) {
+            // Ensure the necessary tables created
+            geoPackage.createTileMatrixSetTable()
+            geoPackage.createTileMatrixTable()
 
             // Write WEBP extension if necessary
-            if (layer.imageFormat.equals("image/webp", ignoreCase = true)) {
+            if (layer is WebImageLayer && layer.imageFormat.equals("image/webp", ignoreCase = true)) {
                 WebPExtension(geoPackage).getOrCreate(tableName)
             }
-        }
 
-        // Write tile matrix set
-        val tms = GpkgTileMatrixSet().also {
-            it.contents = content
-            it.srs = srs
-            it.minX = matrixBox[0]
-            it.minY = matrixBox[1]
-            it.maxX = matrixBox[2]
-            it.maxY = matrixBox[3]
-        }
-        tileMatrixSetDao.createOrUpdate(tms)
-        setupTileMatrices(content, levelSet)
+            // Write the necessary SRS data
+            val srs = srsDao.getOrCreateFromEpsg(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
 
-        content
+            // Define bounding boxes. Content bounding box can be smaller than matrix set bounding box.
+            val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
+            val contentBox = if (levelSet.sector != levelSet.tileOrigin)
+                buildBoundingBox(levelSet.sector, srs.id) else matrixBox
+
+            // Create tile data table
+            val columns = TileTable.createRequiredColumns()
+            val tileTable = TileTable(tableName, columns)
+            geoPackage.createTileTable(tileTable)
+
+            // Create or update content metadata
+            val content = GpkgContent().also {
+                it.tableName = tableName
+                it.dataTypeName = TILES
+                it.identifier = layer.displayName ?: tableName
+                //it.lastChange = Date()
+                it.minX = contentBox.minLongitude
+                it.minY = contentBox.minLatitude
+                it.maxX = contentBox.maxLongitude
+                it.maxY = contentBox.maxLatitude
+                it.srs = srs
+            }
+            contentDao.create(content)
+
+            // Write tile matrix set
+            val tms = GpkgTileMatrixSet().also {
+                it.contents = content
+                it.srs = srs
+                it.minX = matrixBox.minLongitude
+                it.minY = matrixBox.minLatitude
+                it.maxX = matrixBox.maxLongitude
+                it.maxY = matrixBox.maxLatitude
+            }
+            tileMatrixSetDao.create(tms)
+
+            content
+        }.also { content ->
+            setupTileMatrices(content, levelSet)
+            if (setupWebLayer && layer is WebImageLayer) setupWebLayer(layer, content)
+        }
     }
 
     suspend fun updateTilesContent(
@@ -317,16 +327,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val box = buildBoundingBox(levelSet.sector, srs.srsId)
         with(content) {
             identifier = layer.displayName ?: tableName
-            minX = box[0]
-            minY = box[1]
-            maxX = box[2]
-            maxY = box[3]
+            minX = box.minLongitude
+            minY = box.minLatitude
+            maxX = box.maxLongitude
+            maxY = box.maxLatitude
         }
         contentDao.update(content)
     }
 
     @Throws(IllegalStateException::class)
-    suspend fun setupTileMatrices(content: GpkgContent, levelSet: LevelSet) = withContext(writeDispatcher) {
+    suspend fun setupTileMatrices(content: GpkgContent, levelSet: LevelSet): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("Content ${content.tableName} cannot be updated. GeoPackage is read-only!")
         val tms = tileMatrixSetDao.queryForId(content.tableName) ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
@@ -334,24 +344,26 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         initializeTileMatrices(content) // Ensure foreign collection exists
         val ctm = content.tileMatrix ?: error("Tile Matrix foreign collection must not be empty at this point")
         val tm = ctm.associateBy { it.zoomLevel.toInt() }.toMutableMap().also { tileMatrixCache[content.tableName] = it }
-        for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
-            if (!tm.containsKey(levelNumber)) {
-                val matrixWidth = levelWidth / tileWidth
-                val matrixHeight = levelHeight / tileHeight
-                val pixelXSize = deltaX / levelWidth
-                val pixelYSize = deltaY / levelHeight
-                val matrix = GpkgTileMatrix().also {
-                    it.contents = content
-                    it.zoomLevel = levelNumber.toLong()
-                    it.matrixWidth = matrixWidth.toLong()
-                    it.matrixHeight = matrixHeight.toLong()
-                    it.tileWidth = tileWidth.toLong()
-                    it.tileHeight = tileHeight.toLong()
-                    it.pixelXSize = pixelXSize
-                    it.pixelYSize = pixelYSize
+        TransactionManager.callInTransaction(connectionSource) {
+            for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
+                if (!tm.containsKey(levelNumber)) {
+                    val matrixWidth = levelWidth / tileWidth
+                    val matrixHeight = levelHeight / tileHeight
+                    val pixelXSize = deltaX / levelWidth
+                    val pixelYSize = deltaY / levelHeight
+                    val matrix = GpkgTileMatrix().also {
+                        it.contents = content
+                        it.zoomLevel = levelNumber.toLong()
+                        it.matrixWidth = matrixWidth.toLong()
+                        it.matrixHeight = matrixHeight.toLong()
+                        it.tileWidth = tileWidth.toLong()
+                        it.tileHeight = tileHeight.toLong()
+                        it.pixelXSize = pixelXSize
+                        it.pixelYSize = pixelYSize
+                    }
+                    ctm.add(matrix)
+                    tm[levelNumber] = matrix
                 }
-                ctm.add(matrix)
-                tm[levelNumber] = matrix
             }
         }
     }
@@ -396,90 +408,32 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     @Throws(IllegalStateException::class)
     suspend fun setupGriddedCoverageContent(
         coverage: CacheableElevationCoverage, tableName: String, setupWebCoverage: Boolean, isFloat: Boolean
-    ) = withContext(writeDispatcher) {
+    ): GpkgContent = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
-        // Ensure the necessary tables created
-        createBaseTables()
-        createGriddedCoverageTables()
-        createTileTable(tableName)
+        TransactionManager.callInTransaction(connectionSource) {
+            val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
+            val matrixBox = buildBoundingBox(coverage.tileMatrixSet.sector, srs.id)
+            val contentBox = if (coverage.sector != coverage.tileMatrixSet.sector)
+                buildBoundingBox(coverage.sector, srs.id) else matrixBox
+            val coverageData = createCoverageData(
+                geoPackage, tableName, coverage.displayName, contentBox, srs.id, matrixBox, srs.id, isFloat
+            )
+            val tms = coverageData.tileMatrixSet
 
-        // Write the necessary SRS data
-        writeDefaultSpatialReferenceSystems()
-        val srs = CoordinateReferenceSystem.EPSG_4326.createSpatialReferenceSystem()
-        srsDao.createOrUpdate(srs)
+            griddedCoverageDao.create(
+                GpkgGriddedCoverage().also {
+                    it.tileMatrixSet = tms
+                    it.dataType = if (isFloat) FLOAT else INTEGER
+                    it.dataNull = if (isFloat) Float.MAX_VALUE.toDouble() else Short.MIN_VALUE.toDouble()
+                }
+            )
 
-        // Define bounding boxes. Content bounding box can be smaller than matrix set bounding box.
-        val matrixBox = buildBoundingBox(coverage.tileMatrixSet.sector, srs.id)
-        val contentBox = if (coverage.sector != coverage.tileMatrixSet.sector)
-            buildBoundingBox(coverage.sector, srs.id) else matrixBox
-
-        // Create or update content metadata
-        val content = GpkgContent().also {
-            it.tableName = tableName
-            it.dataTypeName = COVERAGE
-            it.identifier = coverage.displayName ?: tableName
-            it.lastChange = Date()
-            it.minX = contentBox[0]
-            it.minY = contentBox[1]
-            it.maxX = contentBox[2]
-            it.maxY = contentBox[3]
-            it.srs = srs
+            tms.contents
+        }.also { content ->
+            setupTileMatrices(content, coverage.tileMatrixSet)
+            if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, content)
         }
-        contentDao.createOrUpdate(content)
-
-        // Write web service metadata
-        if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, content)
-
-        // Write tile matrix set
-        val tms = GpkgTileMatrixSet().also {
-            it.contents = content
-            it.srs = srs
-            it.minX = matrixBox[0]
-            it.minY = matrixBox[1]
-            it.maxX = matrixBox[2]
-            it.maxY = matrixBox[3]
-        }
-        tileMatrixSetDao.createOrUpdate(tms)
-        setupTileMatrices(content, coverage.tileMatrixSet)
-
-        // Write gridded coverage metadata
-        griddedCoverageDao.create(
-            GpkgGriddedCoverage().also {
-                it.tileMatrixSet = tms
-                it.dataType = if (isFloat) FLOAT else INTEGER
-                it.dataNull = if (isFloat) Float.MAX_VALUE.toDouble() else Short.MIN_VALUE.toDouble()
-            }
-        )
-
-        // Write the necessary extensions
-        extensionDao.create(
-            GpkgExtension().also {
-                it.tableName = GriddedCoverage.TABLE_NAME
-                it.extensionName = CoverageDataCore.EXTENSION_NAME
-                it.definition = CoverageDataCore.EXTENSION_DEFINITION
-                it.scope = ExtensionScopeType.READ_WRITE
-            }
-        )
-        extensionDao.create(
-            GpkgExtension().also {
-                it.tableName = GriddedTile.TABLE_NAME
-                it.extensionName = CoverageDataCore.EXTENSION_NAME
-                it.definition = CoverageDataCore.EXTENSION_DEFINITION
-                it.scope = ExtensionScopeType.READ_WRITE
-            }
-        )
-        extensionDao.create(
-            GpkgExtension().also {
-                it.tableName = tableName
-                it.columnName = TileTable.COLUMN_TILE_DATA
-                it.extensionName = CoverageDataCore.EXTENSION_NAME
-                it.definition = CoverageDataCore.EXTENSION_DEFINITION
-                it.scope = ExtensionScopeType.READ_WRITE
-            }
-        )
-
-        content
     }
 
     suspend fun updateGriddedCoverageContent(
@@ -489,16 +443,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val box = buildBoundingBox(coverage.sector, srs.id)
         with(content) {
             identifier = coverage.displayName ?: tableName
-            minX = box[0]
-            minY = box[1]
-            maxX = box[2]
-            maxY = box[3]
+            minX = box.minLongitude
+            minY = box.minLatitude
+            maxX = box.maxLongitude
+            maxY = box.maxLatitude
         }
         contentDao.update(content)
     }
 
     @Throws(IllegalStateException::class)
-    suspend fun setupTileMatrices(content: GpkgContent, tileMatrixSet: TileMatrixSet) = withContext(writeDispatcher) {
+    suspend fun setupTileMatrices(content: GpkgContent, tileMatrixSet: TileMatrixSet): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("Content ${content.tableName} cannot be updated. GeoPackage is read-only!")
         val tms = tileMatrixSetDao.queryForId(content.tableName) ?: error("Matrix set not found")
         val deltaX = tms.maxX - tms.minX
@@ -506,21 +460,23 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         initializeTileMatrices(content) // Ensure foreign collection exists
         val ctm = content.tileMatrix ?: error("Tile Matrix foreign collection must not be empty at this point")
         val tm = ctm.associateBy { it.zoomLevel.toInt() }.toMutableMap().also { tileMatrixCache[content.tableName] = it }
-        for (tileMatrix in tileMatrixSet.entries) if (!tm.containsKey(tileMatrix.ordinal)) with(tileMatrix) {
-            val pixelXSize = deltaX / matrixWidth / tileWidth
-            val pixelYSize = deltaY / matrixHeight / tileHeight
-            val matrix = GpkgTileMatrix().also {
-                it.contents = content
-                it.zoomLevel = ordinal.toLong()
-                it.matrixWidth = matrixWidth.toLong()
-                it.matrixHeight = matrixHeight.toLong()
-                it.tileWidth = tileWidth.toLong()
-                it.tileHeight = tileHeight.toLong()
-                it.pixelXSize = pixelXSize
-                it.pixelYSize = pixelYSize
+        TransactionManager.callInTransaction(connectionSource) {
+            for (tileMatrix in tileMatrixSet.entries) if (!tm.containsKey(tileMatrix.ordinal)) with(tileMatrix) {
+                val pixelXSize = deltaX / matrixWidth / tileWidth
+                val pixelYSize = deltaY / matrixHeight / tileHeight
+                val matrix = GpkgTileMatrix().also {
+                    it.contents = content
+                    it.zoomLevel = ordinal.toLong()
+                    it.matrixWidth = matrixWidth.toLong()
+                    it.matrixHeight = matrixHeight.toLong()
+                    it.tileWidth = tileWidth.toLong()
+                    it.tileHeight = tileHeight.toLong()
+                    it.pixelXSize = pixelXSize
+                    it.pixelYSize = pixelYSize
+                }
+                ctm.add(matrix)
+                tm[ordinal] = matrix
             }
-            ctm.add(matrix)
-            tm[ordinal] = matrix
         }
     }
 
@@ -546,19 +502,20 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * @throws IllegalStateException In case of read-only database.
      */
     @Throws(IllegalStateException::class)
-    suspend fun clearContent(tableName: String) = withContext(writeDispatcher) {
+    suspend fun clearContent(tableName: String): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
         // Remove all tiles in specified content table and gridded tile data but keep the table itself
-        tileUserDataDao[tableName]?.let {
-            TableUtils.dropTable(it, true)
-            TableUtils.createTable(it)
+        TransactionManager.callInTransaction(connectionSource) {
+            val dao = getOrCreateTileUserDataDao(tableName)
+            TableUtils.dropTable(dao, true)
+            TableUtils.createTable(dao)
+            if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
+                where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
+            }.delete()
         }
-        if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
-            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
-        }.delete()
     }
 
     /**
@@ -572,37 +529,40 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
-        // Remove specified content table and gridded tile data
-        if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
-            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, tableName)
-        }.delete()
-        tileUserDataDao.remove(tableName)?.let { TableUtils.dropTable(it, true) }
+        TransactionManager.callInTransaction(connectionSource) {
+            // Remove specified content table and gridded tile data
+            if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
+                where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, tableName)
+            }.delete()
+            TableUtils.dropTable(getOrCreateTileUserDataDao(tableName), true)
+            removeTileUserDataDao(tableName)
 
-        // Remove all tile matrices related to specified content table
-        if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
-            where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, tableName)
-        }.delete()
-
-        if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(tableName)?.let { tileMatrixSet ->
-            // Remove gridded coverage metadata if exists
-            if (griddedCoverageDao.isTableExists) griddedCoverageDao.deleteBuilder().apply {
-                where().eq(GpkgGriddedCoverage.COLUMN_TILE_MATRIX_SET_NAME, tableName)
+            // Remove all tile matrices related to specified content table
+            if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
+                where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, tableName)
             }.delete()
 
-            // Remove tile matrix set related to specified content table
-            tileMatrixSetDao.delete(tileMatrixSet)
+            if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(tableName)?.let { tileMatrixSet ->
+                // Remove gridded coverage metadata if exists
+                if (griddedCoverageDao.isTableExists) griddedCoverageDao.deleteBuilder().apply {
+                    where().eq(GpkgGriddedCoverage.COLUMN_TILE_MATRIX_SET_NAME, tableName)
+                }.delete()
+
+                // Remove tile matrix set related to specified content table
+                tileMatrixSetDao.delete(tileMatrixSet)
+            }
+
+            // Remove all extensions related to specified content table
+            if (extensionDao.isTableExists) extensionDao.deleteBuilder().apply {
+                where().eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
+            }.delete()
+
+            // Remove web service settings if exists
+            if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
+
+            // Remove metadata of specified content table
+            contentDao.delete(content)
         }
-
-        // Remove all extensions related to specified content table
-        if (extensionDao.isTableExists) extensionDao.deleteBuilder().apply {
-            where().eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
-        }.delete()
-
-        // Remove web service settings if exists
-        if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
-
-        // Remove metadata of specified content table
-        contentDao.delete(content)
     }
 
     fun getBoundingSector(content: GpkgContent): Sector? {
@@ -614,38 +574,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         return buildSector(minX, minY, maxX, maxY, srsId)
     }
 
-    fun getTileMatrix(content: GpkgContent, zoomLevel: Int): GpkgTileMatrix? = tileMatrixCache[content.tableName]?.get(zoomLevel)
-
-    protected open fun createBaseTables() {
-        with(geoPackage.tableCreator) {
-            if (!contentDao.isTableExists) createContents()
-            if (!tileMatrixSetDao.isTableExists) createTileMatrixSet()
-            if (!tileMatrixDao.isTableExists) createTileMatrix()
-            if (!extensionDao.isTableExists) createExtensions()
-        }
-    }
-
-    protected open fun createGriddedCoverageTables() {
-        with(geoPackage.tableCreator) {
-            if (!griddedCoverageDao.isTableExists) createGriddedCoverage()
-            if (!griddedTileDao.isTableExists) createGriddedTile()
-        }
-    }
+    fun getTileMatrix(content: GpkgContent, zoomLevel: Int) = tileMatrixCache[content.tableName]?.get(zoomLevel)
 
     protected open fun createWebServiceTable() {
         if (!webServiceDao.isTableExists) TableUtils.createTable(webServiceDao)
-    }
-
-    protected open fun createTileTable(tableName: String) {
-        getTileUserDataDao(tableName).let { if (!it.isTableExists) TableUtils.createTable(it) }
-    }
-
-    /**
-     * Undefined cartesian and geographic SRS - Requirement 11 http://www.geopackage.org/spec131/index.html
-     */
-    protected open fun writeDefaultSpatialReferenceSystems() {
-        runCatching { srsDao.createUndefinedCartesian() }
-        runCatching { srsDao.createUndefinedGeographic() }
     }
 
     protected open fun latToEPSG3857(lat: Angle) = ln(tan(PI / 4.0 + lat.inRadians / 2.0)) * Ellipsoid.WGS84.semiMajorAxis
@@ -662,10 +594,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         latFromEPSG3857(minY), latFromEPSG3857(maxY), lonFromEPSG3857(minX), lonFromEPSG3857(maxX)
     )) else Sector(minY.degrees, maxY.degrees, minX.degrees, maxX.degrees)
 
-    protected open fun buildBoundingBox(sector: Sector, srsId: Long) = if (srsId == EPSG_3857) arrayOf(
+    protected open fun buildBoundingBox(sector: Sector, srsId: Long) = if (srsId == EPSG_3857) BoundingBox(
         lonToEPSG3857(sector.minLongitude), latToEPSG3857(sector.minLatitude),
         lonToEPSG3857(sector.maxLongitude), latToEPSG3857(sector.maxLatitude)
-    ) else arrayOf(
+    ) else BoundingBox(
         sector.minLongitude.inDegrees, sector.minLatitude.inDegrees,
         sector.maxLongitude.inDegrees, sector.maxLatitude.inDegrees
     )
@@ -674,7 +606,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         geometry: Geometry, style: FeatureStyle?, srsId: Long
     ): List<Renderable> = when(geometry) {
         is Point -> listOf(
-            earth.worldwind.shape.Placemark.createWithImage(
+            Placemark.createWithImage(
                 buildPosition(geometry, srsId), ImageSource.fromResource(MR.images.kml_placemark)
             ).apply {
                 altitudeMode = if (geometry.is3D) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
@@ -690,7 +622,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             }
         )
         is LineString -> listOf(
-            earth.worldwind.shape.Path(geometry.points.map { buildPosition(it, srsId) }).apply {
+            Path(geometry.points.map { buildPosition(it, srsId) }).apply {
                 pathType = PathType.LINEAR
                 altitudeMode = if (geometry.is3D) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
                 isFollowTerrain = !geometry.is3D
@@ -735,11 +667,17 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     )
 
     @Synchronized
-    protected open fun getTileUserDataDao(tableName: String) = tileUserDataDao[tableName] ?: object : BaseDaoImpl<GpkgTileUserData, Int>(
-        connectionSource, DatabaseTableConfig(GpkgTileUserData::class.java, tableName, null)
-    ) {}.also {
-        DaoManager.registerDaoWithTableConfig(connectionSource, it)
-        tileUserDataDao[tableName] = it
+    protected open fun getOrCreateTileUserDataDao(tableName: String) = tileUserDataDao[tableName]
+        ?: object : BaseDaoImpl<GpkgTileUserData, Int>(
+            connectionSource, DatabaseTableConfig(GpkgTileUserData::class.java, tableName, null)
+        ) {}.also {
+            DaoManager.registerDaoWithTableConfig(connectionSource, it)
+            tileUserDataDao[tableName] = it
+        }
+
+    @Synchronized
+    protected open fun removeTileUserDataDao(tableName: String) {
+        tileUserDataDao.remove(tableName)?.let { DaoManager.unregisterDao(connectionSource, it) }
     }
 
     protected open fun initializeTileMatrices(content: GpkgContent) {
@@ -751,8 +689,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     companion object {
         const val EPSG = "EPSG"
-        val EPSG_3857 = CoordinateReferenceSystem.EPSG_3857.code
-        val EPSG_4326 = CoordinateReferenceSystem.EPSG_4326.code
+        const val EPSG_3857 = ProjectionConstants.EPSG_WEB_MERCATOR.toLong()
+        const val EPSG_4326 = ProjectionConstants.EPSG_WORLD_GEODETIC_SYSTEM.toLong()
         val TILES = ContentsDataType.TILES.name.lowercase()
         val FEATURES = ContentsDataType.FEATURES.name.lowercase()
         const val COVERAGE = CoverageDataCore.GRIDDED_COVERAGE
