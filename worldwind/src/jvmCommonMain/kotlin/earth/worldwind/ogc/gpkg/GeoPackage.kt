@@ -143,14 +143,14 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     suspend fun readTilesDataSize(tableName: String) = withContext(Dispatchers.IO) {
-        val dao = getTileUserDataDao(tableName)
+        val dao = getOrCreateTileUserDataDao(tableName)
         if (dao.isTableExists) dao.queryRawValue("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'") else 0L
     }
 
     suspend fun readTileUserData(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int
     ): GpkgTileUserData? = withContext(Dispatchers.IO) {
-        getTileUserDataDao(content.tableName).queryBuilder().where().eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
+        getOrCreateTileUserDataDao(content.tableName).queryBuilder().where().eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
             .and().eq(GpkgTileUserData.TILE_COLUMN, tileColumn).and().eq(GpkgTileUserData.TILE_ROW, tileRow)
             .queryForFirst()
     }
@@ -166,7 +166,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             it.tileRow = tileRow
         }
         tileUserData.tileData = tileData // Replace tile data
-        getTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
+        getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
         // Update content last modified date
         content.lastChange = Date()
         contentDao.update(content)
@@ -552,10 +552,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
         // Remove all tiles in specified content table and gridded tile data but keep the table itself
-        tileUserDataDao[tableName]?.let {
-            TableUtils.dropTable(it, true)
-            TableUtils.createTable(it)
-        }
+        val dao = getOrCreateTileUserDataDao(tableName)
+        TableUtils.dropTable(dao, true)
+        TableUtils.createTable(dao)
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
             where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
         }.delete()
@@ -576,7 +575,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
             where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, tableName)
         }.delete()
-        tileUserDataDao.remove(tableName)?.let { TableUtils.dropTable(it, true) }
+        TableUtils.dropTable(getOrCreateTileUserDataDao(tableName), true)
+        removeTileUserDataDao(tableName)
 
         // Remove all tile matrices related to specified content table
         if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
@@ -636,8 +636,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (!webServiceDao.isTableExists) TableUtils.createTable(webServiceDao)
     }
 
+    /**
+     * Do not use tableName starting with number to avoid performance issue https://sqlite.org/forum/forumpost/4cf69794d9dfff7c
+     */
     protected open fun createTileTable(tableName: String) {
-        getTileUserDataDao(tableName).let { if (!it.isTableExists) TableUtils.createTable(it) }
+        getOrCreateTileUserDataDao(tableName).let { if (!it.isTableExists) TableUtils.createTable(it) }
     }
 
     /**
@@ -735,11 +738,17 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     )
 
     @Synchronized
-    protected open fun getTileUserDataDao(tableName: String) = tileUserDataDao[tableName] ?: object : BaseDaoImpl<GpkgTileUserData, Int>(
-        connectionSource, DatabaseTableConfig(GpkgTileUserData::class.java, tableName, null)
-    ) {}.also {
-        DaoManager.registerDaoWithTableConfig(connectionSource, it)
-        tileUserDataDao[tableName] = it
+    protected open fun getOrCreateTileUserDataDao(tableName: String) = tileUserDataDao[tableName]
+        ?: object : BaseDaoImpl<GpkgTileUserData, Int>(
+            connectionSource, DatabaseTableConfig(GpkgTileUserData::class.java, tableName, null)
+        ) {}.also {
+            DaoManager.registerDaoWithTableConfig(connectionSource, it)
+            tileUserDataDao[tableName] = it
+        }
+
+    @Synchronized
+    protected open fun removeTileUserDataDao(tableName: String) {
+        tileUserDataDao.remove(tableName)?.let { DaoManager.unregisterDao(connectionSource, it) }
     }
 
     protected open fun initializeTileMatrices(content: GpkgContent) {
