@@ -25,4 +25,4 @@ internal data class PolyStyle(
     @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
     val outline: Boolean = true,
-    ) : ColorStyle()
+) : ColorStyle()
