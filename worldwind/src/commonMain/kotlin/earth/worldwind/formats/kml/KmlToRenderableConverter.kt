@@ -94,21 +94,22 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    private var density = DEFAULT_DENSITY
-    private var resources: Map<String, ImageSource> = emptyMap()
+    private var options = KmlLayerFactory.Options()
 
-    fun init(density: Float = DEFAULT_DENSITY, resources: Map<String, ImageSource> = emptyMap()) {
-        this.density = density
-        this.resources = resources
+    fun init(options: KmlLayerFactory.Options) {
+        this.options = options
     }
 
     fun clear() {
-        density = DEFAULT_DENSITY
-        resources = emptyMap()
+        options = KmlLayerFactory.Options()
     }
 
-    fun convertPlacemarkToRenderable(placemark: Placemark, definedStyle: Style? = null): List<Renderable> {
-        val style = placemark.styleSelector as? Style ?: definedStyle // TODO Add support of StyleMap
+    fun convertPlacemarkToRenderable(
+        placemark: Placemark,
+        definedStyle: Style? = null
+    ): List<Renderable> {
+        val style =
+            placemark.styleSelector as? Style ?: definedStyle // TODO Add support of StyleMap
         val geometry: Geometry = placemark.geometries.firstOrNull() ?: return emptyList()
         return getRenderableFrom(geometry, style, placemark.name)
     }
@@ -123,14 +124,61 @@ internal class KmlToRenderableConverter {
         return listOf(surfaceImage)
     }
 
-    private fun getRenderableFrom(geometry: Geometry, style: Style?, name: String?): List<Renderable> = when (geometry) {
-        is MultiGeometry -> geometry.geometries.map { getRenderableFrom(it, style, name) }.flatten()
-        is LineString -> listOf(createPathFromLineString(geometry, style, name))
-        is LinearRing -> listOf(createPathFromLinearRing(geometry, style, name))
-        is Polygon -> listOf(createPolygonFromPolygon(geometry, style, name))
-        is Point -> createPlacemark(geometry, style, name)?.let { listOf(it) }
-        else -> null
+    private fun getRenderableFrom(
+        geometry: Geometry,
+        style: Style?,
+        name: String?
+    ): List<Renderable> = when (geometry) {
+        is MultiGeometry -> {
+            geometry.geometries.map { getRenderableFrom(it, style, name) }.flatten()
+        }
+
+        is LineString -> buildList {
+            createPathFromLineString(geometry, style, name).let { path ->
+                add(path)
+                if (options.renderLabelsForShapes) add(createLabelFor(path, name))
+            }
+        }
+
+        is LinearRing -> buildList {
+            createPathFromLinearRing(geometry, style, name).let { path ->
+                add(path)
+                if (options.renderLabelsForShapes) add(createLabelFor(path, name))
+            }
+        }
+
+        is Polygon -> buildList {
+            createPolygonFromPolygon(geometry, style, name).let { path ->
+                add(path)
+                if (options.renderLabelsForShapes) add(createLabelFor(path, name))
+            }
+        }
+
+        is Point -> {
+            createPlacemark(geometry, style, name)?.let { listOf(it) }
+        }
+
+        else -> {
+            null
+        }
     } ?: emptyList()
+
+    private fun createLabelFor(
+        shape: AbstractShape,
+        name: String?,
+    ): Label {
+        val position = shape.referencePosition.let { position ->
+            Position( position.latitude, position.longitude, 0.0)
+        }
+        return Label(position, name).apply {
+            altitudeMode = CLAMP_TO_GROUND
+            attributes.apply {
+                textColor = shape.attributes.outlineColor
+                outlineColor = textColor.toContrastColor()
+                textOffset = Offset.center()
+            }
+        }
+    }
 
     private fun createPathFromLineString(
         lineString: LineString, style: Style?, name: String?
@@ -228,10 +276,14 @@ internal class KmlToRenderableConverter {
                         Offset(getOffsetModeFrom(it.xunits), it.x, getOffsetModeFrom(it.yunits), it.y)
                     } ?: Offset.center()
                     imageSource = iconStyle?.icon?.toImageSource()?.also {
-                        imageScale *= density // Apply density only to external KML icons
-                    } ?: resources[KML_DEFAULT_IMAGE_SOURCE_KEY] ?: ImageSource.fromResource(MR.images.kml_placemark).also {
-                        imageOffset.set(PIXELS, 10.0, PIXELS, 3.0) // Special offset for default push pin
-                    }
+                        // Apply density only to external KML icons
+                        imageScale *= options.density
+                    } ?: options.resources[KML_DEFAULT_IMAGE_SOURCE_KEY]
+                            ?: ImageSource.fromResource(MR.images.kml_placemark)
+                                .also {
+                                    // Special offset for default push pin
+                                    imageOffset.set(PIXELS, 10.0, PIXELS, 3.0)
+                                }
 
                     isDrawLeader = point.extrude
 
@@ -245,7 +297,7 @@ internal class KmlToRenderableConverter {
 
     private fun Icon.toImageSource() = href?.let(::forceHttps)?.let {
         try {
-            resources[it.substringAfterLast('/')]
+            options.resources[it.substringAfterLast('/')]
                 ?: if (isValidHttpsUrl(it)) ImageSource.fromUrlString(it) else null
         } catch (_: Exception) {
             // Ignore malformed URL
@@ -277,7 +329,7 @@ internal class KmlToRenderableConverter {
 
             outlineColor = lineStyle?.color?.let { fromHexABRG(it) } ?: defaultLineColor
             interiorColor = polyStyle?.color?.let { fromHexABRG(it) } ?: defaultFillColor
-            outlineWidth = lineStyle?.width ?: density
+            outlineWidth = lineStyle?.width ?: options.density
 
             isPickInterior = false // Allow picking outline only
 

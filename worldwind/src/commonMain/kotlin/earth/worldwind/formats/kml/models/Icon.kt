@@ -59,7 +59,7 @@ internal data class Icon(
      */
     @XmlSerialName("refreshMode")
     @XmlElement
-    val refreshMode: ResfeshMode = ResfeshMode.onChange,
+    val refreshMode: RefreshMode = RefreshMode.onChange,
 
     /**
      * Indicates to refresh the file every n seconds.

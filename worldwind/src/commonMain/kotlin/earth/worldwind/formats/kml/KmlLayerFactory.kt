@@ -61,54 +61,58 @@ object KmlLayerFactory {
         val renderables: List<Renderable>,
     )
 
+    data class Options(
+        val labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
+        val density: Float = DEFAULT_DENSITY,
+        // key is the resource href, value is the reader to read it from
+        val resources: Map<String, ImageSource> = emptyMap(),
+        val renderLabelsForShapes: Boolean = false,
+    )
+
     suspend fun createLayer(
         text: String,
         displayName: String? = KML_LAYER_NAME,
-        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
-        density: Float = DEFAULT_DENSITY,
-        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
-    ) = createLayer(StringReader(text), displayName, labelVisibilityThreshold, density, resources)
+        options: Options,
+    ) = createLayer(StringReader(text), displayName, options)
 
     suspend fun createLayer(
         reader: Reader,
         displayName: String? = KML_LAYER_NAME,
-        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
-        density: Float = DEFAULT_DENSITY,
-        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
-    ): RenderableLayer {
-        converter.init(density, resources)
-
-        return RenderableLayer(displayName).apply {
-            decodeFromReader(reader).map { data ->
-                setLayerData(labelVisibilityThreshold, data)
-            }
-        }.also {
-            converter.clear()
+        options: Options,
+    ) = useConverterWith(options) {
+        decodeFromReader(reader).map { kmlLayerData ->
+            getRenderableLayerFrom(displayName, options, kmlLayerData)
         }
     }
 
     suspend fun createLayers(
         text: String,
-        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
-        density: Float = DEFAULT_DENSITY,
-        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
-    ) = createLayers(StringReader(text), labelVisibilityThreshold, density, resources)
+        options: Options,
+    ) = createLayers(StringReader(text), options)
 
     suspend fun createLayers(
         reader: Reader,
-        labelVisibilityThreshold: Double = DEFAULT_LABEL_VISIBILITY_THRESHOLD,
-        density: Float = DEFAULT_DENSITY,
-        resources: Map<String, ImageSource> = emptyMap(), // key is the resource href, value is the reader to read it from
-    ): List<RenderableLayer> {
-        converter.init(density, resources)
-
-        return decodeFromReader(reader).map { data ->
-            RenderableLayer(data.displayName).apply {
-                setLayerData(labelVisibilityThreshold, data)
-            }
-        }.also {
-            converter.clear()
+        options: Options,
+    ) = useConverterWith(options) {
+        decodeFromReader(reader).map { kmlLayerData ->
+            getRenderableLayerFrom(kmlLayerData.displayName, options, kmlLayerData)
         }
+    }
+
+    private fun getRenderableLayerFrom(
+        displayName: String?,
+        options: Options,
+        data: KmlLayerData
+    ): RenderableLayer = RenderableLayer(displayName).apply {
+        setLayerData(options.labelVisibilityThreshold, data)
+    }
+
+    private suspend fun <T> useConverterWith(options: Options, block: suspend () -> T): T {
+        converter.init(options)
+        val result = block()
+        converter.clear()
+
+        return result
     }
 
     private fun RenderableLayer.setLayerData(
