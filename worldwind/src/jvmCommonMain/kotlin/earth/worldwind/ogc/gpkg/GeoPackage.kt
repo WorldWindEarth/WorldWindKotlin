@@ -636,6 +636,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (!webServiceDao.isTableExists) TableUtils.createTable(webServiceDao)
     }
 
+    /**
+     * Do not use tableName starting with number to avoid performance issue https://sqlite.org/forum/forumpost/4cf69794d9dfff7c
+     */
     protected open fun createTileTable(tableName: String) {
         getOrCreateTileUserDataDao(tableName).let { if (!it.isTableExists) TableUtils.createTable(it) }
     }
