@@ -26,7 +26,10 @@ open class KmlDemoActivity : GeneralGlobeActivity() {
                 val layers = withContext(Dispatchers.IO) {
                     KmlLayerFactory.createLayers(
                         reader = assets.open("KML_Samples.kml").bufferedReader(),
-                        density = resources.displayMetrics.density,
+                        options = KmlLayerFactory.Options(
+                            density = resources.displayMetrics.density,
+                            renderLabelsForShapes = true,
+                        ),
                     )
                 }
                 wwd.engine.layers.addAllLayers(layers)

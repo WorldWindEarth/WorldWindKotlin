@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
  * Specifies a time-based refresh mode
  */
 @Serializable
-enum class ResfeshMode {
+enum class RefreshMode {
     /**
      * refresh when the file is loaded and whenever the Link parameters change.
      */
