@@ -19,8 +19,8 @@ internal data class Point(
      * the value for [altitudeMode] must be either [AltitudeMode.relativeToGround], [AltitudeMode.relativeToSeaFloor],
      * or [AltitudeMode.absolute]. The point is extruded toward the center of the Earth's sphere.
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val extrude: Boolean = false,
 
     /**

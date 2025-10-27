@@ -12,6 +12,7 @@ import nl.adaptivity.xmlutil.*
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.core.impl.multiplatform.Reader
 import nl.adaptivity.xmlutil.serialization.XML
+import nl.adaptivity.xmlutil.serialization.XmlSerializationPolicy
 import kotlin.random.Random
 
 @OptIn(XmlUtilInternal::class)
@@ -55,6 +56,7 @@ internal class KML {
         defaultPolicy {
             pedantic = true
             autoPolymorphic = false
+            encodeDefault = XmlSerializationPolicy.XmlEncodeDefault.NEVER
             ignoreUnknownChildren()
         }
         xmlVersion = XmlVersion.XML10

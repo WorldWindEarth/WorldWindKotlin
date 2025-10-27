@@ -29,8 +29,8 @@ internal data class Polygon(
      * Only the vertices are extruded, not the geometry itself (for example, a rectangle turns into a box with five faces).
      * The vertices of the Polygon are extruded toward the center of the Earth's sphere.
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val extrude: Boolean = false,
 
     /**
@@ -38,8 +38,8 @@ internal data class Polygon(
      * specify an altitude mode of [AltitudeMode.clampToGround] or [AltitudeMode.clampToSeaFloor].
      */
     @Deprecated("This field is not used by Polygon")
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val tessellate: Boolean = false,
 
     /**

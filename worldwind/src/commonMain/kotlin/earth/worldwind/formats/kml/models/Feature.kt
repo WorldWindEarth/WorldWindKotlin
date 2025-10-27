@@ -1,5 +1,6 @@
 package earth.worldwind.formats.kml.models
 
+import earth.worldwind.formats.kml.serializer.FlexibleBooleanSerializer
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
 import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
@@ -25,6 +26,7 @@ internal abstract class Feature(
      * visibility of the [Feature].
      */
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val visibility: Boolean = true,
 
     /**
@@ -33,6 +35,7 @@ internal abstract class Feature(
      * This element applies only to [Document], [Folder], and [NetworkLink].
      */
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val open: Boolean = false,
 
     /**

@@ -30,8 +30,8 @@ internal data class LinearRing(
      * or [AltitudeMode.absolute]. Only the vertices of the [LinearRing] are extruded, not the center of the geometry.
      * The vertices are extruded toward the center of the Earth's sphere.
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val extrude: Boolean = false,
 
     /**
@@ -40,8 +40,8 @@ internal data class LinearRing(
      * Very large [LinearRing]s should enable tessellation so that they follow the curvature of the earth (otherwise,
      * they may go underground and be hidden).
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val tessellate: Boolean = false,
 
     /**

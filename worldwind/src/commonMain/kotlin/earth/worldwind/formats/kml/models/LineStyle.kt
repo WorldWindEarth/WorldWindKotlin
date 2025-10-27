@@ -53,6 +53,6 @@ internal data class LineStyle(
      */
     @XmlSerialName(prefix = "gx", value = "labelVisibility")
     @XmlElement
-    @Serializable(with = FlexibleBooleanSerializer::class)
+    @Serializable(FlexibleBooleanSerializer::class)
     val labelVisibility: Boolean = false,
 ) : ColorStyle()

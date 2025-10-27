@@ -30,8 +30,8 @@ internal data class LineString(
      * the altitude mode must be either [AltitudeMode.relativeToGround], [AltitudeMode.relativeToSeaFloor],
      * or [AltitudeMode.absolute]. The vertices in the [LineString] are extruded toward the center of the Earth's sphere.
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val extrude: Boolean = false,
 
     /**
@@ -40,8 +40,8 @@ internal data class LineString(
      * Very large [LineString]s should enable tessellation so that they follow the curvature of the earth
      * (otherwise, they may go underground and be hidden).
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val tessellate: Boolean = false,
 
     /**

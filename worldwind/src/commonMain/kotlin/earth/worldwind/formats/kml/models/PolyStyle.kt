@@ -15,14 +15,14 @@ internal data class PolyStyle(
     /**
      * Boolean value. Specifies whether to fill the polygon.
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val fill: Boolean = true,
 
     /**
      * Boolean value. Specifies whether to outline the polygon. [Polygon] outlines use the current [LineStyle].
      */
-    @Serializable(with = FlexibleBooleanSerializer::class)
     @XmlElement
+    @Serializable(FlexibleBooleanSerializer::class)
     val outline: Boolean = true,
 ) : ColorStyle()
