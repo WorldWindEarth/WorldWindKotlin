@@ -12,6 +12,12 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
 internal data class PolyStyle(
     override val id: String? = null,
 
+    @XmlElement
+    override var color: String = "ffffffff",
+
+    @XmlElement
+    override val colorMode: ColorMode = ColorMode.normal,
+
     /**
      * Boolean value. Specifies whether to fill the polygon.
      */

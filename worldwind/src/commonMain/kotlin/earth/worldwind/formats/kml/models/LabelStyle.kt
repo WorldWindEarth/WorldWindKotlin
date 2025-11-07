@@ -11,6 +11,12 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
 internal data class LabelStyle(
     override val id: String? = null,
 
+    @XmlElement
+    override var color: String = "ffffffff",
+
+    @XmlElement
+    override val colorMode: ColorMode = ColorMode.normal,
+
     /**
      * Resizes the label.
      */

@@ -9,7 +9,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * It provides elements for specifying the color and color mode of extended style types.
  */
 @Serializable
-internal abstract class ColorStyle(
+internal abstract class ColorStyle : Object() {
     /**
      * Color and opacity (alpha) values are expressed in hexadecimal notation.
      * The range of values for any one color is 0 to 255 (00 to ff). For alpha, 00 is fully transparent and ff is fully opaque.
@@ -18,7 +18,7 @@ internal abstract class ColorStyle(
      * <color>7fff0000</color>, where alpha=0x7f, blue=0xff, green=0x00, and red=0x00.
      */
     @XmlElement
-    val color: String = "ffffffff",
+    abstract val color: String
 
     /**
      * Values for [colorMode] are [ColorMode.normal] (no effect) and [ColorMode.random].
@@ -32,5 +32,5 @@ internal abstract class ColorStyle(
      */
     @XmlSerialName("colorMode")
     @XmlElement
-    val colorMode: ColorMode = ColorMode.normal
-) : Object()
+    abstract val colorMode: ColorMode
+}

@@ -2,7 +2,6 @@ package earth.worldwind.formats.kml.models
 
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
-import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 /**
  * Specifies a custom KML schema that is used to add custom data to KML Features.

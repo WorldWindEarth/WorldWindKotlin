@@ -1,5 +1,6 @@
 package earth.worldwind.formats.kml.models
 
+import earth.worldwind.formats.kml.serializer.FlexibleIntSerializer
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
 
@@ -17,6 +18,7 @@ internal data class Lod(
      * More details are available in the Working with Regions chapter of the Developer's Guide, as well as the Google Earth Outreach documentation's Avoiding Overload with Regions tutorial.
      *
      */
+    @Serializable(FlexibleIntSerializer::class)
     @XmlElement
     val minLodPixels: Int,
 
@@ -24,6 +26,8 @@ internal data class Lod(
      * Measurement in screen pixels that represents the maximum limit of the visibility range for a given Region.
      * A value of −1, the default, indicates "active to infinite size."
      */
+
+    @Serializable(FlexibleIntSerializer::class)
     @XmlElement
     val maxLodPixels: Int = -1,
 

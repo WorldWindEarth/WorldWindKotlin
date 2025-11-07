@@ -4,7 +4,6 @@ import earth.worldwind.formats.kml.serializer.FlexibleBooleanSerializer
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
 import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
-import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 /**
  * This is an abstract element and cannot be used directly in a KML file.
@@ -112,7 +111,7 @@ internal abstract class Feature(
             "earth.worldwind.formats.kml.models.StyleMap",
         ]
     )
-    val styleSelector: StyleSelector? = null,
+    val styleSelector: List<StyleSelector> = emptyList(),
 
     /**
      * Features and geometry associated with a Region are drawn only when the Region is active. See [Region].

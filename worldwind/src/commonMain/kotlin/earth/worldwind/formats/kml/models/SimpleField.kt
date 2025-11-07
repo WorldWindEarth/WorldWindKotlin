@@ -2,7 +2,6 @@ package earth.worldwind.formats.kml.models
 
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
-import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 /**
  * A [Schema] element contains one or more [SimpleField] elements. In the [SimpleField], the [Schema] declares the type

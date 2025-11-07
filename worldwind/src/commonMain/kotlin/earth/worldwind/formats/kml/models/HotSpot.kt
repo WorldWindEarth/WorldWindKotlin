@@ -27,12 +27,12 @@ internal data class HotSpot(
      * A value of pixels indicates the x value in pixels. A value of insetPixels indicates the indent from the right edge of the icon.
      */
     @XmlSerialName("xunits")
-    val xunits: HotSpotUnits,
+    val xunits: HotSpotUnits = HotSpotUnits.fraction,
 
     /**
      * Units in which the y value is specified. A value of fraction indicates the y value is a fraction of the icon.
      * A value of pixels indicates the y value in pixels. A value of insetPixels indicates the indent from the top edge of the icon.
      */
     @XmlSerialName("yunits")
-    val yunits: HotSpotUnits,
+    val yunits: HotSpotUnits = HotSpotUnits.fraction,
 )

@@ -13,6 +13,12 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 internal data class IconStyle(
     override val id: String? = null,
 
+    @XmlElement
+    override var color: String = "ffffffff",
+
+    @XmlElement
+    override val colorMode: ColorMode = ColorMode.normal,
+
     /**
      * Resizes the icon.
      */

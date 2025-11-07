@@ -14,6 +14,12 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 internal data class LineStyle(
     override val id: String? = null,
 
+    @XmlElement
+    override var color: String = "ffffffff",
+
+    @XmlElement
+    override val colorMode: ColorMode = ColorMode.normal,
+
     /**
      * Width of the line, in pixels.
      */

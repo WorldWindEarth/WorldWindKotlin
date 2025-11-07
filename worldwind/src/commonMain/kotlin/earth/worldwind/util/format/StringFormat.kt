@@ -1,6 +1,7 @@
 package earth.worldwind.util.format
 
 import kotlinx.datetime.*
+import kotlin.time.Instant
 
 internal class StringFormat(val format: String, val args: Array<out Any?>) {
 

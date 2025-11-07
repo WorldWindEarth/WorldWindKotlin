@@ -18,7 +18,7 @@ internal data class Icon(
      * An HTTP address or a local file specification used to load an icon.
      */
     @XmlElement
-    val href: String? = null,
+    val href: String,
 
     /**
      * If the <href> specifies an icon palette, these elements identify the offsets, in pixels, from the lower-left
