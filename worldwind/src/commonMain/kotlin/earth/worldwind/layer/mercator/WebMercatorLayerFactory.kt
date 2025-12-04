@@ -16,8 +16,8 @@ object WebMercatorLayerFactory {
     private const val RAND_PREFIX = "{rand="
 
     fun createLayer(
-        urlTemplate: String, imageFormat: String = "image/png", transparent: Boolean = false,
-        name: String? = null, numLevels: Int = 22, tileSize: Int = 256, levelOffset: Int = 1
+        urlTemplate: String, name: String? = null, imageFormat: String = "image/png", transparent: Boolean = false,
+        maxZoom: Int = 21, minZoom: Int = 1, tileSize: Int = 256
     ): WebMercatorImageLayer {
         val urlParts = parseUrl(urlTemplate)
         val randomValue = urlParts.find { it.startsWith(RAND_PREFIX) }
@@ -43,7 +43,7 @@ object WebMercatorLayerFactory {
                 return ImageSource.fromUrlString(resultServerUrl.toString())
             }
         }
-        val tiledSurfaceImage = buildTiledSurfaceImage(tileFactory, numLevels, tileSize, transparent, levelOffset)
+        val tiledSurfaceImage = buildTiledSurfaceImage(tileFactory, transparent, maxZoom, minZoom, tileSize)
         return WebMercatorImageLayer(urlTemplate, imageFormat, transparent, name, tiledSurfaceImage)
     }
 

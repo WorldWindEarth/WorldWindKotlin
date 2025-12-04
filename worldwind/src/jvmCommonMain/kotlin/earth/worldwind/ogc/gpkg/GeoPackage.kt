@@ -254,8 +254,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 tmsSector.deltaLatitude / (tms.maxY - tms.minY) * minTileMatrix.pixelYSize * minTileMatrix.tileHeight,
                 tmsSector.deltaLongitude / (tms.maxX - tms.minX) * minTileMatrix.pixelXSize * minTileMatrix.tileWidth
             )
-            levelOffset = minZoom
-            numLevels = maxZoom + 1
+            firstLevelNumber = minZoom
+            numLevels = maxZoom - minZoom + 1
         }
     }
 

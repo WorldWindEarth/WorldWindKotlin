@@ -27,8 +27,8 @@ open class RMapsTileFactory(
     protected val contentFile = File(contentPath)
     override val contentType = if (tilesDao.isTableExists && infoDao.isTableExists) "RMaps" else error("Not an RMaps map file")
     override val contentKey = contentFile.nameWithoutExtension
-    val numLevels get() = infoDao.queryForFirst()?.minzoom?.let { 17 - it + 1 } ?: 18
-    val levelOffset get() = infoDao.queryForFirst()?.maxzoom?.let { 17 - it } ?: 0
+    val minZoom get() = infoDao.queryForFirst()?.maxzoom?.let { 17 - it } ?: 0
+    val maxZoom get() = infoDao.queryForFirst()?.minzoom?.let { 17 - it } ?: 17
     val isShutdown get() = !connectionSource.isOpen("")
 
     fun shutdown() = connectionSource.close()

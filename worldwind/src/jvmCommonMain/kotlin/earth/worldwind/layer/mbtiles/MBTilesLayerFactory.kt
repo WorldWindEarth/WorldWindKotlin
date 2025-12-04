@@ -19,10 +19,10 @@ object MBTilesLayerFactory {
             sector = sector,
             tileOrigin = tileOrigin,
             firstLevelDelta = Location(tileOrigin.deltaLatitude, tileOrigin.deltaLongitude),
-            numLevels = tileFactory.maxZoom + 1,
+            firstLevelNumber = tileFactory.minZoom,
+            numLevels = tileFactory.maxZoom - tileFactory.minZoom + 1,
             tileWidth = 256,
             tileHeight = 256,
-            levelOffset = tileFactory.minZoom
         )
         MercatorTiledImageLayer(tileFactory.contentKey, MercatorTiledSurfaceImage(tileFactory, levelSet).apply {
             if (tileFactory.type != "overlay") imageOptions = ImageOptions(ImageConfig.RGB_565)

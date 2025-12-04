@@ -46,11 +46,11 @@ open class Level internal constructor(
     /**
      * Indicates whether this level is the lowest resolution level (level 0) within the parent level set.
      */
-    val isFirstLevel get() = levelNumber == 0
+    val isFirstLevel get() = levelNumber == parent.firstLevel.levelNumber
     /**
      * Indicates whether this level is the highest resolution level within the parent level set.
      */
-    val isLastLevel get() = levelNumber == parent.numLevels - 1
+    val isLastLevel get() = levelNumber == parent.lastLevel.levelNumber
     /**
      * Returns the level whose ordinal occurs immediately before this level's ordinal in the parent level set, or null
      * if this is the fist level.

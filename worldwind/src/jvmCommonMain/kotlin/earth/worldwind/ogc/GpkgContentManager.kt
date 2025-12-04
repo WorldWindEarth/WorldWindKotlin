@@ -1,5 +1,6 @@
 package earth.worldwind.ogc
 
+import earth.worldwind.geom.Location
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
@@ -67,7 +68,10 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                                 val layerNames = service.layerName?.split(",") ?: error("Layer not specified")
                                 try {
                                     WmsLayerFactory.createLayer(
-                                        service.address, layerNames, service.metadata, content.identifier
+                                        serviceAddress = service.address,
+                                        layerNames = layerNames,
+                                        serviceMetadata = service.metadata,
+                                        displayName = content.identifier
                                     )
                                 } catch (e: Exception) {
                                     // If metadata was not null, try to request online metadata and replace layer cache
@@ -83,7 +87,10 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                                 val layerName = service.layerName ?: error("Layer not specified")
                                 try {
                                     WmtsLayerFactory.createLayer(
-                                        service.address, layerName, service.metadata, content.identifier
+                                        serviceAddress = service.address,
+                                        layerName = layerName,
+                                        serviceMetadata = service.metadata,
+                                        displayName = content.identifier
                                     )
                                 } catch (e: Exception) {
                                     // If metadata was not null, try to request online metadata and replace layer cache
@@ -96,8 +103,13 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                             }
 
                             WebMercatorImageLayer.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
-                                service.address, service.outputFormat, service.isTransparent,
-                                content.identifier, config.numLevels, config.tileHeight, config.levelOffset
+                                urlTemplate = service.address,
+                                name = content.identifier,
+                                imageFormat = service.outputFormat,
+                                transparent = service.isTransparent,
+                                maxZoom = config.firstLevelNumber + config.numLevels - 1,
+                                minZoom = config.firstLevelNumber,
+                                tileSize = config.tileHeight
                             )
 
                             else -> null // It is not a known Web Layer type
@@ -132,10 +144,13 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         val content = geoPackage.getContent(contentKey)?.also { content ->
             // Check if the current layer fits cache content
             val config = geoPackage.buildLevelSetConfig(content)
-            require(config.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) { "Invalid tile origin" }
-            require(config.firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) { "Invalid first level delta" }
             require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
-            require(content.tileMatrix?.minOf { it.zoomLevel } == 0L) { "Invalid level offset" }
+            require(config.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) { "Invalid tile origin" }
+            val minZoom = content.tileMatrix?.minOf { it.zoomLevel.toInt() } ?: error("Tile Matrix is null or empty")
+            require(config.firstLevelNumber >= minZoom) { "Invalid first level number" }
+            val divider = 1 shl (config.firstLevelNumber - minZoom)
+            val firstLevelDelta = Location(config.firstLevelDelta.latitude / divider, config.firstLevelDelta.longitude / divider)
+            require(firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) { "Invalid first level delta" }
             if (imageFormat.equals("image/webp", true)) requireNotNull(geoPackage.getExtension(
                 tableName = contentKey, TileTable.COLUMN_TILE_DATA, WebPExtension.EXTENSION_NAME
             )) { "WEBP extension missed" }
@@ -171,15 +186,21 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
                 when (service?.type) {
                     Wcs100ElevationCoverage.SERVICE_TYPE -> Wcs100ElevationCoverage(
-                        service.address, service.layerName ?: error("Coverage not specified"),
-                        service.outputFormat, matrixSet.sector, matrixSet.maxResolution
+                        serviceAddress = service.address,
+                        coverageName = service.layerName ?: error("Coverage not specified"),
+                        outputFormat = service.outputFormat,
+                        sector = matrixSet.sector,
+                        resolution = matrixSet.maxResolution
                     ).apply { cacheSourceFactory = factory }
 
                     Wcs201ElevationCoverage.SERVICE_TYPE -> {
                         val layerName = service.layerName ?: error("Coverage not specified")
                         try {
                             Wcs201ElevationCoverage.createCoverage(
-                                service.address, layerName, service.outputFormat, service.metadata
+                                serviceAddress = service.address,
+                                coverageName = layerName,
+                                outputFormat = service.outputFormat,
+                                serviceMetadata = service.metadata
                             )
                         } catch (e: Exception) {
                             // If metadata was not null, try to request online metadata and replace layer cache
@@ -190,8 +211,11 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                     }
 
                     WmsElevationCoverage.SERVICE_TYPE -> WmsElevationCoverage(
-                        service.address, service.layerName ?: error("Coverage not specified"),
-                        service.outputFormat, matrixSet.sector, matrixSet.maxResolution
+                        serviceAddress = service.address,
+                        coverageName = service.layerName ?: error("Coverage not specified"),
+                        outputFormat = service.outputFormat,
+                        sector = matrixSet.sector,
+                        resolution = matrixSet.maxResolution
                     ).apply { cacheSourceFactory = factory }
 
                     else -> TiledElevationCoverage(matrixSet, factory).apply {
