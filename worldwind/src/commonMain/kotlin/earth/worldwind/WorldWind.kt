@@ -90,6 +90,10 @@ open class WorldWind @JvmOverloads constructor(
      */
     var atmosphereAltitude = 160000.0
     /**
+     * Artificial restriction of far distance. Applied only if automatically calculated distance is grater.
+     */
+    var farDistanceLimit = 0.0
+    /**
      * Context related to frame rendering phase
      */
     protected val rc = RenderContext()
@@ -536,6 +540,7 @@ open class WorldWind @JvmOverloads constructor(
 
         // The far distance is set to the smallest value that does not clip the atmosphere.
         var far = eyeHorizon + atmosphereHorizon
+        if (far > farDistanceLimit && farDistanceLimit > 1.0) far = farDistanceLimit
         if (far < 1e3) far = 1e3
 
         //The near distance is set to a large value that does not clip the globe's surface.

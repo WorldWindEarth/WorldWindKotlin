@@ -146,9 +146,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             val config = geoPackage.buildLevelSetConfig(content)
             require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
             require(config.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) { "Invalid tile origin" }
-            val minZoom = content.tileMatrix?.minOf { it.zoomLevel.toInt() } ?: error("Tile Matrix is null or empty")
-            require(config.firstLevelNumber >= minZoom) { "Invalid first level number" }
-            val divider = 1 shl (config.firstLevelNumber - minZoom)
+            require(config.firstLevelNumber <= levelSet.firstLevel.levelNumber) { "Invalid first level number" }
+            val divider = 1 shl (levelSet.firstLevel.levelNumber - config.firstLevelNumber)
             val firstLevelDelta = Location(config.firstLevelDelta.latitude / divider, config.firstLevelDelta.longitude / divider)
             require(firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) { "Invalid first level delta" }
             if (imageFormat.equals("image/webp", true)) requireNotNull(geoPackage.getExtension(
