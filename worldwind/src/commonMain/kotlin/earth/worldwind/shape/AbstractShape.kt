@@ -94,6 +94,11 @@ abstract class AbstractShape(
         protected val vertPoint = Vec3()
     }
 
+    open fun reset() {
+        boundingData.clear()
+        ++bufferDataVersion
+    }
+
     override fun doRender(rc: RenderContext) {
     	// Get or create available bounding data for current Globe state
         currentBoundindData = boundingData[rc.globeState] ?: BoundingData().also { boundingData[rc.globeState] = it }
@@ -212,11 +217,6 @@ abstract class AbstractShape(
             it.boundingSector.setEmpty()
             it.boundingBox.setToUnitBox()
         }
-        ++bufferDataVersion
-    }
-
-    protected open fun reset() {
-        boundingData.clear()
         ++bufferDataVersion
     }
 
