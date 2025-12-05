@@ -10,21 +10,24 @@ import kotlin.math.*
 open class MercatorSector(
     val minLatPercent: Double = -1.0, val maxLatPercent: Double = 1.0,
     minLongitude: Angle = Angle.NEG180, maxLongitude: Angle = Angle.POS180
-): Sector(gudermannian(minLatPercent), gudermannian(maxLatPercent), minLongitude, maxLongitude) {
+) : Sector(gudermannian(minLatPercent), gudermannian(maxLatPercent), minLongitude, maxLongitude) {
 
-    override fun computeColumn(tileDelta: Angle, longitude: Angle) = floor(getX(longitude) * getTilesX(tileDelta)).toInt()
+    override fun computeRow(tileDelta: Angle, latitude: Angle): Int {
+        var row = floor(getY(latitude) * getTilesY(tileDelta)).toInt()
+        // if latitude is at the end of the grid, subtract 1 from the computed row to return the last row
+        if (latitude.inDegrees == maxLatitude.inDegrees) row -= 1
+        return row
+    }
 
-    override fun computeRow(tileDelta: Angle, latitude: Angle) = floor(getY(latitude) * getTilesY(tileDelta)).toInt()
+    override fun computeLastRow(tileDelta: Angle, latitude: Angle): Int {
+        var row = ceil(getY(latitude) * getTilesY(tileDelta) - 1).toInt()
+        // if max latitude is in the first row, set the max row to 0
+        if (latitude.inDegrees - minLatitude.inDegrees < tileDelta.inDegrees) row = 0
+        return row
+    }
 
-    override fun computeLastColumn(tileDelta: Angle, longitude: Angle) = ceil(getX(longitude) * getTilesX(tileDelta) - 1).toInt()
-
-    override fun computeLastRow(tileDelta: Angle, latitude: Angle) = ceil(getY(latitude) * getTilesY(tileDelta) - 1).toInt()
-
-    private fun getX(longitude: Angle) = (longitude.inDegrees + 180.0) / 360.0
-
-    private fun getY(latitude: Angle) = (1.0 + ln(tan(latitude.inRadians) + 1.0 / cos(latitude.inRadians)) / PI) / 2.0
-
-    private fun getTilesX(tileDelta: Angle) = deltaLongitude.inDegrees / tileDelta.inDegrees
+    private fun getY(latitude: Angle) =
+        (ln(tan(latitude.inRadians) + 1.0 / cos(latitude.inRadians)) / PI - minLatPercent) / (maxLatPercent - minLatPercent)
 
     private fun getTilesY(tileDelta: Angle) = deltaLatitude.inDegrees / tileDelta.inDegrees
 

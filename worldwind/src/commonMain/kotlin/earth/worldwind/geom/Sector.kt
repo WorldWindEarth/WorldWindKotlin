@@ -444,15 +444,6 @@ open class Sector(
         return maxLevelNumber
     }
 
-    fun equals(other: Sector, tolerance: Double): Boolean {
-        // if (this === other) return true // Empty sector is not equal self
-        if (isEmpty && other.isEmpty) return false // Two empty sectors are not equal
-        return abs(minLatitude.inDegrees - other.minLatitude.inDegrees) < tolerance
-                && abs(maxLatitude.inDegrees - other.maxLatitude.inDegrees) < tolerance
-                && abs(minLongitude.inDegrees - other.minLongitude.inDegrees) < tolerance
-                && abs(maxLongitude.inDegrees - other.maxLongitude.inDegrees) < tolerance
-    }
-
     /**
      * Computes a row number for a tile within a level given the tile's latitude.
      *
@@ -464,7 +455,7 @@ open class Sector(
     open fun computeRow(tileDelta: Angle, latitude: Angle): Int {
         var row = floor((latitude.inDegrees - minLatitude.inDegrees) / tileDelta.inDegrees).toInt()
         // if latitude is at the end of the grid, subtract 1 from the computed row to return the last row
-        if (latitude.inDegrees - minLatitude.inDegrees == 180.0) row -= 1
+        if (latitude.inDegrees == maxLatitude.inDegrees) row -= 1
         return row
     }
 
@@ -479,7 +470,7 @@ open class Sector(
     open fun computeColumn(tileDelta: Angle, longitude: Angle): Int {
         var col = floor((longitude.inDegrees - minLongitude.inDegrees) / tileDelta.inDegrees).toInt()
         // if longitude is at the end of the grid, subtract 1 from the computed column to return the last column
-        if (longitude.inDegrees - minLongitude.inDegrees == 360.0) col -= 1
+        if (longitude.inDegrees == maxLongitude.inDegrees) col -= 1
         return col
     }
 
@@ -511,6 +502,15 @@ open class Sector(
         // if max longitude is in the first column, set the max column to 0
         if (longitude.inDegrees - minLongitude.inDegrees < tileDelta.inDegrees) col = 0
         return col
+    }
+
+    fun equals(other: Sector, tolerance: Double): Boolean {
+        // if (this === other) return true // Empty sector is not equal self
+        if (isEmpty && other.isEmpty) return false // Two empty sectors are not equal
+        return abs(minLatitude.inDegrees - other.minLatitude.inDegrees) < tolerance
+                && abs(maxLatitude.inDegrees - other.maxLatitude.inDegrees) < tolerance
+                && abs(minLongitude.inDegrees - other.minLongitude.inDegrees) < tolerance
+                && abs(maxLongitude.inDegrees - other.maxLongitude.inDegrees) < tolerance
     }
 
     override fun equals(other: Any?): Boolean {
