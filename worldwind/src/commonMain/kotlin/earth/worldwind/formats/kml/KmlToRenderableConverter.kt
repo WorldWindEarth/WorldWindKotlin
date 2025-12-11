@@ -109,7 +109,7 @@ internal class KmlToRenderableConverter {
         definedStyle: Style? = null
     ): List<Renderable> {
         val style =
-            placemark.styleSelector as? Style ?: definedStyle // TODO Add support of StyleMap
+            placemark.styleSelector.firstOrNull() as? Style ?: definedStyle // TODO Add support of StyleMap
         val geometry: Geometry = placemark.geometries.firstOrNull() ?: return emptyList()
         return getRenderableFrom(geometry, style, placemark.name)
     }
@@ -295,7 +295,7 @@ internal class KmlToRenderableConverter {
         }
     }
 
-    private fun Icon.toImageSource() = href?.let(::forceHttps)?.let {
+    private fun Icon.toImageSource() = forceHttps(href).let {
         try {
             options.resources[it.substringAfterLast('/')]
                 ?: if (isValidHttpsUrl(it)) ImageSource.fromUrlString(it) else null
