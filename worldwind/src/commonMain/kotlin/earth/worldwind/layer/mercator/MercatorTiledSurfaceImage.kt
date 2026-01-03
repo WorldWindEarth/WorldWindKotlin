@@ -8,7 +8,7 @@ import earth.worldwind.util.TileFactory
 open class MercatorTiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet) : TiledSurfaceImage(tileFactory, levelSet) {
     override fun clone() = MercatorTiledSurfaceImage(tileFactory, with(levelSet) {
         // It is crucial to keep the Mercator sector in the level set clone to keep correct tiling
-        LevelSet(fromSector(sector), fromSector(tileOrigin), firstLevelDelta, numLevels, tileWidth, tileHeight, firstLevel.levelNumber)
+        LevelSet(fromSector(sector), fromSector(tileOrigin), firstLevelDelta, numLevels, tileWidth, tileHeight, levelOffset, firstLevel.levelNumber)
     }).also {
         it.imageOptions = imageOptions
     }

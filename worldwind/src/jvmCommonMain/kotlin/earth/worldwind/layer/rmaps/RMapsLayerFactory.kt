@@ -19,10 +19,10 @@ object RMapsLayerFactory {
             sector = sector,
             tileOrigin = tileOrigin,
             firstLevelDelta = Location(tileOrigin.deltaLatitude, tileOrigin.deltaLongitude),
-            firstLevelNumber = tileFactory.minZoom,
-            numLevels = tileFactory.maxZoom - tileFactory.minZoom + 1,
+            numLevels = tileFactory.maxZoom + 1,
             tileWidth = 256,
             tileHeight = 256,
+            levelOffset = tileFactory.minZoom
         )
         MercatorTiledImageLayer(tileFactory.contentKey, MercatorTiledSurfaceImage(tileFactory, levelSet)).apply {
             tiledSurfaceImage?.cacheTileFactory = tileFactory

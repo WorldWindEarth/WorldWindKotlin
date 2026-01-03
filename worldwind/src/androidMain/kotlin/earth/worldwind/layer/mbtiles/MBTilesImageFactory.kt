@@ -21,7 +21,7 @@ open class MBTilesImageFactory(
     protected val quality: Int = 100
 ): ImageSource.ImageFactory, ResourcePostprocessor {
     override suspend fun createBitmap(): Bitmap? {
-        // Attempt to read the ATAK tile data
+        // Attempt to read the MBTiles tile data
         val tile = tilesDao.queryBuilder().where().eq(ZOOM_LEVEL, zoom)
             .and().eq(TILE_COLUMN, column).and().eq(TILE_ROW, row).queryForFirst()?.tileData ?: return null
 

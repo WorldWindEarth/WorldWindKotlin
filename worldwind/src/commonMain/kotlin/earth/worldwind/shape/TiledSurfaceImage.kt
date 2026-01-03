@@ -151,8 +151,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     ) {
         if (!tile.intersectsSector(sector)) return // Ignore tiles and its descendants outside the specified sector
         val levelNumber = tile.level.levelNumber
-        // Skip tiles with level less than specified min level from the process
-        if (levelNumber >= minLevel.levelNumber) process(tile)
+        // Skip tiles with level less than specified offset from the process
+        if (levelNumber >= minLevel.levelNumber && levelNumber >= levelSet.levelOffset) process(tile)
         // Do not subdivide if specified level or last available level reached
         if (levelNumber < maxLevel.levelNumber && !tile.level.isLastLevel) {
             tile.subdivide(tileFactory).forEach { processAndSubdivideTile(it as ImageTile, sector, minLevel, maxLevel, process) }
@@ -182,7 +182,9 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc)) return
         // Do not retrieve tiles bigger than level size because they can be simulated by downscaling more detailed tiles
         // TODO Remove this restriction when GeoPackage will be able to correctly align tiles bigger than level size
-        val retrieveCurrentLevel = tile.level.levelWidth >= tile.level.tileWidth && tile.level.levelHeight >= tile.level.tileHeight
+        val validSize = tile.level.levelWidth >= tile.level.tileWidth && tile.level.levelHeight >= tile.level.tileHeight
+        // Do not retrieve tiles from levels before level offset
+        val retrieveCurrentLevel = validSize && tile.level.levelNumber >= levelSet.levelOffset
         // Use current tile if it must not subdivide and should be retrieved, or it is the last level tile
         val isLastLevel = tile.level.isLastLevel
         val mustSubdivide = tile.mustSubdivide(rc, detailControl)

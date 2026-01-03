@@ -36,6 +36,10 @@ open class LevelSet {
      */
     val tileHeight: Int
     /**
+     * Determines how many levels to skip from retrieving tile data during tile pyramid subdivision.
+     */
+    val levelOffset: Int
+    /**
      * The hierarchical levels, sorted from lowest to highest resolution.
      */
     protected val levels: Array<Level>
@@ -64,13 +68,14 @@ open class LevelSet {
      * sample points in the longitudinal direction of elevation tiles associate with this leve set
      * @param tileHeight      the height in pixels of images associated with tiles in this level set, or the number of
      * sample points in the latitudinal direction of elevation tiles associate with this level set
+     * @param levelOffset     determines how many levels to skip from retrieving texture during tile pyramid subdivision
      * @param firstLevelNumber determines the lowest resolution level number. .
      *
      * @throws IllegalArgumentException If any dimension is zero
      */
     constructor(
         sector: Sector, tileOrigin: Sector, firstLevelDelta: Location, numLevels: Int, tileWidth: Int, tileHeight: Int,
-        firstLevelNumber: Int = 0
+        levelOffset: Int = 0, firstLevelNumber: Int = 0
     ) {
         require(firstLevelDelta.latitude.inDegrees > 0.0 && firstLevelDelta.longitude.inDegrees > 0.0) {
             logMessage(ERROR, "LevelSet", "constructor", "invalidTileDelta")
@@ -86,6 +91,7 @@ open class LevelSet {
         this.firstLevelDelta = firstLevelDelta
         this.tileWidth = tileWidth
         this.tileHeight = tileHeight
+        this.levelOffset = levelOffset
         this.levels = Array(numLevels) {
             val divisor = 1 shl it
             Level(this, it + firstLevelNumber, Location(firstLevelDelta.latitude / divisor, firstLevelDelta.longitude / divisor))
@@ -104,6 +110,7 @@ open class LevelSet {
         levelSet.numLevels,
         levelSet.tileWidth,
         levelSet.tileHeight,
+        levelSet.levelOffset,
         levelSet.firstLevel.levelNumber,
     )
 
@@ -121,6 +128,7 @@ open class LevelSet {
         config.numLevels,
         config.tileWidth,
         config.tileHeight,
+        config.levelOffset,
         config.firstLevelNumber,
     )
 
