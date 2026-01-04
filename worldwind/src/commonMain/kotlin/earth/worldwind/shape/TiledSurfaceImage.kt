@@ -185,12 +185,12 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val validSize = tile.level.levelWidth >= tile.level.tileWidth && tile.level.levelHeight >= tile.level.tileHeight
         // Do not retrieve tiles from levels before level offset
         val retrieveCurrentLevel = validSize && tile.level.levelNumber >= levelSet.levelOffset
-        // Use current tile if it must not subdivide and should be retrieved, or it is the last level tile
+        // Stop subdivide to cache if it is the last level or tile matches detail control
         val isLastLevel = tile.level.isLastLevel
         val mustSubdivide = tile.mustSubdivide(rc, detailControl)
-        if (isLastLevel || retrieveCurrentLevel && !mustSubdivide) {
+        if (isLastLevel || !mustSubdivide) {
             // Skip using last level tile on more detailed levels if using ancestor tiles is switched off
-            if (!isLastLevel || !mustSubdivide || useAncestorTileTexture) addTile(rc, tile)
+            if (retrieveCurrentLevel && (!isLastLevel || !mustSubdivide || useAncestorTileTexture)) addTile(rc, tile)
             return  // use the tile if it does not need to be subdivided
         }
         val currentAncestorTile = ancestorTile
