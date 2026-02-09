@@ -19,6 +19,7 @@ import org.khronos.webgl.TexImageSource
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.Image
+import org.w3c.dom.ImageBitmap
 import org.w3c.dom.url.URL
 import kotlin.time.Duration.Companion.seconds
 
@@ -140,6 +141,7 @@ actual open class RenderResourceCache(
         var (width, height) = when (image) {
             is HTMLImageElement -> image.width to image.height
             is HTMLCanvasElement -> image.width to image.height
+            is ImageBitmap -> image.width to image.height
             else -> return null
         }
 

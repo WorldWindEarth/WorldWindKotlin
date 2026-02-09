@@ -1212,6 +1212,14 @@ open class Matrix4 private constructor(
         return atan2(st, ct).radians
     }
 
+    fun extractScale(result: Vec3) : Vec3 {
+        result.x = Vec3(m[0], m[1], m[2]).magnitude
+        result.y = Vec3(m[4], m[5], m[6]).magnitude
+        result.z = Vec3(m[8], m[9], m[10]).magnitude
+
+        return result
+    }
+
     /**
      * Returns this symmetric matrix's eigenvectors. The eigenvectors are returned in the specified result arguments in
      * order of descending magnitude (most prominent to least prominent). Each eigenvector has length equal to its
