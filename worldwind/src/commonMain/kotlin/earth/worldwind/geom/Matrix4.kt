@@ -1212,6 +1212,14 @@ open class Matrix4 private constructor(
         return atan2(st, ct).radians
     }
 
+    fun extractScale(result: Vec3) : Vec3 {
+        result.x = Vec3(m[0], m[1], m[2]).magnitude
+        result.y = Vec3(m[4], m[5], m[6]).magnitude
+        result.z = Vec3(m[8], m[9], m[10]).magnitude
+
+        return result
+    }
+
     /**
      * Extracts the scale components from this matrix and stores them in the specified result vector.
      *

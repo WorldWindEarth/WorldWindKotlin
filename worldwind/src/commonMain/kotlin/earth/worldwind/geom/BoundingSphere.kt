@@ -36,6 +36,23 @@ open class BoundingSphere {
         this.radius = radius
     }
 
+    fun getBoundingBoxCorners(): List<Vec3> {
+        val corners = ArrayList<Vec3>(8)
+
+        for (dt in listOf(-1.0, 1.0)) {
+            for (dr in listOf(-1.0, 1.0)) {
+                for (ds in listOf(-1.0, 1.0)) {
+                    val corner = Vec3(center)
+                        .add(Vec3(0.0,0.0, 1.0).times(radius  * dr))
+                        .add(Vec3(1.0,0.0, 0.0).times(radius * ds))
+                        .add(Vec3(0.0,1.0, 0.0).times(radius * dt))
+                    corners.add(corner)
+                }
+            }
+        }
+        return corners
+    }
+
     /**
      * Indicates whether this bounding sphere intersects a specified frustum.
      *
