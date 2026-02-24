@@ -1,11 +1,13 @@
 package earth.worldwind.formats.kml.models
 
 import kotlinx.serialization.Serializable
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 /**
  * Specifies how the link is refreshed when the "camera" changes.
  */
 @Serializable
+@XmlSerialName("viewRefreshMode")
 enum class ViewRefreshMode {
     /**
      * Ignore changes in the view. Also ignore <viewFormat> parameters, if any.

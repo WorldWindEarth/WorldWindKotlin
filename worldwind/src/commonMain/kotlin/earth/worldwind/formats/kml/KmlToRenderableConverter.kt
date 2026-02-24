@@ -116,7 +116,7 @@ internal class KmlToRenderableConverter {
 
     fun convertGroundOverlayToRenderable(groundOverlay: GroundOverlay): List<Renderable> {
         val surfaceImage = SurfaceImage(
-            sector = groundOverlay.latLonBox?.toSector() ?: return emptyList(),
+            sector = groundOverlay.latLonBox?.toSector() ?: groundOverlay.latLonQuad?.toSector() ?: return emptyList(),
             imageSource = groundOverlay.icon?.toImageSource() ?: return emptyList(),
         ).apply {
             zOrder = groundOverlay.drawOrder.toDouble()
@@ -306,6 +306,8 @@ internal class KmlToRenderableConverter {
     }
 
     private fun LatLonBox.toSector() = Sector(south.degrees, north.degrees, west.degrees, east.degrees)
+
+    private fun LatLonQuad.toSector() = Sector().apply { extractPoints(coordinates.value).forEach { union(it) } }
 
     private fun TextAttributes.applyStyle(labelStyle: LabelStyle?) {
         apply {

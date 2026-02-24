@@ -66,7 +66,6 @@ internal data class Camera(
     /**
      * Specifies how the <altitude> specified for the Camera is interpreted.
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.relativeToGround
 ): AbstractView()

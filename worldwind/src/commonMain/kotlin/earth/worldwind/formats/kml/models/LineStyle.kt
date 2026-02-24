@@ -30,7 +30,7 @@ internal data class LineStyle(
      * Color of the portion of the line defined by [outerWidth]. Note that the [outerColor] and [outerWidth] elements
      * are ignored when [LineStyle] is applied to [Polygon] and [LinearRing].
      */
-    @XmlSerialName(prefix = "gx", value = "outerColor")
+    @XmlSerialName("outerColor", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val outerColor: String = "ffffffff",
 
@@ -40,14 +40,14 @@ internal data class LineStyle(
      * See also [LineString.drawOrder]. A draw order value may be necessary if dual-colored lines are crossing each
      * other—for example, for showing freeway interchanges.
      */
-    @XmlSerialName(prefix = "gx", value = "outerWidth")
+    @XmlSerialName("outerWidth", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val outerWidth: Float = 0.0f,
 
     /**
      * Physical width of the line, in meters.
      */
-    @XmlSerialName(prefix = "gx", value = "physicalWidth")
+    @XmlSerialName("physicalWidth", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val physicalWidth: Double = 0.0,
 
@@ -57,7 +57,7 @@ internal data class LineStyle(
      * Google Earth version 6.1+ does not display labels by default;
      * they must be enabled for each LineString by setting [labelVisibility] to 1.
      */
-    @XmlSerialName(prefix = "gx", value = "labelVisibility")
+    @XmlSerialName("labelVisibility", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     @Serializable(FlexibleBooleanSerializer::class)
     val labelVisibility: Boolean = false,

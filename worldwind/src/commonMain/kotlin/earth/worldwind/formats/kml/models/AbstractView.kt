@@ -17,6 +17,6 @@ internal abstract class AbstractView(
      * the standard Street View field of view in Google Earth. Once set, the value will be applied to subsequent views,
      * until a new value is specified.
      */
-    @XmlSerialName(prefix = "gx", value = "horizFov")
+    @XmlSerialName("horizFov", GX_NAMESPACE, GX_PREFIX)
     val horizFov: Double = 60.0
 )

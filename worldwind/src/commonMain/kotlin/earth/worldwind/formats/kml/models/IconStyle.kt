@@ -41,7 +41,6 @@ internal data class IconStyle(
     /**
      * Specifies the position within the Icon that is "anchored" to the <Point> specified in the Placemark.
      */
-    @XmlSerialName("hotSpot")
     @XmlElement
     val hotSpot: HotSpot? = null
 ) : ColorStyle()

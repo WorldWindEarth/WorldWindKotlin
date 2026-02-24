@@ -57,7 +57,6 @@ internal data class LookAt(
     /**
      * Specifies how the <altitude> specified for the LookAt point is interpreted.
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.clampToGround
 ): AbstractView()

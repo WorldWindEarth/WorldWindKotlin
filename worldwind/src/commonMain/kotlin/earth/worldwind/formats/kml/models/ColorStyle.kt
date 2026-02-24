@@ -30,7 +30,6 @@ internal abstract class ColorStyle : Object() {
      * component, with results ranging from black to the maximum values specified for each component.
      * The opacity of a color comes from the alpha component of <color> and is never randomized.
      */
-    @XmlSerialName("colorMode")
     @XmlElement
     abstract val colorMode: ColorMode
 }

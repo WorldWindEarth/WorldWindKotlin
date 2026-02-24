@@ -1,9 +1,11 @@
 package earth.worldwind.formats.kml.models
 
 import kotlinx.serialization.Serializable
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import nl.adaptivity.xmlutil.serialization.XmlValue
 
 @Serializable
+@XmlSerialName("coordinates")
 internal data class Coordinates(@XmlValue(true) val value: String) {
     override fun toString() = value
 

@@ -20,7 +20,7 @@ internal data class LinearRing(
      * coordinate values that make up the [LinearRing]. (Although the LinearRing is displayed using the altitude offset
      * value, the original altitude values are preserved in the KML file.) Units are in meters.
      */
-    @XmlSerialName(prefix = "gx", value = "altitudeOffset")
+    @XmlSerialName("altitudeOffset", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val altitudeOffset: Double = 0.0,
 
@@ -47,7 +47,6 @@ internal data class LinearRing(
     /**
      * Specifies how altitude components in the <coordinates> element are interpreted.
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.clampToGround,
 
@@ -56,7 +55,6 @@ internal data class LinearRing(
      * The altitude component is optional. Do not include spaces within a tuple.
      * The last coordinate must be the same as the first coordinate. Coordinates are expressed in decimal degrees only.
      */
-    @XmlSerialName("coordinates")
     @XmlElement
     val coordinates: Coordinates
 ) : Geometry()

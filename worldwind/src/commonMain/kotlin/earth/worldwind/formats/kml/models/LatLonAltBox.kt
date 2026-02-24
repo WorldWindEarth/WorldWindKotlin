@@ -14,7 +14,6 @@ internal data class LatLonAltBox(
      * and [AltitudeMode.absolute], also [AltitudeMode.clampToSeaFloor] and [AltitudeMode.relativeToSeaFloor].
      * Also see [LatLonBox].
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.clampToGround,
 

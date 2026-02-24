@@ -112,7 +112,7 @@ internal class KML {
 
     private suspend fun ProducerScope<KmlEvent>.decodeWith(
         reader: XmlReader,
-        parentId: String = "Root",
+        parentId: String = ROOT,
     ) {
         if (reader.hasNext()) reader.next() else return
 
@@ -285,6 +285,7 @@ internal class KML {
     }
 
     companion object {
+        const val ROOT = "Root"
         private const val KML_TAG = "kml"
         private const val DOCUMENT_TAG = "Document"
         private const val FOLDER_TAG = "Folder"

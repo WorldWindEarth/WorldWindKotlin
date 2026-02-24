@@ -22,7 +22,6 @@ internal data class GroundOverlay(
     /**
      * Specifies how the paltitude] is interpreted.
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.clampToGround,
 
@@ -35,7 +34,6 @@ internal data class GroundOverlay(
     /**
      * Used for nonrectangular quadrilateral ground overlays.
      */
-    @XmlSerialName(prefix = "gx", value = "latLonQuad")
     @XmlElement
     val latLonQuad: LatLonQuad? = null,
 ) : Overlay()

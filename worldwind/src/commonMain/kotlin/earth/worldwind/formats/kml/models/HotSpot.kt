@@ -11,6 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * The origin of the coordinate system is in the lower left corner of the icon.
  */
 @Serializable
+@XmlSerialName("hotSpot")
 internal data class HotSpot(
     /**
      * Either the number of pixels, a fractional component of the icon, or a pixel inset indicating the x component of a point on the icon.

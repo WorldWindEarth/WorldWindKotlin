@@ -1,11 +1,13 @@
 package earth.worldwind.formats.kml.models
 
 import kotlinx.serialization.Serializable
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 /**
  * Specifies how altitude components in the <coordinates> element are interpreted.
  */
 @Serializable
+@XmlSerialName("altitudeMode")
 enum class AltitudeMode {
     /**
      * Sets the altitude of the coordinate relative to sea level, regardless of the actual elevation of the terrain

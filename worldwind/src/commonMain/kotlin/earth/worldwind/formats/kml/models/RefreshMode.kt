@@ -1,11 +1,13 @@
 package earth.worldwind.formats.kml.models
 
 import kotlinx.serialization.Serializable
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 /**
  * Specifies a time-based refresh mode
  */
 @Serializable
+@XmlSerialName("refreshMode")
 enum class RefreshMode {
     /**
      * refresh when the file is loaded and whenever the Link parameters change.

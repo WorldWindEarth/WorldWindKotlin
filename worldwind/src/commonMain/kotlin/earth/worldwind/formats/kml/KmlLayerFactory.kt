@@ -218,13 +218,19 @@ object KmlLayerFactory {
                         converter.convertPlacemarkToRenderable(
                             placemark = event.placemark,
                             definedStyle = style,
-                        ).forEach { renderable -> renderables[event.parentId]?.add(renderable) }
+                        ).forEach { renderable ->
+                            if (event.parentId == KML.ROOT) renderables[event.parentId] = mutableListOf()
+                            renderables[event.parentId]?.add(renderable)
+                        }
                     }
                 }
 
                 is KML.KmlEvent.KmlGroundOverlay -> {
                     converter.convertGroundOverlayToRenderable(event.groundOverlay)
-                        .let { renderable -> renderables[event.parentId]?.addAll(renderable) }
+                        .let { renderable ->
+                            if (event.parentId == KML.ROOT) renderables[event.parentId] = mutableListOf()
+                            renderables[event.parentId]?.addAll(renderable)
+                        }
                 }
             }
         }

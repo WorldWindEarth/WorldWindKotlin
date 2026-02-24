@@ -26,7 +26,6 @@ internal data class Point(
     /**
      * Specifies how altitude components in the <coordinates> element are interpreted.
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.clampToGround,
 
@@ -38,7 +37,6 @@ internal data class Point(
      * - altitude values (optional) are in meters above sea level
      * Do not include spaces between the three values that describe a coordinate.
      */
-    @XmlSerialName("coordinates")
     @XmlElement
     val coordinates: Coordinate,
 ) : Geometry()

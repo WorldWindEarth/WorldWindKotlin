@@ -18,13 +18,13 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * Allowed altitude modes are [AltitudeMode.absolute], [AltitudeMode.clampToGround], and [AltitudeMode.clampToSeaFloor].
  */
 @Serializable
+@XmlSerialName("LatLonQuad", GX_NAMESPACE, GX_PREFIX)
 internal data class LatLonQuad(
     /**
      * Four or more tuples, each consisting of floating point values for longitude, latitude, and altitude.
      * The altitude component is optional. Do not include spaces within a tuple.
      * The last coordinate must be the same as the first coordinate. Coordinates are expressed in decimal degrees only.
      */
-    @XmlSerialName("coordinates")
     @XmlElement
     val coordinates: Coordinates
 )

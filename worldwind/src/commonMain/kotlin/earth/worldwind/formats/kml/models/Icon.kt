@@ -25,7 +25,7 @@ internal data class Icon(
      * corner of the icon palette.If no values are specified for x and y, the lower left corner of the icon palette
      * is assumed to be the lower-left corner of the icon to use.
      */
-    @XmlSerialName(prefix = "gx", value = "x")
+    @XmlSerialName("x", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val x: Int = 0,
 
@@ -34,7 +34,7 @@ internal data class Icon(
      * corner of the icon palette.If no values are specified for x and y, the lower left corner of the icon palette
      * is assumed to be the lower-left corner of the icon to use.
      */
-    @XmlSerialName(prefix = "gx", value = "y")
+    @XmlSerialName("y", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val y: Int = 0,
 
@@ -42,7 +42,7 @@ internal data class Icon(
      * If the <href> specifies an icon palette, these elements specify the width (<gx:w>) and height (<gx:h>),
      * in pixels, of the icon to use.
      */
-    @XmlSerialName(prefix = "gx", value = "w")
+    @XmlSerialName("w", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val w: Int = 0,
 
@@ -50,14 +50,13 @@ internal data class Icon(
      * If the <href> specifies an icon palette, these elements specify the width (<gx:w>) and height (<gx:h>),
      * in pixels, of the icon to use.
      */
-    @XmlSerialName(prefix = "gx", value = "h")
+    @XmlSerialName("h", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val h: Int = 0,
 
     /**
      * Specifies a time-based refresh mode
      */
-    @XmlSerialName("refreshMode")
     @XmlElement
     val refreshMode: RefreshMode = RefreshMode.onChange,
 
@@ -70,7 +69,6 @@ internal data class Icon(
     /**
      * Specifies how the link is refreshed when the "camera" changes.
      */
-    @XmlSerialName("viewRefreshMode")
     @XmlElement
     val viewRefreshMode: ViewRefreshMode = ViewRefreshMode.never,
 

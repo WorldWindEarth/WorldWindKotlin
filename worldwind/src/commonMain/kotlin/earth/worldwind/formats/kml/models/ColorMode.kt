@@ -1,6 +1,7 @@
 package earth.worldwind.formats.kml.models
 
 import kotlinx.serialization.Serializable
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 /**
  * A value of random applies a random linear scale to the base <color> as follows.
@@ -12,4 +13,5 @@ import kotlinx.serialization.Serializable
  * The opacity of a color comes from the alpha component of <color> and is never randomized.
  */
 @Serializable
+@XmlSerialName("colorMode")
 enum class ColorMode { normal, random }

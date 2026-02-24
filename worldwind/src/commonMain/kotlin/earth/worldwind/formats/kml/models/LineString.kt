@@ -21,7 +21,7 @@ internal data class LineString(
      * coordinate values that make up the [LineString]. (Although the LineString is displayed using the altitude offset
      * value, the original altitude values are preserved in the KML file.) Units are in meters.
      */
-    @XmlSerialName(prefix = "gx", value = "altitudeOffset")
+    @XmlSerialName("altitudeOffset", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val altitudeOffset: Double = 0.0,
 
@@ -47,7 +47,6 @@ internal data class LineString(
     /**
      * Specifies how altitude components in the [coordinates] element are interpreted.
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.clampToGround,
 
@@ -56,7 +55,7 @@ internal data class LineString(
      * partially or fully obscured by [LineString]s with a later draw order. This element may be required in conjunction
      * with the [LineStyle.outerColor] and [LineStyle.outerWidth] elements when dual-colored lines cross each other.
      */
-    @XmlSerialName(prefix = "gx", value = "drawOrder")
+    @XmlSerialName("drawOrder", GX_NAMESPACE, GX_PREFIX)
     @XmlElement
     val drawOrder: Int = 0,
 
@@ -64,7 +63,6 @@ internal data class LineString(
      * Two or more coordinate tuples, each consisting of floating point values for longitude, latitude, and altitude.
      * The altitude component is optional. Insert a space between tuples. Do not include spaces within a tuple.
      */
-    @XmlSerialName("coordinates")
     @XmlElement
     val coordinates: Coordinates
 ) : Geometry()

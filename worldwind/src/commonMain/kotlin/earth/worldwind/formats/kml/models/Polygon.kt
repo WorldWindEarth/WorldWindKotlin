@@ -45,7 +45,6 @@ internal data class Polygon(
     /**
      * Specifies how altitude components in the <coordinates> element are interpreted.
      */
-    @XmlSerialName("altitudeMode")
     @XmlElement
     val altitudeMode: AltitudeMode = AltitudeMode.clampToGround,
 
