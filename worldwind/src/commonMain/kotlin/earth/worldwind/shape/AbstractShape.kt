@@ -58,6 +58,10 @@ abstract class AbstractShape(
      * Set this flag to true when shape editing is intended and to false when editing is finished.
      */
     var isDynamic = false
+    /**
+     * Optional lambda to control current shape visibility based on its attributes and frame render context
+     */
+    var isVisible: ((AbstractShape, RenderContext) -> Boolean)? = null
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
     var maximumIntermediatePoints = 10
@@ -104,7 +108,7 @@ abstract class AbstractShape(
         currentBoundindData = boundingData[rc.globeState] ?: BoundingData().also { boundingData[rc.globeState] = it }
 
         // Don't render anything if the shape is not visible.
-        if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc)) return
+        if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc) || isVisible?.invoke(this, rc) == false) return
 
         // Adjust to terrain changes
         checkTerrainState(rc)

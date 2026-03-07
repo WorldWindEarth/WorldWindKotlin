@@ -139,6 +139,7 @@ open class DirectionalSightline @JvmOverloads constructor(
     private var pickedObjectId = 0
     private val pickColor = Color()
     private val boundingSphere = BoundingSphere()
+    private val scratchLocation = Location()
 
     init {
         require(range >= 0) {
@@ -180,15 +181,10 @@ open class DirectionalSightline @JvmOverloads constructor(
     protected open fun determineCenterPoint(rc: RenderContext): Boolean {
         rc.geographicToCartesian(position, altitudeMode, centerPoint)
 
-        val loc = Location()
         val globeRadius = max(rc.globe.equatorialRadius, rc.globe.polarRadius)
-        position.greatCircleLocation(heading, range / (2.0 * globeRadius), loc)
+        val loc = position.greatCircleLocation(heading, range / (2.0 * globeRadius), scratchLocation)
 
-        rc.geographicToCartesian(
-            Position(loc.latitude, loc.longitude, position.altitude),
-            altitudeMode,
-            boundingBoxCenter
-        )
+        rc.geographicToCartesian(loc.latitude, loc.longitude, position.altitude, altitudeMode, boundingBoxCenter)
 
         return centerPoint.x != 0.0 && centerPoint.y != 0.0 && centerPoint.z != 0.0
     }

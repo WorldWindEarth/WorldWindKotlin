@@ -42,6 +42,10 @@ abstract class AbstractMilStd2525TacticalGraphic(
             field = value
             reset()
         }
+    /**
+     * Optional lambda to control current tactical graphics visibility based on its attributes and frame render context
+     */
+    var isVisible: ((AbstractMilStd2525TacticalGraphic, RenderContext) -> Boolean)? = null
     private var minScale = Double.MIN_VALUE
     private var maxScale = Double.MAX_VALUE
     private val lodBuffer = mutableMapOf<Int, List<Renderable>>()
@@ -98,7 +102,9 @@ abstract class AbstractMilStd2525TacticalGraphic(
         sector.copy(lodSector[lod] ?: boundingSector)
         // Check if tactical graphics visible
         val terrainSector = rc.terrain.sector
-        if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)) {
+        if (!terrainSector.isEmpty && terrainSector.intersects(sector) && getExtent(rc).intersectsFrustum(rc.frustum)
+            && isVisible?.invoke(this, rc) != false
+        ) {
             val shapes = lodBuffer[lod] ?: run {
                 sector.setEmpty() // Prepare bounding box to be extended by real graphics measures
                 makeRenderables(rc, computeLoDScale(equatorialRadius, lod)).also {

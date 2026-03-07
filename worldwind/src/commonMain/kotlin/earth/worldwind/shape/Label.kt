@@ -81,6 +81,10 @@ open class Label @JvmOverloads constructor(
      * Sets the eye altitude, in meters, above which this label is not displayed.
      */
     var visibilityThreshold = 0.0
+    /**
+     * Optional lambda to control current label visibility based on its attributes, frame render context and camera distance
+     */
+    var isVisible: ((Label, RenderContext, Double) -> Boolean)? = null
 
     companion object {
         /**
@@ -119,6 +123,9 @@ open class Label @JvmOverloads constructor(
 
         // Do not draw labels after the specified threshold
         if (visibilityThreshold > 0.0 && renderData.cameraDistance > visibilityThreshold) return
+
+        // Do not draw label if it does not pass external visibility check
+        if (isVisible?.invoke(this, rc, renderData.cameraDistance) == false) return
 
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0
