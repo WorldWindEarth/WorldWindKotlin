@@ -116,10 +116,10 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
 
                 addAllRenderables(
                     createStretchableTextureQuad(
-                        Location(51.26866335850095.degrees, 30.009652585537117.degrees),
-                        Location(51.27061300784313.degrees, 30.0131655188949.degrees),
-                        Location(51.27262574053993.degrees, 30.010067722766809.degrees),
-                        Location(51.27086850182122.degrees, 30.006541266023913.degrees),
+                        Location(51.26854765557179.degrees, 30.009586419288397.degrees),
+                        Location(51.27065220243722.degrees, 30.01276307188487.degrees),
+                        Location(51.27243187149275.degrees, 30.009537303364446.degrees),
+                        Location(51.27036046387543.degrees, 30.006711475298683.degrees),
                     ImageSource.fromResource(R.drawable.korogode_image)
                     )
                 )
