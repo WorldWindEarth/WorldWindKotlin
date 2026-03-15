@@ -62,7 +62,7 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             
             void main() {
                 vec2 uv = vec2(0.0, 0.0);
-                float eps = 1e-6;
+                float eps = 1e-9;
                 if (dot(b3, b3) < eps)
                 {
                     float denom = Wedge2D(b1, b2);
