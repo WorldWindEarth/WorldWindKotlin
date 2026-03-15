@@ -94,9 +94,10 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
         }
         val sector3 = Sector.fromDegrees(51.272140, 30.010303, 0.09, 0.02)
         val sector4 = Sector.fromDegrees(51.265140, 30.010303, 0.09, 0.02)
-        // Add a layer for placemarks to the WorldWindow
+
+        // Add a layer for texture quads to the WorldWindow
         wwd.engine.layers.addLayer(
-            RenderableLayer("Placemarks").apply {
+            RenderableLayer("Texture quad example").apply {
 
                 addRenderable(
                     createAutomobilePlacemark(

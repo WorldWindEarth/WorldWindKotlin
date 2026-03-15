@@ -64,15 +64,13 @@ ShapeAttributes().apply {
         protected val SHARED_INDEX_ARRAY = intArrayOf(0, 1, 2, 2, 3, 0)
         private var sharedIndexBufferKey = Any()
         private var sharedIndexBuffer: BufferObject? = null
-        private var indexBufferInitialized = false
 
         protected lateinit var currentData: PolygonData
 
         protected var vertexIndex = 0
 
-        private fun initSharedIndexBuffer(rc: RenderContext) {
-            if (indexBufferInitialized) return
-
+        fun getSharedIndexBuffer(rc: RenderContext): BufferObject?
+        {
             sharedIndexBuffer = rc.getBufferObject(sharedIndexBufferKey) {
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
@@ -81,12 +79,6 @@ ShapeAttributes().apply {
                 NumericArray.Ints(SHARED_INDEX_ARRAY)
             }
 
-            indexBufferInitialized = true
-        }
-
-        fun getSharedIndexBuffer(rc: RenderContext): BufferObject?
-        {
-            initSharedIndexBuffer(rc)
             return sharedIndexBuffer
         }
     }
