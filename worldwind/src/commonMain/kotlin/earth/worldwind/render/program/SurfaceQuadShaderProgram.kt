@@ -41,7 +41,7 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
-            precision mediump float;
+            precision highp float;
             
             uniform mat3 texCoordMatrix;
             uniform bool enablePickMode;
@@ -62,36 +62,45 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             
             void main() {
                 vec2 uv = vec2(0.0, 0.0);
-
-                // Set up quadratic formula
-                float A = Wedge2D(b2, b3);
-                float B = Wedge2D(b3, q) - Wedge2D(b1, b2);
-                float C = Wedge2D(b1, q);
-                
-                // Solve for v
-
-                if (abs(A) < 0.001)
+                float eps = 1e-6;
+                if (dot(b3, b3) < eps)
                 {
-                  // Linear form
-                  uv.y = -C/B;
+                    float denom = Wedge2D(b1, b2);
+                
+                    uv.x = Wedge2D(q, b2) / denom;
+                    uv.y = Wedge2D(b1, q) / denom;
                 }
                 else
                 {
-                  // Quadratic form. Take positive root for CCW winding with V-up
-                  float discrim = max(B * B - 4.0 * A * C, 0.0);
-                  float sqrtD = sqrt(discrim);
-
-                    float v1 = (-B + sqrtD) / (2.0 * A);
-                    float v2 = (-B - sqrtD) / (2.0 * A);
-                    uv.y = (v1 >= 0.0 && v1 <= 1.0) ? v1 : v2;
+                    // Set up quadratic formula
+                    float A = Wedge2D(b2, b3);
+                    float B = Wedge2D(b3, q) - Wedge2D(b1, b2);
+                    float C = Wedge2D(b1, q);
+                    // Solve for v
+    
+                    if (abs(A) < eps)
+                    {
+                      // Linear form
+                      uv.y = -C/B;
+                    }
+                    else
+                    {
+                      // Quadratic form. Take positive root for CCW winding with V-up
+                      float discrim = max(B * B - 4.0 * A * C, 0.0);
+                      float sqrtD = sqrt(discrim);
+    
+                        float v1 = (-B + sqrtD) / (2.0 * A);
+                        float v2 = (-B - sqrtD) / (2.0 * A);
+                        uv.y = (v1 >= 0.0 && v1 <= 1.0) ? v1 : v2;
+                    }
+                    
+                    // Solve for u, using largest-magnitude component
+                    vec2 denom = b1 + uv.y * b3;
+                    if (abs(denom.x) > abs(denom.y))
+                        uv.x = (q.x - b2.x * uv.y) / max(abs(denom.x), eps) * sign(denom.x);
+                    else
+                        uv.x = (q.y - b2.y * uv.y) / max(abs(denom.y), eps) * sign(denom.y);
                 }
-                
-                // Solve for u, using largest-magnitude component
-                vec2 denom = b1 + uv.y * b3;
-                if (abs(denom.x) > abs(denom.y))
-                  uv.x = (q.x - b2.x * uv.y) / denom.x;
-                else
-                  uv.x = (q.y - b2.y * uv.y) / denom.y;
                   
                 uv = (texCoordMatrix * vec3(uv, 1.0)).xy;
                 

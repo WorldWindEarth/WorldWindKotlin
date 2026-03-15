@@ -55,6 +55,15 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                 // Note that double-tapping should not toggle a "selected" object's selected state
                 if (renderable !== selectedObject) toggleSelection(renderable) // deselects a previously selected item
             }
+            override fun onRenderableMoved(renderable: Renderable, fromPosition: Position, toPosition: Position)
+            {
+                val placemark = (renderable as? Placemark)
+                placemark?.moveTo(wwd.engine.globe, toPosition)
+                var textureQuad = renderable.getUserProperty<TextureQuad>(TEXTURE_QUAD_REF)
+                val vertexIndex = renderable.getUserProperty<Int>(VERTEX_INDEX)
+                vertexIndex?.let { textureQuad?.setLocation(it, Location(toPosition.latitude, toPosition.longitude)) }
+            }
+
 
             /**
              * Toggles the selected state of the picked renderable.
@@ -76,7 +85,16 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                     // Track the selected object
                     selectedObject = if (isNewSelection) renderable else null
                 } else {
-                    Toast.makeText(applicationContext, "The picked object is not selectable.", Toast.LENGTH_SHORT).show()
+                    val textureQuad = (renderable as? TextureQuad)
+                    textureQuad?.let {
+                        val arr = it.getAllLocations()
+
+                        Toast.makeText(applicationContext, "BL:{%.6f, %.6f}\nBR:{%.6f, %.6f}\nTR:{%.6f, %.6f}\nTL:{%.6f, %.6f}".format(
+                            arr[0].latitude.inDegrees, arr[0].longitude.inDegrees,
+                            arr[1].latitude.inDegrees, arr[1].longitude.inDegrees,
+                            arr[2].latitude.inDegrees, arr[2].longitude.inDegrees,
+                            arr[3].latitude.inDegrees, arr[3].longitude.inDegrees), Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
 
@@ -92,27 +110,18 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                 ).show()
             }
         }
-        val sector3 = Sector.fromDegrees(51.272140, 30.010303, 0.09, 0.02)
-        val sector4 = Sector.fromDegrees(51.265140, 30.010303, 0.09, 0.02)
-
         // Add a layer for texture quads to the WorldWindow
         wwd.engine.layers.addLayer(
             RenderableLayer("Texture quad example").apply {
 
-                addRenderable(
-                    createAutomobilePlacemark(
-                        Position(sector3.minLatitude, sector3.maxLongitude, 0.0), "Civilian Vehicle", automotiveTypes[1]
+                addAllRenderables(
+                    createStretchableTextureQuad(
+                        Location(51.26866335850095.degrees, 30.009652585537117.degrees),
+                        Location(51.27061300784313.degrees, 30.0131655188949.degrees),
+                        Location(51.27262574053993.degrees, 30.010067722766809.degrees),
+                        Location(51.27086850182122.degrees, 30.006541266023913.degrees),
+                    ImageSource.fromResource(R.drawable.korogode_image)
                     )
-                )
-
-                addRenderable(
-                    TextureQuad(
-                        Location(sector3.minLatitude, sector3.maxLongitude),
-                        Location(sector3.minLatitude, sector3.minLongitude),
-                        Location(sector4.minLatitude, sector4.minLongitude),
-                        Location(sector4.minLatitude, sector4.maxLongitude),
-                        ImageSource.fromResource(R.drawable.korogode_image)
-                    ).apply { opacity = 0.5f }
                 )
             }
         )
@@ -138,15 +147,13 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
          * The SELECTABLE capability, if it exists in a Placemark's user properties, allows selection with single-tap
          */
         const val SELECTABLE = "selectable"
-        /**
-         * Placemark user property vehicleKey for the type of aircraft
-         */
-        const val AIRCRAFT_TYPE = "aircraft_type"
+
+        const val VERTEX_INDEX = "vertex_index"
+        const val TEXTURE_QUAD_REF = "texture_quad_ref"
         /**
          * Placemark user property vehicleKey for the type of vehicle
          */
         const val AUTOMOTIVE_TYPE = "auotomotive_type"
-        // Aircraft vehicleTypes used in the Placemark editing dialog
 
         // Vehicle vehicleTypes used in the Placemark editing dialog
         private val automotiveTypes = arrayOf(
@@ -180,9 +187,9 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
         /**
          * Helper method to create vehicle placemarks.
          */
-        protected fun createAutomobilePlacemark(position: Position, name: String, automotiveType: String) =
+        private fun createAutomobilePlacemark(location: Location, name: String, automotiveType: String, textureQuad : TextureQuad, vertexIndex : Int) =
             automotiveIconMap[automotiveType]?.let { resId ->
-                createWithImage(position, fromResource(resId)).apply {
+                createWithImage(Position(location.latitude, location.longitude, 0.0), fromResource(resId)).apply {
                     attributes.apply {
                         imageOffset = bottomCenter()
                         imageScale = NORMAL_IMAGE_SCALE
@@ -199,7 +206,25 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                     putUserProperty(SELECTABLE, true)
                     putUserProperty(EDITABLE, true)
                     putUserProperty(MOVABLE, true)
+                    putUserProperty(TEXTURE_QUAD_REF, textureQuad)
+                    putUserProperty(VERTEX_INDEX, vertexIndex)
                 }
             } ?: throw IllegalArgumentException("$automotiveType is not valid.")
+
+        private fun createStretchableTextureQuad(bottomLeft : Location,
+                                                   bottomRight: Location,
+                                                   topRight   : Location,
+                                                   topLeft    : Location,
+                                                   imageSource: ImageSource) : List<Renderable>
+        {
+            val textureQuad = TextureQuad(bottomLeft, bottomRight, topRight, topLeft, imageSource)
+            return listOf(
+                createAutomobilePlacemark(bottomLeft, "Civilian Vehicle", automotiveTypes[1], textureQuad, 0),
+                createAutomobilePlacemark(bottomRight, "Civilian Vehicle", automotiveTypes[1], textureQuad, 1),
+                createAutomobilePlacemark(topRight, "Civilian Vehicle", automotiveTypes[1], textureQuad, 2),
+                createAutomobilePlacemark(topLeft, "Civilian Vehicle", automotiveTypes[1], textureQuad, 3),
+                textureQuad
+            )
+        }
     }
 }

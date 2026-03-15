@@ -88,8 +88,8 @@ ShapeAttributes().apply {
         isFollowTerrain = true
     }
 
-    fun getLocations(index: Int): Array<Location> {
-        return locations
+    fun getAllLocations(): Array<Location> {
+        return this.locations
     }
 
     fun getLocation(index: Int): Location {
@@ -156,7 +156,7 @@ ShapeAttributes().apply {
             drawable.offset = rc.globe.offset
             drawable.sector.copy(currentBoundindData.boundingSector)
             drawable.version = computeVersion()
-            drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
+            drawable.isDynamic = true//isDynamic || rc.currentLayer.isDynamic
         } else {
             error("TextureQuad must be surface shape")
         }
