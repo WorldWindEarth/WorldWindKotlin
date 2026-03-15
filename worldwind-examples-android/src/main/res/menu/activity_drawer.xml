@@ -27,6 +27,10 @@
             android:icon="@android:drawable/ic_menu_myplaces"
             android:title="@string/title_placemarks_select_drag"/>
         <item
+            android:id="@+id/nav_texture_quad_example_activity"
+            android:icon="@android:drawable/ic_menu_myplaces"
+            android:title="@string/title_texture_quad_example"/>
+        <item
             android:id="@+id/nav_placemarks_milstd2525_activity"
             android:icon="@android:drawable/ic_menu_myplaces"
             android:title="@string/title_placemarks_milstd2525"/>

@@ -1,28 +1,21 @@
 package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawQuadState
-import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
-import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceQuad
-import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
-import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.SurfaceQuadShaderProgram
 import earth.worldwind.render.program.TriangleShaderProgram
-import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.Logger.ERROR
-import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_TRIANGLES
 import earth.worldwind.util.kgl.GL_UNSIGNED_INT
-import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 import earth.worldwind.render.image.ImageSource
 
@@ -47,18 +40,16 @@ ShapeAttributes().apply {
 
     override val referencePosition: Position get() {
         val sector = Sector()
-        for (boundary in boundaries) for (position in boundary) sector.union(position)
+        for (position in locations) sector.union(position)
         return Position(sector.centroidLatitude, sector.centroidLongitude, 0.0)
     }
-    protected val boundaries = mutableListOf(listOf(bottomLeft, bottomRight, topRight, topLeft))
+    protected val locations = arrayOf(bottomLeft, bottomRight, topRight, topLeft)
     protected val data = mutableMapOf<Globe.State?, PolygonData>()
 
     open class PolygonData {
         val vertexOrigin = Vec3()
         var vertexArray = FloatArray(0)
-        val topElements = mutableListOf<Int>()
         val vertexBufferKey = Any()
-        val elementBufferKey = Any()
         var refreshVertexArray = true
 
         var A = Vec2()
@@ -69,15 +60,71 @@ ShapeAttributes().apply {
 
     companion object {
         protected const val VERTEX_STRIDE = 3
-        protected const val VERTEX_ORIGINAL = 0
+
+        protected val SHARED_INDEX_ARRAY = intArrayOf(0, 1, 2, 2, 3, 0)
+        private var sharedIndexBufferKey = Any()
+        private var sharedIndexBuffer: BufferObject? = null
+        private var indexBufferInitialized = false
+
         protected lateinit var currentData: PolygonData
 
         protected var vertexIndex = 0
+
+        private fun initSharedIndexBuffer(rc: RenderContext) {
+            if (indexBufferInitialized) return
+
+            sharedIndexBuffer = rc.getBufferObject(sharedIndexBufferKey) {
+                BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+            }
+
+            rc.offerGLBufferUpload(sharedIndexBufferKey, 0) {
+                NumericArray.Ints(SHARED_INDEX_ARRAY)
+            }
+
+            indexBufferInitialized = true
+        }
+
+        fun getSharedIndexBuffer(rc: RenderContext): BufferObject?
+        {
+            initSharedIndexBuffer(rc)
+            return sharedIndexBuffer
+        }
     }
 
     init {
         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
         isFollowTerrain = true
+    }
+
+    fun getLocations(index: Int): Array<Location> {
+        return locations
+    }
+
+    fun getLocation(index: Int): Location {
+        require(index in locations.indices) {
+            logMessage(ERROR, "TextureQuad", "getLocation", "invalidIndex")
+        }
+        return locations[index]
+    }
+
+    fun setLocation(index: Int, location: Location) {
+        require(index in locations.indices) {
+            logMessage(ERROR, "TextureQuad", "setLocation", "invalidIndex")
+        }
+        reset()
+
+        locations[index] = location
+    }
+
+    fun setLocations(bottomLeft : Location,
+                     bottomRight: Location,
+                     topRight   : Location,
+                     topLeft    : Location) {
+        reset()
+        locations[0] = bottomLeft
+        locations[1] = bottomRight
+        locations[2] = topRight
+        locations[3] = topLeft
     }
 
     override fun resetGlobeState(globeState: Globe.State?) {
@@ -94,7 +141,7 @@ ShapeAttributes().apply {
 
     override fun moveTo(globe: Globe, position: Position) {
         val refPos = referencePosition
-        for (boundary in boundaries) for (pos in boundary) {
+        for (pos in locations) {
             val distance = refPos.greatCircleDistance(pos)
             val azimuth = refPos.greatCircleAzimuth(pos)
             position.greatCircleLocation(azimuth, distance, pos)
@@ -103,7 +150,7 @@ ShapeAttributes().apply {
     }
 
     override fun makeDrawable(rc: RenderContext) {
-        if (boundaries.isEmpty()) return  // nothing to draw
+        if (locations.isEmpty()) return  // nothing to draw
 
         if (mustAssembleGeometry(rc)) assembleGeometry(rc)
 
@@ -134,16 +181,8 @@ ShapeAttributes().apply {
             NumericArray.Floats(currentData.vertexArray)
         }
 
-        // Assemble the drawable's OpenGL element buffer object.
-        drawState.elementBuffer = rc.getBufferObject(currentData.elementBufferKey) {
-            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
-        }
-        rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
-            val array = IntArray(currentData.topElements.size)
-            var index = 0
-            for (element in currentData.topElements) array[index++] = element
-            NumericArray.Ints(array)
-        }
+        // Use shared index(element) buffer for all TextureQuads
+        drawState.elementBuffer = getSharedIndexBuffer(rc)
 
         drawInterior(rc, drawState)
 
@@ -181,7 +220,7 @@ ShapeAttributes().apply {
         drawState.D.copy(currentData.D)
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
-        drawState.drawElements(GL_TRIANGLES, currentData.topElements.size, GL_UNSIGNED_INT, offset = 0)
+        drawState.drawElements(GL_TRIANGLES, SHARED_INDEX_ARRAY.size, GL_UNSIGNED_INT, offset = 0)
     }
 
     protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
@@ -190,45 +229,19 @@ ShapeAttributes().apply {
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
-        var vertexCount = 0
 
-        for (i in boundaries.indices) {
-            val p = boundaries[i]
-            if (p.isEmpty()) continue
-           vertexCount += p.size
-        }
+        var vertexCount = locations.size
 
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
         vertexIndex = 0
-        currentData.vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(vertexCount * 2 * VERTEX_STRIDE)
-        else if (!isSurfaceShape) FloatArray(vertexCount * VERTEX_STRIDE)
-        else FloatArray((vertexCount + boundaries.size) * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
-
-        currentData.topElements.clear()
-        currentData.topElements.add(0)
-        currentData.topElements.add(1)
-        currentData.topElements.add(2)
-        currentData.topElements.add(2)
-        currentData.topElements.add(3)
-        currentData.topElements.add(0)
+        currentData.vertexArray = FloatArray(vertexCount * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
 
         computeQuadLocalCorners(rc)
 
-        for (i in boundaries.indices) {
-            val positions = boundaries[i]
-            if (positions.isEmpty()) continue  // no boundary positions to assemble
-
-            // Add the boundary's first vertex. Add additional dummy vertex with the same data before the first vertex.
-            val pos0 = positions[0]
-            var begin = pos0
-            addVertex(rc, begin.latitude, begin.longitude)
-
-            // Add the remaining boundary vertices, tessellating each edge as indicated by the polygon's properties.
-            for (idx in 1 until positions.size) {
-                val end = positions[idx]
-                addVertex(rc, end.latitude, end.longitude)
-            }
+        // Add the remaining boundary vertices, tessellating each edge as indicated by the polygon's properties.
+        for (pos in locations) {
+            addVertex(rc, pos.latitude, pos.longitude)
         }
 
         // Reset update flags
@@ -266,19 +279,18 @@ ShapeAttributes().apply {
         vertex
     }
     fun computeQuadLocalCorners(rc: RenderContext) {
-        val corners = boundaries[0]
-        currentData.vertexOrigin.set(corners[0].longitude.inDegrees, corners[0].latitude.inDegrees, 1.0)
+        currentData.vertexOrigin.set(locations[0].longitude.inDegrees, locations[0].latitude.inDegrees, 1.0)
         currentData.A = Vec2(
-            corners[0].longitude.inDegrees - currentData.vertexOrigin.x,
-            corners[0].latitude.inDegrees - currentData.vertexOrigin.y)
+            locations[0].longitude.inDegrees - currentData.vertexOrigin.x,
+            locations[0].latitude.inDegrees - currentData.vertexOrigin.y)
         currentData.B = Vec2(
-            corners[1].longitude.inDegrees - currentData.vertexOrigin.x,
-            corners[1].latitude.inDegrees - currentData.vertexOrigin.y)
+            locations[1].longitude.inDegrees - currentData.vertexOrigin.x,
+            locations[1].latitude.inDegrees - currentData.vertexOrigin.y)
         currentData.C = Vec2(
-            corners[2].longitude.inDegrees - currentData.vertexOrigin.x,
-            corners[2].latitude.inDegrees - currentData.vertexOrigin.y)
+            locations[2].longitude.inDegrees - currentData.vertexOrigin.x,
+            locations[2].latitude.inDegrees - currentData.vertexOrigin.y)
         currentData.D = Vec2(
-            corners[3].longitude.inDegrees - currentData.vertexOrigin.x,
-            corners[3].latitude.inDegrees - currentData.vertexOrigin.y)
+            locations[3].longitude.inDegrees - currentData.vertexOrigin.x,
+            locations[3].latitude.inDegrees - currentData.vertexOrigin.y)
     }
 }

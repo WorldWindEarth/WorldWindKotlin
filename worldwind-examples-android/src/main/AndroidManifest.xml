@@ -119,6 +119,14 @@
             android:theme="@style/AppTheme.NoActionBar">
         </activity>
         <activity
+            android:name=".TextureQuadExampleActivity"
+            android:configChanges="orientation|screenSize"
+            android:label="@string/title_texture_quad_example"
+            android:launchMode="singleInstance"
+            android:noHistory="true"
+            android:theme="@style/AppTheme.NoActionBar">
+        </activity>
+        <activity
             android:name=".KmlDemoActivity"
             android:configChanges="orientation|screenSize"
             android:label="@string/title_kml_demo"
