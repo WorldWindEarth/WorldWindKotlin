@@ -44,9 +44,9 @@ ShapeAttributes().apply {
         return Position(sector.centroidLatitude, sector.centroidLongitude, 0.0)
     }
     protected val locations = arrayOf(bottomLeft, bottomRight, topRight, topLeft)
-    protected val data = mutableMapOf<Globe.State?, PolygonData>()
+    protected val data = mutableMapOf<Globe.State?, TextureQuadData>()
 
-    open class PolygonData {
+    open class TextureQuadData {
         val vertexOrigin = Vec3()
         var vertexArray = FloatArray(0)
         val vertexBufferKey = Any()
@@ -65,7 +65,7 @@ ShapeAttributes().apply {
         private var sharedIndexBufferKey = Any()
         private var sharedIndexBuffer: BufferObject? = null
 
-        protected lateinit var currentData: PolygonData
+        protected lateinit var currentData: TextureQuadData
 
         protected var vertexIndex = 0
 
@@ -216,7 +216,7 @@ ShapeAttributes().apply {
     }
 
     protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
-        currentData = data[rc.globeState] ?: PolygonData().also { data[rc.globeState] = it }
+        currentData = data[rc.globeState] ?: TextureQuadData().also { data[rc.globeState] = it }
         return currentData.refreshVertexArray || isExtrude && !isSurfaceShape
     }
 
