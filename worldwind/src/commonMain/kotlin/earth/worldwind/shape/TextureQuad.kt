@@ -24,18 +24,31 @@ open class TextureQuad @JvmOverloads constructor(
     bottomRight: Location,
     topRight   : Location,
     topLeft    : Location,
-    imageSource: ImageSource
-): AbstractShape(
-ShapeAttributes().apply {
-    interiorImageSource = imageSource
-    } )
+    attributes: ShapeAttributes = ShapeAttributes()
+): AbstractShape(attributes)
 {
+    constructor(bottomLeft : Location,
+                bottomRight: Location,
+                topRight   : Location,
+                topLeft    : Location,
+                imageSource: ImageSource) : this(bottomLeft, bottomRight, topRight, topLeft,
+        ShapeAttributes().apply { interiorImageSource = imageSource }
+    )
+
     constructor(sector: Sector, imageSource: ImageSource) : this(
         Location(sector.minLatitude, sector.minLongitude),
         Location(sector.minLatitude, sector.maxLongitude),
         Location(sector.maxLatitude, sector.maxLongitude),
         Location(sector.maxLatitude, sector.minLongitude),
-        imageSource
+        ShapeAttributes().apply { interiorImageSource = imageSource }
+    )
+
+    constructor(sector: Sector, attributes: ShapeAttributes = ShapeAttributes()) : this(
+        Location(sector.minLatitude, sector.minLongitude),
+        Location(sector.minLatitude, sector.maxLongitude),
+        Location(sector.maxLatitude, sector.maxLongitude),
+        Location(sector.maxLatitude, sector.minLongitude),
+        attributes
     )
 
     override val referencePosition: Position get() {
