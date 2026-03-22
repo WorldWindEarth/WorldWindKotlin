@@ -120,7 +120,7 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                         Location(51.27062637593827.degrees, 30.01240117718469.degrees),
                         Location(51.271804026840556.degrees, 30.01029779181104.degrees),
                         Location(51.270125460836965.degrees, 30.00779959572076.degrees),
-                    ImageSource.fromResource(R.drawable.korogode_image)
+                    ImageSource.fromResource(R.drawable.korogode_image), true
                     )
                 )
             }
@@ -160,16 +160,6 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
             "Car", "SUV", "4x4", "Truck", "Jeep", "Tank"
         )
 
-        // Resource IDs for aircraft icons
-        private val aircraftIcons = intArrayOf(
-            R.drawable.aircraft_small,
-            R.drawable.aircraft_twin,
-            R.drawable.aircraft_jet,
-            R.drawable.aircraft_fighter,
-            R.drawable.aircraft_bomber,
-            R.drawable.aircraft_rotor
-        )
-
         // Resource IDs for vehicle icons
         private val automotiveIcons = intArrayOf(
             R.drawable.vehicle_car,
@@ -187,7 +177,7 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
         /**
          * Helper method to create vehicle placemarks.
          */
-        private fun createAutomobilePlacemark(location: Location, name: String, automotiveType: String, textureQuad : TextureQuad, vertexIndex : Int) =
+        private fun createAutomobilePlacemark(location: Location, automotiveType: String, textureQuad : TextureQuad, vertexIndex : Int) =
             automotiveIconMap[automotiveType]?.let { resId ->
                 createWithImage(Position(location.latitude, location.longitude, 0.0), fromResource(resId)).apply {
                     attributes.apply {
@@ -198,7 +188,7 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                         imageScale = HIGHLIGHTED_IMAGE_SCALE
                         imageColor = Color(android.graphics.Color.YELLOW)
                     }
-                    displayName = name
+
                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                     // The AUTOMOTIVE_TYPE property is used to exchange the vehicle type with the VehicleTypeDialog
                     putUserProperty(AUTOMOTIVE_TYPE, automotiveType)
@@ -215,20 +205,21 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                                                    bottomRight: Location,
                                                    topRight   : Location,
                                                    topLeft    : Location,
-                                                   imageSource: ImageSource) : List<Renderable>
+                                                   imageSource: ImageSource,
+                                                   drawOutline: Boolean = true) : List<Renderable>
         {
             val textureQuad = TextureQuad(bottomLeft, bottomRight, topRight, topLeft,
                 ShapeAttributes().apply {
                     interiorImageSource = imageSource
-                    isDrawOutline = true
+                    isDrawOutline = drawOutline
                     outlineWidth = 3.0f
                     outlineColor = Color(1.0f, 0.0f, 0.0f, 1f)
                 })
             return listOf(
-                createAutomobilePlacemark(bottomLeft, "Civilian Vehicle", automotiveTypes[1], textureQuad, 0),
-                createAutomobilePlacemark(bottomRight, "Civilian Vehicle", automotiveTypes[1], textureQuad, 1),
-                createAutomobilePlacemark(topRight, "Civilian Vehicle", automotiveTypes[1], textureQuad, 2),
-                createAutomobilePlacemark(topLeft, "Civilian Vehicle", automotiveTypes[1], textureQuad, 3),
+                createAutomobilePlacemark(bottomLeft, automotiveTypes[1], textureQuad, 0),
+                createAutomobilePlacemark(bottomRight, automotiveTypes[1], textureQuad, 1),
+                createAutomobilePlacemark(topRight, automotiveTypes[1], textureQuad, 2),
+                createAutomobilePlacemark(topLeft, automotiveTypes[1], textureQuad, 3),
                 textureQuad
             )
         }
