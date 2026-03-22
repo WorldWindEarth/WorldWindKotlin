@@ -217,7 +217,13 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                                                    topLeft    : Location,
                                                    imageSource: ImageSource) : List<Renderable>
         {
-            val textureQuad = TextureQuad(bottomLeft, bottomRight, topRight, topLeft, imageSource)
+            val textureQuad = TextureQuad(bottomLeft, bottomRight, topRight, topLeft,
+                ShapeAttributes().apply {
+                    interiorImageSource = imageSource
+                    isDrawOutline = true
+                    outlineWidth = 3.0f
+                    outlineColor = Color(1.0f, 0.0f, 0.0f, 1f)
+                })
             return listOf(
                 createAutomobilePlacemark(bottomLeft, "Civilian Vehicle", automotiveTypes[1], textureQuad, 0),
                 createAutomobilePlacemark(bottomRight, "Civilian Vehicle", automotiveTypes[1], textureQuad, 1),

@@ -1,8 +1,10 @@
 package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawQuadState
+import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableSurfaceQuad
+import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
@@ -18,6 +20,9 @@ import earth.worldwind.util.kgl.GL_TRIANGLES
 import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import kotlin.jvm.JvmOverloads
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.shape.Polygon.Companion.VERTEX_ORIGINAL
+import earth.worldwind.shape.Polygon.Companion.refAlt
+import earth.worldwind.util.math.encodeOrientationVector
 
 open class TextureQuad @JvmOverloads constructor(
     bottomLeft : Location,
@@ -32,7 +37,10 @@ open class TextureQuad @JvmOverloads constructor(
                 topRight   : Location,
                 topLeft    : Location,
                 imageSource: ImageSource) : this(bottomLeft, bottomRight, topRight, topLeft,
-        ShapeAttributes().apply { interiorImageSource = imageSource }
+        ShapeAttributes().apply {
+            interiorImageSource = imageSource
+            isDrawOutline = false
+        }
     )
 
     constructor(sector: Sector, imageSource: ImageSource) : this(
@@ -40,7 +48,10 @@ open class TextureQuad @JvmOverloads constructor(
         Location(sector.minLatitude, sector.maxLongitude),
         Location(sector.maxLatitude, sector.maxLongitude),
         Location(sector.maxLatitude, sector.minLongitude),
-        ShapeAttributes().apply { interiorImageSource = imageSource }
+        ShapeAttributes().apply {
+            interiorImageSource = imageSource
+            isDrawOutline = false
+        }
     )
 
     constructor(sector: Sector, attributes: ShapeAttributes = ShapeAttributes()) : this(
@@ -69,11 +80,18 @@ open class TextureQuad @JvmOverloads constructor(
         var B = Vec2()
         var C = Vec2()
         var D = Vec2()
+
+        var lineVertexArray = FloatArray(0)
+        val outlineElements = mutableListOf<Int>()
+        val vertexLinesBufferKey = Any()
+        val elementLinesBufferKey = Any()
+        var refreshLineVertexArray = true
     }
 
     companion object {
         protected const val VERTEX_STRIDE = 3
-
+        protected const val VERTEX_LINE_STRIDE = 5
+        protected const val OUTLINE_LINE_SEGMENT_STRIDE = 4 * VERTEX_LINE_STRIDE
         protected val SHARED_INDEX_ARRAY = intArrayOf(0, 1, 2, 2, 3, 0)
         private var sharedIndexBufferKey = Any()
         private var sharedIndexBuffer: BufferObject? = null
@@ -81,6 +99,8 @@ open class TextureQuad @JvmOverloads constructor(
         protected lateinit var currentData: TextureQuadData
 
         protected var vertexIndex = 0
+
+        protected var lineVertexIndex = 0
 
         fun getSharedIndexBuffer(rc: RenderContext): BufferObject?
         {
@@ -162,6 +182,9 @@ open class TextureQuad @JvmOverloads constructor(
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
         val drawState: DrawQuadState
+        val drawableLines: Drawable
+        val drawStateLines: DrawQuadState
+        val cameraDistance: Double
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool(DrawableSurfaceQuad.KEY)
             drawable = DrawableSurfaceQuad.obtain(pool)
@@ -169,10 +192,33 @@ open class TextureQuad @JvmOverloads constructor(
             drawable.offset = rc.globe.offset
             drawable.sector.copy(currentBoundindData.boundingSector)
             drawable.version = computeVersion()
-            drawable.isDynamic = true//isDynamic || rc.currentLayer.isDynamic
+            drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
         } else {
             error("TextureQuad must be surface shape")
         }
+
+        drawInterior(rc, drawState)
+        rc.offerSurfaceDrawable(drawable, zOrder)
+
+        if(activeAttributes.isDrawOutline) {
+            drawableLines = DrawableSurfaceQuad.obtain(rc.getDrawablePool(DrawableSurfaceQuad.KEY))
+            drawableLines.offset = rc.globe.offset
+            drawableLines.sector.copy(currentBoundindData.boundingSector)
+            drawableLines.version = computeVersion()
+            drawableLines.isDynamic = true//isDynamic || rc.currentLayer.isDynamic
+
+            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
+            drawStateLines = drawableLines.drawState
+
+            drawOutline(rc, drawStateLines, cameraDistance)
+            rc.offerSurfaceDrawable(drawableLines, zOrder)
+        }
+    }
+
+    protected open fun drawInterior(rc: RenderContext, drawState: DrawQuadState) {
+        if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
+
+        drawState.isLine = false
 
         // Use the basic GLSL program to draw the shape.
         drawState.programDrawToTexture = rc.getShaderProgram(SurfaceQuadShaderProgram.KEY) { SurfaceQuadShaderProgram() }
@@ -188,26 +234,6 @@ open class TextureQuad @JvmOverloads constructor(
 
         // Use shared index(element) buffer for all TextureQuads
         drawState.elementBuffer = getSharedIndexBuffer(rc)
-
-        drawInterior(rc, drawState)
-
-        // Configure the drawable according to the shape's attributes. Disable triangle backface culling when we're
-        // displaying a polygon without extruded sides, so we want to draw the top and the bottom.
-        drawState.vertexOrigin.copy(currentData.vertexOrigin)
-        drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
-        drawState.enableCullFace = isExtrude
-        drawState.enableDepthTest = activeAttributes.isDepthTest
-        drawState.enableLighting = activeAttributes.isLightingEnabled
-        drawState.A.copy(currentData.A)
-        drawState.B.copy(currentData.B)
-        drawState.C.copy(currentData.C)
-        drawState.D.copy(currentData.D)
-
-        rc.offerSurfaceDrawable(drawable, zOrder)
-    }
-
-    protected open fun drawInterior(rc: RenderContext, drawState: DrawQuadState) {
-        if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
 
         // Configure the drawable to use the interior texture when drawing the interior.
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
@@ -225,7 +251,60 @@ open class TextureQuad @JvmOverloads constructor(
         drawState.D.copy(currentData.D)
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawState.vertexOrigin.copy(currentData.vertexOrigin)
+        drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
+        drawState.enableCullFace = isExtrude
+        drawState.enableDepthTest = activeAttributes.isDepthTest
+        drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.drawElements(GL_TRIANGLES, SHARED_INDEX_ARRAY.size, GL_UNSIGNED_INT, offset = 0)
+    }
+
+    protected open fun drawOutline(rc: RenderContext, drawState: DrawQuadState, cameraDistance: Double) {
+        if (!activeAttributes.isDrawOutline || rc.isPickMode && !activeAttributes.isPickOutline) return
+
+        // Use triangles mode to draw lines
+        drawState.isLine = true
+
+        // Use the geom lines GLSL program to draw the shape.
+        drawState.programDrawToTexture = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+        drawState.programDrawTextureToTerrain = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+
+        // Assemble the drawable's OpenGL vertex buffer object.
+        drawState.vertexBuffer = rc.getBufferObject(currentData.vertexLinesBufferKey) {
+            BufferObject(GL_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(currentData.vertexLinesBufferKey, bufferDataVersion) {
+            NumericArray.Floats(currentData.lineVertexArray)
+        }
+
+        // Assemble the drawable's OpenGL element buffer object.
+        drawState.elementBuffer = rc.getBufferObject(currentData.elementLinesBufferKey) {
+            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(currentData.elementLinesBufferKey, bufferDataVersion) {
+            val array = IntArray(currentData.outlineElements.size)
+            var index = 0
+            for (element in currentData.outlineElements) array[index++] = element
+            NumericArray.Ints(array)
+        }
+
+        // Configure the drawable to use the outline texture when drawing the outline.
+        activeAttributes.outlineImageSource?.let { outlineImageSource ->
+            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+                drawState.texture = texture
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
+            }
+        } ?: run { drawState.texture = null }
+
+        // Configure the drawable to display the shape's outline.
+        drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
+        drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawState.lineWidth = activeAttributes.outlineWidth
+        drawState.vertexOrigin.copy(currentData.vertexOrigin)
+        drawState.enableCullFace = false
+        drawState.enableDepthTest = activeAttributes.isDepthTest
+        drawState.enableLighting = activeAttributes.isLightingEnabled
+        drawState.drawElements(GL_TRIANGLES, currentData.outlineElements.size, GL_UNSIGNED_INT, offset = 0)
     }
 
     protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
@@ -234,13 +313,10 @@ open class TextureQuad @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
-
-        var vertexCount = locations.size
-
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
         // geometry is assembled.
         vertexIndex = 0
-        currentData.vertexArray = FloatArray(vertexCount * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
+        currentData.vertexArray = FloatArray(locations.size * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
 
         computeQuadLocalCorners(rc)
 
@@ -249,8 +325,39 @@ open class TextureQuad @JvmOverloads constructor(
             addVertex(rc, pos.latitude, pos.longitude)
         }
 
+        if(activeAttributes.isDrawOutline) {
+            lineVertexIndex = 0
+            val lastEqualsFirst = locations.first() == locations.last()
+            val lineVertexCount = locations.size + if (lastEqualsFirst) 2 else 3
+            currentData.lineVertexArray = FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE)
+            currentData.outlineElements.clear()
+
+            var pos0 = locations[0]
+            var begin = pos0
+            addLineVertex(rc, begin.latitude, begin.longitude, isIntermediate = true, addIndices = true)
+            addLineVertex(rc, begin.latitude, begin.longitude, isIntermediate = false, addIndices = true)
+            for (idx in 1 until locations.size) {
+                val end = locations[idx]
+                val addIndices = idx != locations.size - 1 || end != pos0 // check if there is implicit closing edge
+                addLineVertex(rc, end.latitude, end.longitude, isIntermediate = false, addIndices)
+                begin = end
+            }
+
+            if (begin != pos0) {
+                // Add additional dummy vertex with the same data after the last vertex.
+                addLineVertex(rc, pos0.latitude, pos0.longitude, isIntermediate = true, addIndices = false)
+                addLineVertex(rc, pos0.latitude, pos0.longitude, isIntermediate = true, addIndices = false)
+            } else {
+                addLineVertex(rc, begin.latitude, begin.longitude, isIntermediate = true, addIndices = false)
+            }
+            // Drop last six indices as they are used for connecting segments and there's no next segment for last vertices (check addLineVertex)
+            currentData.outlineElements.subList(currentData.outlineElements.size - 6, currentData.outlineElements.size).clear()
+
+        }
+
         // Reset update flags
         currentData.refreshVertexArray = false
+        currentData.refreshLineVertexArray = false
 
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
         with(currentBoundindData) {
@@ -282,6 +389,59 @@ open class TextureQuad @JvmOverloads constructor(
         vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
         vertexArray[vertexIndex++] = 0.0f
         vertex
+    }
+
+    protected open fun addLineVertex(
+        rc: RenderContext, latitude: Angle, longitude: Angle, isIntermediate : Boolean, addIndices : Boolean
+    ) = with(currentData) {
+        val vertex = lineVertexIndex / VERTEX_LINE_STRIDE
+//        if (lineVertexIndex == 0) texCoord1d = 0.0 else texCoord1d += point.distanceTo(prevPoint)
+//        prevPoint.copy(point)
+        val upperLeftCorner = encodeOrientationVector(-1f, 1f)
+        val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
+        val upperRightCorner = encodeOrientationVector(1f, 1f)
+        val lowerRightCorner = encodeOrientationVector(1f, -1f)
+        if (isSurfaceShape) {
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = upperLeftCorner
+            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = lowerLeftCorner
+            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = upperRightCorner
+            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+
+            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            lineVertexArray[lineVertexIndex++] = 0.0f
+            lineVertexArray[lineVertexIndex++] = lowerRightCorner
+            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+            if (addIndices) {
+                // indices for triangles made from this segment vertices
+                outlineElements.add(vertex)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 1)
+                outlineElements.add(vertex + 3)
+                // indices for triangles made from last vertices of this segment and first vertices of next segment
+                outlineElements.add(vertex + 2)
+                outlineElements.add(vertex + 3)
+                outlineElements.add(vertex + 4)
+                outlineElements.add(vertex + 4)
+                outlineElements.add(vertex + 3)
+                outlineElements.add(vertex + 5)
+            }
+        }
     }
     fun computeQuadLocalCorners(rc: RenderContext) {
         currentData.vertexOrigin.set(locations[0].longitude.inDegrees, locations[0].latitude.inDegrees, 1.0)

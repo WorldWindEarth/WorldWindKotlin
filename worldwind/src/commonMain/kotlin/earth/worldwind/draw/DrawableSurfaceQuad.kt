@@ -93,7 +93,7 @@ open class DrawableSurfaceQuad protected constructor(): Drawable {
 
     protected open fun textureHash(): Int {
         if (hash == 0) {
-            hash = 31 * version
+            hash = 31 * version + drawState.isLine.hashCode()
             for (i in 0 until drawState.primCount) {
                 val prim = drawState.prims[i]
                 hash = 31 * hash + prim.color.hashCode()
@@ -129,9 +129,6 @@ open class DrawableSurfaceQuad protected constructor(): Drawable {
             if (cachedTexture != null) return cachedTexture
         }
 
-        val program = drawState.programDrawToTexture as? SurfaceQuadShaderProgram ?: return null
-        if (!program.useProgram(dc)) return null
-
         // Redraw shapes to texture and put in cache if required
         val framebuffer = dc.scratchFramebuffer
         val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
@@ -145,9 +142,6 @@ open class DrawableSurfaceQuad protected constructor(): Drawable {
             dc.gl.viewport(0, 0, colorAttachment.width, colorAttachment.height)
             dc.gl.clear(GL_COLOR_BUFFER_BIT)
             dc.gl.disable(GL_DEPTH_TEST)
-
-            // Use the draw context's pick mode.
-            program.enablePickMode(dc.isPickMode)
 
             // Compute the tile common matrix that transforms geographic coordinates to texture fragments appropriate
             // for the terrain sector.
@@ -166,37 +160,16 @@ open class DrawableSurfaceQuad protected constructor(): Drawable {
             )
             for (idx in scratchList.indices) {
                 val shape = scratchList[idx]
-                if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) continue  // vertex buffer unspecified or failed to bind
-                if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) continue  // element buffer unspecified or failed to bind
-
-                // Transform local shape coordinates to texture fragments appropriate for the terrain sector.
-                mvpMatrix.copy(textureMvpMatrix)
-                mvpMatrix.multiplyByTranslation(
-                    shape.drawState.vertexOrigin.x,
-                    shape.drawState.vertexOrigin.y,
-                    shape.drawState.vertexOrigin.z
-                )
-                program.loadModelviewProjection(mvpMatrix)
-
-                // Use the shape's vertex point attribute.
-                dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
-
-                // Draw the specified primitives to the framebuffer texture.
-                for (primIdx in 0 until shape.drawState.primCount) {
-                    val prim = shape.drawState.prims[primIdx]
-                    program.loadColor(prim.color)
-                    program.loadOpacity(prim.opacity)
-                    if (prim.texture?.bindTexture(dc) == true) {
-                        program.loadTexCoordMatrix(prim.texCoordMatrix)
-                        program.loadABCD(prim.A, prim.B, prim.C, prim.D)
-                        program.enableTexture(true)
-                    } else {
-                        program.enableTexture(false)
-                        // prevent "RENDER WARNING: there is no texture bound to unit 0"
-                        dc.defaultTexture.bindTexture(dc)
-                    }
-
-                    dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
+                if(shape.drawState.isLine)
+                {
+                    if(!drawShapesToTextureOutline(dc, terrain, shape,
+                            colorAttachment.width.toFloat(), colorAttachment.height.toFloat()))
+                        continue
+                }
+                else
+                {
+                    if(!drawShapesToTextureInterior(dc, terrain, shape))
+                        continue
                 }
             }
             if (useCache) dc.texturesCache.put(hash, texture, 1)
@@ -246,5 +219,97 @@ open class DrawableSurfaceQuad protected constructor(): Drawable {
             // Unbind color attachment texture to avoid feedback loop
             dc.defaultTexture.bindTexture(dc)
         }
+    }
+
+    protected open fun drawShapesToTextureInterior(dc: DrawContext, terrain: DrawableTerrain, shape : DrawableSurfaceQuad) : Boolean {
+        val program = shape.drawState.programDrawToTexture as? SurfaceQuadShaderProgram ?: return false
+        if (!program.useProgram(dc)) return false
+
+        // Use the draw context's pick mode.
+        program.enablePickMode(dc.isPickMode)
+
+        if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) return false  // vertex buffer unspecified or failed to bind
+        if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) return false  // element buffer unspecified or failed to bind
+
+        // Transform local shape coordinates to texture fragments appropriate for the terrain sector.
+        mvpMatrix.copy(textureMvpMatrix)
+        mvpMatrix.multiplyByTranslation(
+            shape.drawState.vertexOrigin.x,
+            shape.drawState.vertexOrigin.y,
+            shape.drawState.vertexOrigin.z
+        )
+        program.loadModelviewProjection(mvpMatrix)
+
+        // Use the shape's vertex point attribute.
+        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
+        dc.gl.disable(GL_CULL_FACE);
+        // Draw the specified primitives to the framebuffer texture.
+        for (primIdx in 0 until shape.drawState.primCount) {
+            val prim = shape.drawState.prims[primIdx]
+            program.loadColor(prim.color)
+            program.loadOpacity(prim.opacity)
+            if (prim.texture?.bindTexture(dc) == true) {
+                program.loadTexCoordMatrix(prim.texCoordMatrix)
+                program.loadABCD(prim.A, prim.B, prim.C, prim.D)
+                program.enableTexture(true)
+            } else {
+                program.enableTexture(false)
+                // prevent "RENDER WARNING: there is no texture bound to unit 0"
+                dc.defaultTexture.bindTexture(dc)
+            }
+
+            dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
+        }
+        dc.gl.enable(GL_CULL_FACE);
+        return true
+    }
+
+    protected open fun drawShapesToTextureOutline(dc: DrawContext, terrain: DrawableTerrain, shape : DrawableSurfaceQuad, colorAttachmentWidth : Float, colorAttachmentHeight : Float) : Boolean {
+        val program = shape.drawState.programDrawToTexture as? TriangleShaderProgram ?: return false
+        if (!program.useProgram(dc)) return false
+
+        if (shape.drawState.vertexBuffer?.bindBuffer(dc) != true) return false  // vertex buffer unspecified or failed to bind
+        if (shape.drawState.elementBuffer?.bindBuffer(dc) != true) return false  // element buffer unspecified or failed to bind
+
+        // Use the draw context's pick mode.
+        program.enablePickMode(dc.isPickMode)
+
+        program.enableOneVertexMode(false)
+        program.loadClipDistance((textureMvpMatrix.m[11] / (textureMvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // set value here, but matrix is orthographic and shader clipping won't work as vertices projected orthographically always have .w == 1
+        program.loadScreen(colorAttachmentWidth, colorAttachmentHeight)
+
+        // Transform local shape coordinates to texture fragments appropriate for the terrain sector.
+        mvpMatrix.copy(textureMvpMatrix)
+        mvpMatrix.multiplyByTranslation(
+            shape.drawState.vertexOrigin.x,
+            shape.drawState.vertexOrigin.y,
+            shape.drawState.vertexOrigin.z
+        )
+        program.loadModelviewProjection(mvpMatrix)
+
+        // Use the shape's vertex point attribute.
+        dc.gl.vertexAttribPointer(0 /*pointA*/, 4, GL_FLOAT, false, 20, 0)
+        dc.gl.vertexAttribPointer(1 /*pointB*/, 4, GL_FLOAT, false, 20, 80)
+        dc.gl.vertexAttribPointer(2 /*pointC*/, 4, GL_FLOAT, false, 20, 160)
+        dc.gl.vertexAttribPointer(3 /*vertexTexCoord*/, 1, GL_FLOAT, false, 20, 96)
+
+        // Draw the specified primitives to the framebuffer texture.
+        for (primIdx in 0 until shape.drawState.primCount) {
+            val prim = shape.drawState.prims[primIdx]
+            program.loadColor(prim.color)
+            program.loadOpacity(prim.opacity)
+            program.loadLineWidth(prim.lineWidth)
+            if (prim.texture?.bindTexture(dc) == true) {
+                program.loadTexCoordMatrix(prim.texCoordMatrix)
+                program.enableTexture(true)
+            } else {
+                program.enableTexture(false)
+                // prevent "RENDER WARNING: there is no texture bound to unit 0"
+                dc.defaultTexture.bindTexture(dc)
+            }
+
+            dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
+        }
+        return true
     }
 }

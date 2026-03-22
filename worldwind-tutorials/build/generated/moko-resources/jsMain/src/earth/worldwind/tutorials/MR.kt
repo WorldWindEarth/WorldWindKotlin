@@ -8,7 +8,7 @@ import kotlin.String
 import kotlin.collections.List
 
 public actual object MR {
-  private val contentHash: String = "7147a7a0e84d947a315841f4b3213a8f"
+  private val contentHash: String = "2bb561c9822e7f4b4cdac81a28004d21"
 
   public actual object images : ResourceContainer<ImageResource> {
     public actual override val __platformDetails: ResourcePlatformDetails =
@@ -32,6 +32,9 @@ public actual object MR {
     public actual val ehipcc: ImageResource = ImageResource(fileUrl =
         js("require(\"./images/ehipcc.png\")") as String, fileName = "ehipcc.png")
 
+    public actual val korogode_image: ImageResource = ImageResource(fileUrl =
+        js("require(\"./images/korogode_image.jpg\")") as String, fileName = "korogode_image.jpg")
+
     public actual val manhole: ImageResource = ImageResource(fileUrl =
         js("require(\"./images/manhole.png\")") as String, fileName = "manhole.png")
 
@@ -42,11 +45,8 @@ public actual object MR {
     public actual val worldwind_logo: ImageResource = ImageResource(fileUrl =
         js("require(\"./images/worldwind_logo.png\")") as String, fileName = "worldwind_logo.png")
 
-      public actual val korogode_image: ImageResource = ImageResource(fileUrl =
-          js("require(\"./images/korogode_image.jpg\")") as String, fileName = "korogode_image.png")
-
     public actual override fun values(): List<ImageResource> = listOf(aircraft_fighter,
-        aircraft_fixwing, airport_terminal, aladdin_carpet, ehipcc, manhole,
-        pattern_sample_houndstooth, worldwind_logo, korogode_image)
+        aircraft_fixwing, airport_terminal, aladdin_carpet, ehipcc, korogode_image, manhole,
+        pattern_sample_houndstooth, worldwind_logo)
   }
 }

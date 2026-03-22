@@ -29,8 +29,10 @@ open class DrawQuadState internal constructor() {
     var enableDepthTest = true
     var enableLighting = false
     var depthOffset = 0.0
+    var isLine = false
     val color = Color()
     var opacity = 1.0f
+    var lineWidth = 1f
     var texture: Texture? = null
     var textureLod = 0
     val texCoordMatrix = Matrix3()
@@ -49,8 +51,10 @@ open class DrawQuadState internal constructor() {
         enableDepthTest = true
         enableLighting = false
         depthOffset = 0.0
+        isLine = false
         color.set(1f, 1f, 1f, 1f)
         opacity = 1.0f
+        lineWidth = 1f
         texture = null
         textureLod = 0
         texCoordMatrix.setToIdentity()
@@ -73,6 +77,7 @@ open class DrawQuadState internal constructor() {
         prim.offset = offset
         prim.color.copy(color)
         prim.opacity = opacity
+        prim.lineWidth = lineWidth
         prim.depthOffset = depthOffset
         prim.texture = texture
         prim.textureLod = textureLod
@@ -91,6 +96,7 @@ open class DrawQuadState internal constructor() {
         var offset = 0
         val color = Color()
         var opacity = 1.0f
+        var lineWidth = 0f
         var depthOffset = 0.0
         var texture: Texture? = null
         var textureLod = 0
