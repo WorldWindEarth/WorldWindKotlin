@@ -101,6 +101,8 @@ open class TextureQuad @JvmOverloads constructor(
         protected var vertexIndex = 0
 
         protected var lineVertexIndex = 0
+        protected val prevPoint = Vec3()
+        protected var texCoord1d = 0.0
 
         fun getSharedIndexBuffer(rc: RenderContext): BufferObject?
         {
@@ -205,7 +207,7 @@ open class TextureQuad @JvmOverloads constructor(
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(currentBoundindData.boundingSector)
             drawableLines.version = computeVersion()
-            drawableLines.isDynamic = true//isDynamic || rc.currentLayer.isDynamic
+            drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
             drawStateLines = drawableLines.drawState
@@ -339,15 +341,18 @@ open class TextureQuad @JvmOverloads constructor(
             for (idx in 1 until locations.size) {
                 val end = locations[idx]
                 val addIndices = idx != locations.size - 1 || end != pos0 // check if there is implicit closing edge
+                calcPoint(rc, end.latitude, end.longitude, 0.0, isAbsolute = false, isExtrudedSkirt = false)
                 addLineVertex(rc, end.latitude, end.longitude, isIntermediate = false, addIndices)
                 begin = end
             }
 
             if (begin != pos0) {
                 // Add additional dummy vertex with the same data after the last vertex.
+                calcPoint(rc, pos0.latitude, pos0.longitude, 0.0, isAbsolute = false, isExtrudedSkirt = false)
                 addLineVertex(rc, pos0.latitude, pos0.longitude, isIntermediate = true, addIndices = false)
                 addLineVertex(rc, pos0.latitude, pos0.longitude, isIntermediate = true, addIndices = false)
             } else {
+                calcPoint(rc, begin.latitude, begin.longitude, 0.0, isAbsolute = false, isExtrudedSkirt = false)
                 addLineVertex(rc, begin.latitude, begin.longitude, isIntermediate = true, addIndices = false)
             }
             // Drop last six indices as they are used for connecting segments and there's no next segment for last vertices (check addLineVertex)
@@ -395,8 +400,8 @@ open class TextureQuad @JvmOverloads constructor(
         rc: RenderContext, latitude: Angle, longitude: Angle, isIntermediate : Boolean, addIndices : Boolean
     ) = with(currentData) {
         val vertex = lineVertexIndex / VERTEX_LINE_STRIDE
-//        if (lineVertexIndex == 0) texCoord1d = 0.0 else texCoord1d += point.distanceTo(prevPoint)
-//        prevPoint.copy(point)
+        if (lineVertexIndex == 0) texCoord1d = 0.0 else texCoord1d += point.distanceTo(prevPoint)
+        prevPoint.copy(point)
         val upperLeftCorner = encodeOrientationVector(-1f, 1f)
         val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
         val upperRightCorner = encodeOrientationVector(1f, 1f)
@@ -406,25 +411,25 @@ open class TextureQuad @JvmOverloads constructor(
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = 0.0f
             lineVertexArray[lineVertexIndex++] = upperLeftCorner
-            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
 
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = 0.0f
             lineVertexArray[lineVertexIndex++] = lowerLeftCorner
-            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
 
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = 0.0f
             lineVertexArray[lineVertexIndex++] = upperRightCorner
-            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
 
             lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             lineVertexArray[lineVertexIndex++] = 0.0f
             lineVertexArray[lineVertexIndex++] = lowerRightCorner
-            lineVertexArray[lineVertexIndex++] = 0.0f//texCoord1d.toFloat()
+            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
             if (addIndices) {
                 // indices for triangles made from this segment vertices
                 outlineElements.add(vertex)
