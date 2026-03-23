@@ -55,9 +55,9 @@ open class BoundingBox {
     fun getBoundingBoxCorners(): List<Vec3> {
         val corners = ArrayList<Vec3>(8)
 
-        for (dt in listOf(-1.0, 1.0)) {
-            for (dr in listOf(-1.0, 1.0)) {
-                for (ds in listOf(-1.0, 1.0)) {
+        for (dt in listOf(-0.5, 0.5)) {
+            for (dr in listOf(-0.5, 0.5)) {
+                for (ds in listOf(-0.5, 0.5)) {
                     val corner = Vec3(center)
                         .add(r.times(dr))
                         .add(s.times(ds))
@@ -79,8 +79,8 @@ open class BoundingBox {
         t.copy(tIn)
 
         // Compute bottom and top centers along R axis
-        bottomCenter.copy(centerIn).subtract(r)
-        topCenter.copy(centerIn).add(r)
+        bottomCenter.copy(r).multiply(0.5).negate().add(centerIn)
+        topCenter.copy(r).multiply(0.5).add(centerIn)
 
         // Compute radius as half the diagonal of the box
         val diagonal = Vec3(
@@ -88,7 +88,7 @@ open class BoundingBox {
             abs(rIn.y) + abs(sIn.y) + abs(tIn.y),
             abs(rIn.z) + abs(sIn.z) + abs(tIn.z)
         )
-        radius = sqrt(diagonal.dot(diagonal))
+        radius = 0.5 * sqrt(diagonal.dot(diagonal))
     }
 
     /**
