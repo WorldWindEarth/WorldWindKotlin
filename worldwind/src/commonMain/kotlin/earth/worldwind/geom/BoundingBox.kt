@@ -51,6 +51,7 @@ open class BoundingBox {
      */
     val isUnitBox get() = center.x == 0.0 && center.y == 0.0 && center.z == 0.0 && radius == SQRT_3
 
+
     fun set(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
         // Update center
         center.copy(centerIn)
@@ -91,6 +92,15 @@ open class BoundingBox {
         }
         return corners
     }
+
+    fun getCenter(out: Vec3): Vec3 {
+        out.x = center.x
+        out.y = center.y
+        out.z = center.z
+        return out
+    }
+
+    fun getRadius() = radius
 
     fun setBoundingBox(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
         // Update center
