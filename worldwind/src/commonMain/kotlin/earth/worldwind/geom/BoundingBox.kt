@@ -35,7 +35,7 @@ open class BoundingBox {
     /**
      * The box's radius. (The half-length of its diagonal.)
      */
-    var radius = SQRT_3
+    protected var radius = SQRT_3
 
     private val endPoint1 = Vec3()
     private val endPoint2 = Vec3()
@@ -50,24 +50,13 @@ open class BoundingBox {
      */
     val isUnitBox get() = center.x == 0.0 && center.y == 0.0 && center.z == 0.0 && radius == SQRT_3
 
-    val centerCopy get() = Vec3(center.x, center.y, center.z)
-
-    fun getBoundingBoxCorners(): List<Vec3> {
-        val corners = ArrayList<Vec3>(8)
-
-        for (dt in listOf(-0.5, 0.5)) {
-            for (dr in listOf(-0.5, 0.5)) {
-                for (ds in listOf(-0.5, 0.5)) {
-                    val corner = Vec3(center)
-                        .add(r.times(dr))
-                        .add(s.times(ds))
-                        .add(t.times(dt))
-                    corners.add(corner)
-                }
-            }
-        }
-        return corners
+    fun getCenter(out: Vec3): Vec3 {
+        out.x = center.x
+        out.y = center.y
+        out.z = center.z
+        return out
     }
+    fun getRadius() = radius
 
     fun setBoundingBox(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
         // Update center
