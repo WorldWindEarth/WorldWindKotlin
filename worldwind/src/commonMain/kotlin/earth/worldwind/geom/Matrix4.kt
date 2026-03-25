@@ -1212,10 +1212,24 @@ open class Matrix4 private constructor(
         return atan2(st, ct).radians
     }
 
+    /**
+     * Extracts the scale components from this matrix and stores them in the specified result vector.
+     *
+     * The scale is computed as the magnitude of the basis vectors of the upper-left 3×3 portion
+     * of the matrix. This assumes the matrix represents an affine transformation composed of
+     * rotation and scale without shear.
+     *
+     * The returned scale values are always non-negative. Any sign information (e.g., from reflections)
+     * is not preserved.
+     *
+     * @param result the vector that will receive the extracted scale components
+     *
+     * @return the result vector containing the X, Y, and Z scale components
+     */
     fun extractScale(result: Vec3) : Vec3 {
-        result.x = Vec3(m[0], m[1], m[2]).magnitude
-        result.y = Vec3(m[4], m[5], m[6]).magnitude
-        result.z = Vec3(m[8], m[9], m[10]).magnitude
+        result.x = Vec3(m[0], m[4], m[8]).magnitude
+        result.y = Vec3(m[1], m[5], m[9]).magnitude
+        result.z = Vec3(m[2], m[6], m[10]).magnitude
 
         return result
     }
