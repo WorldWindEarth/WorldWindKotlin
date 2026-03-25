@@ -11,7 +11,7 @@ open class BoundingBox {
     /**
      * The box's center point.
      */
-    internal val center = Vec3(0.0, 0.0, 0.0)
+    val center = Vec3(0.0, 0.0, 0.0)
     /**
      * The center point of the box's bottom. (The origin of the R axis.)
      */
@@ -35,7 +35,8 @@ open class BoundingBox {
     /**
      * The box's radius. (The half-length of its diagonal.)
      */
-    protected var radius = SQRT_3
+    var radius = SQRT_3
+        protected set
 
     private val endPoint1 = Vec3()
     private val endPoint2 = Vec3()
@@ -49,6 +50,28 @@ open class BoundingBox {
      * @return true if this bounding box is a unit box, otherwise false
      */
     val isUnitBox get() = center.x == 0.0 && center.y == 0.0 && center.z == 0.0 && radius == SQRT_3
+
+    fun set(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
+        // Update center
+        center.copy(centerIn)
+
+        // Copy orientation vectors
+        r.copy(rIn)
+        s.copy(sIn)
+        t.copy(tIn)
+
+        // Compute bottom and top centers along R axis
+        bottomCenter.copy(r).multiply(0.5).negate().add(centerIn)
+        topCenter.copy(r).multiply(0.5).add(centerIn)
+
+        // Compute radius as half the diagonal of the box
+        val diagonal = Vec3(
+            abs(rIn.x) + abs(sIn.x) + abs(tIn.x),
+            abs(rIn.y) + abs(sIn.y) + abs(tIn.y),
+            abs(rIn.z) + abs(sIn.z) + abs(tIn.z)
+        )
+        radius = 0.5 * sqrt(diagonal.dot(diagonal))
+    }
 
     /**
      * Sets this bounding box to a unit box centered at the Cartesian origin (0, 0, 0).
