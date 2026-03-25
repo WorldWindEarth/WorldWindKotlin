@@ -34,6 +34,15 @@
 -dontwarn com.j256.ormlite.**
 -keep class com.j256.ormlite.**
 -keep @com.j256.ormlite.table.DatabaseTable class * { *; }
+-keep class ** implements com.j256.ormlite.field.DataPersister { *; }
+-keepclassmembers class * implements com.j256.ormlite.dao.Dao {
+    public <init>(...);
+}
+
+# Proj4J projection instance creation via reflection
+-keepclassmembers class * implements org.locationtech.proj4j.proj.Projection {
+    public <init>(...);
+}
 
 # GeoJSON deserialization library
 -keep class io.data2viz.geojson.jackson.** {
