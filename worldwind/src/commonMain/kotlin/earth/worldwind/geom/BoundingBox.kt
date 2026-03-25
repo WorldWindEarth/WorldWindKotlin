@@ -35,7 +35,8 @@ open class BoundingBox {
     /**
      * The box's radius. (The half-length of its diagonal.)
      */
-    protected var radius = SQRT_3
+    var radius = SQRT_3
+        protected set
 
     private val endPoint1 = Vec3()
     private val endPoint2 = Vec3()
@@ -56,7 +57,6 @@ open class BoundingBox {
         out.z = center.z
         return out
     }
-    fun getRadius() = radius
 
     fun setBoundingBox(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
         // Update center
