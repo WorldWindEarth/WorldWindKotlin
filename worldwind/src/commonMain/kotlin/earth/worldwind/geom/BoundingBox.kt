@@ -11,7 +11,7 @@ open class BoundingBox {
     /**
      * The box's center point.
      */
-    internal val center = Vec3(0.0, 0.0, 0.0)
+    val center = Vec3(0.0, 0.0, 0.0)
     /**
      * The center point of the box's bottom. (The origin of the R axis.)
      */
@@ -51,14 +51,7 @@ open class BoundingBox {
      */
     val isUnitBox get() = center.x == 0.0 && center.y == 0.0 && center.z == 0.0 && radius == SQRT_3
 
-    fun getCenter(out: Vec3): Vec3 {
-        out.x = center.x
-        out.y = center.y
-        out.z = center.z
-        return out
-    }
-
-    fun setBoundingBox(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
+    fun set(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
         // Update center
         center.copy(centerIn)
 
