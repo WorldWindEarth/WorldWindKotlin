@@ -799,7 +799,7 @@ open class Polygon @JvmOverloads constructor(
         tessEdgeFlags[tessVertexCount] = tessEdgeFlag
         if (tessVertexCount < 2) {
             tessVertexCount++ // increment the vertex count and wait for more vertices
-            return
+            return@with
         } else {
             tessVertexCount = 0 // reset the vertex count and process one triangle
         }

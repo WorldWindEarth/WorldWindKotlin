@@ -36,7 +36,7 @@ open class WmsLayer @JvmOverloads constructor(displayName: String = "WMS Layer")
      * configuration value is invalid
      */
     @JvmOverloads
-    constructor(sector: Sector, metersPerPixel: Double, config: WmsLayerConfig, ellipsoid: Ellipsoid?? = null) : this() {
+    constructor(sector: Sector, metersPerPixel: Double, config: WmsLayerConfig, ellipsoid: Ellipsoid? = null) : this() {
         setConfiguration(sector, metersPerPixel, config, ellipsoid)
     }
 
