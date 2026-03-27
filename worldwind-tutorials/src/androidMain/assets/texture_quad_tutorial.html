@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Texture Quad Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Texture Quad Tutorial</h1>
+<p>
+    Demonstrates how to add TextureQuads to a RenderableLayer
+</p>
+<p>
+    This example adds one texture quad to the basic globe:
+</p>
+<ul>
+    <li>A remote image showing novij korogod</li>
+</ul>
+
+<h2>Example</h2>
+<h3>TextureQuadFragment.kt</h3>
+<p>
+    The TextureQuadFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we create one TextureQuad object and add it to a RenderableLayer, and then we add the layer to the globe.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class TextureQuadFragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow with an additional RenderableLayer containing one TextureQuad.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also { TextureQuadTutorial(it.engine).start() }
+}
+
+class TextureQuadTutorial(private val engine: WorldWind) : AbstractTutorial() {
+    private val layer = RenderableLayer("Texture quad").apply {
+        // Configure a Texture quad to display an Android resource showing the novij korogod.
+        addRenderable(
+            TextureQuad(
+                Location(51.26891660167462.degrees, 30.0096671570868.degrees),
+                Location(51.27062637593827.degrees, 30.01240117718469.degrees),
+                Location(51.271804026840556.degrees, 30.01029779181104.degrees),
+                Location(51.270125460836965.degrees, 30.00779959572076.degrees),
+                ShapeAttributes().apply {
+                    interiorImageSource = ImageSource.fromResource(MR.images.korogode_image)
+                    isDrawOutline = true
+                    outlineWidth = 3.0f
+                    outlineColor = Color(1.0f, 0.0f, 0.0f, 1f)
+                }
+            )
+        )
+    }
+
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+        engine.camera.set(
+            51.270125460836965.degrees, 30.00989959572076.degrees, 9.0e2,
+            AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

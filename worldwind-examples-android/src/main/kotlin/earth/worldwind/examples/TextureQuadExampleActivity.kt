@@ -124,7 +124,7 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
 
         // And finally, for this demo, position the viewer to look at the placemarks
         val lookAt = LookAt(
-            position = Position(51.265140.degrees, 30.020303.degrees, 4.0e3), altitudeMode = AltitudeMode.ABSOLUTE,
+            position = Position(51.270125460836965.degrees, 30.00989959572076.degrees, 9.0e2), altitudeMode = AltitudeMode.ABSOLUTE,
             range = 0.0, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
         wwd.engine.cameraFromLookAt(lookAt)
