@@ -41,12 +41,9 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
     Demonstrates how to stretch texture quad
     """.trimIndent()
 
-        // Initialize the mapping of vehicle types to their icons.
-        for (i in automotiveTypes.indices) automotiveIconMap[automotiveTypes[i]] = automotiveIcons[i]
-
         // Add dragging callback
         wwd.selectDragDetector.callback = object : SelectDragCallback {
-            override fun canPickRenderable(renderable: Renderable) = true //renderable.hasUserProperty(SELECTABLE)
+            override fun canPickRenderable(renderable: Renderable) = true
             override fun canMoveRenderable(renderable: Renderable) = renderable === selectedObject && renderable.hasUserProperty(MOVABLE)
             override fun onRenderablePicked(renderable: Renderable, position: Position) = toggleSelection(renderable)
             override fun onRenderableContext(renderable: Renderable, position: Position) = contextMenu(renderable)
@@ -63,7 +60,6 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                 val vertexIndex = renderable.getUserProperty<Int>(VERTEX_INDEX)
                 vertexIndex?.let { textureQuad?.setLocation(it, Location(toPosition.latitude, toPosition.longitude)) }
             }
-
 
             /**
              * Toggles the selected state of the picked renderable.
@@ -136,10 +132,6 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
 
     companion object {
         /**
-         * The EDITABLE capability, if it exists in a Placemark's user properties, allows editing with a double-tap
-         */
-        const val EDITABLE = "editable"
-        /**
          * The MOVABLE capability, if it exists in a Placemark's user properties, allows dragging (after being selected)
          */
         const val MOVABLE = "movable"
@@ -150,56 +142,34 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
 
         const val VERTEX_INDEX = "vertex_index"
         const val TEXTURE_QUAD_REF = "texture_quad_ref"
-        /**
-         * Placemark user property vehicleKey for the type of vehicle
-         */
-        const val AUTOMOTIVE_TYPE = "auotomotive_type"
-
-        // Vehicle vehicleTypes used in the Placemark editing dialog
-        private val automotiveTypes = arrayOf(
-            "Car", "SUV", "4x4", "Truck", "Jeep", "Tank"
-        )
-
-        // Resource IDs for vehicle icons
-        private val automotiveIcons = intArrayOf(
-            R.drawable.vehicle_car,
-            R.drawable.vehicle_suv,
-            R.drawable.vehicle_4x4,
-            R.drawable.vehicle_truck,
-            R.drawable.vehicle_jeep,
-            R.drawable.vehicle_tank
-        )
         private const val NORMAL_IMAGE_SCALE = 3.0
         private const val HIGHLIGHTED_IMAGE_SCALE = 4.0
-        private val automotiveIconMap = mutableMapOf<String, Int>()
 
 
         /**
          * Helper method to create vehicle placemarks.
          */
-        private fun createAutomobilePlacemark(location: Location, automotiveType: String, textureQuad : TextureQuad, vertexIndex : Int) =
-            automotiveIconMap[automotiveType]?.let { resId ->
-                createWithImage(Position(location.latitude, location.longitude, 0.0), fromResource(resId)).apply {
-                    attributes.apply {
-                        imageOffset = bottomCenter()
-                        imageScale = NORMAL_IMAGE_SCALE
-                    }
-                    highlightAttributes = PlacemarkAttributes(attributes).apply {
-                        imageScale = HIGHLIGHTED_IMAGE_SCALE
-                        imageColor = Color(android.graphics.Color.YELLOW)
-                    }
+        private fun createTextureQuadVertexPlacemark(location: Location, textureQuad : TextureQuad, vertexIndex : Int) =
+             createWithImage(
+                 Position(location.latitude, location.longitude, 0.0),
+                 fromResource(R.drawable.vehicle_suv)
+             ).apply {
+                 attributes.apply {
+                     imageOffset = bottomCenter()
+                     imageScale = NORMAL_IMAGE_SCALE
+                 }
+                 highlightAttributes = PlacemarkAttributes(attributes).apply {
+                     imageScale = HIGHLIGHTED_IMAGE_SCALE
+                     imageColor = Color(android.graphics.Color.YELLOW)
+                 }
 
-                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                    // The AUTOMOTIVE_TYPE property is used to exchange the vehicle type with the VehicleTypeDialog
-                    putUserProperty(AUTOMOTIVE_TYPE, automotiveType)
-                    // The select/drag controller will examine a placemark's "capabilities" to determine what operations are applicable:
-                    putUserProperty(SELECTABLE, true)
-                    putUserProperty(EDITABLE, true)
-                    putUserProperty(MOVABLE, true)
-                    putUserProperty(TEXTURE_QUAD_REF, textureQuad)
-                    putUserProperty(VERTEX_INDEX, vertexIndex)
-                }
-            } ?: throw IllegalArgumentException("$automotiveType is not valid.")
+                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                 // The select/drag controller will examine a placemark's "capabilities" to determine what operations are applicable:
+                 putUserProperty(SELECTABLE, true)
+                 putUserProperty(MOVABLE, true)
+                 putUserProperty(TEXTURE_QUAD_REF, textureQuad)
+                 putUserProperty(VERTEX_INDEX, vertexIndex)
+             }
 
         private fun createStretchableTextureQuad(bottomLeft : Location,
                                                    bottomRight: Location,
@@ -216,10 +186,10 @@ class TextureQuadExampleActivity: GeneralGlobeActivity() {
                     outlineColor = Color(1.0f, 0.0f, 0.0f, 1f)
                 })
             return listOf(
-                createAutomobilePlacemark(bottomLeft, automotiveTypes[1], textureQuad, 0),
-                createAutomobilePlacemark(bottomRight, automotiveTypes[1], textureQuad, 1),
-                createAutomobilePlacemark(topRight, automotiveTypes[1], textureQuad, 2),
-                createAutomobilePlacemark(topLeft, automotiveTypes[1], textureQuad, 3),
+                createTextureQuadVertexPlacemark(bottomLeft, textureQuad, 0),
+                createTextureQuadVertexPlacemark(bottomRight, textureQuad, 1),
+                createTextureQuadVertexPlacemark(topRight, textureQuad, 2),
+                createTextureQuadVertexPlacemark(topLeft, textureQuad, 3),
                 textureQuad
             )
         }
