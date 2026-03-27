@@ -47,6 +47,10 @@
             android:icon="@android:drawable/ic_menu_directions"
             android:title="@string/title_paths_and_polygons"/>
         <item
+            android:id="@+id/nav_texture_quad_example_activity"
+            android:icon="@android:drawable/ic_menu_myplaces"
+            android:title="@string/title_texture_quad_example"/>
+        <item
             android:id="@+id/nav_day_night_cycle_activity"
             android:icon="@android:drawable/ic_menu_recent_history"
             android:title="@string/title_day_night_cycle"/>

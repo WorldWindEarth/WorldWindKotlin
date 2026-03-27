@@ -321,6 +321,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/surface_image_tutorial.html",
                 R.string.title_surface_image
             )
+            R.id.nav_texture_quad_activity -> loadTutorial(
+                TextureQuadFragment::class.java,
+                "file:///android_asset/texture_quad_tutorial.html",
+                R.string.title_texture_quad
+            )
             R.id.nav_wms_layer_activity -> loadTutorial(
                 WmsLayerFragment::class.java,
                 "file:///android_asset/wms_layer_tutorial.html",

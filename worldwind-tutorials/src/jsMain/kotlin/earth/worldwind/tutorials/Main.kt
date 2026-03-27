@@ -65,6 +65,7 @@ fun main() {
             "Labels" to LabelsTutorial(wwd.engine),
             "Sight line" to SightlineTutorial(wwd.engine),
             "Surface image" to SurfaceImageTutorial(wwd.engine),
+            "Texture quad" to TextureQuadTutorial(wwd.engine),
             "MilStd2525 graphics" to MilStd2525Tutorial(wwd.engine),
             "Show tessellation" to ShowTessellationTutorial(wwd.engine),
             "MGRS Graticule" to MGRSGraticuleTutorial(wwd.engine),
