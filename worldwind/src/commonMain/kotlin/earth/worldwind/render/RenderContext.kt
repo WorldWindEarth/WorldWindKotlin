@@ -58,7 +58,9 @@ open class RenderContext {
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
     var pickRay: Line? = null
+    var renderableFilter: Renderable? = null
     var isPickMode = false
+    var isDepthPickingMode = false
     var isRedrawRequested = false
         protected set
     private var pickedObjectId = 0
@@ -94,7 +96,9 @@ open class RenderContext {
         pickViewport = null
         pickPoint = null
         pickRay = null
+        renderableFilter = null
         isPickMode = false
+        isDepthPickingMode = false
         pickedObjectId = 0
         isRedrawRequested = false
         pixelSizeFactor = 0.0

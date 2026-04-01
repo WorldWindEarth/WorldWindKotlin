@@ -29,6 +29,7 @@ fun main() {
         val tutorialSelect = document.getElementById("Tutorials") as HTMLSelectElement
         val projectionSelect = document.getElementById("Projections") as HTMLSelectElement
         val actionsContainer = document.getElementById("Actions") as HTMLDivElement
+        val statusContainer = document.getElementById("Status") as HTMLDivElement
         val tutorials = mapOf(
             "Basic globe" to BasicTutorial(wwd.engine),
             "Set camera view" to CameraViewTutorial(wwd.engine),
@@ -59,6 +60,32 @@ fun main() {
                         it.pickMesh(clickRay, wwd.engine.globe)
                         wwd.requestRedraw()
                     }
+                })
+            },
+            "Triangle mesh picking" to TriangleMeshPickingTutorial(wwd.engine).also { tutorial ->
+                fun applyPick(event: PointerEvent) {
+                    if (!tutorial.isStarted) return
+                    val screenPoint = wwd.canvasCoordinates(event.clientX, event.clientY)
+                    val meshPick = wwd.pickMeshPoint(screenPoint, forceDepthPointPick = true)
+                    val terrainPosition = if (meshPick == null) {
+                        tutorial.pickTerrainPosition(screenPoint.x, screenPoint.y)
+                    } else null
+                    tutorial.handlePick(meshPick, terrainPosition)
+                    statusContainer.innerText = tutorial.statusText
+                    wwd.requestRedraw()
+                }
+
+                wwd.addEventListener("pointermove", EventListener { e ->
+                    if (e is PointerEvent) applyPick(e)
+                })
+                wwd.addEventListener("click", EventListener { e ->
+                    if (e is PointerEvent) applyPick(e)
+                })
+                wwd.addEventListener("pointerleave", EventListener {
+                    if (!tutorial.isStarted) return@EventListener
+                    tutorial.clearPickFeedback()
+                    statusContainer.innerText = tutorial.statusText
+                    wwd.requestRedraw()
                 })
             },
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
@@ -125,6 +152,14 @@ fun main() {
                 actionsContainer.innerHTML = ""
                 actions?.forEach { action -> createAction(action) }
                 actionsContainer.hidden = actions?.isEmpty() != false
+            }
+            val overlayTutorial = tutorials[tutorial] as? TriangleMeshPickingTutorial
+            if (overlayTutorial != null) {
+                statusContainer.style.display = "block"
+                statusContainer.innerText = overlayTutorial.statusText
+            } else {
+                statusContainer.style.display = "none"
+                statusContainer.innerText = ""
             }
             wwd.requestRedraw()
         }

@@ -6,6 +6,7 @@ import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Viewport
 import earth.worldwind.gesture.SelectDragDetector
 import earth.worldwind.render.RenderResourceCache
+import earth.worldwind.shape.AbstractMesh
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
@@ -14,6 +15,8 @@ import earth.worldwind.util.kgl.WebKgl
 import earth.worldwind.util.window.PrepareEventHandler
 import earth.worldwind.util.window.createDefaultPrepareEventHandler
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.khronos.webgl.WebGLContextAttributes
 import org.khronos.webgl.WebGLContextEvent
@@ -247,31 +250,36 @@ open class WorldWindow(
         if (viewport.isEmpty) return pickedObjects
 
         // Determine pick viewport
-        val pickViewport = if (width != 0.0 && height != 0.0) Viewport(
-            floor(x).toInt(), viewport.height - ceil(y + height).toInt(), ceil(width).toInt(), ceil(height).toInt()
-        ) else Viewport(x.roundToInt() - 1, viewport.height - y.roundToInt() - 1, 3, 3)
-        if (!pickViewport.intersect(viewport)) return pickedObjects
+        val pickViewport = createPickViewport(x, y, width, height, viewport) ?: return pickedObjects
 
         // Prepare pick frame
         frame.pickedObjects = pickedObjects
         frame.pickViewport = pickViewport
-        if (pickCenter) {
-            // Compute the pick point in OpenGL screen coordinates, rounding to the nearest whole pixel. Nothing can be picked
-            // if pick point is outside the WorldWindow's viewport.
-            val px = pickViewport.x + pickViewport.width / 2.0
-            val py = pickViewport.y + pickViewport.height / 2.0
-            if (viewport.contains(px, py)) {
-                val pickRay = Line()
-                if (engine.rayThroughScreenPoint(px, viewport.height - py, pickRay)) {
-                    frame.pickPoint = Vec2(px, py)
-                    frame.pickRay = pickRay
-                }
-            }
-        }
+        if (pickCenter) configurePickPoint(frame, pickViewport, viewport, includeRay = true)
         frame.isPickMode = true
         redrawFrame()
 
         return pickedObjects
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun pickMeshPoint(pickPoint: Vec2, forceDepthPointPick: Boolean = false): PickedRenderablePoint? {
+        val pickList = pick(pickPoint)
+        val topPickedObject = pickList.topPickedObject
+        val pickedMesh = topPickedObject?.renderable as? AbstractMesh ?: return null
+        val viewport = engine.viewport
+        val pickViewport = createPickViewport(pickPoint.x, pickPoint.y, 0.0, 0.0, viewport) ?: return null
+        val pointPickDeferred = CompletableDeferred<PickedRenderablePoint?>()
+        frame.pointPickedObject = topPickedObject
+        frame.pointPickDeferred = pointPickDeferred
+        frame.renderableFilter = pickedMesh
+        frame.pickViewport = pickViewport
+        configurePickPoint(frame, pickViewport, viewport, includeRay = true)
+        frame.forceDepthPointPick = forceDepthPointPick
+        frame.isPickMode = true
+        frame.isDepthPickingMode = true
+        redrawFrame()
+        return if (pointPickDeferred.isCompleted) pointPickDeferred.getCompleted() else null
     }
 
     /**
@@ -396,6 +404,28 @@ open class WorldWindow(
         } catch (e: Exception) {
             // Keep going. Execute the rest of the callbacks.
             log(ERROR, "Exception calling redraw callback.\n$e")
+        }
+    }
+
+    protected fun createPickViewport(
+        x: Double, y: Double, width: Double, height: Double, viewport: Viewport
+    ): Viewport? {
+        if (viewport.isEmpty) return null
+        val pickViewport = if (width != 0.0 && height != 0.0) Viewport(
+            floor(x).toInt(), viewport.height - ceil(y + height).toInt(), ceil(width).toInt(), ceil(height).toInt()
+        ) else Viewport(x.roundToInt() - 1, viewport.height - y.roundToInt() - 1, 3, 3)
+        return pickViewport.takeIf { it.intersect(viewport) }
+    }
+
+    protected fun configurePickPoint(frame: Frame, pickViewport: Viewport, viewport: Viewport, includeRay: Boolean) {
+        val px = pickViewport.x + pickViewport.width / 2.0
+        val py = pickViewport.y + pickViewport.height / 2.0
+        if (!viewport.contains(px, py)) return
+        frame.pickPoint = Vec2(px, py)
+        if (includeRay) {
+            val pickRay = Line()
+            if (engine.rayThroughScreenPoint(px, viewport.height - py, pickRay)) frame.pickRay = pickRay
+            else frame.pickPoint = null
         }
     }
 

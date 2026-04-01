@@ -1,9 +1,11 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.BasicTextureProgram
 import earth.worldwind.util.Pool
+import earth.worldwind.util.kgl.GL_BLEND
 import earth.worldwind.util.kgl.GL_CULL_FACE
 import earth.worldwind.util.kgl.GL_DEPTH_TEST
 import earth.worldwind.util.kgl.GL_FLOAT
@@ -41,18 +43,24 @@ open class DrawableMesh protected constructor(): Drawable {
         if (!program.useProgram(dc)) return // program failed to build
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
         if (drawState.elementBuffer?.bindBuffer(dc) != true) return  // element buffer unspecified or failed to bind
+        val isDepthPickPass = dc.isDepthPickingMode
 
         // Use the draw context's pick mode.
         program.loadModulateColor(dc.isPickMode)
+        program.loadOutputDepth(isDepthPickPass)
 
         // Disable triangle back face culling if requested.
         if (!drawState.enableCullFace) dc.gl.disable(GL_CULL_FACE)
 
         // Disable depth testing if requested.
-        if (!drawState.enableDepthTest) dc.gl.disable(GL_DEPTH_TEST)
+        if (!isDepthPickPass && !drawState.enableDepthTest) dc.gl.disable(GL_DEPTH_TEST)
 
         // Disable depth writing if requested.
-        if (!drawState.enableDepthWrite) dc.gl.depthMask(false)
+        if (isDepthPickPass) {
+            dc.gl.disable(GL_BLEND)
+            dc.gl.enable(GL_DEPTH_TEST)
+            dc.gl.depthMask(true)
+        } else if (!drawState.enableDepthWrite) dc.gl.depthMask(false)
 
         // Make multi-texture unit 0 active.
         dc.activeTextureUnit(GL_TEXTURE0)
@@ -80,6 +88,10 @@ open class DrawableMesh protected constructor(): Drawable {
                 mvpMatrix.copy(dc.modelviewProjection)
             }
             mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+            if (isDepthPickPass) {
+                dc.pointPickModelviewProjection = Matrix4(mvpMatrix)
+                dc.pointPickVertexOrigin = Vec3(drawState.vertexOrigin)
+            }
             program.loadModelviewProjection(mvpMatrix)
             program.loadColor(prim.color)
             program.loadOpacity(prim.opacity)
@@ -100,13 +112,18 @@ open class DrawableMesh protected constructor(): Drawable {
 
         // Restore the default WorldWind OpenGL state.
         if (!drawState.enableCullFace) dc.gl.enable(GL_CULL_FACE)
-        if (!drawState.enableDepthTest) dc.gl.enable(GL_DEPTH_TEST)
-        if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
+        if (isDepthPickPass) {
+            dc.gl.enable(GL_BLEND)
+        } else {
+            if (!drawState.enableDepthTest) dc.gl.enable(GL_DEPTH_TEST)
+            if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
+        }
         dc.gl.lineWidth(1f)
         if (!dc.isPickMode && drawState.enableLighting) {
             program.loadApplyLighting(false)
             dc.gl.disableVertexAttribArray(1 /*normalVector*/)
         }
+        program.loadOutputDepth(false)
         dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
     }
 }

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Triangle Mesh Picking Tutorial</title>
+    <link rel="stylesheet" href="codemirror-5.65.3/lib/codemirror.css">
+    <link rel="stylesheet" href="override.css">
+    <script src="codemirror-5.65.3/lib/codemirror.js"></script>
+    <script src="codemirror-5.65.3/mode/kotlin/kotlin.js"></script>
+</head>
+<body>
+<h1>Triangle Mesh Picking Tutorial</h1>
+<p>
+    A tap or pointer hover first resolves the visible mesh by its pick color ID. The WorldWindow then renders just
+    that mesh in a depth-encoding pass, samples the clicked depth value, and unprojects the screen point back into 3D
+    space.
+</p>
+<p>
+    The tutorial uses that 3D point to highlight the selected mesh, place a small sphere marker exactly on the picked
+    location, draw a radial line from the globe center to 3000 km above the surface through the hit point, and show a
+    fixed overlay with the picked object plus the geographic and Cartesian coordinates. The line turns red for mesh
+    hits, green for earth hits, and disappears when nothing is hit.
+</p>
+
+<h3>TriangleMeshPickingFragment.kt</h3>
+<textarea id="fragmentCode">
+class TriangleMeshPickingFragment : BasicGlobeFragment() {
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+        val tutorial = TriangleMeshPickingTutorial(wwd.engine)
+        tutorial.start()
+        wwd.controller = PickNavigateController(wwd, tutorial)
+        return wwd
+    }
+}
+</textarea>
+
+<h3>TriangleMeshPickingTutorial.kt</h3>
+<textarea id="tutorialCode">
+fun handlePick(meshPick: PickedRenderablePoint?, terrainPick: Position? = null) {
+    val pickedMesh = meshPick?.renderable as? AbstractMesh
+    if (pickedMesh != null) {
+        selectedMesh = pickedMesh.also { it.isHighlighted = true }
+        updateMarker(meshPick.position)
+        updateRadialLine(meshPick.cartesianPoint, meshHitLineColor)
+    } else if (terrainPick != null) {
+        updateMarker(terrainPick)
+        updateRadialLine(terrainCartesianPoint, earthHitLineColor)
+    } else {
+        clearPickFeedback()
+    }
+}
+</textarea>
+
+<script>
+    CodeMirror.fromTextArea(document.getElementById("fragmentCode"), {
+        lineNumbers: true,
+        mode: "text/x-kotlin",
+        readOnly: true
+    });
+    CodeMirror.fromTextArea(document.getElementById("tutorialCode"), {
+        lineNumbers: true,
+        mode: "text/x-kotlin",
+        readOnly: true
+    });
+</script>
+</body>
+</html>
