@@ -22,6 +22,7 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SynchronizedPool
 import earth.worldwind.util.kgl.AndroidKgl
+import earth.worldwind.util.kgl.TranslucentEGLConfigChooser
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
@@ -82,7 +83,7 @@ open class WorldWindow @JvmOverloads constructor(
     }
 
     init {
-        setEGLConfigChooser(configChooser)
+        setEGLConfigChooser(configChooser ?: TranslucentEGLConfigChooser())
         setEGLContextFactory(renderResourceCache)
         setRenderer(this)
         renderMode = RENDERMODE_WHEN_DIRTY
