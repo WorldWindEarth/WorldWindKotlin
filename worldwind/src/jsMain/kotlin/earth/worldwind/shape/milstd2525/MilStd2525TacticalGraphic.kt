@@ -9,7 +9,8 @@ import earth.worldwind.render.Font
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.shape.*
+import earth.worldwind.shape.ShapeAttributes
+import earth.worldwind.shape.TextAttributes
 import earth.worldwind.shape.milstd2525.Font.Companion.getTypeString
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.await
@@ -90,8 +91,8 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         // Create Renderables based on Poly-lines and Modifiers from Renderer
         val shapes = mutableListOf<Renderable>()
         val outlines = mutableListOf<Renderable>()
-        for (i in 0 until mss.getSymbolShapes().size) convertShapeToRenderables(mss.getSymbolShapes()[i], ipc, shapes, outlines)
-        for (i in 0 until mss.getModifierShapes().size) convertShapeToRenderables(mss.getModifierShapes()[i], ipc, shapes, outlines)
+        for (i in mss.getSymbolShapes().indices) convertShapeToRenderables(mss.getSymbolShapes()[i], ipc, shapes, outlines)
+        for (i in mss.getModifierShapes().indices) convertShapeToRenderables(mss.getModifierShapes()[i], ipc, shapes, outlines)
         return outlines + shapes
     }
 
@@ -107,22 +108,15 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     si.getFillColor()?.let { interiorColor = convertColor(it) }
                     isPickInterior = false // Allow picking outline only
                     si.getPatternFillImageInfo()?.let {
-                        interiorImageSource = ImageSource.fromImageFactory(object : ImageSource.ImageFactory {
-                            override suspend fun createImage(): TexImageSource? {
-                                val imageBounds = it.getImageBounds()
-                                return Image(imageBounds.getWidth().toInt(), imageBounds.getHeight().toInt()).apply {
-                                    src = it.getSVGDataURI()
-                                    (asDynamic().decode() as Promise<Unit>).await() // Wait until image loaded
-                                }
-                            }
-                        })
+                        interiorImageSource = ImageSource.fromImageFactory(SVGSymbolFactory(it))
                     }
                     val dash = si.getStroke().getDashArray()?.toList()
-                    if (dash != null && dash.isNotEmpty()) outlineImageSource = ImageSource.fromLineStipple(
+                    if (!dash.isNullOrEmpty()) outlineImageSource = ImageSource.fromLineStipple(
                         // TODO How to correctly interpret dash array?
                         factor = dash[0].toInt(), pattern = 0xF0F0.toShort()
                     )
                 }
+                val enclosed = si.getShapeType() == ShapeInfo.SHAPE_TYPE_FILL || si.getPatternFillImageInfo() != null
                 val hasOutline = graphicsOutlineWidth != 0f && (isHighlighted || !isOutlineHighlightedOnly)
                 val outlineAttributes = if (hasOutline) ShapeAttributes(shapeAttributes).apply {
                     si.getLineColor()?.let {
@@ -131,23 +125,18 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     }
                     outlineWidth += graphicsOutlineWidth * 2f
                 } else shapeAttributes
-                for (idx in 0 until si.getPolylines().size) {
+                for (idx in si.getPolylines().indices) {
                     val polyline = si.getPolylines()[idx]
                     val positions = mutableListOf<Position>()
-                    for (p in 0 until polyline.size) {
+                    for (p in polyline.indices) {
                         val geoPoint = ipc.PixelsToGeo(polyline[p])
                         val position = Position.fromDegrees(geoPoint.getY().toDouble(), geoPoint.getX().toDouble(), 0.0)
                         positions.add(position)
                         sector.union(position) // Extend bounding box by real graphics measures
                     }
                     for (i in 0..1) {
-                        val shape = if (si.getShapeType() == ShapeInfo.SHAPE_TYPE_FILL || si.getPatternFillImageInfo() != null) {
-                            Polygon(positions, if (i == 0) shapeAttributes else outlineAttributes)
-                        } else {
-                            Path(positions, if (i == 0) shapeAttributes else outlineAttributes)
-                        }
-                        applyShapeAttributes(shape)
-                        if (i == 0) shapes += shape else outlines += shape
+                        if (i == 0) shapes += createShape(positions, shapeAttributes, enclosed)
+                        else outlines += createShape(positions, outlineAttributes, enclosed)
                         if (!hasOutline) break
                     }
                 }
@@ -155,7 +144,13 @@ actual open class MilStd2525TacticalGraphic actual constructor(
 
             ShapeInfo.SHAPE_TYPE_FILL, ShapeInfo.SHAPE_TYPE_MODIFIER -> {} // Skip this types
 
-            ShapeInfo.SHAPE_TYPE_MODIFIER_FILL -> {
+            ShapeInfo.SHAPE_TYPE_MODIFIER_FILL -> si.getModifierImageInfo()?.let { image ->
+                val point = ipc.PixelsToGeo(si.getModifierPosition() ?: return)
+                val position = Position.fromDegrees(point.getY().toDouble(), point.getX().toDouble(), 0.0)
+                sector.union(position) // Extend bounding box by real graphics measures
+                val imageSource = ImageSource.fromImageFactory(SVGSymbolFactory(image))
+                shapes += createPlacemark(position, imageSource, si.getModifierString(), si.getModifierAngle().toDouble().degrees)
+            } ?: run {
                 val textAttributes = TextAttributes().apply {
                     val renderSettings = RendererSettings.getInstance()
                     si.getLineColor()?.let {
@@ -172,12 +167,20 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                 val point = ipc.PixelsToGeo(si.getModifierPosition() ?: si.getGlyphPosition() ?: return)
                 val position = Position.fromDegrees(point.getY().toDouble(), point.getX().toDouble(), 0.0)
                 sector.union(position) // Extend bounding box by real graphics measures
-                val label = Label(position, si.getModifierString(), textAttributes)
-                applyLabelAttributes(label, si.getModifierAngle().toDouble().degrees)
-                shapes += label
+                shapes += createLabel(position, textAttributes, si.getModifierString(), si.getModifierAngle().toDouble().degrees)
             }
 
             else -> Logger.logMessage(Logger.ERROR, "MilStd2525TacticalGraphic", "convertShapeToRenderables", "unknownShapeType")
+        }
+    }
+
+    private class SVGSymbolFactory(private val info: SVGSymbolInfo) : ImageSource.ImageFactory {
+        override suspend fun createImage(): TexImageSource {
+            val imageBounds = info.getImageBounds()
+            return Image(imageBounds.getWidth().toInt(), imageBounds.getHeight().toInt()).apply {
+                src = info.getSVGDataURI()
+                (asDynamic().decode() as Promise<Unit>).await() // Wait until image loaded
+            }
         }
     }
 

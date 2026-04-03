@@ -1,13 +1,11 @@
 package earth.worldwind.shape.milstd2525
 
-import earth.worldwind.geom.AltitudeMode
-import earth.worldwind.geom.Angle
-import earth.worldwind.geom.Location
-import earth.worldwind.geom.Sector
+import earth.worldwind.geom.*
 import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.*
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
@@ -127,19 +125,30 @@ abstract class AbstractMilStd2525TacticalGraphic(
         lodSector.clear()
     }
 
-    protected fun applyShapeAttributes(shape: AbstractShape) = shape.apply {
-        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-        isFollowTerrain = true
-        maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
-        pickDelegate = this@AbstractMilStd2525TacticalGraphic
-    }
+    protected fun createShape(positions: List<Position>, shapeAttributes: ShapeAttributes, enclosed: Boolean) =
+        (if (enclosed) Polygon(positions, shapeAttributes) else Path(positions, shapeAttributes)).apply {
+            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            isFollowTerrain = true
+            maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
+            pickDelegate = this
+        }
 
-    protected fun applyLabelAttributes(label: Label, angle: Angle) = label.apply {
-        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-        rotation = angle
-        rotationMode = OrientationMode.RELATIVE_TO_GLOBE
-        pickDelegate = this@AbstractMilStd2525TacticalGraphic
-    }
+    protected fun createPlacemark(position: Position, imageSource: ImageSource, label: String?, angle: Angle) =
+        Placemark.createWithImage(position, imageSource, label).apply {
+            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            imageRotation = angle
+            imageRotationReference = OrientationMode.RELATIVE_TO_GLOBE
+            imageTiltReference = OrientationMode.RELATIVE_TO_GLOBE
+            pickDelegate = this
+        }
+
+    protected fun createLabel(position: Position, textAttributes: TextAttributes, text: String?, angle: Angle) =
+        Label(position, text, textAttributes).apply {
+            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+            rotation = angle
+            rotationMode = OrientationMode.RELATIVE_TO_GLOBE
+            pickDelegate = this
+        }
 
     private fun recalculateScaleLimits() {
         val diagonalDistance = Location(boundingSector.minLatitude, boundingSector.minLongitude)

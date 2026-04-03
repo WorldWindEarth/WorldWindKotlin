@@ -563,31 +563,16 @@ open class Placemark @JvmOverloads constructor(
 
         /**
          * This factory method creates a Placemark and an associated PlacemarkAttributes bundle that draws the given image
-         * centered on the supplied position.
+         * centered on the supplied position with an optional nearby label.
          *
          * @param position    The geographic position with the placemark is drawn.
          * @param imageSource The object containing the image that is drawn.
+         * @param label       The optional text that is drawn near the image.
          *
          * @return A new Placemark with a PlacemarkAttributes bundle.
          */
         @JvmStatic
-        fun createWithImage(position: Position, imageSource: ImageSource) =
-            Placemark(position, PlacemarkAttributes.createWithImage(imageSource))
-
-        /**
-         * This factory method creates a Placemark and an associated PlacemarkAttributes bundle (with TextAttributes) that
-         * draws the given image centered on the supplied position with a nearby label.
-         *
-         * @param position    The geographic position with the placemark is drawn.
-         * @param imageSource The object containing the image that is drawn.
-         * @param label       The text that is drawn near the image. This parameter becomes the placemark's displayName
-         *                    property.
-         *
-         * @return A new Placemark with a PlacemarkAttributes bundle containing TextAttributes.
-         */
-        @JvmStatic
-        fun createWithImageAndLabel(
-            position: Position, imageSource: ImageSource, label: String
-        ) = Placemark(position, PlacemarkAttributes.createWithImage(imageSource), label)
+        fun createWithImage(position: Position, imageSource: ImageSource, label: String? = null) =
+            Placemark(position, PlacemarkAttributes.createWithImage(imageSource), label)
     }
 }
