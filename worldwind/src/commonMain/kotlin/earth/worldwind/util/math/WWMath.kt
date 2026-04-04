@@ -67,11 +67,21 @@ fun isPowerOfTwo(value: Int) = value != 0 && value and value - 1 == 0
  * Returns the value that is the nearest power of 2 greater than or equal to the given value.
  *
  * @param value the reference value. The power of 2 returned is greater than or equal to this value.
- *
  * @return the value that is the nearest power of 2 greater than or equal to the reference value
  */
 fun powerOfTwoCeiling(value: Number): Int {
     val pow = ceil(log2(value.toDouble())).toInt()
+    return 1 shl pow
+}
+
+/**
+ * Returns the value that is the nearest power of 2 less than or equal to the given value.
+ *
+ * @param value the reference value. The power of 2 returned is less than or equal to this value.
+ * @returns the value that is the nearest power of 2 less than or equal to the reference value
+ */
+fun powerOfTwoFloor(value: Number): Int {
+    val pow = floor(log2(value.toDouble())).toInt()
     return 1 shl pow
 }
 

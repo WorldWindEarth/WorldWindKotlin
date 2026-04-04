@@ -12,10 +12,15 @@ import earth.worldwind.util.Logger.isLoggable
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
+import earth.worldwind.util.math.isPowerOfTwo
+import earth.worldwind.util.math.powerOfTwoFloor
+import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.khronos.webgl.TexImageSource
+import org.w3c.dom.CanvasImageSource
+import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.Image
@@ -97,7 +102,7 @@ actual open class RenderResourceCache(
                 }
             }
         }
-        return  null
+        return null
     }
 
     actual fun retrieveTextFile(fileResource: FileResource, result: (String) -> Unit) {
@@ -162,7 +167,9 @@ actual open class RenderResourceCache(
         }
 
         // Create image texture and apply texture parameters
-        val texture = ImageTexture(image, width, height)
+        val resize = options?.wrapMode == WrapMode.REPEAT && !(isPowerOfTwo(width) && isPowerOfTwo(height))
+        val texture = if (resize) resizeImage(image, width, height).let { ImageTexture(it, it.width, it.height) }
+        else ImageTexture(image, width, height)
         if (options?.resamplingMode == ResamplingMode.NEAREST_NEIGHBOR) {
             texture.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             texture.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
@@ -185,5 +192,14 @@ actual open class RenderResourceCache(
     protected open fun retrievalFailed(source: ImageSource) {
         absentResourceList.markResourceAbsent(source.hashCode())
         log(WARN, "Image retrieval failed: $source")
+    }
+
+    protected open fun resizeImage(image: CanvasImageSource, width: Int, height: Int): HTMLCanvasElement {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        canvas.width = powerOfTwoFloor(width)
+        canvas.height = powerOfTwoFloor(height)
+        val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
+        ctx.drawImage(image, 0.0, 0.0, canvas.width.toDouble(), canvas.height.toDouble())
+        return canvas
     }
 }
