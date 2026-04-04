@@ -189,7 +189,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
                 drawState.texture = texture
                 drawState.texCoordMatrix.copy(texture.coordTransform)
             }
-        }
+        } else drawState.texture = null
 
         drawState.drawElements(GL_TRIANGLES, currentData.meshIndices.size, GL_UNSIGNED_SHORT, offset = 0)
     }

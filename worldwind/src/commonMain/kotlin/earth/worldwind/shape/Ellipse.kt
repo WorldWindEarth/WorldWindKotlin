@@ -399,12 +399,13 @@ open class Ellipse @JvmOverloads constructor(
         if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
 
         // Configure the drawable to use the interior texture when drawing the interior.
-        activeAttributes.interiorImageSource?.let { interiorImageSource ->
-            rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
+        val imageSource = activeAttributes.interiorImageSource
+        if (imageSource != null) {
+            rc.getTexture(imageSource, defaultInteriorImageOptions)?.let { texture ->
                 drawState.texture = texture
                 drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
-        } ?: run { drawState.texture = null }
+        } else drawState.texture = null
 
         // Configure the drawable to display the shape's interior.
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
@@ -428,12 +429,13 @@ open class Ellipse @JvmOverloads constructor(
         if (!activeAttributes.isDrawOutline || rc.isPickMode && !activeAttributes.isPickOutline) return
 
         // Configure the drawable to use the outline texture when drawing the outline.
-        activeAttributes.outlineImageSource?.let { outlineImageSource ->
-            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+        val imageSource = activeAttributes.outlineImageSource
+        if (imageSource != null) {
+            rc.getTexture(imageSource, defaultOutlineImageOptions)?.let { texture ->
                 drawState.texture = texture
                 drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
-        } ?: run { drawState.texture = null }
+        } else drawState.texture = null
 
         // Configure the drawable to display the shape's outline.
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)

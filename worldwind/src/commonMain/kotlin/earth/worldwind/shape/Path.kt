@@ -155,12 +155,13 @@ open class Path @JvmOverloads constructor(
         if (!activeAttributes.isDrawOutline || rc.isPickMode && !activeAttributes.isPickOutline) return
 
         // Configure the drawable to use the outline texture when drawing the outline.
-        activeAttributes.outlineImageSource?.let { outlineImageSource ->
-            rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
+        val imageSource = activeAttributes.outlineImageSource
+        if (imageSource != null) {
+            rc.getTexture(imageSource, defaultOutlineImageOptions)?.let { texture ->
                 drawState.texture = texture
                 drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
             }
-        }
+        } else drawState.texture = null
 
         // Configure the drawable to display the shape's outline. Increase surface shape line widths by 1/2 pixel.
         // Lines drawn indirectly offscreen framebuffer appear thinner when sampled as a texture.
