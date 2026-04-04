@@ -9,6 +9,9 @@ import earth.worldwind.util.math.powerOfTwoCeiling
 
 open class Texture(val width: Int, val height: Int, protected val format: Int, protected val type: Int, protected val isRT: Boolean = false) : RenderResource {
     companion object {
+        private const val TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE
+        private const val ANISOTROPY_LEVEL = 4
+
         protected fun estimateByteCount(width: Int, height: Int, format: Int, type: Int, hasMipMap: Boolean): Int {
             require(width >= 0 && height >= 0) {
                 logMessage(ERROR, "Texture", "estimateByteCount", "invalidWidthOrHeight")
@@ -50,7 +53,7 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
     protected open val hasMipMap = false
     private var pickMode = false
 
-    fun getTexParameter(name: Int) = parameters?.get(name)?:0
+    fun getTexParameter(name: Int) = parameters?.get(name) ?: 0
 
     fun setTexParameter(name: Int, param: Int) {
         val parameters = parameters ?: mutableMapOf<Int, Int>().also { parameters = it }
@@ -129,9 +132,18 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
         // Configure the OpenGL texture magnification function. Always use the nearest filtering function in picking mode.
         when {
             dc.isPickMode -> dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-            getTexParameter(GL_TEXTURE_MAG_FILTER).also { param = it } != 0 ->
+            getTexParameter(GL_TEXTURE_MAG_FILTER).also { param = it } != 0 -> {
                 dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, param)
-            else -> dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+                // Try to enable the anisotropic texture filtering only if we have a linear magnification filter.
+                // This can't be enabled all the time because Windows seems to ignore the TEXTURE_MAG_FILTER parameter when
+                // this extension is enabled.
+                if (param == GL_LINEAR) dc.gl.texParameteri(GL_TEXTURE_2D, TEXTURE_MAX_ANISOTROPY_EXT, ANISOTROPY_LEVEL)
+            }
+            else -> {
+                dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                dc.gl.texParameteri(GL_TEXTURE_2D, TEXTURE_MAX_ANISOTROPY_EXT, ANISOTROPY_LEVEL)
+            }
         }
 
         // Configure the OpenGL texture wrapping function for texture coordinate S. Default to the edge clamping

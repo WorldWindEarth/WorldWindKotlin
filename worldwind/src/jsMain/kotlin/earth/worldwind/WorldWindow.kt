@@ -309,6 +309,10 @@ open class WorldWindow(
         // Enable WebGL support for gl.UNSIGNED_INT types to WebGLRenderingContext.drawElements()
         gl.getExtension("OES_element_index_uint")
 
+        // Enable WebGL anisotropic texture filter
+        gl.getExtension("EXT_texture_filter_anisotropic")
+        gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic")
+
         // Subscribe on events from WorldWind's global event bus.
         mainScope.launch {
             WorldWind.events.collect {
