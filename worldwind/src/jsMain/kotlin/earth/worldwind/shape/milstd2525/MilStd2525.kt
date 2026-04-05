@@ -3,7 +3,10 @@ package earth.worldwind.shape.milstd2525
 import earth.worldwind.render.Font
 import earth.worldwind.shape.TextAttributes
 import earth.worldwind.shape.milstd2525.Font.Companion.getTypeString
+import kotlinx.browser.document
 import kotlinx.browser.window
+import org.w3c.dom.CanvasRenderingContext2D
+import org.w3c.dom.HTMLCanvasElement
 import kotlin.js.collections.JsMap
 
 /**
@@ -45,6 +48,16 @@ actual object MilStd2525 {
         modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" }?.asJsReadonlyMapView() ?: JsMap(),
         attributes?.asJsReadonlyMapView() ?: JsMap()
     )
+
+    fun createCanvas(info: SVGSymbolInfo): HTMLCanvasElement {
+        val canvas = document.createElement("canvas") as HTMLCanvasElement
+        val imageBounds = info.getImageBounds()
+        canvas.width = imageBounds.getWidth().toInt()
+        canvas.height = imageBounds.getHeight().toInt()
+        val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
+        Canvg.fromString(ctx, info.getSVG()).start()
+        return canvas
+    }
 
     fun applyTextAttributes(textAttributes: TextAttributes) = textAttributes.apply {
         val rendererSettings = RendererSettings.getInstance()

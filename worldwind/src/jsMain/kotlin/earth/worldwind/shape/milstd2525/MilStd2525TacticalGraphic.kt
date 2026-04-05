@@ -12,11 +12,8 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.shape.TextAttributes
 import earth.worldwind.shape.milstd2525.Font.Companion.getTypeString
+import earth.worldwind.shape.milstd2525.MilStd2525.createCanvas
 import earth.worldwind.util.Logger
-import kotlinx.coroutines.await
-import org.khronos.webgl.TexImageSource
-import org.w3c.dom.Image
-import kotlin.js.Promise
 import kotlin.js.collections.toList
 import kotlin.math.roundToInt
 
@@ -108,7 +105,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                     si.getFillColor()?.let { interiorColor = convertColor(it) }
                     isPickInterior = false // Allow picking outline only
                     si.getPatternFillImageInfo()?.let {
-                        interiorImageSource = ImageSource.fromImageFactory(SVGSymbolFactory(it))
+                        interiorImageSource = ImageSource.fromImage(createCanvas(it))
                     }
                     val dash = si.getStroke().getDashArray()?.toList()
                     if (!dash.isNullOrEmpty()) outlineImageSource = ImageSource.fromLineStipple(
@@ -148,7 +145,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
                 val point = ipc.PixelsToGeo(si.getModifierPosition() ?: return)
                 val position = Position.fromDegrees(point.getY().toDouble(), point.getX().toDouble(), 0.0)
                 sector.union(position) // Extend bounding box by real graphics measures
-                val imageSource = ImageSource.fromImageFactory(SVGSymbolFactory(image))
+                val imageSource = ImageSource.fromImage(createCanvas(image))
                 shapes += createPlacemark(position, imageSource, si.getModifierString(), si.getModifierAngle().toDouble().degrees)
             } ?: run {
                 val textAttributes = TextAttributes().apply {
@@ -171,16 +168,6 @@ actual open class MilStd2525TacticalGraphic actual constructor(
             }
 
             else -> Logger.logMessage(Logger.ERROR, "MilStd2525TacticalGraphic", "convertShapeToRenderables", "unknownShapeType")
-        }
-    }
-
-    private class SVGSymbolFactory(private val info: SVGSymbolInfo) : ImageSource.ImageFactory {
-        override suspend fun createImage(): TexImageSource {
-            val imageBounds = info.getImageBounds()
-            return Image(imageBounds.getWidth().toInt(), imageBounds.getHeight().toInt()).apply {
-                src = info.getSVGDataURI()
-                (asDynamic().decode() as Promise<Unit>).await() // Wait until image loaded
-            }
         }
     }
 

@@ -4,10 +4,8 @@ import earth.worldwind.geom.OffsetMode
 import earth.worldwind.geom.Position
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.PlacemarkAttributes
+import earth.worldwind.shape.milstd2525.MilStd2525.createCanvas
 import earth.worldwind.util.Logger
-import kotlinx.coroutines.await
-import org.w3c.dom.Image
-import kotlin.js.Promise
 
 /**
  * Constructs a MIL-STD-2525 Placemark with an appropriate level of detail for the current distance from the camera.
@@ -83,15 +81,11 @@ actual open class MilStd2525Placemark actual constructor(
     ) : ImageSource.ImageFactory {
         override suspend fun createImage() = MilStd2525.renderImage(symbolCode, symbolModifiers, symbolAttributes)?.let {
             val symbolBounds = it.getSymbolBounds()
-            val imageBounds = it.getImageBounds()
             // Apply the computed image offset after the renderer has created the image. This is essential for proper
             // placement as the offset may change depending on the level of detail, for instance, the absence or
             // presence of text modifiers.
             onRender(it.getSymbolCenterX(), it.getSymbolCenterY(), symbolBounds.getWidth(), symbolBounds.getHeight())
-            Image(imageBounds.getWidth().toInt(), imageBounds.getHeight().toInt()).apply {
-                src = it.getSVGDataURI()
-                (asDynamic().decode() as Promise<Unit>).await() // Wait until image loaded
-            }
+            createCanvas(it)
         } ?: run {
             Logger.logMessage(
                 Logger.ERROR, "MilStd2525Placemark", "createBitmap", "Failed to render image for $symbolCode"

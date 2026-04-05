@@ -7,9 +7,7 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.math.powerOfTwoCeiling
 import kotlinx.browser.document
 import org.khronos.webgl.TexImageSource
-import org.w3c.dom.CanvasRenderingContext2D
-import org.w3c.dom.HTMLCanvasElement
-import org.w3c.dom.Image
+import org.w3c.dom.*
 import org.w3c.dom.url.URL
 
 /**
@@ -38,13 +36,13 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         actual fun fromResource(imageResource: ImageResource) = ImageSource(imageResource)
 
         /**
-         * Constructs an image source with an [Image]. The image's dimensions should not be greater than 2048 x 2048.
+         * Constructs an image source with an [TexImageSource]. The image's dimensions should not be greater than 2048 x 2048.
          *
-         * @param image the [Image] to use as an image source
+         * @param image the [TexImageSource] to use as an image source
          *
          * @return the new image source
          */
-        fun fromImage(image: Image) = ImageSource(image)
+        fun fromImage(image: TexImageSource) = ImageSource(image)
 
         /**
          * Constructs an image source with a [ImageFactory]. WorldWind shapes configured with an image factory image source
@@ -115,7 +113,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
          */
         actual fun fromUnrecognized(source: Any) = when (source) {
             is ImageResource -> fromResource(source)
-            is Image -> fromImage(source)
+            is HTMLImageElement, is HTMLCanvasElement, is ImageBitmap -> fromImage(source)
             is ImageFactory -> fromImageFactory(source)
             is URL -> fromUrl(source)
             is String -> fromUrlString(source)
@@ -128,9 +126,9 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      */
     val isResource get() = source is ImageResource
     /**
-     * Indicates whether this image source is a [Image].
+     * Indicates whether this image source is a [TexImageSource].
      */
-    val isImage get() = source is Image
+    val isImage get() = source is HTMLImageElement || source is HTMLCanvasElement || source is ImageBitmap
     /**
      * Indicates whether this image source is an image factory.
      */
@@ -149,7 +147,7 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
     /**
      * @return the source [Image]. Call [isImage] to determine whether the source is a [Image].
      */
-    fun asImage() = source as Image
+    fun asImage() = source.unsafeCast<TexImageSource>()
 
     /**
      * @return the source [ImageFactory]. Call isImageFactory to determine whether the source is an image

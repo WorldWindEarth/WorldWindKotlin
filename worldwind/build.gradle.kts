@@ -101,6 +101,7 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(libs.ktor.client.js)
+                implementation(npm("canvg", ">= 4.0.3"))
                 implementation(npm("@armyc2.c5isr.renderer/mil-sym-ts-web", libs.versions.mil.sym.ts.get()))
             }
         }
