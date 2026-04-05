@@ -5502,7 +5502,7 @@ open external class ShapeInfo {
     fun getTextLayout(): TextLayout
     fun setTextLayout(value: TextLayout): Unit
     fun setModifierString(value: String): Unit
-    fun getModifierString(): String
+    fun getModifierString(): String?
     fun setModifierPosition(value: Point2D): Unit
     fun getModifierPosition(): Point2D?
     fun setModifierAngle(value: double): Unit
@@ -5532,8 +5532,8 @@ open external class ShapeInfo {
      */
     fun getModifierStringAngle(): double
     fun setModifierImage(value: SVGSymbolInfo): Unit
-    fun getModifierImage(): String
-    fun getModifierImageInfo(): SVGSymbolInfo
+    fun getModifierImage(): String?
+    fun getModifierImageInfo(): SVGSymbolInfo?
 
     /**
      * Object that can be used to store anything.

@@ -12,7 +12,8 @@ import earth.worldwind.render.Font
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.shape.*
+import earth.worldwind.shape.ShapeAttributes
+import earth.worldwind.shape.TextAttributes
 import earth.worldwind.util.Logger
 import java.awt.geom.Point2D
 import kotlin.math.roundToInt
@@ -108,6 +109,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                         factor = dash[0].toInt(), pattern = 0xF0F0.toShort()
                     )
                 }
+                val enclosed = si.shapeType == ShapeInfo.SHAPE_TYPE_FILL || si.patternFillImage != null
                 val hasOutline = graphicsOutlineWidth != 0f && (isHighlighted || !isOutlineHighlightedOnly)
                 val outlineAttributes = if (hasOutline) ShapeAttributes(shapeAttributes).apply {
                     si.lineColor?.let {
@@ -126,13 +128,8 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                         sector.union(position) // Extend bounding box by real graphics measures
                     }
                     for (i in 0..1) {
-                        val shape = if (si.shapeType == ShapeInfo.SHAPE_TYPE_FILL || si.patternFillImage != null) {
-                            Polygon(positions, if (i == 0) shapeAttributes else outlineAttributes)
-                        } else {
-                            Path(positions, if (i == 0) shapeAttributes else outlineAttributes)
-                        }
-                        applyShapeAttributes(shape)
-                        if (i == 0) shapes += shape else outlines += shape
+                        if (i == 0) shapes += createShape(positions, shapeAttributes, enclosed)
+                        else outlines += createShape(positions, outlineAttributes, enclosed)
                         if (!hasOutline) break
                     }
                 }
@@ -140,7 +137,13 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
 
             ShapeInfo.SHAPE_TYPE_FILL, ShapeInfo.SHAPE_TYPE_MODIFIER -> {} // Skip this types
 
-            ShapeInfo.SHAPE_TYPE_MODIFIER_FILL -> {
+            ShapeInfo.SHAPE_TYPE_MODIFIER_FILL -> si.modifierImage?.let { image ->
+                val point = ipc.PixelsToGeo(si.modifierPosition ?: return)
+                val position = Position.fromDegrees(point.y, point.x, 0.0)
+                sector.union(position) // Extend bounding box by real graphics measures
+                val imageSource = ImageSource.fromImage(image)
+                shapes += createPlacemark(position, imageSource, si.modifierString, si.modifierAngle.degrees)
+            } ?: run {
                 val rs = RendererSettings.getInstance()
                 val textAttributes = TextAttributes().apply {
                     si.lineColor?.let {
@@ -153,9 +156,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                 val point = ipc.PixelsToGeo(si.modifierPosition ?: si.glyphPosition ?: return)
                 val position = Position.fromDegrees(point.y, point.x, 0.0)
                 sector.union(position) // Extend bounding box by real graphics measures
-                val label = Label(position, si.modifierString, textAttributes)
-                applyLabelAttributes(label, si.modifierAngle.degrees)
-                shapes += label
+                shapes += createLabel(position, textAttributes, si.modifierString, si.modifierAngle.degrees)
             }
 
             else -> Logger.logMessage(Logger.ERROR, "MilStd2525TacticalGraphic", "convertShapeToRenderables", "unknownShapeType")
