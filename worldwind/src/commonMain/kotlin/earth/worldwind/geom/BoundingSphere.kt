@@ -37,6 +37,19 @@ open class BoundingSphere {
     }
 
     /**
+     * Generates the 8 corner points of this bounding sphere in 3D space.
+     * @return a list of 8 `Vec3` points representing the corners of the bounding sphere
+     */
+    fun getCorners(): List<Vec3> = ArrayList<Vec3>(8).apply {
+        for (dx in listOf(-1.0, 1.0)) for (dy in listOf(-1.0, 1.0)) for (dz in listOf(-1.0, 1.0)) add(
+            Vec3(center)
+                .add(Vec3(0.0, 0.0, 1.0).times(radius * dx))
+                .add(Vec3(1.0, 0.0, 0.0).times(radius * dy))
+                .add(Vec3(0.0, 1.0, 0.0).times(radius * dz))
+        )
+    }
+
+    /**
      * Indicates whether this bounding sphere intersects a specified frustum.
      *
      * @param frustum the frustum of interest
