@@ -16,8 +16,6 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.GL_COLOR_BUFFER_BIT
 import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
-import kotlin.math.roundToInt
-
 open class BasicFrameController: FrameController {
     override val lastTerrains = mutableMapOf<Globe.Offset, Terrain>()
     private val pickColor = Color()
@@ -27,6 +25,7 @@ open class BasicFrameController: FrameController {
     private val fullSphere = Sector().setFullSphere()
     private val scratchPoint = Vec3()
     private val scratchRay = Line()
+    private val scratchMatrix = Matrix4()
 
     override fun renderFrame(rc: RenderContext) {
         if (!rc.isPickMode) lastTerrains.clear()
@@ -57,7 +56,11 @@ open class BasicFrameController: FrameController {
         if (!rc.globe.is2D) adjustViewingParameters(rc)
 
         // Render the terrain picked object or transparent terrain and remember the last terrain for future intersect operations
-        if (rc.isPickMode) renderTerrainPickedObject(rc) else renderTerrain(rc).also { lastTerrains[globeOffset] = rc.terrain }
+        if (!rc.isDepthPickingMode) {
+            if (rc.isPickMode) renderTerrainPickedObject(rc) else renderTerrain(rc).also { lastTerrains[globeOffset] = rc.terrain }
+        } else if (!rc.isPickMode) {
+            lastTerrains[globeOffset] = rc.terrain
+        }
 
         // Render all layers on specified globe offset
         rc.layers.render(rc)
@@ -114,7 +117,8 @@ open class BasicFrameController: FrameController {
         clearFrame(dc)
         uploadBuffers(dc)
         drawDrawables(dc)
-        if (dc.isPickMode) resolvePick(dc)
+        if (dc.isDepthPickingMode) resolveDepthPick(dc)
+        else if (dc.isPickMode) resolvePick(dc)
     }
 
     protected open fun setViewport(dc: DrawContext) {
@@ -123,6 +127,7 @@ open class BasicFrameController: FrameController {
     }
 
     protected open fun clearFrame(dc: DrawContext) {
+        if (dc.isDepthPickingMode) dc.gl.clearColor(1f, 1f, 1f, 1f) else dc.gl.clearColor(0f, 0f, 0f, 0f)
         dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
     }
 
@@ -155,7 +160,7 @@ open class BasicFrameController: FrameController {
 
         dc.pickPoint?.let { pickPoint ->
             // Read the fragment color at the pick point.
-            dc.readPixelColor(pickPoint.x.roundToInt(), pickPoint.y.roundToInt(), pickColor)
+            dc.readPixelColor(pickPoint.x.toInt(), pickPoint.y.toInt(), pickColor)
 
             // Convert the fragment color to a picked object ID. It returns zero if the color cannot indicate a picked
             // object ID, in which case no objects have been drawn at the pick point.
@@ -189,6 +194,18 @@ open class BasicFrameController: FrameController {
                     if (topObject?.isTerrain == false) topObject.markOnTop()
                 }
             }
+        }
+    }
+
+    protected open fun resolveDepthPick(dc: DrawContext) {
+        val pickPoint = dc.pickPoint ?: return
+        val depth = dc.readPixelDepth(pickPoint.x.toInt(), pickPoint.y.toInt())
+        if (depth.isNaN()) return
+        scratchMatrix.copy(dc.pointPickModelviewProjection ?: dc.modelviewProjection).invert()
+        if (scratchMatrix.unProject(pickPoint.x, pickPoint.y, depth, dc.viewport, scratchPoint)) {
+            dc.pointPickVertexOrigin?.let { scratchPoint.add(it) }
+            dc.pointPickCartesianPoint = Vec3(scratchPoint)
+            dc.pointPickDepth = depth
         }
     }
 }

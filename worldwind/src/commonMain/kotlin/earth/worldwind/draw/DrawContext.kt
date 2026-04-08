@@ -30,6 +30,11 @@ open class DrawContext(val gl: Kgl) {
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
     var isPickMode = false
+    var isDepthPickingMode = false
+    var pointPickCartesianPoint: Vec3? = null
+    var pointPickModelviewProjection: Matrix4? = null
+    var pointPickVertexOrigin: Vec3? = null
+    var pointPickDepth = Double.NaN
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
     private var textureUnit = GL_TEXTURE0
@@ -156,6 +161,11 @@ open class DrawContext(val gl: Kgl) {
         pickViewport = null
         pickPoint = null
         isPickMode = false
+        isDepthPickingMode = false
+        pointPickCartesianPoint = null
+        pointPickModelviewProjection = null
+        pointPickVertexOrigin = null
+        pointPickDepth = Double.NaN
         scratchBuffer.fill(0)
         scratchList.clear()
         bufferPool.reset()
@@ -319,6 +329,16 @@ open class DrawContext(val gl: Kgl) {
         result.blue = (pixelArray[2].toInt() and 0xFF) / 0xFF.toFloat()
         result.alpha = (pixelArray[3].toInt() and 0xFF) / 0xFF.toFloat()
         return result
+    }
+
+    fun readPixelDepth(x: Int, y: Int): Double {
+        gl.readPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixelArray)
+        val r = pixelArray[0].toInt() and 0xFF
+        val g = pixelArray[1].toInt() and 0xFF
+        val b = pixelArray[2].toInt() and 0xFF
+        val a = pixelArray[3].toInt() and 0xFF
+        if (r == 0xFF && g == 0xFF && b == 0xFF && a == 0xFF) return Double.NaN
+        return (r / 4278190080.0 + g / 16711680.0 + b / 65280.0 + a / 255.0).coerceIn(0.0, 1.0)
     }
 
     /**

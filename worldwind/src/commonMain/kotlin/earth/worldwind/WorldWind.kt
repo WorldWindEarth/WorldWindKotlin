@@ -15,6 +15,7 @@ import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.LayerList
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
+import earth.worldwind.shape.IRayIntersectable
 import earth.worldwind.util.Logger
 import earth.worldwind.util.kgl.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -469,7 +470,9 @@ open class WorldWind @JvmOverloads constructor(
         rc.pickViewport = frame.pickViewport
         rc.pickPoint = frame.pickPoint
         rc.pickRay = frame.pickRay
+        rc.renderableFilter = frame.renderableFilter
         rc.isPickMode = frame.isPickMode
+        rc.isDepthPickingMode = frame.isDepthPickingMode
 
         // Let the frame controller render the WorldWindow's current state.
         frameController.renderFrame(rc)
@@ -514,9 +517,49 @@ open class WorldWind @JvmOverloads constructor(
         dc.pickViewport = frame.pickViewport
         dc.pickPoint = frame.pickPoint
         dc.isPickMode = frame.isPickMode
+        dc.isDepthPickingMode = frame.isDepthPickingMode
 
         // Let the frame controller draw the frame.
         frameController.drawFrame(dc)
+
+        if (frame.isDepthPickingMode) {
+            frame.pointPickedRenderablePoint = frame.pointPickedObject?.let { pickedObject ->
+                val depthPickedPoint = dc.pointPickCartesianPoint?.let { cartesianPoint ->
+                    PickedRenderablePoint(
+                        pickedObject = pickedObject,
+                        cartesianPoint = Vec3(cartesianPoint),
+                        position = globe.cartesianToGeographic(
+                            cartesianPoint.x, cartesianPoint.y, cartesianPoint.z, Position()
+                        ),
+                        depth = dc.pointPickDepth,
+                        method = PickedPointMethod.DEPTH_UNPROJECTION
+                    )
+                }
+                if (frame.forceDepthPointPick) {
+                    depthPickedPoint
+                } else {
+                    val exactIntersection = (pickedObject.renderable as? IRayIntersectable)?.let { intersectable ->
+                        frame.pickRay?.let { pickRay -> intersectable.rayIntersections(pickRay, globe).firstOrNull() }
+                    }
+                    exactIntersection?.let { intersection ->
+                        val cartesianPoint = globe.geographicToCartesian(
+                            intersection.position.latitude,
+                            intersection.position.longitude,
+                            intersection.position.altitude,
+                            Vec3()
+                        )
+                        PickedRenderablePoint(
+                            pickedObject = pickedObject,
+                            cartesianPoint = cartesianPoint,
+                            position = Position(intersection.position),
+                            depth = dc.pointPickDepth,
+                            method = PickedPointMethod.GEOMETRY_RAY_INTERSECTION
+                        )
+                    } ?: depthPickedPoint
+                }
+            }
+            frame.pointPickDeferred?.complete(frame.pointPickedRenderablePoint)
+        }
 
         // Increment render resource cache age on each frame
         renderResourceCache.incAge()

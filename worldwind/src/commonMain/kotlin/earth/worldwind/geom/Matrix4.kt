@@ -1390,7 +1390,7 @@ open class Matrix4 private constructor(
         result.m[9] = m[9]
         result.m[10] = m[10]
 
-        return result;
+        return result
     }
 
     /**
@@ -1505,6 +1505,39 @@ open class Matrix4 private constructor(
         farResult.x = fx / fw
         farResult.y = fy / fw
         farResult.z = fz / fw
+        return true
+    }
+
+    /**
+     * Un-projects a screen coordinate point with a normalized depth value to Cartesian coordinates.
+     * This method assumes this matrix represents an inverse modelview-projection matrix.
+     *
+     * @param x        the screen point's X component in OpenGL coordinates
+     * @param y        the screen point's Y component in OpenGL coordinates
+     * @param z        the normalized depth value in the range [0, 1]
+     * @param viewport the viewport defining the screen point's coordinate system
+     * @param result   a pre-allocated [Vec3] in which to return the un-projected point
+     *
+     * @return true if the transformation is successful, otherwise false
+     */
+    fun unProject(x: Double, y: Double, z: Double, viewport: Viewport, result: Vec3): Boolean {
+        var sx = (x - viewport.x) / viewport.width
+        var sy = (y - viewport.y) / viewport.height
+        var sz = z
+
+        sx = sx * 2 - 1
+        sy = sy * 2 - 1
+        sz = sz * 2 - 1
+
+        val mx = m[0] * sx + m[1] * sy + m[2] * sz + m[3]
+        val my = m[4] * sx + m[5] * sy + m[6] * sz + m[7]
+        val mz = m[8] * sx + m[9] * sy + m[10] * sz + m[11]
+        val mw = m[12] * sx + m[13] * sy + m[14] * sz + m[15]
+        if (mw == 0.0) return false
+
+        result.x = mx / mw
+        result.y = my / mw
+        result.z = mz / mw
         return true
     }
 

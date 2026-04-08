@@ -291,6 +291,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/triangle_meshes_tutorial.html",
                 R.string.title_triangle_meshes
             )
+            R.id.nav_triangle_mesh_picking_activity -> loadTutorial(
+                TriangleMeshPickingFragment::class.java,
+                "file:///android_asset/triangle_mesh_picking_tutorial.html",
+                R.string.title_triangle_mesh_picking
+            )
             R.id.nav_shapes_dash_and_fill -> loadTutorial(
                 ShapesDashAndFillFragment::class.java,
                 "file:///android_asset/shapes_dash_and_fill.html",

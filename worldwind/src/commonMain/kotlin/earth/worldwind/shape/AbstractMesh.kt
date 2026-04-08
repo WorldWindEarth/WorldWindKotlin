@@ -139,7 +139,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         }
 
         // Draw the mesh if the interior requested.
-        if (activeAttributes.isDrawInterior) {
+        if (activeAttributes.isDrawInterior || rc.isDepthPickingMode) {
             // Apply lighting.
             if (!rc.isPickMode && activeAttributes.isLightingEnabled) {
                 drawable.normalsBuffer = rc.getBufferObject(currentData.normalsBufferKey) {
@@ -164,7 +164,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         }
 
         // Draw the outline.
-        if (activeAttributes.isDrawOutline) drawOutline(rc, drawState)
+        if (!rc.isDepthPickingMode && activeAttributes.isDrawOutline) drawOutline(rc, drawState)
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(currentData.vertexOrigin)

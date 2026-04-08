@@ -21,7 +21,11 @@ abstract class AbstractRenderable @JvmOverloads constructor(override var display
 
     override fun hasUserProperty(key: Any) = userProperties?.containsKey(key) == true
 
-    override fun render(rc: RenderContext) { if (isEnabled && (isPickEnabled || !rc.isPickMode)) doRender(rc) }
+    override fun render(rc: RenderContext) {
+        if (isEnabled && (isPickEnabled || !rc.isPickMode) && (rc.renderableFilter == null || rc.renderableFilter === this)) {
+            doRender(rc)
+        }
+    }
 
     protected abstract fun doRender(rc: RenderContext)
 }
