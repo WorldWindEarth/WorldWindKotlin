@@ -1,6 +1,7 @@
 package earth.worldwind.examples
 
 import android.os.Bundle
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.formats.kml.KmlLayerFactory
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -21,7 +22,7 @@ open class KmlDemoActivity : GeneralGlobeActivity() {
    Different placemarks and shapes are loaded from a KML file.
     """.trimIndent()
 
-        wwd.mainScope.launch {
+        lifecycleScope.launch {
             try {
                 val layers = withContext(Dispatchers.IO) {
                     KmlLayerFactory.createLayers(

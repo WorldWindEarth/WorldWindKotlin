@@ -38,14 +38,14 @@ wwd.engine.layers.apply {
         imageFormat = "image/jpeg",
         name = "Google Satellite"
     ).apply {
-        wwd.mainScope.launch { configureCache(contentManager, "GSat") }
+        lifecycleScope.launch { configureCache(contentManager, "GSat") }
     })
     addLayer(StarFieldLayer())
     addLayer(AtmosphereLayer())
 }
 // Setting up the WorldWindow's elevation coverages.
 wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-    wwd.mainScope.launch { configureCache(contentManager, "NASADEM") }
+    lifecycleScope.launch { configureCache(contentManager, "NASADEM") }
 })
     </textarea>
 </div>
@@ -78,7 +78,7 @@ open class BasicGlobeFragment: Fragment() {
         		imageFormat = "image/jpeg",
         		name = "Google Satellite"
    			).apply {
-        		wwd.mainScope.launch { configureCache(contentManager, "GSat") }
+        		lifecycleScope.launch { configureCache(contentManager, "GSat") }
     		})
             addLayer(AtmosphereLayer())
         }

@@ -10,6 +10,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.DrawableRes
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.PickedObjectList
 import earth.worldwind.WorldWindow
@@ -309,7 +310,7 @@ Placemarks are conditionally displayed based on the camera distance:
          * Toggles the selected state of a picked object.
          */
         fun toggleSelection() {
-            wwd.mainScope.launch {
+            lifecycleScope.launch {
                 // Perform a new pick at the screen x, y
                 val pickList = pickRequest.await()
 

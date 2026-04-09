@@ -14,7 +14,6 @@ import earth.worldwind.util.kgl.WebKgl
 import earth.worldwind.util.window.PrepareEventHandler
 import earth.worldwind.util.window.createDefaultPrepareEventHandler
 import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.launch
 import org.khronos.webgl.WebGLContextAttributes
 import org.khronos.webgl.WebGLContextEvent
 import org.khronos.webgl.WebGLRenderingContext
@@ -41,7 +40,7 @@ open class WorldWindow(
      * The adapter coverts child window event to parent window events.
      */
     private val prepareEvent: PrepareEventHandler = createDefaultPrepareEventHandler(canvas),
-) {
+) : WorldWind.EventListener {
     /**
      * Real current window where canvas located.
      * Provides correct classes from the correct window for instancing and interaction.
@@ -52,10 +51,6 @@ open class WorldWindow(
      * WebGL context associated with the HTML canvas.
      */
     protected val gl = createContext(canvas)
-    /**
-     * Main WorldWindow scope to execute jobs which should be cancelled on GL context lost
-     */
-    val mainScope get() = engine.renderResourceCache.mainScope
     /**
      * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
      */
@@ -192,12 +187,20 @@ open class WorldWindow(
     }
 
     /**
+     * Removes resource ID from the missed resource list
+     */
+    
+    override fun unmarkResourceAbsent(resourceId: Int) {
+        engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(resourceId)
+    }
+
+    /**
      * Causes this WorldWindow to redraw itself at the next available opportunity. The redrawn occurs on the main
      * thread at a time of the browser's discretion. Applications should call redraw after changing the World
      * Window's state, but should not expect that change to be reflected on screen immediately after this function
      * returns. This is the preferred method for requesting a redrawn of the WorldWindow.
      */
-    fun requestRedraw() { isRedrawRequested = true } // redraw during the next animation frame
+    override fun requestRedraw() { isRedrawRequested = true } // redraw during the next animation frame
 
     /**
      * Converts window coordinates to coordinates relative to this WorldWindow's canvas.
@@ -283,10 +286,13 @@ open class WorldWindow(
         currentWindow.cancelAnimationFrame(redrawRequestId)
 
         // Cancel all async jobs but keep scope reusable
-        mainScope.coroutineContext.cancelChildren()
+        engine.renderResourceCache.mainScope.coroutineContext.cancelChildren()
 
         // Clear the render resource cache; it's entries are now invalid.
         engine.renderResourceCache.clear()
+
+        // Release this WorldWindow reference from WorldWind's global message service.
+        WorldWind.removeListener(this)
 
         // Remove all cached WebGL resources, which are now invalid.
         engine.reset()
@@ -313,17 +319,8 @@ open class WorldWindow(
         gl.getExtension("EXT_texture_filter_anisotropic")
         gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic")
 
-        // Subscribe on events from WorldWind's global event bus.
-        mainScope.launch {
-            WorldWind.events.collect {
-                when (it) {
-                    is WorldWind.Event.RequestRedraw -> requestRedraw()
-                    is WorldWind.Event.UnmarkResourceAbsent -> {
-                        engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(it.resourceId)
-                    }
-                }
-            }
-        }
+        // Set up to receive broadcast messages from WorldWind's global message center.
+        WorldWind.addListener(this)
 
         // Request redraw at least once.
         requestRedraw()

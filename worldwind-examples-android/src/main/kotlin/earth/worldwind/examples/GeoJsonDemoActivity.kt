@@ -1,6 +1,7 @@
 package earth.worldwind.examples
 
 import android.os.Bundle
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.formats.geojson.GeoJsonLayerFactory
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -21,7 +22,7 @@ open class GeoJsonDemoActivity : GeneralGlobeActivity() {
    Different placemarks and shapes are loaded from a GeoJson file.
     """.trimIndent()
 
-        wwd.mainScope.launch {
+        lifecycleScope.launch {
             try {
                 val layer = withContext(Dispatchers.IO) {
                     GeoJsonLayerFactory.createLayer(

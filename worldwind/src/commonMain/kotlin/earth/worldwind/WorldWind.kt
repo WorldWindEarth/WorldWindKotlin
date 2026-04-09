@@ -16,9 +16,8 @@ import earth.worldwind.layer.LayerList
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger
+import earth.worldwind.util.SynchronizedList
 import earth.worldwind.util.kgl.*
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -650,20 +649,24 @@ open class WorldWind @JvmOverloads constructor(
     companion object {
         protected const val COLLISION_THRESHOLD = 10.0 // 10m above surface
 
-        private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 1)
+        private val listeners = SynchronizedList<EventListener>()
 
-        /**
-         * Provides a global mechanism for broadcasting notifications within the WorldWind library.
-         */
-        @JvmStatic
-        val events = _events.asSharedFlow()
+        fun addListener(listener: EventListener) {
+            listeners += listener
+        }
+
+        fun removeListener(listener: EventListener) {
+            listeners -= listener
+        }
 
         /**
          * Requests that all WorldWindow instances update their display. Internally, this dispatches a REQUEST_REDRAW
          * message to the WorldWind message center.
          */
         @JvmStatic
-        fun requestRedraw() { _events.tryEmit(Event.RequestRedraw) }
+        fun requestRedraw() {
+            for (listener in listeners) listener.requestRedraw()
+        }
 
         /**
          * Requests render resource cache to remove specified resource ID from absent list
@@ -671,19 +674,22 @@ open class WorldWind @JvmOverloads constructor(
          * @param resourceId resource ID to be removed from absent list
          */
         @JvmStatic
-        suspend fun unmarkResourceAbsent(resourceId: Int) { _events.emit(Event.UnmarkResourceAbsent(resourceId)) }
+        fun unmarkResourceAbsent(resourceId: Int) {
+            for (listener in listeners) listener.unmarkResourceAbsent(resourceId)
+        }
     }
 
-    sealed interface Event {
+    interface EventListener {
         /**
          * Event requesting WorldWindow instances to update their display.
          */
-        object RequestRedraw : Event
+        fun requestRedraw()
+
         /**
          * Event requesting RenderResourceCache to un-mark resource from absent list
          *
          * @param resourceId resource ID to be removed from absent list
          */
-        data class UnmarkResourceAbsent(val resourceId: Int) : Event
+        fun unmarkResourceAbsent(resourceId: Int)
     }
 }
