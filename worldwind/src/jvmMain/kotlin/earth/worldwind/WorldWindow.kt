@@ -10,6 +10,7 @@ import earth.worldwind.geom.Line
 import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Viewport
 import earth.worldwind.gesture.SelectDragDetector
+import earth.worldwind.globe.elevation.coverage.ElevationCoverage
 import earth.worldwind.layer.Layer
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger.logMessage
@@ -44,7 +45,7 @@ open class WorldWindow @JvmOverloads constructor(
     protected val renderResourceCache: RenderResourceCache = RenderResourceCache(),
     capabilities: GLCapabilities = defaultCapabilities(),
     val layerFactory: WorldWindowLayerFactoryScope.() -> Unit
-) : JPanel(BorderLayout()), GLEventListener, WorldWind.EventListener {
+) : JPanel(BorderLayout()), WorldWind.EventListener {
     /**
      * Main WorldWindow scope to execute jobs bound to render resource lifecycle.
      */
@@ -82,11 +83,21 @@ open class WorldWindow @JvmOverloads constructor(
     @Volatile
     protected var isWaitingForRedraw = false
 
+    // Keep JOGL-specific listener private to avoid leaking JOGL types in WorldWindow's public API.
+    private val joglEventListener = object : GLEventListener {
+        override fun init(drawable: GLAutoDrawable) = this@WorldWindow.init(drawable)
+        override fun dispose(drawable: GLAutoDrawable) = this@WorldWindow.dispose()
+        override fun reshape(drawable: GLAutoDrawable, x: Int, y: Int, width: Int, height: Int) =
+            this@WorldWindow.reshape(width, height)
+
+        override fun display(drawable: GLAutoDrawable) = this@WorldWindow.display()
+    }
+
     init {
         add(glPanel, BorderLayout.CENTER)
         isFocusable = true
         glPanel.isFocusable = true
-        glPanel.addGLEventListener(this)
+        glPanel.addGLEventListener(joglEventListener)
 
         val mouseAdapter = object : MouseAdapter() {
             override fun mousePressed(e: MouseEvent) {
@@ -235,7 +246,7 @@ open class WorldWindow @JvmOverloads constructor(
         engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(resourceId)
     }
 
-    override fun init(drawable: GLAutoDrawable) {
+    private fun init(drawable: GLAutoDrawable) {
         if (!::engine.isInitialized) {
             val gl = drawable.gl.gL3ES3
             engine = WorldWind(JoglKgl(gl), renderResourceCache)
@@ -246,7 +257,7 @@ open class WorldWindow @JvmOverloads constructor(
         WorldWindowLayerFactoryScope(this).layerFactory()
     }
 
-    override fun dispose(drawable: GLAutoDrawable) {
+    private fun dispose() {
         clearFrameQueue()
         eventsJob?.cancel()
         eventsJob = null
@@ -256,13 +267,13 @@ open class WorldWindow @JvmOverloads constructor(
         }
     }
 
-    override fun reshape(drawable: GLAutoDrawable, x: Int, y: Int, width: Int, height: Int) {
+    private fun reshape(width: Int, height: Int) {
         if (!::engine.isInitialized || width <= 0 || height <= 0) return
         engine.setupViewport(width, height, 1f)
         requestRedraw()
     }
 
-    override fun display(drawable: GLAutoDrawable) {
+    private fun display() {
         if (!::engine.isInitialized) return
 
         pickQueue.poll()?.let { pickFrame ->
@@ -353,13 +364,20 @@ class WorldWindowLayerFactoryScope(val worldWindow: WorldWindow) {
      * Adds a layer using `+layer` DSL syntax.
      */
     operator fun plus(layer: Layer) {
-        add(layer)
+        addLayer(layer)
     }
 
     /**
      * Adds a [Layer] to the associated [WorldWindow].
      */
-    fun add(layer: Layer) {
+    fun addLayer(layer: Layer) {
         worldWindow.engine.layers.addLayer(layer)
+    }
+
+    /**
+     * Adds a [ElevationCoverage] to the associated [WorldWindow] [earth.worldwind.globe.Globe].
+     */
+    fun addElevationCoverage(elevationCoverage: ElevationCoverage) {
+        worldWindow.engine.globe.elevationModel.addCoverage(elevationCoverage)
     }
 }
