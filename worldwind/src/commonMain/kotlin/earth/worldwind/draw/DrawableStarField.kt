@@ -6,9 +6,7 @@ import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Pool
-import earth.worldwind.util.kgl.GL_ALIASED_POINT_SIZE_RANGE
-import earth.worldwind.util.kgl.GL_FLOAT
-import earth.worldwind.util.kgl.GL_POINTS
+import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
 
 open class DrawableStarField protected constructor(): Drawable {
@@ -36,6 +34,20 @@ open class DrawableStarField protected constructor(): Drawable {
             instance.pool = pool
             return instance
         }
+    }
+
+    private fun getValidPointSizeRangeMax(dc: DrawContext, pname: Int): Float? {
+        val range = dc.gl.getParameterfv(pname)
+        val min = range[0]
+        val max = range[1]
+        return if (max >= min && max > 0f && max.isFinite()) max else null
+    }
+
+    private fun resolveMaxGlPointSize(dc: DrawContext): Float {
+        return getValidPointSizeRangeMax(dc, GL_ALIASED_POINT_SIZE_RANGE)
+            ?: getValidPointSizeRangeMax(dc, GL_POINT_SIZE_RANGE)
+            ?: getValidPointSizeRangeMax(dc, GL_SMOOTH_POINT_SIZE_RANGE)
+            ?: 1f
     }
 
     override fun recycle() {
@@ -73,7 +85,7 @@ open class DrawableStarField protected constructor(): Drawable {
     protected open fun drawSun(
         dc: DrawContext, program: StarFieldProgram, sunBuffer: BufferObject?, sunTexture: Texture?
     ) {
-        if (maxGlPointSize == 0f) maxGlPointSize = dc.gl.getParameterfv(GL_ALIASED_POINT_SIZE_RANGE)[1]
+        if (maxGlPointSize == 0f) maxGlPointSize = resolveMaxGlPointSize(dc)
 
         if (sunSize > maxGlPointSize) {
             Logger.log(Logger.WARN, "StarFieldLayer - sunSize is to big, max size allowed is: $maxGlPointSize")
