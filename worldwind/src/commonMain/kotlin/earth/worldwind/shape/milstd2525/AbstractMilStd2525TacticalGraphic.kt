@@ -53,6 +53,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
         private const val MAX_WIDTH_DP = 1e-3
         private const val MIN_WIDTH_DP = 1e-5
         private const val ZERO_LEVEL_PX = 256
+        private const val MINIMUM_IMAGE_SCALE = 0.5
 
         /**
          * Controls the Tactical Graphics labels visibility threshold
@@ -139,6 +140,8 @@ abstract class AbstractMilStd2525TacticalGraphic(
             imageRotation = angle
             imageRotationReference = OrientationMode.RELATIVE_TO_GLOBE
             imageTiltReference = OrientationMode.RELATIVE_TO_GLOBE
+            isEyeDistanceScaling = true
+            attributes.minimumImageScale = MINIMUM_IMAGE_SCALE
             pickDelegate = this@AbstractMilStd2525TacticalGraphic
         }
 
