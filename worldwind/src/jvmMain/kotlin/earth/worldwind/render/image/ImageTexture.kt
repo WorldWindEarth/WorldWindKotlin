@@ -7,7 +7,6 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.isPowerOfTwo
 import java.awt.image.BufferedImage
-import java.awt.image.DataBufferByte
 
 open class ImageTexture(image: BufferedImage) : Texture(image.width, image.height, GL_BGRA, GL_UNSIGNED_BYTE) {
     protected var image: BufferedImage? = image
