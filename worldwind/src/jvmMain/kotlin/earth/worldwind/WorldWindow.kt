@@ -32,7 +32,13 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
- * Provides a WorldWind window that implements a virtual globe inside a Swing panel hierarchy.
+ * Provides a WorldWind window that implements a virtual globe inside the Swing view hierarchy.
+ * By default, WorldWindow is configured to display an ellipsoidal globe using the WGS 84
+ * reference values.
+ *
+ * @param renderResourceCache render resource cache shared with the engine lifecycle
+ * @param capabilities OpenGL capabilities used to create the internal [GLJPanel]
+ * @param layerFactory DSL block invoked during initialization to populate [WorldWind.layers]
  */
 open class WorldWindow @JvmOverloads constructor(
     protected val renderResourceCache: RenderResourceCache = RenderResourceCache(),
@@ -45,12 +51,13 @@ open class WorldWindow @JvmOverloads constructor(
     val mainScope get() = renderResourceCache.mainScope
 
     /**
-     * Swing GL panel presenting rendered frames.
+     * Swing OpenGL panel that presents rendered frames.
      */
     val glPanel = GLJPanel(capabilities)
 
     /**
-     * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
+     * Main WorldWind engine, containing globe, terrain, renderable layers, camera,
+     * viewport and frame rendering logic.
      */
     lateinit var engine: WorldWind
         protected set
@@ -61,7 +68,8 @@ open class WorldWindow @JvmOverloads constructor(
     var controller: WorldWindowController = BasicWorldWindowController(this)
 
     /**
-     * Renderable selection and drag gestures detector. Assign callback to handle events.
+     * Renderable selection and drag gestures detector. Assign [SelectDragDetector.callback]
+     * to handle events.
      */
     open val selectDragDetector = SelectDragDetector(this)
 
@@ -113,7 +121,16 @@ open class WorldWindow @JvmOverloads constructor(
     }
 
     /**
-     * Determines the WorldWind shapes displayed in a screen rectangle.
+     * Determines the WorldWind shapes displayed in a screen rectangle. The screen rectangle is
+     * interpreted as coordinates in Swing screen pixels relative to this view.
+     *
+     * @param x the screen rectangle's X coordinate in Swing screen pixels
+     * @param y the screen rectangle's Y coordinate in Swing screen pixels
+     * @param width the screen rectangle's width in Swing screen pixels
+     * @param height the screen rectangle's height in Swing screen pixels
+     * @param pickCenter picks top shape and terrain in rectangle center as priority
+     *
+     * @return a deferred list of WorldWind shapes in the screen rectangle
      */
     fun pickAsync(x: Float, y: Float, width: Float = 0f, height: Float = 0f, pickCenter: Boolean = true): Deferred<PickedObjectList> {
         val pickedObjects = PickedObjectList()
@@ -150,14 +167,53 @@ open class WorldWindow @JvmOverloads constructor(
         return pickDeferred
     }
 
+    /**
+     * Determines the WorldWind objects displayed at a screen point. The screen point is
+     * interpreted as coordinates in Swing screen pixels relative to this view.
+     * <br>
+     * If the screen point intersects any number of WorldWind shapes, the returned list contains a
+     * picked object identifying the top shape at the screen point. This picked object includes the
+     * shape renderable (or its non-null pick delegate) and the WorldWind layer that displayed the
+     * shape. Shapes that are hidden behind another shape or terrain at the screen point are
+     * omitted from the returned list.
+     * <br>
+     * If the screen point intersects the WorldWind terrain, the returned list contains a picked
+     * object identifying the associated geographic position. If there are no shapes in the
+     * WorldWind scene between the terrain and the screen point, the terrain picked object is
+     * marked as "on top".
+     *
+     * @param x the screen point's X coordinate in Swing screen pixels
+     * @param y the screen point's Y coordinate in Swing screen pixels
+     *
+     * @return a list of WorldWind objects at the screen point
+     */
     fun pick(x: Float, y: Float) = runBlocking { pickAsync(x, y).await() }
 
+    /**
+     * Determines the WorldWind shapes displayed in a screen rectangle. The screen rectangle is
+     * interpreted as coordinates in Swing screen pixels relative to this view.
+     * <br>
+     * If the screen rectangle intersects any number of WorldWind shapes, the returned list
+     * contains a picked object identifying all the top shapes in the rectangle. This picked object
+     * includes the shape renderable (or its non-null pick delegate) and the WorldWind layer that
+     * displayed the shape. Shapes that are entirely hidden behind another shape or terrain in the
+     * screen rectangle are omitted from the returned list.
+     *
+     * @param x the screen rectangle's X coordinate in Swing screen pixels
+     * @param y the screen rectangle's Y coordinate in Swing screen pixels
+     * @param width the screen rectangle's width in Swing screen pixels
+     * @param height the screen rectangle's height in Swing screen pixels
+     *
+     * @return a list of WorldWind shapes in the screen rectangle
+     */
     fun pickShapesInRect(x: Float, y: Float, width: Float, height: Float) = runBlocking {
         pickAsync(x, y, width, height, false).await()
     }
 
     /**
-     * Request that this WorldWindow updates its display.
+     * Request that this WorldWindow update its display. Prior changes to this WorldWindow's
+     * camera, globe and layers (including layer contents) are reflected on screen sometime after
+     * calling this method. May be called from any thread.
      */
     override fun requestRedraw() {
         if (!::engine.isInitialized) return
@@ -172,6 +228,9 @@ open class WorldWindow @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Removes a resource ID from the missed resource list.
+     */
     override fun unmarkResourceAbsent(resourceId: Int) {
         engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(resourceId)
     }
@@ -286,11 +345,20 @@ open class WorldWindow @JvmOverloads constructor(
     }
 }
 
+/**
+ * Scope receiver used by [WorldWindow.layerFactory] to add layers to a [WorldWindow].
+ */
 class WorldWindowLayerFactoryScope(val worldWindow: WorldWindow) {
+    /**
+     * Adds a layer using `+layer` DSL syntax.
+     */
     operator fun plus(layer: Layer) {
         add(layer)
     }
 
+    /**
+     * Adds a [Layer] to the associated [WorldWindow].
+     */
     fun add(layer: Layer) {
         worldWindow.engine.layers.addLayer(layer)
     }
