@@ -12,7 +12,6 @@ import earth.worldwind.geom.Angle.Companion.fromDegrees
 import earth.worldwind.geom.Angle.Companion.fromRadians
 import earth.worldwind.geom.Angle.Companion.max
 import earth.worldwind.geom.Angle.Companion.min
-import earth.worldwind.globe.Globe
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.jvm.JvmStatic
@@ -100,39 +99,6 @@ open class Sector(
             return Sector(
                 fromRadians(minLatRadians), fromRadians(maxLatRadians),
                 fromRadians(minLonRadians), fromRadians(maxLonRadians)
-            )
-        }
-
-        @JvmStatic
-        /**
-         * Computes a geographic sector (latitude/longitude bounds) that contains this points
-         * @param globe Globe used for ECEF → geographic transformation
-         * @param points List of cartesian points that lies in the sector
-         * @return Sector containing points in geographic coordinates
-         */
-        fun fromCartesianPoints(globe: Globe, points: List<Vec3>): Sector {
-            val position = Position()
-            val lats = ArrayList<Double>(points.size)
-            val lons = ArrayList<Double>(points.size)
-
-            // Convert points to geographic coordinates
-            for (p in points) {
-                globe.cartesianToGeographic(p.x, p.y, p.z, position)
-                lats.add(position.latitude.inDegrees)
-                lons.add(position.longitude.normalizeLongitude().inDegrees)
-            }
-
-            // Latitude and Longitude bounds
-            val minLat = lats.min()
-            val maxLat = lats.max()
-            val minLon = lons.min()
-            val maxLon = lons.max()
-
-            // Determine shortest arc (in case of arc crosses antimeridian: swap min/max)
-            return if (maxLon - minLon <= 180.0) Sector(
-                fromDegrees(minLat), fromDegrees(maxLat), fromDegrees(minLon), fromDegrees(maxLon)
-            ) else Sector(
-                fromDegrees(minLat), fromDegrees(maxLat), fromDegrees(maxLon), fromDegrees(minLon)
             )
         }
     }
