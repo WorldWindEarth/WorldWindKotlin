@@ -24,7 +24,8 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
 
     override fun allocTexImage(dc: DrawContext) {
         try {
-            val pixels = (image!!.raster.dataBuffer as DataBufferByte).data
+            val source = image ?: return
+            val pixels = source.toBgraBytes()
 
             // Specify the OpenGL texture 2D object's base image data (level 0).
             dc.gl.pixelStorei(GL_UNPACK_ALIGNMENT, 1)
@@ -43,5 +44,22 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
         } finally {
             image = null
         }
+    }
+
+    /**
+     * Converts arbitrary BufferedImage storage into tightly packed BGRA bytes for GL_UNSIGNED_BYTE upload.
+     */
+    protected open fun BufferedImage.toBgraBytes(): ByteArray {
+        val argb = IntArray(width * height)
+        getRGB(0, 0, width, height, argb, 0, width)
+        val bgra = ByteArray(argb.size * 4)
+        var bi = 0
+        for (c in argb) {
+            bgra[bi++] = (c and 0xFF).toByte()          // B
+            bgra[bi++] = ((c ushr 8) and 0xFF).toByte() // G
+            bgra[bi++] = ((c ushr 16) and 0xFF).toByte()// R
+            bgra[bi++] = ((c ushr 24) and 0xFF).toByte()// A
+        }
+        return bgra
     }
 }
