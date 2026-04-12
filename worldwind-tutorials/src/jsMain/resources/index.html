@@ -40,6 +40,21 @@
         #Actions > :not(:last-child) {
             margin-right: 10px;
         }
+
+        #Status {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            max-width: 360px;
+            padding: 14px 16px;
+            background: rgba(10, 16, 24, 0.78);
+            color: #f2f5f8;
+            font: 13px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            white-space: pre-line;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            display: none;
+        }
     </style>
 <!-- Create a canvas for WorldWindow. -->
 <canvas id="WorldWindow" style="width: 100vw; height: 100vh; background-color: black; display: block;">
@@ -47,6 +62,7 @@
 </canvas>
 <select id="Tutorials"></select>
 <select id="Projections"></select>
+<div id="Status"></div>
 <div id="Actions"></div>
 <script src="worldwind-tutorials.js"></script>
 </body>

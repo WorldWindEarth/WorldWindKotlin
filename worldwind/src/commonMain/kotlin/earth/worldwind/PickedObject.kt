@@ -8,7 +8,11 @@ import kotlin.jvm.JvmStatic
 import kotlin.math.roundToInt
 
 open class PickedObject protected constructor(
-    val identifier: Int, val userObject: Any, val layer: Layer? = null, val terrainPosition: Position? = null
+    val identifier: Int,
+    val userObject: Any,
+    val layer: Layer? = null,
+    val terrainPosition: Position? = null,
+    val renderable: Renderable? = null,
 ) {
     var isOnTop = false
         protected set
@@ -17,7 +21,7 @@ open class PickedObject protected constructor(
     companion object {
         @JvmStatic
         fun fromRenderable(identifier: Int, renderable: Renderable, layer: Layer) =
-            PickedObject(identifier, renderable.pickDelegate ?: renderable, layer)
+            PickedObject(identifier, renderable.pickDelegate ?: renderable, layer, renderable = renderable)
 
         @JvmStatic
         fun fromTerrain(identifier: Int, position: Position): PickedObject {

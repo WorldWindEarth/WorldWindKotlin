@@ -20,7 +20,7 @@ class TranslucentEGLConfigChooser : EGLConfigChooser {
             EGL10.EGL_GREEN_SIZE, 8,
             EGL10.EGL_BLUE_SIZE, 8,
             EGL10.EGL_ALPHA_SIZE, 8,
-            EGL10.EGL_DEPTH_SIZE, 16,
+            EGL10.EGL_DEPTH_SIZE, 24,
 // Antialiasing causes gaps to appear at the edges of terrain tiles.
 //            EGL10.EGL_SAMPLE_BUFFERS, 1, // Enable antialiasing
 //            EGL10.EGL_SAMPLES, 4, // 4x MSAA.

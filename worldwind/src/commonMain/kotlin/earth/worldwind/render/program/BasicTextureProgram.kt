@@ -38,7 +38,11 @@ class BasicTextureProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            #else
             precision mediump float;
+            #endif
 
             uniform float opacity;
             uniform vec4 color;
@@ -46,9 +50,18 @@ class BasicTextureProgram : AbstractShaderProgram() {
             uniform bool modulateColor;
             uniform sampler2D texSampler;
             uniform bool applyLighting;
+            uniform bool outputDepth;
 
             varying vec2 texCoord;
             varying vec4 normal;
+
+            vec4 packDepth(const in float depth) {
+                const vec4 bitShift = vec4(16777216.0, 65536.0, 256.0, 1.0);
+                const vec4 bitMask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+                vec4 result = fract(depth * bitShift);
+                result -= result.xxyz * bitMask;
+                return result;
+            }
 
             void main() {
                 vec4 textureColor = texture2D(texSampler, texCoord);
@@ -64,6 +77,7 @@ class BasicTextureProgram : AbstractShaderProgram() {
                     vec4 n = normal * (gl_FrontFacing ? 1.0 : -1.0);
                     gl_FragColor.rgb *= clamp(ambient + dot(lightDirection, n), 0.0, 1.0);
                 }
+                if (outputDepth) gl_FragColor = packDepth(gl_FragCoord.z);
             }
         """.trimIndent()
     )
@@ -78,6 +92,7 @@ class BasicTextureProgram : AbstractShaderProgram() {
     private val texCoordMatrix = Matrix3()
     private val color = Color()
     private var opacity = 1.0f
+    private var outputDepth = false
     private var mvpMatrixId = KglUniformLocation.NONE
     private var mvInverseMatrixId = KglUniformLocation.NONE
     private var colorId = KglUniformLocation.NONE
@@ -88,6 +103,7 @@ class BasicTextureProgram : AbstractShaderProgram() {
     private var opacityId = KglUniformLocation.NONE
     private var applyLightingId = KglUniformLocation.NONE
     private var isRenderLineId = KglUniformLocation.NONE
+    private var outputDepthId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -116,6 +132,8 @@ class BasicTextureProgram : AbstractShaderProgram() {
         gl.uniform1i(applyLightingId, if (applyLighting) 1 else 0)
         isRenderLineId = gl.getUniformLocation(program, "isRenderLine")
         gl.uniform1i(isRenderLineId, if (isRenderLine) 1 else 0)
+        outputDepthId = gl.getUniformLocation(program, "outputDepth")
+        gl.uniform1i(outputDepthId, if (outputDepth) 1 else 0)
     }
 
     /**
@@ -237,6 +255,13 @@ class BasicTextureProgram : AbstractShaderProgram() {
         if (this.isRenderLine != isRenderLine) {
             this.isRenderLine = isRenderLine
             gl.uniform1i(isRenderLineId, if (isRenderLine) 1 else 0)
+        }
+    }
+
+    fun loadOutputDepth(outputDepth: Boolean) {
+        if (this.outputDepth != outputDepth) {
+            this.outputDepth = outputDepth
+            gl.uniform1i(outputDepthId, if (outputDepth) 1 else 0)
         }
     }
 
