@@ -4,6 +4,7 @@ import dev.icerock.moko.resources.FileResource
 import earth.worldwind.MR
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawableStarField
+import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
@@ -71,9 +72,17 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
      * A flag to indicate the star data is currently being retrieved.
      */
     protected var loadStarted = false
-    protected val minScale = 10e6
+    /**
+     * Fixed scale used to size the celestial sphere. Must be large enough so that the geometry
+     * is never clipped by the near plane, yet small enough to avoid floating-point precision loss.
+     * The vertex shader forces every star/sun vertex to the far plane (gl_Position.z = gl_Position.w),
+     * so only the near-plane constraint matters in practice. 1e8 m (100 000 km) is safe for all
+     * camera altitudes supported by WorldWind.
+     */
+    protected val celestialSphereScale = 1e8
     protected val sunPositionsCacheKey = Any()
     protected val sunBufferView = FloatArray(4)
+    private val scratchModelview = Matrix4()
 
     protected open fun invalidateStarData() {
         starData = null
@@ -99,9 +108,12 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
         drawable.minMagnitude = minMagnitude
         drawable.maxMagnitude = maxMagnitude
         drawable.numStars = numStars
-        drawable.matrix.copy(rc.modelviewProjection)
-        val scale = (rc.camera.position.altitude * 1.5).coerceAtLeast(minScale)
-        drawable.matrix.multiplyByScale(scale, scale, scale)
+        // Build a MVP matrix that has no camera translation, so the celestial sphere is always
+        // centred on the eye point regardless of where the camera is in world space.
+        // This is the standard skybox technique: use only the rotation part of the modelview matrix.
+        scratchModelview.copy(rc.modelview).setTranslation(0.0, 0.0, 0.0)
+        drawable.matrix.setToMultiply(rc.projection, scratchModelview)
+        drawable.matrix.multiplyByScale(celestialSphereScale, celestialSphereScale, celestialSphereScale)
 
         // Render The Sun
         drawable.isShowSun = isShowSun
@@ -118,7 +130,9 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
                 //.w = magnitude
                 sunBufferView[0] = sunCelestialLocation.declination.inDegrees.toFloat()
                 sunBufferView[1] = sunCelestialLocation.rightAscension.inDegrees.toFloat()
-                sunBufferView[2] = sunSize.coerceAtMost(DrawableStarField.maxGlPointSize)
+                // Use sunSize directly here; clamping against maxGlPointSize happens at draw time in DrawableStarField.
+                // maxGlPointSize is 0f until the first draw call, so clamping here would set point size to 0 (invisible).
+                sunBufferView[2] = sunSize
                 sunBufferView[3] = 1f
 
                 drawable.sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
