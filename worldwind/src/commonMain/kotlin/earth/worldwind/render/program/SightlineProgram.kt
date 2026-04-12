@@ -30,9 +30,11 @@ class SightlineProgram : AbstractShaderProgram() {
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             uniform highp sampler2D depthSampler;
-            #else
+            #elif defined(GL_ES)
             precision mediump float;
             uniform mediump sampler2D depthSampler;
+            #else
+            uniform sampler2D depthSampler;
             #endif
 
             uniform float range;

@@ -38,7 +38,9 @@ class BasicTextureProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
+            #ifdef GL_ES
             precision mediump float;
+            #endif
 
             uniform float opacity;
             uniform vec4 color;

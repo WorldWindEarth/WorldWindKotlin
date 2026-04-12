@@ -3,7 +3,9 @@ package earth.worldwind.layer.atmosphere
 class GroundProgram: AbstractAtmosphereProgram() {
     override var programSources = arrayOf(
         """
+            #ifdef GL_ES
             precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */
+            #endif
 
             const int FRAGMODE_PRIMARY = 1;
             const int FRAGMODE_SECONDARY = 2;
@@ -109,8 +111,10 @@ class GroundProgram: AbstractAtmosphereProgram() {
             }
         """.trimIndent(),
         """
+            #ifdef GL_ES
             precision mediump float;
             precision mediump int;
+            #endif
 
             const int FRAGMODE_PRIMARY = 1;
             const int FRAGMODE_SECONDARY = 2;

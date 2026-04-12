@@ -40,7 +40,9 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
+            #ifdef GL_ES
             precision highp float;
+            #endif
             
             uniform mat3 texCoordMatrix;
             uniform bool enablePickMode;
