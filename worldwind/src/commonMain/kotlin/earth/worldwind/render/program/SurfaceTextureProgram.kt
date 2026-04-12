@@ -38,7 +38,7 @@ class SurfaceTextureProgram : AbstractShaderProgram() {
         """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
-            #else
+            #elif defined(GL_ES)
             precision mediump float;
             #endif
 

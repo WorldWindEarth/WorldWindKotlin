@@ -13,7 +13,7 @@ class SkyProgram : AbstractAtmosphereProgram() {
             uniform vec3 eyePoint;
             uniform float eyeMagnitude;	        /* The eye point's magnitude */
             uniform float eyeMagnitude2;	    /* eyeMagnitude^2 */
-            uniform mediump vec3 lightDirection;/* The light direction vector is used in both shaders, so we must use a common precision. */
+            uniform vec3 lightDirection;        /* The direction vector to the light source */
             uniform vec3 invWavelength;	        /* 1 / pow(wavelength, 4) for the red, green, and blue channels */
             uniform float atmosphereRadius;     /* The outer (atmosphere) radius */
             uniform float atmosphereRadius2;    /* atmosphereRadius^2 */
@@ -105,11 +105,11 @@ class SkyProgram : AbstractAtmosphereProgram() {
         """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
-            #else
+            #elif defined(GL_ES)
             precision mediump float;
             #endif
 
-            uniform mediump vec3 lightDirection;/* The light direction vector is used in both shaders, so we must use a common precision. */
+            uniform vec3 lightDirection;        /* The direction vector to the light source */
             uniform float g;
             uniform float g2;
 

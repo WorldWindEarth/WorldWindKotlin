@@ -29,7 +29,9 @@ class BasicShaderProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
+            #ifdef GL_ES
             precision mediump float;
+            #endif
 
             uniform bool enablePickMode;
             uniform bool enableTexture;
