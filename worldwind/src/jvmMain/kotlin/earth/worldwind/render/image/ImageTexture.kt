@@ -10,7 +10,7 @@ import java.awt.image.BufferedImage
 import java.awt.image.DataBufferInt
 
 open class ImageTexture(image: BufferedImage) : Texture(image.width, image.height, GL_BGRA, GL_UNSIGNED_BYTE) {
-    protected var image: BufferedImage? = image
+    protected var bgraBytes: ByteArray? = image.toBgraBytes()
     override val hasMipMap = isPowerOfTwo(image.width) && isPowerOfTwo(image.height)
 
     init {
@@ -19,12 +19,12 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
 
     override fun release(dc: DrawContext) {
         super.release(dc)
-        image = null // Image can be non-null if the texture has never been used
+        bgraBytes = null // allow GC if texture was evicted before first bind
     }
 
     override fun allocTexImage(dc: DrawContext) {
         try {
-            val pixels = image?.toBgraBytes() ?: return
+            val pixels = bgraBytes ?: return
 
             // Specify the OpenGL texture 2D object's base image data (level 0).
             dc.gl.pixelStorei(GL_UNPACK_ALIGNMENT, 1)
@@ -35,18 +35,17 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
             // through level N, and configure the texture object's filtering modes to use those image levels.
             if (hasMipMap) dc.gl.generateMipmap(GL_TEXTURE_2D)
         } catch (e: Exception) {
-            // The Android utility was unable to load the texture image data.
             logMessage(
                 ERROR, "Texture", "loadTexImage",
-                "Exception attempting to load texture image '$image'", e
+                "Exception attempting to load texture image", e
             )
         } finally {
-            image = null
+            bgraBytes = null // release CPU copy after GPU upload
         }
     }
 
     /**
-     * Converts arbitrary BufferedImage storage into tightly packed BGRA bytes for GL_UNSIGNED_BYTE upload.
+     * Converts arbitrary [BufferedImage] storage into tightly packed premultiplied-alpha BGRA bytes for GL upload.
      */
     protected open fun BufferedImage.toBgraBytes(): ByteArray {
         val argb = if (type == BufferedImage.TYPE_INT_ARGB) (raster.dataBuffer as DataBufferInt).data

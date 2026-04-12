@@ -118,9 +118,13 @@ actual open class RenderResourceCache @JvmOverloads constructor(
             currentRetrievals += imageSource
             mainScope.launch {
                 try {
-                    imageDecoder.decodeImage(imageSource, options)?.let {
-                        retrievalSucceeded(imageSource, options, it)
-                    } ?: retrievalFailed(imageSource)
+                    // Run both the image decode and the pixel-format conversion (toBgraBytes inside ImageTexture
+                    // constructor) on Dispatchers.IO so that main thread does not stall.
+                    val texture = withContext(Dispatchers.IO) {
+                        imageDecoder.decodeImage(imageSource, options)?.let { createTexture(options, it) }
+                    }
+                    if (texture != null) retrievalSucceeded(imageSource, texture)
+                    else retrievalFailed(imageSource)
                 } catch (logged: Throwable) {
                     retrievalFailed(imageSource, logged)
                 } finally {
@@ -144,8 +148,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         return texture
     }
 
-    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, image: BufferedImage) {
-        val texture = createTexture(options, image)
+    protected open fun retrievalSucceeded(source: ImageSource, texture: Texture) {
         put(source, texture, texture.byteCount)
         absentResourceList.unmarkResourceAbsent(source.hashCode())
         WorldWind.requestRedraw()
