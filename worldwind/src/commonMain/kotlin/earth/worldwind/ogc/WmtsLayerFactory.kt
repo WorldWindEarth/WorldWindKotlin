@@ -166,7 +166,7 @@ object WmtsLayerFactory {
             // Determine if there is a TileMatrixSet that matches our Coordinate System compatibility and tiling scheme
             val directAxisOrder = when (tileMatrixSet.supportedCrs) {
                 "urn:ogc:def:crs:OGC:1.3:CRS84", "http://www.opengis.net/def/crs/OGC/1.3/CRS84" -> true
-                "urn:ogc:def:crs:EPSG::4326" -> false
+                "urn:ogc:def:crs:EPSG::4326", "urn:ogc:def:crs:EPSG:6.3:4326" -> false
                 else -> continue // The provided tile matrix set should adhere to either EPGS:4326 or CRS84
             }
             val tileMatrices = mutableListOf<String>()
@@ -214,7 +214,7 @@ object WmtsLayerFactory {
                     }
                     scaleDenominator = tileMatrix.scaleDenominator
                     tileWidth = tileMatrix.tileWidth
-                    tileHeight = tileMatrix.tileWidth
+                    tileHeight = tileMatrix.tileHeight
                     matrixWidth = tileMatrix.matrixWidth
                     matrixHeight = tileMatrix.matrixHeight
                 }
