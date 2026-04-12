@@ -232,7 +232,7 @@ open class WorldWindow @JvmOverloads constructor(
         }
     }
 
-    private fun doRequestRedraw() {
+    protected open fun doRequestRedraw() {
         // Suppress duplicate redraw requests, request that occur while the WorldWindow is paused, and requests that
         // occur before we have an Android surface to draw to.
         if (!isWaitingForRedraw && !engine.viewport.isEmpty) {
