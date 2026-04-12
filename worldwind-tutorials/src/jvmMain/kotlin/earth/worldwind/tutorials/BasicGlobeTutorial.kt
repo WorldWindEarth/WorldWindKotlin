@@ -26,6 +26,8 @@ fun main() {
                 addLayer(StarFieldLayer())
                 addLayer(AtmosphereLayer())
             }
+
+            BasicTutorial(engine).start()
         }
 
         JFrame("WorldWind Kotlin - Globe").apply {
