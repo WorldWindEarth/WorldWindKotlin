@@ -523,11 +523,18 @@ open class WorldWind @JvmOverloads constructor(
         // Release resources evicted during the previous frame.
         renderResourceCache.releaseEvictedResources(dc)
 
+        // If the per-frame texture upload budget was exhausted, at least one ready texture was deferred to the next
+        // frame. Request a follow-up redraw so those textures are not stuck until the user interacts with the map.
+        val isRedrawRequested = !pickMode && dc.isTextureUploadBudgetExhausted
+
         // Mark the end of a frame draw.
         if (!pickMode) frameMetrics?.endDrawing(dc)
 
         // Reset the draw context's state in preparation for the next frame.
         dc.reset()
+
+        // Request redraw if necessary
+        if (isRedrawRequested) requestRedraw()
     }
 
     protected open fun computeViewingTransform(projection: Matrix4, modelview: Matrix4) {

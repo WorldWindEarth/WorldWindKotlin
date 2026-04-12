@@ -17,6 +17,7 @@ import org.w3c.dom.HTMLImageElement
 open class ImageTexture(image: TexImageSource, width: Int, height: Int) : Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE) {
     protected var image: TexImageSource? = image
     override val hasMipMap = isPowerOfTwo(width) && isPowerOfTwo(height)
+    override val isImageUpload = true
 
     constructor(image: HTMLImageElement) : this(image, image.width, image.height)
 

@@ -16,6 +16,7 @@ open class BitmapTexture(
     // TODO consider using Bitmap.hasMipMap
     //override val hasMipMap = bitmap.hasMipMap()
     override val hasMipMap = isPowerOfTwo(bitmap.width) && isPowerOfTwo(bitmap.height)
+    override val isImageUpload = true
 
     init {
         coordTransform.setToVerticalFlip()
