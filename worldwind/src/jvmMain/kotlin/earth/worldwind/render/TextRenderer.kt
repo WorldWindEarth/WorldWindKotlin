@@ -3,6 +3,7 @@ package earth.worldwind.render
 import earth.worldwind.render.image.ImageTexture
 import earth.worldwind.shape.TextAttributes
 import java.awt.BasicStroke
+import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import kotlin.math.ceil
@@ -44,7 +45,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
 
         if (attributes.isOutlineEnabled) {
             g.stroke = BasicStroke(attributes.outlineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-            g.color = java.awt.Color(
+            g.color = Color(
                 attributes.outlineColor.red.coerceIn(0f, 1f),
                 attributes.outlineColor.green.coerceIn(0f, 1f),
                 attributes.outlineColor.blue.coerceIn(0f, 1f),
@@ -58,7 +59,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
             y = (outlinePadding + 1 + g.fontMetrics.ascent).toFloat()
         }
 
-        g.color = java.awt.Color(
+        g.color = Color(
             attributes.textColor.red.coerceIn(0f, 1f),
             attributes.textColor.green.coerceIn(0f, 1f),
             attributes.textColor.blue.coerceIn(0f, 1f),

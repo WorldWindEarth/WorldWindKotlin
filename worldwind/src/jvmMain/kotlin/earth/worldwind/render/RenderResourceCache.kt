@@ -18,6 +18,7 @@ import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.kgl.*
 import kotlinx.coroutines.*
+import java.awt.image.BufferedImage
 import java.io.FileNotFoundException
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.time.Duration.Companion.seconds
@@ -130,7 +131,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         return null
     }
 
-    protected open fun createTexture(options: ImageOptions?, image: java.awt.image.BufferedImage): Texture {
+    protected open fun createTexture(options: ImageOptions?, image: BufferedImage): Texture {
         val texture = ImageTexture(image)
         if (options?.resamplingMode == ResamplingMode.NEAREST_NEIGHBOR) {
             texture.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
@@ -143,7 +144,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
         return texture
     }
 
-    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, image: java.awt.image.BufferedImage) {
+    protected open fun retrievalSucceeded(source: ImageSource, options: ImageOptions?, image: BufferedImage) {
         val texture = createTexture(options, image)
         put(source, texture, texture.byteCount)
         absentResourceList.unmarkResourceAbsent(source.hashCode())
