@@ -50,7 +50,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
             this.lastModelview = Matrix4(modelview)
             this.lastProjection = Matrix4(projection)
             // Notify listeners with stopped event on first frame
-            stopJob = wwd.mainScope.launch { onNavigatorStopped() }
+            stopJob = wwd.engine.renderResourceCache.mainScope.launch { onNavigatorStopped() }
         } else if (lastModelview != modelview || lastProjection != projection || lastElevationTimestamp != elevationTimestamp) {
             // the frame's modelview or elevation timestamp has changed
             lastModelview.copy(modelview)
@@ -60,7 +60,7 @@ open class NavigatorEventSupport(protected var wwd: WorldWindow) {
             onNavigatorMoved()
             // Schedule a navigator stopped event after a specified delay in milliseconds.
             stopJob?.cancel()
-            stopJob = wwd.mainScope.launch {
+            stopJob = wwd.engine.renderResourceCache.mainScope.launch {
                 delay(stoppedEventDelay)
                 onNavigatorStopped()
             }

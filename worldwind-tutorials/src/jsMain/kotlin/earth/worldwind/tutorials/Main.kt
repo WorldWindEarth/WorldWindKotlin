@@ -17,6 +17,7 @@ import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.MainScope
 import org.w3c.dom.*
 import org.w3c.dom.events.EventListener
 import org.w3c.dom.pointerevents.PointerEvent
@@ -30,6 +31,7 @@ fun main() {
         val projectionSelect = document.getElementById("Projections") as HTMLSelectElement
         val actionsContainer = document.getElementById("Actions") as HTMLDivElement
         val statusContainer = document.getElementById("Status") as HTMLDivElement
+        val mainScope = MainScope()
         val tutorials = mapOf(
             "Basic globe" to BasicTutorial(wwd.engine),
             "Set camera view" to CameraViewTutorial(wwd.engine),
@@ -97,8 +99,8 @@ fun main() {
             "Show tessellation" to ShowTessellationTutorial(wwd.engine),
             "MGRS Graticule" to MGRSGraticuleTutorial(wwd.engine),
             "Gauss-Kruger Graticule" to GKGraticuleTutorial(wwd.engine),
-            "WMS Layer" to WmsLayerTutorial(wwd.engine, wwd.mainScope),
-            "WMTS Layer" to WmtsLayerTutorial(wwd.engine, wwd.mainScope),
+            "WMS Layer" to WmsLayerTutorial(wwd.engine, mainScope),
+            "WMTS Layer" to WmtsLayerTutorial(wwd.engine, mainScope),
             "WCS Elevation" to WcsElevationTutorial(wwd.engine),
             "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),
         )

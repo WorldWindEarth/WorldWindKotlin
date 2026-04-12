@@ -35,6 +35,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
      * by a second tap leading to a double-tap gesture.
      */
     var isSingleTapConfirmed = false
+    protected val mainScope get() = wwd.engine.renderResourceCache.mainScope
     protected open val gestureDetector = GestureDetector(wwd.context, this)
     protected val slop = ViewConfiguration.get(wwd.context).scaledTouchSlop
     protected lateinit var pickRequest: Deferred<PickedObjectList> // last picked objects from onDown event
@@ -70,7 +71,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
 
     private fun onSingleTap() {
         val callback = callback ?: return
-        wwd.mainScope.launch {
+        mainScope.launch {
             val (renderable, position) = awaitPickResult(false)
             if (position != null) {
                 if (renderable is Renderable && callback.canPickRenderable(renderable)) {
@@ -86,7 +87,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         val x = moveEvent.x.toDouble()
         val y = moveEvent.y.toDouble()
         draggingJob?.cancel()
-        draggingJob = wwd.mainScope.launch {
+        draggingJob = mainScope.launch {
             val (renderable, fromPosition) = awaitPickResult(true)
             if (isDraggingArmed && fromPosition != null && renderable is Renderable) {
                 // Signal that dragging is in progress
@@ -147,7 +148,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         draggingJob?.cancel()
         draggingJob = null
         val callback = callback ?: return
-        wwd.mainScope.launch {
+        mainScope.launch {
             val (renderable, position) = awaitPickResult(true)
             if (renderable is Renderable && position != null) {
                 callback.onRenderableMovingFinished(renderable, position)
@@ -158,7 +159,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
 
     private fun showContext() {
         val callback = callback ?: return
-        wwd.mainScope.launch {
+        mainScope.launch {
             val (renderable, position) = awaitPickResult(false)
             if (position != null) {
                 if (renderable is Renderable) callback.onRenderableContext(renderable, position)
@@ -175,7 +176,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     private fun pick(event: MotionEvent) {
         // Perform the pick at the screen x, y
         pickRequest = wwd.pickAsync(event.x - slop / 2f, event.y - slop / 2f, slop.toFloat(), slop.toFloat())
-        wwd.mainScope.launch {
+        mainScope.launch {
             // Get top picked object
             val userObject = pickRequest.await().topPickedObject?.userObject
             // Determine whether the dragging flag should be "armed".

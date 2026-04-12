@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
@@ -342,7 +343,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
             val pickRequest = wwd.pickAsync(
                 event.x - pickRegionSize / 2f, event.y - pickRegionSize / 2f, pickRegionSize, pickRegionSize, false
             )
-            wwd.mainScope.launch {
+            lifecycleScope.launch {
                 val pickList = pickRequest.await()
 
                 // Forget our last picked objects

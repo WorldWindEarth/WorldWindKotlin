@@ -20,13 +20,13 @@ import kotlin.math.log2
 fun clamp(value: Double, min: Double, max: Double) = value.coerceIn(min, max)
 
 /**
- * Returns the fractional part of a specified number
+ * Returns the fractional part of a specified positive number
  *
- * @param value the number whose fractional part to compute
+ * @param value the positive number whose fractional part to compute
  *
- * @return The fractional part of the specified number: value - floor(value)
+ * @return The fractional part of the specified number: value - value.toLong()
  */
-fun fract(value: Double) = value - floor(value)
+fun fract(value: Double) = value - value.toLong() // floor(value) - works slow as it goes through java.lang.Math.floor
 
 /**
  * Computes the linear interpolation of two values according to a specified fractional amount. The fractional amount

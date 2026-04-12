@@ -3,6 +3,7 @@ package earth.worldwind.examples
 import android.os.Bundle
 import android.widget.CheckBox
 import android.widget.FrameLayout
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.WorldWindow
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.globe.projection.MercatorProjection
@@ -64,7 +65,7 @@ The globe uses the default navigation gestures:
                 imageFormat = "image/jpeg",
                 name = "Google Satellite"
             ).apply {
-                wwd.mainScope.launch { configureCache(contentManager, "GSat") }
+                lifecycleScope.launch { configureCache(contentManager, "GSat") }
             })
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
@@ -72,7 +73,7 @@ The globe uses the default navigation gestures:
 
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            wwd.mainScope.launch { configureCache(contentManager, "NASADEM") }
+            lifecycleScope.launch { configureCache(contentManager, "NASADEM") }
         })
     }
 

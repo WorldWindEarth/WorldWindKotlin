@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import android.view.GestureDetector
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.PickedObjectList
 import earth.worldwind.WorldWindow
@@ -115,7 +116,7 @@ class PlacemarksPickingFragment: BasicGlobeFragment() {
          * Toggles the selected state of a picked object.
          */
         fun toggleSelection() {
-            wwd.mainScope.launch {
+            lifecycleScope.launch {
                 // Get the top-most object for our new picked object
                 val pickedObject = pickRequest.await().topPickedObject?.userObject
 

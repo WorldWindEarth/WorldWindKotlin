@@ -121,7 +121,7 @@ class PlacemarksPickingFragment: BasicGlobeFragment() {
          * Toggles the selected state of a picked object.
          */
         fun toggleSelection() {
-            wwd.mainScope.launch {
+            lifecycleScope.launch {
                 // Get the top-most object for our new picked object
                 val pickedObject = pickRequest.await().topPickedObject?.userObject
 

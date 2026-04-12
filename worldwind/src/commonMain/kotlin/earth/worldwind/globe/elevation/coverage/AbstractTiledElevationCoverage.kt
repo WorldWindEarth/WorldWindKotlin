@@ -17,8 +17,6 @@ import earth.worldwind.util.math.mod
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
-import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.time.Duration.Companion.seconds
 
 abstract class AbstractTiledElevationCoverage(
@@ -27,6 +25,7 @@ abstract class AbstractTiledElevationCoverage(
     companion object {
         protected const val GET_HEIGHT_LIMIT_SAMPLES = 32
         protected const val NO_DATA = Short.MIN_VALUE
+        protected const val ALMOST_ONE = 0.9999999999999999
     }
 
     var tileMatrixSet = tileMatrixSet
@@ -86,8 +85,8 @@ abstract class AbstractTiledElevationCoverage(
             val tileMatrix = tileMatrixSet.entries[idx]
             val deltaLat = tileMatrix.sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
             val deltaLon = tileMatrix.sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
-            val row = floor((tileMatrix.sector.maxLatitude.inDegrees - latitude.inDegrees) / deltaLat).toInt()
-            val col = floor((longitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
+            val row = ((tileMatrix.sector.maxLatitude.inDegrees - latitude.inDegrees) / deltaLat).toInt()
+            val col = ((longitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
             fetchTileArray(tileMatrix, row, col)?.let {
                 val maxLat = tileMatrix.sector.maxLatitude.inDegrees - deltaLat * row
                 val minLon = tileMatrix.sector.minLongitude.inDegrees + deltaLon * col
@@ -95,9 +94,9 @@ abstract class AbstractTiledElevationCoverage(
                 val maxY = tileMatrix.tileHeight - 1
                 val x = (maxX * (longitude.inDegrees - minLon) / deltaLon).toFloat()
                 val y = (maxY * (maxLat - latitude.inDegrees) / deltaLat).toFloat()
-                val x0 = floor(x).toInt().coerceIn(0, maxX)
+                val x0 = x.toInt().coerceIn(0, maxX)
                 val x1 = (x0 + 1).coerceIn(0, maxX)
-                val y0 = floor(y).toInt().coerceIn(0, maxY)
+                val y0 = y.toInt().coerceIn(0, maxY)
                 val y1 = (y0 + 1).coerceIn(0, maxY)
                 val x0y0 = it[x0 + y0 * tileMatrix.tileWidth]
                 val x1y0 = it[x1 + y0 * tileMatrix.tileWidth]
@@ -176,11 +175,11 @@ abstract class AbstractTiledElevationCoverage(
                 var i1: Int
                 if (tileMatrix.sector.isFullSphere) {
                     u = rasterWidth * fract(s) // wrap the horizontal coordinate
-                    i0 = mod(floor(u - 0.5).toInt(), rasterWidth)
+                    i0 = mod((u - 0.5).toInt(), rasterWidth)
                     i1 = mod(i0 + 1, rasterWidth)
                 } else {
                     u = rasterWidth * s.coerceIn(sMin, sMax) // clamp the horizontal coordinate
-                    i0 = floor(u - 0.5).toInt().coerceIn(0, rasterWidth - 1)
+                    i0 = (u - 0.5).toInt().coerceIn(0, rasterWidth - 1)
                     i1 = (i0 + 1).coerceIn(0, rasterWidth - 1)
                 }
                 val col0 = i0 / tileWidth
@@ -200,7 +199,7 @@ abstract class AbstractTiledElevationCoverage(
             if (lat in matrixMinLat..matrixMaxLat) {
                 val t = (matrixMaxLat - lat) / matrixDeltaLat
                 val v = rasterHeight * t.coerceIn(tMin, tMax) // clamp the vertical coordinate to the raster edge
-                val j0 = floor(v - 0.5).toInt().coerceIn(0, rasterHeight - 1)
+                val j0 = (v - 0.5).toInt().coerceIn(0, rasterHeight - 1)
                 val j1 = (j0 + 1).coerceIn(0, rasterHeight - 1)
                 val row0 = j0 / tileHeight
                 val row1 = j1 / tileHeight
@@ -232,16 +231,16 @@ abstract class AbstractTiledElevationCoverage(
         intersection.intersect(sector)
         val sMin = (intersection.minLongitude.inDegrees - matrixMinLon) / matrixDeltaLon
         val sMax = (intersection.maxLongitude.inDegrees - matrixMinLon) / matrixDeltaLon
-        val uMin = floor(rasterWidth * sMin).toInt()
-        val uMax = ceil(rasterWidth * sMax).toInt()
+        val uMin = (rasterWidth * sMin).toInt()
+        val uMax = (rasterWidth * sMax + ALMOST_ONE).toInt()
         val iMin = uMin.coerceIn(0, rasterWidth - 1)
         val iMax = uMax.coerceIn(0, rasterWidth - 1)
         val colMin = iMin / tileWidth
         val colMax = iMax / tileWidth
         val tMin = (matrixMaxLat - intersection.maxLatitude.inDegrees) / matrixDeltaLat
         val tMax = (matrixMaxLat - intersection.minLatitude.inDegrees) / matrixDeltaLat
-        val vMin = floor(rasterHeight * tMin).toInt()
-        val vMax = ceil(rasterHeight * tMax).toInt()
+        val vMin = (rasterHeight * tMin).toInt()
+        val vMax = (rasterHeight * tMax + ALMOST_ONE).toInt()
         val jMin = vMin.coerceIn(0, rasterHeight - 1)
         val jMax = vMax.coerceIn(0, rasterHeight - 1)
         val rowMin = jMin / tileHeight
@@ -316,7 +315,7 @@ abstract class AbstractTiledElevationCoverage(
             val t = (matrixMaxLat - lat) / matrixDeltaLat
             val v = rasterHeight * t.coerceIn(tMin, tMax) // clamp the vertical coordinate to the raster edge
             val b = fract(v - 0.5).toFloat()
-            val j0 = floor(v - 0.5).toInt().coerceIn(0, rasterHeight - 1)
+            val j0 = (v - 0.5).toInt().coerceIn(0, rasterHeight - 1)
             val j1 = (j0 + 1).coerceIn(0, rasterHeight - 1)
             val row0 = j0 / tileHeight
             val row1 = j1 / tileHeight
@@ -332,11 +331,11 @@ abstract class AbstractTiledElevationCoverage(
                 var i1: Int
                 if (tileBlock.tileMatrix.sector.isFullSphere) {
                     u = rasterWidth * fract(s) // wrap the horizontal coordinate
-                    i0 = mod(floor(u - 0.5).toInt(), rasterWidth)
+                    i0 = mod((u - 0.5).toInt(), rasterWidth)
                     i1 = mod(i0 + 1, rasterWidth)
                 } else {
                     u = rasterWidth * s.coerceIn(sMin, sMax) // clamp the horizontal coordinate
-                    i0 = floor(u - 0.5).toInt().coerceIn(0, rasterWidth - 1)
+                    i0 = (u - 0.5).toInt().coerceIn(0, rasterWidth - 1)
                     i1 = (i0 + 1).coerceIn(0, rasterWidth - 1)
                 }
                 val a = fract(u - 0.5).toFloat()
@@ -373,14 +372,14 @@ abstract class AbstractTiledElevationCoverage(
         intersection.intersect(sector)
         val sMin = (intersection.minLongitude.inDegrees - matrixMinLon) / matrixDeltaLon
         val sMax = (intersection.maxLongitude.inDegrees - matrixMinLon) / matrixDeltaLon
-        val uMin = floor(rasterWidth * sMin).toInt()
-        val uMax = ceil(rasterWidth * sMax).toInt()
+        val uMin = (rasterWidth * sMin).toInt()
+        val uMax = (rasterWidth * sMax + ALMOST_ONE).toInt()
         val iMin = uMin.coerceIn(0, rasterWidth - 1)
         val iMax = uMax.coerceIn(0, rasterWidth - 1)
         val tMin = (matrixMaxLat - intersection.maxLatitude.inDegrees) / matrixDeltaLat
         val tMax = (matrixMaxLat - intersection.minLatitude.inDegrees) / matrixDeltaLat
-        val vMin = floor(rasterHeight * tMin).toInt()
-        val vMax = ceil(rasterHeight * tMax).toInt()
+        val vMin = (rasterHeight * tMin).toInt()
+        val vMax = (rasterHeight * tMax + ALMOST_ONE).toInt()
         val jMin = vMin.coerceIn(0, rasterHeight - 1)
         val jMax = vMax.coerceIn(0, rasterHeight - 1)
         for (row in tileBlock.rows.keys) {
@@ -413,10 +412,10 @@ abstract class AbstractTiledElevationCoverage(
             val tileMatrix = tileMatrixSet.entries[idx]
             val deltaLat = tileMatrix.sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
             val deltaLon = tileMatrix.sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
-            val minRow = floor((tileMatrix.sector.maxLatitude.inDegrees - sector.maxLatitude.inDegrees) / deltaLat).toInt()
-            val maxRow = floor((tileMatrix.sector.maxLatitude.inDegrees - sector.minLatitude.inDegrees) / deltaLat).toInt()
-            val minCol = floor((sector.minLongitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
-            val maxCol = floor((sector.maxLongitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
+            val minRow = ((tileMatrix.sector.maxLatitude.inDegrees - sector.maxLatitude.inDegrees) / deltaLat).toInt()
+            val maxRow = ((tileMatrix.sector.maxLatitude.inDegrees - sector.minLatitude.inDegrees) / deltaLat).toInt()
+            val minCol = ((sector.minLongitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
+            val maxCol = ((sector.maxLongitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
             for (row in minRow..maxRow) for (col in minCol..maxCol) process(Tile(tileMatrix, row, col))
         }
     }

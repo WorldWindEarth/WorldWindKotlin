@@ -7,6 +7,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.*
+import earth.worldwind.shape.Placemark.Companion.DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
 import kotlin.math.log2
@@ -53,11 +54,17 @@ abstract class AbstractMilStd2525TacticalGraphic(
         private const val MAX_WIDTH_DP = 1e-3
         private const val MIN_WIDTH_DP = 1e-5
         private const val ZERO_LEVEL_PX = 256
+        private const val MINIMUM_IMAGE_SCALE = 0.5
 
         /**
          * Controls the Tactical Graphics labels visibility threshold
          */
         var labelScaleThreshold = 30.0
+
+        /**
+         * Sets the eye distance above which to reduce the size of placemarks in this tactical graphics, in meters.
+         */
+        var eyeDistanceScalingThreshold = DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD
 
         /**
          * Controls the Tactical Graphics outline width. If 0, then the outline is disabled.
@@ -113,6 +120,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
             // Draw available shapes
             for (renderable in shapes) {
                 if (renderable is Highlightable) renderable.isHighlighted = isHighlighted
+                if (renderable is Placemark) renderable.eyeDistanceScalingThreshold = eyeDistanceScalingThreshold
                 if (renderable !is Label || isHighlighted || currentScale <= labelScaleThreshold) renderable.render(rc)
             }
         }
@@ -139,6 +147,8 @@ abstract class AbstractMilStd2525TacticalGraphic(
             imageRotation = angle
             imageRotationReference = OrientationMode.RELATIVE_TO_GLOBE
             imageTiltReference = OrientationMode.RELATIVE_TO_GLOBE
+            isEyeDistanceScaling = true
+            attributes.minimumImageScale = MINIMUM_IMAGE_SCALE
             pickDelegate = this@AbstractMilStd2525TacticalGraphic
         }
 

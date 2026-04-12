@@ -13,6 +13,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
 /**
@@ -27,7 +28,7 @@ open class GoToAnimator(
     /**
      * The frequency in milliseconds at which to animate the position change.
      */
-    var animationFrequency = 20L
+    var animationFrequency = 20.milliseconds
     /**
      * The animation's duration, in milliseconds. When the distance is short, less than twice the viewport
      * size, the travel time is reduced proportionally to the distance to travel. It therefore takes less

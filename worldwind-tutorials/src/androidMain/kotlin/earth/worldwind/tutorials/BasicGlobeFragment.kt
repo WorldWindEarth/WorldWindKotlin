@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import earth.worldwind.WorldWindow
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
@@ -39,14 +40,14 @@ open class BasicGlobeFragment: Fragment() {
                 imageFormat = "image/jpeg",
                 name = "Google Satellite"
             ).apply {
-                wwd.mainScope.launch { configureCache(contentManager, "GSat") }
+                lifecycleScope.launch { configureCache(contentManager, "GSat") }
             })
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
         }
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            wwd.mainScope.launch { configureCache(contentManager, "NASADEM") }
+            lifecycleScope.launch { configureCache(contentManager, "NASADEM") }
         })
         return wwd
     }

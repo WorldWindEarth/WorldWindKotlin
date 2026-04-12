@@ -4,6 +4,7 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
+import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.view.Choreographer
@@ -22,9 +23,13 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SynchronizedPool
 import earth.worldwind.util.kgl.AndroidKgl
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.runBlocking
 import earth.worldwind.util.kgl.TranslucentEGLConfigChooser
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.ceil
@@ -38,11 +43,7 @@ import kotlin.math.roundToInt
 open class WorldWindow @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, configChooser: EGLConfigChooser? = null,
     renderResourceCache: RenderResourceCache = RenderResourceCache(context)
-) : GLSurfaceView(context, attrs), FrameCallback, GLSurfaceView.Renderer {
-    /**
-     * Main WorldWindow scope to execute jobs which should be canceled on GL surface destruction
-     */
-    val mainScope get() = engine.renderResourceCache.mainScope
+) : GLSurfaceView(context, attrs), FrameCallback, GLSurfaceView.Renderer, WorldWind.EventListener {
     /**
      * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic
      */
@@ -63,7 +64,8 @@ open class WorldWindow @JvmOverloads constructor(
     protected val frameQueue = ConcurrentLinkedQueue<Frame>()
     protected val pickQueue = ConcurrentLinkedQueue<Frame>()
     protected var currentFrame: Frame? = null
-    protected var redrawJob: Job? = null
+    protected val mainHandler = Handler(Looper.getMainLooper())
+    protected val redrawPosted = AtomicBoolean(false)
     protected var isWaitingForRedraw = false
     /**
      * Control memory consumption and trim render resource cache when system os low on memory
@@ -104,8 +106,7 @@ open class WorldWindow @JvmOverloads constructor(
 
         // Cancel any outstanding request redraw messages.
         Choreographer.getInstance().removeFrameCallback(this)
-        redrawJob?.cancel()
-        redrawJob = null
+        mainHandler.removeCallbacksAndMessages(null)
         isWaitingForRedraw = false
     }
 
@@ -231,14 +232,26 @@ open class WorldWindow @JvmOverloads constructor(
         runBlocking { pickMeshPointAsync(x, y, forceDepthPointPick).await() }
 
     /**
+     * Removes resource ID from the missed resource list
+     */
+    override fun unmarkResourceAbsent(resourceId: Int) {
+        mainHandler.post { engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(resourceId) }
+    }
+
+    /**
      * Request that this WorldWindow update its display. Prior changes to this WorldWindow's Camera, Globe and
      * Layers (including the contents of layers) are reflected on screen sometime after calling this method. May be
      * called from any thread.
      */
-    fun requestRedraw() {
-        // Forward calls to requestRedraw to the main thread.
-        if (Thread.currentThread() != Looper.getMainLooper().thread) redrawJob = mainScope.launch { doRequestRedraw() }
-        else doRequestRedraw()
+    override fun requestRedraw() {
+        if (Thread.currentThread() == Looper.getMainLooper().thread) {
+            doRequestRedraw()
+        } else if (redrawPosted.compareAndSet(false, true)) {
+            mainHandler.post {
+                redrawPosted.set(false)
+                doRequestRedraw()
+            }
+        }
     }
 
     private fun doRequestRedraw() {
@@ -301,7 +314,7 @@ open class WorldWindow @JvmOverloads constructor(
     }
 
     override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
-        mainScope.launch {
+        mainHandler.post {
             // Set the WorldWind's new viewport dimensions and current screen density factor.
             engine.setupViewport(width, height, context.resources.displayMetrics.density)
 
@@ -350,21 +363,15 @@ open class WorldWindow @JvmOverloads constructor(
     override fun surfaceCreated(holder: SurfaceHolder) {
         super.surfaceCreated(holder)
 
-        // Subscribe on events from WorldWind's global event bus.
-        mainScope.launch {
-            WorldWind.events.collect {
-                when (it) {
-                    is WorldWind.Event.RequestRedraw -> doRequestRedraw()
-                    is WorldWind.Event.UnmarkResourceAbsent -> {
-                        engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(it.resourceId)
-                    }
-                }
-            }
-        }
+        // Set up to receive broadcast messages from WorldWind's global message center.
+        WorldWind.addListener(this)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         super.surfaceDestroyed(holder)
+
+        // Release this WorldWindow reference from WorldWind's global message service.
+        WorldWind.removeListener(this)
 
         // Reset the WorldWindow's internal state.
         reset()

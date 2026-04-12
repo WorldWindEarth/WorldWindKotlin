@@ -263,6 +263,16 @@ open class BoundingBox {
     }
 
     /**
+     * Generates the 8 corner points of this bounding box in 3D space.
+     * @return a list of 8 `Vec3` points representing the corners of the bounding box
+     */
+    fun getCorners(): List<Vec3> = ArrayList<Vec3>(8).apply {
+        for (dt in listOf(-0.5, 0.5)) for (dr in listOf(-0.5, 0.5)) for (ds in listOf(-0.5, 0.5)) add(
+            Vec3(center).add(r.times(dr)).add(s.times(ds)).add(t.times(dt))
+        )
+    }
+
+    /**
      * Translates this bounding box by specified components.
      *
      * @param x the X translation component
