@@ -23,8 +23,7 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
 
     override fun allocTexImage(dc: DrawContext) {
         try {
-            val source = image ?: return
-            val pixels = source.toBgraBytes()
+            val pixels = image?.toBgraBytes() ?: return
 
             // Specify the OpenGL texture 2D object's base image data (level 0).
             dc.gl.pixelStorei(GL_UNPACK_ALIGNMENT, 1)

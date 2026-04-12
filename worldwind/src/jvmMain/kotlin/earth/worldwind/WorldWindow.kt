@@ -10,8 +10,6 @@ import earth.worldwind.geom.Line
 import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Viewport
 import earth.worldwind.gesture.SelectDragDetector
-import earth.worldwind.globe.elevation.coverage.ElevationCoverage
-import earth.worldwind.layer.Layer
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SynchronizedPool
@@ -39,18 +37,13 @@ import kotlin.math.roundToInt
  *
  * @param renderResourceCache render resource cache shared with the engine lifecycle
  * @param capabilities OpenGL capabilities used to create the internal [GLJPanel]
- * @param layerFactory DSL block invoked during initialization to populate [WorldWind.layers]
+ * @param factory DSL block invoked during initialization to populate [WorldWind.layers]
  */
 open class WorldWindow @JvmOverloads constructor(
     protected val renderResourceCache: RenderResourceCache = RenderResourceCache(),
     capabilities: GLCapabilities = defaultCapabilities(),
-    val layerFactory: WorldWindowLayerFactoryScope.() -> Unit
+    protected val factory: (WorldWind) -> Unit
 ) : JPanel(BorderLayout()), WorldWind.EventListener {
-    /**
-     * Main WorldWindow scope to execute jobs bound to render resource lifecycle.
-     */
-    val mainScope get() = renderResourceCache.mainScope
-
     /**
      * Swing OpenGL panel that presents rendered frames.
      */
@@ -254,7 +247,7 @@ open class WorldWindow @JvmOverloads constructor(
         }
         engine.setupDrawContext()
 
-        WorldWindowLayerFactoryScope(this).layerFactory()
+        factory(engine)
     }
 
     private fun dispose() {
@@ -353,31 +346,5 @@ open class WorldWindow @JvmOverloads constructor(
                 sampleBuffers = false
             }
         }
-    }
-}
-
-/**
- * Scope receiver used by [WorldWindow.layerFactory] to add layers to a [WorldWindow].
- */
-class WorldWindowLayerFactoryScope(val worldWindow: WorldWindow) {
-    /**
-     * Adds a layer using `+layer` DSL syntax.
-     */
-    operator fun plus(layer: Layer) {
-        addLayer(layer)
-    }
-
-    /**
-     * Adds a [Layer] to the associated [WorldWindow].
-     */
-    fun addLayer(layer: Layer) {
-        worldWindow.engine.layers.addLayer(layer)
-    }
-
-    /**
-     * Adds a [ElevationCoverage] to the associated [WorldWindow] [earth.worldwind.globe.Globe].
-     */
-    fun addElevationCoverage(elevationCoverage: ElevationCoverage) {
-        worldWindow.engine.globe.elevationModel.addCoverage(elevationCoverage)
     }
 }

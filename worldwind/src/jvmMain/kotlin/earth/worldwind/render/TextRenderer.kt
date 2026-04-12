@@ -8,7 +8,7 @@ import java.awt.image.BufferedImage
 import kotlin.math.ceil
 import kotlin.math.max
 
-actual class TextRenderer actual constructor(private val rc: RenderContext) {
+actual open class TextRenderer actual constructor(protected val rc: RenderContext) {
     /**
      * Creates a texture for a specified text string and specified text attributes.
      *
