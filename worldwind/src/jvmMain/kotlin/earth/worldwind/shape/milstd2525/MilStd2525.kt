@@ -4,6 +4,8 @@ import armyc2.c5isr.renderer.MilStdIconRenderer
 import armyc2.c5isr.renderer.utilities.*
 import earth.worldwind.shape.TextAttributes
 import java.awt.Font
+import java.awt.Toolkit
+import kotlin.math.roundToInt
 
 /**
  * This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library
@@ -16,13 +18,15 @@ actual object MilStd2525 {
     init {
         // Establish the default rendering values.
         val rendererSettings = RendererSettings.getInstance()
-        rendererSettings.defaultPixelSize = 36
+        val dpi = Toolkit.getDefaultToolkit().screenResolution
+        rendererSettings.defaultPixelSize = 36.dpToPx(dpi)
+        rendererSettings.deviceDPI = dpi
         rendererSettings.outlineSPControlMeasures = false // Do not outline single point control measures
         rendererSettings.actionPointDefaultFill = false // Do not fill action points
 
         // Depending on screen size and DPI you may want to change the font size.
-        rendererSettings.setLabelFont("Arial", Font.BOLD, 8)
-        rendererSettings.setMPLabelFont("Arial", Font.BOLD, 12)
+        rendererSettings.setLabelFont("Arial", Font.BOLD, 8.dpToPx(dpi))
+        rendererSettings.setMPLabelFont("Arial", Font.BOLD, 12.dpToPx(dpi))
 
         // Configure modifier text output
         rendererSettings.textBackgroundMethod = RendererSettings.TextBackgroundMethod_OUTLINE
@@ -69,4 +73,6 @@ actual object MilStd2525 {
             MilStdAttributes.IconColor to Integer.toHexString(it)
         )
     } ?: emptyMap()
+
+    private fun Int.dpToPx(dpi: Int) = (this * dpi / 96f).roundToInt()
 }
