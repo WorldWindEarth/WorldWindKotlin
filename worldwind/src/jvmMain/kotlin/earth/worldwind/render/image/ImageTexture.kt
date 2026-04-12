@@ -7,6 +7,7 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.isPowerOfTwo
 import java.awt.image.BufferedImage
+import java.awt.image.DataBufferInt
 
 open class ImageTexture(image: BufferedImage) : Texture(image.width, image.height, GL_BGRA, GL_UNSIGNED_BYTE) {
     protected var image: BufferedImage? = image
@@ -48,15 +49,20 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
      * Converts arbitrary BufferedImage storage into tightly packed BGRA bytes for GL_UNSIGNED_BYTE upload.
      */
     protected open fun BufferedImage.toBgraBytes(): ByteArray {
-        val argb = IntArray(width * height)
-        getRGB(0, 0, width, height, argb, 0, width)
+        val argb = if (type == BufferedImage.TYPE_INT_ARGB) (raster.dataBuffer as DataBufferInt).data
+        else IntArray(width * height).also { getRGB(0, 0, width, height, it, 0, width) }
+
         val bgra = ByteArray(argb.size * 4)
         var bi = 0
         for (c in argb) {
-            bgra[bi++] = (c and 0xFF).toByte()          // B
-            bgra[bi++] = ((c ushr 8) and 0xFF).toByte() // G
-            bgra[bi++] = ((c ushr 16) and 0xFF).toByte()// R
-            bgra[bi++] = ((c ushr 24) and 0xFF).toByte()// A
+            val alpha = (c ushr 24) and 0xFF
+            val red = (c ushr 16) and 0xFF
+            val green = (c ushr 8) and 0xFF
+            val blue = c and 0xFF
+            bgra[bi++] = (blue * alpha / 255).toByte()  // B
+            bgra[bi++] = (green * alpha / 255).toByte() // G
+            bgra[bi++] = (red * alpha / 255).toByte()   // R
+            bgra[bi++] = (alpha * alpha / 255).toByte() // A
         }
         return bgra
     }
