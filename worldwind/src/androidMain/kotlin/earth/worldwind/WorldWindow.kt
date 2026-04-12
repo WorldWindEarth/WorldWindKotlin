@@ -206,7 +206,7 @@ open class WorldWindow @JvmOverloads constructor(
             return result
         }
         val pickRequest = pickAsync(x, y)
-        mainScope.launch {
+        engine.renderResourceCache.mainScope.launch {
             val topPickedObject = pickRequest.await().topPickedObject
             val pickedMesh = topPickedObject?.renderable as? AbstractMesh
             if (pickedMesh == null) {

@@ -120,7 +120,7 @@ class TriangleMeshPickingFragment : BasicGlobeFragment() {
             queuedHoverPick = null
             hoverPickInFlight = true
             val hoverRequest = wwd.pickMeshPointAsync(hoverPick.x, hoverPick.y, forceDepthPointPick = true)
-            wwd.mainScope.launch {
+            wwd.engine.renderResourceCache.mainScope.launch {
                 val meshPick = hoverRequest.await()
                 val terrainPosition = if (meshPick == null) {
                     tutorial.pickTerrainPosition(hoverPick.x.toDouble(), hoverPick.y.toDouble())
@@ -136,7 +136,7 @@ class TriangleMeshPickingFragment : BasicGlobeFragment() {
         }
 
         private fun applySelection(x: Float, y: Float, pickRequest: Deferred<PickedRenderablePoint?>?) {
-            wwd.mainScope.launch {
+            wwd.engine.renderResourceCache.mainScope.launch {
                 val meshPick = pickRequest?.await()
                 val terrainPosition = if (meshPick == null) tutorial.pickTerrainPosition(x.toDouble(), y.toDouble()) else null
                 tutorial.handlePick(meshPick, terrainPosition)
