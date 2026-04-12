@@ -377,7 +377,7 @@ open class WorldWind @JvmOverloads constructor(
         // Transform the screen point to Cartesian coordinates at the near and far clip planes, store the result in the
         // ray's origin and direction, respectively. Complete the ray direction by subtracting the near point from the
         // far point and normalizing.
-        if (scratchProjection.unProject(x, viewport.height - y, viewport, result.origin, result.direction)) {
+        if (unProject(scratchProjection, x, viewport.height - y, viewport, result.origin, result.direction)) {
             result.direction.subtract(result.origin).normalize()
             return true
         }

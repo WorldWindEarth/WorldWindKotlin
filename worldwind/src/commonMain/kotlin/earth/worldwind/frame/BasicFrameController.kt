@@ -202,7 +202,7 @@ open class BasicFrameController: FrameController {
         val depth = dc.readPixelDepth(pickPoint.x.toInt(), pickPoint.y.toInt())
         if (depth.isNaN()) return
         scratchMatrix.copy(dc.pointPickModelviewProjection ?: dc.modelviewProjection).invert()
-        if (scratchMatrix.unProject(pickPoint.x, pickPoint.y, depth, dc.viewport, scratchPoint)) {
+        if (unProject(scratchMatrix, pickPoint.x, pickPoint.y, depth, dc.viewport, scratchPoint)) {
             dc.pointPickVertexOrigin?.let { scratchPoint.add(it) }
             dc.pointPickCartesianPoint = Vec3(scratchPoint)
             dc.pointPickDepth = depth

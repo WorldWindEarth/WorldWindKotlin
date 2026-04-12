@@ -11,7 +11,7 @@ open class BoundingBox {
     /**
      * The box's center point.
      */
-    internal val center = Vec3(0.0, 0.0, 0.0)
+    val center = Vec3(0.0, 0.0, 0.0)
     /**
      * The center point of the box's bottom. (The origin of the R axis.)
      */
@@ -56,54 +56,6 @@ open class BoundingBox {
         center.copy(centerIn)
 
         // Copy orientation vectors
-        r.copy(rIn)
-        s.copy(sIn)
-        t.copy(tIn)
-
-        // Compute bottom and top centers along R axis
-        bottomCenter.copy(r).multiply(0.5).negate().add(centerIn)
-        topCenter.copy(r).multiply(0.5).add(centerIn)
-
-        // Compute radius as half the diagonal of the box
-        val diagonal = Vec3(
-            abs(rIn.x) + abs(sIn.x) + abs(tIn.x),
-            abs(rIn.y) + abs(sIn.y) + abs(tIn.y),
-            abs(rIn.z) + abs(sIn.z) + abs(tIn.z)
-        )
-        radius = 0.5 * sqrt(diagonal.dot(diagonal))
-    }
-
-    val centerCopy get() = Vec3(center.x, center.y, center.z)
-
-    fun getBoundingBoxCorners(): List<Vec3> {
-        val corners = ArrayList<Vec3>(8)
-
-        for (dt in listOf(-0.5, 0.5)) {
-            for (dr in listOf(-0.5, 0.5)) {
-                for (ds in listOf(-0.5, 0.5)) {
-                    val corner = Vec3(center)
-                        .add(r.times(dr))
-                        .add(s.times(ds))
-                        .add(t.times(dt))
-                    corners.add(corner)
-                }
-            }
-        }
-        return corners
-    }
-
-    fun getCenter(out: Vec3): Vec3 {
-        out.x = center.x
-        out.y = center.y
-        out.z = center.z
-        return out
-    }
-
-    fun setBoundingBox(centerIn: Vec3, rIn: Vec3, sIn: Vec3, tIn: Vec3) = apply {
-        // Update center
-        center.copy(centerIn)
-
-        // Сopy orientation vectors
         r.copy(rIn)
         s.copy(sIn)
         t.copy(tIn)
