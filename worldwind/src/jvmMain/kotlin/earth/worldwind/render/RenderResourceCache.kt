@@ -6,6 +6,9 @@ import earth.worldwind.draw.DrawContext
 import earth.worldwind.render.image.ImageDecoder
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.render.image.ImageTexture
+import earth.worldwind.render.image.ResamplingMode
+import earth.worldwind.render.image.WrapMode
 import earth.worldwind.util.AbsentResourceList
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.ERROR
@@ -37,7 +40,7 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     /**
      * Main render resource retrieval scope
      */
-    actual val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    actual val mainScope = MainScope()
     /**
      * Identifies requested resources that whose retrieval failed.
      */
@@ -128,12 +131,12 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     }
 
     protected open fun createTexture(options: ImageOptions?, image: java.awt.image.BufferedImage): Texture {
-        val texture = earth.worldwind.render.image.ImageTexture(image)
-        if (options?.resamplingMode == earth.worldwind.render.image.ResamplingMode.NEAREST_NEIGHBOR) {
+        val texture = ImageTexture(image)
+        if (options?.resamplingMode == ResamplingMode.NEAREST_NEIGHBOR) {
             texture.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             texture.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         }
-        if (options?.wrapMode == earth.worldwind.render.image.WrapMode.REPEAT) {
+        if (options?.wrapMode == WrapMode.REPEAT) {
             texture.setTexParameter(GL_TEXTURE_WRAP_S, GL_REPEAT)
             texture.setTexParameter(GL_TEXTURE_WRAP_T, GL_REPEAT)
         }

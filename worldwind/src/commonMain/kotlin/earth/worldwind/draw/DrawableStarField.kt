@@ -45,7 +45,6 @@ open class DrawableStarField protected constructor(): Drawable {
 
     private fun resolveMaxGlPointSize(dc: DrawContext): Float {
         return getValidPointSizeRangeMax(dc, GL_ALIASED_POINT_SIZE_RANGE)
-            ?: getValidPointSizeRangeMax(dc, GL_POINT_SIZE_RANGE)
             ?: getValidPointSizeRangeMax(dc, GL_SMOOTH_POINT_SIZE_RANGE)
             ?: 1f
     }
