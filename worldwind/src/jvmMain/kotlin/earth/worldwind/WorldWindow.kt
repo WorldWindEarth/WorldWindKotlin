@@ -11,19 +11,21 @@ import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Viewport
 import earth.worldwind.gesture.SelectDragDetector
 import earth.worldwind.render.RenderResourceCache
+import earth.worldwind.util.BasicPool
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.util.SynchronizedPool
+import earth.worldwind.util.kgl.GL_POINT_SPRITE
+import earth.worldwind.util.kgl.GL_PROGRAM_POINT_SIZE
 import earth.worldwind.util.kgl.JoglKgl
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import java.awt.BorderLayout
+import java.awt.Toolkit
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
 import java.awt.event.MouseWheelEvent
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.LinkedList
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.math.ceil
@@ -45,13 +47,7 @@ open class WorldWindow @JvmOverloads constructor(
     protected val factory: (WorldWind) -> Unit
 ) : JPanel(BorderLayout()), WorldWind.EventListener {
     /**
-     * Swing OpenGL panel that presents rendered frames.
-     */
-    val glPanel = GLJPanel(capabilities)
-
-    /**
-     * Main WorldWind engine, containing globe, terrain, renderable layers, camera,
-     * viewport and frame rendering logic.
+     * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
      */
     lateinit var engine: WorldWind
         protected set
@@ -62,66 +58,97 @@ open class WorldWindow @JvmOverloads constructor(
     var controller: WorldWindowController = BasicWorldWindowController(this)
 
     /**
-     * Renderable selection and drag gestures detector. Assign [SelectDragDetector.callback]
-     * to handle events.
+     * Renderable selection and drag gestures detector. Assign [SelectDragDetector.callback] to handle events.
      */
     open val selectDragDetector = SelectDragDetector(this)
 
-    protected val framePool = SynchronizedPool<Frame>()
-    protected val frameQueue = ConcurrentLinkedQueue<Frame>()
-    protected val pickQueue = ConcurrentLinkedQueue<Frame>()
+    protected val framePool = BasicPool<Frame>()
+    protected val frameQueue = LinkedList<Frame>()
+    protected val pickQueue = LinkedList<Frame>()
     protected var currentFrame: Frame? = null
-    protected var eventsJob: Job? = null
-
     @Volatile
     protected var isWaitingForRedraw = false
 
-    // Keep JOGL-specific listener private to avoid leaking JOGL types in WorldWindow's public API.
-    private val joglEventListener = object : GLEventListener {
-        override fun init(drawable: GLAutoDrawable) = this@WorldWindow.init(drawable)
-        override fun dispose(drawable: GLAutoDrawable) = this@WorldWindow.dispose()
-        override fun reshape(drawable: GLAutoDrawable, x: Int, y: Int, width: Int, height: Int) =
-            this@WorldWindow.reshape(width, height)
+    /**
+     * Swing OpenGL panel that presents rendered frames.
+     * WorldWindow does not inherit [GLJPanel] directly to hide JOGL dependency from application.
+     */
+    private val glPanel = GLJPanel(capabilities)
 
-        override fun display(drawable: GLAutoDrawable) = this@WorldWindow.display()
+    /**
+     * Keep JOGL-specific listener private to avoid leaking JOGL types in WorldWindow's public API.
+     **/
+    private val glEventListener = object : GLEventListener {
+        override fun init(drawable: GLAutoDrawable) {
+            val gl = drawable.gl.gL3ES3
+            if (!::engine.isInitialized) engine = WorldWind(JoglKgl(gl), renderResourceCache)
+            WorldWind.addListener(this@WorldWindow)
+            engine.setupDrawContext()
+
+            // Enable desktop OpenGL features required for point sprite rendering
+            gl.glEnable(GL_PROGRAM_POINT_SIZE) // Allows gl_PointSize in vertex shader
+            gl.glEnable(GL_POINT_SPRITE) // Populates gl_PointCoord in fragment shader
+
+            // Apply external initialization
+            factory(engine)
+        }
+
+        override fun dispose(drawable: GLAutoDrawable) {
+            clearFrameQueue()
+            WorldWind.removeListener(this@WorldWindow)
+            if (::engine.isInitialized) {
+                engine.renderResourceCache.clear()
+                engine.reset()
+            }
+        }
+
+        override fun reshape(drawable: GLAutoDrawable, x: Int, y: Int, width: Int, height: Int) {
+            if (!::engine.isInitialized || width <= 0 || height <= 0) return
+            engine.setupViewport(width, height, Toolkit.getDefaultToolkit().screenResolution / 96f)
+            doRequestRedraw()
+        }
+
+        override fun display(drawable: GLAutoDrawable) {
+            if (!::engine.isInitialized) return
+
+            pickQueue.poll()?.let { pickFrame ->
+                try {
+                    engine.drawFrame(pickFrame)
+                } catch (e: Exception) {
+                    logMessage(ERROR, "WorldWindow", "display", "Exception while processing pick", e)
+                } finally {
+                    pickFrame.recycle()
+                }
+            }
+
+            frameQueue.poll()?.let { nextFrame ->
+                currentFrame?.recycle()
+                currentFrame = nextFrame
+                isWaitingForRedraw = false
+            }
+
+            try {
+                currentFrame?.let { engine.drawFrame(it) }
+            } catch (e: Exception) {
+                logMessage(ERROR, "WorldWindow", "display", "Exception while drawing frame", e)
+            }
+        }
     }
 
     init {
         add(glPanel, BorderLayout.CENTER)
-        isFocusable = true
-        glPanel.isFocusable = true
-        glPanel.addGLEventListener(joglEventListener)
-
-        val mouseAdapter = object : MouseAdapter() {
-            override fun mousePressed(e: MouseEvent) {
-                dispatchMouseEvent(e)
-            }
-
-            override fun mouseReleased(e: MouseEvent) {
-                dispatchMouseEvent(e)
-            }
-
-            override fun mouseClicked(e: MouseEvent) {
-                dispatchMouseEvent(e)
-            }
-
-            override fun mouseExited(e: MouseEvent) {
-                dispatchMouseEvent(e)
-            }
-        }
-        glPanel.addMouseListener(mouseAdapter)
-        glPanel.addMouseMotionListener(object : MouseMotionAdapter() {
-            override fun mouseDragged(e: MouseEvent) {
-                dispatchMouseEvent(e)
-            }
-
-            override fun mouseMoved(e: MouseEvent) {
-                dispatchMouseEvent(e)
-            }
+        glPanel.addGLEventListener(glEventListener)
+        glPanel.addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) = dispatchMouseEvent(e)
+            override fun mouseReleased(e: MouseEvent) = dispatchMouseEvent(e)
+            override fun mouseClicked(e: MouseEvent) = dispatchMouseEvent(e)
+            override fun mouseExited(e: MouseEvent) = dispatchMouseEvent(e)
         })
-        glPanel.addMouseWheelListener { e ->
-            dispatchWheelEvent(e)
-        }
+        glPanel.addMouseMotionListener(object : MouseMotionAdapter() {
+            override fun mouseDragged(e: MouseEvent) = dispatchMouseEvent(e)
+            override fun mouseMoved(e: MouseEvent) = dispatchMouseEvent(e)
+        })
+        glPanel.addMouseWheelListener(::dispatchWheelEvent)
     }
 
     /**
@@ -215,13 +242,24 @@ open class WorldWindow @JvmOverloads constructor(
     }
 
     /**
+     * Removes a resource ID from the missed resource list.
+     */
+    override fun unmarkResourceAbsent(resourceId: Int) {
+        SwingUtilities.invokeLater { engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(resourceId) }
+    }
+
+    /**
      * Request that this WorldWindow update its display. Prior changes to this WorldWindow's
      * camera, globe and layers (including layer contents) are reflected on screen sometime after
      * calling this method. May be called from any thread.
      */
     override fun requestRedraw() {
-        if (!::engine.isInitialized) return
-        if (!isWaitingForRedraw && !engine.viewport.isEmpty) {
+        if (SwingUtilities.isEventDispatchThread()) doRequestRedraw()
+        else SwingUtilities.invokeLater { doRequestRedraw() }
+    }
+
+    protected open fun doRequestRedraw() {
+        if (!isWaitingForRedraw && ::engine.isInitialized && !engine.viewport.isEmpty) {
             isWaitingForRedraw = true
             try {
                 renderFrame(Frame.obtain(framePool))
@@ -232,74 +270,12 @@ open class WorldWindow @JvmOverloads constructor(
         }
     }
 
-    /**
-     * Removes a resource ID from the missed resource list.
-     */
-    override fun unmarkResourceAbsent(resourceId: Int) {
-        engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(resourceId)
-    }
-
-    private fun init(drawable: GLAutoDrawable) {
-        if (!::engine.isInitialized) {
-            val gl = drawable.gl.gL3ES3
-            engine = WorldWind(JoglKgl(gl), renderResourceCache)
-            WorldWind.addListener(this)
-        }
-        engine.setupDrawContext()
-
-        factory(engine)
-    }
-
-    private fun dispose() {
-        clearFrameQueue()
-        eventsJob?.cancel()
-        eventsJob = null
-        if (::engine.isInitialized) {
-            engine.reset()
-            engine.renderResourceCache.clear()
-        }
-    }
-
-    private fun reshape(width: Int, height: Int) {
-        if (!::engine.isInitialized || width <= 0 || height <= 0) return
-        engine.setupViewport(width, height, 1f)
-        requestRedraw()
-    }
-
-    private fun display() {
-        if (!::engine.isInitialized) return
-
-        pickQueue.poll()?.let { pickFrame ->
-            try {
-                synchronized(engine.renderResourceCache) { engine.drawFrame(pickFrame) }
-            } catch (e: Exception) {
-                logMessage(ERROR, "WorldWindow", "display", "Exception while processing pick in OpenGL thread", e)
-            } finally {
-                pickFrame.recycle()
-            }
-        }
-
-        frameQueue.poll()?.let { nextFrame ->
-            currentFrame?.recycle()
-            currentFrame = nextFrame
-            isWaitingForRedraw = false
-        }
-
-        try {
-            currentFrame?.let { synchronized(engine.renderResourceCache) { engine.drawFrame(it) } }
-        } catch (e: Exception) {
-            logMessage(ERROR, "WorldWindow", "display", "Exception while drawing frame in OpenGL thread", e)
-        }
-    }
-
     protected open fun renderFrame(frame: Frame) {
-        val redrawRequired = synchronized(engine.renderResourceCache) { engine.renderFrame(frame) }
+        val redrawRequired = engine.renderFrame(frame)
         if (redrawRequired) isWaitingForRedraw = false
-
         if (frame.isPickMode) pickQueue.offer(frame) else frameQueue.offer(frame)
-        scheduleDisplay()
-
-        if (!frame.isPickMode && redrawRequired) requestRedraw()
+        glPanel.display()
+        if (!frame.isPickMode && redrawRequired) doRequestRedraw()
     }
 
     protected open fun clearFrameQueue() {
@@ -310,41 +286,26 @@ open class WorldWindow @JvmOverloads constructor(
         isWaitingForRedraw = false
     }
 
-    protected open fun scheduleDisplay() {
-        if (SwingUtilities.isEventDispatchThread()) glPanel.display() else SwingUtilities.invokeLater { glPanel.display() }
-    }
-
-    protected open fun dispatchMouseEvent(event: MouseEvent): Boolean {
-        if (!::engine.isInitialized) return false
-        return try {
-            when {
-                selectDragDetector.onMouseEvent(event) -> true
-                controller.onMouseEvent(event) -> true
-                else -> false
-            }
+    protected open fun dispatchMouseEvent(event: MouseEvent) {
+        if (!::engine.isInitialized) return
+        try {
+            selectDragDetector.onMouseEvent(event) || controller.onMouseEvent(event)
         } catch (e: Exception) {
             logMessage(ERROR, "WorldWindow", "dispatchMouseEvent", "Exception while handling mouse event '$event'", e)
-            false
         }
     }
 
-    protected open fun dispatchWheelEvent(event: MouseWheelEvent): Boolean {
-        if (!::engine.isInitialized) return false
-        return try {
+    protected open fun dispatchWheelEvent(event: MouseWheelEvent) {
+        if (!::engine.isInitialized) return
+        try {
             controller.onMouseWheelEvent(event)
         } catch (e: Exception) {
             logMessage(ERROR, "WorldWindow", "dispatchWheelEvent", "Exception while handling wheel event '$event'", e)
-            false
         }
     }
 
     companion object {
         @JvmStatic
-        protected fun defaultCapabilities(): GLCapabilities {
-            val profile = GLProfile.get(GLProfile.GL4ES3)
-            return GLCapabilities(profile).apply {
-                sampleBuffers = false
-            }
-        }
+        protected fun defaultCapabilities() = GLCapabilities(GLProfile.get(GLProfile.GL4ES3))
     }
 }

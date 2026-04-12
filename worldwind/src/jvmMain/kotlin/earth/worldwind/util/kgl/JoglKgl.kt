@@ -6,6 +6,9 @@ import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.ShortBuffer
 
+const val GL_PROGRAM_POINT_SIZE = 0x8642
+const val GL_POINT_SPRITE = 0x8861
+
 class JoglKgl(private val gl: GL3ES3) : Kgl {
     private val arrI = IntArray(16)
     private val arrF = FloatArray(16)
