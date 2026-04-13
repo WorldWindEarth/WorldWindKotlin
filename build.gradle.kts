@@ -1,5 +1,5 @@
 plugins {
-    val kotlinVersion = "2.3.10" // 2.3.20 failed https://github.com/icerockdev/moko-resources/issues/868
+    val kotlinVersion = "2.3.20"
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("android") version kotlinVersion apply false
@@ -17,7 +17,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.10.4"
+    version = "1.11.0"
 
     extra.apply {
         set("minSdk", 24)
