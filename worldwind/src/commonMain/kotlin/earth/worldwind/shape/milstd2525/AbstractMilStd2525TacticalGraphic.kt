@@ -45,6 +45,11 @@ abstract class AbstractMilStd2525TacticalGraphic(
      * Optional lambda to control current tactical graphics visibility based on its attributes and frame render context
      */
     var isVisible: ((AbstractMilStd2525TacticalGraphic, RenderContext) -> Boolean)? = null
+
+    /**
+     * Sets the eye distance above which to reduce the size of placemarks in this tactical graphics, in meters.
+     */
+    var eyeDistanceScalingThreshold = DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD
     private var minScale = Double.MIN_VALUE
     private var maxScale = Double.MAX_VALUE
     private val lodBuffer = mutableMapOf<Int, List<Renderable>>()
@@ -60,11 +65,6 @@ abstract class AbstractMilStd2525TacticalGraphic(
          * Controls the Tactical Graphics labels visibility threshold
          */
         var labelScaleThreshold = 30.0
-
-        /**
-         * Sets the eye distance above which to reduce the size of placemarks in this tactical graphics, in meters.
-         */
-        var eyeDistanceScalingThreshold = DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD
 
         /**
          * Controls the Tactical Graphics outline width. If 0, then the outline is disabled.
