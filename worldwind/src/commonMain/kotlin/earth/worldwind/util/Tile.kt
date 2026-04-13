@@ -57,13 +57,16 @@ open class Tile protected constructor(
             val nearestPoint = nearestPoint(rc)
             val distanceToCamera = nearestPoint.distanceTo(rc.cameraPoint)
 
-            // Accelerate the degradation of tile details depending on the viewing angle to tile normal
+            // Accelerate the degradation of tile details depending on the viewing angle to tile normal.
+            // Only kicks in at very grazing angles (cosAngle < DEGRADE_THRESHOLD, i.e. < ~20° from horizontal)
+            // to preserve detail at normal viewing angles while still capping extreme horizon tile counts.
             if (isAccelerateDegradation && level.tileDelta.latitude.inDegrees <= 5.625) {
                 val viewingVector = nearestPoint.subtract(rc.cameraPoint)
                 val normalVector =
                     rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
                 val dot = viewingVector.dot(normalVector)
-                texelSize *= abs(dot / (viewingVector.magnitude * normalVector.magnitude))
+                val cosAngle = abs(dot / (viewingVector.magnitude * normalVector.magnitude))
+                if (cosAngle < degradeThreshold) texelSize *= cosAngle / degradeThreshold
             }
 
             // Use individual pixel size based on tile distance to camera
@@ -135,9 +138,17 @@ open class Tile protected constructor(
     companion object {
         /**
          * Accelerate the degradation of tile details depending on the viewing angle to tile normal.
-         * This option dramatically increases performance, but degrades scene background level of details.
+         * Degradation is applied only at very grazing angles (below [degradeThreshold]) to cap horizon
+         * tile counts without sacrificing detail at normal viewing angles.
          */
         var isAccelerateDegradation = true
+
+        /**
+         * cos(angle) threshold below which tile-detail degradation kicks in.
+         * Default 0.35 ≈ 70° from vertical (20° above horizontal).
+         * Lower values = degradation starts closer to the horizon; higher values = more aggressive degradation.
+         */
+        var degradeThreshold = 0.35
 
         /**
          * Creates all tiles for a specified level within a [LevelSet].
