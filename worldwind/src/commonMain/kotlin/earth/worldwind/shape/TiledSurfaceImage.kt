@@ -196,9 +196,12 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val currentAncestorTile = ancestorTile
         val currentAncestorTexture = ancestorTexture
         getTexture(rc, tile, retrieveTopLevelTiles && retrieveCurrentLevel)?.let { tileTexture ->
-            // tile has a texture; use it as a fallback tile for descendants
-            ancestorTile = tile
-            ancestorTexture = tileTexture
+            // Only promote to ancestor when the texture is already on the GPU. A decoded-but-not-yet-uploaded
+            // texture would fail to bind during draw and leave descendant tiles blank.
+            if (tileTexture.isUploaded) {
+                ancestorTile = tile
+                ancestorTexture = tileTexture
+            }
         }
         // each tile has a cached size of 1, recursively process the tile's children
         val children = tile.subdivideToCache(tileFactory, tileCache, 4)
@@ -215,7 +218,21 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
         val absentResourceList = rc.renderResourceCache.absentResourceList
         val opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         if (texture != null) {
-            // use the tile's own texture
+            // When the texture is decoded but not yet uploaded to the GPU, enqueue the ancestor as a visual
+            // placeholder first (lower insertion ordinal → rendered first by DrawableQueue's stable sort).
+            // The tile's own drawable is enqueued immediately after; if its upload fits within the frame's
+            // budget it renders on top and covers the placeholder, otherwise the placeholder remains visible.
+            if (!texture.isUploaded && ancestorTile != null && ancestorTexture != null && useAncestorTileTexture) {
+                ancestorTexCoordMatrix.copy(ancestorTexture.coordTransform)
+                ancestorTexCoordMatrix.multiplyByTileTransform(tile.sector, ancestorTile.sector)
+                val pool = rc.getDrawablePool(DrawableSurfaceTexture.KEY)
+                val drawable = DrawableSurfaceTexture.obtain(pool).set(
+                    activeProgram, tile.sector, opacity, ancestorTexture, ancestorTexCoordMatrix, rc.globe.offset
+                )
+                rc.offerSurfaceDrawable(drawable, zOrder)
+            }
+            // Enqueue the tile's own texture drawable. It either uploads and covers the placeholder above,
+            // or is skipped (budget exhausted) leaving the placeholder visible until the next frame.
             val pool = rc.getDrawablePool(DrawableSurfaceTexture.KEY)
             val drawable = DrawableSurfaceTexture.obtain(pool).set(
                 activeProgram, tile.sector, opacity, texture, texture.coordTransform, rc.globe.offset

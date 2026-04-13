@@ -12,6 +12,7 @@ import java.awt.image.DataBufferInt
 open class ImageTexture(image: BufferedImage) : Texture(image.width, image.height, GL_BGRA, GL_UNSIGNED_BYTE) {
     protected var bgraBytes: ByteArray? = image.toBgraBytes()
     override val hasMipMap = isPowerOfTwo(image.width) && isPowerOfTwo(image.height)
+    override val isImageUpload = true
 
     init {
         coordTransform.setToVerticalFlip()

@@ -523,6 +523,10 @@ open class WorldWind @JvmOverloads constructor(
         // Release resources evicted during the previous frame.
         renderResourceCache.releaseEvictedResources(dc)
 
+        // If the per-frame texture upload budget was exhausted, at least one ready texture was deferred to the next
+        // frame. Request a follow-up redraw so those textures are not stuck until the user interacts with the map.
+        if (!pickMode && dc.isTextureUploadBudgetExhausted) requestRedraw()
+
         // Mark the end of a frame draw.
         if (!pickMode) frameMetrics?.endDrawing(dc)
 

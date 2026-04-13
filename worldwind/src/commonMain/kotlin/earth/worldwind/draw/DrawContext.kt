@@ -30,6 +30,7 @@ open class DrawContext(val gl: Kgl) {
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
     var isPickMode = false
+    var textureUploadCount = 0
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
     private var textureUnit = GL_TEXTURE0
@@ -43,6 +44,11 @@ open class DrawContext(val gl: Kgl) {
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
+    /**
+     * True when the number of image texture GPU uploads in the current frame reached [Texture.maxUploadsPerFrame],
+     * meaning at least one ready texture was deferred to the next frame.
+     */
+    val isTextureUploadBudgetExhausted get() = textureUploadCount >= Texture.maxUploadsPerFrame
     /**
      * Returns count of terrain drawables in queue
      */
@@ -156,6 +162,7 @@ open class DrawContext(val gl: Kgl) {
         pickViewport = null
         pickPoint = null
         isPickMode = false
+        textureUploadCount = 0
         scratchBuffer.fill(0)
         scratchList.clear()
         bufferPool.reset()

@@ -16,6 +16,13 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
          */
         var anisotropicFiltering = AFLevel.AF4X
 
+        /**
+         * Maximum number of image texture GPU uploads allowed per frame.
+         * Increase this value if you prefer faster tile population over frame-rate smoothness,
+         * decrease it for smoother animation on slow GPUs.
+         */
+        var maxUploadsPerFrame = 2
+
         protected fun estimateByteCount(width: Int, height: Int, format: Int, type: Int, hasMipMap: Boolean): Int {
             require(width >= 0 && height >= 0) {
                 logMessage(ERROR, "Texture", "estimateByteCount", "invalidWidthOrHeight")
@@ -52,9 +59,18 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
 
     val coordTransform = Matrix3()
     val byteCount get() = estimateByteCount(width, height, format, type, hasMipMap)
+    /**
+     * True once this texture has been successfully uploaded to the GPU (i.e. its GL name is valid).
+     */
+    val isUploaded get() = name.isValid()
     protected var name = KglTexture.NONE
     protected var parameters: MutableMap<Int, Int>? = null
     protected open val hasMipMap = false
+    /**
+     * True for subclasses whose [allocTexImage] performs a real image data transfer to the GPU.
+     * False for render-target [Texture] instances that only allocate empty GPU memory.
+     */
+    protected open val isImageUpload = false
     private var pickMode = false
 
     fun getTexParameter(name: Int) = parameters?.get(name) ?: 0
@@ -84,6 +100,12 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
     }
 
     protected open fun createTexture(dc: DrawContext) {
+        // Rate-limit GPU image uploads to avoid per-frame stalls blocking on the render thread.
+        // Render-target (isRT) allocations are not counted because they only allocate empty memory.
+        if (isImageUpload) {
+            if (dc.textureUploadCount >= maxUploadsPerFrame) return
+            dc.textureUploadCount++
+        }
         val currentTexture = dc.currentTexture
         try {
             // Create the OpenGL texture 2D object.
