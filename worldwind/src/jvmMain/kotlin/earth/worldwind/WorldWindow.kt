@@ -261,11 +261,13 @@ open class WorldWindow @JvmOverloads constructor(
     protected open fun doRequestRedraw() {
         if (!isWaitingForRedraw && ::engine.isInitialized && !engine.viewport.isEmpty) {
             isWaitingForRedraw = true
-            try {
-                renderFrame(Frame.obtain(framePool))
-            } catch (e: Exception) {
-                logMessage(ERROR, "WorldWindow", "requestRedraw", "Exception while rendering frame", e)
-                isWaitingForRedraw = false
+            SwingUtilities.invokeLater {
+                try {
+                    renderFrame(Frame.obtain(framePool))
+                } catch (e: Exception) {
+                    logMessage(ERROR, "WorldWindow", "requestRedraw", "Exception while rendering frame", e)
+                    isWaitingForRedraw = false
+                }
             }
         }
     }
