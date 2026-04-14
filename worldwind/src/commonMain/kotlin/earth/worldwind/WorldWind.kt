@@ -412,8 +412,8 @@ open class WorldWind @JvmOverloads constructor(
 
     open fun renderFrame(frame: Frame): Boolean {
         // Mark the beginning of a frame render.
-        val pickMode = frame.isPickMode
-        if (!pickMode) frameMetrics?.beginRendering(rc)
+        val pickMode = frame.pickMode
+        if (pickMode == PickMode.NONE) frameMetrics?.beginRendering(rc)
 
         // Restrict camera tilt and roll in 2D
         if (globe.is2D) {
@@ -446,7 +446,7 @@ open class WorldWind @JvmOverloads constructor(
         rc.projection.copy(frame.projection)
         rc.modelview.copy(frame.modelview)
         rc.modelviewProjection.setToMultiply(frame.projection, frame.modelview)
-        if (pickMode) rc.frustum.setToModelviewProjection(frame.projection, frame.modelview, frame.viewport, frame.pickViewport!!)
+        if (pickMode.isPicking) rc.frustum.setToModelviewProjection(frame.projection, frame.modelview, frame.viewport, frame.pickViewport!!)
         else rc.frustum.setToModelviewProjection(frame.projection, frame.modelview, frame.viewport)
 
         // Compute viewing distance and pixel size (for 3D view it will be done after terrain tessellation)
@@ -470,17 +470,16 @@ open class WorldWind @JvmOverloads constructor(
         rc.pickPoint = frame.pickPoint
         rc.pickRay = frame.pickRay
         rc.renderableFilter = frame.renderableFilter
-        rc.isPickMode = frame.isPickMode
-        rc.isDepthPickingMode = frame.isDepthPickingMode
+        rc.pickMode = frame.pickMode
 
         // Let the frame controller render the WorldWindow's current state.
         frameController.renderFrame(rc)
 
         // Propagate redraw requests submitted during rendering.
-        val isRedrawRequested = !pickMode && rc.isRedrawRequested
+        val isRedrawRequested = pickMode == PickMode.NONE && rc.isRedrawRequested
 
         // Mark the end of a frame render.
-        if (!pickMode) frameMetrics?.endRendering(rc)
+        if (pickMode == PickMode.NONE) frameMetrics?.endRendering(rc)
 
         // Reset the render context's state in preparation for the next frame.
         rc.reset()
@@ -490,8 +489,8 @@ open class WorldWind @JvmOverloads constructor(
 
     open fun drawFrame(frame: Frame) {
         // Mark the beginning of a frame draw.
-        val pickMode = frame.isPickMode
-        if (!pickMode) frameMetrics?.beginDrawing(dc)
+        val pickMode = frame.pickMode
+        if (pickMode == PickMode.NONE) frameMetrics?.beginDrawing(dc)
 
         // Set up the draw context according to the frame's current state.
         dc.eyePoint.copy(frame.modelview.extractEyePoint(dc.eyePoint))
@@ -515,13 +514,12 @@ open class WorldWind @JvmOverloads constructor(
         dc.pickedObjects = frame.pickedObjects
         dc.pickViewport = frame.pickViewport
         dc.pickPoint = frame.pickPoint
-        dc.isPickMode = frame.isPickMode
-        dc.isDepthPickingMode = frame.isDepthPickingMode
+        dc.pickMode = frame.pickMode
 
         // Let the frame controller draw the frame.
         frameController.drawFrame(dc)
 
-        if (frame.isDepthPickingMode) {
+        if (frame.pickMode == PickMode.DEPTH) {
             frame.pointPickedRenderablePoint = frame.pointPickedObject?.let { pickedObject ->
                 val depthPickedPoint = dc.pointPickCartesianPoint?.let { cartesianPoint ->
                     PickedRenderablePoint(
@@ -567,7 +565,7 @@ open class WorldWind @JvmOverloads constructor(
         renderResourceCache.releaseEvictedResources(dc)
 
         // Mark the end of a frame draw.
-        if (!pickMode) frameMetrics?.endDrawing(dc)
+        if (pickMode == PickMode.NONE) frameMetrics?.endDrawing(dc)
 
         // Reset the draw context's state in preparation for the next frame.
         dc.reset()

@@ -140,7 +140,7 @@ open class WorldWindow @JvmOverloads constructor(
             frame.pickDeferred = pickDeferred
             frame.pickViewport = pickViewport
             if (pickCenter) configurePickPoint(frame, pickViewport, viewport, includeRay = true)
-            frame.isPickMode = true
+            frame.pickMode = PickMode.OBJECT
             renderFrame(frame)
         }
 
@@ -220,8 +220,7 @@ open class WorldWindow @JvmOverloads constructor(
                 frame.pickViewport = pickViewport
                 configurePickPoint(frame, pickViewport, viewport, includeRay = true)
                 frame.forceDepthPointPick = forceDepthPointPick
-                frame.isPickMode = true
-                frame.isDepthPickingMode = true
+                frame.pickMode = PickMode.DEPTH
                 renderFrame(frame)
             }
         }
@@ -429,11 +428,11 @@ open class WorldWindow @JvmOverloads constructor(
         if (engine.renderFrame(frame)) doRequestRedraw()
 
         // Enqueue the frame for processing on the OpenGL thread as soon as possible and wake the OpenGL thread.
-        if (frame.isPickMode) pickQueue.offer(frame) else frameQueue.offer(frame)
+        if (frame.pickMode.isPicking) pickQueue.offer(frame) else frameQueue.offer(frame)
         requestRender()
 
         // Notify navigator change listeners when the modelview matrix associated with the frame has changed.
-        if (!frame.isPickMode) navigatorEvents.onFrameRendered(frame.modelview, frame.projection, engine.globe.elevationModel.timestamp)
+        if (frame.pickMode == PickMode.NONE) navigatorEvents.onFrameRendered(frame.modelview, frame.projection, engine.globe.elevationModel.timestamp)
     }
 
     protected open fun clearFrameQueue() {

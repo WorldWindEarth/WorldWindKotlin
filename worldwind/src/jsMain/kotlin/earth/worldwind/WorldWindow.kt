@@ -260,7 +260,7 @@ open class WorldWindow(
         frame.pickedObjects = pickedObjects
         frame.pickViewport = pickViewport
         if (pickCenter) configurePickPoint(frame, pickViewport, viewport, includeRay = true)
-        frame.isPickMode = true
+        frame.pickMode = PickMode.OBJECT
         redrawFrame()
 
         return pickedObjects
@@ -280,8 +280,7 @@ open class WorldWindow(
         frame.pickViewport = pickViewport
         configurePickPoint(frame, pickViewport, viewport, includeRay = true)
         frame.forceDepthPointPick = forceDepthPointPick
-        frame.isPickMode = true
-        frame.isDepthPickingMode = true
+        frame.pickMode = PickMode.DEPTH
         redrawFrame()
         return if (pointPickDeferred.isCompleted) pointPickDeferred.getCompleted() else null
     }
@@ -357,12 +356,12 @@ open class WorldWindow(
     }
 
     protected open fun redrawFrame() {
-        val isPickMode = frame.isPickMode
+        val pickMode = frame.pickMode
         try {
             // Prepare to redraw and notify redraw callbacks that a redrawn is about to occur.
-            if (!isPickMode) callRedrawCallbacks(RedrawStage.BEFORE_REDRAW)
+            if (pickMode == PickMode.NONE) callRedrawCallbacks(RedrawStage.BEFORE_REDRAW)
             // Render frame. Propagate redraw requests submitted during rendering.
-            if (engine.renderFrame(frame) || isPickMode) requestRedraw()
+            if (engine.renderFrame(frame) || pickMode.isPicking) requestRedraw()
             // Redraw the WebGL drawing buffer.
             engine.drawFrame(frame)
         } catch (e: Exception) {
@@ -373,7 +372,7 @@ open class WorldWindow(
             // Recycle each frame to be reused
             frame.recycle()
             // Notify redraw callbacks that a redrawn has completed.
-            if (!isPickMode) callRedrawCallbacks(RedrawStage.AFTER_REDRAW)
+            if (pickMode == PickMode.NONE) callRedrawCallbacks(RedrawStage.AFTER_REDRAW)
         }
     }
 

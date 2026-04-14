@@ -1,5 +1,6 @@
 package earth.worldwind.frame
 
+import earth.worldwind.PickMode
 import earth.worldwind.PickedObject.Companion.fromTerrain
 import earth.worldwind.PickedObject.Companion.identifierToUniqueColor
 import earth.worldwind.PickedObject.Companion.uniqueColorToIdentifier
@@ -28,7 +29,7 @@ open class BasicFrameController: FrameController {
     private val scratchMatrix = Matrix4()
 
     override fun renderFrame(rc: RenderContext) {
-        if (!rc.isPickMode) lastTerrains.clear()
+        if (rc.pickMode == PickMode.NONE) lastTerrains.clear()
         if (rc.globe.is2D && rc.globe.isContinuous) {
             // Tessellate and render all visible globe offsets of 2D continuous terrain
             renderGlobeOffset(rc, Globe.Offset.Center)
@@ -56,10 +57,10 @@ open class BasicFrameController: FrameController {
         if (!rc.globe.is2D) adjustViewingParameters(rc)
 
         // Render the terrain picked object or transparent terrain and remember the last terrain for future intersect operations
-        if (!rc.isDepthPickingMode) {
-            if (rc.isPickMode) renderTerrainPickedObject(rc) else renderTerrain(rc).also { lastTerrains[globeOffset] = rc.terrain }
-        } else if (!rc.isPickMode) {
-            lastTerrains[globeOffset] = rc.terrain
+        when (rc.pickMode) {
+            PickMode.NONE -> renderTerrain(rc).also { lastTerrains[globeOffset] = rc.terrain }
+            PickMode.OBJECT -> renderTerrainPickedObject(rc)
+            PickMode.DEPTH -> Unit
         }
 
         // Render all layers on specified globe offset
@@ -117,8 +118,11 @@ open class BasicFrameController: FrameController {
         clearFrame(dc)
         uploadBuffers(dc)
         drawDrawables(dc)
-        if (dc.isDepthPickingMode) resolveDepthPick(dc)
-        else if (dc.isPickMode) resolvePick(dc)
+        when (dc.pickMode) {
+            PickMode.DEPTH -> resolveDepthPick(dc)
+            PickMode.OBJECT -> resolvePick(dc)
+            PickMode.NONE -> Unit
+        }
     }
 
     protected open fun setViewport(dc: DrawContext) {
@@ -127,7 +131,7 @@ open class BasicFrameController: FrameController {
     }
 
     protected open fun clearFrame(dc: DrawContext) {
-        if (dc.isDepthPickingMode) dc.gl.clearColor(1f, 1f, 1f, 1f) else dc.gl.clearColor(0f, 0f, 0f, 0f)
+        if (dc.pickMode == PickMode.DEPTH) dc.gl.clearColor(1f, 1f, 1f, 1f) else dc.gl.clearColor(0f, 0f, 0f, 0f)
         dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
     }
 

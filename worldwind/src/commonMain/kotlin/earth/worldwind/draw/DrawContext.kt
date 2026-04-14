@@ -1,5 +1,6 @@
 package earth.worldwind.draw
 
+import earth.worldwind.PickMode
 import earth.worldwind.PickedObjectList
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec2
@@ -29,8 +30,9 @@ open class DrawContext(val gl: Kgl) {
     var pickedObjects: PickedObjectList? = null
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
-    var isPickMode = false
-    var isDepthPickingMode = false
+    var pickMode = PickMode.NONE
+    val isPickMode get() = pickMode.isPicking
+    val isDepthPickingMode get() = pickMode.isDepthPicking
     var pointPickCartesianPoint: Vec3? = null
     var pointPickModelviewProjection: Matrix4? = null
     var pointPickVertexOrigin: Vec3? = null
@@ -160,8 +162,7 @@ open class DrawContext(val gl: Kgl) {
         pickedObjects = null
         pickViewport = null
         pickPoint = null
-        isPickMode = false
-        isDepthPickingMode = false
+        pickMode = PickMode.NONE
         pointPickCartesianPoint = null
         pointPickModelviewProjection = null
         pointPickVertexOrigin = null

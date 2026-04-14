@@ -1,5 +1,6 @@
 package earth.worldwind.frame
 
+import earth.worldwind.PickMode
 import earth.worldwind.PickedObject
 import earth.worldwind.PickedObjectList
 import earth.worldwind.PickedRenderablePoint
@@ -32,8 +33,9 @@ open class Frame {
     var pointPickDeferred: CompletableDeferred<PickedRenderablePoint?>? = null
     var pointPickedRenderablePoint: PickedRenderablePoint? = null
     var forceDepthPointPick = false
-    var isPickMode = false
-    var isDepthPickingMode = false
+    var pickMode = PickMode.NONE
+    val isPickMode get() = pickMode.isPicking
+    val isDepthPickingMode get() = pickMode.isDepthPicking
     private var pool: Pool<Frame>? = null
 
     companion object {
@@ -65,8 +67,7 @@ open class Frame {
         pointPickDeferred = null
         pointPickedRenderablePoint = null
         forceDepthPointPick = false
-        isPickMode = false
-        isDepthPickingMode = false
+        pickMode = PickMode.NONE
         pool?.release(this) // return this instance to the pool
         pool = null
     }

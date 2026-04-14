@@ -1,5 +1,6 @@
 package earth.worldwind.render
 
+import earth.worldwind.PickMode
 import earth.worldwind.PickedObject
 import earth.worldwind.PickedObjectList
 import earth.worldwind.draw.*
@@ -59,8 +60,9 @@ open class RenderContext {
     var pickPoint: Vec2? = null
     var pickRay: Line? = null
     var renderableFilter: Renderable? = null
-    var isPickMode = false
-    var isDepthPickingMode = false
+    var pickMode = PickMode.NONE
+    val isPickMode get() = pickMode.isPicking
+    val isDepthPickingMode get() = pickMode.isDepthPicking
     var isRedrawRequested = false
         protected set
     private var pickedObjectId = 0
@@ -97,8 +99,7 @@ open class RenderContext {
         pickPoint = null
         pickRay = null
         renderableFilter = null
-        isPickMode = false
-        isDepthPickingMode = false
+        pickMode = PickMode.NONE
         pickedObjectId = 0
         isRedrawRequested = false
         pixelSizeFactor = 0.0
