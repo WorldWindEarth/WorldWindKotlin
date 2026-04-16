@@ -149,8 +149,9 @@ open class ElevationDecoder: Closeable {
     fun encodePng(pixels: ShortBuffer, tileWidth: Int, tileHeight: Int): ByteArray = ByteArrayOutputStream().use {
         val imageInfo = ImageInfo(tileWidth, tileHeight, 16, false, true, false)
         val writer = PngWriter(it, imageInfo)
+        writer.setCompLevel(1) // Use fastest compression for local tile cache
+        val row = ImageLineInt(writer.imgInfo, IntArray(tileWidth))
         for (y in 0 until tileHeight) {
-            val row = ImageLineInt(writer.imgInfo, IntArray(tileWidth))
             for (x in 0 until tileWidth) row.scanline[x] = pixels[y * tileWidth + x].toInt()
             writer.writeRow(row)
         }
