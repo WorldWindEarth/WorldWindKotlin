@@ -2,7 +2,7 @@ package earth.worldwind.globe.geoid
 
 import dev.icerock.moko.resources.AssetResource
 import earth.worldwind.geom.Angle
-import earth.worldwind.util.LruMemoryCache
+import earth.worldwind.util.LongLruMemoryCache
 import earth.worldwind.util.format.format
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -21,7 +21,7 @@ import kotlin.math.min
  */
 open class EGM2008Geoid(protected val offsetsFile: AssetResource): Geoid {
     override val displayName = "EGM2008"
-    protected val offsetCache = LruMemoryCache<Int, FloatArray>((CACHE_SIZE * 8) / 10, CACHE_SIZE)
+    protected val offsetCache = LongLruMemoryCache<FloatArray>((CACHE_SIZE * 8) / 10, CACHE_SIZE)
 
     override fun getOffset(latitude: Angle, longitude: Angle) = getOffset(latitude.inDegrees, longitude.inDegrees)
 
@@ -71,7 +71,7 @@ open class EGM2008Geoid(protected val offsetsFile: AssetResource): Geoid {
     }
 
     protected fun getLatRows(latRow: Int): Array<FloatArray?> {
-        val interpRowIndices = intArrayOf(latRow, latRow + 1)
+        val interpRowIndices = longArrayOf(latRow.toLong(), latRow.toLong() + 1)
         var retrievalRequired = false
         val latDataArray = arrayOfNulls<FloatArray>(2)
         for (i in interpRowIndices.indices) {
@@ -85,7 +85,7 @@ open class EGM2008Geoid(protected val offsetsFile: AssetResource): Geoid {
             val offsetFile = RandomAccessFile(offsetsFile.originalPath, "r")
             for (i in interpRowIndices.indices) {
                 if (interpRowIndices[i] < N_LATITUDE_ROWS && latDataArray[i] == null) {
-                    offsetFile.seek(interpRowIndices[i].toLong() * N_LAT_ROW_BYTES)
+                    offsetFile.seek(interpRowIndices[i] * N_LAT_ROW_BYTES)
                     val latByteData = ByteArray(N_LAT_ROW_BYTES)
                     offsetFile.read(latByteData)
                     val latByteBuffer = ByteBuffer.wrap(latByteData).order(ByteOrder.LITTLE_ENDIAN)

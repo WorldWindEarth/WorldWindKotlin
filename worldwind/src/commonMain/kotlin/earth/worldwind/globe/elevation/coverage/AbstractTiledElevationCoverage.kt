@@ -10,7 +10,7 @@ import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISS
 import earth.worldwind.util.AbsentResourceList
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
-import earth.worldwind.util.LruMemoryCache
+import earth.worldwind.util.LongLruMemoryCache
 import earth.worldwind.util.format.format
 import earth.worldwind.util.math.fract
 import earth.worldwind.util.math.mod
@@ -51,7 +51,7 @@ abstract class AbstractTiledElevationCoverage(
      * The list of elevation retrievals in progress.
      */
     protected val currentRetrievals = mutableSetOf<Long>()
-    protected var coverageCache = LruMemoryCache<Long, ShortArray>(1024 * 1024 * 64)
+    protected var coverageCache = LongLruMemoryCache<ShortArray>(1024 * 1024 * 64)
     protected var isRetrievalEnabled = false
     protected val absentResourceList = AbsentResourceList<Long>(3, 5.seconds)
     protected val mainScope = MainScope()
@@ -65,7 +65,7 @@ abstract class AbstractTiledElevationCoverage(
      * Setup custom coverage cache size according to device capabilities and user needs.
      */
     fun setupCoverageCache(capacity: Long, lowWater: Long = (capacity * 0.75).toLong()) {
-        coverageCache = LruMemoryCache(capacity, lowWater)
+        coverageCache = LongLruMemoryCache(capacity, lowWater)
     }
 
     override fun clear() {
@@ -83,13 +83,14 @@ abstract class AbstractTiledElevationCoverage(
             // enable retrieval of the last and the first matrix
             isRetrievalEnabled = retrieve && (idx == targetIdx || idx == 0)
             val tileMatrix = tileMatrixSet.entries[idx]
-            val deltaLat = tileMatrix.sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
-            val deltaLon = tileMatrix.sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
-            val row = ((tileMatrix.sector.maxLatitude.inDegrees - latitude.inDegrees) / deltaLat).toInt()
-            val col = ((longitude.inDegrees - tileMatrix.sector.minLongitude.inDegrees) / deltaLon).toInt()
+            val sector = tileMatrix.sector
+            val deltaLat = sector.deltaLatitude.inDegrees / tileMatrix.matrixHeight
+            val deltaLon = sector.deltaLongitude.inDegrees / tileMatrix.matrixWidth
+            val row = ((sector.maxLatitude.inDegrees - latitude.inDegrees) / deltaLat).toInt()
+            val col = ((longitude.inDegrees - sector.minLongitude.inDegrees) / deltaLon).toInt()
             fetchTileArray(tileMatrix, row, col)?.let {
-                val maxLat = tileMatrix.sector.maxLatitude.inDegrees - deltaLat * row
-                val minLon = tileMatrix.sector.minLongitude.inDegrees + deltaLon * col
+                val maxLat = sector.maxLatitude.inDegrees - deltaLat * row
+                val minLon = sector.minLongitude.inDegrees + deltaLon * col
                 val maxX = tileMatrix.tileWidth - 1
                 val maxY = tileMatrix.tileHeight - 1
                 val x = (maxX * (longitude.inDegrees - minLon) / deltaLon).toFloat()
