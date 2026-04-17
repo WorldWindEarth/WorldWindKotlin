@@ -14,7 +14,6 @@ import kotlin.jvm.JvmStatic
 import kotlin.math.PI
 import kotlin.math.log2
 import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 abstract class AbstractShape(
     override var attributes: ShapeAttributes
@@ -162,7 +161,7 @@ abstract class AbstractShape(
         return point.distanceTo(rc.cameraPoint)
     }
 
-    protected open fun cameraDistanceCartesian(rc: RenderContext, array: FloatArray, count: Int, stride: Int, offset: Vec3): Double {
+    protected open fun cameraDistanceSquared(rc: RenderContext, array: FloatArray, count: Int, stride: Int, offset: Vec3): Double {
         val cx = rc.cameraPoint.x - offset.x
         val cy = rc.cameraPoint.y - offset.y
         val cz = rc.cameraPoint.z - offset.z
@@ -177,7 +176,7 @@ abstract class AbstractShape(
             val distance2 = dx * dx + dy * dy + dz * dz
             if (minDistance2 > distance2) minDistance2 = distance2
         }
-        return sqrt(minDistance2)
+        return minDistance2
     }
 
     protected open fun computeRepeatingTexCoordTransform(

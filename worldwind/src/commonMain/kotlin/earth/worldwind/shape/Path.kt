@@ -14,6 +14,7 @@ import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
+import kotlin.math.sqrt
 
 open class Path @JvmOverloads constructor(
     positions: List<Position>, attributes: ShapeAttributes = ShapeAttributes()
@@ -91,10 +92,12 @@ open class Path @JvmOverloads constructor(
         val drawable: Drawable
         val drawState: DrawShapeState
         val cameraDistance: Double
+        val cameraDistanceSq: Double
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
+            cameraDistanceSq = 0.0 // Not used by surface shape
             cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(currentBoundindData.boundingSector)
@@ -104,9 +107,10 @@ open class Path @JvmOverloads constructor(
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
             drawState = drawable.drawState
-            cameraDistance = cameraDistanceCartesian(
+            cameraDistanceSq = cameraDistanceSquared(
                 rc, currentData.vertexArray, currentData.vertexArray.size, OUTLINE_SEGMENT_STRIDE, currentData.vertexOrigin
             )
+            cameraDistance = sqrt(cameraDistanceSq)
         }
 
         // Use triangles mode to draw lines
@@ -146,9 +150,9 @@ open class Path @JvmOverloads constructor(
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, zOrder)
-        else rc.offerShapeDrawable(drawable, cameraDistance)
+        else rc.offerShapeDrawable(drawable, cameraDistanceSq)
 
-        drawInterior(rc, drawState, cameraDistance)
+        drawInterior(rc, drawState, cameraDistanceSq)
     }
 
     protected open fun drawOutline(rc: RenderContext, drawState: DrawShapeState, cameraDistance: Double) {
@@ -179,7 +183,7 @@ open class Path @JvmOverloads constructor(
         }
     }
 
-    protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState, cameraDistance: Double) {
+    protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState, cameraDistanceSq: Double) {
         if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
 
         // Configure the drawable to display the shape's extruded interior.
@@ -223,7 +227,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.texCoordAttrib.offset = 12
             drawStateExtrusion.drawElements(GL_TRIANGLE_STRIP, currentData.interiorElements.size, GL_UNSIGNED_INT, 0)
 
-            rc.offerShapeDrawable(drawableExtrusion, cameraDistance)
+            rc.offerShapeDrawable(drawableExtrusion, cameraDistanceSq)
         }
     }
 

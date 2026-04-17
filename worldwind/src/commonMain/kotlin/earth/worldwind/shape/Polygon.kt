@@ -23,6 +23,7 @@ import earth.worldwind.util.kgl.GL_TRIANGLES
 import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
+import kotlin.math.sqrt
 
 open class Polygon @JvmOverloads constructor(
     positions: List<Position> = emptyList(), attributes: ShapeAttributes = ShapeAttributes()
@@ -172,10 +173,12 @@ open class Polygon @JvmOverloads constructor(
         val drawableLines: Drawable
         val drawStateLines: DrawShapeState
         val cameraDistance: Double
+        val cameraDistanceSq: Double
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
+            cameraDistanceSq = 0.0 // Not used by surface shape
             cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(currentBoundindData.boundingSector)
@@ -197,9 +200,10 @@ open class Polygon @JvmOverloads constructor(
             drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
 
-            cameraDistance = cameraDistanceCartesian(
+            cameraDistanceSq = cameraDistanceSquared(
                 rc, currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE, currentData.vertexOrigin
             )
+            cameraDistance = sqrt(cameraDistanceSq)
         }
 
         // Use the basic GLSL program to draw the shape.
@@ -276,8 +280,8 @@ open class Polygon @JvmOverloads constructor(
             rc.offerSurfaceDrawable(drawable, zOrder)
             rc.offerSurfaceDrawable(drawableLines, zOrder)
         } else {
-            rc.offerShapeDrawable(drawableLines, cameraDistance)
-            rc.offerShapeDrawable(drawable, cameraDistance)
+            rc.offerShapeDrawable(drawableLines, cameraDistanceSq)
+            rc.offerShapeDrawable(drawable, cameraDistanceSq)
         }
     }
 

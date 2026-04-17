@@ -295,7 +295,7 @@ open class BoundingBox {
         topCenter.z += z
     }
 
-    fun distanceTo(point: Vec3): Double {
+    fun distanceToSquared(point: Vec3): Double {
         var minDist2 = Double.POSITIVE_INFINITY
 
         // Start with distance to the center of the box.
@@ -323,7 +323,7 @@ open class BoundingBox {
         endPoint1.z = center.z + 0.5 * s.z
         dist2 = endPoint1.distanceToSquared(point)
         if (minDist2 > dist2) minDist2 = dist2
-        return sqrt(minDist2)
+        return minDist2
     }
 
     /**

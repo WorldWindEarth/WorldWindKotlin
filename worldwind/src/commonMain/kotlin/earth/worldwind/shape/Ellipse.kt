@@ -300,6 +300,7 @@ open class Ellipse @JvmOverloads constructor(
         val drawableLines: Drawable
         val drawStateLines: DrawShapeState
         val cameraDistance: Double
+        val cameraDistanceSq: Double
         if (isSurfaceShape) {
             val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
             drawable = DrawableSurfaceShape.obtain(pool)
@@ -318,6 +319,7 @@ open class Ellipse @JvmOverloads constructor(
             drawableLines.version = computeVersion()
             drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
+            cameraDistanceSq = 0.0 // Not used by surface shape
             cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
@@ -327,7 +329,8 @@ open class Ellipse @JvmOverloads constructor(
             drawableLines = DrawableShape.obtain(pool)
             drawStateLines = drawableLines.drawState
 
-            cameraDistance = currentBoundindData.boundingBox.distanceTo(rc.cameraPoint)
+            cameraDistanceSq = currentBoundindData.boundingBox.distanceToSquared(rc.cameraPoint)
+            cameraDistance = sqrt(cameraDistanceSq)
         }
 
         // Use the basic GLSL program to draw the shape.
@@ -390,8 +393,8 @@ open class Ellipse @JvmOverloads constructor(
             rc.offerSurfaceDrawable(drawable, zOrder)
             rc.offerSurfaceDrawable(drawableLines, zOrder)
         } else {
-            rc.offerShapeDrawable(drawableLines, cameraDistance)
-            rc.offerShapeDrawable(drawable, cameraDistance)
+            rc.offerShapeDrawable(drawableLines, cameraDistanceSq)
+            rc.offerShapeDrawable(drawable, cameraDistanceSq)
         }
     }
 

@@ -352,8 +352,9 @@ open class RenderContext {
         drawableQueue?.offerDrawable(drawable, DrawableGroup.SURFACE, zOrder)
     }
 
-    fun offerShapeDrawable(drawable: Drawable, cameraDistance: Double) {
-        drawableQueue?.offerDrawable(drawable, DrawableGroup.SHAPE, -cameraDistance) // order by descending distance to the viewer
+    fun offerShapeDrawable(drawable: Drawable, cameraDistanceSq: Double) {
+        // order by descending squared distance to the viewer
+        drawableQueue?.offerDrawable(drawable, DrawableGroup.SHAPE, -cameraDistanceSq)
     }
 
     fun offerDrawableTerrain(drawable: DrawableTerrain, sortOrder: Double) {

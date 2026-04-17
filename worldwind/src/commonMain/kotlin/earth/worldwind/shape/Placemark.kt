@@ -18,6 +18,7 @@ import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Represents a Placemark shape. A placemark displays an image, a label and a leader connecting the placemark's
@@ -230,9 +231,12 @@ open class Placemark @JvmOverloads constructor(
             placePointDirty = false
         }
 
-        // Compute the camera distance to the place point, the value which is used for ordering the placemark drawable
-        // and determining the amount of depth offset to apply.
-        cameraDistance = if (isAlwaysOnTop) 0.0 else if (rc.globe.is2D) rc.viewingDistance else rc.cameraPoint.distanceTo(placePoint)
+        // Compute the squared camera distance to the place point for ordering and comparisons; compute the actual
+        // distance only when needed for math (eye-distance scaling, billboard pixel size, level-of-detail selector).
+        val cameraDistanceSq = if (isAlwaysOnTop) 0.0 else if (rc.globe.is2D) rc.viewingDistance * rc.viewingDistance
+        else rc.cameraPoint.distanceToSquared(placePoint)
+        cameraDistance = if (levelOfDetailSelector != null || isEyeDistanceScaling || isBillboardingEnabled && !isAlwaysOnTop)
+            sqrt(cameraDistanceSq) else 0.0
 
         // Allow the placemark to adjust the level of detail based on distance to the camera
         if (levelOfDetailSelector?.selectLevelOfDetail(rc, this, cameraDistance) == false) return // skip rendering
@@ -299,7 +303,7 @@ open class Placemark @JvmOverloads constructor(
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0
         val absTilt = abs(rc.camera.tilt.inDegrees)
-        if (cameraDistance < rc.horizonDistance && absTilt <= 90) {
+        if (cameraDistanceSq < rc.horizonDistance * rc.horizonDistance && absTilt <= 90) {
             depthOffset = (1 - absTilt / 90) * DEFAULT_DEPTH_OFFSET
         }
 
@@ -331,7 +335,7 @@ open class Placemark @JvmOverloads constructor(
                 val pool = rc.getDrawablePool(DrawableLines.KEY)
                 val drawable = DrawableLines.obtain(pool)
                 prepareDrawableLeader(rc, drawable)
-                rc.offerShapeDrawable(drawable, cameraDistance)
+                rc.offerShapeDrawable(drawable, cameraDistanceSq)
             }
         }
 
@@ -344,11 +348,11 @@ open class Placemark @JvmOverloads constructor(
             val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
             val drawable = DrawableScreenTexture.obtain(pool)
             prepareDrawableIcon(rc, drawable, activeTexture)
-            rc.offerShapeDrawable(drawable, cameraDistance)
+            rc.offerShapeDrawable(drawable, cameraDistanceSq)
         }
 
         // If there's a label, perform these same operations for the label texture.
-        if ((!isEyeDistanceScaling || cameraDistance <= eyeDistanceScalingLabelThreshold) && mustDrawLabel(rc)) {
+        if ((!isEyeDistanceScaling || cameraDistanceSq <= eyeDistanceScalingLabelThreshold * eyeDistanceScalingLabelThreshold) && mustDrawLabel(rc)) {
             // Render the label's texture when the label's position is in the frustum. If the label's position is outside
             // the frustum we don't do anything. This ensures that label textures are rendered only as necessary.
             rc.getText(label, activeAttributes.labelAttributes, rc.frustum.containsPoint(placePoint))?.let { labelTexture ->
@@ -367,7 +371,7 @@ open class Placemark @JvmOverloads constructor(
                     val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
                     val drawable = DrawableScreenTexture.obtain(pool)
                     prepareDrawableLabel(rc, drawable, labelTexture)
-                    rc.offerShapeDrawable(drawable, cameraDistance)
+                    rc.offerShapeDrawable(drawable, cameraDistanceSq)
                 }
             }
         }

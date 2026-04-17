@@ -3,6 +3,7 @@ package earth.worldwind.geom
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.globe.Globe
+import kotlin.math.sqrt
 import kotlin.test.*
 
 class BoundingBoxTest {
@@ -100,7 +101,7 @@ class BoundingBoxTest {
         val sector = fromDegrees(-0.5, -0.5, 1.0, 1.0)
         boundingBox.setToSector(sector, globe, minElevation, maxElevation)
         val point = globe.geographicToCartesian(ZERO, ZERO, 0.0, Vec3())
-        val result = boundingBox.distanceTo(point)
+        val result = sqrt(boundingBox.distanceToSquared(point))
         assertEquals(boundingBox.center.z - radius, result, 1e-3)
     }
 }

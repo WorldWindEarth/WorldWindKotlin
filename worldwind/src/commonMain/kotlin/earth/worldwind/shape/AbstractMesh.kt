@@ -111,7 +111,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         val pool = rc.getDrawablePool(DrawableMesh.KEY)
         val drawable = DrawableMesh.obtain(pool)
         val drawState = drawable.drawState
-        val cameraDistance = cameraDistanceCartesian(
+        val cameraDistanceSq = cameraDistanceSquared(
             rc, currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE, currentData.vertexOrigin
         )
 
@@ -175,7 +175,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         drawState.enableLighting = activeAttributes.isLightingEnabled
 
         // Enqueue the drawable for processing on the OpenGL thread.
-        rc.offerShapeDrawable(drawable, cameraDistance)
+        rc.offerShapeDrawable(drawable, cameraDistanceSq)
     }
 
     protected open fun drawInterior(rc: RenderContext, drawState: DrawShapeState) {

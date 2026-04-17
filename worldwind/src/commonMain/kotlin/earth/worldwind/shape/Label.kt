@@ -10,6 +10,7 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.BasicShaderProgram
 import kotlin.jvm.JvmOverloads
+import kotlin.math.sqrt
 
 /**
  * Represents a label at a geographic position. Labels display a single line of text according to specified [TextAttributes].
@@ -147,19 +148,21 @@ open class Label @JvmOverloads constructor(
             placePointDirty = false
         }
 
-        // Compute the camera distance to the place point, the value which is used for ordering the label drawable and
-        // determining the amount of depth offset to apply.
-        renderData.cameraDistance = if (isAlwaysOnTop) 0.0 else if (rc.globe.is2D) rc.viewingDistance else rc.cameraPoint.distanceTo(placePoint)
+        // Compute the square camera distance to the place point, the value which is used for ordering
+        // the label drawable and determining the amount of depth offset to apply
+        renderData.cameraDistanceSq = if (isAlwaysOnTop) 0.0
+        else if (rc.globe.is2D) rc.viewingDistance * rc.viewingDistance
+        else rc.cameraPoint.distanceToSquared(placePoint)
 
         // Do not draw labels after the specified threshold
-        if (visibilityThreshold > 0.0 && renderData.cameraDistance > visibilityThreshold) return
+        if (visibilityThreshold > 0.0 && renderData.cameraDistanceSq > visibilityThreshold * visibilityThreshold) return
 
         // Do not draw label if it does not pass external visibility check
-        if (isVisible?.invoke(this, rc, renderData.cameraDistance) == false) return
+        if (isVisible?.invoke(this, rc, sqrt(renderData.cameraDistanceSq)) == false) return
 
         // Compute a screen depth offset appropriate for the current viewing parameters.
         var depthOffset = 0.0
-        if (renderData.cameraDistance < rc.horizonDistance) depthOffset = DEFAULT_DEPTH_OFFSET
+        if (renderData.cameraDistanceSq < rc.horizonDistance * rc.horizonDistance) depthOffset = DEFAULT_DEPTH_OFFSET
 
         // Project the label's model point to screen coordinates, using the screen depth offset to push the screen
         // point's z component closer to the eye point.
@@ -250,7 +253,7 @@ open class Label @JvmOverloads constructor(
         drawable.enableDepthTest = activeAttributes.isDepthTest
 
         // Enqueue a drawable for processing on the OpenGL thread.
-        rc.offerShapeDrawable(drawable, renderData.cameraDistance)
+        rc.offerShapeDrawable(drawable, renderData.cameraDistanceSq)
     }
 
     /**
@@ -282,8 +285,8 @@ open class Label @JvmOverloads constructor(
          */
         val pickColor = Color()
         /**
-         * The distance from the camera position to the label position, in meters.
+         * The squared distance from the camera position to the label position, used for drawable ordering.
          */
-        var cameraDistance = 0.0
+        var cameraDistanceSq = 0.0
     }
 }
