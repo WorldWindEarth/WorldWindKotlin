@@ -52,13 +52,15 @@
 */
 package earth.worldwind.util.glu.tessellator
 
+internal val NO_KEY = Any()
+
 abstract class PriorityQ {
     class PQnode {
         var handle = 0
     }
 
     class PQhandleElem {
-        var key: Any? = null
+        var key: Any = NO_KEY
         var node = 0
     }
 

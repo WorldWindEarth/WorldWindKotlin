@@ -56,7 +56,7 @@ import kotlin.math.abs
 
 internal class PriorityQSort: PriorityQ() {
     private val heap = PriorityQHeap()
-    var keys = arrayOfNulls<Any>(INIT_SIZE)
+    var keys = Array(INIT_SIZE) { NO_KEY }
 
     // JAVA: 'order' contains indices into the keys array.
     // This simulates the indirect pointers used in the original C code
@@ -80,10 +80,7 @@ internal class PriorityQSort: PriorityQ() {
 
     /* really glPqSortInit */
     override fun pqInit(): Boolean {
-        val stack = arrayOfNulls<Stack>(50)
-        for (k in stack.indices) {
-            stack[k] = Stack()
-        }
+        val stack = Array(50) { Stack() }
         var top = 0
         var seed = 2016473283
 
@@ -111,12 +108,12 @@ internal class PriorityQSort: PriorityQ() {
          * Sort the indirect pointers in descending order,
          * using randomized Quicksort
          */
-        stack[top]?.p = p
-        stack[top]?.r = r
+        stack[top].p = p
+        stack[top].r = r
         ++top
         while (--top >= 0) {
-            p = stack[top]!!.p
-            r = stack[top]!!.r
+            p = stack[top].p
+            r = stack[top].r
             while (r > p + 10) {
                 seed = abs(seed * 1539415821 + 1)
                 i = p + seed % (r - p + 1)
@@ -128,21 +125,21 @@ internal class PriorityQSort: PriorityQ() {
                 do {
                     do {
                         ++i
-                    } while (gt(keys[order[i]]!!, keys[piv]!!))
+                    } while (gt(keys[order[i]], keys[piv]))
                     do {
                         --j
-                    } while (lt(keys[order[j]]!!, keys[piv]!!))
+                    } while (lt(keys[order[j]], keys[piv]))
                     swap(order, i, j)
                 } while (i < j)
                 swap(order, i, j) /* Undo last swap */
                 if (i - p < r - j) {
-                    stack[top]?.p = j + 1
-                    stack[top]?.r = r
+                    stack[top].p = j + 1
+                    stack[top].r = r
                     ++top
                     r = i - 1
                 } else {
-                    stack[top]?.p = p
-                    stack[top]?.r = i - 1
+                    stack[top].p = p
+                    stack[top].r = i - 1
                     ++top
                     p = j + 1
                 }
@@ -152,7 +149,7 @@ internal class PriorityQSort: PriorityQ() {
             while (i <= r) {
                 piv = order[i]
                 var j = i
-                while (j > p && lt(keys[order[j - 1]]!!, keys[piv]!!)) {
+                while (j > p && lt(keys[order[j - 1]], keys[piv])) {
                     order[j] = order[j - 1]
                     --j
                 }
@@ -185,7 +182,7 @@ internal class PriorityQSort: PriorityQ() {
             /* If the heap overflows, double its size. */
             max = max shl 1
             //            pq->keys = (PQHeapKey *)memRealloc( pq->keys,(size_t)(pq->max * sizeof( pq->keys[0] )));
-            val pqKeys = arrayOfNulls<Any>(max)
+            val pqKeys = Array(max) { NO_KEY }
             keys.copyInto(pqKeys)
             keys = pqKeys
         }
@@ -200,14 +197,14 @@ internal class PriorityQSort: PriorityQ() {
         if (size == 0) {
             return heap.pqExtractMin()
         }
-        val sortMin = keys[order[size - 1]]!!
+        val sortMin = keys[order[size - 1]]
         if (!heap.pqIsEmpty()) {
             val heapMin = heap.pqMinimum()
             if (heapMin != null && leq(heapMin, sortMin)) return heap.pqExtractMin()
         }
         do {
             --size
-        } while (size > 0 && keys[order[size - 1]] == null)
+        } while (size > 0 && keys[order[size - 1]] === NO_KEY)
         return sortMin
     }
 
@@ -216,7 +213,7 @@ internal class PriorityQSort: PriorityQ() {
         if (size == 0) {
             return heap.pqMinimum()
         }
-        val sortMin = keys[order[size - 1]]!!
+        val sortMin = keys[order[size - 1]]
         if (!heap.pqIsEmpty()) {
             val heapMin = heap.pqMinimum()
             if (heapMin != null && leq(heapMin, sortMin)) return heapMin
@@ -237,8 +234,8 @@ internal class PriorityQSort: PriorityQ() {
             return
         }
         curr = -(curr + 1)
-        keys[curr] = null
-        while (size > 0 && keys[order[size - 1]] == null) {
+        keys[curr] = NO_KEY
+        while (size > 0 && keys[order[size - 1]] === NO_KEY) {
             --size
         }
     }

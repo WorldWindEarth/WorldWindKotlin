@@ -62,7 +62,6 @@ internal class PriorityQHeap : PriorityQ() {
 
     init {
         nodes[1].handle = 1
-        handles[1].key = null
     }
 
     /* really glPqHeapDeletePriorityQ */
@@ -78,11 +77,11 @@ internal class PriorityQHeap : PriorityQ() {
         val hCurr = n[c].handle
         while (true) {
             var child = c shl 1
-            if (child < size && leq(h[n[child + 1].handle].key!!, h[n[child].handle].key!!)) {
+            if (child < size && leq(h[n[child + 1].handle].key, h[n[child].handle].key)) {
                 ++child
             }
             val hChild = n[child].handle
-            if (child > size || leq(h[hCurr].key!!, h[hChild].key!!)) {
+            if (child > size || leq(h[hCurr].key, h[hChild].key)) {
                 n[c].handle = hCurr
                 h[hCurr].node = c
                 break
@@ -101,7 +100,7 @@ internal class PriorityQHeap : PriorityQ() {
         while (true) {
             val parent = c shr 1
             val hParent = n[parent].handle
-            if (parent == 0 || leq(h[hParent].key!!, h[hCurr].key!!)) {
+            if (parent == 0 || leq(h[hParent].key, h[hCurr].key)) {
                 n[c].handle = hCurr
                 h[hCurr].node = c
                 break
@@ -159,14 +158,14 @@ internal class PriorityQHeap : PriorityQ() {
         if (size > 0) {
             n[1].handle = n[size].handle
             h[n[1].handle].node = 1
-            h[hMin].key = null
+            h[hMin].key = NO_KEY
             h[hMin].node = freeList
             freeList = hMin
             if (--size > 0) {
                 floatDown(1)
             }
         }
-        return min
+        return if (min !== NO_KEY) min else null
     }
 
     /* really glPqHeapDelete */
@@ -177,19 +176,20 @@ internal class PriorityQHeap : PriorityQ() {
         n[curr].handle = n[size].handle
         h[n[curr].handle].node = curr
         if (curr <= --size) {
-            if (curr <= 1 || leq(h[n[curr shr 1].handle].key!!, h[n[curr].handle].key!!)) {
+            if (curr <= 1 || leq(h[n[curr shr 1].handle].key, h[n[curr].handle].key)) {
                 floatDown(curr)
             } else {
                 floatUp(curr)
             }
         }
-        h[hCurr].key = null
+        h[hCurr].key = NO_KEY
         h[hCurr].node = freeList
         freeList = hCurr
     }
 
     override fun pqMinimum(): Any? {
-        return handles[nodes[1].handle].key
+        val k = handles[nodes[1].handle].key
+        return if (k !== NO_KEY) k else null
     }
 
     override fun pqIsEmpty(): Boolean {
