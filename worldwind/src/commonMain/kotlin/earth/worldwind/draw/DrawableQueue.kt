@@ -9,13 +9,11 @@ open class DrawableQueue internal constructor(){
     val count get() = size
     /**
      * Sorts drawables by ascending group ID, then ascending order, then by ascending ordinal.
+     * Uses a pre-computed Long sort key per entry to reduce per-comparison work to a single
+     * field access and Long comparison.
      */
-    protected open val sortComparator = Comparator<Entry?> { lhs, rhs ->
-        // Comparator accepts only non-null Entries
-        var result = lhs!!.groupId.compareTo(rhs!!.groupId)
-        if (result == 0) result = lhs.order.compareTo(rhs.order)
-        if (result == 0) result = lhs.ordinal.compareTo(rhs.ordinal)
-        result
+    protected open val sortComparator = Comparator<Entry> { lhs, rhs ->
+        lhs.sortKey.toULong().compareTo(rhs.sortKey.toULong())
     }
 
     companion object {
@@ -42,9 +40,10 @@ open class DrawableQueue internal constructor(){
 
     fun rewindDrawables() { position = 0 }
 
+    @Suppress("UNCHECKED_CAST")
     fun sortDrawables() {
-        // Limit sort to non-null Entries only
-        entries.sortWith(sortComparator, 0, size)
+        // Entries at indices 0..size-1 are always non-null; cast is safe.
+        (entries as Array<Entry>).sortWith(sortComparator, 0, size)
         position = 0
     }
 
@@ -58,15 +57,20 @@ open class DrawableQueue internal constructor(){
 
     protected open class Entry {
         var drawable: Drawable? = null
-        var groupId = DrawableGroup.BACKGROUND
-        var order = 0.0
-        var ordinal = 0
+        /**
+         * Pre-computed sort key encoding groupId (bits 63-62), order top 32 bits (bits 61-30),
+         * ordinal low 30 bits (bits 29-0). Uses IEEE 754 property: for non-negative doubles,
+         * the top 32 raw bits preserve sort order. Ordinal is included explicitly so sort
+         * correctness does not depend on sort-algorithm stability across platforms.
+         * Bit 63 encodes groupId MSB, so the key may be negative — use unsigned comparison.
+         */
+        var sortKey = 0L
 
         fun set(drawable: Drawable, groupId: DrawableGroup, order: Double, ordinal: Int) {
             this.drawable = drawable
-            this.groupId = groupId
-            this.order = order
-            this.ordinal = ordinal
+            sortKey = (groupId.ordinal.toLong() shl 62) or
+                    ((order.toRawBits() ushr 2) and 0x3FFFFFFF00000000L) or
+                    (ordinal.toLong() and 0x3FFFFFFFL)
         }
 
         fun recycle() {
