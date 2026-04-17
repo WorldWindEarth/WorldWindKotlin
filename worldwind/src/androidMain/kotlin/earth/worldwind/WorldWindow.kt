@@ -69,12 +69,16 @@ open class WorldWindow @JvmOverloads constructor(
      */
     protected open val componentCallbacks = object : ComponentCallbacks2 {
         override fun onConfigurationChanged(newConfig: Configuration) {}
+        @Deprecated("Deprecated in Java, but still required to be overwritten")
         override fun onLowMemory() = engine.renderResourceCache.trimStale()
-        override fun onTrimMemory(level: Int) = engine.renderResourceCache.trimStale(when (level) {
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> 3000L
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> 1000L
-            else -> 300L
-        })
+        override fun onTrimMemory(level: Int) {
+            engine.renderResourceCache.trimStale(when {
+                level >= 80 -> 300L   // TRIM_MEMORY_COMPLETE
+                level >= 60 -> 1000L  // TRIM_MEMORY_MODERATE
+                level >= 40 -> 3000L  // TRIM_MEMORY_BACKGROUND
+                else -> return
+            })
+        }
     }
 
     companion object {
