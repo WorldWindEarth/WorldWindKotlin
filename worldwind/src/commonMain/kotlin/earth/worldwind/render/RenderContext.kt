@@ -334,7 +334,7 @@ open class RenderContext {
         } else null
     }
 
-    fun offerGLBufferUpload(key: Any, newVersion: Long, arrayBuilder: () -> NumericArray) {
+    inline fun offerGLBufferUpload(key: Any, newVersion: Long, arrayBuilder: () -> NumericArray) {
         (renderResourceCache[key] as? BufferObject)?.let { buffer ->
             if (buffer.version < newVersion) {
                 val array = arrayBuilder()
