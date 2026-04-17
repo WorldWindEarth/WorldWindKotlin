@@ -58,18 +58,21 @@ open class DrawableQueue internal constructor(){
     protected open class Entry {
         var drawable: Drawable? = null
         /**
-         * Pre-computed sort key encoding groupId (bits 63-62), order top 32 bits (bits 61-30),
-         * ordinal low 30 bits (bits 29-0). Uses IEEE 754 property: for non-negative doubles,
-         * the top 32 raw bits preserve sort order. Ordinal is included explicitly so sort
-         * correctness does not depend on sort-algorithm stability across platforms.
-         * Bit 63 encodes groupId MSB, so the key may be negative — use unsigned comparison.
+         * Pre-computed sort key encoding groupId (bits 63-62), order top 30 bits (bits 61-32),
+         * ordinal low 30 bits (bits 29-0). The order field is converted via the IEEE 754
+         * total-order transform so negative depths (used by 3D shapes to prioritize closer
+         * objects) sort correctly. Bit 63 encodes groupId MSB — use unsigned comparison.
          */
         var sortKey = 0L
 
         fun set(drawable: Drawable, groupId: DrawableGroup, order: Double, ordinal: Int) {
             this.drawable = drawable
+            val orderBits = order.toRawBits()
+            // IEEE 754 total-order transform: negative doubles → invert all bits (restores
+            // ascending magnitude order); non-negative doubles → flip sign bit only.
+            val sortableOrderBits = if (orderBits < 0) orderBits.inv() else orderBits xor Long.MIN_VALUE
             sortKey = (groupId.ordinal.toLong() shl 62) or
-                    ((order.toRawBits() ushr 2) and 0x3FFFFFFF00000000L) or
+                    ((sortableOrderBits ushr 2) and 0x3FFFFFFF00000000L) or
                     (ordinal.toLong() and 0x3FFFFFFFL)
         }
 
