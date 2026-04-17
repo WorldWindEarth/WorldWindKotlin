@@ -58,8 +58,9 @@ open class LongLruMemoryCache<V : Any>(
         var i = tableIndex(key)
         while (slotStatus[i] != FREE) {
             if (slotStatus[i] == FULL && slotKeys[i] == key) {
-                slotEntries[i]!!.lastUsed = age
-                return slotEntries[i]!!.value
+                val e = slotEntries[i]!!
+                e.lastUsed = age
+                return e.value
             }
             i = (i + 1) and mask
         }

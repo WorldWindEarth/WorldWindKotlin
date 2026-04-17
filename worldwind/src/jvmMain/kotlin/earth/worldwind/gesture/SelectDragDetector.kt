@@ -102,6 +102,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         pickedRenderable = topObject as? Renderable
         pickedPosition = pickList.terrainPickedObject?.terrainPosition
             ?: (topObject as? Movable)?.referencePosition
-        isDraggingArmed = pickedRenderable != null && callback?.canMoveRenderable(pickedRenderable!!) == true
+        val r = pickedRenderable
+        isDraggingArmed = r != null && callback?.canMoveRenderable(r) == true
     }
 }

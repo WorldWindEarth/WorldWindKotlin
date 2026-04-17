@@ -414,14 +414,15 @@ open class Ellipse @JvmOverloads constructor(
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.texCoordAttrib.size = 2
         drawState.texCoordAttrib.offset = 12
-        val top = drawState.elementBuffer?.ranges?.get(TOP_RANGE)!!
+        val ranges = drawState.elementBuffer!!.ranges!!
+        val top = ranges[TOP_RANGE]
         drawState.drawElements(GL_TRIANGLE_STRIP, top.length, GL_UNSIGNED_SHORT, top.lower * Short.SIZE_BYTES)
         if (isExtrude && !isSurfaceShape) {
-            val side = drawState.elementBuffer?.ranges?.get(SIDE_RANGE)!!
+            val side = ranges[SIDE_RANGE]
             drawState.texture = null
             drawState.drawElements(GL_TRIANGLE_STRIP, side.length, GL_UNSIGNED_SHORT, side.lower * Short.SIZE_BYTES)
             if (baseAltitude != 0.0) {
-                val base = drawState.elementBuffer?.ranges?.get(BASE_RANGE)!!
+                val base = ranges[BASE_RANGE]
                 drawState.drawElements(GL_TRIANGLE_STRIP, base.length, GL_UNSIGNED_SHORT, base.lower * Short.SIZE_BYTES)
             }
         }
