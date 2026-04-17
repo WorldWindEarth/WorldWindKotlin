@@ -28,7 +28,7 @@ open class LongLruMemoryCache<V : Any>(
     private var slotStatus = ByteArray(tableSize)
     private var slotKeys = LongArray(tableSize)
     @Suppress("UNCHECKED_CAST")
-    private var slotEntries: Array<Entry<V>?> = arrayOfNulls<Entry<V>>(tableSize) as Array<Entry<V>?>
+    private var slotEntries: Array<Entry<V>?> = arrayOfNulls<Entry<V>>(tableSize)
 
     var usedCapacity = 0L
         protected set
@@ -170,8 +170,7 @@ open class LongLruMemoryCache<V : Any>(
         mask = tableSize - 1
         slotStatus = ByteArray(tableSize)
         slotKeys = LongArray(tableSize)
-        @Suppress("UNCHECKED_CAST")
-        slotEntries = arrayOfNulls<Entry<V>>(tableSize) as Array<Entry<V>?>
+        slotEntries = arrayOfNulls(tableSize)
         liveCount = 0
         deadCount = 0
         for (idx in oldStatus.indices) {

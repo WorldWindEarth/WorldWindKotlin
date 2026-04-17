@@ -68,7 +68,7 @@ open class DrawShapeState internal constructor() {
         prim.depthOffset = depthOffset
         prim.texture = texture
         prim.textureLod = textureLod
-        prim.texCoordMatrix.copy(texCoordMatrix)
+        if (texture != null) prim.texCoordMatrix.copy(texCoordMatrix)
         prim.texCoordAttrib.copy(texCoordAttrib)
     }
 

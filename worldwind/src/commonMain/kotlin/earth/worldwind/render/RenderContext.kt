@@ -70,7 +70,7 @@ open class RenderContext {
     private var pixelSizeFactor = 0.0
     private var assembliesThisFrame = 0
     private val userProperties = mutableMapOf<Any, Any>()
-    val drawablePools = mutableMapOf<Any, Pool<*>>()
+    val drawablePools = HashMap<KClass<*>, Pool<*>>()
     private var textRenderer = TextRenderer(this)
     private val scratchTextCacheKey = TextCacheKey()
     private val scratchVector = Vec3()
