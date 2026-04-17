@@ -163,7 +163,10 @@ open class TextureQuad @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (locations.isEmpty()) return  // nothing to draw
 
-        if (mustAssembleGeometry(rc)) assembleGeometry(rc)
+        if (mustAssembleGeometry(rc)) {
+            if (!rc.canAssembleGeometry()) return
+            assembleGeometry(rc)
+        }
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable

@@ -27,6 +27,11 @@ import kotlin.reflect.KClass
 open class RenderContext {
     companion object {
         private const val MAX_PICKED_OBJECT_ID = 0xFFFFFF
+        /**
+         * Maximum number of shape geometry assemblies allowed per frame. Configurable globally so
+         * applications without a [RenderContext] reference can tune it. Set to [Int.MAX_VALUE] to disable.
+         */
+        var maxAssembliesPerFrame = 50
     }
 
     lateinit var globe: Globe
@@ -63,6 +68,7 @@ open class RenderContext {
         protected set
     private var pickedObjectId = 0
     private var pixelSizeFactor = 0.0
+    private var assembliesThisFrame = 0
     private val userProperties = mutableMapOf<Any, Any>()
     val drawablePools = mutableMapOf<Any, Pool<*>>()
     private var textRenderer = TextRenderer(this)
@@ -98,10 +104,19 @@ open class RenderContext {
         pickedObjectId = 0
         isRedrawRequested = false
         pixelSizeFactor = 0.0
+        assembliesThisFrame = 0
         userProperties.clear()
     }
 
     fun requestRedraw() { isRedrawRequested = true }
+
+    fun canAssembleGeometry() = if (assembliesThisFrame >= maxAssembliesPerFrame) {
+        isRedrawRequested = true
+        false
+    } else {
+        assembliesThisFrame++
+        true
+    }
 
     /**
      * Returns the height of a pixel at a given distance from the eye point. This method assumes the model of a screen

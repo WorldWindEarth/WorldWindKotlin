@@ -105,7 +105,10 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         if (!activeAttributes.isDrawInterior && !activeAttributes.isDrawOutline) return
 
         // See if the current shape data can be re-used
-        if (mustAssembleGeometry(rc)) assembleGeometry(rc)
+        if (mustAssembleGeometry(rc)) {
+            if (!rc.canAssembleGeometry()) return
+            assembleGeometry(rc)
+        }
 
         // Obtain a drawable form the render context pool.
         val pool = rc.getDrawablePool(DrawableMesh.KEY)
