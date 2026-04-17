@@ -155,8 +155,19 @@ abstract class AbstractShape(
     }
 
     protected open fun cameraDistanceGeographic(rc: RenderContext, boundingSector: Sector): Double {
-        val lat = rc.camera.position.latitude.coerceIn(boundingSector.minLatitude, boundingSector.maxLatitude)
-        val lon = rc.camera.position.longitude.coerceIn(boundingSector.minLongitude, boundingSector.maxLongitude)
+        val camPos = rc.camera.position
+        val camLatDeg = camPos.latitude.inDegrees
+        val lat = when {
+            camLatDeg < boundingSector.minLatitude.inDegrees -> boundingSector.minLatitude
+            camLatDeg > boundingSector.maxLatitude.inDegrees -> boundingSector.maxLatitude
+            else -> camPos.latitude
+        }
+        val camLonDeg = camPos.longitude.inDegrees
+        val lon = when {
+            camLonDeg < boundingSector.minLongitude.inDegrees -> boundingSector.minLongitude
+            camLonDeg > boundingSector.maxLongitude.inDegrees -> boundingSector.maxLongitude
+            else -> camPos.longitude
+        }
         val point = rc.geographicToCartesian(lat, lon, 0.0, AltitudeMode.CLAMP_TO_GROUND, point)
         return point.distanceTo(rc.cameraPoint)
     }
