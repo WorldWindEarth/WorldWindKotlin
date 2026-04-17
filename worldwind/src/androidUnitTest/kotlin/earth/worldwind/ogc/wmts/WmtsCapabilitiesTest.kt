@@ -127,12 +127,13 @@ class WmtsCapabilitiesTest {
         val expectedPostalCode = "08193"
         val expectedCountry = "Spain"
         val expectedEmail = "joan.maso@uab.es"
-        val actualDeliveryPoint = contactInfo?.address?.deliveryPoints!![0]
-        val actualCity = contactInfo.address?.city
-        val actualAdministrativeArea = contactInfo.address?.administrativeArea
-        val actualPostalCode = contactInfo.address?.postalCode
-        val actualCountry = contactInfo.address?.country
-        val actualEmail = contactInfo.address?.electronicMailAddresses!![0]
+        val address = contactInfo?.address!!
+        val actualDeliveryPoint = address.deliveryPoints[0]
+        val actualCity = address.city
+        val actualAdministrativeArea = address.administrativeArea
+        val actualPostalCode = address.postalCode
+        val actualCountry = address.country
+        val actualEmail = address.electronicMailAddresses[0]
         assertEquals(expectedDeliveryPoint, actualDeliveryPoint, "Service Provider Contact Address Delivery Point")
         assertEquals(expectedCity, actualCity, "Service Provider Contact Address City")
         assertEquals(expectedAdministrativeArea, actualAdministrativeArea, "Service Provider Contact Address Admin Area")
@@ -181,8 +182,8 @@ class WmtsCapabilitiesTest {
         val expectedInAbstractTwo = " at scales to about 1:10,000,000. The data were ge"
         val actualAbstractOne = layer[0].abstract
         val actualAbstractTwo = layer[1].abstract
-        assertTrue(actualAbstractOne?.contains(expectedInAbstractOne) == true, "Layer Title One")
-        assertTrue(actualAbstractTwo?.contains(expectedInAbstractTwo) == true, "Layer Title Two")
+        assertEquals(actualAbstractOne?.contains(expectedInAbstractOne), true, "Layer Title One")
+        assertEquals(actualAbstractTwo?.contains(expectedInAbstractTwo), true, "Layer Title Two")
     }
 
     @Test
@@ -196,16 +197,16 @@ class WmtsCapabilitiesTest {
         val expectedMaxXTwo = 180.0
         val expectedMinYTwo = -90.0
         val expectedMaxYTwo = 84.0
-        var layer = layers[0]
-        val actualMinXOne = layer.wgs84BoundingBox?.sector?.minLongitude?.inDegrees!!
-        val actualMaxXOne = layer.wgs84BoundingBox?.sector?.maxLongitude?.inDegrees!!
-        val actualMinYOne = layer.wgs84BoundingBox?.sector?.minLatitude?.inDegrees!!
-        val actualMaxYOne = layer.wgs84BoundingBox?.sector?.maxLatitude?.inDegrees!!
-        layer = layers[1]
-        val actualMinXTwo = layer.wgs84BoundingBox?.sector?.minLongitude?.inDegrees!!
-        val actualMaxXTwo = layer.wgs84BoundingBox?.sector?.maxLongitude?.inDegrees!!
-        val actualMinYTwo = layer.wgs84BoundingBox?.sector?.minLatitude?.inDegrees!!
-        val actualMaxYTwo = layer.wgs84BoundingBox?.sector?.maxLatitude?.inDegrees!!
+        var sector = layers[0].wgs84BoundingBox?.sector!!
+        val actualMinXOne = sector.minLongitude.inDegrees
+        val actualMaxXOne = sector.maxLongitude.inDegrees
+        val actualMinYOne = sector.minLatitude.inDegrees
+        val actualMaxYOne = sector.maxLatitude.inDegrees
+        sector = layers[1].wgs84BoundingBox?.sector!!
+        val actualMinXTwo = sector.minLongitude.inDegrees
+        val actualMaxXTwo = sector.maxLongitude.inDegrees
+        val actualMinYTwo = sector.minLatitude.inDegrees
+        val actualMaxYTwo = sector.maxLatitude.inDegrees
         assertEquals(expectedMinXOne, actualMinXOne, DELTA, "Layer Bounding Box MinX Layer One")
         assertEquals(expectedMaxXOne, actualMaxXOne, DELTA, "Layer Bounding Box MaxX Layer One")
         assertEquals(expectedMinYOne, actualMinYOne, DELTA, "Layer Bounding Box MinY Layer One")
