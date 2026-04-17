@@ -64,6 +64,11 @@ open class Polygon @JvmOverloads constructor(
         val elementLinesBufferKey = Any()
         var refreshVertexArray = true
         var refreshLineVertexArray = true
+        var refreshTopology = true
+        var geographicVertexArray = FloatArray(0)
+        var geographicVertexCount = 0
+        var savedRefAlt = 0.0
+        var verticalVertexArrayOffset = 0
     }
 
     companion object {
@@ -85,7 +90,6 @@ open class Polygon @JvmOverloads constructor(
         protected val modelToTexCoord = Matrix4()
         protected val intermediateLocation = Location()
         protected var texCoord1d = 0.0
-        protected var refAlt = 0.0
 
         protected val tessCoords = DoubleArray(3)
         protected val tessVertices = IntArray(3)
@@ -148,7 +152,10 @@ open class Polygon @JvmOverloads constructor(
 
     override fun reset() {
         super.reset()
-        data.values.forEach { it.refreshVertexArray = true }
+        data.values.forEach {
+            it.refreshVertexArray = true
+            it.refreshTopology = true
+        }
     }
 
     override fun moveTo(globe: Globe, position: Position) {
@@ -357,6 +364,17 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
+        if (currentData.refreshTopology) {
+            assembleGeometryFull(rc)
+            currentData.refreshTopology = false
+        } else {
+            assembleGeometryPositions(rc)
+        }
+        currentData.refreshVertexArray = false
+        currentData.refreshLineVertexArray = false
+    }
+
+    protected open fun assembleGeometryFull(rc: RenderContext) {
         // Determine the number of vertexes
         val noIntermediatePoints = maximumIntermediatePoints <= 0 || pathType == LINEAR
         var vertexCount = 0
@@ -387,11 +405,14 @@ open class Polygon @JvmOverloads constructor(
         currentData.vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(vertexCount * 2 * VERTEX_STRIDE)
         else if (!isSurfaceShape) FloatArray(vertexCount * VERTEX_STRIDE)
         else FloatArray((vertexCount + boundaries.size) * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
+        currentData.geographicVertexArray = FloatArray(vertexCount * 3 + boundaries.size * 3)
+        currentData.geographicVertexCount = 0
         currentData.topElements.clear()
         currentData.sideElements.clear()
         currentData.baseElements.clear()
         lineVertexIndex = 0
         verticalVertexIndex = lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE
+        currentData.verticalVertexArrayOffset = verticalVertexIndex
         currentData.lineVertexArray = if (isExtrude && !isSurfaceShape) {
             FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE + verticalVertexCount * VERTICAL_LINE_SEGMENT_STRIDE)
         } else {
@@ -401,7 +422,7 @@ open class Polygon @JvmOverloads constructor(
         currentData.verticalElements.clear()
 
         // Get reference point altitude
-        refAlt = if (isPlain) {
+        currentData.savedRefAlt = if (isPlain) {
             val refPos = referencePosition
             rc.globe.getElevation(refPos.latitude, refPos.longitude)
         } else 0.0
@@ -424,7 +445,7 @@ open class Polygon @JvmOverloads constructor(
             // Add the boundary's first vertex. Add additional dummy vertex with the same data before the first vertex.
             val pos0 = positions[0]
             var begin = pos0
-            var beginAltitude = begin.altitude + refAlt
+            var beginAltitude = begin.altitude + currentData.savedRefAlt
             calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain)
             addVertex(rc, begin.latitude, begin.longitude, beginAltitude, type = VERTEX_ORIGINAL)
             addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = true)
@@ -435,7 +456,7 @@ open class Polygon @JvmOverloads constructor(
                 val end = positions[idx]
                 val addIndices = idx != positions.size - 1 || end != pos0 // check if there is implicit closing edge
                 addIntermediateVertices(rc, begin, end)
-                val endAltitude = end.altitude + refAlt
+                val endAltitude = end.altitude + currentData.savedRefAlt
                 calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlain)
                 addVertex(rc, end.latitude, end.longitude, endAltitude, type = VERTEX_ORIGINAL)
                 addLineVertex(rc, end.latitude, end.longitude, endAltitude, isIntermediate = false, addIndices)
@@ -447,7 +468,7 @@ open class Polygon @JvmOverloads constructor(
             if (begin != pos0) {
                 addIntermediateVertices(rc, begin, pos0)
                 // Add additional dummy vertex with the same data after the last vertex.
-                val pos0Altitude = pos0.altitude + refAlt
+                val pos0Altitude = pos0.altitude + currentData.savedRefAlt
                 calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlain, isExtrudedSkirt = false)
                 addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
                 addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
@@ -466,10 +487,6 @@ open class Polygon @JvmOverloads constructor(
         GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, null)
 
-        // Reset update flags
-        currentData.refreshVertexArray = false
-        currentData.refreshLineVertexArray = false
-
         // Compute the shape's bounding box or bounding sector from its assembled coordinates.
         with(currentBoundindData) {
             if (isSurfaceShape) {
@@ -486,6 +503,87 @@ open class Polygon @JvmOverloads constructor(
 
         // Adjust final vertex array size to save memory (and fix cameraDistanceCartesian calculation)
         currentData.vertexArray = currentData.vertexArray.copyOf(vertexIndex)
+        currentData.geographicVertexArray = currentData.geographicVertexArray.copyOf(currentData.geographicVertexCount * 3)
+    }
+
+    protected open fun assembleGeometryPositions(rc: RenderContext) = with(currentData) {
+        // Update terrain-dependent altitude baseline for RELATIVE_TO_GROUND extruded shapes
+        val newRefAlt = if (isPlain) {
+            val refPos = referencePosition
+            rc.globe.getElevation(refPos.latitude, refPos.longitude)
+        } else 0.0
+        val refAltDelta = (newRefAlt - savedRefAlt).toFloat()
+        if (refAltDelta != 0f) {
+            for (i in 0 until geographicVertexCount) geographicVertexArray[i * 3 + 2] += refAltDelta
+            savedRefAlt = newRefAlt
+        }
+
+        determineModelToTexCoord(rc)
+
+        // Recompute Cartesian vertex positions from cached geographic coordinates
+        val vertexStride = if (isExtrude) VERTEX_STRIDE * 2 else VERTEX_STRIDE
+        for (i in 0 until geographicVertexCount) {
+            val geoIdx = i * 3
+            val lon = geographicVertexArray[geoIdx].toDouble().degrees
+            val lat = geographicVertexArray[geoIdx + 1].toDouble().degrees
+            val alt = geographicVertexArray[geoIdx + 2].toDouble()
+            calcPoint(rc, lat, lon, alt, isAbsolute = isPlain)
+            if (i == 0) vertexOrigin.copy(point)
+            val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
+            val arrayIdx = i * vertexStride
+            vertexArray[arrayIdx] = (point.x - vertexOrigin.x).toFloat()
+            vertexArray[arrayIdx + 1] = (point.y - vertexOrigin.y).toFloat()
+            vertexArray[arrayIdx + 2] = (point.z - vertexOrigin.z).toFloat()
+            vertexArray[arrayIdx + 3] = texCoord2d.x.toFloat()
+            vertexArray[arrayIdx + 4] = texCoord2d.y.toFloat()
+            if (isExtrude) {
+                vertexArray[arrayIdx + 5] = (vertPoint.x - vertexOrigin.x).toFloat()
+                vertexArray[arrayIdx + 6] = (vertPoint.y - vertexOrigin.y).toFloat()
+                vertexArray[arrayIdx + 7] = (vertPoint.z - vertexOrigin.z).toFloat()
+            }
+        }
+        vertexIndex = geographicVertexCount * vertexStride
+
+        // Rebuild extruded line vertex positions by re-traversing boundaries
+        if (isExtrude && !isSurfaceShape) {
+            lineVertexIndex = 0
+            verticalVertexIndex = verticalVertexArrayOffset
+            for (i in boundaries.indices) {
+                val positions = boundaries[i]
+                if (positions.isEmpty()) continue
+                val pos0 = positions[0]
+                var begin = pos0
+                var beginAltitude = begin.altitude + savedRefAlt
+                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain)
+                addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
+                addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = false, addIndices = false)
+                for (idx in 1 until positions.size) {
+                    val end = positions[idx]
+                    addIntermediateLineVertices(rc, begin, end)
+                    val endAltitude = end.altitude + savedRefAlt
+                    calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlain)
+                    addLineVertex(rc, end.latitude, end.longitude, endAltitude, isIntermediate = false, addIndices = false)
+                    begin = end
+                    beginAltitude = endAltitude
+                }
+                if (begin != pos0) {
+                    addIntermediateLineVertices(rc, begin, pos0)
+                    val pos0Altitude = pos0.altitude + savedRefAlt
+                    calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
+                    addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
+                } else {
+                    calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
+                }
+            }
+        }
+
+        // Update bounding box
+        with(currentBoundindData) {
+            boundingBox.setToPoints(currentData.vertexArray, vertexIndex, VERTEX_STRIDE)
+            boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
+        }
     }
 
     protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
@@ -508,7 +606,7 @@ open class Polygon @JvmOverloads constructor(
         val deltaDist = length / numSubsegments
         val deltaAlt = (end.altitude - begin.altitude) / numSubsegments
         var dist = deltaDist
-        var alt = begin.altitude + deltaAlt + refAlt
+        var alt = begin.altitude + deltaAlt + currentData.savedRefAlt
         for (idx in 1 until numSubsegments) {
             val loc = intermediateLocation
             when (pathType) {
@@ -519,6 +617,41 @@ open class Polygon @JvmOverloads constructor(
             calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
             addVertex(rc, loc.latitude, loc.longitude, alt, type = VERTEX_INTERMEDIATE)
             addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = true)
+            dist += deltaDist
+            alt += deltaAlt
+        }
+    }
+
+    protected open fun addIntermediateLineVertices(rc: RenderContext, begin: Position, end: Position) {
+        if (maximumIntermediatePoints <= 0) return
+        val azimuth: Angle
+        val length: Double
+        when (pathType) {
+            GREAT_CIRCLE -> {
+                azimuth = begin.greatCircleAzimuth(end)
+                length = begin.greatCircleDistance(end)
+            }
+            RHUMB_LINE -> {
+                azimuth = begin.rhumbAzimuth(end)
+                length = begin.rhumbDistance(end)
+            }
+            else -> return
+        }
+        if (length < NEAR_ZERO_THRESHOLD) return
+        val numSubsegments = maximumIntermediatePoints + 1
+        val deltaDist = length / numSubsegments
+        val deltaAlt = (end.altitude - begin.altitude) / numSubsegments
+        var dist = deltaDist
+        var alt = begin.altitude + deltaAlt + currentData.savedRefAlt
+        for (idx in 1 until numSubsegments) {
+            val loc = intermediateLocation
+            when (pathType) {
+                GREAT_CIRCLE -> begin.greatCircleLocation(azimuth, dist, loc)
+                RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
+                else -> {}
+            }
+            calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
+            addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = false)
             dist += deltaDist
             alt += deltaAlt
         }
@@ -559,6 +692,17 @@ open class Polygon @JvmOverloads constructor(
                 vertexArray[vertexIndex++] = 0f // unused
             }
         }
+        val geoIdx = geographicVertexCount * 3
+        if (geoIdx + 2 >= geographicVertexArray.size) {
+            val size = geographicVertexArray.size
+            val newArray = FloatArray(size + (size shr 1).coerceAtLeast(6))
+            geographicVertexArray.copyInto(newArray)
+            geographicVertexArray = newArray
+        }
+        geographicVertexArray[geoIdx] = longitude.inDegrees.toFloat()
+        geographicVertexArray[geoIdx + 1] = latitude.inDegrees.toFloat()
+        geographicVertexArray[geoIdx + 2] = altitude.toFloat()
+        geographicVertexCount++
         vertex
     }
 
