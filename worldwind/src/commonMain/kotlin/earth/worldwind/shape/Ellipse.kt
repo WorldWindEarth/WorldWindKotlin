@@ -323,7 +323,7 @@ open class Ellipse @JvmOverloads constructor(
             drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
             cameraDistanceSq = 0.0 // Not used by surface shape
-            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
+            cameraDistance = cameraDistanceForTexture(rc, currentBoundindData.boundingSector)
         } else {
             val pool = rc.getDrawablePool(DrawableShape.KEY)
             drawable = DrawableShape.obtain(pool)
@@ -333,7 +333,7 @@ open class Ellipse @JvmOverloads constructor(
             drawStateLines = drawableLines.drawState
 
             cameraDistanceSq = currentBoundindData.boundingBox.distanceToSquared(rc.cameraPoint)
-            cameraDistance = sqrt(cameraDistanceSq)
+            cameraDistance = sqrtCameraDistanceForTexture(cameraDistanceSq)
         }
 
         // Use the basic GLSL program to draw the shape.

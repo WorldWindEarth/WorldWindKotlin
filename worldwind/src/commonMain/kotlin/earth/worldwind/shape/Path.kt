@@ -14,7 +14,6 @@ import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
-import kotlin.math.sqrt
 
 open class Path @JvmOverloads constructor(
     positions: List<Position>, attributes: ShapeAttributes = ShapeAttributes()
@@ -101,7 +100,7 @@ open class Path @JvmOverloads constructor(
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistanceSq = 0.0 // Not used by surface shape
-            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
+            cameraDistance = cameraDistanceForTexture(rc, currentBoundindData.boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(currentBoundindData.boundingSector)
             drawable.version = computeVersion()
@@ -113,7 +112,7 @@ open class Path @JvmOverloads constructor(
             cameraDistanceSq = cameraDistanceSquared(
                 rc, currentData.vertexArray, currentData.vertexArray.size, OUTLINE_SEGMENT_STRIDE, currentData.vertexOrigin
             )
-            cameraDistance = sqrt(cameraDistanceSq)
+            cameraDistance = sqrtCameraDistanceForTexture(cameraDistanceSq)
         }
 
         // Use triangles mode to draw lines

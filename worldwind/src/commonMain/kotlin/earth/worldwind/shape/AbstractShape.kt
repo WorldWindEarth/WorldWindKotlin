@@ -14,6 +14,7 @@ import kotlin.jvm.JvmStatic
 import kotlin.math.PI
 import kotlin.math.log2
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 abstract class AbstractShape(
     override var attributes: ShapeAttributes
@@ -171,6 +172,14 @@ abstract class AbstractShape(
         val point = rc.geographicToCartesian(lat, lon, 0.0, AltitudeMode.CLAMP_TO_GROUND, point)
         return point.distanceTo(rc.cameraPoint)
     }
+
+    protected fun cameraDistanceForTexture(rc: RenderContext, boundingSector: Sector) =
+        if (activeAttributes.interiorImageSource != null || activeAttributes.outlineImageSource != null)
+            cameraDistanceGeographic(rc, boundingSector) else 0.0
+
+    protected fun sqrtCameraDistanceForTexture(cameraDistanceSq: Double) =
+        if (activeAttributes.interiorImageSource != null || activeAttributes.outlineImageSource != null)
+            sqrt(cameraDistanceSq) else 0.0
 
     protected open fun cameraDistanceSquared(rc: RenderContext, array: FloatArray, count: Int, stride: Int, offset: Vec3): Double {
         val cx = rc.cameraPoint.x - offset.x

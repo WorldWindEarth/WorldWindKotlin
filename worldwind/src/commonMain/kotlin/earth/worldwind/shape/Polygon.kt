@@ -23,7 +23,6 @@ import earth.worldwind.util.kgl.GL_TRIANGLES
 import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
-import kotlin.math.sqrt
 
 open class Polygon @JvmOverloads constructor(
     positions: List<Position> = emptyList(), attributes: ShapeAttributes = ShapeAttributes()
@@ -182,7 +181,7 @@ open class Polygon @JvmOverloads constructor(
             drawable = DrawableSurfaceShape.obtain(pool)
             drawState = drawable.drawState
             cameraDistanceSq = 0.0 // Not used by surface shape
-            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
+            cameraDistance = cameraDistanceForTexture(rc, currentBoundindData.boundingSector)
             drawable.offset = rc.globe.offset
             drawable.sector.copy(currentBoundindData.boundingSector)
             drawable.version = computeVersion()
@@ -206,7 +205,7 @@ open class Polygon @JvmOverloads constructor(
             cameraDistanceSq = cameraDistanceSquared(
                 rc, currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE, currentData.vertexOrigin
             )
-            cameraDistance = sqrt(cameraDistanceSq)
+            cameraDistance = sqrtCameraDistanceForTexture(cameraDistanceSq)
         }
 
         // Use the basic GLSL program to draw the shape.
