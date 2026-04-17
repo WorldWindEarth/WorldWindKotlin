@@ -7,7 +7,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 /**
  * Represents a single moment in time. This is a simple element and contains no children. Its value is a dateTime,
  * specified in XML time (see XML Schema Part 2: Datatypes Second Edition). The precision of the TimeStamp is dictated
- * by the dateTime value in the [when] element.
+ * by the dateTime value in the `when` element.
  */
 @Serializable
 internal data class TimeStamp(

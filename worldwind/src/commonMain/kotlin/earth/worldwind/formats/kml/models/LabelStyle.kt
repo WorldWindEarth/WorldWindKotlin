@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement
 
 /**
- * Specifies how the [name] of a Feature is drawn in the 3D viewer.
+ * Specifies how the [Feature.name] of a Feature is drawn in the 3D viewer.
  * A custom color, color mode, and scale for the label (name) can be specified.
  */
 @Serializable

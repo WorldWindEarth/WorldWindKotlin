@@ -22,7 +22,7 @@ internal data class SimpleField(
 
     /**
      * The name, if any, to be used when the field name is displayed to the Google Earth user.
-     * Use the [CDATA] element to escape standard HTML markup.
+     * Use the `CDATA` element to escape standard HTML markup.
      */
     @XmlElement
     val displayName: String? = null,

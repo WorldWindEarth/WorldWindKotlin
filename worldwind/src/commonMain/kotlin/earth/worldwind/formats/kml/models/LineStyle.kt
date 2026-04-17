@@ -53,7 +53,7 @@ internal data class LineStyle(
 
     /**
      * A boolean defining whether or not to display a text label on a LineString. A LineString's label is contained
-     * in the [name] element that is a sibling of [LineString] (i.e. contained within the same [Placemark] element).
+     * in the [Feature.name] element that is a sibling of [LineString] (i.e. contained within the same [Placemark] element).
      * Google Earth version 6.1+ does not display labels by default;
      * they must be enabled for each LineString by setting [labelVisibility] to 1.
      */

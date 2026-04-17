@@ -202,6 +202,10 @@ dokka {
     moduleName.set("WorldWind Kotlin")
     pluginsConfiguration.html { footerMessage.set("(c) WorldWind Earth") }
     dokkaPublications.html { outputDirectory.set(dokkaOutputDir) }
+    dokkaSourceSets.named("jsMain") {
+        // C5Ren.kt is auto-generated (Karakum) and contains unresolvable Java/platform references
+        suppressedFiles.from(file("src/jsMain/kotlin/earth/worldwind/shape/milstd2525/C5Ren.kt"))
+    }
 }
 
 publishing {

@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * Defines the virtual camera that views the scene. This element defines the position of the camera relative to
  * the Earth's surface as well as the viewing direction of the camera. The camera position is defined by [longitude],
  * [latitude], [altitude], and either [altitudeMode]. The viewing direction of the camera is defined by [heading],
- * [tilt], and [roll]. [Camera] can be a child element of any Feature or of [NetworkLinkControl].
+ * [tilt], and [roll]. [Camera] can be a child element of any [Feature] or of [NetworkLinkControl].
  * A parent element cannot contain both a [Camera] and a [LookAt] at the same time.
  *
  * [Camera] provides full six-degrees-of-freedom control over the view, so you can position the Camera in space and

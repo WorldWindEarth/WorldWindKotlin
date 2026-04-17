@@ -15,7 +15,7 @@ enum class ViewRefreshMode {
     never,
 
     /**
-     * Refresh the file n seconds after movement stops, where n is specified in [viewRefreshTime].
+     * Refresh the file n seconds after movement stops, where n is specified in `viewRefreshTime`.
      */
     onStop,
 

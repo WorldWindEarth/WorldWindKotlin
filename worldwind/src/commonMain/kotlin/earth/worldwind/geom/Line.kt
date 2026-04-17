@@ -231,7 +231,7 @@ open class Line {
      * @param vertex2 The triangle's third vertex.
      * @param result A pre-allocated Vec3 instance in which to return the computed point.
      * @returns true if the line intersects the triangle, otherwise false
-     * @see https://www.cs.virginia.edu/~gfx/Courses/2003/ImageSynthesis/papers/Acceleration/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf
+     * @see <a href="https://www.cs.virginia.edu/~gfx/Courses/2003/ImageSynthesis/papers/Acceleration/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf">Fast Minimum Storage Ray/Triangle Intersection</a>
      */
     fun computeTriangleIntersection(vertex0: Vec3, vertex1: Vec3, vertex2: Vec3, result: Vec3): Boolean {
         val vx = direction.x

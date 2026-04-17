@@ -14,7 +14,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * The shape described by these corners must be convex.
  *
  * If a third value is inserted into any tuple (representing altitude) it will be ignored.
- * Altitude is set using [altitude] and [altitudeMode] extending [GroundOverlay].
+ * Altitude is set using [GroundOverlay.altitude] and [GroundOverlay.altitudeMode] extending [GroundOverlay].
  * Allowed altitude modes are [AltitudeMode.absolute], [AltitudeMode.clampToGround], and [AltitudeMode.clampToSeaFloor].
  */
 @Serializable
