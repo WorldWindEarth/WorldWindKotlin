@@ -67,7 +67,6 @@ open class DrawableStarField protected constructor(): Drawable {
         if (!program.useProgram(dc)) return // program failed to build
         try {
             dc.gl.depthMask(false)
-            dc.gl.enable(GL_POINT_SPRITE)       // populates gl_PointCoord in fragment shader (desktop GL 2/3 compat)
             drawStars(dc, program, starsPositionsBuffer)
             if (isShowSun) drawSun(dc, program, sunPositionsBuffer, sunTexture)
         } finally {
