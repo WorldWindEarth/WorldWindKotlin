@@ -70,21 +70,26 @@ class StarFieldProgram : AbstractShaderProgram() {
             const vec4 grey = vec4(0.6, 0.6, 0.6, 1.0);
 
             void main() {
-               if (textureEnabled == 1) {
-                   vec4 color = texture2D(textureSampler, gl_PointCoord);
-                   if (color.a < 0.01) discard;
-                   gl_FragColor = color;
-               }
-               else {
-                   /* Discard fragments outside the circle of the point sprite to get round stars. */
-                   vec2 coord = gl_PointCoord - vec2(0.5);
-                   if (dot(coord, coord) > 0.25) discard;
-                   /* Pre-multiplied alpha (GL_ONE, GL_ONE_MINUS_SRC_ALPHA):
-                      bright stars (weight=0) -> white opaque, dim stars (weight=1) -> nearly invisible.
-                      rgb = white * alpha, so output vec4(alpha, alpha, alpha, alpha). */
-                   float alpha = 1.0 - magnitudeWeight * 0.85;
-                   gl_FragColor = vec4(alpha, alpha, alpha, alpha);
-               }
+                if (textureEnabled == 1) {
+                    vec4 color = texture2D(textureSampler, gl_PointCoord);
+            
+                    // Optional discard (safe on both ES and desktop)
+                    if (color.a < 0.01)
+                        discard;
+            
+                    gl_FragColor = color;
+                } else {
+                    // Round point sprite mask
+                    vec2 coord = gl_PointCoord - vec2(0.5);
+                    if (dot(coord, coord) > 0.25)
+                        discard;
+            
+                    // Smooth brightness falloff
+                    float alpha = 1.0 - magnitudeWeight * 0.85;
+            
+                    // Pre-multiplied alpha
+                    gl_FragColor = vec4(alpha, alpha, alpha, alpha);
+                }
             }
         """.trimIndent()
     )
