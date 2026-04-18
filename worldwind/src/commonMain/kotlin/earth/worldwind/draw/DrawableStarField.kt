@@ -26,10 +26,6 @@ open class DrawableStarField protected constructor(): Drawable {
     companion object {
         var maxGlPointSize = 0f
 
-        // GL_POINT_SPRITE (0x8861): required on desktop OpenGL 2.x/3.x (compatibility) for gl_PointCoord
-        // to be populated in the fragment shader. On OpenGL ES this is always enabled.
-        private const val GL_POINT_SPRITE = 0x8861
-
         val KEY = DrawableStarField::class
 
         @JvmStatic
