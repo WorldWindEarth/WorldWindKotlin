@@ -56,9 +56,10 @@ class StarFieldProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
-            #version 120
+            ${glslVersionHeader}
             #ifdef GL_ES
             precision mediump float;
+            precision mediump int;
             #endif
 
             uniform sampler2D textureSampler;
