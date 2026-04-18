@@ -133,7 +133,8 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
                 // Use sunSize directly here; clamping against maxGlPointSize happens at draw time in DrawableStarField.
                 // maxGlPointSize is 0f until the first draw call, so clamping here would set point size to 0 (invisible).
                 sunBufferView[2] = sunSize
-                sunBufferView[3] = 1f
+                // Sentinel: above maxMagnitude so magnitudeWeight clamps to 1.0 -> size multiplier = 1x -> sunSize unchanged.
+                sunBufferView[3] = maxMagnitude + 1f
 
                 drawable.sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
                     BufferObject(GL_ARRAY_BUFFER, 0)
