@@ -51,12 +51,13 @@ class StarFieldProgram : AbstractShaderProgram() {
                vec3 vertexPosition = computePosition(vertexPoint.x, vertexPoint.y);
                gl_Position = mvpMatrix * vec4(vertexPosition.xyz, 1.0);
                gl_Position.z = gl_Position.w - 0.00001;
-               gl_PointSize = vertexPoint.z;
-               magnitudeWeight = normalizeScalar(vertexPoint.w, magnitudeRange.x, magnitudeRange.y);
+               magnitudeWeight = clamp(normalizeScalar(vertexPoint.w, magnitudeRange.x, magnitudeRange.y), 0.0, 1.0);
+               gl_PointSize = vertexPoint.z * mix(2.5, 1.5, magnitudeWeight);
             }
         """.trimIndent(),
         """
-            #ifdef GL_ES
+            #version 120
+            #ifdef GL_ES /* Fix for JVM version */
             precision mediump float;
             #endif
 
@@ -66,15 +67,23 @@ class StarFieldProgram : AbstractShaderProgram() {
             varying float magnitudeWeight;
 
             const vec4 white = vec4(1.0, 1.0, 1.0, 1.0);
-            const vec4 grey = vec4(0.5, 0.5, 0.5, 1.0);
+            const vec4 grey = vec4(0.6, 0.6, 0.6, 1.0);
 
             void main() {
                if (textureEnabled == 1) {
-                   gl_FragColor = texture2D(textureSampler, gl_PointCoord);
+                   vec4 color = texture2D(textureSampler, gl_PointCoord);
+                   if (color.a < 0.01) discard;
+                   gl_FragColor = color;
                }
                else {
-            /* paint the starts in shades of grey, where the brightest star is white and the dimmest star is grey */
-                   gl_FragColor = mix(white, grey, magnitudeWeight);
+                   /* Discard fragments outside the circle of the point sprite to get round stars. */
+                   vec2 coord = gl_PointCoord - vec2(0.5);
+                   if (dot(coord, coord) > 0.25) discard;
+                   /* Pre-multiplied alpha (GL_ONE, GL_ONE_MINUS_SRC_ALPHA):
+                      bright stars (weight=0) -> white opaque, dim stars (weight=1) -> nearly invisible.
+                      rgb = white * alpha, so output vec4(alpha, alpha, alpha, alpha). */
+                   float alpha = 1.0 - magnitudeWeight * 0.85;
+                   gl_FragColor = vec4(alpha, alpha, alpha, alpha);
                }
             }
         """.trimIndent()
