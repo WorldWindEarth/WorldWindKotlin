@@ -26,6 +26,14 @@ open class DrawableStarField protected constructor(): Drawable {
     companion object {
         var maxGlPointSize = 0f
 
+        // GL_PROGRAM_POINT_SIZE (0x8642): required on desktop OpenGL 3.x to allow gl_PointSize in vertex shader.
+        // On OpenGL ES (Android) this is always enabled and does not exist as a separate enum.
+        private const val GL_PROGRAM_POINT_SIZE = 0x8642
+
+        // GL_POINT_SPRITE (0x8861): required on desktop OpenGL 2.x/3.x (compatibility) for gl_PointCoord
+        // to be populated in the fragment shader. On OpenGL ES this is always enabled.
+        private const val GL_POINT_SPRITE = 0x8861
+
         val KEY = DrawableStarField::class
 
         @JvmStatic
@@ -45,6 +53,7 @@ open class DrawableStarField protected constructor(): Drawable {
 
     private fun resolveMaxGlPointSize(dc: DrawContext): Float {
         return getValidPointSizeRangeMax(dc, GL_ALIASED_POINT_SIZE_RANGE)
+            ?: getValidPointSizeRangeMax(dc, GL_POINT_SIZE_RANGE)
             ?: getValidPointSizeRangeMax(dc, GL_SMOOTH_POINT_SIZE_RANGE)
             ?: 1f
     }
@@ -63,6 +72,10 @@ open class DrawableStarField protected constructor(): Drawable {
         if (!program.useProgram(dc)) return // program failed to build
         try {
             dc.gl.depthMask(false)
+            // Enable desktop OpenGL features required for point sprite rendering.
+            // On OpenGL ES (Android) these are always active and the calls are ignored or harmless.
+            dc.gl.enable(GL_PROGRAM_POINT_SIZE) // allows gl_PointSize in vertex shader (desktop GL 3.x)
+            dc.gl.enable(GL_POINT_SPRITE)       // populates gl_PointCoord in fragment shader (desktop GL 2/3 compat)
             drawStars(dc, program, starsPositionsBuffer)
             if (isShowSun) drawSun(dc, program, sunPositionsBuffer, sunTexture)
         } finally {
