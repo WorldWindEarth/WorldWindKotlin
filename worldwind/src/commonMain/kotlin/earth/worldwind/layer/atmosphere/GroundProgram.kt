@@ -74,7 +74,13 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 float depth = exp((globeRadius - atmosphereRadius) / scaleDepth);
                 float eyeAngle = dot(-ray, point) / length(point);
                 float lightAngle = dot(lightDirection, point) / length(point);
-                float eyeScale = scaleFunc(eyeAngle);
+                
+                /* Cap eyeScale to limit excessive atmospheric thickness for near-horizontal rays.
+                   (when the camera is close to the ground and look at the horizon)
+                   Only eyeScale is capped: lightScale is untouched so the day/night terminator
+                   and night-side darkening remain physically correct. */
+                float eyeScale = min(scaleFunc(max(eyeAngle, 0.0)), 2.0 * scaleDepth);
+                
                 float lightScale = scaleFunc(lightAngle);
                 float eyeOffset = depth*eyeScale;
                 float temp = (lightScale + eyeScale);
@@ -92,7 +98,11 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 {
                     float height = length(samplePoint);
                     float depth = exp(scaleOverScaleDepth * (globeRadius - height));
-                    float scatter = depth*temp - eyeOffset;
+                    
+                    // Clamp scatter to 0 to prevent negative values (non-physical brightening) which cause absurd values (negative lightning)
+                    // No upper clamp: the night side needs large scatter values to go fully dark.
+                    float scatter = max(0.0, depth*temp - eyeOffset);
+                    
                     attenuate = exp(-scatter * (invWavelength * Kr4PI + Km4PI));
                     frontColor += attenuate * (depth * scaledLength);
                     samplePoint += sampleRay;
