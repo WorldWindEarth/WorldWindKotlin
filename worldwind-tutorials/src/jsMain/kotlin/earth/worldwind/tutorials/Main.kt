@@ -18,6 +18,9 @@ import earth.worldwind.shape.Movable
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
+import earth.worldwind.render.image.ImageSource
+import kotlinx.coroutines.launch
+import org.w3c.dom.url.URL
 import org.w3c.dom.*
 import org.w3c.dom.events.EventListener
 import org.w3c.dom.pointerevents.PointerEvent
@@ -59,6 +62,31 @@ fun main() {
                     val clickRay = Line()
                     if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
                         it.pickMesh(clickRay, wwd.engine.globe)
+                        wwd.requestRedraw()
+                    }
+                })
+            },
+            "COLLADA" to ColladaTutorial(wwd.engine).also { tutorial ->
+                mainScope.launch {
+                    val daeAsset = MR.assets.collada.duck_dae
+                    val dirPath = daeAsset.rawPath.substringBeforeLast("/", "").let { if (it.isEmpty()) "" else "$it/" }
+                    val daeData = daeAsset.getText()
+                    val scene = tutorial.setupScene(daeData, dirPath)
+                    val cachedSources = mutableMapOf<String, ImageSource?>()
+                    scene.imageSourceFactory = { rawPath ->
+                        cachedSources.getOrPut(rawPath) {
+                            MR.assets.values().firstOrNull { it.rawPath == rawPath }
+                                ?.let { ImageSource.fromUrl(URL(it.originalPath, window.location.href)) }
+                        }
+                    }
+                    wwd.requestRedraw()
+                }
+                wwd.addEventListener("click", EventListener { e ->
+                    if (!tutorial.isStarted || e !is PointerEvent) return@EventListener
+                    val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
+                    val clickRay = Line()
+                    if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
+                        tutorial.pickScene(clickRay, wwd.engine.globe)
                         wwd.requestRedraw()
                     }
                 })
