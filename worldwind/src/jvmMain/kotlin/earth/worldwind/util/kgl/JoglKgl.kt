@@ -14,6 +14,7 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     private val arrF = FloatArray(16)
 
     override val hasMaliOOMBug = false
+    override val glslVersion = "#version 120\n"
 
     override fun getParameteri(pname: Int): Int {
         gl.glGetIntegerv(pname, arrI, 0)
