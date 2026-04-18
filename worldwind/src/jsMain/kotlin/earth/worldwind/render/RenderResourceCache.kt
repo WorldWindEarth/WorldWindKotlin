@@ -1,6 +1,8 @@
 package earth.worldwind.render
 
+import dev.icerock.moko.resources.AssetResource
 import dev.icerock.moko.resources.FileResource
+import dev.icerock.moko.resources.ResourceContainer
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.render.image.*
@@ -114,6 +116,19 @@ actual open class RenderResourceCache(
             }
         }
     }
+
+    actual fun retrieveTextAsset(assetResource: AssetResource, result: (String) -> Unit) {
+        mainScope.launch {
+            try {
+                result(assetResource.getText())
+            } catch (e: Throwable) {
+                log(ERROR, "Asset retrieval failed ($assetResource): ${e.message}")
+            }
+        }
+    }
+
+    actual fun imageSourceFromAssetPath(assets: ResourceContainer<AssetResource>, path: String): ImageSource? =
+        assets.values().firstOrNull { it.rawPath == path }?.let { ImageSource.fromUrlString(it.originalPath) }
 
     protected open fun retrieveRemoteImage(
         currentRetrievals: MutableSet<ImageSource>, imageSource: ImageSource, options: ImageOptions?, src: String

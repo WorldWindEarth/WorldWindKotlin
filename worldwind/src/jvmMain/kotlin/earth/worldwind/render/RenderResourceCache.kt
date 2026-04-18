@@ -1,11 +1,14 @@
 package earth.worldwind.render
 
+import dev.icerock.moko.resources.AssetResource
 import dev.icerock.moko.resources.FileResource
+import dev.icerock.moko.resources.ResourceContainer
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.render.image.ImageDecoder
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
+import javax.imageio.ImageIO
 import earth.worldwind.render.image.ImageTexture
 import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
@@ -89,6 +92,26 @@ actual open class RenderResourceCache @JvmOverloads constructor(
             }
         }
     }
+
+    actual fun retrieveTextAsset(assetResource: AssetResource, result: (String) -> Unit) {
+        mainScope.launch(Dispatchers.IO) {
+            try {
+                result(assetResource.readText())
+            } catch (e: Throwable) {
+                log(ERROR, "Asset retrieval failed ($assetResource): ${e.message}")
+            }
+        }
+    }
+
+    actual fun imageSourceFromAssetPath(
+        assets: ResourceContainer<AssetResource>, path: String
+    ): ImageSource? = ImageSource.fromImageFactory(
+        object : ImageSource.ImageFactory {
+            override suspend fun createImage() = runCatching {
+                Thread.currentThread().contextClassLoader?.getResourceAsStream("assets/$path")?.use { ImageIO.read(it) }
+            }.getOrNull()
+        }
+    )
 
     actual fun retrieveTexture(imageSource: ImageSource, options: ImageOptions?): Texture? {
         when {

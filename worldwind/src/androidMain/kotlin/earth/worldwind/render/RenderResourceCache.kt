@@ -3,8 +3,11 @@ package earth.worldwind.render
 import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.opengl.GLSurfaceView
+import dev.icerock.moko.resources.AssetResource
 import dev.icerock.moko.resources.FileResource
+import dev.icerock.moko.resources.ResourceContainer
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.render.image.*
@@ -129,6 +132,26 @@ actual open class RenderResourceCache @JvmOverloads constructor(
             }
         }
     }
+
+    actual fun retrieveTextAsset(assetResource: AssetResource, result: (String) -> Unit) {
+        mainScope.launch(Dispatchers.IO) {
+            try {
+                result(assetResource.readText(context))
+            } catch (e: Throwable) {
+                log(ERROR, "Asset retrieval failed ($assetResource): ${e.message}")
+            }
+        }
+    }
+
+    actual fun imageSourceFromAssetPath(
+        assets: ResourceContainer<AssetResource>, path: String
+    ): ImageSource? = ImageSource.fromImageFactory(
+        object : ImageSource.ImageFactory {
+            override suspend fun createBitmap() = runCatching {
+                BitmapFactory.decodeStream(context.assets.open(path))
+            }.getOrNull()
+        }
+    )
 
     actual fun retrieveTexture(imageSource: ImageSource, options: ImageOptions?): Texture? {
         when {

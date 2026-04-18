@@ -18,6 +18,7 @@ import earth.worldwind.shape.Movable
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import org.w3c.dom.*
 import org.w3c.dom.events.EventListener
 import org.w3c.dom.pointerevents.PointerEvent
@@ -59,6 +60,21 @@ fun main() {
                     val clickRay = Line()
                     if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
                         it.pickMesh(clickRay, wwd.engine.globe)
+                        wwd.requestRedraw()
+                    }
+                })
+            },
+            "COLLADA" to ColladaTutorial(wwd.engine).also { tutorial ->
+                mainScope.launch {
+                    tutorial.setupScene()
+                    wwd.requestRedraw()
+                }
+                wwd.addEventListener("click", EventListener { e ->
+                    if (!tutorial.isStarted || e !is PointerEvent) return@EventListener
+                    val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
+                    val clickRay = Line()
+                    if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
+                        tutorial.pickScene(clickRay, wwd.engine.globe)
                         wwd.requestRedraw()
                     }
                 })

@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>COLLADA Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>COLLADA Tutorial</h1>
+<p>
+    Demonstrates how to load and display a COLLADA 3D model on the globe.
+</p>
+<p>
+    This example loads the classic duck COLLADA model, places it at an absolute altitude, and supports
+    ray-picking to display intersection points with leader lines.
+</p>
+<h2>Example</h2>
+<h3>ColladaFragment.kt</h3>
+<p>
+    The ColladaFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we parse the DAE file asynchronously, set up an image source factory for textures, and install
+    a tap gesture detector that performs ray intersection picking on the model.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class ColladaFragment : BasicGlobeFragment() {
+    private lateinit var tutorial: ColladaTutorial
+
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+        tutorial = ColladaTutorial(wwd.engine)
+        tutorial.start()
+
+        lifecycleScope.launch {
+            tutorial.setupScene()
+            wwd.requestRedraw()
+        }
+
+        wwd.controller = RayPickController(wwd)
+        return wwd
+    }
+
+    private inner class RayPickController(wwd: WorldWindow) : BasicWorldWindowController(wwd) {
+        private val gestureDetector = GestureDetector(
+            requireContext().applicationContext,
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapUp(e: MotionEvent): Boolean {
+                    val ray = Line()
+                    if (wwd.engine.rayThroughScreenPoint(e.x.toDouble(), e.y.toDouble(), ray)) {
+                        tutorial.pickScene(ray, wwd.engine.globe)
+                        wwd.requestRedraw()
+                    }
+                    return true
+                }
+            }
+        )
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            val consumed = gestureDetector.onTouchEvent(event)
+            return if (!consumed) super.onTouchEvent(event) else true
+        }
+    }
+}
+
+class ColladaTutorial(private val engine: WorldWind) : AbstractTutorial() {
+    var isStarted = false
+        private set
+
+    val colladaLayer = RenderableLayer("COLLADA Duck")
+    val pickLayer = RenderableLayer("Ray Intersections")
+    private var scene: ColladaScene? = null
+
+    fun setupScene(daeData: String, dirPath: String): ColladaScene {
+        val position = Position(40.009993372683.degrees, (-105.272774533734).degrees, 3500.0)
+        return ColladaLoader(position, dirPath).parse(daeData).also {
+            it.scale = 1000.0
+            it.altitudeMode = AltitudeMode.ABSOLUTE
+            scene = it
+            colladaLayer.clearRenderables()
+            colladaLayer.addRenderable(it)
+        }
+    }
+
+    fun pickScene(ray: Line, globe: Globe) {
+        val intersections = scene?.rayIntersections(ray, globe)?.sortedBy { it.distance } ?: return
+        pickLayer.clearRenderables()
+        for ((index, intersection) in intersections.withIndex()) {
+            val color = if (index == 0) Color(0f, 1f, 0f, 1f) else Color(1f, 0f, 0f, 1f)
+            pickLayer.addRenderable(
+                Placemark.createWithColorAndSize(intersection.position, color, 10).apply {
+                    altitudeMode = AltitudeMode.ABSOLUTE
+                    attributes.isDrawLeader = true
+                    attributes.leaderAttributes.outlineColor.copy(color)
+                }
+            )
+        }
+    }
+
+    override fun start() {
+        engine.layers.addLayer(colladaLayer)
+        engine.layers.addLayer(pickLayer)
+        engine.cameraFromLookAt(
+            LookAt(
+                position = Position(40.028.degrees, (-105.27284091410579).degrees, 0.0),
+                altitudeMode = AltitudeMode.ABSOLUTE,
+                range = 21000.0,
+                heading = 0.0.degrees,
+                tilt = 0.0.degrees,
+                roll = 0.0.degrees
+            )
+        )
+        isStarted = true
+    }
+
+    override fun stop() {
+        engine.layers.removeLayer(colladaLayer)
+        engine.layers.removeLayer(pickLayer)
+        colladaLayer.clearRenderables()
+        pickLayer.clearRenderables()
+        scene = null
+        isStarted = false
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>
