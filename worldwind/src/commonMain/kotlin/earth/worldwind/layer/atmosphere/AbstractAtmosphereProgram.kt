@@ -54,9 +54,9 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
             1 / 0.570.pow(4.0),  // 570 nm for green
             1 / 0.475.pow(4.0)   // 475 nm for blue
         )
-        val kr = 0.0025 // Rayleigh scattering constant
-        val km = 0.0010 // Mie scattering constant
-        val eSun = 20.0 // Sun brightness constant
+        val kr = 0.0030 // Rayleigh scattering constant (increased for richer blue sky)
+        val km = 0.0008 // Mie scattering constant (reduced to limit white haze)
+        val eSun = 22.0 // Sun brightness constant
         val g = -0.990 // The Mie phase asymmetry factor
         val exposure = 2.0
         fragModeId = gl.getUniformLocation(program, "fragMode")
