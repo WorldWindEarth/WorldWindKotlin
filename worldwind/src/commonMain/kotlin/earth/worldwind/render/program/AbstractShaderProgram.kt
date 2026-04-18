@@ -76,7 +76,7 @@ abstract class AbstractShaderProgram: RenderResource {
             return
         }
         val fs = dc.gl.createShader(GL_FRAGMENT_SHADER)
-        dc.gl.shaderSource(fs, programSources[FRAGMENT_SHADER])
+        dc.gl.shaderSource(fs, dc.gl.glslVersion + programSources[FRAGMENT_SHADER])
         dc.gl.compileShader(fs)
 
         if (dc.gl.getShaderParameteri(fs, GL_COMPILE_STATUS) != GL_TRUE) {

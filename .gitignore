@@ -4,4 +4,3 @@ build/
 */karma.config.d/
 */webpack.config.d/
 moko-resources-generated.js
-*.log

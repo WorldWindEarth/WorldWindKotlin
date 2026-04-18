@@ -376,8 +376,9 @@ const val GL_COMPRESSED_RED = 0x8225
 const val GL_COMPRESSED_RG = 0x8226
 
 interface Kgl {
-    abstract val hasMaliOOMBug: Boolean
-    
+    val hasMaliOOMBug: Boolean
+    val glslVersion: String get() = ""
+
     fun createShader(type: Int): KglShader
     fun shaderSource(shader: KglShader, source: String)
     fun compileShader(shader: KglShader)
