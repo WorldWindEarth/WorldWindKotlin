@@ -79,14 +79,14 @@ class ViewControlsLayer(
             controlBounds += Bounds(x, baseY + s, s, s, Action.HEADING_LEFT)
             x += s
         }
-        if (showTiltControl) {
+        if (showTiltControl && !rc.globe.is2D) {
             place(tiltDownControl, x, baseY, s, s, rc)
             place(tiltUpControl, x, baseY + s, s, s, rc)
             controlBounds += Bounds(x, baseY, s, s, Action.TILT_DOWN)
             controlBounds += Bounds(x, baseY + s, s, s, Action.TILT_UP)
             x += s
         }
-        if (showExaggerationControl) {
+        if (showExaggerationControl && !rc.globe.is2D) {
             place(exaggerationDownControl, x, baseY, s, s, rc)
             place(exaggerationUpControl, x, baseY + s, s, s, rc)
             controlBounds += Bounds(x, baseY, s, s, Action.EXAGGERATION_DOWN)
