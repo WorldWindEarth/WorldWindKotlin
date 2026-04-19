@@ -8,6 +8,10 @@ import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.globe.projection.MercatorProjection
 import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.layer.BackgroundLayer
+import earth.worldwind.layer.CompassLayer
+import earth.worldwind.layer.CoordinatesDisplayLayer
+import earth.worldwind.layer.ViewControlsLayer
+import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
@@ -42,6 +46,10 @@ fun main() {
                 )
                 addLayer(StarFieldLayer())
                 addLayer(AtmosphereLayer())
+                addLayer(CompassLayer())
+                addLayer(CoordinatesDisplayLayer())
+                addLayer(WorldMapLayer().apply { mapWidthDp = 300.0 })
+                addLayer(ViewControlsLayer())
             }
 
             val colladaTutorial = ColladaTutorial(engine).also { tutorial ->
@@ -157,9 +165,27 @@ fun main() {
         }
 
         wwd.controller = object : BasicWorldWindowController(wwd) {
+            private var pressX = 0; private var pressY = 0
+            private var pressOnVC = false
+
             override fun onMouseEvent(event: MouseEvent): Boolean {
-                if (event.id == MouseEvent.MOUSE_CLICKED && event.button == MouseEvent.BUTTON1) {
-                    clickHandler?.invoke(event)
+                when (event.id) {
+                    MouseEvent.MOUSE_PRESSED -> {
+                        pressX = event.x; pressY = event.y
+                        pressOnVC = false
+                        val consumed = super.onMouseEvent(event)
+                        if (consumed && vcRepeatTimer != null) pressOnVC = true
+                        return consumed
+                    }
+                    MouseEvent.MOUSE_RELEASED -> {
+                        val result = super.onMouseEvent(event)
+                        if (!pressOnVC) {
+                            val dx = event.x - pressX; val dy = event.y - pressY
+                            if (dx * dx + dy * dy < 100) clickHandler?.invoke(event)
+                        }
+                        pressOnVC = false
+                        return result
+                    }
                 }
                 return super.onMouseEvent(event)
             }

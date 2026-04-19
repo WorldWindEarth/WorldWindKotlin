@@ -11,18 +11,20 @@ import kotlin.math.atan
 
 class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
     // Create an elevation coverage from a version 1.0.0 WCS
-    private val wcsElevationCoverage = Wcs100ElevationCoverage(
-        // Specify the version 1.0.0 WCS address
-        serviceAddress = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer",
-        // Specify the coverage name
-        coverageName = "DEP3Elevation",
-        // Specify the output format
-        outputFormat = "geotiff",
-        // Specify the bounding sector - provided by the WCS
-        sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
-        // Specify the data resolution of 10m (1/3 arc-second)
-        resolution = Angle.fromSeconds(1.0 / 3.0)
-    )
+    private val wcsElevationCoverage by lazy {
+        Wcs100ElevationCoverage(
+            // Specify the version 1.0.0 WCS address
+            serviceAddress = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer",
+            // Specify the coverage name
+            coverageName = "DEP3Elevation",
+            // Specify the output format
+            outputFormat = "geotiff",
+            // Specify the bounding sector - provided by the WCS
+            sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
+            // Specify the data resolution of 10m (1/3 arc-second)
+            resolution = Angle.fromSeconds(1.0 / 3.0)
+        )
+    }
 
     override fun start() {
         super.start()

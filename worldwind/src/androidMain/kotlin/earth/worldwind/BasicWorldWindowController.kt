@@ -5,10 +5,19 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Vec3
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
+import earth.worldwind.layer.ViewControlsLayer
+import earth.worldwind.layer.WorldMapLayer
 import kotlin.math.cos
 import kotlin.math.sin
 
 open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWindowController, GestureListener {
+
+    protected val viewControlsLayer get() = wwd.engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
+    protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
+    private val vcRepeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var vcRepeatAction: Runnable? = null
+    private var tapDownX = 0f
+    private var tapDownY = 0f
 
     protected var lastX = 0f
     protected var lastY = 0f
@@ -44,7 +53,55 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
         panRecognizer, pinchRecognizer, rotationRecognizer, tiltRecognizer, mouseTiltRecognizer
     )
 
+    private fun handleViewControls(event: MotionEvent): Boolean {
+        val vcl = viewControlsLayer ?: return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                val x = event.x; val y = event.y
+                if (vcl.handleClick(x, y, wwd.engine.viewport.height, wwd.engine)) {
+                    wwd.requestRedraw()
+                    // Cancel any in-progress gesture so recognizers reset to POSSIBLE state,
+                    // preventing stale startX/startY from causing phantom pans after the button tap.
+                    val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                    for (recognizer in allRecognizers) recognizer.onTouchEvent(cancel)
+                    cancel.recycle()
+                    vcRepeatAction = object : Runnable {
+                        override fun run() {
+                            if (vcl.handleClick(x, y, wwd.engine.viewport.height, wwd.engine))
+                                wwd.requestRedraw()
+                            vcRepeatHandler.postDelayed(this, 50)
+                        }
+                    }.also { vcRepeatHandler.postDelayed(it, 400) }
+                    return true
+                }
+            }
+            MotionEvent.ACTION_MOVE -> if (vcRepeatAction != null) return true
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (vcRepeatAction != null) {
+                    vcRepeatHandler.removeCallbacks(vcRepeatAction!!)
+                    vcRepeatAction = null
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (handleViewControls(event)) return true
+
+        // Track first-finger position for tap detection
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            tapDownX = event.x; tapDownY = event.y
+        }
+        // Single-finger tap: navigate minimap
+        if (event.actionMasked == MotionEvent.ACTION_UP && event.pointerCount == 1) {
+            val dx = event.x - tapDownX; val dy = event.y - tapDownY
+            if (dx * dx + dy * dy < 100f) {
+                worldMapLayer?.handleClick(event.x, event.y, wwd.engine.viewport.height, wwd.engine)
+            }
+        }
+
         var handled = false
 
         // Pass on the event on to the default globe navigation handlers

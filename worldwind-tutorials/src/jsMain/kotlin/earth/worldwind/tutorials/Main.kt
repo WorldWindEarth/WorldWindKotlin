@@ -10,6 +10,10 @@ import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.globe.projection.MercatorProjection
 import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.layer.BackgroundLayer
+import earth.worldwind.layer.CompassLayer
+import earth.worldwind.layer.CoordinatesDisplayLayer
+import earth.worldwind.layer.ViewControlsLayer
+import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
@@ -117,6 +121,10 @@ fun main() {
             )
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
+            addLayer(CompassLayer())
+            addLayer(CoordinatesDisplayLayer())
+            addLayer(WorldMapLayer().apply { mapWidthDp = 300.0 })
+            addLayer(ViewControlsLayer())
         }
 
         // Add elevation coverage source

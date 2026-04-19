@@ -10,6 +10,9 @@ import androidx.lifecycle.lifecycleScope
 import earth.worldwind.WorldWindow
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.layer.BackgroundLayer
+import earth.worldwind.layer.CompassLayer
+import earth.worldwind.layer.ViewControlsLayer
+import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.starfield.StarFieldLayer
@@ -44,6 +47,9 @@ open class BasicGlobeFragment: Fragment() {
             })
             addLayer(StarFieldLayer())
             addLayer(AtmosphereLayer())
+            addLayer(CompassLayer())
+            addLayer(WorldMapLayer().apply { corner = WorldMapLayer.Corner.TOP_LEFT })
+            addLayer(ViewControlsLayer())
         }
         // Setting up the WorldWindow's elevation coverages.
         wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {

@@ -372,6 +372,10 @@ open class RenderContext {
         drawableQueue?.offerDrawable(drawable, DrawableGroup.SHAPE, -cameraDistanceSq)
     }
 
+    fun offerScreenDrawable(drawable: Drawable, zOrder: Double) {
+        drawableQueue?.offerDrawable(drawable, DrawableGroup.SCREEN, zOrder)
+    }
+
     fun offerDrawableTerrain(drawable: DrawableTerrain, sortOrder: Double) {
         drawableTerrain?.offerDrawable(drawable, DrawableGroup.SURFACE, sortOrder)
     }

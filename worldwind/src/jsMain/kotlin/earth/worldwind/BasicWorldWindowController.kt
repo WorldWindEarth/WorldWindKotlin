@@ -5,8 +5,12 @@ import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Vec3
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
+import earth.worldwind.layer.ViewControlsLayer
+import earth.worldwind.layer.WorldMapLayer
+import kotlinx.browser.window
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.WheelEvent
+import org.w3c.dom.pointerevents.PointerEvent
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -15,6 +19,13 @@ import kotlin.math.sin
  * This class provides the default window controller for WorldWind for controlling the globe via user interaction.
  */
 open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(wwd) {
+    protected val viewControlsLayer get() = wwd.engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
+    protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
+    private var vcRepeatTimeout = -1
+    private var vcRepeatInterval = -1
+    private var tapDownX = 0.0
+    private var tapDownY = 0.0
+
     val primaryDragRecognizer: GestureRecognizer = DragRecognizer(wwd.canvas).also { it.addListener(this) }
     val secondaryDragRecognizer: GestureRecognizer = DragRecognizer(wwd.canvas).also {
         it.addListener(this)
@@ -55,9 +66,45 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         rotationRecognizer.requireRecognizerToFail(tiltRecognizer)
     }
 
+    private fun stopVcRepeat() {
+        if (vcRepeatTimeout != -1) { window.clearTimeout(vcRepeatTimeout); vcRepeatTimeout = -1 }
+        if (vcRepeatInterval != -1) { window.clearInterval(vcRepeatInterval); vcRepeatInterval = -1 }
+    }
+
     override fun handleEvent(event: Event) {
         super.handleEvent(event)
         if (!event.defaultPrevented) {
+            // Track pointer-down position for tap detection (before VC check so coords are always valid)
+            if (event.type == "pointerdown" && event is PointerEvent) {
+                val p = wwd.canvasCoordinates(event.clientX, event.clientY)
+                tapDownX = p.x; tapDownY = p.y
+            }
+            val vcl = viewControlsLayer
+            if (vcl != null && event.type == "pointerdown" && event is PointerEvent) {
+                val cx = tapDownX.toFloat(); val cy = tapDownY.toFloat()
+                if (vcl.handleClick(cx, cy, wwd.engine.viewport.height, wwd.engine)) {
+                    wwd.requestRedraw()
+                    event.preventDefault()
+                    vcRepeatTimeout = window.setTimeout({
+                        vcRepeatInterval = window.setInterval({
+                            if (vcl.handleClick(cx, cy, wwd.engine.viewport.height, wwd.engine))
+                                wwd.requestRedraw()
+                        }, 50)
+                    }, 400)
+                    return
+                }
+            }
+            if (event.type == "pointerup" || event.type == "pointercancel") {
+                stopVcRepeat()
+                // Single-tap: navigate minimap
+                if (event.type == "pointerup" && event is PointerEvent) {
+                    val p = wwd.canvasCoordinates(event.clientX, event.clientY)
+                    val dx = p.x - tapDownX; val dy = p.y - tapDownY
+                    if (dx * dx + dy * dy < 25) {
+                        worldMapLayer?.handleClick(p.x.toFloat(), p.y.toFloat(), wwd.engine.viewport.height, wwd.engine)
+                    }
+                }
+            }
             if (event.type == "wheel") {
                 event.preventDefault()
                 handleWheelEvent(event as WheelEvent)

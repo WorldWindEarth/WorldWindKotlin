@@ -2,6 +2,8 @@ package earth.worldwind
 
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.ViewControlsLayer
+import earth.worldwind.layer.WorldMapLayer
 import java.awt.event.MouseEvent
 import java.awt.event.MouseWheelEvent
 import kotlin.math.cos
@@ -9,6 +11,10 @@ import kotlin.math.max
 import kotlin.math.sin
 
 open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWindowController {
+    protected val viewControlsLayer get() = wwd.engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
+    protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
+    protected var vcRepeatTimer: javax.swing.Timer? = null
+
     protected val beginLookAt = LookAt()
     protected val beginLookAtPoint = Vec3()
     protected val lookAt = LookAt()
@@ -21,7 +27,31 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
     protected var lastY = 0
     protected var activeGestures = 0
 
+    private fun handleViewControls(event: MouseEvent): Boolean {
+        val vcl = viewControlsLayer ?: return false
+        when (event.id) {
+            MouseEvent.MOUSE_PRESSED -> if (event.button == MouseEvent.BUTTON1) {
+                val sx = wwd.engine.viewport.width.toFloat() / wwd.width.toFloat()
+                val sy = wwd.engine.viewport.height.toFloat() / wwd.height.toFloat()
+                val scaledX = event.x * sx; val scaledY = event.y * sy
+                if (vcl.handleClick(scaledX, scaledY, wwd.engine.viewport.height, wwd.engine)) {
+                    wwd.requestRedraw()
+                    vcRepeatTimer = javax.swing.Timer(50) {
+                        if (vcl.handleClick(scaledX, scaledY, wwd.engine.viewport.height, wwd.engine))
+                            wwd.requestRedraw()
+                    }.apply { initialDelay = 400; start() }
+                    return true
+                }
+            }
+            MouseEvent.MOUSE_DRAGGED, MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_EXITED -> {
+                vcRepeatTimer?.stop(); vcRepeatTimer = null
+            }
+        }
+        return false
+    }
+
     override fun onMouseEvent(event: MouseEvent): Boolean {
+        if (handleViewControls(event)) return true
         when (event.id) {
             MouseEvent.MOUSE_PRESSED -> {
                 if (event.button != MouseEvent.BUTTON1 && event.button != MouseEvent.BUTTON3) return false
@@ -48,9 +78,17 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
 
             MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_EXITED -> {
                 if (!isDragging) return false
+                val prevButton = activeButton
+                val dx = event.x - beginX; val dy = event.y - beginY
                 isDragging = false
                 activeButton = MouseEvent.NOBUTTON
                 gestureDidEnd()
+                // Tap detection: short left-click navigates the minimap
+                if (event.id == MouseEvent.MOUSE_RELEASED && prevButton == MouseEvent.BUTTON1 && dx * dx + dy * dy < 25) {
+                    val sx = wwd.engine.viewport.width.toFloat() / wwd.width.toFloat()
+                    val sy = wwd.engine.viewport.height.toFloat() / wwd.height.toFloat()
+                    worldMapLayer?.handleClick(event.x * sx, event.y * sy, wwd.engine.viewport.height, wwd.engine)
+                }
                 return true
             }
         }
