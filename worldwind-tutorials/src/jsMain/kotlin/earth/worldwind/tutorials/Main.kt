@@ -79,6 +79,12 @@ fun main() {
                     }
                 })
             },
+            "GLTF" to GltfTutorial(wwd.engine).also { tutorial ->
+                mainScope.launch {
+                    tutorial.setupScene()
+                    wwd.requestRedraw()
+                }
+            },
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
             "Labels" to LabelsTutorial(wwd.engine),
             "Sight line" to SightlineTutorial(wwd.engine),

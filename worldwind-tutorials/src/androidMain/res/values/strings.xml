@@ -33,6 +33,7 @@
     <string name="title_wcs_elevation_coverage">WCS Elevation Coverage</string>
     <string name="title_elevation_heatmap">Elevation Heatmap</string>
     <string name="title_collada">COLLADA Model</string>
+    <string name="title_gltf">GLTF Model</string>
 
     <string name="spacer" />
 

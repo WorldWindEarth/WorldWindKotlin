@@ -82,6 +82,10 @@
             android:icon="@android:drawable/ic_menu_gallery"
             android:title="@string/title_collada"/>
         <item
+            android:id="@+id/nav_gltf_activity"
+            android:icon="@android:drawable/ic_menu_gallery"
+            android:title="@string/title_gltf"/>
+        <item
             android:id="@+id/nav_labels_activity"
             android:icon="@android:drawable/ic_menu_edit"
             android:title="@string/title_labels"/>

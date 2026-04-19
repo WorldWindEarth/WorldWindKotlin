@@ -1,0 +1,80 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>GLTF Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>GLTF Tutorial</h1>
+<p>
+    Demonstrates how to load and display a GLTF 2.0 3D model on the globe.
+</p>
+<p>
+    This example loads an embedded GLTF Box model, places it at an absolute altitude above Boulder, Colorado,
+    and scales it to be visible from a 21 km camera range.
+</p>
+<h2>Example</h2>
+<h3>GltfFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class GltfFragment : BasicGlobeFragment() {
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+        val tutorial = GltfTutorial(wwd.engine)
+        tutorial.start()
+        lifecycleScope.launch {
+            tutorial.setupScene()
+            wwd.requestRedraw()
+        }
+        return wwd
+    }
+}
+
+class GltfTutorial(private val engine: WorldWind) : AbstractTutorial() {
+    private val gltfLayer = RenderableLayer("GLTF Box")
+
+    suspend fun setupScene() {
+        val position = Position(40.009993372683.degrees, (-105.272774533734).degrees, 1500.0)
+        val scene = GltfLoader(position, MR.assets.gltf.box_gltf).parse(engine.renderResourceCache)
+        scene.scale = 5000.0
+        gltfLayer.clearRenderables()
+        gltfLayer.addRenderable(scene)
+    }
+
+    override fun start() {
+        engine.layers.addLayer(gltfLayer)
+        engine.cameraFromLookAt(
+            LookAt(
+                position = Position(40.009993372683.degrees, (-105.272774533734).degrees, 1500.0),
+                altitudeMode = AltitudeMode.ABSOLUTE,
+                range = 21000.0,
+                heading = 0.0.degrees,
+                tilt = 0.0.degrees,
+                roll = 0.0.degrees
+            )
+        )
+    }
+
+    override fun stop() {
+        engine.layers.removeLayer(gltfLayer)
+        gltfLayer.clearRenderables()
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

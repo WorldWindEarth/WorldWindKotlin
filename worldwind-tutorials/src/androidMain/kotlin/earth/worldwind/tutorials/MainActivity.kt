@@ -321,6 +321,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/collada_tutorial.html",
                 R.string.title_collada
             )
+            R.id.nav_gltf_activity -> loadTutorial(
+                GltfFragment::class.java,
+                "file:///android_asset/gltf_tutorial.html",
+                R.string.title_gltf
+            )
             R.id.nav_surface_image_activity -> loadTutorial(
                 SurfaceImageFragment::class.java,
                 "file:///android_asset/surface_image_tutorial.html",

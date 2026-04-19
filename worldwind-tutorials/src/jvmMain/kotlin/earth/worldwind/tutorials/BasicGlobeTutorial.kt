@@ -47,6 +47,9 @@ fun main() {
             val colladaTutorial = ColladaTutorial(engine).also { tutorial ->
                 mainScope.launch { tutorial.setupScene() }
             }
+            val gltfTutorial = GltfTutorial(engine).also { tutorial ->
+                mainScope.launch { tutorial.setupScene() }
+            }
             val geoMeshTutorial = GeographicMeshesTutorial(engine)
             val triMeshTutorial = TriangleMeshesTutorial(engine)
 
@@ -61,6 +64,7 @@ fun main() {
                 "Geographic meshes" to geoMeshTutorial,
                 "Triangle meshes" to triMeshTutorial,
                 "COLLADA" to colladaTutorial,
+                "GLTF" to gltfTutorial,
                 "Dash and fill" to ShapesDashAndFillTutorial(engine),
                 "Labels" to LabelsTutorial(engine),
                 "Sight line" to SightlineTutorial(engine),
