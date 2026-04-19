@@ -52,7 +52,7 @@ class StarFieldProgram : AbstractShaderProgram() {
                gl_Position = mvpMatrix * vec4(vertexPosition.xyz, 1.0);
                gl_Position.z = gl_Position.w - 0.00001;
                magnitudeWeight = clamp(normalizeScalar(vertexPoint.w, magnitudeRange.x, magnitudeRange.y), 0.0, 1.0);
-               gl_PointSize = vertexPoint.z * mix(2.5, 1.5, magnitudeWeight);
+               gl_PointSize = vertexPoint.z * mix(2.0, 1.0, magnitudeWeight);
             }
         """.trimIndent(),
         """
