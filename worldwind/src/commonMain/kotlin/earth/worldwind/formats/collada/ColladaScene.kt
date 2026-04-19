@@ -186,16 +186,18 @@ class ColladaScene(
             iboRef = rc.getBufferObject(iboKey) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0) }
             rc.offerGLBufferUpload(iboKey, bufferVersion) {
                 if (is32Bit) {
-                    val idxData = mutableListOf<Int>()
+                    val idxData = IntArray(entities.sumOf { it.mesh.indices?.size ?: it.mesh.indicesShort?.size ?: 0 })
+                    var pos = 0
                     for (e in entities) when {
-                        e.mesh.indices != null -> e.mesh.indices!!.forEach { idxData.add(it) }
-                        e.mesh.indicesShort != null -> e.mesh.indicesShort!!.forEach { idxData.add(it.toInt() and 0xFFFF) }
+                        e.mesh.indices != null -> { e.mesh.indices!!.copyInto(idxData, pos); pos += e.mesh.indices!!.size }
+                        e.mesh.indicesShort != null -> for (v in e.mesh.indicesShort!!) { idxData[pos++] = v.toInt() and 0xFFFF }
                     }
-                    NumericArray.Ints(idxData.toIntArray())
+                    NumericArray.Ints(idxData)
                 } else {
-                    val idxData = mutableListOf<Short>()
-                    for (e in entities) e.mesh.indicesShort?.forEach { idxData.add(it) }
-                    NumericArray.Shorts(idxData.toShortArray())
+                    val idxData = ShortArray(entities.sumOf { it.mesh.indicesShort?.size ?: 0 })
+                    var pos = 0
+                    for (e in entities) e.mesh.indicesShort?.let { it.copyInto(idxData, pos); pos += it.size }
+                    NumericArray.Shorts(idxData)
                 }
             }
         }

@@ -199,66 +199,66 @@ open class Ellipse @JvmOverloads constructor(
         protected var texCoord1d = 0.0
 
         protected fun assembleElements(intervals: Int, elementBuffer: BufferObject): ShortArray {
-            // Create temporary storage for elements
-            // TODO Use ShortArray instead of mutableListOf<Short> to avoid unnecessary memory re-allocations
-            val elements = mutableListOf<Short>()
+            // Pre-allocate: top = 2*intervals, side = 2*intervals+2, base = 2*intervals → total = 6*intervals+2
+            val elements = ShortArray(6 * intervals + 2)
+            var pos = 0
 
             // Generate the top element buffer with spine
             var idx = intervals.toShort()
             val offset = computeIndexOffset(intervals)
 
             // Add the anchor leg
-            elements.add(0.toShort())
-            elements.add(1.toShort())
+            elements[pos++] = 0
+            elements[pos++] = 1
             // Tessellate the interior
             for (i in 2 until intervals) {
                 // Add the corresponding interior spine point if this isn't the vertex following the last vertex for the
                 // negative major axis
-                if (i != intervals / 2 + 1) if (i > intervals / 2) elements.add(--idx) else elements.add(idx++)
+                if (i != intervals / 2 + 1) if (i > intervals / 2) elements[pos++] = --idx else elements[pos++] = idx++
                 // Add the degenerate triangle at the negative major axis in order to flip the triangle strip back towards
                 // the positive axis
-                if (i == intervals / 2) elements.add(i.toShort())
+                if (i == intervals / 2) elements[pos++] = i.toShort()
                 // Add the exterior vertex
-                elements.add(i.toShort())
+                elements[pos++] = i.toShort()
             }
             // Complete the strip
-            elements.add(--idx)
-            elements.add(0.toShort())
-            val topRange = Range(0, elements.size)
+            elements[pos++] = --idx
+            elements[pos++] = 0
+            val topRange = Range(0, pos)
 
             // Generate the side element buffer
             for (i in 0 until intervals) {
-                elements.add(i.toShort())
-                elements.add(i.plus(offset).toShort())
+                elements[pos++] = i.toShort()
+                elements[pos++] = i.plus(offset).toShort()
             }
-            elements.add(0.toShort())
-            elements.add(offset.toShort())
-            val sideRange = Range(topRange.upper, elements.size)
+            elements[pos++] = 0
+            elements[pos++] = offset.toShort()
+            val sideRange = Range(topRange.upper, pos)
 
             idx = intervals.plus(offset).toShort()
 
             // Add the anchor leg
-            elements.add(0.plus(offset).toShort())
-            elements.add(1.plus(offset).toShort())
+            elements[pos++] = offset.toShort()
+            elements[pos++] = 1.plus(offset).toShort()
             // Tessellate the interior
-            for (i in intervals - 1 downTo  2) {
+            for (i in intervals - 1 downTo 2) {
                 // Add the corresponding interior spine point if this isn't the vertex following the last vertex for the
                 // negative major axis
-                if (i != intervals / 2 + 1) if (i > intervals / 2) elements.add(--idx) else elements.add(idx++)
+                if (i != intervals / 2 + 1) if (i > intervals / 2) elements[pos++] = --idx else elements[pos++] = idx++
                 // Add the degenerate triangle at the negative major axis in order to flip the triangle strip back towards
                 // the positive axis
-                if (i == intervals / 2) elements.add(i.plus(offset).toShort())
+                if (i == intervals / 2) elements[pos++] = i.plus(offset).toShort()
                 // Add the exterior vertex
-                elements.add(i.plus(offset).toShort())
+                elements[pos++] = i.plus(offset).toShort()
             }
             // Complete the strip
-            elements.add(--idx)
-            elements.add(0.plus(offset).toShort())
-            val baseRange = Range(sideRange.upper, elements.size)
+            elements[pos++] = --idx
+            elements[pos++] = offset.toShort()
+            val baseRange = Range(sideRange.upper, pos)
 
             // Generate a buffer for the element
             elementBuffer.ranges = arrayOf(topRange, sideRange, baseRange)
-            return elements.toShortArray()
+            return elements
         }
 
         protected fun computeNumberSpinePoints(intervals: Int) = intervals / 2 - 1 // intervals should be even

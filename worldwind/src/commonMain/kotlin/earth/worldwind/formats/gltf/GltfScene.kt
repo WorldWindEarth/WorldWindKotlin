@@ -110,16 +110,18 @@ class GltfScene internal constructor(
             iboRef = rc.getBufferObject(iboKey) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0) }
             rc.offerGLBufferUpload(iboKey, bufferVersion) {
                 if (is32Bit) {
-                    val idxData = mutableListOf<Int>()
+                    val idxData = IntArray(entities.sumOf { it.indicesInt?.size ?: it.indicesShort?.size ?: 0 })
+                    var pos = 0
                     for (e in entities) when {
-                        e.indicesInt != null -> e.indicesInt.forEach { idxData.add(it) }
-                        e.indicesShort != null -> e.indicesShort.forEach { idxData.add(it.toInt() and 0xFFFF) }
+                        e.indicesInt != null -> { e.indicesInt.copyInto(idxData, pos); pos += e.indicesInt.size }
+                        e.indicesShort != null -> for (v in e.indicesShort) { idxData[pos++] = v.toInt() and 0xFFFF }
                     }
-                    NumericArray.Ints(idxData.toIntArray())
+                    NumericArray.Ints(idxData)
                 } else {
-                    val idxData = mutableListOf<Short>()
-                    for (e in entities) e.indicesShort?.forEach { idxData.add(it) }
-                    NumericArray.Shorts(idxData.toShortArray())
+                    val idxData = ShortArray(entities.sumOf { it.indicesShort?.size ?: 0 })
+                    var pos = 0
+                    for (e in entities) e.indicesShort?.let { it.copyInto(idxData, pos); pos += it.size }
+                    NumericArray.Shorts(idxData)
                 }
             }
         }
