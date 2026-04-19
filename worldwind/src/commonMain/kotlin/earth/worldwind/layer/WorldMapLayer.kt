@@ -91,7 +91,7 @@ class WorldMapLayer : AbstractLayer("World Map") {
      * Handle a tap/click at (x, y) in top-left screen coordinates. Navigates the globe to the tapped location.
      * Returns true if the tap was inside the minimap.
      */
-    fun handleClick(x: Float, y: Float, viewportHeight: Int, engine: WorldWind): Boolean {
+    fun handleClick(x: Double, y: Double, viewportHeight: Int, engine: WorldWind): Boolean {
         val glY = viewportHeight - y
         if (x < mapX || x > mapX + mapW || glY < mapY || glY > mapY + mapH) return false
         val lat = (glY - mapY) / mapH * 180.0 - 90.0

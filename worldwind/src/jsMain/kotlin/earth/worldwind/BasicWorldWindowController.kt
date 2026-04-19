@@ -81,13 +81,12 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             }
             val vcl = viewControlsLayer
             if (vcl != null && event.type == "pointerdown" && event is PointerEvent) {
-                val cx = tapDownX.toFloat(); val cy = tapDownY.toFloat()
-                if (vcl.handleClick(cx, cy, wwd.engine.viewport.height, wwd.engine)) {
+                if (vcl.handleClick(tapDownX, tapDownY, wwd.engine.viewport.height, wwd.engine)) {
                     wwd.requestRedraw()
                     event.preventDefault()
                     vcRepeatTimeout = window.setTimeout({
                         vcRepeatInterval = window.setInterval({
-                            if (vcl.handleClick(cx, cy, wwd.engine.viewport.height, wwd.engine))
+                            if (vcl.handleClick(tapDownX, tapDownY, wwd.engine.viewport.height, wwd.engine))
                                 wwd.requestRedraw()
                         }, 50)
                     }, 400)
@@ -101,7 +100,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
                     val p = wwd.canvasCoordinates(event.clientX, event.clientY)
                     val dx = p.x - tapDownX; val dy = p.y - tapDownY
                     if (dx * dx + dy * dy < 25) {
-                        worldMapLayer?.handleClick(p.x.toFloat(), p.y.toFloat(), wwd.engine.viewport.height, wwd.engine)
+                        worldMapLayer?.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine)
                     }
                 }
             }

@@ -114,7 +114,8 @@ fun main() {
                         "Geographic meshes" -> { e ->
                             if (geoMeshTutorial.isStarted) {
                                 val ray = Line()
-                                if (engine.rayThroughScreenPoint(e.x.toDouble(), (engine.viewport.height - e.y).toDouble(), ray)) {
+                                val p = wwd!!.viewportCoordinates(e.x, e.y)
+                                if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
                                     geoMeshTutorial.pickMesh(ray, engine.globe)
                                     wwd?.requestRedraw()
                                 }
@@ -123,7 +124,8 @@ fun main() {
                         "Triangle meshes" -> { e ->
                             if (triMeshTutorial.isStarted) {
                                 val ray = Line()
-                                if (engine.rayThroughScreenPoint(e.x.toDouble(), (engine.viewport.height - e.y).toDouble(), ray)) {
+                                val p = wwd!!.viewportCoordinates(e.x, e.y)
+                                if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
                                     triMeshTutorial.pickMesh(ray, engine.globe)
                                     wwd?.requestRedraw()
                                 }
@@ -132,7 +134,8 @@ fun main() {
                         "COLLADA" -> { e ->
                             if (colladaTutorial.isStarted) {
                                 val ray = Line()
-                                if (engine.rayThroughScreenPoint(e.x.toDouble(), (engine.viewport.height - e.y).toDouble(), ray)) {
+                                val p = wwd!!.viewportCoordinates(e.x, e.y)
+                                if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
                                     colladaTutorial.pickScene(ray, engine.globe)
                                     wwd?.requestRedraw()
                                 }

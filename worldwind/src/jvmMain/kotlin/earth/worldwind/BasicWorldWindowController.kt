@@ -31,13 +31,11 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
         val vcl = viewControlsLayer ?: return false
         when (event.id) {
             MouseEvent.MOUSE_PRESSED -> if (event.button == MouseEvent.BUTTON1) {
-                val sx = wwd.engine.viewport.width.toFloat() / wwd.width.toFloat()
-                val sy = wwd.engine.viewport.height.toFloat() / wwd.height.toFloat()
-                val scaledX = event.x * sx; val scaledY = event.y * sy
-                if (vcl.handleClick(scaledX, scaledY, wwd.engine.viewport.height, wwd.engine)) {
+                val p = wwd.viewportCoordinates(event.x, event.y)
+                if (vcl.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine)) {
                     wwd.requestRedraw()
                     vcRepeatTimer = javax.swing.Timer(50) {
-                        if (vcl.handleClick(scaledX, scaledY, wwd.engine.viewport.height, wwd.engine))
+                        if (vcl.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine))
                             wwd.requestRedraw()
                     }.apply { initialDelay = 400; start() }
                     return true
@@ -85,9 +83,8 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
                 gestureDidEnd()
                 // Tap detection: short left-click navigates the minimap
                 if (event.id == MouseEvent.MOUSE_RELEASED && prevButton == MouseEvent.BUTTON1 && dx * dx + dy * dy < 25) {
-                    val sx = wwd.engine.viewport.width.toFloat() / wwd.width.toFloat()
-                    val sy = wwd.engine.viewport.height.toFloat() / wwd.height.toFloat()
-                    worldMapLayer?.handleClick(event.x * sx, event.y * sy, wwd.engine.viewport.height, wwd.engine)
+                    val p = wwd.viewportCoordinates(event.x, event.y)
+                    worldMapLayer?.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine)
                 }
                 return true
             }
@@ -112,8 +109,9 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
         var lat = lookAt.position.latitude
         var lon = lookAt.position.longitude
 
-        val dx = x - lastX
-        val dy = y - lastY
+        val density = wwd.engine.densityFactor.toDouble()
+        val dx = (x - lastX) * density
+        val dy = (y - lastY) * density
         val metersPerPixel = wwd.engine.pixelSizeAtDistance(max(1.0, lookAt.range))
         val forwardMeters = dy * metersPerPixel
         val sideMeters = -dx * metersPerPixel
@@ -143,8 +141,9 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
     }
 
     protected open fun handlePan2D(x: Int, y: Int) {
-        val tx = x - beginX
-        val ty = y - beginY
+        val density = wwd.engine.densityFactor.toDouble()
+        val tx = (x - beginX) * density
+        val ty = (y - beginY) * density
 
         val metersPerPixel = wwd.engine.pixelSizeAtDistance(max(1.0, lookAt.range))
         val forwardMeters = ty * metersPerPixel

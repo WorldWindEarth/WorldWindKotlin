@@ -152,25 +152,37 @@ open class WorldWindow @JvmOverloads constructor(
     }
 
     /**
+     * Converts Swing screen pixel coordinates to GL viewport coordinates by applying the screen density factor.
+     * @param x The X coordinate in Swing screen pixels.
+     * @param y The Y coordinate in Swing screen pixels.
+     * @return The converted coordinates in GL viewport pixels.
+     */
+    fun viewportCoordinates(x: Number, y: Number) = if (::engine.isInitialized) {
+        val d = engine.densityFactor
+        Vec2(x.toDouble() * d, y.toDouble() * d)
+    } else Vec2(x.toDouble(), y.toDouble())
+
+    /**
      * Determines the WorldWind shapes displayed in a screen rectangle. The screen rectangle is
-     * interpreted as coordinates in Swing screen pixels relative to this view.
+     * interpreted as GL viewport coordinates. Use [viewportCoordinates] to convert Swing screen
+     * pixels to GL viewport coordinates before calling this method.
      *
-     * @param x the screen rectangle's X coordinate in Swing screen pixels
-     * @param y the screen rectangle's Y coordinate in Swing screen pixels
-     * @param width the screen rectangle's width in Swing screen pixels
-     * @param height the screen rectangle's height in Swing screen pixels
+     * @param x the screen rectangle's X coordinate in GL viewport pixels
+     * @param y the screen rectangle's Y coordinate in GL viewport pixels
+     * @param width the screen rectangle's width in GL viewport pixels
+     * @param height the screen rectangle's height in GL viewport pixels
      * @param pickCenter picks top shape and terrain in rectangle center as priority
      *
      * @return a deferred list of WorldWind shapes in the screen rectangle
      */
-    fun pickAsync(x: Float, y: Float, width: Float = 0f, height: Float = 0f, pickCenter: Boolean = true): Deferred<PickedObjectList> {
+    fun pickAsync(x: Double, y: Double, width: Double = 0.0, height: Double = 0.0, pickCenter: Boolean = true): Deferred<PickedObjectList> {
         val pickedObjects = PickedObjectList()
         if (!::engine.isInitialized) return CompletableDeferred(pickedObjects)
 
         val viewport = engine.viewport
         if (viewport.isEmpty) return CompletableDeferred(pickedObjects)
 
-        val pickViewport = if (width != 0f && height != 0f) Viewport(
+        val pickViewport = if (width != 0.0 && height != 0.0) Viewport(
             floor(x).toInt(), viewport.height - ceil(y + height).toInt(), ceil(width).toInt(), ceil(height).toInt()
         ) else Viewport(x.roundToInt() - 1, viewport.height - y.roundToInt() - 1, 3, 3)
         if (!pickViewport.intersect(viewport)) return CompletableDeferred(pickedObjects)
@@ -213,12 +225,12 @@ open class WorldWindow @JvmOverloads constructor(
      * WorldWind scene between the terrain and the screen point, the terrain picked object is
      * marked as "on top".
      *
-     * @param x the screen point's X coordinate in Swing screen pixels
-     * @param y the screen point's Y coordinate in Swing screen pixels
+     * @param x the screen point's X coordinate in GL viewport pixels
+     * @param y the screen point's Y coordinate in GL viewport pixels
      *
      * @return a list of WorldWind objects at the screen point
      */
-    fun pick(x: Float, y: Float) = runBlocking { pickAsync(x, y).await() }
+    fun pick(x: Double, y: Double) = runBlocking { pickAsync(x, y).await() }
 
     /**
      * Determines the WorldWind shapes displayed in a screen rectangle. The screen rectangle is
@@ -230,14 +242,14 @@ open class WorldWindow @JvmOverloads constructor(
      * displayed the shape. Shapes that are entirely hidden behind another shape or terrain in the
      * screen rectangle are omitted from the returned list.
      *
-     * @param x the screen rectangle's X coordinate in Swing screen pixels
-     * @param y the screen rectangle's Y coordinate in Swing screen pixels
-     * @param width the screen rectangle's width in Swing screen pixels
-     * @param height the screen rectangle's height in Swing screen pixels
+     * @param x the screen rectangle's X coordinate in GL viewport pixels
+     * @param y the screen rectangle's Y coordinate in GL viewport pixels
+     * @param width the screen rectangle's width in GL viewport pixels
+     * @param height the screen rectangle's height in GL viewport pixels
      *
      * @return a list of WorldWind shapes in the screen rectangle
      */
-    fun pickShapesInRect(x: Float, y: Float, width: Float, height: Float) = runBlocking {
+    fun pickShapesInRect(x: Double, y: Double, width: Double, height: Double) = runBlocking {
         pickAsync(x, y, width, height, false).await()
     }
 

@@ -40,10 +40,11 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                 val toPosition = Position()
 
                 val toGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
+                val p = wwd.viewportCoordinates(event.x, event.y)
                 val moved = if (toGround) {
-                    wwd.engine.pickTerrainPosition(event.x.toDouble(), event.y.toDouble(), toPosition)
+                    wwd.engine.pickTerrainPosition(p.x, p.y, toPosition)
                 } else {
-                    wwd.engine.screenPointToGroundPosition(event.x.toDouble(), event.y.toDouble(), toPosition)
+                    wwd.engine.screenPointToGroundPosition(p.x, p.y, toPosition)
                 }
 
                 if (moved) {
@@ -97,7 +98,8 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     }
 
     protected open fun pick(event: MouseEvent) {
-        val pickList = runBlocking { wwd.pickAsync(event.x.toFloat(), event.y.toFloat(), 4f, 4f).await() }
+        val p = wwd.viewportCoordinates(event.x, event.y)
+        val pickList = runBlocking { wwd.pickAsync(p.x, p.y, 4.0, 4.0).await() }
         val topObject = pickList.topPickedObject?.userObject
         pickedRenderable = topObject as? Renderable
         pickedPosition = pickList.terrainPickedObject?.terrainPosition

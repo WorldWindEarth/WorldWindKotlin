@@ -57,7 +57,7 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
         val vcl = viewControlsLayer ?: return false
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                val x = event.x; val y = event.y
+                val x = event.x.toDouble(); val y = event.y.toDouble()
                 if (vcl.handleClick(x, y, wwd.engine.viewport.height, wwd.engine)) {
                     wwd.requestRedraw()
                     // Cancel any in-progress gesture so recognizers reset to POSSIBLE state,
@@ -98,7 +98,7 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
         if (event.actionMasked == MotionEvent.ACTION_UP && event.pointerCount == 1) {
             val dx = event.x - tapDownX; val dy = event.y - tapDownY
             if (dx * dx + dy * dy < 100f) {
-                worldMapLayer?.handleClick(event.x, event.y, wwd.engine.viewport.height, wwd.engine)
+                worldMapLayer?.handleClick(event.x.toDouble(), event.y.toDouble(), wwd.engine.viewport.height, wwd.engine)
             }
         }
 

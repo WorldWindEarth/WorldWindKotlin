@@ -114,7 +114,7 @@ class ViewControlsLayer(
      * viewportHeight is used to convert y to OpenGL convention internally.
      * Returns true if a control was activated.
      */
-    fun handleClick(x: Float, y: Float, viewportHeight: Int, engine: WorldWind): Boolean {
+    fun handleClick(x: Double, y: Double, viewportHeight: Int, engine: WorldWind): Boolean {
         val glY = viewportHeight - y  // convert to OpenGL y (bottom-left origin)
         val hit = controlBounds.firstOrNull { b ->
             x >= b.x && x <= b.x + b.w && glY >= b.y && glY <= b.y + b.h
