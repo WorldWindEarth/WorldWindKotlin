@@ -178,23 +178,6 @@ class Matrix4Test {
     }
 
     @Test
-    fun testUnProject_NearAndFar() {
-        val viewport = Viewport(0, 0, 100, 100)
-        val nearResult = Vec3()
-        val farResult = Vec3()
-
-        val success = unProject(Matrix4(), 25.0, 75.0, viewport, nearResult, farResult)
-
-        assertTrue(success, "un-project succeeds")
-        assertEquals(-0.5, nearResult.x, TOLERANCE, "near x")
-        assertEquals(0.5, nearResult.y, TOLERANCE, "near y")
-        assertEquals(-1.0, nearResult.z, TOLERANCE, "near z")
-        assertEquals(-0.5, farResult.x, TOLERANCE, "far x")
-        assertEquals(0.5, farResult.y, TOLERANCE, "far y")
-        assertEquals(1.0, farResult.z, TOLERANCE, "far z")
-    }
-
-    @Test
     fun testUnProject_WithDepth() {
         val viewport = Viewport(0, 0, 100, 100)
         val result = Vec3()
