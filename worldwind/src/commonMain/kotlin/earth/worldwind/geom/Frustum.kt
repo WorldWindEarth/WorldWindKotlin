@@ -165,10 +165,10 @@ open class Frustum {
         var trn: Vec3
         var trf: Vec3
         val mvpInv = scratchMatrix.setToMultiply(projection, modelview).invert()
-        unProject(mvpInv, left, bottom, viewport, Vec3().also { bln = it }, Vec3().also { blf = it })
-        unProject(mvpInv, right, bottom, viewport, Vec3().also { brn = it }, Vec3().also { brf = it })
-        unProject(mvpInv, left, top, viewport, Vec3().also { tln = it }, Vec3().also { tlf = it })
-        unProject(mvpInv, right, top, viewport, Vec3().also { trn = it }, Vec3().also { trf = it })
+        mvpInv.unProject(left, bottom, viewport, Vec3().also { bln = it }, Vec3().also { blf = it })
+        mvpInv.unProject(right, bottom, viewport, Vec3().also { brn = it }, Vec3().also { brf = it })
+        mvpInv.unProject(left, top, viewport, Vec3().also { tln = it }, Vec3().also { tlf = it })
+        mvpInv.unProject(right, top, viewport, Vec3().also { trn = it }, Vec3().also { trf = it })
 
         val va = Vec3(tlf.x - bln.x, tlf.y - bln.y, tlf.z - bln.z)
         val vb = Vec3(tln.x - blf.x, tln.y - blf.y, tln.z - blf.z)
