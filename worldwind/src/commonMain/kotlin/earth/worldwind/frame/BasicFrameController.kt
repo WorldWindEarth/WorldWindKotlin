@@ -15,7 +15,12 @@ import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.GL_COLOR_BUFFER_BIT
+import earth.worldwind.util.kgl.GL_DEPTH_ATTACHMENT
 import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
+import earth.worldwind.util.kgl.GL_FLOAT
+import earth.worldwind.util.kgl.GL_TEXTURE0
+import earth.worldwind.util.kgl.GL_TRIANGLE_STRIP
+import earth.worldwind.util.kgl.KglFramebuffer
 import kotlin.math.roundToInt
 
 open class BasicFrameController: FrameController {
@@ -110,11 +115,18 @@ open class BasicFrameController: FrameController {
     }
 
     override fun drawFrame(dc: DrawContext) {
+        if(dc.isPickMode) {
+            dc.ensurePickFrameBuffer(dc.viewport.width, dc.viewport.height)
+            dc.pickFramebuffer.bindFramebuffer(dc)
+        }
         setViewport(dc)
         clearFrame(dc)
         uploadBuffers(dc)
         drawDrawables(dc)
-        if (dc.isPickMode) resolvePick(dc)
+        if (dc.isPickMode) {
+            copyDepthToFramebuffer(dc)
+            resolvePick(dc)
+        }
     }
 
     protected open fun setViewport(dc: DrawContext) {
@@ -146,15 +158,38 @@ open class BasicFrameController: FrameController {
         }
     }
 
+    protected open fun copyDepthToFramebuffer(dc: DrawContext) {
+        val program = dc.depthToColorProgram ?: return
+        if(!program.useProgram(dc)) return
+        if(!dc.unitSquareBuffer.bindBuffer(dc)) return
+
+        // bind backbuffer to render depth as color to it
+        dc.bindFramebuffer(KglFramebuffer.NONE)
+        dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+
+        dc.activeTextureUnit(GL_TEXTURE0)
+        val depthTexture = dc.pickFramebuffer.getAttachedTexture(GL_DEPTH_ATTACHMENT)
+        if (!depthTexture.bindTexture(dc)) return // framebuffer texture failed to bind
+
+        dc.gl.vertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0)
+
+        dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
+    }
+
     protected open fun resolvePick(dc: DrawContext) {
         val pickedObjects = dc.pickedObjects ?: return
         if (pickedObjects.count == 0) return  // no eligible objects; avoid expensive calls to glReadPixels
         val pickViewport = dc.pickViewport ?: return
         val pickPointOnly = dc.pickPoint != null && pickViewport.width <= 3 && pickViewport.height <= 3
         var objectFound = false
+        val invProjection = Matrix4(dc.modelviewProjection).invert()
 
         dc.pickPoint?.let { pickPoint ->
+            // Read depth value at the pick point.
+            val pickDepth = dc.readPixelDepth(pickPoint.x.roundToInt(), pickPoint.y.roundToInt())
+
             // Read the fragment color at the pick point.
+            dc.pickFramebuffer.bindFramebuffer(dc)
             dc.readPixelColor(pickPoint.x.roundToInt(), pickPoint.y.roundToInt(), pickColor)
 
             // Convert the fragment color to a picked object ID. It returns zero if the color cannot indicate a picked
@@ -163,7 +198,17 @@ open class BasicFrameController: FrameController {
             if (topObjectId != 0) {
                 val topObject = pickedObjects.pickedObjectWithId(topObjectId)
                 if (topObject != null) {
-                    if (!topObject.isTerrain) objectFound = true // Non-terrain object found in pick point
+                    if (!topObject.isTerrain) {
+                        objectFound = true
+                        topObject.cartesianPoint = Vec3()
+                        invProjection.unProject(
+                            pickPoint.x,
+                            pickPoint.y,
+                            pickDepth.toDouble(),
+                            dc.viewport,
+                            topObject.cartesianPoint!!
+                        )
+                    } // Non-terrain object found in pick point
                     if (pickPointOnly || objectFound) {
                         topObject.markOnTop()
                         // Remove picked objects except top and terrain in case of object found or point only mode
@@ -179,16 +224,48 @@ open class BasicFrameController: FrameController {
         }
 
         if (!pickPointOnly && !objectFound) {
-            // Read the unique fragment colors in the pick rectangle.
-            dc.readPixelColors(pickViewport.x, pickViewport.y, pickViewport.width, pickViewport.height).forEach { pickColor ->
+            // Read fragment depths in the pick rectangle.
+            dc.bindFramebuffer(KglFramebuffer.NONE)
+            val pickDepths = dc.readPixelDepths(
+                pickViewport.x,
+                pickViewport.y,
+                pickViewport.width,
+                pickViewport.height
+            )
+
+            // Read fragment colors in the pick rectangle.
+            dc.pickFramebuffer.bindFramebuffer(dc)
+            val pickColors = dc.readPixelColors(
+                pickViewport.x,
+                pickViewport.y,
+                pickViewport.width,
+                pickViewport.height
+            )
+
+            val pixelCount = pickViewport.width * pickViewport.height
+            for (i in 0 until pixelCount) {
+                val pickColor = pickColors[i]
+                val pickDepth = pickDepths[i]
                 // Convert the fragment color to a picked object ID. This returns zero if the color cannot indicate a picked
                 // object ID.
                 val topObjectId = uniqueColorToIdentifier(pickColor)
                 if (topObjectId != 0) {
                     val topObject = pickedObjects.pickedObjectWithId(topObjectId)
-                    if (topObject?.isTerrain == false) topObject.markOnTop()
+                    if (topObject?.isTerrain == false) {
+                        topObject.markOnTop()
+                        topObject.cartesianPoint = Vec3()
+                        invProjection.unProject(
+                            pickPoint.x,
+                            pickPoint.y,
+                            pickDepth.toDouble(),
+                            dc.viewport,
+                            topObject.cartesianPoint!!
+                        )
+                    }
                 }
             }
         }
+
+        dc.bindFramebuffer(KglFramebuffer.NONE)
     }
 }

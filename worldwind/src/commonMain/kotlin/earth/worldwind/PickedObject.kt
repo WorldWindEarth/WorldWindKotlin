@@ -1,6 +1,7 @@
 package earth.worldwind
 
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.Layer
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
@@ -8,7 +9,7 @@ import kotlin.jvm.JvmStatic
 import kotlin.math.roundToInt
 
 open class PickedObject protected constructor(
-    val identifier: Int, val userObject: Any, val layer: Layer? = null, val terrainPosition: Position? = null
+    val identifier: Int, val userObject: Any, val layer: Layer? = null, val terrainPosition: Position? = null, var cartesianPoint: Vec3? = null
 ) {
     var isOnTop = false
         protected set

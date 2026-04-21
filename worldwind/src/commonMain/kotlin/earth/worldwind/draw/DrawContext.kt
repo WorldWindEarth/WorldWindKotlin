@@ -10,6 +10,7 @@ import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.buffer.BufferPool
+import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
@@ -29,6 +30,7 @@ open class DrawContext(val gl: Kgl) {
     var pickedObjects: PickedObjectList? = null
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
+    var depthToColorProgram: DepthToColorProgram? = null
     var isPickMode = false
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
@@ -36,6 +38,7 @@ open class DrawContext(val gl: Kgl) {
     private val textures = Array(32) { KglTexture.NONE }
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
+    private var pickFramebufferCache: Framebuffer? = null
     private var scratchFramebufferCache: Framebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
@@ -65,6 +68,15 @@ open class DrawContext(val gl: Kgl) {
      * multitexture unit may be determined by calling currentTextureUnit.
      */
     val currentTexture get() = currentTexture(textureUnit)
+
+    /**
+     * Returns an OpenGL framebuffer object used for offscreen pick pass drawing. The framebuffer has a 32-bit color buffer
+     * and a 16-bit depth buffer, both attached as OpenGL texture 2D objects.
+     * The OpenGL framebuffer object is created in ensurePickFrameBuffer(), so it matches device resolution.
+     */
+    val pickFramebuffer
+        get() = pickFramebufferCache ?: error("Pick framebuffer not initialized")
+
     /**
      * Returns an OpenGL framebuffer object suitable for offscreen drawing. The framebuffer has a 32-bit color buffer
      * and a 32-bit depth buffer, both attached as OpenGL texture 2D objects.
@@ -155,6 +167,7 @@ open class DrawContext(val gl: Kgl) {
         pickedObjects = null
         pickViewport = null
         pickPoint = null
+        depthToColorProgram = null
         isPickMode = false
         scratchBuffer.fill(0)
         scratchList.clear()
@@ -163,6 +176,7 @@ open class DrawContext(val gl: Kgl) {
 
     fun contextLost() {
         // Clear objects and values associated with the current OpenGL context.
+        pickFramebufferCache?.release(this)
         scratchFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -172,6 +186,7 @@ open class DrawContext(val gl: Kgl) {
         textureUnit = GL_TEXTURE0
         arrayBuffer = KglBuffer.NONE
         elementArrayBuffer = KglBuffer.NONE
+        pickFramebufferCache = null
         scratchFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null
@@ -322,7 +337,30 @@ open class DrawContext(val gl: Kgl) {
     }
 
     /**
-     * Reads the unique fragment colors within a screen rectangle in the currently active OpenGL frame buffer. The
+     * Reads the 16-bit depth at a screen point encoded in the currently active OpenGL frame buffer. The X and Y components
+     * indicate OpenGL screen coordinates, which originate in the frame buffer's lower left corner.
+     *
+     * @param x      the screen point's X component
+     * @param y      the screen point's Y component
+     *
+     * @return the result argument set to the depth value
+     */
+    fun readPixelDepth(x: Int, y: Int): Float {
+        // Read the pixel (RGBA format)
+        gl.readPixels(x, y, 1, 1, GL_RGB, GL_UNSIGNED_BYTE, pixelArray)
+
+        // Convert bytes to unsigned integers (0-255)
+        val r = pixelArray[0].toInt() and 0xFF
+        val g = pixelArray[1].toInt() and 0xFF
+
+        // Reconstruct the 16-bit value
+        // Red represents the range [0, 255]
+        // Green represents the sub-range between Red steps
+        return (r.toFloat() / 255.0f) + (g.toFloat() / (255.0f * 255.0f))
+    }
+
+    /**
+     * Reads fragment colors within a screen rectangle in the currently active OpenGL frame buffer. The
      * components indicate OpenGL screen coordinates, which originate in the frame buffer's lower left corner.
      *
      * @param x      the screen rectangle's X component
@@ -330,9 +368,9 @@ open class DrawContext(val gl: Kgl) {
      * @param width  the screen rectangle's width
      * @param height the screen rectangle's height
      *
-     * @return a set containing the unique fragment colors
+     * @return a arrayList containing fragment colors
      */
-    fun readPixelColors(x: Int, y: Int, width: Int, height: Int): Set<Color> {
+    fun readPixelColors(x: Int, y: Int, width: Int, height: Int): ArrayList<Color> {
         // Read the fragment pixels as a tightly packed array of RGBA 8888 colors.
         val pixelCount = width * height
         val pixelBuffer = scratchBuffer(pixelCount * 4)
@@ -340,8 +378,8 @@ open class DrawContext(val gl: Kgl) {
         gl.pixelStorei(GL_PACK_ALIGNMENT, 1) // read byte aligned
         gl.readPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixelBuffer)
         gl.pixelStorei(GL_PACK_ALIGNMENT, packAlignment) // restore the pack alignment
-        val resultSet = mutableSetOf<Color>()
-        var result = Color()
+        val resultArrayList = ArrayList<Color>(pixelCount)
+        val result = Color()
         for (i in 0 until pixelCount) {
             val idx = i * 4
 
@@ -350,11 +388,43 @@ open class DrawContext(val gl: Kgl) {
             result.green = (pixelBuffer[idx + 1].toInt() and 0xFF) / 0xFF.toFloat()
             result.blue = (pixelBuffer[idx + 2].toInt() and 0xFF) / 0xFF.toFloat()
             result.alpha = (pixelBuffer[idx + 3].toInt() and 0xFF) / 0xFF.toFloat()
-
-            // Accumulate the unique colors in a set.
-            if (resultSet.add(result)) result = Color()
+            resultArrayList.add(result)
         }
-        return resultSet
+        return resultArrayList
+    }
+
+    /**
+     * Reads 16-bit depth values within a screen rectangle encoded in the currently active OpenGL frame buffer. The
+     * components indicate OpenGL screen coordinates, which originate in the frame buffer's lower left corner.
+     *
+     * @param x      the screen rectangle's X component
+     * @param y      the screen rectangle's Y component
+     * @param width  the screen rectangle's width
+     * @param height the screen rectangle's height
+     *
+     * @return a arrayList containing depth values
+     */
+    fun readPixelDepths(x: Int, y: Int, width: Int, height: Int): ArrayList<Float> {
+        // Read the fragment pixels as a tightly packed array of RGB 888 colors.
+        val pixelCount = width * height
+        val pixelBuffer = scratchBuffer(pixelCount * 3)
+        val packAlignment = gl.getParameteri(GL_PACK_ALIGNMENT)
+        gl.pixelStorei(GL_PACK_ALIGNMENT, 1) // read byte aligned
+        gl.readPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixelBuffer)
+        gl.pixelStorei(GL_PACK_ALIGNMENT, packAlignment) // restore the pack alignment
+        val resultArrayList = ArrayList<Float>(pixelCount)
+        for (i in 0 until pixelCount) {
+            val idx = i * 3
+
+            val r = pixelBuffer[idx + 0].toInt() and 0xFF
+            val g = pixelBuffer[idx + 1].toInt() and 0xFF
+
+            // Reconstruct the 16-bit value
+            // Red represents the range [0, 255]
+            // Green represents the sub-range between Red steps
+            resultArrayList.add((r.toFloat() / 255.0f) + (g.toFloat() / (255.0f * 255.0f)))
+        }
+        return resultArrayList
     }
 
     /**
@@ -369,5 +439,46 @@ open class DrawContext(val gl: Kgl) {
     fun scratchBuffer(capacity: Int): ByteArray {
         if (scratchBuffer.size < capacity) scratchBuffer = ByteArray(capacity)
         return scratchBuffer
+    }
+
+    /**
+     * Ensures that the pick framebuffer matches or exceeds the specified dimensions.
+     *
+     * <p>This method checks the currently cached pick framebuffer and verifies that its
+     * color attachment is large enough to cover the requested width and height. If the
+     * existing framebuffer is sufficient, no action is taken.</p>
+     *
+     * <p>If the current framebuffer is smaller than required, a new framebuffer is created
+     * with updated dimensions. The new framebuffer contains:
+     * <ul>
+     *     <li>A 32-bit RGBA color texture attached to {@code GL_COLOR_ATTACHMENT0}</li>
+     *     <li>A 16-bit depth texture attached to {@code GL_DEPTH_ATTACHMENT}</li>
+     * </ul>
+     * Both attachments are configured as 2D textures. The depth texture uses
+     * {@code GL_NEAREST} filtering to ensure correct sampling behavior during pick passes.</p>
+     *
+     * <p>The newly created framebuffer replaces the cached instance.</p>
+     *
+     * @param width  the required framebuffer width in pixels
+     * @param height the required framebuffer height in pixels
+     */
+    fun ensurePickFrameBuffer(width: Int, height: Int) {
+        if (pickFramebufferCache != null) {
+            val colorAttachment = pickFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
+            if (colorAttachment.width >= viewport.width && colorAttachment.height >= viewport.height) return
+        }
+
+        Framebuffer().apply {
+            val colorAttachment = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true)
+            val depthAttachment =
+                Texture(width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true)
+            // TODO consider modifying Texture's tex parameter behavior in order to make this unnecessary
+            depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
+            attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
+        }.also {
+            pickFramebufferCache = it
+        }
     }
 }
