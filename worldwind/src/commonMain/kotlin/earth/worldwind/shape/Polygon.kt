@@ -6,15 +6,22 @@ import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.Angle.Companion.radians
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
+import earth.worldwind.util.*
+import earth.worldwind.util.Intersection
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.util.NumericArray
 import earth.worldwind.util.glu.GLU
 import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
@@ -28,9 +35,23 @@ open class Polygon @JvmOverloads constructor(
     positions: List<Position> = emptyList(), attributes: ShapeAttributes = ShapeAttributes()
 ): AbstractShape(attributes) {
     override val referencePosition: Position get() {
-        val sector = Sector()
-        for (boundary in boundaries) for (position in boundary) sector.union(position)
-        return Position(sector.centroidLatitude, sector.centroidLongitude, 0.0)
+        // Cartesian centroid: average of vertex unit vectors, projected back to the sphere. Unlike
+        // a lat/lon min/max midpoint this is rotation-equivariant — if the polygon is rotated,
+        // the centroid rotates with it — which keeps drag (SphericalRotation in moveTo) stable
+        // across successive events. Also handles antimeridian crossing without special-casing
+        // and converges to the actual pole for polygons symmetric about it.
+        var sx = 0.0; var sy = 0.0; var sz = 0.0
+        for (boundary in boundaries) for (pos in boundary) {
+            val latRad = pos.latitude.inRadians
+            val lonRad = pos.longitude.inRadians
+            sx += cos(latRad) * cos(lonRad)
+            sy += cos(latRad) * sin(lonRad)
+            sz += sin(latRad)
+        }
+        val mag = sqrt(sx * sx + sy * sy + sz * sz)
+        if (mag < 1.0e-10) return Position()
+        val nx = sx / mag; val ny = sy / mag; val nz = sz / mag
+        return Position(asin(nz.coerceIn(-1.0, 1.0)).radians, atan2(ny, nx).radians, 0.0)
     }
     val boundaryCount get() = boundaries.size
     protected val boundaries = mutableListOf(positions)
@@ -57,6 +78,7 @@ open class Polygon @JvmOverloads constructor(
         val sideElements = mutableListOf<Int>()
         val baseElements = mutableListOf<Int>()
         val outlineElements = mutableListOf<Int>()
+        val outlineChainStarts = mutableListOf<Int>()
         val verticalElements = mutableListOf<Int>()
         val vertexBufferKey = Any()
         val elementBufferKey = Any()
@@ -159,12 +181,8 @@ open class Polygon @JvmOverloads constructor(
     }
 
     override fun moveTo(globe: Globe, position: Position) {
-        val refPos = referencePosition
-        for (boundary in boundaries) for (pos in boundary) {
-            val distance = refPos.greatCircleDistance(pos)
-            val azimuth = refPos.greatCircleAzimuth(pos)
-            position.greatCircleLocation(azimuth, distance, pos)
-        }
+        val rotation = SphericalRotation(referencePosition, position)
+        for (boundary in boundaries) for (pos in boundary) rotation.apply(pos)
         reset()
     }
 
@@ -288,6 +306,26 @@ open class Polygon @JvmOverloads constructor(
         if (isSurfaceShape || activeAttributes.interiorColor.alpha >= 1.0) {
             rc.offerSurfaceDrawable(drawable, zOrder)
             rc.offerSurfaceDrawable(drawableLines, zOrder)
+            // For antimeridian-crossing shapes, enqueue additional drawables covering the other half.
+            if (isSurfaceShape && currentBoundindData.crossesAntimeridian) {
+                val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
+                val version = computeVersion()
+                val dynamic = isDynamic || rc.currentLayer.isDynamic
+                DrawableSurfaceShape.obtain(pool).also { d ->
+                    d.offset = rc.globe.offset
+                    d.sector.copy(currentBoundindData.additionalSector)
+                    d.version = version; d.isDynamic = dynamic
+                    d.drawState.copy(drawState)
+                    rc.offerSurfaceDrawable(d, zOrder)
+                }
+                DrawableSurfaceShape.obtain(pool).also { d ->
+                    d.offset = rc.globe.offset
+                    d.sector.copy(currentBoundindData.additionalSector)
+                    d.version = version; d.isDynamic = dynamic
+                    d.drawState.copy(drawStateLines)
+                    rc.offerSurfaceDrawable(d, zOrder)
+                }
+            }
         } else {
             rc.offerShapeDrawable(drawableLines, cameraDistanceSq)
             rc.offerShapeDrawable(drawable, cameraDistanceSq)
@@ -346,7 +384,13 @@ open class Polygon @JvmOverloads constructor(
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth
-        drawState.drawElements(GL_TRIANGLES, currentData.outlineElements.size, GL_UNSIGNED_INT, offset = 0)
+        val chainStarts = currentData.outlineChainStarts
+        for (ci in chainStarts.indices) {
+            val start = chainStarts[ci]
+            val end = if (ci + 1 < chainStarts.size) chainStarts[ci + 1] else currentData.outlineElements.size
+            val count = end - start
+            if (count > 0) drawState.drawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, start * Int.SIZE_BYTES)
+        }
 
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
@@ -375,36 +419,55 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometryFull(rc: RenderContext) {
-        // Determine the number of vertexes
+        // For surface shapes, split boundaries at the antimeridian and handle pole inclusion.
+        val splitContours: List<ContourInfo>?
+        val splitCrossesAntimeridian = if (isSurfaceShape && boundaries.isNotEmpty()) {
+            val (crosses, contours) = PolygonSplitter.splitContours(boundaries)
+            splitContours = contours
+            crosses
+        } else {
+            splitContours = null
+            false
+        }
+
+        // Determine the number of vertices; account for extra intersection/pole points when split.
         val noIntermediatePoints = maximumIntermediatePoints <= 0 || pathType == LINEAR
         var vertexCount = 0
         var lineVertexCount = 0
         var verticalVertexCount = 0
-        for (i in boundaries.indices) {
-            val p = boundaries[i]
-            if (p.isEmpty()) continue
-            val lastEqualsFirst = p[0] == p[p.size - 1]
-            if (noIntermediatePoints) {
-                vertexCount += p.size
-                lineVertexCount += p.size + if (lastEqualsFirst) 2 else 3
-                verticalVertexCount += p.size
-            } else if (lastEqualsFirst) {
-                vertexCount += p.size + (p.size - 1) * maximumIntermediatePoints
-                lineVertexCount += 2 + p.size + (p.size - 1) * maximumIntermediatePoints
-                verticalVertexCount += p.size
-            } else {
-                vertexCount += p.size + p.size * maximumIntermediatePoints
-                lineVertexCount += 3 + p.size + p.size * maximumIntermediatePoints
-                verticalVertexCount += p.size
+        if (splitContours != null) {
+            for (info in splitContours) for (poly in info.polygons) {
+                val n = poly.size
+                lineVertexCount += n + 3
+                vertexCount += if (noIntermediatePoints) n else n + n * maximumIntermediatePoints
+                verticalVertexCount += n
+            }
+        } else {
+            for (i in boundaries.indices) {
+                val p = boundaries[i]
+                if (p.isEmpty()) continue
+                val lastEqualsFirst = p[0] == p[p.size - 1]
+                if (noIntermediatePoints) {
+                    vertexCount += p.size
+                    lineVertexCount += p.size + if (lastEqualsFirst) 2 else 3
+                    verticalVertexCount += p.size
+                } else if (lastEqualsFirst) {
+                    vertexCount += p.size + (p.size - 1) * maximumIntermediatePoints
+                    lineVertexCount += 2 + p.size + (p.size - 1) * maximumIntermediatePoints
+                    verticalVertexCount += p.size
+                } else {
+                    vertexCount += p.size + p.size * maximumIntermediatePoints
+                    lineVertexCount += 3 + p.size + p.size * maximumIntermediatePoints
+                    verticalVertexCount += p.size
+                }
             }
         }
 
-        // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
-        // geometry is assembled.
+        // Clear the shape's vertex array and element arrays.
         vertexIndex = 0
         currentData.vertexArray = if (isExtrude && !isSurfaceShape) FloatArray(vertexCount * 2 * VERTEX_STRIDE)
         else if (!isSurfaceShape) FloatArray(vertexCount * VERTEX_STRIDE)
-        else FloatArray((vertexCount + boundaries.size) * VERTEX_STRIDE) // Reserve boundaries.size for combined vertexes
+        else FloatArray((vertexCount + boundaries.size) * VERTEX_STRIDE)
         currentData.geographicVertexArray = FloatArray(vertexCount * 3 + boundaries.size * 3)
         currentData.geographicVertexCount = 0
         currentData.topElements.clear()
@@ -419,6 +482,7 @@ open class Polygon @JvmOverloads constructor(
             FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE)
         }
         currentData.outlineElements.clear()
+        currentData.outlineChainStarts.clear()
         currentData.verticalElements.clear()
 
         // Get reference point altitude
@@ -436,74 +500,189 @@ open class Polygon @JvmOverloads constructor(
         GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, tessCallback)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, tessCallback)
         GLU.gluTessBeginPolygon(tess, rc)
-        for (i in boundaries.indices) {
-            val positions = boundaries[i]
-            if (positions.isEmpty()) continue  // no boundary positions to assemble
+        if (splitContours != null) {
+            // Surface shape: use split sub-polygons as tessellator contours.
+            for (info in splitContours) {
+                for ((polyIdx, polygon) in info.polygons.withIndex()) {
+                    if (polygon.isEmpty()) continue
+                    val iMap = info.iMaps[polyIdx]
+                    val isPolePolygon = polyIdx == info.poleIndex
 
-            GLU.gluTessBeginContour(tess)
+                    GLU.gluTessBeginContour(tess)
 
-            // Add the boundary's first vertex. Add additional dummy vertex with the same data before the first vertex.
-            val pos0 = positions[0]
-            var begin = pos0
-            var beginAltitude = begin.altitude + currentData.savedRefAlt
-            calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain)
-            addVertex(rc, begin.latitude, begin.longitude, beginAltitude, type = VERTEX_ORIGINAL)
-            addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = true)
-            addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = false, addIndices = true)
+                    val savedRefAlt = currentData.savedRefAlt
+                    for (loc in polygon) {
+                        val alt = (if (loc is Position) loc.altitude else 0.0) + savedRefAlt
+                        calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
+                        addVertex(rc, loc.latitude, loc.longitude, alt, type = VERTEX_ORIGINAL)
+                    }
 
-            // Add the remaining boundary vertices, tessellating each edge as indicated by the polygon's properties.
-            for (idx in 1 until positions.size) {
-                val end = positions[idx]
-                val addIndices = idx != positions.size - 1 || end != pos0 // check if there is implicit closing edge
-                addIntermediateVertices(rc, begin, end)
-                val endAltitude = end.altitude + currentData.savedRefAlt
-                calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlain)
-                addVertex(rc, end.latitude, end.longitude, endAltitude, type = VERTEX_ORIGINAL)
-                addLineVertex(rc, end.latitude, end.longitude, endAltitude, isIntermediate = false, addIndices)
-                begin = end
-                beginAltitude = endAltitude
+                    addOutlineChains(rc, polygon, iMap, isPolePolygon, info.pole)
+
+                    GLU.gluTessEndContour(tess)
+                }
             }
+        } else {
+            // Non-surface or no-split: original logic.
+            for (i in boundaries.indices) {
+                val positions = boundaries[i]
+                if (positions.isEmpty()) continue
 
-            // Tessellate the implicit closing edge if the boundary is not already closed.
-            if (begin != pos0) {
-                addIntermediateVertices(rc, begin, pos0)
-                // Add additional dummy vertex with the same data after the last vertex.
-                val pos0Altitude = pos0.altitude + currentData.savedRefAlt
-                calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlain, isExtrudedSkirt = false)
-                addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
-                addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
-            } else {
-                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain, isExtrudedSkirt = false)
-                addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
+                GLU.gluTessBeginContour(tess)
+
+                val pos0 = positions[0]
+                var begin = pos0
+                var beginAltitude = begin.altitude + currentData.savedRefAlt
+                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain)
+                addVertex(rc, begin.latitude, begin.longitude, beginAltitude, type = VERTEX_ORIGINAL)
+                currentData.outlineChainStarts.add(currentData.outlineElements.size)
+                addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = true)
+                addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = false, addIndices = true)
+
+                for (idx in 1 until positions.size) {
+                    val end = positions[idx]
+                    val addIndices = idx != positions.size - 1 || end != pos0
+                    addIntermediateVertices(rc, begin, end)
+                    val endAltitude = end.altitude + currentData.savedRefAlt
+                    calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlain)
+                    addVertex(rc, end.latitude, end.longitude, endAltitude, type = VERTEX_ORIGINAL)
+                    addLineVertex(rc, end.latitude, end.longitude, endAltitude, isIntermediate = false, addIndices)
+                    begin = end
+                    beginAltitude = endAltitude
+                }
+
+                if (begin != pos0) {
+                    addIntermediateVertices(rc, begin, pos0)
+                    val pos0Altitude = pos0.altitude + currentData.savedRefAlt
+                    calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
+                    addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
+                } else {
+                    calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
+                }
+                currentData.outlineElements.subList(currentData.outlineElements.size - 6, currentData.outlineElements.size).clear()
+
+                GLU.gluTessEndContour(tess)
             }
-            // Drop last six indices as they are used for connecting segments and there's no next segment for last vertices (check addLineVertex)
-            currentData.outlineElements.subList(currentData.outlineElements.size - 6, currentData.outlineElements.size).clear()
-
-            GLU.gluTessEndContour(tess)
         }
+
         GLU.gluTessEndPolygon(tess)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_VERTEX_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, null)
 
-        // Compute the shape's bounding box or bounding sector from its assembled coordinates.
+        // Compute the shape's bounding box or bounding sector.
         with(currentBoundindData) {
             if (isSurfaceShape) {
-                boundingSector.setEmpty()
-                boundingSector.union(currentData.vertexArray, vertexIndex, VERTEX_STRIDE)
-                boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
-                boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
+                if (splitCrossesAntimeridian) {
+                    computeAntimeridianSectors(
+                        currentData.vertexArray, vertexIndex, VERTEX_STRIDE, currentData.vertexOrigin
+                    )
+                } else {
+                    crossesAntimeridian = false
+                    boundingSector.setEmpty()
+                    boundingSector.union(currentData.vertexArray, vertexIndex, VERTEX_STRIDE)
+                    boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
+                }
+                boundingBox.setToUnitBox()
             } else {
                 boundingBox.setToPoints(currentData.vertexArray, vertexIndex, VERTEX_STRIDE)
                 boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
-                boundingSector.setEmpty() // Cartesian shape bounding sector is unused
+                boundingSector.setEmpty()
+                crossesAntimeridian = false
             }
         }
 
-        // Adjust final vertex array size to save memory (and fix cameraDistanceCartesian calculation)
         currentData.vertexArray = currentData.vertexArray.copyOf(vertexIndex)
         currentData.geographicVertexArray = currentData.geographicVertexArray.copyOf(currentData.geographicVertexCount * 3)
+    }
+
+    /**
+     * Builds outline chain(s) for a split sub-polygon. For pole polygons, skips the pole-connecting edges.
+     * For regular split polygons, emits each point as a single continuous chain.
+     */
+    protected open fun addOutlineChains(
+        rc: RenderContext, polygon: List<Location>, iMap: Map<Int, Intersection>,
+        isPolePolygon: Boolean, pole: Pole
+    ) {
+        val savedRefAlt = currentData.savedRefAlt
+
+        fun altOf(loc: Location) = (if (loc is Position) loc.altitude else 0.0) + savedRefAlt
+
+        if (isPolePolygon && pole != Pole.NONE && !rc.globe.is2D) {
+            // 3D sphere: split the outline at the pole-intersection points so the outline doesn't
+            // run through the polygon's interior up to the pole. pole_A and pole_B coincide as a
+            // single point in 3D, so including them would draw a visible spoke inside the fill.
+            var pCount = 0
+            var chainStarted = false
+            for (k in polygon.indices) {
+                val loc = polygon[k]
+                val intersection = iMap[k]
+                if (intersection != null && intersection.forPole) {
+                    pCount++
+                    if (pCount % 2 == 1) {
+                        // End the current chain at this pole point, then close it.
+                        val alt = altOf(loc)
+                        calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain, isExtrudedSkirt = false)
+                        if (chainStarted) {
+                            addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = false, addIndices = true)
+                            addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = false)
+                            addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = false)
+                            currentData.outlineElements.subList(currentData.outlineElements.size - 6, currentData.outlineElements.size).clear()
+                            chainStarted = false
+                        }
+                    }
+                    // Don't draw pole-connecting segments (skip both pole points).
+                    continue
+                }
+                if (pCount % 2 == 0) {
+                    val alt = altOf(loc)
+                    calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
+                    if (!chainStarted) {
+                        // Start a new chain with a duplicate "before-first" dummy.
+                        currentData.outlineChainStarts.add(currentData.outlineElements.size)
+                        addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = true)
+                        addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = false, addIndices = true)
+                        chainStarted = true
+                    } else {
+                        addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = false, addIndices = true)
+                    }
+                }
+            }
+            if (chainStarted) {
+                // Close the last chain.
+                val last = polygon.last()
+                val alt = altOf(last)
+                calcPoint(rc, last.latitude, last.longitude, alt, isAbsolute = isPlain, isExtrudedSkirt = false)
+                addLineVertex(rc, last.latitude, last.longitude, alt, isIntermediate = true, addIndices = false)
+                currentData.outlineElements.subList(currentData.outlineElements.size - 6, currentData.outlineElements.size).clear()
+            }
+        } else {
+            // 2D map projection (or non-pole sub-polygon): emit as a single continuous chain. For
+            // pole polygons in 2D the pole vertices trace the outline along the map's top/bottom edge,
+            // closing the polygon visually; non-pole sub-polygons are just straight-through chains.
+            val first = polygon[0]
+            val firstAlt = altOf(first)
+            calcPoint(rc, first.latitude, first.longitude, firstAlt, isAbsolute = isPlain)
+            currentData.outlineChainStarts.add(currentData.outlineElements.size)
+            addLineVertex(rc, first.latitude, first.longitude, firstAlt, isIntermediate = true, addIndices = true)
+            addLineVertex(rc, first.latitude, first.longitude, firstAlt, isIntermediate = false, addIndices = true)
+
+            for (k in 1 until polygon.size) {
+                val loc = polygon[k]
+                val alt = altOf(loc)
+                calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
+                addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = false, addIndices = true)
+            }
+
+            val last = polygon.last()
+            val lastAlt = altOf(last)
+            calcPoint(rc, last.latitude, last.longitude, lastAlt, isAbsolute = isPlain, isExtrudedSkirt = false)
+            addLineVertex(rc, last.latitude, last.longitude, lastAlt, isIntermediate = true, addIndices = false)
+            currentData.outlineElements.subList(currentData.outlineElements.size - 6, currentData.outlineElements.size).clear()
+        }
     }
 
     protected open fun assembleGeometryPositions(rc: RenderContext) = with(currentData) {

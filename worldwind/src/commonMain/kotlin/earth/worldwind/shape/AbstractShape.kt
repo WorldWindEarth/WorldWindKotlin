@@ -2,6 +2,7 @@ package earth.worldwind.shape
 
 import earth.worldwind.PickedObject
 import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
@@ -74,6 +75,48 @@ abstract class AbstractShape(
         val boundingBox = BoundingBox()
         var lastVE = 0.0
         var lastTimestamp = 0L
+        var crossesAntimeridian = false
+        val additionalSector = Sector()
+
+        /**
+         * Splits the vertex array's absolute longitudes at 0° into an east sector (stored in
+         * [boundingSector]) and a west sector (stored in [additionalSector]), and sets
+         * [crossesAntimeridian] = true. Pass [normalizeLon] = true for shapes that store
+         * normalized offsets whose sum with the origin may fall outside [-180°, 180°].
+         */
+        fun computeAntimeridianSectors(
+            vertexArray: FloatArray, count: Int, stride: Int, origin: Vec3, normalizeLon: Boolean = false
+        ) {
+            var eastMinLat = Double.MAX_VALUE; var eastMaxLat = -Double.MAX_VALUE
+            var eastMinLon = Double.MAX_VALUE; var eastMaxLon = -Double.MAX_VALUE
+            var westMinLat = Double.MAX_VALUE; var westMaxLat = -Double.MAX_VALUE
+            var westMinLon = Double.MAX_VALUE; var westMaxLon = -Double.MAX_VALUE
+            var i = 0
+            while (i < count) {
+                var lon = vertexArray[i].toDouble() + origin.x
+                if (normalizeLon) {
+                    if (lon > 180.0) lon -= 360.0 else if (lon < -180.0) lon += 360.0
+                }
+                val lat = vertexArray[i + 1].toDouble() + origin.y
+                if (lon >= 0) {
+                    if (lat < eastMinLat) eastMinLat = lat; if (lat > eastMaxLat) eastMaxLat = lat
+                    if (lon < eastMinLon) eastMinLon = lon; if (lon > eastMaxLon) eastMaxLon = lon
+                } else {
+                    if (lat < westMinLat) westMinLat = lat; if (lat > westMaxLat) westMaxLat = lat
+                    if (lon < westMinLon) westMinLon = lon; if (lon > westMaxLon) westMaxLon = lon
+                }
+                i += stride
+            }
+            crossesAntimeridian = true
+            if (eastMinLat <= eastMaxLat) {
+                boundingSector.minLatitude = eastMinLat.degrees; boundingSector.maxLatitude = eastMaxLat.degrees
+                boundingSector.minLongitude = eastMinLon.degrees; boundingSector.maxLongitude = eastMaxLon.degrees
+            } else boundingSector.setEmpty()
+            if (westMinLat <= westMaxLat) {
+                additionalSector.minLatitude = westMinLat.degrees; additionalSector.maxLatitude = westMaxLat.degrees
+                additionalSector.minLongitude = westMinLon.degrees; additionalSector.maxLongitude = westMaxLon.degrees
+            } else additionalSector.setEmpty()
+        }
     }
 
     companion object {
@@ -147,7 +190,8 @@ abstract class AbstractShape(
     protected open fun intersectsFrustum(rc: RenderContext) = with(currentBoundindData) {
         (boundingBox.isUnitBox || boundingBox.intersectsFrustum(rc.frustum)) &&
                 // This is a temporary solution. Surface shapes should also use bounding box.
-                (boundingSector.isEmpty || boundingSector.intersects(rc.terrain.sector))
+                (boundingSector.isEmpty || boundingSector.intersects(rc.terrain.sector) ||
+                 crossesAntimeridian && additionalSector.intersects(rc.terrain.sector))
         }
 
     protected open fun determineActiveAttributes(rc: RenderContext) {

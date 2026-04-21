@@ -33,6 +33,35 @@ open class DrawShapeState internal constructor() {
     internal var primCount = 0
     internal val prims = Array(MAX_DRAW_ELEMENTS) { DrawElements() }
 
+    open fun copy(other: DrawShapeState) {
+        program = other.program
+        vertexBuffer = other.vertexBuffer
+        elementBuffer = other.elementBuffer
+        vertexOrigin.copy(other.vertexOrigin)
+        vertexStride = other.vertexStride
+        enableCullFace = other.enableCullFace
+        enableDepthTest = other.enableDepthTest
+        enableDepthWrite = other.enableDepthWrite
+        enableLighting = other.enableLighting
+        isLine = other.isLine
+        depthOffset = other.depthOffset
+        color.copy(other.color)
+        opacity = other.opacity
+        lineWidth = other.lineWidth
+        texture = other.texture
+        textureLod = other.textureLod
+        texCoordMatrix.copy(other.texCoordMatrix)
+        texCoordAttrib.copy(other.texCoordAttrib)
+        primCount = other.primCount
+        for (i in 0 until other.primCount) {
+            val src = other.prims[i]; val dst = prims[i]
+            dst.mode = src.mode; dst.count = src.count; dst.type = src.type; dst.offset = src.offset
+            dst.color.copy(src.color); dst.opacity = src.opacity; dst.lineWidth = src.lineWidth
+            dst.depthOffset = src.depthOffset; dst.texture = src.texture; dst.textureLod = src.textureLod
+            dst.texCoordMatrix.copy(src.texCoordMatrix); dst.texCoordAttrib.copy(src.texCoordAttrib)
+        }
+    }
+
     open fun reset() {
         program = null
         vertexBuffer = null

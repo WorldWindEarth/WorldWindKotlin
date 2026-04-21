@@ -4,13 +4,24 @@ import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
-import earth.worldwind.geom.*
+import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.radians
+import earth.worldwind.geom.Location
+import earth.worldwind.geom.Position
+import earth.worldwind.geom.SphericalRotation
+import earth.worldwind.geom.Vec3
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
 import earth.worldwind.util.NumericArray
+import earth.worldwind.util.PolygonSplitter
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
@@ -19,9 +30,23 @@ open class Path @JvmOverloads constructor(
     positions: List<Position>, attributes: ShapeAttributes = ShapeAttributes()
 ): AbstractShape(attributes) {
     override val referencePosition: Position get() {
-        val sector = Sector()
-        for (position in positions) sector.union(position)
-        return Position(sector.centroidLatitude, sector.centroidLongitude, 0.0)
+        // Cartesian centroid: average of vertex unit vectors, projected back to the sphere. Unlike
+        // a lat/lon min/max midpoint this is rotation-equivariant — if the path is rotated, the
+        // centroid rotates with it — which keeps drag (SphericalRotation in moveTo) stable across
+        // successive events. Handles antimeridian crossing without special-casing.
+        if (positions.isEmpty()) return Position()
+        var sx = 0.0; var sy = 0.0; var sz = 0.0
+        for (pos in positions) {
+            val latRad = pos.latitude.inRadians
+            val lonRad = pos.longitude.inRadians
+            sx += cos(latRad) * cos(lonRad)
+            sy += cos(latRad) * sin(lonRad)
+            sz += sin(latRad)
+        }
+        val mag = sqrt(sx * sx + sy * sy + sz * sz)
+        if (mag < 1.0e-10) return Position()
+        val nx = sx / mag; val ny = sy / mag; val nz = sz / mag
+        return Position(asin(nz.coerceIn(-1.0, 1.0)).radians, atan2(ny, nx).radians, 0.0)
     }
     var positions = positions
         set(value) {
@@ -37,6 +62,7 @@ open class Path @JvmOverloads constructor(
         // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
         val interiorElements = mutableListOf<Int>()
         val outlineElements = mutableListOf<Int>()
+        val outlineChainStarts = mutableListOf<Int>()
         val verticalElements = mutableListOf<Int>()
         val extrudeVertexBufferKey = Any()
         val extrudeElementBufferKey = Any()
@@ -73,12 +99,8 @@ open class Path @JvmOverloads constructor(
     }
 
     override fun moveTo(globe: Globe, position: Position) {
-        val refPos = referencePosition
-        for (pos in positions) {
-            val distance = refPos.greatCircleDistance(pos)
-            val azimuth = refPos.greatCircleAzimuth(pos)
-            position.greatCircleLocation(azimuth, distance, pos)
-        }
+        val rotation = SphericalRotation(referencePosition, position)
+        for (pos in positions) rotation.apply(pos)
         reset()
     }
 
@@ -151,8 +173,20 @@ open class Path @JvmOverloads constructor(
         drawState.enableLighting = activeAttributes.isLightingEnabled
 
         // Enqueue the drawable for processing on the OpenGL thread.
-        if (isSurfaceShape) rc.offerSurfaceDrawable(drawable, zOrder)
-        else rc.offerShapeDrawable(drawable, cameraDistanceSq)
+        if (isSurfaceShape) {
+            rc.offerSurfaceDrawable(drawable, zOrder)
+            // For antimeridian-crossing surface paths, enqueue a secondary drawable for the other half.
+            if (currentBoundindData.crossesAntimeridian) {
+                val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
+                DrawableSurfaceShape.obtain(pool).also { d ->
+                    d.offset = rc.globe.offset
+                    d.sector.copy(currentBoundindData.additionalSector)
+                    d.version = computeVersion(); d.isDynamic = isDynamic || rc.currentLayer.isDynamic
+                    d.drawState.copy(drawState)
+                    rc.offerSurfaceDrawable(d, zOrder)
+                }
+            }
+        } else rc.offerShapeDrawable(drawable, cameraDistanceSq)
 
         drawInterior(rc, drawState, cameraDistanceSq)
     }
@@ -173,7 +207,15 @@ open class Path @JvmOverloads constructor(
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f
-        drawState.drawElements(GL_TRIANGLE_STRIP, currentData.outlineElements.size, GL_UNSIGNED_INT, 0)
+        // Draw each sub-path chain separately to avoid the spurious connecting triangle that GL_TRIANGLE_STRIP
+        // produces at the junction between antimeridian-split chains when drawn as one continuous strip.
+        val chainStarts = currentData.outlineChainStarts
+        for (ci in chainStarts.indices) {
+            val start = chainStarts[ci]
+            val end = if (ci + 1 < chainStarts.size) chainStarts[ci + 1] else currentData.outlineElements.size
+            val count = end - start
+            if (count > 0) drawState.drawElements(GL_TRIANGLE_STRIP, count, GL_UNSIGNED_INT, start * Int.SIZE_BYTES)
+        }
 
         // Configure the drawable to display the shape's extruded verticals.
         if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape) {
@@ -239,63 +281,122 @@ open class Path @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
-        // Determine the number of vertexes
-        val vertexCount = if (maximumIntermediatePoints <= 0 || pathType == LINEAR) positions.size
-        else if (positions.isNotEmpty()) positions.size + (positions.size - 1) * maximumIntermediatePoints else 0
+        // For surface shapes, split positions into sub-paths at antimeridian crossings.
+        val subPaths: List<List<Position>>
+        val crossesAntimeridian = if (isSurfaceShape) {
+            val split = splitPositionsAtAntimeridian(positions)
+            subPaths = split.first
+            split.second
+        } else {
+            subPaths = listOf(positions)
+            false
+        }
+
+        // Determine the total vertex count across all sub-paths.
+        val noIntermediate = maximumIntermediatePoints <= 0 || pathType == LINEAR
+        var totalVertexCount = 0
+        for (sp in subPaths) {
+            totalVertexCount += if (noIntermediate) sp.size + 2
+            else sp.size + 2 + (sp.size - 1) * maximumIntermediatePoints
+        }
 
         // Separate vertex array for interior polygon
         extrudeIndex = 0
         currentData.extrudeVertexArray = if (isExtrude && !isSurfaceShape)
-            FloatArray((vertexCount + 2) * EXTRUDE_SEGMENT_STRIDE) else FloatArray(0)
+            FloatArray((totalVertexCount + 2) * EXTRUDE_SEGMENT_STRIDE) else FloatArray(0)
         currentData.interiorElements.clear()
 
-        // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shapes's
-        // geometry is assembled.
         vertexIndex = 0
-        verticalIndex = if (isExtrude && !isSurfaceShape) (vertexCount + 2) * OUTLINE_SEGMENT_STRIDE else 0
+        verticalIndex = if (isExtrude && !isSurfaceShape) totalVertexCount * OUTLINE_SEGMENT_STRIDE else 0
         currentData.vertexArray = if (isExtrude && !isSurfaceShape) {
             FloatArray(verticalIndex + positions.size * VERTICAL_SEGMENT_STRIDE)
         } else {
-            FloatArray((vertexCount + 2) * OUTLINE_SEGMENT_STRIDE)
+            FloatArray(totalVertexCount * OUTLINE_SEGMENT_STRIDE)
         }
         currentData.outlineElements.clear()
+        currentData.outlineChainStarts.clear()
         currentData.verticalElements.clear()
 
-        // Add the first vertex. Add additional dummy vertex with the same data before the first vertex.
-        var begin = positions[0]
-        calcPoint(rc, begin.latitude, begin.longitude, begin.altitude)
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = true)
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = false, addIndices = true)
+        for (subPath in subPaths) {
+            if (subPath.isEmpty()) continue
+            currentData.outlineChainStarts.add(currentData.outlineElements.size)
 
-        // Add the remaining vertices, inserting vertices along each edge as indicated by the path's properties.
-        for (idx in 1 until positions.size) {
-            val end = positions[idx]
-            addIntermediateVertices(rc, begin, end)
-            val addIndices = idx != positions.size - 1
-            calcPoint(rc, end.latitude, end.longitude, end.altitude)
-            addVertex(rc, end.latitude, end.longitude, end.altitude, intermediate = false, addIndices)
-            begin = end
+            // Start each sub-path with a dummy vertex.
+            var begin = subPath[0]
+            calcPoint(rc, begin.latitude, begin.longitude, begin.altitude)
+            addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = true)
+            addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = false, addIndices = true)
+
+            for (idx in 1 until subPath.size) {
+                val end = subPath[idx]
+                addIntermediateVertices(rc, begin, end)
+                val addIndices = idx != subPath.size - 1
+                calcPoint(rc, end.latitude, end.longitude, end.altitude)
+                addVertex(rc, end.latitude, end.longitude, end.altitude, intermediate = false, addIndices)
+                begin = end
+            }
+
+            // End sub-path with a dummy vertex.
+            addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
         }
 
-        // Add additional dummy vertex with the same data after the last vertex.
-        addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
-
-        // Reset update flag
         currentData.refreshVertexArray = false
 
-        // Compute the shape's bounding box or bounding sector from its assembled coordinates.
+        // Compute the shape's bounding box or bounding sector.
         with(currentBoundindData) {
             if (isSurfaceShape) {
-                boundingSector.setEmpty()
-                boundingSector.union(currentData.vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
-                boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
-                boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
+                if (crossesAntimeridian) {
+                    computeAntimeridianSectors(
+                        currentData.vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE, currentData.vertexOrigin
+                    )
+                } else {
+                    this.crossesAntimeridian = false
+                    boundingSector.setEmpty()
+                    boundingSector.union(currentData.vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
+                    boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
+                }
+                boundingBox.setToUnitBox()
             } else {
+                this.crossesAntimeridian = false
                 boundingBox.setToPoints(currentData.vertexArray, vertexIndex, OUTLINE_SEGMENT_STRIDE)
                 boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
-                boundingSector.setEmpty() // Cartesian shape bounding sector is unused
+                boundingSector.setEmpty()
             }
         }
+    }
+
+    /**
+     * Splits positions into sub-paths at antimeridian crossings, inserting intersection points at ±180.
+     */
+    protected open fun splitPositionsAtAntimeridian(positions: List<Position>): Pair<List<List<Position>>, Boolean> {
+        var crossesAntimeridian = false
+        val subPaths = mutableListOf<List<Position>>()
+        var current = mutableListOf<Position>()
+        for (i in positions.indices) {
+            val pos = positions[i]
+            if (current.isEmpty()) {
+                current.add(pos)
+                continue
+            }
+            val prev = current.last()
+            if (Location.locationsCrossAntimeridian(listOf(prev, pos))) {
+                crossesAntimeridian = true
+                // Insert intersection point at ±180 for the end of the current sub-path.
+                val iLat = PolygonSplitter.meridianIntersection(prev, pos, 180.0)
+                    ?: (prev.latitude.inDegrees + pos.latitude.inDegrees) / 2.0
+                val iLonEnd = if (prev.longitude.inDegrees > 0) 180.0 else -180.0
+                current.add(Position.fromDegrees(iLat, iLonEnd, prev.altitude))
+                subPaths.add(current)
+                // Start a new sub-path from the other side of the antimeridian.
+                current = mutableListOf()
+                current.add(Position.fromDegrees(iLat, -iLonEnd, pos.altitude))
+                current.add(pos)
+            } else {
+                current.add(pos)
+            }
+        }
+        if (current.isNotEmpty()) subPaths.add(current)
+        return Pair(subPaths, crossesAntimeridian)
     }
 
     protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {

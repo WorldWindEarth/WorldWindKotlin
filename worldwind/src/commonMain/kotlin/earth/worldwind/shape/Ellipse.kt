@@ -6,14 +6,22 @@ import earth.worldwind.draw.DrawableShape
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
+import earth.worldwind.util.ContourInfo
 import earth.worldwind.util.Logger.ERROR
+import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.NumericArray
+import earth.worldwind.util.Pole
+import earth.worldwind.util.PolygonSplitter
+import earth.worldwind.util.glu.GLU
+import earth.worldwind.util.glu.GLUtessellator
+import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
@@ -151,11 +159,32 @@ open class Ellipse @JvmOverloads constructor(
         // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
         val verticalElements = mutableListOf<Int>()
         val outlineElements = mutableListOf<Int>()
+        // Start index in outlineElements for each separate outline chain (used to make per-chain draw calls
+        // and avoid the spurious connecting triangle between antimeridian-split chains).
+        val outlineChainStarts = mutableListOf<Int>()
+        // GLU-tessellated top-face triangle indices for surface shapes. Populated via the tessellator
+        // vertex callback when assembling surface geometry; drawn as GL_TRIANGLES with GL_UNSIGNED_INT.
+        val topElements = mutableListOf<Int>()
         val vertexBufferKey = Any()
         val lineVertexBufferKey = Any()
         val lineElementBufferKey = Any()
+        // Per-ellipse Int-indexed element buffer for the GLU-tessellated surface fill. The shared
+        // per-intervals Short-indexed buffer is still used for the non-surface parametric strip.
+        val tessElementBufferKey = Any()
         var refreshVertexArray = true
         var refreshLineVertexArray = true
+    }
+
+    protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
+        override fun combineData(
+            coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any?
+        ) = tessCombine(polygonData as RenderContext, coords, data, weight, outData)
+
+        override fun vertexData(vertexData: Any?, polygonData: Any?) = tessVertex(polygonData as RenderContext, vertexData)
+
+        override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?) = tessEdgeFlag(polygonData as RenderContext, boundaryEdge)
+
+        override fun errorData(errnum: Int, polygonData: Any?) = tessError(polygonData as RenderContext, errnum)
     }
 
     companion object {
@@ -180,6 +209,16 @@ open class Ellipse @JvmOverloads constructor(
         protected const val BASE_RANGE = 2
 
         /**
+         * Maximum longitudinal span (in degrees) of a pole-top edge before GLU tessellation
+         * produces degenerate / missing triangles. When [PolygonSplitter.handleOnePole] inserts
+         * pole vertices at (±90°, ±180°), the edge connecting them spans 360° in the tessellator's
+         * 2D space. Breaking it into pieces no wider than this threshold gives GLU enough extra
+         * vertices to cleanly tessellate the region between the pole edge and nearby perimeter
+         * vertices.
+         */
+        protected const val POLE_EDGE_MAX_SPAN_DEGREES = 5.0
+
+        /**
          * Simple interval count based cache of the keys for element buffers. Element buffers are dependent only on the
          * number of intervals so the keys are cached here. The element buffer object itself is in the
          * RenderResourceCache and subject to the restrictions and behavior of that cache.
@@ -197,6 +236,13 @@ open class Ellipse @JvmOverloads constructor(
         protected val modelToTexCoord = Matrix4()
         protected val scratchLocation = Location()
         protected var texCoord1d = 0.0
+
+        // GLU tessellator scratch state — single-threaded assembly, shared across tessellation calls.
+        protected val tessCoords = DoubleArray(3)
+        protected val tessVertices = IntArray(3)
+        protected val tessEdgeFlags = BooleanArray(3)
+        protected var tessEdgeFlag = true
+        protected var tessVertexCount = 0
 
         protected fun assembleElements(intervals: Int, elementBuffer: BufferObject): ShortArray {
             // Pre-allocate: top = 2*intervals, side = 2*intervals+2, base = 2*intervals → total = 6*intervals+2
@@ -343,13 +389,27 @@ open class Ellipse @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) { NumericArray.Floats(currentData.vertexArray) }
 
-        // Get the attributes of the element buffer
-        val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
-        val elementBuffer = rc.getBufferObject(elementBufferKey) {
-            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
-        }.also { drawState.elementBuffer = it }
-        rc.offerGLBufferUpload(elementBufferKey, 1) {
-            NumericArray.Shorts(assembleElements(activeIntervals, elementBuffer))
+        // Element buffer. Surface shapes use an Int-indexed, per-ellipse buffer produced by GLU
+        // tessellation on the split perimeter. Non-surface shapes use the shared per-intervals
+        // Short-indexed parametric strip buffer (top + side + base ranges).
+        if (isSurfaceShape) {
+            drawState.elementBuffer = rc.getBufferObject(currentData.tessElementBufferKey) {
+                BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+            }
+            rc.offerGLBufferUpload(currentData.tessElementBufferKey, bufferDataVersion) {
+                val src = currentData.topElements
+                val array = IntArray(src.size)
+                for (i in src.indices) array[i] = src[i]
+                NumericArray.Ints(array)
+            }
+        } else {
+            val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
+            val elementBuffer = rc.getBufferObject(elementBufferKey) {
+                BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+            }.also { drawState.elementBuffer = it }
+            rc.offerGLBufferUpload(elementBufferKey, 1) {
+                NumericArray.Shorts(assembleElements(activeIntervals, elementBuffer))
+            }
         }
 
         drawStateLines.isLine = true
@@ -395,6 +455,24 @@ open class Ellipse @JvmOverloads constructor(
         if (isSurfaceShape) {
             rc.offerSurfaceDrawable(drawable, zOrder)
             rc.offerSurfaceDrawable(drawableLines, zOrder)
+            // For antimeridian-crossing ellipses, enqueue secondary drawables covering the other
+            // hemisphere. Because vertex offsets are raw (not normalized), both primary and
+            // secondary drawables can share the same vertexOrigin — each tile renders the
+            // triangles at their correct world positions and clips to its own sector.
+            if (currentBoundindData.crossesAntimeridian) {
+                val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
+                val version = computeVersion(); val dynamic = isDynamic || rc.currentLayer.isDynamic
+                DrawableSurfaceShape.obtain(pool).also { d ->
+                    d.offset = rc.globe.offset; d.sector.copy(currentBoundindData.additionalSector)
+                    d.version = version; d.isDynamic = dynamic; d.drawState.copy(drawState)
+                    rc.offerSurfaceDrawable(d, zOrder)
+                }
+                DrawableSurfaceShape.obtain(pool).also { d ->
+                    d.offset = rc.globe.offset; d.sector.copy(currentBoundindData.additionalSector)
+                    d.version = version; d.isDynamic = dynamic; d.drawState.copy(drawStateLines)
+                    rc.offerSurfaceDrawable(d, zOrder)
+                }
+            }
         } else {
             rc.offerShapeDrawable(drawableLines, cameraDistanceSq)
             rc.offerShapeDrawable(drawable, cameraDistanceSq)
@@ -417,16 +495,21 @@ open class Ellipse @JvmOverloads constructor(
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.texCoordAttrib.size = 2
         drawState.texCoordAttrib.offset = 12
-        val ranges = drawState.elementBuffer!!.ranges!!
-        val top = ranges[TOP_RANGE]
-        drawState.drawElements(GL_TRIANGLE_STRIP, top.length, GL_UNSIGNED_SHORT, top.lower * Short.SIZE_BYTES)
-        if (isExtrude && !isSurfaceShape) {
-            val side = ranges[SIDE_RANGE]
-            drawState.texture = null
-            drawState.drawElements(GL_TRIANGLE_STRIP, side.length, GL_UNSIGNED_SHORT, side.lower * Short.SIZE_BYTES)
-            if (baseAltitude != 0.0) {
-                val base = ranges[BASE_RANGE]
-                drawState.drawElements(GL_TRIANGLE_STRIP, base.length, GL_UNSIGNED_SHORT, base.lower * Short.SIZE_BYTES)
+        if (isSurfaceShape) {
+            // Surface shapes draw GLU-tessellated triangles from the Int-indexed element buffer.
+            drawState.drawElements(GL_TRIANGLES, currentData.topElements.size, GL_UNSIGNED_INT, offset = 0)
+        } else {
+            val ranges = drawState.elementBuffer!!.ranges!!
+            val top = ranges[TOP_RANGE]
+            drawState.drawElements(GL_TRIANGLE_STRIP, top.length, GL_UNSIGNED_SHORT, top.lower * Short.SIZE_BYTES)
+            if (isExtrude) {
+                val side = ranges[SIDE_RANGE]
+                drawState.texture = null
+                drawState.drawElements(GL_TRIANGLE_STRIP, side.length, GL_UNSIGNED_SHORT, side.lower * Short.SIZE_BYTES)
+                if (baseAltitude != 0.0) {
+                    val base = ranges[BASE_RANGE]
+                    drawState.drawElements(GL_TRIANGLE_STRIP, base.length, GL_UNSIGNED_SHORT, base.lower * Short.SIZE_BYTES)
+                }
             }
         }
     }
@@ -446,7 +529,15 @@ open class Ellipse @JvmOverloads constructor(
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth
-        drawState.drawElements(GL_TRIANGLE_STRIP, currentData.outlineElements.size, GL_UNSIGNED_INT, 0 * Int.SIZE_BYTES)
+        // Draw each outline chain as a separate strip to avoid the spurious connecting triangle
+        // that would appear between antimeridian-split chains if drawn as one continuous strip.
+        val chainStarts = currentData.outlineChainStarts
+        for (ci in chainStarts.indices) {
+            val start = chainStarts[ci]
+            val end = if (ci + 1 < chainStarts.size) chainStarts[ci + 1] else currentData.outlineElements.size
+            val count = end - start
+            if (count > 0) drawState.drawElements(GL_TRIANGLE_STRIP, count, GL_UNSIGNED_INT, start * Int.SIZE_BYTES)
+        }
         if (activeAttributes.isDrawVerticals && isExtrude && !isSurfaceShape && (!rc.isPickMode || activeAttributes.isPickOutline)) {
             drawState.texture = null
             drawState.drawElements(
@@ -478,24 +569,33 @@ open class Ellipse @JvmOverloads constructor(
         // Determine the number of spine points
         val spineCount = computeNumberSpinePoints(activeIntervals) // activeIntervals must be even
 
-        // Clear the shape's vertex array. The array will accumulate values as the shapes's geometry is assembled.
+        // Clear the shape's vertex array. Surface shapes skip the spine (GLU produces triangles
+        // directly) but reserve slack for antimeridian/pole detour vertex insertions; tessCombine
+        // and pole-edge subdivision may call ensureVertexArrayCapacity to grow it further.
         vertexIndex = 0
         currentData.vertexArray = if (isExtrude && !isSurfaceShape) {
             FloatArray((activeIntervals * 2 + spineCount) * VERTEX_STRIDE)
-        } else {
+        } else if (!isSurfaceShape) {
             FloatArray((activeIntervals + spineCount) * VERTEX_STRIDE)
+        } else {
+            FloatArray((activeIntervals + 8) * VERTEX_STRIDE)
         }
 
+        // Add extra slack for antimeridian splitting: 2 crossings insert 4 extra points and
+        // each chain needs its own 2-before + 2-after dummies, totalling up to ~10 extra slots.
+        val lineVertexSlots = activeIntervals + 12
         lineVertexIndex = 0
-        verticalVertexIndex = (activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE
+        verticalVertexIndex = lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE
         currentData.lineVertexArray = if (isExtrude && !isSurfaceShape) {
-            FloatArray((activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE + (activeIntervals + 1) * VERTICAL_LINE_SEGMENT_STRIDE)
+            FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE + (activeIntervals + 1) * VERTICAL_LINE_SEGMENT_STRIDE)
         } else {
-            FloatArray((activeIntervals + 3) * OUTLINE_LINE_SEGMENT_STRIDE)
+            FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE)
         }
 
         currentData.verticalElements.clear()
         currentData.outlineElements.clear()
+        currentData.outlineChainStarts.clear()
+        currentData.topElements.clear()
 
         // Check if minor radius is less than major in which case we need to flip the definitions and change the phase
         val isStandardAxisOrientation = majorRadius > minorRadius
@@ -521,44 +621,84 @@ open class Ellipse @JvmOverloads constructor(
         var spineIdx = 0
         val spineRadius = DoubleArray(spineCount)
 
-        var firstLoc: Position? = null
-        var firstPoint: Vec3? = null
-        // Iterate around the ellipse to add vertices
+        // Walk the ellipse perimeter. Non-surface shapes write perimeter vertices to the vertex array
+        // (the parametric strip uses them). Surface shapes collect locations only and fill the vertex
+        // array from the split sub-polygons below, so each GLU-tessellated triangle references the
+        // correct (possibly split) vertex index.
+        val perimeterLocs = mutableListOf<Location>()
         for (i in 0 until activeIntervals) {
             val radians = deltaRadians * i
             val x = cos(radians) * majorArcRadians
             val y = sin(radians) * minorArcRadians
             val azimuthDegrees = toDegrees(-atan2(y, x))
             val arcRadius = sqrt(x * x + y * y)
-            // Calculate the great circle location given this activeIntervals step (azimuthDegrees) a correction value to
-            // start from an east-west aligned major axis (90.0) and the user specified user heading value
             val azimuth = heading.plusDegrees(azimuthDegrees + headingAdjustment)
             val loc = center.greatCircleLocation(azimuth, arcRadius, scratchLocation)
-            calcPoint(rc, loc.latitude, loc.longitude, center.altitude)
-            addVertex(rc, loc.latitude, loc.longitude, center.altitude, arrayOffset, isExtrude)
-            // Add the major arc radius for the spine points. Spine points are vertically coincident with exterior
-            // points. The first and middle most point do not have corresponding spine points.
+            if (!isSurfaceShape) {
+                calcPoint(rc, loc.latitude, loc.longitude, center.altitude)
+                addVertex(rc, loc.latitude, loc.longitude, center.altitude, arrayOffset, isExtrude)
+            }
             if (i > 0 && i < activeIntervals / 2) spineRadius[spineIdx++] = x
-            if (i < 1) {
-                firstLoc = Position(loc.latitude, loc.longitude, center.altitude)
-                firstPoint = Vec3(point)
+            perimeterLocs.add(Location(loc))
+        }
+
+        // For surface shapes, run the perimeter through PolygonSplitter to identify pole enclosure
+        // and antimeridian crossings, then tessellate the split sub-polygons via GLU. For pole
+        // sub-polygons we subdivide the pole-top edge — [PolygonSplitter.handleOnePole] inserts a
+        // pair of pole vertices that span 360° in 2D lon/lat space, and GLU produces degenerate
+        // triangles across that wide edge without extra intermediate vertices.
+        val splitInfo: ContourInfo? = if (isSurfaceShape) {
+            PolygonSplitter.splitContours(listOf(perimeterLocs)).second[0]
+        } else null
+
+        if (isSurfaceShape && splitInfo != null) fillSurfaceViaGlu(rc, splitInfo)
+
+        // Build outline chains. Surface shapes reuse the split sub-polygons. For pole-enclosing
+        // shapes (single sub-polygon with pole-detour vertices), we emit MULTIPLE chains by
+        // breaking at the pole vertices — mirrors Polygon.addOutlineChains. This keeps the outline
+        // tracing only the actual perimeter and avoids drawing spurious lines up to ±90° along the
+        // antimeridian (which would also then show visible ±180° horizontal segments on 2D tiles).
+        if (isSurfaceShape && splitInfo != null) {
+            val isPoleEnclosing = splitInfo.pole != Pole.NONE
+            val isSimple = splitInfo.polygons.size == 1 && !isPoleEnclosing
+            for ((polyIdx, subPoly) in splitInfo.polygons.withIndex()) {
+                if (subPoly.isEmpty()) continue
+                val isPolePoly = polyIdx == splitInfo.poleIndex && isPoleEnclosing
+                // For pole sub-polygons, break the outline at the inserted pole vertices so we
+                // don't draw the detour to ±90°. Antimeridian intersections stay in the chain so
+                // the outline reaches ±180° cleanly. closeLoop only applies to a lone simple
+                // sub-polygon with no breaks.
+                emitOutlineChains(rc, subPoly, closeLoopIfUnbroken = isSimple) { loc ->
+                    isPolePoly && abs(loc.latitude.inDegrees) >= 90.0 - 1.0e-9
+                }
+            }
+        } else {
+            currentData.outlineChainStarts.add(0)
+            val firstLoc = if (perimeterLocs.isNotEmpty()) perimeterLocs[0] else null
+            var firstPoint: Vec3? = null
+            for (i in 0 until activeIntervals) {
+                val loc = perimeterLocs[i]
+                calcPoint(rc, loc.latitude, loc.longitude, center.altitude)
+                if (i < 1) {
+                    firstPoint = Vec3(point)
+                    addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, addIndices = true)
+                }
                 addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, addIndices = true)
             }
-            addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, addIndices = true)
+            if (firstLoc != null && firstPoint != null) {
+                point.copy(firstPoint)
+                addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, center.altitude, verticalVertexIndex, addIndices = false)
+                addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, center.altitude, verticalVertexIndex, addIndices = false)
+            }
         }
 
-        // Add additional dummy vertex with the same data after the last vertex.
-        if (firstLoc != null && firstPoint != null) {
-            point.copy(firstPoint) // Restore vertex point value from first point
-            addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, firstLoc.altitude, verticalVertexIndex, addIndices = false)
-            addLineVertex(rc, firstLoc.latitude, firstLoc.longitude, firstLoc.altitude, verticalVertexIndex, addIndices = false)
-        }
-
-        // Add the interior spine point vertices
-        for (i in 0 until spineCount) {
-            center.greatCircleLocation(heading.plusDegrees(headingAdjustment), spineRadius[i], scratchLocation)
-            calcPoint(rc, scratchLocation.latitude, scratchLocation.longitude, center.altitude, isExtrudedSkirt = false)
-            addVertex(rc, scratchLocation.latitude, scratchLocation.longitude, center.altitude, arrayOffset, isExtrudedSkirt = false)
+        // Spine points are only needed for the non-surface parametric triangle strip.
+        if (!isSurfaceShape) {
+            for (i in 0 until spineCount) {
+                center.greatCircleLocation(heading.plusDegrees(headingAdjustment), spineRadius[i], scratchLocation)
+                calcPoint(rc, scratchLocation.latitude, scratchLocation.longitude, center.altitude, isExtrudedSkirt = false)
+                addVertex(rc, scratchLocation.latitude, scratchLocation.longitude, center.altitude, arrayOffset, isExtrudedSkirt = false)
+            }
         }
 
         // Reset update flags
@@ -568,15 +708,149 @@ open class Ellipse @JvmOverloads constructor(
         // Compute the shape's bounding sector from its assembled coordinates.
         with(currentBoundindData) {
             if (isSurfaceShape) {
-                boundingSector.setEmpty()
-                boundingSector.union(currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE)
-                boundingSector.translate(currentData.vertexOrigin.y, currentData.vertexOrigin.x)
-                boundingBox.setToUnitBox() // Surface/geographic shape bounding box is unused
+                val count = vertexIndex
+                val origin = currentData.vertexOrigin
+                // Pole-enclosing polygons span all longitudes and must reach ±90° latitude — they
+                // always cross the antimeridian. Non-pole shapes delegate the decision to whether
+                // their perimeter has sign flips >180° apart.
+                val crosses = splitInfo != null &&
+                    (splitInfo.pole != Pole.NONE || Location.locationsCrossAntimeridian(perimeterLocs))
+                if (crosses) {
+                    computeAntimeridianSectors(
+                        currentData.vertexArray, count, VERTEX_STRIDE, origin, normalizeLon = true
+                    )
+                } else {
+                    crossesAntimeridian = false
+                    boundingSector.setEmpty()
+                    boundingSector.union(currentData.vertexArray, count, VERTEX_STRIDE)
+                    boundingSector.translate(origin.y, origin.x)
+                }
+                boundingBox.setToUnitBox()
             } else {
+                crossesAntimeridian = false
                 boundingBox.setToPoints(currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE)
                 boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
                 boundingSector.setEmpty()
             }
+        }
+    }
+
+    /**
+     * Fills a surface ellipse via GLU tessellation of the split sub-polygons. For pole
+     * sub-polygons, the long pole-top edge between the two pole-detour vertices
+     * (inserted by [PolygonSplitter.handleOnePole] at (±90°, ±180°)) is subdivided so GLU has
+     * enough intermediate vertices to cleanly triangulate the region near the pole — without
+     * subdivision GLU produces a V-shaped gap between the pole edge and the nearest perimeter
+     * vertex.
+     */
+    protected open fun fillSurfaceViaGlu(rc: RenderContext, info: ContourInfo) {
+        val tess = rc.tessellator
+        GLU.gluTessNormal(tess, 0.0, 0.0, 1.0)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, tessCallback)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_VERTEX_DATA, tessCallback)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, tessCallback)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, tessCallback)
+        GLU.gluTessBeginPolygon(tess, rc)
+        for ((polyIdx, subPoly) in info.polygons.withIndex()) {
+            if (subPoly.isEmpty()) continue
+            val isPolePoly = polyIdx == info.poleIndex && info.pole != Pole.NONE
+            GLU.gluTessBeginContour(tess)
+            for (k in subPoly.indices) {
+                val curr = subPoly[k]
+                // Subdivide the pole-top edge where both endpoints sit exactly at ±90°.
+                if (isPolePoly && k > 0) {
+                    val prev = subPoly[k - 1]
+                    if (abs(prev.latitude.inDegrees) >= 90.0 - 1.0e-9 &&
+                        abs(curr.latitude.inDegrees) >= 90.0 - 1.0e-9) {
+                        val lonStart = prev.longitude.inDegrees
+                        val lonEnd = curr.longitude.inDegrees
+                        val span = abs(lonEnd - lonStart)
+                        if (span > POLE_EDGE_MAX_SPAN_DEGREES) {
+                            val steps = ceil(span / POLE_EDGE_MAX_SPAN_DEGREES).toInt()
+                            val poleLat = prev.latitude
+                            for (s in 1 until steps) {
+                                val t = s.toDouble() / steps
+                                val lon = (lonStart + (lonEnd - lonStart) * t).degrees
+                                emitGluVertex(tess, rc, poleLat, lon)
+                            }
+                        }
+                    }
+                }
+                emitGluVertex(tess, rc, curr.latitude, curr.longitude)
+            }
+            GLU.gluTessEndContour(tess)
+        }
+        GLU.gluTessEndPolygon(tess)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, null)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_VERTEX_DATA, null)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, null)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, null)
+    }
+
+    private fun emitGluVertex(tess: GLUtessellator, rc: RenderContext, latitude: Angle, longitude: Angle) {
+        ensureVertexArrayCapacity()
+        calcPoint(rc, latitude, longitude, center.altitude, isExtrudedSkirt = false)
+        val vertexIdx = addVertex(rc, latitude, longitude, center.altitude, offset = 0, isExtrudedSkirt = false)
+        tessCoords[0] = longitude.inDegrees
+        tessCoords[1] = latitude.inDegrees
+        tessCoords[2] = center.altitude
+        GLU.gluTessVertex(tess, tessCoords, 0, vertexIdx)
+    }
+
+    /**
+     * Emits one or more outline chains from [subPoly], splitting the input wherever [shouldBreakAt]
+     * returns true. A chain is closed (wrapping back to its first vertex) only when no break
+     * occurred and [closeLoopIfUnbroken] is true — i.e., a single simple non-split sub-polygon.
+     * Antimeridian-split sub-polygons and pole-broken chains always end at their last vertex with
+     * capped miters, since their first and last lie on opposite sides of the cut.
+     */
+    protected open fun emitOutlineChains(
+        rc: RenderContext,
+        subPoly: List<Location>,
+        closeLoopIfUnbroken: Boolean,
+        shouldBreakAt: (Location) -> Boolean = { false }
+    ) {
+        var chainBuffer: MutableList<Location>? = null
+        var broken = false
+        for (loc in subPoly) {
+            if (shouldBreakAt(loc)) {
+                chainBuffer?.takeIf { it.size >= 2 }?.let { emitOutlineChain(rc, it, closeLoop = false) }
+                chainBuffer = null
+                broken = true
+                continue
+            }
+            (chainBuffer ?: mutableListOf<Location>().also { chainBuffer = it }).add(loc)
+        }
+        chainBuffer?.takeIf { it.size >= 2 }?.let {
+            emitOutlineChain(rc, it, closeLoop = closeLoopIfUnbroken && !broken)
+        }
+    }
+
+    /**
+     * Emits a single outline chain for [subPoly]. When [closeLoop] is true, the trailing dummies
+     * are placed at the first vertex so the triangle strip wraps back to the starting point;
+     * otherwise the chain ends at the last vertex with dummies capping the miter.
+     */
+    protected open fun emitOutlineChain(rc: RenderContext, subPoly: List<Location>, closeLoop: Boolean) {
+        val first = subPoly[0]
+        calcPoint(rc, first.latitude, first.longitude, center.altitude)
+        val firstPoint = Vec3(point)
+        currentData.outlineChainStarts.add(currentData.outlineElements.size)
+        addLineVertex(rc, first.latitude, first.longitude, center.altitude, verticalVertexIndex, addIndices = true)
+        addLineVertex(rc, first.latitude, first.longitude, center.altitude, verticalVertexIndex, addIndices = true)
+        for (k in 1 until subPoly.size) {
+            val loc = subPoly[k]
+            calcPoint(rc, loc.latitude, loc.longitude, center.altitude)
+            addLineVertex(rc, loc.latitude, loc.longitude, center.altitude, verticalVertexIndex, addIndices = true)
+        }
+        if (closeLoop) {
+            point.copy(firstPoint)
+            addLineVertex(rc, first.latitude, first.longitude, center.altitude, verticalVertexIndex, addIndices = false)
+            addLineVertex(rc, first.latitude, first.longitude, center.altitude, verticalVertexIndex, addIndices = false)
+        } else {
+            val last = subPoly.last()
+            addLineVertex(rc, last.latitude, last.longitude, center.altitude, verticalVertexIndex, addIndices = false)
+            addLineVertex(rc, last.latitude, last.longitude, center.altitude, verticalVertexIndex, addIndices = false)
         }
     }
     protected open fun addLineVertex(
@@ -766,10 +1040,17 @@ open class Ellipse @JvmOverloads constructor(
 
     protected open fun addVertex(
         rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double, offset: Int, isExtrudedSkirt: Boolean
-    ) = with(currentData) {
+    ): Int = with(currentData) {
+        val vertex = vertexIndex / VERTEX_STRIDE
         var offsetVertexIndex = vertexIndex + offset
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (isSurfaceShape) {
+            // Raw longitude offset (not normalized). The pole-fill case needs to distinguish
+            // vertices at lon=+180 vs lon=-180, which normalization collapses when the ellipse
+            // center is not at longitude 0 or ±180 (see WorldWindJava AbstractSurfaceShape which
+            // also uses raw offsets for the same reason). For antimeridian-crossing shapes, the
+            // resulting wide vertex offsets still rasterize correctly per-tile via the two
+            // surface drawables (east/west sectors) emitted in makeDrawable.
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
             vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
             vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
@@ -789,6 +1070,58 @@ open class Ellipse @JvmOverloads constructor(
                 vertexArray[offsetVertexIndex++] = 0f //unused
                 vertexArray[offsetVertexIndex] = 0f //unused
             }
+        }
+        vertex
+    }
+
+    /**
+     * GLU tessellator combine callback — fires when the tessellator needs a new vertex at an
+     * edge intersection (rare for pre-split sub-polygons). Appends a new vertex to the shared
+     * vertex array and returns its index in outData[0].
+     */
+    protected open fun tessCombine(
+        rc: RenderContext, coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>
+    ) {
+        ensureVertexArrayCapacity()
+        val latitude = coords[1].degrees
+        val longitude = coords[0].degrees
+        val altitude = coords[2]
+        calcPoint(rc, latitude, longitude, altitude, isExtrudedSkirt = false)
+        outData[0] = addVertex(rc, latitude, longitude, altitude, offset = 0, isExtrudedSkirt = false)
+    }
+
+    /**
+     * GLU tessellator vertex callback — receives three vertex indices per triangle. Accumulates
+     * them into [EllipseData.topElements] for the surface fill.
+     */
+    protected open fun tessVertex(rc: RenderContext, vertexData: Any?) = with(currentData) {
+        tessVertices[tessVertexCount] = vertexData as Int
+        tessEdgeFlags[tessVertexCount] = tessEdgeFlag
+        if (tessVertexCount < 2) {
+            tessVertexCount++
+            return@with
+        } else {
+            tessVertexCount = 0
+        }
+        topElements.add(tessVertices[0])
+        topElements.add(tessVertices[1])
+        topElements.add(tessVertices[2])
+    }
+
+    protected open fun tessEdgeFlag(rc: RenderContext, boundaryEdge: Boolean) { tessEdgeFlag = boundaryEdge }
+
+    protected open fun tessError(rc: RenderContext, errNum: Int) {
+        val errStr = GLU.gluErrorString(errNum)
+        logMessage(WARN, "Ellipse", "assembleGeometry", "Error attempting to tessellate ellipse '$errStr'")
+    }
+
+    protected open fun ensureVertexArrayCapacity() {
+        val size = currentData.vertexArray.size
+        if (size == vertexIndex) {
+            val increment = (size shr 1).coerceAtLeast(12)
+            val newArray = FloatArray(size + increment)
+            currentData.vertexArray.copyInto(newArray)
+            currentData.vertexArray = newArray
         }
     }
 
