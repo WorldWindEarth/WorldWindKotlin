@@ -18,12 +18,13 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.Pole
+import earth.worldwind.util.IntList
 import earth.worldwind.util.PolygonSplitter
+import earth.worldwind.util.ScratchPool
 import earth.worldwind.util.glu.GLU
 import earth.worldwind.util.glu.GLUtessellator
 import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
 import earth.worldwind.util.kgl.*
-import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 import kotlin.math.*
 
@@ -156,15 +157,15 @@ open class Ellipse @JvmOverloads constructor(
         val vertexOrigin = Vec3()
         var vertexArray = FloatArray(0)
         var lineVertexArray = FloatArray(0)
-        // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
-        val verticalElements = mutableListOf<Int>()
-        val outlineElements = mutableListOf<Int>()
+        // Primitive-int element buffers — see PolygonData for rationale.
+        val verticalElements = IntList()
+        val outlineElements = IntList()
         // Start index in outlineElements for each separate outline chain (used to make per-chain draw calls
         // and avoid the spurious connecting triangle between antimeridian-split chains).
-        val outlineChainStarts = mutableListOf<Int>()
+        val outlineChainStarts = IntList()
         // GLU-tessellated top-face triangle indices for surface shapes. Populated via the tessellator
         // vertex callback when assembling surface geometry; drawn as GL_TRIANGLES with GL_UNSIGNED_INT.
-        val topElements = mutableListOf<Int>()
+        val topElements = IntList()
         val vertexBufferKey = Any()
         val lineVertexBufferKey = Any()
         val lineElementBufferKey = Any()
@@ -236,6 +237,9 @@ open class Ellipse @JvmOverloads constructor(
         protected val modelToTexCoord = Matrix4()
         protected val scratchLocation = Location()
         protected var texCoord1d = 0.0
+        // Sequential scratch pool for [densifyEdgeWithFloor] — eliminates per-intermediate
+        // [Location] allocation on dense polar perimeters.
+        protected val locationPool = ScratchPool { Location() }
 
         // GLU tessellator scratch state — single-threaded assembly, shared across tessellation calls.
         protected val tessCoords = DoubleArray(3)
@@ -397,10 +401,7 @@ open class Ellipse @JvmOverloads constructor(
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(currentData.tessElementBufferKey, bufferDataVersion) {
-                val src = currentData.topElements
-                val array = IntArray(src.size)
-                for (i in src.indices) array[i] = src[i]
-                NumericArray.Ints(array)
+                NumericArray.Ints(currentData.topElements.toIntArray())
             }
         } else {
             val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
@@ -427,9 +428,8 @@ open class Ellipse @JvmOverloads constructor(
         }
         rc.offerGLBufferUpload(currentData.lineElementBufferKey, bufferDataVersion) {
             val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
-            var index = 0
-            for (element in currentData.outlineElements) array[index++] = element
-            for (element in currentData.verticalElements) array[index++] = element
+            val index = currentData.outlineElements.copyTo(array, 0)
+            currentData.verticalElements.copyTo(array, index)
             NumericArray.Ints(array)
         }
 
@@ -532,9 +532,10 @@ open class Ellipse @JvmOverloads constructor(
         // Draw each outline chain as a separate strip to avoid the spurious connecting triangle
         // that would appear between antimeridian-split chains if drawn as one continuous strip.
         val chainStarts = currentData.outlineChainStarts
-        for (ci in chainStarts.indices) {
+        val chainCount = chainStarts.size
+        for (ci in 0 until chainCount) {
             val start = chainStarts[ci]
-            val end = if (ci + 1 < chainStarts.size) chainStarts[ci + 1] else currentData.outlineElements.size
+            val end = if (ci + 1 < chainCount) chainStarts[ci + 1] else currentData.outlineElements.size
             val count = end - start
             if (count > 0) drawState.drawElements(GL_TRIANGLE_STRIP, count, GL_UNSIGNED_INT, start * Int.SIZE_BYTES)
         }
@@ -580,17 +581,7 @@ open class Ellipse @JvmOverloads constructor(
         } else {
             FloatArray((activeIntervals + 8) * VERTEX_STRIDE)
         }
-
-        // Add extra slack for antimeridian splitting: 2 crossings insert 4 extra points and
-        // each chain needs its own 2-before + 2-after dummies, totalling up to ~10 extra slots.
-        val lineVertexSlots = activeIntervals + 12
         lineVertexIndex = 0
-        verticalVertexIndex = lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE
-        currentData.lineVertexArray = if (isExtrude && !isSurfaceShape) {
-            FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE + (activeIntervals + 1) * VERTICAL_LINE_SEGMENT_STRIDE)
-        } else {
-            FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE)
-        }
 
         currentData.verticalElements.clear()
         currentData.outlineElements.clear()
@@ -642,16 +633,34 @@ open class Ellipse @JvmOverloads constructor(
             perimeterLocs.add(Location(loc))
         }
 
-        // For surface shapes, run the perimeter through PolygonSplitter to identify pole enclosure
-        // and antimeridian crossings, then tessellate the split sub-polygons via GLU. For pole
-        // sub-polygons we subdivide the pole-top edge — [PolygonSplitter.handleOnePole] inserts a
-        // pair of pole vertices that span 360° in 2D lon/lat space, and GLU produces degenerate
-        // triangles across that wide edge without extra intermediate vertices.
-        val splitInfo: ContourInfo? = if (isSurfaceShape) {
-            PolygonSplitter.splitContours(listOf(perimeterLocs)).second[0]
+        // For surface shapes, densify the parametric perimeter with throttled great-circle samples
+        // before splitting — but only when the ellipse actually crosses ±180° or comes near a
+        // pole. Mid-latitude, non-crossing ellipses fall through with the raw parametric perimeter
+        // (already 256 samples by default, plenty dense for 2D rasterization away from the
+        // poles). Skips densifyPerimeter, sanitizePoleAntimeridianVertices, and the splitter walk
+        // for the common case.
+        val ellipseNeedsSplitter = isSurfaceShape && ellipseSurfaceNeedsSplitter(perimeterLocs)
+        val splitInfo: ContourInfo? = if (ellipseNeedsSplitter) {
+            val surfacePerimeter = sanitizePoleAntimeridianVertices(densifyPerimeter(perimeterLocs))
+            PolygonSplitter.splitContours(listOf(surfacePerimeter)).second[0]
         } else null
+        val surfacePolygons: List<List<Location>> =
+            splitInfo?.polygons ?: if (isSurfaceShape) listOf(perimeterLocs) else emptyList()
 
-        if (isSurfaceShape && splitInfo != null) fillSurfaceViaGlu(rc, splitInfo)
+        // Size the line vertex array now that the final perimeter length is known. Add slack
+        // for chain splits at the pole + antimeridian (up to 2 chains × 4 pre/post dummies = 8).
+        val totalSurfaceVertices = surfacePolygons.sumOf { it.size }
+        val lineVertexSlots = if (isSurfaceShape) totalSurfaceVertices + 12 else activeIntervals + 12
+        verticalVertexIndex = lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE
+        currentData.lineVertexArray = if (isExtrude && !isSurfaceShape) {
+            FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE + (activeIntervals + 1) * VERTICAL_LINE_SEGMENT_STRIDE)
+        } else {
+            FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE)
+        }
+
+        if (isSurfaceShape) fillSurfaceViaGlu(
+            rc, surfacePolygons, splitInfo?.pole ?: Pole.NONE, splitInfo?.poleIndex ?: -1
+        )
 
         // Build outline chains. Surface shapes reuse the split sub-polygons. For pole-enclosing
         // shapes (single sub-polygon with pole-detour vertices), we emit MULTIPLE chains by
@@ -660,8 +669,8 @@ open class Ellipse @JvmOverloads constructor(
         // antimeridian (which would also then show visible ±180° horizontal segments on 2D tiles).
         if (isSurfaceShape && splitInfo != null) {
             val isPoleEnclosing = splitInfo.pole != Pole.NONE
-            val isSimple = splitInfo.polygons.size == 1 && !isPoleEnclosing
-            for ((polyIdx, subPoly) in splitInfo.polygons.withIndex()) {
+            val isSimple = surfacePolygons.size == 1 && !isPoleEnclosing
+            for ((polyIdx, subPoly) in surfacePolygons.withIndex()) {
                 if (subPoly.isEmpty()) continue
                 val isPolePoly = polyIdx == splitInfo.poleIndex && isPoleEnclosing
                 // For pole sub-polygons, break the outline at the inserted pole vertices so we
@@ -743,7 +752,7 @@ open class Ellipse @JvmOverloads constructor(
      * subdivision GLU produces a V-shaped gap between the pole edge and the nearest perimeter
      * vertex.
      */
-    protected open fun fillSurfaceViaGlu(rc: RenderContext, info: ContourInfo) {
+    protected open fun fillSurfaceViaGlu(rc: RenderContext, polygons: List<List<Location>>, pole: Pole, poleIndex: Int) {
         val tess = rc.tessellator
         GLU.gluTessNormal(tess, 0.0, 0.0, 1.0)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, tessCallback)
@@ -751,9 +760,9 @@ open class Ellipse @JvmOverloads constructor(
         GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, tessCallback)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, tessCallback)
         GLU.gluTessBeginPolygon(tess, rc)
-        for ((polyIdx, subPoly) in info.polygons.withIndex()) {
+        for ((polyIdx, subPoly) in polygons.withIndex()) {
             if (subPoly.isEmpty()) continue
-            val isPolePoly = polyIdx == info.poleIndex && info.pole != Pole.NONE
+            val isPolePoly = polyIdx == poleIndex && pole != Pole.NONE
             GLU.gluTessBeginContour(tess)
             for (k in subPoly.indices) {
                 val curr = subPoly[k]
@@ -787,6 +796,121 @@ open class Ellipse @JvmOverloads constructor(
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, null)
     }
 
+    /**
+     * Returns a densified copy of the ellipse perimeter with throttled great-circle samples along
+     * each edge (including the wrap-around from last vertex to first). The parametric perimeter
+     * has up to [maximumIntervals] vertices, but each parametric edge — even ~1.4° wide at the
+     * default 256 — would otherwise rasterize as a 2D straight segment, falling visibly below
+     * the true great-circle near the poles. Densifying inserts intermediates that follow the
+     * great-circle. Matches [Polygon.densifyBoundariesForSurface].
+     */
+    /**
+     * Cheap pre-check: does the parametric perimeter cross the antimeridian or come within
+     * [POLE_PROXIMITY_DEG] of a pole? If neither, the densify-then-split pipeline (and the
+     * sanitize+split pass that goes with it) is wasted work — the 256-sample parametric
+     * perimeter rasterizes fine as 2D lat/lon segments for a mid-latitude ellipse.
+     */
+    protected open fun ellipseSurfaceNeedsSplitter(perimeter: List<Location>): Boolean {
+        val n = perimeter.size
+        if (n < 2) return false
+        for (i in 0 until n) {
+            val cur = perimeter[i]
+            if (abs(cur.latitude.inDegrees) > POLE_PROXIMITY_DEG) return true
+            val next = perimeter[(i + 1) % n]
+            if (abs(cur.longitude.inDegrees - next.longitude.inDegrees) > 180.0) return true
+        }
+        return false
+    }
+
+    protected open fun densifyPerimeter(perimeter: List<Location>): List<Location> {
+        if (maximumNumEdgeIntervals <= 0 || pathType == PathType.LINEAR || perimeter.size < 2) return perimeter
+        locationPool.reset()
+        val n = perimeter.size
+        // Pre-size with a per-perimeter bound: the polar-throttled cap if the parametric perimeter
+        // reaches above [POLE_PROXIMITY_DEG], otherwise the unthrottled cap. Avoids the
+        // grow-resize churn `mutableListOf` would do.
+        val perEdgeBound = perEdgeBoundForLocations(perimeter)
+        val out = ArrayList<Location>(n + n * perEdgeBound)
+        for (i in 0 until n) {
+            val begin = perimeter[i]
+            out.add(begin)
+            val end = perimeter[(i + 1) % n]
+            if (begin.latitude == end.latitude && begin.longitude == end.longitude) continue
+            densifyEdgeWithFloor(begin, end, out)
+        }
+        return out
+    }
+
+    /**
+     * Like [AbstractShape.densifyEdge] but floors the step count at 1 so the polar-throttle loop
+     * runs at least once even for very short edges. The default 128-interval threshold rounds an
+     * edge of less than ~1.4° to zero steps and skips densification — fine for user-defined Path
+     * / Polygon waypoints (typically much wider apart) but fatal for the ellipse's parametric
+     * perimeter, where every edge is exactly that wide and would render as a 2D straight segment
+     * that visibly diverges from the great-circle near the poles (the M-shape).
+     *
+     * Each emitted intermediate comes from [locationPool] rather than `Location()` —
+     * eliminates per-intermediate allocation on dense polar perimeters.
+     */
+    private fun densifyEdgeWithFloor(begin: Location, end: Location, out: MutableList<Location>) {
+        if (maximumNumEdgeIntervals <= 0) return
+        val length = when (pathType) {
+            PathType.GREAT_CIRCLE -> begin.greatCircleDistance(end)
+            PathType.RHUMB_LINE -> begin.rhumbDistance(end)
+            else -> return
+        }
+        if (length < NEAR_ZERO_THRESHOLD) return
+        val steps = (maximumNumEdgeIntervals * length / PI).roundToInt().coerceAtLeast(1)
+        val dt = 1.0 / steps
+        var currentLat = begin.latitude
+        var t = throttledStep(dt, currentLat)
+        while (t < 1.0) {
+            val loc = locationPool.acquire()
+            begin.interpolateAlongPath(end, pathType, t, loc)
+            out.add(loc)
+            currentLat = loc.latitude
+            t += throttledStep(dt, currentLat)
+        }
+    }
+
+    /**
+     * Returns a copy of [perimeter] with two defensive cleanups applied before the contour is
+     * fed to [PolygonSplitter]:
+     *
+     * 1. **Pole clusters collapsed.** When the ellipse's top/bottom passes close to ±90°,
+     *    `greatCircleLocation`'s `asin(sinLat·cosD + cosLat·sinD·cosAz)` can pin the result to
+     *    exactly ±π/2 for a range of parametric inputs (FP rounding). Those clumped vertices
+     *    all sit at the same pole on the sphere but at varying longitudes in 2D, producing a
+     *    horizontal cap at lat=±90° when rasterized as 2D lat/lon triangles — visible as the
+     *    M-shape distortion when the pole sits on the outline. Keep only the first vertex of
+     *    each contiguous pole-cluster.
+     * 2. **Antimeridian nudged.** Vertices whose longitude is exactly ±180° coincide with the
+     *    intersection points that [PolygonSplitter.findIntersectionAndPole] inserts when
+     *    handling an antimeridian crossing, producing duplicate vertices at the same index.
+     *    Nudge to ±179.999999 to break the tie without visibly shifting the outline.
+     */
+    protected open fun sanitizePoleAntimeridianVertices(perimeter: List<Location>): List<Location> {
+        val poleEps = 1.0e-9
+        val lonEps = 1.0e-6
+        val out = mutableListOf<Location>()
+        var lastWasPole = false
+        for (loc in perimeter) {
+            val lat = loc.latitude.inDegrees
+            val isPole = abs(lat) >= 90.0 - poleEps
+            if (isPole && lastWasPole) continue
+            lastWasPole = isPole
+            val lon = loc.longitude.inDegrees
+            val nudgedLon = when {
+                lon >= 180.0 -> 180.0 - lonEps
+                lon <= -180.0 -> -180.0 + lonEps
+                else -> lon
+            }
+            if (lon == nudgedLon && !isPole) out.add(loc)
+            else out.add(Location.fromDegrees(lat, nudgedLon))
+        }
+        return out
+    }
+
     private fun emitGluVertex(tess: GLUtessellator, rc: RenderContext, latitude: Angle, longitude: Angle) {
         ensureVertexArrayCapacity()
         calcPoint(rc, latitude, longitude, center.altitude, isExtrudedSkirt = false)
@@ -799,10 +923,16 @@ open class Ellipse @JvmOverloads constructor(
 
     /**
      * Emits one or more outline chains from [subPoly], splitting the input wherever [shouldBreakAt]
-     * returns true. A chain is closed (wrapping back to its first vertex) only when no break
-     * occurred and [closeLoopIfUnbroken] is true — i.e., a single simple non-split sub-polygon.
-     * Antimeridian-split sub-polygons and pole-broken chains always end at their last vertex with
-     * capped miters, since their first and last lie on opposite sides of the cut.
+     * returns true. A single unbroken chain is closed (wrapping back to its first vertex) when
+     * [closeLoopIfUnbroken] is true.
+     *
+     * Because [subPoly] is a closed ring from PolygonSplitter (`subPoly.last() → subPoly.first()`
+     * is the implicit wrap-around edge), when a break occurs and neither endpoint of [subPoly] is
+     * itself a break point, the chain collected before the first break and the chain collected
+     * after the last break represent two halves of one continuous outline that joins across the
+     * wrap-around. Those two chains are merged into a single chain so the wrap-around edge is
+     * drawn — otherwise pole-inside ellipses show a missing segment where the densified perimeter
+     * wraps past [perimeterLocs][0].
      */
     protected open fun emitOutlineChains(
         rc: RenderContext,
@@ -810,20 +940,35 @@ open class Ellipse @JvmOverloads constructor(
         closeLoopIfUnbroken: Boolean,
         shouldBreakAt: (Location) -> Boolean = { false }
     ) {
+        val chains = mutableListOf<MutableList<Location>>()
         var chainBuffer: MutableList<Location>? = null
         var broken = false
         for (loc in subPoly) {
             if (shouldBreakAt(loc)) {
-                chainBuffer?.takeIf { it.size >= 2 }?.let { emitOutlineChain(rc, it, closeLoop = false) }
+                chainBuffer?.takeIf { it.size >= 2 }?.let { chains.add(it) }
                 chainBuffer = null
                 broken = true
                 continue
             }
             (chainBuffer ?: mutableListOf<Location>().also { chainBuffer = it }).add(loc)
         }
-        chainBuffer?.takeIf { it.size >= 2 }?.let {
-            emitOutlineChain(rc, it, closeLoop = closeLoopIfUnbroken && !broken)
+        chainBuffer?.takeIf { it.size >= 2 }?.let { chains.add(it) }
+        if (chains.isEmpty()) return
+        if (!broken) {
+            emitOutlineChain(rc, chains[0], closeLoop = closeLoopIfUnbroken)
+            return
         }
+        // If [subPoly]'s first and last vertices are not themselves break points, the last chain
+        // (post-final-break) and the first chain (pre-first-break) are adjacent via the ring's
+        // wrap-around — join them end-to-start into one continuous chain.
+        if (chains.size >= 2 &&
+            subPoly.isNotEmpty() && !shouldBreakAt(subPoly.first()) && !shouldBreakAt(subPoly.last())
+        ) {
+            val last = chains.removeAt(chains.size - 1)
+            last.addAll(chains[0])
+            chains[0] = last
+        }
+        for (chain in chains) emitOutlineChain(rc, chain, closeLoop = false)
     }
 
     /**
@@ -860,181 +1005,35 @@ open class Ellipse @JvmOverloads constructor(
         if (lineVertexIndex == 0) texCoord1d = 0.0
         else texCoord1d += point.distanceTo(prevPoint)
         prevPoint.copy(point)
-        val upperLeftCorner = encodeOrientationVector(-1f, 1f)
-        val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
-        val upperRightCorner = encodeOrientationVector(1f, 1f)
-        val lowerRightCorner = encodeOrientationVector(1f, -1f)
+        val x: Float; val y: Float; val z: Float
         if (isSurfaceShape) {
-            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = upperLeftCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-
-            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = lowerLeftCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-
-            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = upperRightCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-
-            lineVertexArray[lineVertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = lowerRightCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-            if (addIndices) {
-                outlineElements.add(vertex)
-                outlineElements.add(vertex + 1)
-                outlineElements.add(vertex + 2)
-                outlineElements.add(vertex + 3)
-            }
+            x = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            y = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            z = (altitude - vertexOrigin.z).toFloat()
         } else {
-            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = upperLeftCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-
-            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = lowerLeftCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-
-            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = upperRightCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-
-            lineVertexArray[lineVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            lineVertexArray[lineVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            lineVertexArray[lineVertexIndex++] = lowerRightCorner
-            lineVertexArray[lineVertexIndex++] = texCoord1d.toFloat()
-            if (addIndices) {
-                outlineElements.add(vertex)
-                outlineElements.add(vertex + 1)
-                outlineElements.add(vertex + 2)
-                outlineElements.add(vertex + 3)
-            }
-            if (isExtrude && addIndices) {
-                val index =  verticalVertexIndex / VERTEX_STRIDE
-
-                // first vertices, that simulate pointA for next vertices
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                // first pointB
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                // second pointB
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                // last vertices, that simulate pointC for previous vertices
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerLeftCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = upperRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                lineVertexArray[verticalVertexIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                lineVertexArray[verticalVertexIndex++] = lowerRightCorner
-                lineVertexArray[verticalVertexIndex++] = 0.0f
-
-                // indices for triangles from firstPointB secondPointB
-                verticalElements.add(index + 2)
-                verticalElements.add(index + 3)
-                verticalElements.add(index + 4)
-                verticalElements.add(index + 4)
-                verticalElements.add(index + 3)
-                verticalElements.add(index + 5)
-            }
+            x = (point.x - vertexOrigin.x).toFloat()
+            y = (point.y - vertexOrigin.y).toFloat()
+            z = (point.z - vertexOrigin.z).toFloat()
+        }
+        lineVertexIndex = emitLineCorners(lineVertexArray, lineVertexIndex, x, y, z, texCoord1d.toFloat())
+        if (addIndices) {
+            outlineElements.add(vertex)
+            outlineElements.add(vertex + 1)
+            outlineElements.add(vertex + 2)
+            outlineElements.add(vertex + 3)
+        }
+        if (!isSurfaceShape && isExtrude && addIndices) {
+            val index = verticalVertexIndex / VERTEX_STRIDE
+            val vx = (vertPoint.x - vertexOrigin.x).toFloat()
+            val vy = (vertPoint.y - vertexOrigin.y).toFloat()
+            val vz = (vertPoint.z - vertexOrigin.z).toFloat()
+            // pointA dummy + pointB top + pointB bottom + pointC dummy = 4 corner-quads.
+            verticalVertexIndex = emitLineCorners(lineVertexArray, verticalVertexIndex, x, y, z, 0.0f)
+            verticalVertexIndex = emitLineCorners(lineVertexArray, verticalVertexIndex, x, y, z, 0.0f)
+            verticalVertexIndex = emitLineCorners(lineVertexArray, verticalVertexIndex, vx, vy, vz, 0.0f)
+            verticalVertexIndex = emitLineCorners(lineVertexArray, verticalVertexIndex, vx, vy, vz, 0.0f)
+            verticalElements.add(index + 2); verticalElements.add(index + 3); verticalElements.add(index + 4)
+            verticalElements.add(index + 4); verticalElements.add(index + 3); verticalElements.add(index + 5)
         }
     }
 
@@ -1047,8 +1046,7 @@ open class Ellipse @JvmOverloads constructor(
         if (isSurfaceShape) {
             // Raw longitude offset (not normalized). The pole-fill case needs to distinguish
             // vertices at lon=+180 vs lon=-180, which normalization collapses when the ellipse
-            // center is not at longitude 0 or ±180 (see WorldWindJava AbstractSurfaceShape which
-            // also uses raw offsets for the same reason). For antimeridian-crossing shapes, the
+            // center is not at longitude 0 or ±180. For antimeridian-crossing shapes, the
             // resulting wide vertex offsets still rasterize correctly per-tile via the two
             // surface drawables (east/west sectors) emitted in makeDrawable.
             vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
@@ -1117,8 +1115,14 @@ open class Ellipse @JvmOverloads constructor(
 
     protected open fun ensureVertexArrayCapacity() {
         val size = currentData.vertexArray.size
-        if (size == vertexIndex) {
-            val increment = (size shr 1).coerceAtLeast(12)
+        // Grow when there's no room for another full stride. The old `size == vertexIndex`
+        // check drifted off alignment after (size shr 1) produced non-multiples of
+        // VERTEX_STRIDE (e.g. 675 → 1012), letting vertexIndex step PAST size without
+        // triggering a grow — and addVertex then wrote past the end.
+        if (size - vertexIndex < VERTEX_STRIDE) {
+            var increment = (size shr 1).coerceAtLeast(VERTEX_STRIDE * 4)
+            val rem = increment % VERTEX_STRIDE
+            if (rem != 0) increment += VERTEX_STRIDE - rem
             val newArray = FloatArray(size + increment)
             currentData.vertexArray.copyInto(newArray)
             currentData.vertexArray = newArray

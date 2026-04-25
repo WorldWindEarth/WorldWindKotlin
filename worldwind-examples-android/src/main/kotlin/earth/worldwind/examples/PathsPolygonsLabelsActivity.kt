@@ -208,7 +208,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                         path.altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                         path.pathType = PathType.LINEAR
                         path.isFollowTerrain = true // essential for preventing long segments from intercepting ellipsoid.
-                        path.maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
+                        path.maximumNumEdgeIntervals = 0 // Disable intermediate points for performance reasons
                         path.displayName = attributes
 
                         // Add the Path object to the RenderableLayer on the UI Thread (see onProgressUpdate)
@@ -263,7 +263,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                             altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                             pathType = PathType.LINEAR
                             isFollowTerrain = true // essential for preventing long segments from intercepting ellipsoid.
-                            maximumIntermediatePoints = 0 // Disable intermediate points for performance reasons
+                            maximumNumEdgeIntervals = 0 // Disable intermediate points for performance reasons
                             displayName = fields[1]
                             attributes = ShapeAttributes(commonAttrs).apply {
                                 interiorColor = Color(

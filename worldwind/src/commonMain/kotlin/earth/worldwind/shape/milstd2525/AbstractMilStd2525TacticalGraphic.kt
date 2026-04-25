@@ -137,7 +137,7 @@ abstract class AbstractMilStd2525TacticalGraphic(
         (if (enclosed) Polygon(positions, shapeAttributes) else Path(positions, shapeAttributes)).apply {
             altitudeMode = AltitudeMode.CLAMP_TO_GROUND
             isFollowTerrain = true
-            maximumIntermediatePoints = 0 // Do not draw intermediate vertices for tactical graphics
+            maximumNumEdgeIntervals = 0 // Do not draw intermediate vertices for tactical graphics
             pickDelegate = this@AbstractMilStd2525TacticalGraphic
         }
 

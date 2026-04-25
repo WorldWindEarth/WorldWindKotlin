@@ -29,7 +29,6 @@ class ContourInfo(
 
 /**
  * Splits polygons that cross the antimeridian and/or contain a pole.
- * Ported from WorldWindTS PolygonSplitter.
  */
 class PolygonSplitter {
     private var addedIndex = -1

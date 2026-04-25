@@ -13,10 +13,27 @@ import earth.worldwind.render.image.ResamplingMode
 import earth.worldwind.render.image.WrapMode
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.log2
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
+/**
+ * Base class for all geometric shapes.
+ *
+ * **Threading contract.** Geometry assembly (`makeDrawable` / `assembleGeometry` and everything
+ * they call) is **single-threaded**. The companion-scoped scratch state — `point`, `vertPoint`,
+ * `currentBoundindData`, `activeAttributes`, the per-shape `currentData`, and the index/cursor
+ * statics in subclasses (`vertexIndex`, `lineVertexIndex`, etc.) — is shared across instances
+ * and is only safe under that single-threaded assumption. Calling assembly from multiple threads
+ * concurrently corrupts these scratches; calling assembly recursively (subclass code that
+ * triggers another shape's assembly mid-flight) corrupts them too.
+ *
+ * In practice the render thread drives one shape's assembly to completion before starting the
+ * next, so this is fine. If parallel assembly ever becomes desirable, the scratches need to
+ * move from companion fields to a thread-local or a passed-through `RenderState` parameter.
+ */
 abstract class AbstractShape(
     override var attributes: ShapeAttributes
 ): AbstractRenderable(), Attributable, Highlightable, Movable {
@@ -65,10 +82,40 @@ abstract class AbstractShape(
     var isVisible: ((AbstractShape, RenderContext) -> Boolean)? = null
     override var highlightAttributes: ShapeAttributes? = null
     override var isHighlighted = false
-    var maximumIntermediatePoints = 10
+    /**
+     * Maximum number of intermediate edge intervals across a half-equator (PI radians) of arc.
+     * Per-edge subdivision count is scaled by edge length: `steps = round(maximumNumEdgeIntervals * distanceRadians / PI)`,
+     * then further adjusted by [polarThrottle] near the poles for surface shapes. 3D shapes use
+     * the unthrottled count. A value of 0 disables intermediate vertex generation.
+     *
+     * Default 64 gives ~10 intermediates on a 30° edge, fewer on shorter edges, more on longer
+     * ones. Increase for smoother long-edge great-circles, decrease for less assembly work in
+     * dense scenes.
+     */
+    var maximumNumEdgeIntervals = 64
+        set(value) {
+            field = value
+            reset()
+        }
+    /**
+     * Pole-throttle factor: higher values shrink the subdivision step near ±90° latitude so the
+     * straight 2D lon/lat segments between samples more closely follow the true great-circle path.
+     * A value of 0 disables throttling (uniform step).
+     */
+    var polarThrottle = 10.0
+        set(value) {
+            field = value
+            reset()
+        }
     protected var isSurfaceShape = false
     protected var bufferDataVersion = 0L
     protected val boundingData = mutableMapOf<Globe.State?, BoundingData>()
+    // Single-entry cache for the most-recently-used (Globe.State, BoundingData) pair. Most
+    // applications render against a single Globe.State, so the map lookup in [doRender] resolves
+    // to the same entry every frame; checking the cache first turns it into a field read +
+    // identity compare. Invalidated on [reset] (which clears [boundingData]).
+    private var lastBoundingDataState: Globe.State? = null
+    private var lastBoundingData: BoundingData? = null
 
     open class BoundingData {
         val boundingSector = Sector()
@@ -121,6 +168,12 @@ abstract class AbstractShape(
 
     companion object {
         const val NEAR_ZERO_THRESHOLD = 1.0e-10
+        // Latitude threshold (degrees) above which densification needs the full polar-throttled
+        // bound. Below it the throttle factor is moderate (≤ ~6) and the unthrottled length-scaled
+        // bound is tight enough — avoids the ~11× over-allocation the absolute-pole bound would
+        // imply. Used by Polygon / Path / Ellipse densifiers for ArrayList pre-sizing and
+        // surface-splitter short-circuit checks.
+        const val POLE_PROXIMITY_DEG = 75.0
         private const val ZERO_LEVEL_PX = 1024
         @JvmStatic
         protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
@@ -139,16 +192,129 @@ abstract class AbstractShape(
         protected val point = Vec3()
         @JvmStatic
         protected val vertPoint = Vec3()
+        // Pre-encoded triangle-strip line miter corners — values of
+        // [encodeOrientationVector](±1, ±1) hoisted out so Polygon/Path/Ellipse don't recompute
+        // them four times per [addLineVertex] invocation.
+        const val OUTLINE_CORNER_UL: Float = -0.5f  // encodeOrientationVector(-1, +1)
+        const val OUTLINE_CORNER_LL: Float = -1.5f  // encodeOrientationVector(-1, -1)
+        const val OUTLINE_CORNER_UR: Float = 1.5f   // encodeOrientationVector(+1, +1)
+        const val OUTLINE_CORNER_LR: Float = 0.5f   // encodeOrientationVector(+1, -1)
     }
 
     open fun reset() {
         boundingData.clear()
+        lastBoundingData = null
         ++bufferDataVersion
     }
 
+    /**
+     * Returns an adaptive step size that shrinks as [latitude] approaches the poles. Used by
+     * edge-subdivision loops to densify sampling where straight 2D lon/lat segments most
+     * visibly diverge from the true great-circle path:
+     * `dt * ((1 - w) + w * cos²(lat))` where `w = polarThrottle / (1 + polarThrottle)`.
+     */
+    protected fun throttledStep(dt: Double, latitude: Angle): Double {
+        val cosLat = cos(latitude.inRadians)
+        val cosLatSq = cosLat * cosLat
+        val weight = polarThrottle / (1.0 + polarThrottle)
+        return dt * ((1.0 - weight) + weight * cosLatSq)
+    }
+
+    /**
+     * Worst-case upper bound on intermediate vertices emitted per edge, used for buffer pre-sizing.
+     * Returns 0 when subdivision is disabled. The throttle can multiply iterations by up to
+     * `(1 + polarThrottle)` at the poles, so the bound is
+     * `ceil(maximumNumEdgeIntervals * (1 + polarThrottle))`.
+     */
+    protected fun maxIntermediatesPerEdge(): Int {
+        if (maximumNumEdgeIntervals <= 0 || pathType == PathType.LINEAR) return 0
+        return ((maximumNumEdgeIntervals * (1.0 + polarThrottle)) + 0.5).toInt()
+    }
+
+    /**
+     * Per-shape upper bound on intermediates per edge for ArrayList pre-sizing on the surface
+     * densification path. Walks [locations] once for max |latitude|; returns the polar-throttled
+     * cap [maxIntermediatesPerEdge] only if any vertex exceeds [POLE_PROXIMITY_DEG], otherwise
+     * the much tighter unthrottled `maximumNumEdgeIntervals - 1` bound. Avoids the ~11×
+     * over-allocation the absolute-pole bound would imply for mid-latitude shapes.
+     */
+    protected fun perEdgeBoundForLocations(locations: List<Location>): Int {
+        if (maximumNumEdgeIntervals <= 0 || pathType == PathType.LINEAR) return 0
+        var maxAbsLat = 0.0
+        for (p in locations) {
+            val lat = abs(p.latitude.inDegrees)
+            if (lat > maxAbsLat) {
+                maxAbsLat = lat
+                if (maxAbsLat > POLE_PROXIMITY_DEG) break
+            }
+        }
+        return if (maxAbsLat > POLE_PROXIMITY_DEG) maxIntermediatesPerEdge()
+        else maximumNumEdgeIntervals - 1
+    }
+
+    /**
+     * Appends throttled intermediate locations along the edge from [begin] to [end] to [out],
+     * without emitting either endpoint. Uses [pathType] and [maximumNumEdgeIntervals] to choose
+     * the base step count and [throttledStep] to densify near the poles. Each emitted location
+     * is a freshly allocated [Location] suitable for keeping (unlike the scratch-based loops
+     * in Path / Polygon).
+     */
+    /**
+     * Emits four triangle-strip line miter corners (UL, LL, UR, LR) of a single line vertex into
+     * [array] starting at [idx]. Each corner shares the same `(x, y, z)` and `texCoord`, differing
+     * only by the orientation tag baked into the four `OUTLINE_CORNER_*` constants. Returns the
+     * new index after writing 4 × 5 = 20 floats. Replaces the verbatim 20-line corner-emit blocks
+     * that used to appear in Polygon/Path/Ellipse for every line vertex (and four times each for
+     * extruded vertical strokes). The JIT inlines tight per-call helpers like this.
+     */
+    protected fun emitLineCorners(
+        array: FloatArray, idx: Int, x: Float, y: Float, z: Float, texCoord: Float
+    ): Int {
+        var i = idx
+        array[i++] = x; array[i++] = y; array[i++] = z; array[i++] = OUTLINE_CORNER_UL; array[i++] = texCoord
+        array[i++] = x; array[i++] = y; array[i++] = z; array[i++] = OUTLINE_CORNER_LL; array[i++] = texCoord
+        array[i++] = x; array[i++] = y; array[i++] = z; array[i++] = OUTLINE_CORNER_UR; array[i++] = texCoord
+        array[i++] = x; array[i++] = y; array[i++] = z; array[i++] = OUTLINE_CORNER_LR; array[i++] = texCoord
+        return i
+    }
+
+    protected fun densifyEdge(begin: Location, end: Location, out: MutableList<Location>) {
+        if (maximumNumEdgeIntervals <= 0) return
+        val length = when (pathType) {
+            PathType.GREAT_CIRCLE -> begin.greatCircleDistance(end)
+            PathType.RHUMB_LINE -> begin.rhumbDistance(end)
+            else -> return
+        }
+        if (length < NEAR_ZERO_THRESHOLD) return
+        val steps = (maximumNumEdgeIntervals * length / PI).roundToInt()
+        if (steps <= 0) return
+        val dt = 1.0 / steps
+        var currentLat = begin.latitude
+        var t = throttledStep(dt, currentLat)
+        while (t < 1.0) {
+            val loc = Location()
+            begin.interpolateAlongPath(end, pathType, t, loc)
+            out.add(loc)
+            currentLat = loc.latitude
+            t += throttledStep(dt, currentLat)
+        }
+    }
+
+
     override fun doRender(rc: RenderContext) {
-    	// Get or create available bounding data for current Globe state
-        currentBoundindData = boundingData[rc.globeState] ?: BoundingData().also { boundingData[rc.globeState] = it }
+        // Resolve the per-Globe.State BoundingData. Fast path: identity-compare against the
+        // single-entry cache (lastBoundingDataState/lastBoundingData) before hitting the map.
+        // Most applications render against one Globe.State, so this is a HashMap.get → field
+        // read for every shape per frame.
+        val state = rc.globeState
+        currentBoundindData = if (lastBoundingData != null && lastBoundingDataState === state) {
+            lastBoundingData!!
+        } else {
+            (boundingData[state] ?: BoundingData().also { boundingData[state] = it }).also {
+                lastBoundingDataState = state
+                lastBoundingData = it
+            }
+        }
 
         // Don't render anything if the shape is not visible.
         if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc) || isVisible?.invoke(this, rc) == false) return
@@ -188,11 +354,16 @@ abstract class AbstractShape(
     protected open fun isWithinProjectionLimits(rc: RenderContext) = true
 
     protected open fun intersectsFrustum(rc: RenderContext) = with(currentBoundindData) {
-        (boundingBox.isUnitBox || boundingBox.intersectsFrustum(rc.frustum)) &&
-                // This is a temporary solution. Surface shapes should also use bounding box.
-                (boundingSector.isEmpty || boundingSector.intersects(rc.terrain.sector) ||
-                 crossesAntimeridian && additionalSector.intersects(rc.terrain.sector))
+        // 3D shapes have a real Cartesian bounding box; check it against the view frustum.
+        // Surface shapes leave the box as a unit box and use the lat/lon sector instead —
+        // possibly two sectors when the shape crosses the antimeridian.
+        if (boundingBox.isUnitBox) {
+            boundingSector.isEmpty || boundingSector.intersects(rc.terrain.sector) ||
+                crossesAntimeridian && additionalSector.intersects(rc.terrain.sector)
+        } else {
+            boundingBox.intersectsFrustum(rc.frustum)
         }
+    }
 
     protected open fun determineActiveAttributes(rc: RenderContext) {
         val highlightAttributes = highlightAttributes

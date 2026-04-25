@@ -204,7 +204,6 @@ class PlaneTest {
     fun testIntersectsSegment() {
         val p = Plane(0.0, 0.0, -1.0, 0.0)
 
-        // These tests were adapted from WorldWindJava PlaneTest
         var result = p.intersectsSegment(Vec3(), Vec3(0.0, 0.0, -1.0))
         assertTrue(result, "Perpendicular, 0 at origin, should produce intersection at origin")
         result = p.intersectsSegment(Vec3(1.0, 0.0, 0.0), Vec3(1.0, 0.0, 0.0))

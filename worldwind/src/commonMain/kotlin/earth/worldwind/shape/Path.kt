@@ -10,9 +10,12 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.SphericalRotation
 import earth.worldwind.geom.Vec3
+import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 import earth.worldwind.globe.Globe
@@ -20,21 +23,25 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.PathType.*
+import earth.worldwind.util.IntList
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.PolygonSplitter
+import earth.worldwind.util.ScratchPool
 import earth.worldwind.util.kgl.*
-import earth.worldwind.util.math.encodeOrientationVector
 import kotlin.jvm.JvmOverloads
 
 open class Path @JvmOverloads constructor(
     positions: List<Position>, attributes: ShapeAttributes = ShapeAttributes()
 ): AbstractShape(attributes) {
+    private var cachedReferencePosition: Position? = null
     override val referencePosition: Position get() {
         // Cartesian centroid: average of vertex unit vectors, projected back to the sphere. Unlike
         // a lat/lon min/max midpoint this is rotation-equivariant — if the path is rotated, the
         // centroid rotates with it — which keeps drag (SphericalRotation in moveTo) stable across
-        // successive events. Handles antimeridian crossing without special-casing.
-        if (positions.isEmpty()) return Position()
+        // successive events. Handles antimeridian crossing without special-casing. Cached and
+        // invalidated on [reset].
+        cachedReferencePosition?.let { return it }
+        if (positions.isEmpty()) return Position().also { cachedReferencePosition = it }
         var sx = 0.0; var sy = 0.0; var sz = 0.0
         for (pos in positions) {
             val latRad = pos.latitude.inRadians
@@ -44,9 +51,13 @@ open class Path @JvmOverloads constructor(
             sz += sin(latRad)
         }
         val mag = sqrt(sx * sx + sy * sy + sz * sz)
-        if (mag < 1.0e-10) return Position()
-        val nx = sx / mag; val ny = sy / mag; val nz = sz / mag
-        return Position(asin(nz.coerceIn(-1.0, 1.0)).radians, atan2(ny, nx).radians, 0.0)
+        val result = if (mag < 1.0e-10) Position()
+        else {
+            val nx = sx / mag; val ny = sy / mag; val nz = sz / mag
+            Position(asin(nz.coerceIn(-1.0, 1.0)).radians, atan2(ny, nx).radians, 0.0)
+        }
+        cachedReferencePosition = result
+        return result
     }
     var positions = positions
         set(value) {
@@ -59,11 +70,11 @@ open class Path @JvmOverloads constructor(
         val vertexOrigin = Vec3()
         var vertexArray = FloatArray(0)
         var extrudeVertexArray = FloatArray(0)
-        // TODO Use IntArray instead of mutableListOf<Int> to avoid unnecessary memory re-allocations
-        val interiorElements = mutableListOf<Int>()
-        val outlineElements = mutableListOf<Int>()
-        val outlineChainStarts = mutableListOf<Int>()
-        val verticalElements = mutableListOf<Int>()
+        // Primitive-int element buffers — see PolygonData for rationale.
+        val interiorElements = IntList()
+        val outlineElements = IntList()
+        val outlineChainStarts = IntList()
+        val verticalElements = IntList()
         val extrudeVertexBufferKey = Any()
         val extrudeElementBufferKey = Any()
         val vertexBufferKey = Any()
@@ -84,8 +95,11 @@ open class Path @JvmOverloads constructor(
         protected var extrudeIndex = 0
 
         protected val prevPoint = Vec3()
-        protected val intermediateLocation = Location()
+        protected val intermediatePosition = Position()
         protected var texCoord1d = 0.0
+        // Sequential scratch pool for [densifyForSurface] — eliminates per-intermediate
+        // [Position] allocation on dense polar paths.
+        protected val positionPool = ScratchPool(::Position)
     }
 
     override fun resetGlobeState(globeState: Globe.State?) {
@@ -95,6 +109,7 @@ open class Path @JvmOverloads constructor(
 
     override fun reset() {
         super.reset()
+        cachedReferencePosition = null
         data.values.forEach { it.refreshVertexArray = true }
     }
 
@@ -157,9 +172,8 @@ open class Path @JvmOverloads constructor(
         }
         rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
             val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
-            var index = 0
-            for (element in currentData.outlineElements) array[index++] = element
-            for (element in currentData.verticalElements) array[index++] = element
+            val index = currentData.outlineElements.copyTo(array, 0)
+            currentData.verticalElements.copyTo(array, index)
             NumericArray.Ints(array)
         }
 
@@ -210,9 +224,10 @@ open class Path @JvmOverloads constructor(
         // Draw each sub-path chain separately to avoid the spurious connecting triangle that GL_TRIANGLE_STRIP
         // produces at the junction between antimeridian-split chains when drawn as one continuous strip.
         val chainStarts = currentData.outlineChainStarts
-        for (ci in chainStarts.indices) {
+        val chainCount = chainStarts.size
+        for (ci in 0 until chainCount) {
             val start = chainStarts[ci]
-            val end = if (ci + 1 < chainStarts.size) chainStarts[ci + 1] else currentData.outlineElements.size
+            val end = if (ci + 1 < chainCount) chainStarts[ci + 1] else currentData.outlineElements.size
             val count = end - start
             if (count > 0) drawState.drawElements(GL_TRIANGLE_STRIP, count, GL_UNSIGNED_INT, start * Int.SIZE_BYTES)
         }
@@ -281,9 +296,12 @@ open class Path @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
-        // For surface shapes, split positions into sub-paths at antimeridian crossings.
+        // Surface shapes go through the densify-then-split pipeline only when actually needed
+        // (any edge crosses the antimeridian, or any waypoint is near a pole). Mid-latitude,
+        // non-crossing paths fall through to the cheap inline-densify branch — same as 3D.
+        val surfaceNeedsSplitter = isSurfaceShape && pathSurfaceNeedsSplitter()
         val subPaths: List<List<Position>>
-        val crossesAntimeridian = if (isSurfaceShape) {
+        val crossesAntimeridian = if (surfaceNeedsSplitter) {
             val split = splitPositionsAtAntimeridian(positions)
             subPaths = split.first
             split.second
@@ -292,12 +310,17 @@ open class Path @JvmOverloads constructor(
             false
         }
 
-        // Determine the total vertex count across all sub-paths.
-        val noIntermediate = maximumIntermediatePoints <= 0 || pathType == LINEAR
+        // Determine the total vertex count across all sub-paths. The splitter branch pre-densifies,
+        // so each sub-path contributes `sp.size + 2`. The non-splitter branch (3D, or surface
+        // bypassing the splitter) inline-densifies via [addIntermediateVertices] — uniform stepping
+        // capped at `maximumNumEdgeIntervals - 1` per edge.
+        val perEdgeMax = if (surfaceNeedsSplitter || maximumNumEdgeIntervals <= 0 || pathType == LINEAR) 0
+        else maximumNumEdgeIntervals - 1
+        val noIntermediate = surfaceNeedsSplitter || perEdgeMax <= 0
         var totalVertexCount = 0
         for (sp in subPaths) {
             totalVertexCount += if (noIntermediate) sp.size + 2
-            else sp.size + 2 + (sp.size - 1) * maximumIntermediatePoints
+            else sp.size + 2 + (sp.size - 1) * perEdgeMax
         }
 
         // Separate vertex array for interior polygon
@@ -329,10 +352,20 @@ open class Path @JvmOverloads constructor(
 
             for (idx in 1 until subPath.size) {
                 val end = subPath[idx]
-                addIntermediateVertices(rc, begin, end)
-                val addIndices = idx != subPath.size - 1
+                // Sub-paths from the splitter branch are already densified — emit only the
+                // explicit waypoints. The non-splitter branch (3D or short-circuited surface)
+                // densifies inline.
+                if (!surfaceNeedsSplitter) addIntermediateVertices(rc, begin, end)
+                // Always add indices, including for the last sub-path vertex. The trailing dummy
+                // vertex below is unindexed and serves only as miter context. With polar-throttled
+                // densification a sub-path can carry zero intermediates (short edges or any edge
+                // at the equator where throttledStep returns dt=1.0 and the loop never runs); if
+                // the last waypoint were unindexed too the strip would end one segment short of
+                // the path's actual end — visible as a dropped final segment, or as the entire
+                // line missing for a 2-waypoint sub-path. Polygon (addOutlineChains) and Ellipse
+                // (emitOutlineChain) already follow this pattern.
                 calcPoint(rc, end.latitude, end.longitude, end.altitude)
-                addVertex(rc, end.latitude, end.longitude, end.altitude, intermediate = false, addIndices)
+                addVertex(rc, end.latitude, end.longitude, end.altitude, intermediate = false, addIndices = true)
                 begin = end
             }
 
@@ -366,14 +399,40 @@ open class Path @JvmOverloads constructor(
     }
 
     /**
+     * Cheap pre-check: does the path cross the antimeridian or come within
+     * [POLE_PROXIMITY_DEG] of a pole? If neither, the densify-then-split pipeline is wasted
+     * work — straight 2D lat/lon segments with inline densification rasterize fine for a
+     * mid-latitude path.
+     */
+    protected open fun pathSurfaceNeedsSplitter(): Boolean {
+        val n = positions.size
+        if (n < 2) return false
+        for (i in 0 until n) {
+            val cur = positions[i]
+            if (abs(cur.latitude.inDegrees) > POLE_PROXIMITY_DEG) return true
+            if (i + 1 < n) {
+                val next = positions[i + 1]
+                if (abs(cur.longitude.inDegrees - next.longitude.inDegrees) > 180.0) return true
+            }
+        }
+        return false
+    }
+
+    /**
      * Splits positions into sub-paths at antimeridian crossings, inserting intersection points at ±180.
+     * Positions are densified with throttled great-circle samples before splitting so
+     * [PolygonSplitter.meridianIntersection] (which linearly interpolates latitude) runs between
+     * closely-spaced samples — otherwise a wide edge between two high-latitude endpoints dips
+     * into a V-shape at the crossing because its linear-lat midpoint sits well below the true
+     * great-circle intersection. Matches [Polygon.densifyBoundariesForSurface].
      */
     protected open fun splitPositionsAtAntimeridian(positions: List<Position>): Pair<List<List<Position>>, Boolean> {
+        if (positions.isEmpty()) return Pair(emptyList(), false)
+        val dense = densifyForSurface(positions)
         var crossesAntimeridian = false
         val subPaths = mutableListOf<List<Position>>()
         var current = mutableListOf<Position>()
-        for (i in positions.indices) {
-            val pos = positions[i]
+        for (pos in dense) {
             if (current.isEmpty()) {
                 current.add(pos)
                 continue
@@ -381,13 +440,11 @@ open class Path @JvmOverloads constructor(
             val prev = current.last()
             if (Location.locationsCrossAntimeridian(listOf(prev, pos))) {
                 crossesAntimeridian = true
-                // Insert intersection point at ±180 for the end of the current sub-path.
                 val iLat = PolygonSplitter.meridianIntersection(prev, pos, 180.0)
                     ?: (prev.latitude.inDegrees + pos.latitude.inDegrees) / 2.0
                 val iLonEnd = if (prev.longitude.inDegrees > 0) 180.0 else -180.0
                 current.add(Position.fromDegrees(iLat, iLonEnd, prev.altitude))
                 subPaths.add(current)
-                // Start a new sub-path from the other side of the antimeridian.
                 current = mutableListOf()
                 current.add(Position.fromDegrees(iLat, -iLonEnd, pos.altitude))
                 current.add(pos)
@@ -399,38 +456,76 @@ open class Path @JvmOverloads constructor(
         return Pair(subPaths, crossesAntimeridian)
     }
 
-    protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
-        if (maximumIntermediatePoints <= 0) return  // suppress intermediate vertices when configured to do so
-        val azimuth: Angle
-        val length: Double
-        when (pathType) {
-            GREAT_CIRCLE -> {
-                azimuth = begin.greatCircleAzimuth(end)
-                length = begin.greatCircleDistance(end)
+    /**
+     * Returns a densified copy of [positions] with throttled great-circle (or rhumb) samples
+     * inserted along each edge. Used for surface paths so the antimeridian split operates on
+     * closely-spaced vertices. LINEAR path type and disabled subdivision return [positions] as-is.
+     *
+     * Each emitted intermediate comes from [positionPool] rather than `Position(pos)` —
+     * eliminates per-intermediate allocation. The output `ArrayList<Position>` is pre-sized
+     * using a per-path bound: the polar-throttled cap if any vertex exceeds [POLE_PROXIMITY_DEG],
+     * otherwise the much tighter unthrottled cap. Avoids the grow-resize churn `mutableListOf`
+     * would do on dense paths.
+     */
+    protected open fun densifyForSurface(positions: List<Position>): List<Position> {
+        if (maximumNumEdgeIntervals <= 0 || pathType == LINEAR || positions.size < 2) return positions
+        positionPool.reset()
+        val perEdgeBound = perEdgeBoundForLocations(positions)
+        val out = ArrayList<Position>(positions.size + (positions.size - 1) * perEdgeBound)
+        val pos = intermediatePosition
+        out.add(positions[0])
+        for (i in 1 until positions.size) {
+            val begin = positions[i - 1]
+            val end = positions[i]
+            val length = when (pathType) {
+                GREAT_CIRCLE -> begin.greatCircleDistance(end)
+                RHUMB_LINE -> begin.rhumbDistance(end)
+                else -> { out.add(end); continue }
             }
-            RHUMB_LINE -> {
-                azimuth = begin.rhumbAzimuth(end)
-                length = begin.rhumbDistance(end)
+            if (length >= NEAR_ZERO_THRESHOLD) {
+                val steps = (maximumNumEdgeIntervals * length / PI).roundToInt()
+                if (steps > 0) {
+                    val dt = 1.0 / steps
+                    var currentLat = begin.latitude
+                    var t = throttledStep(dt, currentLat)
+                    while (t < 1.0) {
+                        begin.interpolateAlongPath(end, pathType, t, pos)
+                        out.add(positionPool.acquire().copy(pos))
+                        currentLat = pos.latitude
+                        t += throttledStep(dt, currentLat)
+                    }
+                }
             }
-            else -> return  // suppress intermediate vertices when the path type is linear
+            out.add(end)
         }
-        if (length < NEAR_ZERO_THRESHOLD) return  // suppress intermediate vertices when the edge length less than a millimeter (on Earth)
-        val numSubsegments = maximumIntermediatePoints + 1
-        val deltaDist = length / numSubsegments
-        val deltaAlt = (end.altitude - begin.altitude) / numSubsegments
-        var dist = deltaDist
-        var alt = begin.altitude + deltaAlt
-        for (idx in 1 until numSubsegments) {
-            val loc = intermediateLocation
-            when (pathType) {
-                GREAT_CIRCLE -> begin.greatCircleLocation(azimuth, dist, loc)
-                RHUMB_LINE -> begin.rhumbLocation(azimuth, dist, loc)
-                else -> {}
-            }
-            calcPoint(rc, loc.latitude, loc.longitude, alt)
-            addVertex(rc, loc.latitude, loc.longitude, alt, intermediate = true, addIndices = true)
-            dist += deltaDist
-            alt += deltaAlt
+        return out
+    }
+
+    /**
+     * 3D-only path densification. Uses **uniform** stepping — no polar throttle — because the
+     * 3D path is rendered as actual Cartesian geometry, not a 2D lat/lon raster, so the M-shape
+     * distortion that the throttle compensates for on surface shapes doesn't apply. Vertex count
+     * is still length-scaled via `maximumNumEdgeIntervals * length / PI` but distributed evenly
+     * across the edge regardless of latitude.
+     */
+    protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
+        if (maximumNumEdgeIntervals <= 0) return // subdivision disabled
+        val length: Double = when (pathType) {
+            GREAT_CIRCLE -> begin.greatCircleDistance(end)
+            RHUMB_LINE -> begin.rhumbDistance(end)
+            else -> return // LINEAR: no intermediate vertices
+        }
+        if (length < NEAR_ZERO_THRESHOLD) return // skip edges shorter than a millimeter on Earth
+        val steps = (maximumNumEdgeIntervals * length / PI).roundToInt()
+        if (steps <= 0) return
+        val dt = 1.0 / steps
+        val pos = intermediatePosition
+        var t = dt
+        while (t < 1.0) {
+            begin.interpolateAlongPath(end, pathType, t, pos)
+            calcPoint(rc, pos.latitude, pos.longitude, pos.altitude)
+            addVertex(rc, pos.latitude, pos.longitude, pos.altitude, intermediate = true, addIndices = true)
+            t += dt
         }
     }
 
@@ -446,201 +541,51 @@ open class Path @JvmOverloads constructor(
             texCoord1d += point.distanceTo(prevPoint)
         }
         prevPoint.copy(point)
-        val upperLeftCorner = encodeOrientationVector(-1f, 1f)
-        val lowerLeftCorner = encodeOrientationVector(-1f, -1f)
-        val upperRightCorner = encodeOrientationVector(1f, 1f)
-        val lowerRightCorner = encodeOrientationVector(1f, -1f)
+        val x: Float; val y: Float; val z: Float
         if (isSurfaceShape) {
-            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = upperLeftCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-
-            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = lowerLeftCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-
-            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = upperRightCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-
-            vertexArray[vertexIndex++] = (longitude.inDegrees - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (latitude.inDegrees - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (altitude - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = lowerRightCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-
-            if (addIndices) {
-                outlineElements.add(vertex)
-                outlineElements.add(vertex + 1)
-                outlineElements.add(vertex + 2)
-                outlineElements.add(vertex + 3)
-            }
+            x = (longitude.inDegrees - vertexOrigin.x).toFloat()
+            y = (latitude.inDegrees - vertexOrigin.y).toFloat()
+            z = (altitude - vertexOrigin.z).toFloat()
         } else {
-            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = upperLeftCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
+            x = (point.x - vertexOrigin.x).toFloat()
+            y = (point.y - vertexOrigin.y).toFloat()
+            z = (point.z - vertexOrigin.z).toFloat()
+        }
+        vertexIndex = emitLineCorners(vertexArray, vertexIndex, x, y, z, texCoord1d.toFloat())
+        if (addIndices) {
+            outlineElements.add(vertex)
+            outlineElements.add(vertex + 1)
+            outlineElements.add(vertex + 2)
+            outlineElements.add(vertex + 3)
+        }
+        if (!isSurfaceShape && isExtrude) {
+            val extrudeVertex = extrudeIndex / VERTEX_STRIDE
+            // Top + bottom of the side skirt — two vertices, no orientation tag (0,0).
+            extrudeVertexArray[extrudeIndex++] = x
+            extrudeVertexArray[extrudeIndex++] = y
+            extrudeVertexArray[extrudeIndex++] = z
+            extrudeVertexArray[extrudeIndex++] = 0f
+            extrudeVertexArray[extrudeIndex++] = 0f
+            extrudeVertexArray[extrudeIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
+            extrudeVertexArray[extrudeIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
+            extrudeVertexArray[extrudeIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
+            extrudeVertexArray[extrudeIndex++] = 0f
+            extrudeVertexArray[extrudeIndex++] = 0f
+            interiorElements.add(extrudeVertex)
+            interiorElements.add(extrudeVertex + 1)
 
-            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = lowerLeftCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-
-            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = upperRightCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-
-            vertexArray[vertexIndex++] = (point.x - vertexOrigin.x).toFloat()
-            vertexArray[vertexIndex++] = (point.y - vertexOrigin.y).toFloat()
-            vertexArray[vertexIndex++] = (point.z - vertexOrigin.z).toFloat()
-            vertexArray[vertexIndex++] = lowerRightCorner
-            vertexArray[vertexIndex++] = texCoord1d.toFloat()
-
-            if (addIndices) {
-                outlineElements.add(vertex)
-                outlineElements.add(vertex + 1)
-                outlineElements.add(vertex + 2)
-                outlineElements.add(vertex + 3)
-            }
-            if (isExtrude) {
-                val extrudeVertex =  extrudeIndex / VERTEX_STRIDE
-
-                extrudeVertexArray[extrudeIndex++] = (point.x - vertexOrigin.x).toFloat()
-                extrudeVertexArray[extrudeIndex++] = (point.y - vertexOrigin.y).toFloat()
-                extrudeVertexArray[extrudeIndex++] = (point.z - vertexOrigin.z).toFloat()
-                extrudeVertexArray[extrudeIndex++] = 0f // unused
-                extrudeVertexArray[extrudeIndex++] = 0f // unused
-
-                extrudeVertexArray[extrudeIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                extrudeVertexArray[extrudeIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                extrudeVertexArray[extrudeIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                extrudeVertexArray[extrudeIndex++] = 0f // unused
-                extrudeVertexArray[extrudeIndex++] = 0f // unused
-
-                interiorElements.add(extrudeVertex)
-                interiorElements.add(extrudeVertex + 1)
-
-                if (!intermediate) {
-                    val index =  verticalIndex / VERTEX_STRIDE
-                    
-                    // first vertices, that simulate pointA for next vertices
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    // first pointB
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (point.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (point.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (point.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    // second pointB
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    // last vertices, that simulate pointC for previous vertices
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerLeftCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = upperRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    vertexArray[verticalIndex++] = (vertPoint.x - vertexOrigin.x).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.y - vertexOrigin.y).toFloat()
-                    vertexArray[verticalIndex++] = (vertPoint.z - vertexOrigin.z).toFloat()
-                    vertexArray[verticalIndex++] = lowerRightCorner
-                    vertexArray[verticalIndex++] = 0.0f
-
-                    // indices for triangles from firstPointB secondPointB
-                    verticalElements.add(index + 2)
-                    verticalElements.add(index + 3)
-                    verticalElements.add(index + 4)
-                    verticalElements.add(index + 4)
-                    verticalElements.add(index + 3)
-                    verticalElements.add(index + 5)
-                }
+            if (!intermediate) {
+                val index = verticalIndex / VERTEX_STRIDE
+                val vx = (vertPoint.x - vertexOrigin.x).toFloat()
+                val vy = (vertPoint.y - vertexOrigin.y).toFloat()
+                val vz = (vertPoint.z - vertexOrigin.z).toFloat()
+                // pointA dummy + pointB top + pointB bottom + pointC dummy = 4 corner-quads.
+                verticalIndex = emitLineCorners(vertexArray, verticalIndex, x, y, z, 0.0f)
+                verticalIndex = emitLineCorners(vertexArray, verticalIndex, x, y, z, 0.0f)
+                verticalIndex = emitLineCorners(vertexArray, verticalIndex, vx, vy, vz, 0.0f)
+                verticalIndex = emitLineCorners(vertexArray, verticalIndex, vx, vy, vz, 0.0f)
+                verticalElements.add(index + 2); verticalElements.add(index + 3); verticalElements.add(index + 4)
+                verticalElements.add(index + 4); verticalElements.add(index + 3); verticalElements.add(index + 5)
             }
         }
     }

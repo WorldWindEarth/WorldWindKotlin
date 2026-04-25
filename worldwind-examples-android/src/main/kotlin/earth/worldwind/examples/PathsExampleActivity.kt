@@ -139,7 +139,7 @@ open class PathsExampleActivity: GeneralGlobeActivity() {
             val path = Path(positions, attrs)
             path.putUserProperty("dept", dept)
             path.putUserProperty("dest", dest)
-            path.maximumIntermediatePoints = 0 // Suppress intermediate points as we will calculate many of them explicitly in positions
+            path.maximumNumEdgeIntervals = 0 // Suppress intermediate points as we will calculate many of them explicitly in positions
             flightPathLayer.addRenderable(path)
         }
     }

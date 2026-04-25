@@ -98,16 +98,16 @@ class AbstractShapeTest {
     }
 
     @Test
-    fun testGetMaximumIntermediatePoints() {
+    fun testGetMaximumNumEdgeIntervals() {
         val shape = AbstractShapeImpl()
-        shape.maximumIntermediatePoints = 123
-        assertEquals(123, shape.maximumIntermediatePoints)
+        shape.maximumNumEdgeIntervals = 123
+        assertEquals(123, shape.maximumNumEdgeIntervals)
     }
 
     @Test
-    fun testSetMaximumIntermediatePoints() {
+    fun testSetMaximumNumEdgeIntervals() {
         val shape = AbstractShapeImpl()
-        shape.maximumIntermediatePoints = 123
-        assertEquals(123, shape.maximumIntermediatePoints)
+        shape.maximumNumEdgeIntervals = 123
+        assertEquals(123, shape.maximumNumEdgeIntervals)
     }
 }

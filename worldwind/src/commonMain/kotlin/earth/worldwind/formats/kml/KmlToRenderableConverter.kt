@@ -187,7 +187,7 @@ internal class KmlToRenderableConverter {
         isExtrude = lineString.extrude
         isFollowTerrain = lineString.tessellate
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
-        maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
+        maximumNumEdgeIntervals = 0 // Disable intermediate point for performance reasons
         zOrder = lineString.drawOrder.toDouble()
 
         name?.let { displayName = it }
@@ -204,7 +204,7 @@ internal class KmlToRenderableConverter {
         isExtrude = linearRing.extrude
         isFollowTerrain = linearRing.tessellate
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
-        maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
+        maximumNumEdgeIntervals = 0 // Disable intermediate point for performance reasons
 
         name?.let { displayName = it }
 
@@ -221,7 +221,7 @@ internal class KmlToRenderableConverter {
         // Clamp to ground polygon is always on texture, even if tessellate is not true
         isFollowTerrain = altitudeMode == CLAMP_TO_GROUND
         pathType = getPathTypeBy(altitudeMode, isFollowTerrain)
-        maximumIntermediatePoints = 0 // Disable intermediate point for performance reasons
+        maximumNumEdgeIntervals = 0 // Disable intermediate point for performance reasons
 
         polygon.outerBoundaryIs?.let {
             it.value.let { linearRing ->

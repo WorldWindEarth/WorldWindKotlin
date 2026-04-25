@@ -650,9 +650,6 @@ class LocationTest {
         assertEquals(height, end.latitude.inDegrees, TOLERANCE, "latitude")
     }
 
-    // ---------------------------------------------------
-    // The following tests were copied from WorldWind Java
-    // ---------------------------------------------------
     //////////////////////////////////////////////////////////
     // Test equivalent points. Distance should always be 0.
     //////////////////////////////////////////////////////////
