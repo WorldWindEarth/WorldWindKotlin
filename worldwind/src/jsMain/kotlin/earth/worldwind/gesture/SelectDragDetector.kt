@@ -150,19 +150,24 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                     // Signal that dragging is in progress
                     isDragging = true
 
-                    // First we compute the screen coordinates of the position's "ground" point. We'll apply the
-                    // screen X and Y drag distances to this point, from which we'll compute a new position,
-                    // wherein we restore the original position's altitude.
+                    // Compute the screen coordinates of the reference position's "ground" point and
+                    // shift it by the cursor's screen delta. This translates the reference in
+                    // parallel to the cursor — the grabbed point on the shape stays under the
+                    // cursor — instead of snapping the reference to the cursor, which would jump
+                    // the shape whenever the user grabbed any point other than the reference.
                     val toPosition = Position()
                     val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
-                    val movePoint = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
-                    if (clapToGround && wwd.engine.pickTerrainPosition(movePoint.x, movePoint.y, toPosition)
-                        || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
-                        && wwd.engine.screenPointToGroundPosition(
-                            dragRefPt.x + (recognizer.translationX - lastTranslation.x) * wwd.engine.densityFactor,
-                            dragRefPt.y + (recognizer.translationY - lastTranslation.y) * wwd.engine.densityFactor,
-                            toPosition
-                        )) {
+                    val refMappedToScreen = wwd.engine.geographicToScreenPoint(
+                        fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt
+                    )
+                    val deltaX = (recognizer.translationX - lastTranslation.x) * wwd.engine.densityFactor
+                    val deltaY = (recognizer.translationY - lastTranslation.y) * wwd.engine.densityFactor
+                    val newRefX = dragRefPt.x + deltaX
+                    val newRefY = dragRefPt.y + deltaY
+                    if (refMappedToScreen && (
+                        clapToGround && wwd.engine.pickTerrainPosition(newRefX, newRefY, toPosition)
+                        || !clapToGround && wwd.engine.screenPointToGroundPosition(newRefX, newRefY, toPosition)
+                    )) {
                         // Backup last translation
                         lastTranslation.set(recognizer.translationX, recognizer.translationY)
                         // Restore original altitude

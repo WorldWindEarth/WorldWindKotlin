@@ -84,8 +84,6 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
 
     override fun onScroll(downEvent: MotionEvent?, moveEvent: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
         val callback = callback ?: return false
-        val x = moveEvent.x.toDouble()
-        val y = moveEvent.y.toDouble()
         draggingJob?.cancel()
         draggingJob = mainScope.launch {
             val (renderable, fromPosition) = awaitPickResult(true)
@@ -93,14 +91,23 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
                 // Signal that dragging is in progress
                 isDragging = true
 
-                // First we compute the screen coordinates of the position's "ground" point. We'll apply the
-                // screen X and Y drag distances to this point, from which we'll compute a new position,
-                // wherein we restore the original position's altitude.
+                // First we compute the screen coordinates of the reference position's "ground" point.
+                // We apply the cursor's screen delta to that ref-screen point and resolve back to a
+                // geographic position. This shifts the reference in parallel to the cursor — the
+                // grabbed point on the shape stays under the cursor — instead of snapping the
+                // reference to the cursor location, which would jump the shape whenever the user
+                // grabbed any point other than the reference itself.
                 val toPosition = Position()
                 val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
-                if (clapToGround && wwd.engine.pickTerrainPosition(x, y, toPosition)
-                    || !clapToGround && wwd.engine.geographicToScreenPoint(fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt)
-                    && wwd.engine.screenPointToGroundPosition(dragRefPt.x - distanceX, dragRefPt.y - distanceY, toPosition)) {
+                val refMappedToScreen = wwd.engine.geographicToScreenPoint(
+                    fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt
+                )
+                val newRefX = dragRefPt.x - distanceX
+                val newRefY = dragRefPt.y - distanceY
+                if (refMappedToScreen && (
+                    clapToGround && wwd.engine.pickTerrainPosition(newRefX, newRefY, toPosition)
+                    || !clapToGround && wwd.engine.screenPointToGroundPosition(newRefX, newRefY, toPosition)
+                )) {
                     // Restore original altitude
                     toPosition.altitude = fromPosition.altitude
                     // Notify callback

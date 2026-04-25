@@ -3,6 +3,7 @@ package earth.worldwind.gesture
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.Vec2
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
 import kotlinx.coroutines.runBlocking
@@ -17,6 +18,13 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected var pickedPosition: Position? = null
     protected var isDraggingArmed = false
     protected var isDragging = false
+    // Cursor screen position from the previous drag event, so we can apply incremental deltas
+    // and shift the reference point in parallel to the cursor — instead of snapping it under
+    // the cursor, which would jump the shape if the user grabbed any point other than the
+    // reference itself.
+    private var lastDragX = 0.0
+    private var lastDragY = 0.0
+    private val dragRefPt = Vec2()
 
     open fun onMouseEvent(event: MouseEvent): Boolean {
         if (!isEnabled || callback == null) return false
@@ -24,6 +32,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         return when (event.id) {
             MouseEvent.MOUSE_PRESSED -> {
                 pick(event)
+                val p = wwd.viewportCoordinates(event.x, event.y)
+                lastDragX = p.x
+                lastDragY = p.y
                 false
             }
 
@@ -41,10 +52,20 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
 
                 val toGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                 val p = wwd.viewportCoordinates(event.x, event.y)
-                val moved = if (toGround) {
-                    wwd.engine.pickTerrainPosition(p.x, p.y, toPosition)
+                // Cursor delta since the previous drag event. We translate the reference's
+                // screen position by this same delta so the picked shape moves rigidly with
+                // the cursor (no jump to cursor position).
+                val deltaX = p.x - lastDragX
+                val deltaY = p.y - lastDragY
+                lastDragX = p.x
+                lastDragY = p.y
+                val refMappedToScreen = wwd.engine.geographicToScreenPoint(
+                    fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt
+                )
+                val moved = refMappedToScreen && if (toGround) {
+                    wwd.engine.pickTerrainPosition(dragRefPt.x + deltaX, dragRefPt.y + deltaY, toPosition)
                 } else {
-                    wwd.engine.screenPointToGroundPosition(p.x, p.y, toPosition)
+                    wwd.engine.screenPointToGroundPosition(dragRefPt.x + deltaX, dragRefPt.y + deltaY, toPosition)
                 }
 
                 if (moved) {
