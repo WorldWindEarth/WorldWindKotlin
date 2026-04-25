@@ -23,8 +23,12 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
     protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
     private var vcRepeatTimeout = -1
     private var vcRepeatInterval = -1
+    private var vcCurrentX = 0.0
+    private var vcCurrentY = 0.0
     private var tapDownX = 0.0
     private var tapDownY = 0.0
+
+    private val isVcRepeatActive get() = vcRepeatTimeout != -1 || vcRepeatInterval != -1
 
     val primaryDragRecognizer: GestureRecognizer = DragRecognizer(wwd.canvas).also { it.addListener(this) }
     val secondaryDragRecognizer: GestureRecognizer = DragRecognizer(wwd.canvas).also {
@@ -81,17 +85,33 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             }
             val vcl = viewControlsLayer
             if (vcl != null && event.type == "pointerdown" && event is PointerEvent) {
+                // Defensively cancel any prior repeat whose pointerup we never saw — without
+                // this, a missed lift orphans the timer/interval and leaves it firing forever.
+                stopVcRepeat()
                 if (vcl.handleClick(tapDownX, tapDownY, wwd.engine.viewport.height, wwd.engine)) {
                     wwd.requestRedraw()
                     event.preventDefault()
+                    vcCurrentX = tapDownX
+                    vcCurrentY = tapDownY
                     vcRepeatTimeout = window.setTimeout({
                         vcRepeatInterval = window.setInterval({
-                            if (vcl.handleClick(tapDownX, tapDownY, wwd.engine.viewport.height, wwd.engine))
+                            // Re-dispatch with the live cursor position: drag within the pan
+                            // button updates direction/velocity, drag-off auto-releases.
+                            if (vcl.handleClick(vcCurrentX, vcCurrentY, wwd.engine.viewport.height, wwd.engine))
                                 wwd.requestRedraw()
+                            else stopVcRepeat()
                         }, 50)
                     }, 400)
                     return
                 }
+            }
+            // Swallow moves while a VC repeat is active so pan/drag recognizers don't engage
+            // simultaneously, and update live coordinates for the repeat tick.
+            if (event.type == "pointermove" && event is PointerEvent && isVcRepeatActive) {
+                val p = wwd.canvasCoordinates(event.clientX, event.clientY)
+                vcCurrentX = p.x; vcCurrentY = p.y
+                event.preventDefault()
+                return
             }
             if (event.type == "pointerup" || event.type == "pointercancel") {
                 stopVcRepeat()

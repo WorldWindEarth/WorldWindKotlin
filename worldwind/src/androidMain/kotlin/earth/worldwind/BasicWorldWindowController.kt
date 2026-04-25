@@ -16,6 +16,8 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
     protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
     private val vcRepeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var vcRepeatAction: Runnable? = null
+    private var vcCurrentX = 0.0
+    private var vcCurrentY = 0.0
     private var tapDownX = 0f
     private var tapDownY = 0f
 
@@ -53,13 +55,23 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
         panRecognizer, pinchRecognizer, rotationRecognizer, tiltRecognizer, mouseTiltRecognizer
     )
 
+    private fun stopVcRepeat() {
+        vcRepeatAction?.let { vcRepeatHandler.removeCallbacks(it) }
+        vcRepeatAction = null
+    }
+
     private fun handleViewControls(event: MotionEvent): Boolean {
         val vcl = viewControlsLayer ?: return false
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                // Defensively cancel any prior repeat whose ACTION_UP we never saw — without
+                // this, a missed lift orphans the runnable and leaves it firing forever.
+                stopVcRepeat()
                 val x = event.x.toDouble(); val y = event.y.toDouble()
                 if (vcl.handleClick(x, y, wwd.engine.viewport.height, wwd.engine)) {
                     wwd.requestRedraw()
+                    vcCurrentX = x
+                    vcCurrentY = y
                     // Cancel any in-progress gesture so recognizers reset to POSSIBLE state,
                     // preventing stale startX/startY from causing phantom pans after the button tap.
                     val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
@@ -67,19 +79,25 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
                     cancel.recycle()
                     vcRepeatAction = object : Runnable {
                         override fun run() {
-                            if (vcl.handleClick(x, y, wwd.engine.viewport.height, wwd.engine))
+                            // Re-dispatch with the live finger position: drag within the pan
+                            // button updates direction/velocity, drag-off auto-releases.
+                            if (vcl.handleClick(vcCurrentX, vcCurrentY, wwd.engine.viewport.height, wwd.engine)) {
                                 wwd.requestRedraw()
-                            vcRepeatHandler.postDelayed(this, 50)
+                                vcRepeatHandler.postDelayed(this, 50)
+                            } else stopVcRepeat()
                         }
                     }.also { vcRepeatHandler.postDelayed(it, 400) }
                     return true
                 }
             }
-            MotionEvent.ACTION_MOVE -> if (vcRepeatAction != null) return true
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+            MotionEvent.ACTION_MOVE -> if (vcRepeatAction != null) {
+                vcCurrentX = event.x.toDouble()
+                vcCurrentY = event.y.toDouble()
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_OUTSIDE -> {
                 if (vcRepeatAction != null) {
-                    vcRepeatHandler.removeCallbacks(vcRepeatAction!!)
-                    vcRepeatAction = null
+                    stopVcRepeat()
                     return true
                 }
             }

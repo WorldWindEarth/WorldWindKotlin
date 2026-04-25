@@ -14,6 +14,8 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
     protected val viewControlsLayer get() = wwd.engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
     protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
     protected var vcRepeatTimer: javax.swing.Timer? = null
+    private var vcCurrentX = 0.0
+    private var vcCurrentY = 0.0
 
     protected val beginLookAt = LookAt()
     protected val beginLookAtPoint = Vec3()
@@ -27,22 +29,42 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
     protected var lastY = 0
     protected var activeGestures = 0
 
+    private fun stopVcRepeat() {
+        vcRepeatTimer?.stop()
+        vcRepeatTimer = null
+    }
+
     private fun handleViewControls(event: MouseEvent): Boolean {
         val vcl = viewControlsLayer ?: return false
         when (event.id) {
             MouseEvent.MOUSE_PRESSED -> if (event.button == MouseEvent.BUTTON1) {
+                // Defensively cancel any prior repeat whose mouse-up we never saw — without
+                // this, a missed release orphans the timer and leaves it firing forever.
+                stopVcRepeat()
                 val p = wwd.viewportCoordinates(event.x, event.y)
                 if (vcl.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine)) {
                     wwd.requestRedraw()
+                    vcCurrentX = p.x
+                    vcCurrentY = p.y
                     vcRepeatTimer = javax.swing.Timer(50) {
-                        if (vcl.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine))
+                        // Re-dispatch with the live cursor position: drag within the pan
+                        // button updates direction/velocity, drag-off auto-releases.
+                        if (vcl.handleClick(vcCurrentX, vcCurrentY, wwd.engine.viewport.height, wwd.engine))
                             wwd.requestRedraw()
+                        else stopVcRepeat()
                     }.apply { initialDelay = 400; start() }
                     return true
                 }
             }
-            MouseEvent.MOUSE_DRAGGED, MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_EXITED -> {
-                vcRepeatTimer?.stop(); vcRepeatTimer = null
+            MouseEvent.MOUSE_DRAGGED -> if (vcRepeatTimer != null) {
+                val p = wwd.viewportCoordinates(event.x, event.y)
+                vcCurrentX = p.x
+                vcCurrentY = p.y
+                return true
+            }
+            MouseEvent.MOUSE_RELEASED, MouseEvent.MOUSE_EXITED -> if (vcRepeatTimer != null) {
+                stopVcRepeat()
+                return true
             }
         }
         return false
