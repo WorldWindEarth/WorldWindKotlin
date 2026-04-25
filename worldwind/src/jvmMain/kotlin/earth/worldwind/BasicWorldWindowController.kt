@@ -1,7 +1,6 @@
 package earth.worldwind
 
-import earth.worldwind.geom.LookAt
-import earth.worldwind.geom.Vec3
+import earth.worldwind.gesture.FrameScheduler
 import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import java.awt.event.MouseEvent
@@ -10,16 +9,17 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
 
-open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWindowController {
-    protected val viewControlsLayer get() = wwd.engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
-    protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
+open class BasicWorldWindowController(
+    protected val wwd: WorldWindow,
+) : AbstractWorldWindowController(), WorldWindowController {
+    // Read through wwd because its engine is lateinit (initialized on the first GL init callback,
+    // after this controller has been constructed). Property-getter form defers resolution.
+    override val engine get() = wwd.engine
+    protected val viewControlsLayer get() = engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
+    protected val worldMapLayer get() = engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
     protected var vcRepeatTimer: javax.swing.Timer? = null
     private var vcCurrentX = 0.0
     private var vcCurrentY = 0.0
-
-    protected val beginLookAt = LookAt()
-    protected val beginLookAtPoint = Vec3()
-    protected val lookAt = LookAt()
 
     protected var activeButton = MouseEvent.NOBUTTON
     protected var isDragging = false
@@ -27,7 +27,16 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
     protected var beginY = 0
     protected var lastX = 0
     protected var lastY = 0
-    protected var activeGestures = 0
+
+    private var lastDragNanos = 0L
+    private var lastWheelEventNanos = 0L
+
+    /** JVM gesture coords are in Swing pixels; the GL viewport is in physical pixels. */
+    override val gestureToViewportPixels get() = engine.densityFactor.toDouble()
+
+    override fun createFlingScheduler(): FrameScheduler = SwingTimerScheduler()
+
+    override fun requestRedraw() = wwd.requestRedraw()
 
     private fun stopVcRepeat() {
         vcRepeatTimer?.stop()
@@ -75,12 +84,15 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
         when (event.id) {
             MouseEvent.MOUSE_PRESSED -> {
                 if (event.button != MouseEvent.BUTTON1 && event.button != MouseEvent.BUTTON3) return false
+                fling.cancel() // a new press interrupts any in-progress fling
                 activeButton = event.button
                 isDragging = true
                 beginX = event.x
                 beginY = event.y
                 lastX = event.x
                 lastY = event.y
+                velocitySampler.reset()
+                lastDragNanos = System.nanoTime()
                 gestureDidBegin()
                 return true
             }
@@ -88,7 +100,14 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
             MouseEvent.MOUSE_DRAGGED -> {
                 if (!isDragging) return false
                 when (activeButton) {
-                    MouseEvent.BUTTON1 -> handlePan(event.x, event.y)
+                    MouseEvent.BUTTON1 -> {
+                        val now = System.nanoTime()
+                        val deltaPxX = (event.x - lastX).toDouble()
+                        val deltaPxY = (event.y - lastY).toDouble()
+                        handlePan(event.x, event.y)
+                        velocitySampler.record(deltaPxX, deltaPxY, (now - lastDragNanos) / 1_000_000.0)
+                        lastDragNanos = now
+                    }
                     MouseEvent.BUTTON3 -> handleRotateTilt(event.x, event.y)
                 }
                 lastX = event.x
@@ -102,6 +121,10 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
                 val dx = event.x - beginX; val dy = event.y - beginY
                 isDragging = false
                 activeButton = MouseEvent.NOBUTTON
+                if (prevButton == MouseEvent.BUTTON1 && event.id == MouseEvent.MOUSE_RELEASED) {
+                    val (vx, vy) = velocitySampler.computeReleaseVelocity()
+                    fling.start(vx, vy)
+                }
                 gestureDidEnd()
                 // Tap detection: short left-click navigates the minimap
                 if (event.id == MouseEvent.MOUSE_RELEASED && prevButton == MouseEvent.BUTTON1 && dx * dx + dy * dy < 25) {
@@ -117,57 +140,38 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
     override fun onMouseWheelEvent(event: MouseWheelEvent): Boolean {
         val scale = 1.0 + event.preciseWheelRotation / 10.0
         if (scale <= 0.0) return false
-        wwd.engine.cameraAsLookAt(lookAt)
+        fling.cancel()
+        // Treat events more than 500ms apart as the start of a new wheel-zoom sequence: re-snapshot
+        // the camera AND freeze a new anchor under the cursor. Holding the anchor fixed for the rest
+        // of the sequence is the whole point — re-picking each event (especially during touchpad
+        // pinch streams) makes the map drift as the cursor jitters and the camera moves.
+        val now = System.nanoTime()
+        if ((now - lastWheelEventNanos) / 1_000_000L > 500L) {
+            wwd.engine.cameraAsLookAt(lookAt)
+            val p = wwd.viewportCoordinates(event.x, event.y)
+            if (!wwd.engine.globe.is2D) zoomAnchor.capture(p.x, p.y) else zoomAnchor.invalidate()
+        }
+        lastWheelEventNanos = now
         lookAt.range *= scale
+        zoomAnchor.apply()
         applyChanges()
         return true
     }
 
     protected open fun handlePan(x: Int, y: Int) {
-        if (wwd.engine.globe.is2D) handlePan2D(x, y) else handlePan3D(x, y)
+        if (engine.globe.is2D) handlePan2D(x, y) else handlePan3D(x, y)
     }
 
     protected open fun handlePan3D(x: Int, y: Int) {
-        var lat = lookAt.position.latitude
-        var lon = lookAt.position.longitude
-
-        val density = wwd.engine.densityFactor.toDouble()
-        val dx = (x - lastX) * density
-        val dy = (y - lastY) * density
-        val metersPerPixel = wwd.engine.pixelSizeAtDistance(max(1.0, lookAt.range))
-        val forwardMeters = dy * metersPerPixel
-        val sideMeters = -dx * metersPerPixel
-        val globeRadius = wwd.engine.globe.getRadiusAt(lat, lon)
-        val forwardRadians = forwardMeters / globeRadius
-        val sideRadians = sideMeters / globeRadius
-
-        val heading = lookAt.heading
-        val headingRadians = heading.inRadians
-        val sinHeading = sin(headingRadians)
-        val cosHeading = cos(headingRadians)
-        lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
-        lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
-
-        if (lat.inDegrees < -90.0 || lat.inDegrees > 90.0) {
-            lookAt.position.latitude = lat.normalizeLatitude()
-            lookAt.position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
-            lookAt.heading = heading.plusDegrees(180.0).normalize360()
-        } else if (lon.inDegrees < -180.0 || lon.inDegrees > 180.0) {
-            lookAt.position.latitude = lat
-            lookAt.position.longitude = lon.normalizeLongitude()
-        } else {
-            lookAt.position.latitude = lat
-            lookAt.position.longitude = lon
-        }
-        applyChanges()
+        applyPanDelta3D((x - lastX).toDouble(), (y - lastY).toDouble())
     }
 
     protected open fun handlePan2D(x: Int, y: Int) {
-        val density = wwd.engine.densityFactor.toDouble()
+        val density = engine.densityFactor.toDouble()
         val tx = (x - beginX) * density
         val ty = (y - beginY) * density
 
-        val metersPerPixel = wwd.engine.pixelSizeAtDistance(max(1.0, lookAt.range))
+        val metersPerPixel = engine.pixelSizeAtDistance(max(1.0, lookAt.range))
         val forwardMeters = ty * metersPerPixel
         val sideMeters = -tx * metersPerPixel
 
@@ -176,7 +180,7 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
         val cosHeading = cos(heading.inRadians)
         val cartX = beginLookAtPoint.x + forwardMeters * sinHeading + sideMeters * cosHeading
         val cartY = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
-        wwd.engine.globe.cartesianToGeographic(cartX, cartY, beginLookAtPoint.z, lookAt.position)
+        engine.globe.cartesianToGeographic(cartX, cartY, beginLookAtPoint.z, lookAt.position)
         applyChanges()
     }
 
@@ -194,27 +198,32 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow) : WorldWin
         applyChanges()
     }
 
-    protected open fun applyChanges() {
-        wwd.engine.cameraFromLookAt(lookAt)
-        wwd.requestRedraw()
+    override fun release() {
+        super<AbstractWorldWindowController>.release()
+        stopVcRepeat()
     }
 
-    protected open fun gestureDidBegin() {
-        if (activeGestures++ == 0) {
-            wwd.engine.cameraAsLookAt(beginLookAt)
-            lookAt.copy(beginLookAt)
-            if (wwd.engine.globe.is2D) {
-                wwd.engine.globe.geographicToCartesian(
-                    beginLookAt.position.latitude,
-                    beginLookAt.position.longitude,
-                    beginLookAt.position.altitude,
-                    beginLookAtPoint
-                )
-            }
+    /**
+     * Swing Timer-backed scheduler driving the [fling] animator. 8 ms (~120 Hz) is over-sampling
+     * vs. typical 60 Hz display refresh, but Swing Timer has 1–4 ms scheduling jitter, so the
+     * margin keeps each rendered frame fed and avoids visible stutter when a tick fires late.
+     */
+    private inner class SwingTimerScheduler : FrameScheduler {
+        private var timer: javax.swing.Timer? = null
+        private var lastNanos = 0L
+        override fun start(tick: (dtMs: Double) -> Unit) {
+            stop()
+            lastNanos = System.nanoTime()
+            timer = javax.swing.Timer(8) {
+                val now = System.nanoTime()
+                val dtMs = ((now - lastNanos) / 1_000_000.0).coerceAtMost(64.0)
+                lastNanos = now
+                tick(dtMs)
+            }.also { it.start() }
         }
-    }
-
-    protected open fun gestureDidEnd() {
-        if (activeGestures > 0) activeGestures--
+        override fun stop() {
+            timer?.stop()
+            timer = null
+        }
     }
 }

@@ -358,6 +358,9 @@ open class WorldWindow @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         context.applicationContext.unregisterComponentCallbacks(componentCallbacks)
+        // Cancel any in-progress fling and pending VC repeats so the controller doesn't keep this
+        // window (and the activity) alive via the Choreographer/Handler retention chain.
+        controller.release()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

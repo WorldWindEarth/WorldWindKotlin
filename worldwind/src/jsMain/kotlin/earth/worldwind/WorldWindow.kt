@@ -285,6 +285,10 @@ open class WorldWindow(
         // Stop the rendering animation frame loop, resuming only if the WebGL context is restored.
         currentWindow.cancelAnimationFrame(redrawRequestId)
 
+        // Cancel any in-progress fling / pending VC repeats so the controller doesn't keep this
+        // window alive via the requestAnimationFrame retention chain.
+        controller.release()
+
         // Cancel all async jobs but keep scope reusable
         engine.renderResourceCache.mainScope.coroutineContext.cancelChildren()
 

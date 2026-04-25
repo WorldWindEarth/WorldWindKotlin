@@ -1,19 +1,20 @@
 package earth.worldwind
 
+import android.view.Choreographer
 import android.view.MotionEvent
-import earth.worldwind.geom.LookAt
-import earth.worldwind.geom.Vec3
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
 import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
-import kotlin.math.cos
-import kotlin.math.sin
 
-open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWindowController, GestureListener {
+open class BasicWorldWindowController(
+    protected val wwd: WorldWindow,
+) : AbstractWorldWindowController(), WorldWindowController, GestureListener {
 
-    protected val viewControlsLayer get() = wwd.engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
-    protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
+    override val engine get() = wwd.engine
+
+    protected val viewControlsLayer get() = engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
+    protected val worldMapLayer get() = engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
     private val vcRepeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var vcRepeatAction: Runnable? = null
     private var vcCurrentX = 0.0
@@ -24,10 +25,15 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
     protected var lastX = 0f
     protected var lastY = 0f
     protected var lastRotation = 0f
-    protected val lookAt = LookAt()
-    protected val beginLookAt = LookAt()
-    protected val beginLookAtPoint = Vec3()
-    protected var activeGestures = 0
+
+    private var lastPanEventNanos = 0L
+
+    /** Android gesture coords are physical pixels matching the GL viewport directly — no scaling. */
+    override val gestureToViewportPixels = 1.0
+
+    override fun createFlingScheduler(): FrameScheduler = ChoreographerFrameScheduler()
+
+    override fun requestRedraw() = wwd.requestRedraw()
     protected val panRecognizer: GestureRecognizer = PanRecognizer().also {
         it.addListener(this)
         it.maxNumberOfPointers = 1 // Do not pan during tilt
@@ -108,6 +114,10 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (handleViewControls(event)) return true
 
+        // Cancel any in-progress fling as soon as a finger lands so the user feels in control immediately,
+        // not after the pan-recognizer's interpretDistance threshold finally trips.
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) fling.cancel()
+
         // Track first-finger position for tap detection
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             tapDownX = event.x; tapDownY = event.y
@@ -157,47 +167,25 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
                 gestureDidBegin()
                 lastX = 0f
                 lastY = 0f
+                velocitySampler.reset()
+                lastPanEventNanos = System.nanoTime()
             }
             CHANGED -> {
-                // Get observation point position.
-                var lat = lookAt.position.latitude
-                var lon = lookAt.position.longitude
-
-                // Convert the translation from screen coordinates to degrees. Use observation point range as a metric for
-                // converting screen pixels to meters, and use the globe's radius for converting from meters to arc degrees.
-                val metersPerPixel = wwd.engine.pixelSizeAtDistance(lookAt.range)
-                val forwardMeters = (dy - lastY) * metersPerPixel
-                val sideMeters = -(dx - lastX) * metersPerPixel
+                val now = System.nanoTime()
+                val deltaPxX = (dx - lastX).toDouble()
+                val deltaPxY = (dy - lastY).toDouble()
+                applyPanDelta3D(deltaPxX, deltaPxY)
                 lastX = dx
                 lastY = dy
-                val globeRadius = wwd.engine.globe.getRadiusAt(lat, lon)
-                val forwardRadians = forwardMeters / globeRadius
-                val sideRadians = sideMeters / globeRadius
-
-                // Adjust the change in latitude and longitude based on observation point heading.
-                val heading = lookAt.heading
-                val headingRadians = heading.inRadians
-                val sinHeading = sin(headingRadians)
-                val cosHeading = cos(headingRadians)
-                lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
-                lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
-
-                // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
-                // the camera to the appropriate spot on the other side of the pole.
-                if (lat.inDegrees < -90.0 || lat.inDegrees > 90.0) {
-                    lookAt.position.latitude = lat.normalizeLatitude()
-                    lookAt.position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
-                    lookAt.heading = heading.plusDegrees(180.0).normalize360()
-                } else if (lon.inDegrees < -180.0 || lon.inDegrees > 180.0) {
-                    lookAt.position.latitude = lat
-                    lookAt.position.longitude = lon.normalizeLongitude()
-                } else {
-                    lookAt.position.latitude = lat
-                    lookAt.position.longitude = lon
-                }
-                applyChanges()
+                velocitySampler.record(deltaPxX, deltaPxY, (now - lastPanEventNanos) / 1_000_000.0)
+                lastPanEventNanos = now
             }
-            ENDED, CANCELLED -> gestureDidEnd()
+            ENDED -> {
+                val (vx, vy) = velocitySampler.computeReleaseVelocity()
+                fling.start(vx, vy)
+                gestureDidEnd()
+            }
+            CANCELLED -> gestureDidEnd()
             else -> {}
         }
     }
@@ -208,27 +196,18 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
         val ty = recognizer.translationY
 
         when (state) {
-            BEGAN -> {
-                gestureDidBegin()
-                wwd.engine.globe.geographicToCartesian(
-                    beginLookAt.position.latitude,
-                    beginLookAt.position.longitude,
-                    beginLookAt.position.altitude,
-                    beginLookAtPoint
-                )
-            }
+            BEGAN -> gestureDidBegin()
             CHANGED -> {
-                val metersPerPixel = wwd.engine.pixelSizeAtDistance(lookAt.range)
+                val metersPerPixel = engine.pixelSizeAtDistance(lookAt.range)
                 val forwardMeters = ty * metersPerPixel
-                val sideMeters = - tx * metersPerPixel
+                val sideMeters = -tx * metersPerPixel
 
-                // Adjust the change in latitude and longitude based on observation point heading.
                 val heading = lookAt.heading
-                val sinHeading = sin(heading.inRadians)
-                val cosHeading = cos(heading.inRadians)
+                val sinHeading = kotlin.math.sin(heading.inRadians)
+                val cosHeading = kotlin.math.cos(heading.inRadians)
                 val x = beginLookAtPoint.x + forwardMeters * sinHeading + sideMeters * cosHeading
                 val y = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
-                wwd.engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
+                engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -240,10 +219,13 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
         val state = recognizer.state
         val scale = (recognizer as PinchRecognizer).scaleWithOffset
         when (state) {
-            BEGAN -> gestureDidBegin()
+            BEGAN -> {
+                gestureDidBegin()
+                zoomAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
+            }
             CHANGED -> if (scale != 0f) {
-                // Apply the change in range to observation point, relative to when the gesture began.
                 lookAt.range = beginLookAt.range / scale
+                if (!engine.globe.is2D) zoomAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -293,23 +275,35 @@ open class BasicWorldWindowController(protected val wwd: WorldWindow): WorldWind
         }
     }
 
-    protected open fun applyChanges() {
-        // Update camera view
-        wwd.engine.cameraFromLookAt(lookAt)
-        wwd.requestRedraw()
+    protected open fun isInProcess(recognizer: GestureRecognizer) = recognizer.state == BEGAN || recognizer.state == CHANGED
+
+    override fun release() {
+        super<AbstractWorldWindowController>.release()
+        stopVcRepeat()
     }
 
-    protected open fun gestureDidBegin() {
-        if (activeGestures++ == 0) {
-            wwd.engine.cameraAsLookAt(beginLookAt)
-            lookAt.copy(beginLookAt)
+    /** Vsync-aligned scheduler driving the [fling] animator on Android's render frame clock. */
+    private class ChoreographerFrameScheduler : FrameScheduler {
+        private val choreographer = Choreographer.getInstance()
+        private var tick: ((Double) -> Unit)? = null
+        private var lastNanos = 0L
+        private val callback = object : Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                val cb = tick ?: return
+                val dtMs = ((frameTimeNanos - lastNanos) / 1_000_000L).coerceAtMost(64L).toDouble()
+                lastNanos = frameTimeNanos
+                cb(dtMs)
+                if (tick != null) choreographer.postFrameCallback(this)
+            }
+        }
+        override fun start(tick: (dtMs: Double) -> Unit) {
+            this.tick = tick
+            lastNanos = System.nanoTime()
+            choreographer.postFrameCallback(callback)
+        }
+        override fun stop() {
+            tick = null
+            choreographer.removeFrameCallback(callback)
         }
     }
-
-    protected open fun gestureDidEnd() {
-        // this should always be the case, but we check anyway
-        if (activeGestures > 0) activeGestures--
-    }
-
-    protected open fun isInProcess(recognizer: GestureRecognizer) = recognizer.state == BEGAN || recognizer.state == CHANGED
 }

@@ -1,8 +1,6 @@
 package earth.worldwind
 
-import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Vec2
-import earth.worldwind.geom.Vec3
 import earth.worldwind.gesture.*
 import earth.worldwind.gesture.GestureState.*
 import earth.worldwind.layer.ViewControlsLayer
@@ -19,8 +17,8 @@ import kotlin.math.sin
  * This class provides the default window controller for WorldWind for controlling the globe via user interaction.
  */
 open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(wwd) {
-    protected val viewControlsLayer get() = wwd.engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
-    protected val worldMapLayer get() = wwd.engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
+    protected val viewControlsLayer get() = engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
+    protected val worldMapLayer get() = engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
     private var vcRepeatTimeout = -1
     private var vcRepeatInterval = -1
     private var vcCurrentX = 0.0
@@ -41,19 +39,18 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
     val tiltRecognizer: GestureRecognizer = TiltRecognizer(wwd.canvas).also { it.addListener(this) }
 //    val tapRecognizer: GestureRecognizer = TapRecognizer(wwd.canvas).also { it.addListener(this) }
 //    val clickRecognizer: GestureRecognizer = ClickRecognizer(wwd.canvas).also { it.addListener(this) }
-    /**
-     * A copy of the viewing parameters at the start of a gesture as a look at view.
-     */
-    protected val beginLookAt = LookAt()
-    protected val beginLookAtPoint = Vec3()
-    /**
-     * The current state of the viewing parameters during a gesture as a look at view.
-     */
-    protected val lookAt = LookAt()
     protected val lastPoint = Vec2()
     protected var lastRotation = 0.0
     protected var lastWheelEvent = 0
-    protected var activeGestures = 0
+
+    private var lastPanEventMs = 0.0
+
+    /** JS gesture coords are in CSS pixels; the GL viewport is in physical pixels. */
+    override val gestureToViewportPixels get() = wwd.engine.densityFactor.toDouble()
+
+    override fun createFlingScheduler(): FrameScheduler = AnimationFrameScheduler()
+
+    override fun requestRedraw() = wwd.requestRedraw()
 
     init {
         // Establish the dependencies between gesture recognizers. The pan, pinch and rotate gesture may recognize
@@ -78,6 +75,9 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
     override fun handleEvent(event: Event) {
         super.handleEvent(event)
         if (!event.defaultPrevented) {
+            // Cancel any in-progress fling on pointerdown so the user is in control immediately,
+            // not after the pan-recognizer's interpretDistance threshold finally trips.
+            if (event.type == "pointerdown") fling.cancel()
             // Track pointer-down position for tap detection (before VC check so coords are always valid)
             if (event.type == "pointerdown" && event is PointerEvent) {
                 val p = wwd.canvasCoordinates(event.clientX, event.clientY)
@@ -169,48 +169,24 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             BEGAN -> {
                 gestureDidBegin()
                 lastPoint.set(0.0, 0.0)
+                velocitySampler.reset()
+                lastPanEventMs = window.performance.now()
             }
             CHANGED -> {
-                // Get observation point position.
-                var lat = lookAt.position.latitude
-                var lon = lookAt.position.longitude
-
-                // Convert the translation from screen coordinates to arc degrees. Use the view's range as a
-                // metric for converting screen pixels to meters, and use the globe's radius for converting from meters
-                // to arc degrees. Transform viewport pixel size to canvas client pixel size.
-                val distance = max(1.0, lookAt.range)
-                val metersPerPixel = wwd.engine.pixelSizeAtDistance(distance) * wwd.engine.densityFactor
-                val forwardMeters = (ty - lastPoint.y) * metersPerPixel
-                val sideMeters = -(tx - lastPoint.x) * metersPerPixel
-                val globeRadius = wwd.engine.globe.getRadiusAt(lat, lon)
-                val forwardRadians = forwardMeters / globeRadius
-                val sideRadians = sideMeters / globeRadius
-
-                // Adjust the change in latitude and longitude based on observation point heading.
-                val heading = lookAt.heading
-                val headingRadians = heading.inRadians
-                val sinHeading = sin(headingRadians)
-                val cosHeading = cos(headingRadians)
-                lat = lat.plusRadians(forwardRadians * cosHeading - sideRadians * sinHeading)
-                lon = lon.plusRadians(forwardRadians * sinHeading + sideRadians * cosHeading)
-
-                // If the camera has panned over either pole, compensate by adjusting the longitude and heading to move
-                // the camera to the appropriate spot on the other side of the pole.
-                if (lat.inDegrees < -90.0 || lat.inDegrees > 90.0) {
-                    lookAt.position.latitude = lat.normalizeLatitude()
-                    lookAt.position.longitude = lon.plusDegrees(180.0).normalizeLongitude()
-                    lookAt.heading = heading.plusDegrees(180.0).normalize360()
-                } else if (lon.inDegrees < -180.0 || lon.inDegrees > 180.0) {
-                    lookAt.position.latitude = lat
-                    lookAt.position.longitude = lon.normalizeLongitude()
-                } else {
-                    lookAt.position.latitude = lat
-                    lookAt.position.longitude = lon
-                }
+                val now = window.performance.now()
+                val deltaPxX = tx - lastPoint.x
+                val deltaPxY = ty - lastPoint.y
+                applyPanDelta3D(deltaPxX, deltaPxY)
                 lastPoint.set(tx, ty)
-                applyChanges()
+                velocitySampler.record(deltaPxX, deltaPxY, now - lastPanEventMs)
+                lastPanEventMs = now
             }
-            ENDED, CANCELLED -> gestureDidEnd()
+            ENDED -> {
+                val (vx, vy) = velocitySampler.computeReleaseVelocity()
+                fling.start(vx, vy)
+                gestureDidEnd()
+            }
+            CANCELLED -> gestureDidEnd()
             else -> {}
         }
     }
@@ -221,27 +197,18 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         val ty = recognizer.translationY
 
         when (state) {
-            BEGAN -> {
-                gestureDidBegin()
-                wwd.engine.globe.geographicToCartesian(
-                    beginLookAt.position.latitude,
-                    beginLookAt.position.longitude,
-                    beginLookAt.position.altitude,
-                    beginLookAtPoint
-                )
-            }
+            BEGAN -> gestureDidBegin()
             CHANGED -> {
-                val metersPerPixel = wwd.engine.pixelSizeAtDistance(lookAt.range) * wwd.engine.densityFactor
+                val metersPerPixel = engine.pixelSizeAtDistance(lookAt.range) * engine.densityFactor
                 val forwardMeters = ty * metersPerPixel
-                val sideMeters = - tx * metersPerPixel
+                val sideMeters = -tx * metersPerPixel
 
-                // Adjust the change in latitude and longitude based on observation point heading.
                 val heading = lookAt.heading
                 val sinHeading = sin(heading.inRadians)
                 val cosHeading = cos(heading.inRadians)
                 val x = beginLookAtPoint.x + forwardMeters * sinHeading + sideMeters * cosHeading
                 val y = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
-                wwd.engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
+                engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -277,10 +244,14 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         val scale = (recognizer as PinchRecognizer).scaleWithOffset
 
         when(state) {
-            BEGAN -> gestureDidBegin()
+            BEGAN -> {
+                gestureDidBegin()
+                val cp = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
+                zoomAnchor.capture(cp.x, cp.y)
+            }
             CHANGED -> if (scale != 0.0) {
-                // Apply the change in pinch scale to this view's range, relative to the range when the gesture began.
                 lookAt.range = beginLookAt.range / scale
+                if (!wwd.engine.globe.is2D) zoomAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -330,10 +301,18 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
     }
 
     protected open fun handleWheelEvent(event: WheelEvent) {
+        // Wheel zoom should not survive into a fresh interaction; flush any pending fling.
+        fling.cancel()
         val timeStamp = event.timeStamp.toInt()
+        // Treat events more than 500ms apart as the start of a new wheel-zoom sequence: re-snapshot
+        // the camera AND freeze a new anchor under the cursor. Holding the anchor fixed for the rest
+        // of the sequence is the whole point — re-picking each event makes the map drift as the
+        // cursor jitters and the camera moves underneath it.
         if (timeStamp - lastWheelEvent > 500) {
             wwd.engine.cameraAsLookAt(lookAt)
             lastWheelEvent = timeStamp
+            val cp = wwd.canvasCoordinates(event.clientX, event.clientY)
+            if (!wwd.engine.globe.is2D) zoomAnchor.capture(cp.x, cp.y) else zoomAnchor.invalidate()
         }
 
         // Normalize the wheel delta based on the wheel delta mode. This produces a roughly consistent delta across
@@ -350,26 +329,43 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         // positive or negative, respectfully.
         val scale = 1.0 + (normalizedDelta / 1000.0)
 
-        // Apply the scale to this view's properties.
         lookAt.range *= scale
+        zoomAnchor.apply()
         applyChanges()
     }
 
-    protected open fun applyChanges() {
-        // Update camera view
-        wwd.engine.cameraFromLookAt(lookAt)
-        wwd.requestRedraw()
+    override fun release() {
+        super.release()
+        stopVcRepeat()
     }
 
-    protected open fun gestureDidBegin() {
-        if (activeGestures++ == 0) {
-            wwd.engine.cameraAsLookAt(beginLookAt)
-            lookAt.copy(beginLookAt)
+    /** requestAnimationFrame-backed scheduler driving the [fling] animator on the browser's vsync. */
+    private class AnimationFrameScheduler : FrameScheduler {
+        private var tick: ((Double) -> Unit)? = null
+        private var handle = -1
+        private var lastMs = 0.0
+        override fun start(tick: (dtMs: Double) -> Unit) {
+            this.tick = tick
+            lastMs = window.performance.now()
+            schedule()
         }
-    }
-
-    protected open fun gestureDidEnd() {
-        // this should always be the case, but we check anyway
-        if (activeGestures > 0) activeGestures--
+        override fun stop() {
+            tick = null
+            if (handle != -1) {
+                window.cancelAnimationFrame(handle)
+                handle = -1
+            }
+        }
+        private fun schedule() {
+            handle = window.requestAnimationFrame {
+                handle = -1
+                val cb = tick ?: return@requestAnimationFrame
+                val now = window.performance.now()
+                val dtMs = (now - lastMs).coerceAtMost(64.0)
+                lastMs = now
+                cb(dtMs)
+                if (tick != null) schedule()
+            }
+        }
     }
 }

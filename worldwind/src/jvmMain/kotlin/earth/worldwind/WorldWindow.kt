@@ -96,6 +96,9 @@ open class WorldWindow @JvmOverloads constructor(
         override fun dispose(drawable: GLAutoDrawable) {
             clearFrameQueue()
             WorldWind.removeListener(this@WorldWindow)
+            // Cancel any in-progress fling and pending VC repeats so the controller doesn't keep
+            // this window alive via the Swing Timer retention chain.
+            controller.release()
             if (::engine.isInitialized) {
                 engine.renderResourceCache.clear()
                 engine.reset()

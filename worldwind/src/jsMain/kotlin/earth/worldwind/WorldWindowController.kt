@@ -13,7 +13,8 @@ abstract class WorldWindowController(
      * The WorldWindow associated with this controller.
      */
     protected val wwd: WorldWindow
-): EventListener, GestureListener {
+): AbstractWorldWindowController(), EventListener, GestureListener {
+    override val engine get() = wwd.engine
     protected val gestureEventListeners = mutableListOf<EventListener>()
 
     override fun handleEvent(event: Event) {
