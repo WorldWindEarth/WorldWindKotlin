@@ -7,6 +7,7 @@ import earth.worldwind.geom.Line
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Viewport
+import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.Pool
 import kotlinx.coroutines.CompletableDeferred
 import kotlin.jvm.JvmStatic
@@ -24,6 +25,7 @@ open class Frame {
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
     var pickRay: Line? = null
+    var depthToColorProgram: DepthToColorProgram? = null
     var isPickMode = false
     private var pool: Pool<Frame>? = null
 
@@ -50,6 +52,7 @@ open class Frame {
         pickViewport = null
         pickPoint = null
         pickRay = null
+        depthToColorProgram = null
         isPickMode = false
         pool?.release(this) // return this instance to the pool
         pool = null
