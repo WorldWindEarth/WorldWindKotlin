@@ -208,6 +208,22 @@ class LwjglKgl : Kgl {
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         GL33.glFramebufferTexture2D(target, attachment, textarget, texture.id, level)
 
+    override val supportsMultisampleFBO get() = true
+    override val supportsSizedTextureFormats get() = true
+    override fun createRenderbuffer() = KglRenderbuffer(GL33.glGenRenderbuffers())
+    override fun deleteRenderbuffer(renderbuffer: KglRenderbuffer) = GL33.glDeleteRenderbuffers(renderbuffer.id)
+    override fun bindRenderbuffer(target: Int, renderbuffer: KglRenderbuffer) =
+        GL33.glBindRenderbuffer(target, renderbuffer.id)
+    override fun renderbufferStorageMultisample(target: Int, samples: Int, internalFormat: Int, width: Int, height: Int) =
+        GL33.glRenderbufferStorageMultisample(target, samples, internalFormat, width, height)
+    override fun framebufferRenderbuffer(target: Int, attachment: Int, renderbufferTarget: Int, renderbuffer: KglRenderbuffer) =
+        GL33.glFramebufferRenderbuffer(target, attachment, renderbufferTarget, renderbuffer.id)
+    override fun blitFramebuffer(
+        srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int,
+        dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
+        mask: Int, filter: Int
+    ) = GL33.glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
+
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray
     ) = GL33.glReadPixels(x, y, width, height, format, type, ByteBuffer.wrap(buffer))

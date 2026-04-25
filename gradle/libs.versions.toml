@@ -1,5 +1,6 @@
 [versions]
 annotation = "1.10.0"
+kotlin-wrappers = "2026.4.9"
 appcompat = "1.7.1"
 coroutines = "1.10.2"
 datetime = "0.7.1"
@@ -81,3 +82,6 @@ pngj = { module = "ar.com.hjg:pngj", version.ref = "pngj" }
 tiff = { module = "mil.nga:tiff", version.ref = "tiff" }
 geojson = { module = "io.data2viz.geojson:core", version.ref = "geojson" }
 uri-kmp = { module = "com.eygraber:uri-kmp", version.ref = "uri-kmp" }
+
+kotlin-wrappers-bom = { module = "org.jetbrains.kotlin-wrappers:kotlin-wrappers-bom", version.ref = "kotlin-wrappers" }
+kotlin-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser" }

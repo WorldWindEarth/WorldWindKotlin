@@ -7,6 +7,7 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.geom.Viewport
 import earth.worldwind.render.Color
 import earth.worldwind.render.Framebuffer
+import earth.worldwind.render.MultisampleFramebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.buffer.BufferPool
@@ -15,6 +16,21 @@ import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 
 open class DrawContext(val gl: Kgl) {
+    companion object {
+        /**
+         * Per-side resolution of the per-terrain-tile scratch framebuffer that surface shapes
+         * are rasterized into. Edge antialiasing comes from MSAA on the multisample
+         * framebuffer (see [MSAA_SAMPLES]); the texture itself stays at the historical 1024.
+         */
+        const val SCRATCH_FRAMEBUFFER_SIZE = 1024
+        /**
+         * Sample count for the multisample framebuffer. 4× MSAA is broadly supported across
+         * desktop GL 3+ and OpenGL ES 3.0+ (Android API 18+). Effective sample count is
+         * clamped to `GL_MAX_SAMPLES` at FBO creation time inside the GL driver.
+         */
+        const val MSAA_SAMPLES = 4
+    }
+
     val eyePoint = Vec3()
     val viewport = Viewport()
     val projection = Matrix4()
@@ -37,6 +53,7 @@ open class DrawContext(val gl: Kgl) {
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
+    private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
     private var defaultTextureCache: Texture? = null
@@ -77,14 +94,31 @@ open class DrawContext(val gl: Kgl) {
      * cached buffer object.
      */
     val scratchFramebuffer get() = scratchFramebufferCache ?: Framebuffer().apply {
-        val colorAttachment = Texture(1024, 1024, GL_RGBA, GL_UNSIGNED_BYTE, true)
-        val depthAttachment = Texture(1024, 1024, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true)
+        // Sized internal formats (GLES3+/GL3+/WebGL2) so this texture matches the multisample
+        // renderbuffer's GL_RGBA8 for blit-resolve compatibility. Unsized (= format) on WebGL1.
+        val colorIF = if (gl.supportsSizedTextureFormats) GL_RGBA8 else GL_RGBA
+        val depthIF = if (gl.supportsSizedTextureFormats) GL_DEPTH_COMPONENT16 else GL_DEPTH_COMPONENT
+        val colorAttachment = Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, colorIF)
+        val depthAttachment = Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true, depthIF)
         // TODO consider modifying Texture's tex parameter behavior in order to make this unnecessary
         depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
         attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
     }.also { scratchFramebufferCache = it }
+
+    /**
+     * Returns the multisample framebuffer used as the render target for surface shape
+     * rasterization, or `null` when the GL implementation doesn't support MSAA (WebGL1).
+     * Callers blit (resolve) into [scratchFramebuffer]'s color attachment after rendering.
+     * Created lazily on first access and cached.
+     */
+    val multisampleFramebuffer: MultisampleFramebuffer? get() {
+        if (!gl.supportsMultisampleFBO) return null
+        return multisampleFramebufferCache ?: MultisampleFramebuffer(
+            SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, MSAA_SAMPLES
+        ).also { multisampleFramebufferCache = it }
+    }
     /**
      * Returns an OpenGL buffer object containing a unit square expressed as four vertices at (0, 1), (0, 0), (1, 1) and
      * (1, 0). Each vertex is stored as two 32-bit floating point coordinates. The four vertices are in the order
@@ -164,6 +198,7 @@ open class DrawContext(val gl: Kgl) {
     fun contextLost() {
         // Clear objects and values associated with the current OpenGL context.
         scratchFramebufferCache?.release(this)
+        multisampleFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
         defaultTextureCache?.release(this)
@@ -173,6 +208,7 @@ open class DrawContext(val gl: Kgl) {
         arrayBuffer = KglBuffer.NONE
         elementArrayBuffer = KglBuffer.NONE
         scratchFramebufferCache = null
+        multisampleFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null
         defaultTextureCache = null

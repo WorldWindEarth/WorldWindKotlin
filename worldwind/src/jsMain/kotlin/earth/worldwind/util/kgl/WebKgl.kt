@@ -1,6 +1,8 @@
 package earth.worldwind.util.kgl
 
 import org.khronos.webgl.*
+import web.gl.WebGL2RenderingContext
+import web.gl.WebGLRenderbuffer
 
 actual data class KglShader(val obj: WebGLShader? = null) {
     actual companion object{ actual val NONE = KglShader() }
@@ -32,9 +34,22 @@ actual data class KglFramebuffer(val obj: WebGLFramebuffer? = null) {
     actual fun isValid() = obj != null
 }
 
+actual data class KglRenderbuffer(val obj: WebGLRenderbuffer? = null) {
+    actual companion object{ actual val NONE = KglRenderbuffer() }
+    actual fun isValid() = obj != null
+}
+
 class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override val hasMaliOOMBug = false
+
+    // `as?` compiles to an `instanceof WebGL2RenderingContext` runtime check + cast. The
+    // cast through `Any` is needed because the static type of [gl] is the legacy
+    // `org.khronos.webgl.WebGLRenderingContext`, which Kotlin treats as unrelated to the
+    // kotlin-wrappers `web.gl.WebGL2RenderingContext`. Resolves to non-null whenever
+    // WorldWindow.createContext got a WebGL2 context back.
+    private val gl2: WebGL2RenderingContext? = (gl as Any) as? WebGL2RenderingContext
+    private val isWebGL2: Boolean get() = gl2 != null
 
     override fun getParameteri(pname: Int): Int = gl.getParameter(pname) as Int
 
@@ -248,6 +263,34 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         gl.framebufferTexture2D(target, attachment, textarget, texture.obj, level)
+
+    // MSAA framebuffers and sized internal formats are both WebGL2-core / WebGL1-absent.
+    override val supportsMultisampleFBO get() = isWebGL2
+    override val supportsSizedTextureFormats get() = isWebGL2
+
+    // Renderbuffer + multisample ops below route through `gl2`; on WebGL1 `requireGl2()`
+    // throws. Call sites must guard with `supportsMultisampleFBO` first. Int args are
+    // `unsafeCast` to `web.gl.GLenum` / `GLbitfield` (sealed external interfaces wrapping
+    // Int at runtime — the JS layer treats them as numbers regardless).
+    override fun createRenderbuffer(): KglRenderbuffer =
+        KglRenderbuffer(requireGl2().createRenderbuffer())
+    override fun deleteRenderbuffer(renderbuffer: KglRenderbuffer) =
+        requireGl2().deleteRenderbuffer(renderbuffer.obj)
+    override fun bindRenderbuffer(target: Int, renderbuffer: KglRenderbuffer) =
+        requireGl2().bindRenderbuffer(target.glEnum(), renderbuffer.obj)
+    override fun renderbufferStorageMultisample(target: Int, samples: Int, internalFormat: Int, width: Int, height: Int) =
+        requireGl2().renderbufferStorageMultisample(target.glEnum(), samples, internalFormat.glEnum(), width, height)
+    override fun framebufferRenderbuffer(target: Int, attachment: Int, renderbufferTarget: Int, renderbuffer: KglRenderbuffer) =
+        requireGl2().framebufferRenderbuffer(target.glEnum(), attachment.glEnum(), renderbufferTarget.glEnum(), renderbuffer.obj)
+    override fun blitFramebuffer(
+        srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int,
+        dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
+        mask: Int, filter: Int
+    ) = requireGl2().blitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask.glBitfield(), filter.glEnum())
+    private fun requireGl2(): WebGL2RenderingContext =
+        gl2 ?: throw UnsupportedOperationException("WebGL2 required for MSAA / multisample renderbuffer operations")
+    private fun Int.glEnum(): web.gl.GLenum = unsafeCast<web.gl.GLenum>()
+    private fun Int.glBitfield(): web.gl.GLbitfield = unsafeCast<web.gl.GLbitfield>()
 
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray

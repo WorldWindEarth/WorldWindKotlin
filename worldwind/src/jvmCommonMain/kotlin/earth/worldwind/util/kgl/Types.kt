@@ -29,3 +29,8 @@ actual data class KglFramebuffer(val id: Int = 0) {
     actual companion object{ actual val NONE = KglFramebuffer() }
     actual fun isValid() = id != 0
 }
+
+actual data class KglRenderbuffer(val id: Int = 0) {
+    actual companion object{ actual val NONE = KglRenderbuffer() }
+    actual fun isValid() = id != 0
+}

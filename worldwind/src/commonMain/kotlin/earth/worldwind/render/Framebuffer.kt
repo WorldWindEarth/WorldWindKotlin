@@ -31,6 +31,12 @@ open class Framebuffer : RenderResource {
 
     fun getAttachedTexture(attachment: Int) = attachedTextures[attachment] ?: error("Invalid attachment type")
 
+    /** Underlying GL framebuffer name. Created lazily on first access. */
+    fun getFramebufferName(dc: DrawContext): KglFramebuffer {
+        if (!framebufferName.isValid()) createFramebuffer(dc)
+        return framebufferName
+    }
+
     fun isFramebufferComplete(dc: DrawContext) = framebufferStatus(dc) == GL_FRAMEBUFFER_COMPLETE
 
     protected open fun createFramebuffer(dc: DrawContext) {

@@ -1,6 +1,7 @@
 package earth.worldwind.util.kgl
 
 import android.opengl.GLES20
+import android.opengl.GLES30
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -13,6 +14,17 @@ class AndroidKgl : Kgl {
     override val hasMaliOOMBug: Boolean by lazy {
         GLES20.glGetString(GL_RENDERER).contains("mali", true)
     }
+
+    // RenderResourceCache requests a GLES3 EGL context and falls back to GLES2 if the device
+    // doesn't have it. The "OpenGL ES X.Y …" version string tells us which we got — MSAA
+    // renderbuffers, glBlitFramebuffer and sized internal formats all require GLES 3.0+.
+    private val isGles3OrLater: Boolean by lazy {
+        val ver = GLES20.glGetString(GLES20.GL_VERSION) ?: return@lazy false
+        val match = Regex("""OpenGL ES (\d+)""").find(ver) ?: return@lazy false
+        (match.groupValues[1].toIntOrNull() ?: 0) >= 3
+    }
+    override val supportsMultisampleFBO get() = isGles3OrLater
+    override val supportsSizedTextureFormats get() = isGles3OrLater
 
     override fun getParameteri(pname: Int): Int {
         GLES20.glGetIntegerv(pname, arrI, 0)
@@ -224,6 +236,26 @@ class AndroidKgl : Kgl {
 
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         GLES20.glFramebufferTexture2D(target, attachment, textarget, texture.id, level)
+
+    override fun createRenderbuffer(): KglRenderbuffer {
+        GLES20.glGenRenderbuffers(1, arrI, 0)
+        return KglRenderbuffer(arrI[0])
+    }
+    override fun deleteRenderbuffer(renderbuffer: KglRenderbuffer) {
+        arrI[0] = renderbuffer.id
+        GLES20.glDeleteRenderbuffers(1, arrI, 0)
+    }
+    override fun bindRenderbuffer(target: Int, renderbuffer: KglRenderbuffer) =
+        GLES20.glBindRenderbuffer(target, renderbuffer.id)
+    override fun renderbufferStorageMultisample(target: Int, samples: Int, internalFormat: Int, width: Int, height: Int) =
+        GLES30.glRenderbufferStorageMultisample(target, samples, internalFormat, width, height)
+    override fun framebufferRenderbuffer(target: Int, attachment: Int, renderbufferTarget: Int, renderbuffer: KglRenderbuffer) =
+        GLES20.glFramebufferRenderbuffer(target, attachment, renderbufferTarget, renderbuffer.id)
+    override fun blitFramebuffer(
+        srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int,
+        dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
+        mask: Int, filter: Int
+    ) = GLES30.glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
 
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray

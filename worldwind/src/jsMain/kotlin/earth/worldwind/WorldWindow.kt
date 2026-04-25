@@ -398,17 +398,21 @@ open class WorldWindow(
 
     companion object {
         /**
-         * Create the WebGL context associated with the HTML canvas.
+         * Creates the WebGL context for the canvas. Prefers WebGL2 (enables sized internal
+         * formats and the MSAA-resolve path that antialiases surface shapes) and falls back
+         * to WebGL1. The rest of the engine keeps the legacy [WebGLRenderingContext] type;
+         * [WebKgl] detects WebGL2 at runtime and routes multisample APIs accordingly.
          */
         protected fun createContext(canvas: HTMLCanvasElement): WebGLRenderingContext {
-            // Request a WebGL context with antialiasing is disabled. Antialiasing causes gaps to appear at the edges of
-            // terrain tiles.
+            // Disable browser MSAA on the default framebuffer — it leaves seams between
+            // terrain tiles. Surface-shape AA comes from our own multisample FBO instead.
             val glAttrs = WebGLContextAttributes(antialias = false)
-            val context = canvas.getContext("webgl", glAttrs)
+            val context = canvas.getContext("webgl2", glAttrs)
+                ?: canvas.getContext("webgl", glAttrs)
                 ?: canvas.getContext("experimental-webgl", glAttrs)
-            // WebGLRenderingContext class may not belong to currentWindow, so we check instance class by name.
-            val klass = WebGLRenderingContext.asDynamic().name
-            require(context != null && context.asDynamic().constructor.name == klass) {
+            // Cross-window `instanceof` can fail, so identify the context by constructor name.
+            val ctorName = context?.asDynamic()?.constructor?.name as? String
+            require(ctorName == "WebGL2RenderingContext" || ctorName == "WebGLRenderingContext") {
                 logMessage(ERROR, "WorldWindow", "createContext", "webglNotSupported")
             }
             return context.unsafeCast<WebGLRenderingContext>()

@@ -134,12 +134,17 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
         // Redraw shapes to texture and put in cache if required
         val framebuffer = dc.scratchFramebuffer
+        // Render into MSAA when available (GLES3+/GL3+/WebGL2), then resolve into the
+        // single-sample texture below. `null` means single-sample fallback (WebGL1).
+        val multisampleFramebuffer = dc.multisampleFramebuffer
         val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
         val texture = if (!useCache) colorAttachment
         else Texture(colorAttachment.width, colorAttachment.height, GL_RGBA, GL_UNSIGNED_BYTE, true)
         try {
-            if (!framebuffer.bindFramebuffer(dc)) return null // framebuffer failed to bind
+            // Attach the cache texture as the resolve target before binding the draw FBO.
             if (useCache) framebuffer.attachTexture(dc, texture, GL_COLOR_ATTACHMENT0)
+            val drawFramebuffer = multisampleFramebuffer ?: framebuffer
+            if (!drawFramebuffer.bindFramebuffer(dc)) return null // framebuffer failed to bind
 
             // Clear the framebuffer and disable the depth test.
             dc.gl.viewport(0, 0, colorAttachment.width, colorAttachment.height)
@@ -215,11 +220,13 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                             shape.drawState.vertexStride,
                             prim.texCoordAttrib.offset
                         )
-                        dc.gl.lineWidth(prim.lineWidth)
                     }
                     dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
                 }
             }
+            // Resolve MSAA into the single-sample texture the terrain sampler reads from.
+            // No-op on the WebGL1 fallback (we already drew into `framebuffer` directly).
+            multisampleFramebuffer?.resolveTo(dc, framebuffer)
             if (useCache) dc.texturesCache.put(hash, texture, 1)
         } finally {
             if (useCache) framebuffer.attachTexture(dc, colorAttachment, GL_COLOR_ATTACHMENT0)
@@ -227,7 +234,6 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             dc.bindFramebuffer(KglFramebuffer.NONE)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_DEPTH_TEST)
-            dc.gl.lineWidth(1f)
         }
         return texture
     }

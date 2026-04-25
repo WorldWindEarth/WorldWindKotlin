@@ -37,7 +37,9 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     companion object {
         protected const val STALE_AGE = 300L
         protected const val EGL_CONTEXT_CLIENT_VERSION = 0x3098
-        protected const val EGL_VERSION = 2
+        // Prefer GLES 3 (MSAA renderbuffers etc.); fall back to GLES 2 if unavailable.
+        protected const val EGL_VERSION_3 = 3
+        protected const val EGL_VERSION_2 = 2
 
         @JvmStatic
         fun recommendedCapacity(context: Context) =
@@ -79,10 +81,15 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     }
 
     override fun createContext(egl: EGL10, display: EGLDisplay, eglConfig: EGLConfig): EGLContext = synchronized(this) {
-        val attribList = intArrayOf(EGL_CONTEXT_CLIENT_VERSION, EGL_VERSION, EGL10.EGL_NONE)
         val shareContext = if (contextList.isEmpty()) EGL10.EGL_NO_CONTEXT else contextList[0]
         if (contextList.isEmpty()) mainScope.launch { clear() } // Clear the render resource cache on the main thread.
-        return egl.eglCreateContext(display, eglConfig, shareContext, attribList).also { contextList += it }
+        val attribList3 = intArrayOf(EGL_CONTEXT_CLIENT_VERSION, EGL_VERSION_3, EGL10.EGL_NONE)
+        var context = egl.eglCreateContext(display, eglConfig, shareContext, attribList3)
+        if (context == null || context == EGL10.EGL_NO_CONTEXT) {
+            val attribList2 = intArrayOf(EGL_CONTEXT_CLIENT_VERSION, EGL_VERSION_2, EGL10.EGL_NONE)
+            context = egl.eglCreateContext(display, eglConfig, shareContext, attribList2)
+        }
+        return context.also { contextList += it }
     }
 
     override fun destroyContext(egl: EGL10, display: EGLDisplay, context: EGLContext) = synchronized(this) {

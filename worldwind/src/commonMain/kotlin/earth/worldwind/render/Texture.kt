@@ -7,7 +7,21 @@ import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.*
 import earth.worldwind.util.math.powerOfTwoCeiling
 
-open class Texture(val width: Int, val height: Int, protected val format: Int, protected val type: Int, protected val isRT: Boolean = false) : RenderResource {
+/**
+ * @param format pixel format passed to `glTexImage2D` (e.g. `GL_RGBA`, `GL_DEPTH_COMPONENT`).
+ * @param type pixel type passed to `glTexImage2D` (e.g. `GL_UNSIGNED_BYTE`, `GL_UNSIGNED_SHORT`).
+ * @param internalFormat `internalformat` passed to `glTexImage2D`. Defaults to [format]
+ *  (unsized), which is the only legal value on WebGL1 / GLES2. Pass a sized internal format
+ *  (e.g. `GL_RGBA8`, `GL_DEPTH_COMPONENT16`) only when [Kgl.supportsSizedTextureFormats] is
+ *  `true`. Required for MSAA blit-resolve compatibility — the resolve target's internal
+ *  format must literally match the multisample renderbuffer's (`GL_RGBA8`).
+ */
+open class Texture(
+    val width: Int, val height: Int,
+    protected val format: Int, protected val type: Int,
+    protected val isRT: Boolean = false,
+    protected val internalFormat: Int = format,
+) : RenderResource {
     companion object {
         private const val TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE
 
@@ -109,11 +123,11 @@ open class Texture(val width: Int, val height: Int, protected val format: Int, p
     protected open fun allocTexImage(dc: DrawContext) {
         // Following line of code is a dirty hack to disable AFBC compression on Mali GPU driver,
         // which cause huge memory leak during surface shapes drawing on terrain textures.
-        if (isRT and dc.gl.hasMaliOOMBug) dc.gl.texImage2D(GL_TEXTURE_2D, 0, format, 1, 1, 0, format, type, null)
+        if (isRT and dc.gl.hasMaliOOMBug) dc.gl.texImage2D(GL_TEXTURE_2D, 0, internalFormat, 1, 1, 0, format, type, null)
 
         // Allocate texture memory for the OpenGL texture 2D object. The texture memory is initialized with 0.
         dc.gl.texImage2D(
-            GL_TEXTURE_2D, 0 /*level*/, format, width, height, 0 /*border*/, format, type, null /*pixels*/
+            GL_TEXTURE_2D, 0 /*level*/, internalFormat, width, height, 0 /*border*/, format, type, null /*pixels*/
         )
     }
 
