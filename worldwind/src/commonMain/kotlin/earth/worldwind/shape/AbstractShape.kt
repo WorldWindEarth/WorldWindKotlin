@@ -108,7 +108,10 @@ abstract class AbstractShape(
             reset()
         }
     protected var isSurfaceShape = false
-    protected var bufferDataVersion = 0L
+    // Monotonic version counter bumped on every geometry-affecting mutation; passed to
+    // [offerGLBufferUpload] so the upload queue can skip writes when the version hasn't moved.
+    // [Int] is plenty: ~2.1B mutations is years of runtime even at 100 ops/sec.
+    protected var bufferDataVersion = 0
     protected val boundingData = mutableMapOf<Globe.State?, BoundingData>()
     // Single-entry cache for the most-recently-used (Globe.State, BoundingData) pair. Most
     // applications render against a single Globe.State, so the map lookup in [doRender] resolves

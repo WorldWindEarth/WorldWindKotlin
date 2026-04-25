@@ -47,7 +47,7 @@ class GltfScene internal constructor(
     private val normalTransformMatrix = Matrix4()
     private val vboKey = Any()
     private val iboKey = Any()
-    private val bufferVersion = 0L
+    private val bufferVersion = 0
     private var transformValid = false
 
     private fun invalidate() { transformValid = false }

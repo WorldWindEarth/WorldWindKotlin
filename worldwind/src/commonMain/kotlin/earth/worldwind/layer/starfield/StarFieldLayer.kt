@@ -60,8 +60,8 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
      * Display star field on a specified time point. If null, then current time will be used each frame.
      */
     var time : Instant? = null
-    protected var startDataVersion = 0L
-    protected var sunDataVersion = 0L
+    protected var startDataVersion = 0
+    protected var sunDataVersion = 0
     protected val starsPositionsVboCacheKey = Any() //gpu cache key for the stars vbo.
     protected var numStars = 0
     protected var starData: StarData? = null

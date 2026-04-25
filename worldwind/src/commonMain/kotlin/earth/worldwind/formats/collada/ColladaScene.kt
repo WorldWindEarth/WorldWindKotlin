@@ -66,7 +66,7 @@ class ColladaScene(
     private val normalTransformMatrix = Matrix4()
     private val vboKey = Any()
     private val iboKey = Any()
-    private var bufferVersion = 0L
+    private var bufferVersion = 0
     private var transformValid = false
     private var normalsRewritten = false
     private var cachedTransformedPoints: List<List<Vec3>>? = null
