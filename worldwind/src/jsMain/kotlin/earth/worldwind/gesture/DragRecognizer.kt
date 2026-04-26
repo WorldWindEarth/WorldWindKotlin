@@ -1,7 +1,6 @@
 package earth.worldwind.gesture
 
 import earth.worldwind.gesture.GestureState.*
-import kotlinx.browser.window
 import org.w3c.dom.events.EventTarget
 import org.w3c.dom.events.MouseEvent
 import kotlin.math.sqrt
@@ -41,8 +40,7 @@ open class DragRecognizer(
     protected open fun shouldInterpret(): Boolean {
         val dx = translationX
         val dy = translationY
-        val distance = sqrt(dx * dx + dy * dy)
-        return distance > interpretDistance * window.devicePixelRatio // interpret mouse movement when the cursor moves far enough
+        return sqrt(dx * dx + dy * dy) > interpretDistance
     }
 
     /**

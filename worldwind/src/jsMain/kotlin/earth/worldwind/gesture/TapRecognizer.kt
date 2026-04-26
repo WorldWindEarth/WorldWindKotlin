@@ -14,7 +14,8 @@ open class TapRecognizer(
 ) : GestureRecognizer(target, callback) {
     var numberOfTaps = 1
     var numberOfTouches = 1
-    var maxTouchMovement = 20
+    /** Touch slop in CSS pixels. 8 ≈ Android's 8 dp standard. */
+    var maxTouchMovement = 8
     var maxTapDuration = 500
     var maxTapInterval = 400
     protected val taps = mutableListOf<TouchWrapper>()
@@ -51,8 +52,7 @@ open class TapRecognizer(
         if (state != POSSIBLE) return
         val dx = translationX
         val dy = translationY
-        val distance = sqrt(dx * dx + dy * dy)
-        if (distance > maxTouchMovement * window.devicePixelRatio ) state = FAILED
+        if (sqrt(dx * dx + dy * dy) > maxTouchMovement) state = FAILED
     }
 
     override fun touchEnd(touch: TouchWrapper) {

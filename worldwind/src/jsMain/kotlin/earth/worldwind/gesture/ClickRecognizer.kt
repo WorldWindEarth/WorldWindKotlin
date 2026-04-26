@@ -38,8 +38,7 @@ open class ClickRecognizer(
         if (state != POSSIBLE) return
         val dx = translationX
         val dy = translationY
-        val distance = sqrt(dx * dx + dy * dy)
-        if (distance > maxMouseMovement * window.devicePixelRatio) state = FAILED
+        if (sqrt(dx * dx + dy * dy) > maxMouseMovement) state = FAILED
     }
 
     override fun mouseUp(event: MouseEvent) {

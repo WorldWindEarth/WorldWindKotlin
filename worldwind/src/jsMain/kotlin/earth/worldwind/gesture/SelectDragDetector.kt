@@ -40,6 +40,13 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // Do not pick new items if dragging is in progress or detector is disabled
         if (isDragging || !isEnabled) return@EventListener
 
+        // Skip re-pick mid-press (mousemove with held button, or any touchmove). Re-arming
+        // against whatever's under the cursor *now* would silently turn a finger drift off
+        // the shape during the pan threshold into a globe pan. Mouse hover still re-picks
+        // for highlighting.
+        if (event is MouseEvent && event.buttons.toInt() != 0) return@EventListener
+        if (event is TouchEvent && event.type == "touchmove") return@EventListener
+
         // Determine pick point from event
         var clientX = 0
         var clientY = 0

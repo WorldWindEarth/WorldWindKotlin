@@ -1,7 +1,6 @@
 package earth.worldwind.gesture
 
 import earth.worldwind.gesture.GestureState.*
-import kotlinx.browser.window
 import org.w3c.dom.events.EventTarget
 import org.w3c.dom.events.MouseEvent
 import kotlin.math.sqrt
@@ -14,7 +13,8 @@ open class PanRecognizer(
 ) : GestureRecognizer(target, callback) {
     var minNumberOfTouches = 1
     var maxNumberOfTouches = Int.MAX_VALUE
-    var interpretDistance = 20
+    /** Touch slop in CSS pixels. ~8 dp Material standard. */
+    var interpretDistance = 8
 
     override fun mouseDown(event: MouseEvent) {
         if (state == POSSIBLE) state = FAILED // touch gestures fail upon receiving a mouse event
@@ -46,8 +46,7 @@ open class PanRecognizer(
     protected open fun shouldInterpret(): Boolean {
         val dx = translationX
         val dy = translationY
-        val distance = sqrt(dx * dx + dy * dy)
-        return distance > interpretDistance * window.devicePixelRatio // interpret touches when the touch centroid moves far enough
+        return sqrt(dx * dx + dy * dy) > interpretDistance
     }
 
     protected open fun shouldRecognize() = touchCount in minNumberOfTouches..maxNumberOfTouches

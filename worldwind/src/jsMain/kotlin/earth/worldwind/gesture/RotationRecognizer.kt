@@ -15,7 +15,6 @@ open class RotationRecognizer(
 ) : GestureRecognizer(target, callback) {
     var referenceAngle = 0.0
     var interpretThreshold = 20
-    var weight = 0.4
     val rotationWithOffset get() = rotation + offsetRotation
     protected var rotation = 0.0
     protected var offsetRotation = 0.0
@@ -49,10 +48,7 @@ open class RotationRecognizer(
             if (state == POSSIBLE) {
                 if (shouldRecognize()) state = BEGAN
             } else if (state == BEGAN || state == CHANGED) {
-                val angle = currentTouchAngle()
-                val newRotation = Angle.normalizeAngle180(angle - referenceAngle)
-                val w = weight
-                rotation = rotation * (1 - w) + newRotation * w
+                rotation = Angle.normalizeAngle180(currentTouchAngle() - referenceAngle)
                 state = CHANGED
             }
         }

@@ -122,7 +122,6 @@ abstract class GestureRecognizer(
     private var nextState: GestureState? = null
     private var clientStartX = 0
     private var clientStartY = 0
-    private var translationWeight = 0.4
     private val touches = mutableListOf<TouchWrapper>()
     private var touchCentroidShiftX = 0
     private var touchCentroidShiftY = 0
@@ -324,13 +323,10 @@ abstract class GestureRecognizer(
 
         if (clientX == event.clientX && clientY == event.clientY) return // ignore redundant mouse move events
 
-        val dx = event.clientX - clientStartX
-        val dy = event.clientY - clientStartY
-        val w = translationWeight
         clientX = event.clientX
         clientY = event.clientY
-        translationX = translationX * (1 - w) + dx * w
-        translationY = translationY * (1 - w) + dy * w
+        translationX = (clientX - clientStartX).toDouble()
+        translationY = (clientY - clientStartY).toDouble()
         mouseMove(event)
     }
 
@@ -369,13 +365,10 @@ abstract class GestureRecognizer(
         touch.clientY = nextTouch.clientY
 
         val centroid = touchCentroid()
-        val dx = centroid.clientX - clientStartX + touchCentroidShiftX
-        val dy = centroid.clientY - clientStartY + touchCentroidShiftY
-        val w = translationWeight
         clientX = centroid.clientX
         clientY = centroid.clientY
-        translationX = translationX * (1 - w) + dx * w
-        translationY = translationY * (1 - w) + dy * w
+        translationX = (clientX - clientStartX + touchCentroidShiftX).toDouble()
+        translationY = (clientY - clientStartY + touchCentroidShiftY).toDouble()
 
         touchMove(touch)
     }

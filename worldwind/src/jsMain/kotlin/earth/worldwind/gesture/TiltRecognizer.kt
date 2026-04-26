@@ -1,6 +1,5 @@
 package earth.worldwind.gesture
 
-import kotlinx.browser.window
 import org.w3c.dom.events.EventTarget
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -39,11 +38,11 @@ open class TiltRecognizer(
         val dx = touch0.clientX - touch1.clientX
         val dy = touch0.clientY - touch1.clientY
         val distance = sqrt((dx * dx + dy * dy).toDouble())
-        if (distance > maxTouchDistance * window.devicePixelRatio) return false // touches must be close together
+        if (distance > maxTouchDistance) return false // touches must be close together
         val tx = touch0.translationX - touch1.translationX
         val ty = touch0.translationY - touch1.translationY
         val divergence = sqrt((tx * tx + ty * ty).toDouble())
-        if (divergence > maxTouchDivergence * window.devicePixelRatio) return false // touches must be moving in a mostly parallel direction
+        if (divergence > maxTouchDivergence) return false // touches must be moving in a mostly parallel direction
 
         val verticalMask = UP or DOWN
         val dirMask0 = touchDirection(touch0) and verticalMask

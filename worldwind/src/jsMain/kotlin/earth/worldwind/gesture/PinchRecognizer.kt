@@ -1,7 +1,6 @@
 package earth.worldwind.gesture
 
 import earth.worldwind.gesture.GestureState.*
-import kotlinx.browser.window
 import org.w3c.dom.events.EventTarget
 import org.w3c.dom.events.MouseEvent
 import kotlin.math.abs
@@ -14,8 +13,8 @@ open class PinchRecognizer(
     target: EventTarget, callback: ((GestureRecognizer)->Unit)? = null
 ) : GestureRecognizer(target, callback) {
     var referenceDistance = 0.0
-    var interpretThreshold = 20
-    var weight = 0.4
+    /** Pinch-distance change in CSS pixels before the gesture is recognized. */
+    var interpretThreshold = 10
     val scaleWithOffset get() = scale * offsetScale
     protected var scale = 1.0
     protected var offsetScale = 1.0
@@ -49,10 +48,7 @@ open class PinchRecognizer(
             if (state == POSSIBLE) {
                 if (shouldRecognize()) state = BEGAN
             } else if (state == BEGAN || state == CHANGED) {
-                val distance = currentPinchDistance()
-                val newScale = abs(distance / referenceDistance)
-                val w = weight
-                scale = scale * (1 - w) + newScale * w
+                scale = abs(currentPinchDistance() / referenceDistance)
                 state = CHANGED
             }
         }
@@ -80,7 +76,7 @@ open class PinchRecognizer(
     }
 
     protected open fun shouldRecognize() =
-        abs(currentPinchDistance() - referenceDistance) > interpretThreshold * window.devicePixelRatio
+        abs(currentPinchDistance() - referenceDistance) > interpretThreshold
 
     protected open fun currentPinchDistance(): Double {
         val touch0 = pinchTouches[0]
