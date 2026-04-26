@@ -108,6 +108,11 @@ open class WorldWind @JvmOverloads constructor(
     private val scratchProjection = Matrix4()
     private val scratchPoint = Vec3()
     private val scratchRay = Line()
+    // Cached collision-relevant globe state. A change in any of these can leave the camera under terrain,
+    // so we re-run [clampCameraToTerrain] on the frame the change is observed.
+    private var lastGlobeState = globe.state
+    private var lastElevationTimestamp = globe.elevationModel.timestamp
+    private var lastVerticalExaggeration = globe.verticalExaggeration
 
     init {
         // Initialize default camera location based on user time zone
@@ -214,29 +219,47 @@ open class WorldWind @JvmOverloads constructor(
         camera.tilt = scratchModelview.extractTilt()
         camera.roll = lookAt.roll // roll passes straight through
 
-        // Check if camera altitude is not under the surface
-        val position = globe.getAbsolutePosition(camera.position, camera.altitudeMode)
-        val elevation = if (globe.is2D) COLLISION_THRESHOLD
-        else globe.getElevation(position.latitude, position.longitude) + COLLISION_THRESHOLD
-        if (elevation > position.altitude) {
-            // Set position altitude above the surface
-            position.altitude = elevation
-            // Apply new absolute position back to camera
-            camera.position.copy(position)
-            camera.altitudeMode = AltitudeMode.ABSOLUTE
-            // Compute new camera point
-            globe.geographicToCartesian(position.latitude, position.longitude, position.altitude, scratchPoint)
-            // Compute look at point
+        if (clampCameraToTerrain()) {
+            // Re-derive tilt so the look-at anchor stays in view after the camera was lifted.
+            globe.geographicToCartesian(
+                camera.position.latitude, camera.position.longitude, camera.position.altitude, scratchPoint
+            )
             globe.geographicToCartesian(
                 lookAt.position.latitude, lookAt.position.longitude, lookAt.position.altitude, scratchRay.origin
             )
-            // Compute normal to globe in look at point
             globe.geographicToCartesianNormal(lookAt.position.latitude, lookAt.position.longitude, scratchRay.direction)
-            // Calculate tilt angle between new camera point and look at point
             scratchPoint.subtract(scratchRay.origin).normalize()
             val dot = scratchRay.direction.dot(scratchPoint)
             if (dot >= -1 && dot <= 1) camera.tilt = acos(dot).radians
         }
+    }
+
+    /**
+     * Lift the camera above the terrain surface (plus [COLLISION_THRESHOLD]) if it sits below.
+     * In 2D the surface is treated as elevation 0, so only the threshold itself acts as a floor.
+     *
+     * @return true if the camera position was modified, false otherwise.
+     */
+    private fun clampCameraToTerrain(): Boolean {
+        val position = globe.getAbsolutePosition(camera.position, camera.altitudeMode)
+        val elevation = if (globe.is2D) COLLISION_THRESHOLD
+        else globe.getElevation(position.latitude, position.longitude) + COLLISION_THRESHOLD
+        if (elevation <= position.altitude) return false
+        position.altitude = elevation
+        camera.position.copy(position)
+        camera.altitudeMode = AltitudeMode.ABSOLUTE
+        return true
+    }
+
+    private fun clampCameraOnGlobeChange(state: Globe.State, elevationTimestamp: Long, verticalExaggeration: Double) {
+        if (state == lastGlobeState
+            && elevationTimestamp == lastElevationTimestamp
+            && verticalExaggeration == lastVerticalExaggeration
+        ) return
+        clampCameraToTerrain()
+        lastGlobeState = state
+        lastElevationTimestamp = elevationTimestamp
+        lastVerticalExaggeration = verticalExaggeration
     }
 
     /**
@@ -414,6 +437,15 @@ open class WorldWind @JvmOverloads constructor(
         val pickMode = frame.isPickMode
         if (!pickMode) frameMetrics?.beginRendering(rc)
 
+        // Snapshot collision-relevant globe state once; reused by the rc assignments below to avoid
+        // re-allocating Globe.State and re-walking elevation coverages later in this frame.
+        val globeState = globe.state
+        val elevationTimestamp = globe.elevationModel.timestamp
+
+        // Re-clamp the camera against terrain when any of these signals changes between frames:
+        // projection swap (incl. 2D <-> 3D), ellipsoid/geoid swap, elevation tile load, VE change.
+        clampCameraOnGlobeChange(globeState, elevationTimestamp, globe.verticalExaggeration)
+
         // Restrict camera tilt and roll in 2D
         if (globe.is2D) {
             camera.tilt = ZERO
@@ -433,8 +465,8 @@ open class WorldWind @JvmOverloads constructor(
         rc.renderResourceCache = renderResourceCache
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude
-        rc.globeState = globe.state
-        rc.elevationModelTimestamp = globe.elevationModel.timestamp
+        rc.globeState = globeState
+        rc.elevationModelTimestamp = elevationTimestamp
 
         // Configure the frame's Cartesian modelview matrix and eye coordinate projection matrix.
         computeViewingTransform(frame.projection, frame.modelview)
