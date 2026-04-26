@@ -8,7 +8,7 @@ import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.BasicTextureProgram
 import earth.worldwind.util.kgl.*
 
-class DrawableCollada : Drawable {
+class DrawableCollada : Drawable, SightlineOccluder {
     class EntityDrawState {
         var vertexByteOffset = 0
         var uvByteOffset = 0
@@ -141,5 +141,30 @@ class DrawableCollada : Drawable {
             prog.loadTextureEnabled(false)
             dc.gl.disableVertexAttribArray(2)
         }
+    }
+
+    override fun drawSightlineDepth(dc: DrawContext, sightline: DrawableSightline) {
+        if (vertexBuffer?.bindBuffer(dc) != true) return
+        indexBuffer?.bindBuffer(dc)
+
+        if (doubleSided) dc.gl.disable(GL_CULL_FACE)
+        for (entity in entities) {
+            // Compose the model matrix (transformation x optional node-local) and let the
+            // sightline wrap it with its own projection x view via loadOccluderMatrix.
+            // Reuses [mvpMatrix] as scratch — its regular-draw value gets rewritten on the
+            // next frame anyway.
+            mvpMatrix.copy(transformationMatrix)
+            if (entity.useLocalTransforms) mvpMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
+            sightline.loadOccluderMatrix(mvpMatrix)
+
+            dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, entity.vertexByteOffset)
+
+            if (entity.indexed) {
+                dc.gl.drawElements(GL_TRIANGLES, entity.indexCount, entity.indexType, entity.indexByteOffset)
+            } else {
+                dc.gl.drawArrays(GL_TRIANGLES, 0, entity.vertexCount)
+            }
+        }
+        if (doubleSided) dc.gl.enable(GL_CULL_FACE)
     }
 }

@@ -10,7 +10,7 @@ import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import kotlin.jvm.JvmStatic
 
-open class DrawableMesh protected constructor(): Drawable {
+open class DrawableMesh protected constructor(): Drawable, SightlineOccluder {
     val drawState = DrawShapeState()
     var normalsBuffer: BufferObject? = null
     var texCoordsBuffer: BufferObject? = null
@@ -108,5 +108,10 @@ open class DrawableMesh protected constructor(): Drawable {
             dc.gl.disableVertexAttribArray(1 /*normalVector*/)
         }
         dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
+    }
+
+    override fun drawSightlineDepth(dc: DrawContext, sightline: DrawableSightline) {
+        // Mesh positions are tightly packed (separate normal / uv buffers), so stride is 0.
+        sightline.drawShapeStateOccluder(dc, drawState, 0)
     }
 }

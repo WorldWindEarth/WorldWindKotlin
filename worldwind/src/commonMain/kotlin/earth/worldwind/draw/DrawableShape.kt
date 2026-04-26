@@ -9,7 +9,7 @@ import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import kotlin.jvm.JvmStatic
 
-open class DrawableShape protected constructor(): Drawable {
+open class DrawableShape protected constructor(): Drawable, SightlineOccluder {
     val drawState = DrawShapeState()
     private var pool: Pool<DrawableShape>? = null
     private val mvpMatrix = Matrix4()
@@ -116,5 +116,11 @@ open class DrawableShape protected constructor(): Drawable {
         dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/)
         dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
         dc.gl.disableVertexAttribArray(3 /*vertexTexCoord*/)
+    }
+
+    override fun drawSightlineDepth(dc: DrawContext, sightline: DrawableSightline) {
+        // Line shapes are wide expanded triangles with a non-position vertex layout - they
+        // can't be reused as opaque occluders, and they're not occluding volumes anyway.
+        if (!drawState.isLine) sightline.drawShapeStateOccluder(dc, drawState, drawState.vertexStride)
     }
 }

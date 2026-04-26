@@ -28,13 +28,14 @@ import kotlin.jvm.JvmOverloads
  * features appear in the sightline's occlude attributes, regardless of highlight state. Terrain features outside the
  * sightline's range are excluded from the overlay.
  * <br>
- * <h3>Limitations and Planned Improvements</h3> OmnidirectionalSightline is currently limited to terrain-based
- * occlusion, and does not incorporate other 3D scene elements during visibility determination. Subsequent iterations
- * will support occlusion of both terrain and 3D polygons. The visibility overlay is drawn in ShapeAttributes'
- * interior color only. Subsequent iterations will add an outline where the sightline's range intersects the scene, and
- * will display the sightline's geometry as an outline. OmnidirectionalSightline requires OpenGL ES 2.0
- * extension [GL_OES_depth_texture](https://www.khronos.org/registry/OpenGL/extensions/OES/OES_depth_texture.txt).
- * Subsequent iterations may relax this requirement.
+ * <h3>Limitations and Planned Improvements</h3> OmnidirectionalSightline incorporates terrain and world-space 3D
+ * scene elements (filled shapes, meshes, and COLLADA models) into visibility determination; surface decals and
+ * screen-space sprites such as placemarks and leader lines are intentionally excluded as they do not represent
+ * occluding volumes. The visibility overlay is drawn in ShapeAttributes' interior color only. Subsequent iterations
+ * will add an outline where the sightline's range intersects the scene, and will display the sightline's geometry as
+ * an outline. OmnidirectionalSightline requires OpenGL ES 2.0 extension
+ * [GL_OES_depth_texture](https://www.khronos.org/registry/OpenGL/extensions/OES/OES_depth_texture.txt). Subsequent
+ * iterations may relax this requirement.
  */
 open class OmnidirectionalSightline @JvmOverloads constructor(
     /**

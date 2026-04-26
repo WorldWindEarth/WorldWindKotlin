@@ -34,13 +34,14 @@ import kotlin.math.sqrt
  * features appear in the sightline's occlude attributes, regardless of highlight state. Terrain features outside the
  * sightline's range are excluded from the overlay.
  * <br>
- * <h3>Limitations and Planned Improvements</h3> DirectionalSightline is currently limited to terrain-based
- * occlusion, and does not incorporate other 3D scene elements during visibility determination. Subsequent iterations
- * will support occlusion of both terrain and 3D polygons. The visibility overlay is drawn in ShapeAttributes'
- * interior color only. Subsequent iterations will add an outline where the sightline's range intersects the scene, and
- * will display the sightline's geometry as an outline. DirectionalSightline requires OpenGL ES 2.0
- * extension [GL_OES_depth_texture](https://www.khronos.org/registry/OpenGL/extensions/OES/OES_depth_texture.txt).
- * Subsequent iterations may relax this requirement.
+ * <h3>Limitations and Planned Improvements</h3> DirectionalSightline incorporates terrain and world-space 3D scene
+ * elements (filled shapes, meshes, and COLLADA models) into visibility determination; surface decals and
+ * screen-space sprites such as placemarks and leader lines are intentionally excluded as they do not represent
+ * occluding volumes. The visibility overlay is drawn in ShapeAttributes' interior color only. Subsequent iterations
+ * will add an outline where the sightline's range intersects the scene, and will display the sightline's geometry as
+ * an outline. DirectionalSightline requires OpenGL ES 2.0 extension
+ * [GL_OES_depth_texture](https://www.khronos.org/registry/OpenGL/extensions/OES/OES_depth_texture.txt). Subsequent
+ * iterations may relax this requirement.
  */
 open class DirectionalSightline @JvmOverloads constructor(
     /**
@@ -227,6 +228,17 @@ open class DirectionalSightline @JvmOverloads constructor(
 
         // Clamp range to max float value as OpenGL drawable operates with float range
         drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
+
+        // Choose how many close-range fill passes to render. When the sightline sits well
+        // above terrain, the forward frustum's bottom edge is far ahead and the area
+        // immediately below the sightline goes unshadowed without extra passes. The
+        // thresholds use altitude relative to the sightline's range, which captures both
+        // the geometric significance of the gap and the user's expected visible scale.
+        drawable.directionalFillPasses = when {
+            position.altitude > range * 0.1 -> 2
+            position.altitude > range * 0.01 -> 1
+            else -> 0
+        }
 
         // Configure the drawable colors according to the current attributes. When picking use a unique color associated
         // with the picked object ID. Null attributes indicate that nothing is drawn.

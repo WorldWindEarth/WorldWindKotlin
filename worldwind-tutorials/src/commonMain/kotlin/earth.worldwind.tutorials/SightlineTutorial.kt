@@ -6,59 +6,93 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.Position
+import earth.worldwind.globe.Globe
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.OmnidirectionalSightline
 import earth.worldwind.shape.DirectionalSightline
 import earth.worldwind.shape.Placemark
+import earth.worldwind.shape.Polygon
+import earth.worldwind.shape.ShapeAttributes
 
 class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
+    private val omniSightline: OmnidirectionalSightline
+    private val directionalSightline: DirectionalSightline
+
     private val layer = RenderableLayer("Sightline").apply {
-        // Specify the sightline position, which is the origin of the line of sight calculation
+        // Sightline origins. Each placemark drives its sightline's center; the sightlines
+        // themselves are not pickable so the placemark is the only drag handle.
         val omnidirectionalPosition = Position.fromDegrees(46.230, -122.190, 2500.0)
         val directionalPosition = Position.fromDegrees(46.193, -122.194, 2500.0)
-        // Create the omnidirectional sightline, specifying the range of the sightline (meters)
-        addRenderable(
-            OmnidirectionalSightline(omnidirectionalPosition, 10000.0).apply {
-                // Create attributes for the visible terrain
-                attributes.apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
-                // Create attributes for the occluded terrain
-                occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
+
+        omniSightline = OmnidirectionalSightline(omnidirectionalPosition, 10000.0).apply {
+            isPickEnabled = false
+            attributes.apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
+            occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
+        }
+        addRenderable(omniSightline)
+
+        addRenderable(object : Placemark(omnidirectionalPosition) {
+            override fun moveTo(globe: Globe, position: Position) {
+                super.moveTo(globe, position)
+                omniSightline.position = position
             }
-        )
-        // Create a Placemark to visualize the position of the sightline
-        addRenderable(
-            Placemark(omnidirectionalPosition).apply {
-                attributes.apply {
-                    imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
-                    imageOffset = Offset.bottomCenter()
-                    imageScale = 2.0
-                    isDrawLeader = true
-                }
+        }.apply {
+            attributes.apply {
+                imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
+                imageOffset = Offset.bottomCenter()
+                imageScale = 2.0
+                isDrawLeader = true
             }
-        )
-        // Create the directional sightline, specifying the range of the sightline (meters)
-        addRenderable(
-            DirectionalSightline(directionalPosition, 10000.0, 40.0.degrees, 30.0.degrees).apply {
-                // Create attributes for the visible terrain
-                attributes.apply { interiorColor = Color(0f, 0f, 1f, 0.5f) }
-                // Create attributes for the occluded terrain
-                occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
+        })
+
+        directionalSightline = DirectionalSightline(
+            directionalPosition, 10000.0, 40.0.degrees, 30.0.degrees
+        ).apply {
+            isPickEnabled = false
+            attributes.apply { interiorColor = Color(0f, 0f, 1f, 0.5f) }
+            occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
+        }
+        addRenderable(directionalSightline)
+
+        addRenderable(object : Placemark(directionalPosition) {
+            override fun moveTo(globe: Globe, position: Position) {
+                super.moveTo(globe, position)
+                directionalSightline.position = position
             }
-        )
-        // Create a Placemark to visualize the position of the directional sightline
-        addRenderable(
-            Placemark(directionalPosition).apply {
-                attributes.apply {
-                    imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
-                    imageOffset = Offset.bottomCenter()
-                    imageScale = 2.0
-                    isDrawLeader = true
-                }
+        }.apply {
+            attributes.apply {
+                imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
+                imageOffset = Offset.bottomCenter()
+                imageScale = 2.0
+                isDrawLeader = true
             }
-        )
+        })
+
+        // A pair of extruded 3D obstacles — one inside each sightline — to demonstrate that
+        // world-space shapes also cast shadows (in addition to terrain).
+        val obstacleAttributes = ShapeAttributes().apply {
+            interiorColor = Color(1f, 0.9f, 0.6f, 1f)
+            outlineColor = Color(0.4f, 0.3f, 0.1f, 1f)
+            outlineWidth = 1.5f
+            isDrawVerticals = true
+        }
+        fun box(centerLat: Double, centerLon: Double, halfSize: Double, topAlt: Double) = Polygon(
+            listOf(
+                Position.fromDegrees(centerLat - halfSize, centerLon - halfSize, topAlt),
+                Position.fromDegrees(centerLat - halfSize, centerLon + halfSize, topAlt),
+                Position.fromDegrees(centerLat + halfSize, centerLon + halfSize, topAlt),
+                Position.fromDegrees(centerLat + halfSize, centerLon - halfSize, topAlt)
+            )
+        ).apply {
+            attributes = obstacleAttributes
+            altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
+            isExtrude = true
+        }
+        addRenderable(box(46.225, -122.205, 0.004, 2200.0)) // inside the omnidirectional sphere
+        addRenderable(box(46.205, -122.180, 0.003, 1800.0)) // inside the directional frustum
     }
 
     override fun start() {
