@@ -5,12 +5,10 @@ import earth.worldwind.geom.Sector.Companion.fromDegrees
 import earth.worldwind.util.Logger
 import kotlin.math.*
 
-open class MercatorProjection : GeographicProjection {
+open class MercatorProjection : Abstract2DProjection() {
     override val displayName = "Mercator"
-    override val is2D = true
     override val isContinuous = true
     override val projectionLimits = fromDegrees(-78.0, -180.0, 156.0, 360.0)
-    private val scratchVec = Vec3()
 
     override fun geographicToCartesian(
         ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, altitude: Double, offset: Double, result: Vec3
@@ -26,20 +24,6 @@ open class MercatorProjection : GeographicProjection {
         result.y = 0.5 * ellipsoid.semiMajorAxis * ln(s)
         result.z = altitude
         return result
-    }
-
-    override fun geographicToCartesianNormal(ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, result: Vec3): Vec3 {
-        return result.set(0.0, 0.0, 1.0)
-    }
-
-    override fun geographicToCartesianTransform(
-        ellipsoid: Ellipsoid, latitude: Angle, longitude: Angle, altitude: Double, result: Matrix4
-    ): Matrix4 {
-        val vec = geographicToCartesian(ellipsoid, latitude, longitude, altitude, 0.0, scratchVec)
-
-        // Set the result to an orthonormal basis with the East, North, and Up vectors forming the X, Y and Z axes,
-        // respectively, and the Cartesian point indicating the coordinate system's origin.
-        return cartesianToLocalTransform(ellipsoid, vec.x, vec.y, vec.z, result)
     }
 
     override fun geographicToCartesianGrid(
@@ -179,36 +163,6 @@ open class MercatorProjection : GeographicProjection {
         val lambda = (x - offset) / eqr // eq (7-12)
 
         return result.setRadians(phi, lambda, z)
-    }
-
-    override fun cartesianToLocalTransform(ellipsoid: Ellipsoid, x: Double, y: Double, z: Double, result: Matrix4) = result.set(
-        1.0, 0.0, 0.0, x,
-        0.0, 1.0, 0.0, y,
-        0.0, 0.0, 1.0, z,
-        0.0, 0.0, 0.0, 1.0
-    )
-
-    override fun intersect(ellipsoid: Ellipsoid, line: Line, result: Vec3): Boolean {
-        // Taken from "Mathematics for 3D Game Programming and Computer Graphics, Third Edition", Section 6.2.3.
-        // Note that the parameter n from in equations 6.70 and 6.71 is omitted here. For an ellipsoidal globe this
-        // parameter is always 1, so its square and its product with any other value simplifies to the identity.
-        val vx = line.direction.x
-        val vy = line.direction.y
-        val vz = line.direction.z
-        val sx = line.origin.x
-        val sy = line.origin.y
-        val sz = line.origin.z
-
-        if (vz == 0.0 && sz != 0.0) return false // ray is parallel to and not coincident with the XY plane
-
-        val t = -sz / vz // intersection distance, simplified for the XY plane
-        if (t < 0) return false // intersection is behind the ray's origin
-
-        result.x = sx + vx * t
-        result.y = sy + vy * t
-        result.z = sz + vz * t
-
-        return true
     }
 
     companion object {

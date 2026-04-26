@@ -5,7 +5,15 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.geom.Line
 import earth.worldwind.gesture.SelectDragCallback
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
+import earth.worldwind.globe.projection.EquirectangularProjection
+import earth.worldwind.globe.projection.GnomonicProjection
 import earth.worldwind.globe.projection.MercatorProjection
+import earth.worldwind.globe.projection.ModifiedSinusoidalProjection
+import earth.worldwind.globe.projection.PolarEquidistantProjection
+import earth.worldwind.globe.projection.SinusoidalProjection
+import earth.worldwind.globe.projection.TransverseMercatorProjection
+import earth.worldwind.globe.projection.UpsProjection
+import earth.worldwind.globe.projection.UtmProjection
 import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.CompassLayer
@@ -90,7 +98,18 @@ fun main() {
 
             val projections = linkedMapOf(
                 "WGS84 Projection" to Wgs84Projection(),
-                "Mercator Projection" to MercatorProjection()
+                "Mercator Projection" to MercatorProjection(),
+                "Equirectangular Projection" to EquirectangularProjection(),
+                "Sinusoidal Projection" to SinusoidalProjection(),
+                "Modified Sinusoidal Projection" to ModifiedSinusoidalProjection(),
+                "Transverse Mercator Projection" to TransverseMercatorProjection(),
+                "UTM Projection (Zone 1)" to UtmProjection(),
+                "North Polar Equidistant" to PolarEquidistantProjection(isNorth = true),
+                "South Polar Equidistant" to PolarEquidistantProjection(isNorth = false),
+                "North UPS" to UpsProjection(isNorth = true),
+                "South UPS" to UpsProjection(isNorth = false),
+                "North Gnomonic" to GnomonicProjection(isNorth = true),
+                "South Gnomonic" to GnomonicProjection(isNorth = false),
             )
 
             var currentTutorial: String? = null
