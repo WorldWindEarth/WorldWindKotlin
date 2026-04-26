@@ -6,6 +6,7 @@ import earth.worldwind.gesture.GestureState.*
 import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import kotlinx.browser.window
+import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.WheelEvent
 import org.w3c.dom.pointerevents.PointerEvent
@@ -74,61 +75,71 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
 
     override fun handleEvent(event: Event) {
         super.handleEvent(event)
-        if (!event.defaultPrevented) {
-            // Cancel any in-progress fling on pointerdown so the user is in control immediately,
-            // not after the pan-recognizer's interpretDistance threshold finally trips.
-            if (event.type == "pointerdown") fling.cancel()
-            // Track pointer-down position for tap detection (before VC check so coords are always valid)
-            if (event.type == "pointerdown" && event is PointerEvent) {
-                val p = wwd.canvasCoordinates(event.clientX, event.clientY)
-                tapDownX = p.x; tapDownY = p.y
-            }
-            val vcl = viewControlsLayer
-            if (vcl != null && event.type == "pointerdown" && event is PointerEvent) {
-                // Defensively cancel any prior repeat whose pointerup we never saw — without
-                // this, a missed lift orphans the timer/interval and leaves it firing forever.
-                stopVcRepeat()
-                if (vcl.handleClick(tapDownX, tapDownY, wwd.engine.viewport.height, wwd.engine)) {
-                    wwd.requestRedraw()
-                    event.preventDefault()
-                    vcCurrentX = tapDownX
-                    vcCurrentY = tapDownY
-                    vcRepeatTimeout = window.setTimeout({
-                        vcRepeatInterval = window.setInterval({
-                            // Re-dispatch with the live cursor position: drag within the pan
-                            // button updates direction/velocity, drag-off auto-releases.
-                            if (vcl.handleClick(vcCurrentX, vcCurrentY, wwd.engine.viewport.height, wwd.engine))
-                                wwd.requestRedraw()
-                            else stopVcRepeat()
-                        }, 50)
-                    }, 400)
-                    return
-                }
-            }
-            // Swallow moves while a VC repeat is active so pan/drag recognizers don't engage
-            // simultaneously, and update live coordinates for the repeat tick.
-            if (event.type == "pointermove" && event is PointerEvent && isVcRepeatActive) {
-                val p = wwd.canvasCoordinates(event.clientX, event.clientY)
-                vcCurrentX = p.x; vcCurrentY = p.y
+        if (event.defaultPrevented) return
+
+        // Classify once. WorldWindow registers either Pointer or Touch events based on
+        // navigator.maxTouchPoints (never both), so each phase has to accept either family.
+        val type = event.type
+        val isPress = type == "pointerdown" || type == "touchstart"
+        val isMove = type == "pointermove" || type == "touchmove"
+        val isRelease = type == "pointerup" || type == "touchend"
+        val isCancel = type == "pointercancel" || type == "touchcancel"
+
+        if (isPress) {
+            // Cancel any in-progress fling so the user is in control immediately, not after
+            // the pan-recognizer's interpretDistance threshold trips. Capture the press point
+            // for tap detection so minimap-tap and VC-click can both consume it below.
+            fling.cancel()
+            eventCanvasCoords(event)?.let { p -> tapDownX = p.x; tapDownY = p.y }
+        }
+
+        val vcl = viewControlsLayer
+        if (vcl != null && isPress) {
+            // Defensively cancel any prior repeat whose release we never saw - without this,
+            // a missed lift orphans the timer/interval and leaves it firing forever.
+            stopVcRepeat()
+            if (vcl.handleClick(tapDownX, tapDownY, wwd.engine.viewport.height, wwd.engine)) {
+                wwd.requestRedraw()
                 event.preventDefault()
+                vcCurrentX = tapDownX
+                vcCurrentY = tapDownY
+                vcRepeatTimeout = window.setTimeout({
+                    vcRepeatInterval = window.setInterval({
+                        // Re-dispatch with the live cursor position: drag within the pan
+                        // button updates direction/velocity, drag-off auto-releases.
+                        if (vcl.handleClick(vcCurrentX, vcCurrentY, wwd.engine.viewport.height, wwd.engine))
+                            wwd.requestRedraw()
+                        else stopVcRepeat()
+                    }, 50)
+                }, 400)
                 return
             }
-            if (event.type == "pointerup" || event.type == "pointercancel") {
-                stopVcRepeat()
-                // Single-tap: navigate minimap
-                if (event.type == "pointerup" && event is PointerEvent) {
-                    val p = wwd.canvasCoordinates(event.clientX, event.clientY)
-                    val dx = p.x - tapDownX; val dy = p.y - tapDownY
-                    if (dx * dx + dy * dy < 25) {
-                        worldMapLayer?.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine)
-                    }
+        }
+
+        // Swallow moves while a VC repeat is active so pan/drag recognizers don't engage
+        // simultaneously; refresh the live coordinate so finger-drag inside a held button
+        // keeps updating direction/velocity instead of freezing.
+        if (isMove && isVcRepeatActive) {
+            eventCanvasCoords(event)?.let { p -> vcCurrentX = p.x; vcCurrentY = p.y }
+            event.preventDefault()
+            return
+        }
+
+        if (isRelease || isCancel) {
+            stopVcRepeat()
+            // Single-tap: navigate minimap. Cancel does not fire taps.
+            if (isRelease) eventCanvasCoords(event)?.let { p ->
+                val dx = p.x - tapDownX; val dy = p.y - tapDownY
+                if (dx * dx + dy * dy < 25) {
+                    worldMapLayer?.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine)
                 }
             }
-            if (event.type == "wheel") {
-                event.preventDefault()
-                handleWheelEvent(event as WheelEvent)
-            } else GestureRecognizer.allRecognizers.forEach { r -> if (r.target == wwd.canvas) r.handleEvent(event) }
         }
+
+        if (type == "wheel") {
+            event.preventDefault()
+            handleWheelEvent(event as WheelEvent)
+        } else GestureRecognizer.allRecognizers.forEach { r -> if (r.target == wwd.canvas) r.handleEvent(event) }
     }
 
     override fun gestureStateChanged(recognizer: GestureRecognizer) {
@@ -337,6 +348,19 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
     override fun release() {
         super.release()
         stopVcRepeat()
+    }
+
+    /**
+     * Returns the press point of either a Pointer or Touch event in canvas coordinates
+     * (already converted from client/CSS pixels). WorldWindow registers Pointer events
+     * on mouse-only platforms and Touch events on touch-capable platforms based on
+     * `navigator.maxTouchPoints`. Returns `null` for any other event type or for a touch
+     * event with no changed touches.
+     */
+    private fun eventCanvasCoords(event: Event) = when (event) {
+        is PointerEvent -> wwd.canvasCoordinates(event.clientX, event.clientY)
+        is TouchEvent -> event.changedTouches.item(0)?.let { wwd.canvasCoordinates(it.clientX, it.clientY) }
+        else -> null
     }
 
     /** requestAnimationFrame-backed scheduler driving the [fling] animator on the browser's vsync. */
