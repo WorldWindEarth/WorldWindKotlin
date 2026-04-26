@@ -23,6 +23,8 @@ open class DrawShapeState internal constructor() {
     var enableLighting = false
     var depthOffset = 0.0
     var isLine = false
+    // True when the drawable is queued only for SightlineOccluder; main draw() short-circuits.
+    var isOccluderOnly = false
     val color = Color()
     var opacity = 1.0f
     var lineWidth = 1f
@@ -44,6 +46,7 @@ open class DrawShapeState internal constructor() {
         enableDepthWrite = other.enableDepthWrite
         enableLighting = other.enableLighting
         isLine = other.isLine
+        isOccluderOnly = other.isOccluderOnly
         depthOffset = other.depthOffset
         color.copy(other.color)
         opacity = other.opacity
@@ -72,6 +75,7 @@ open class DrawShapeState internal constructor() {
         enableDepthTest = true
         enableLighting = false
         isLine = false
+        isOccluderOnly = false
         depthOffset = 0.0
         color.set(1f, 1f, 1f, 1f)
         opacity = 1.0f

@@ -319,6 +319,7 @@ open class Polygon @JvmOverloads constructor(
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite
         drawState.enableLighting = activeAttributes.isLightingEnabled
+        drawState.isOccluderOnly = isOccluderOnly
 
         // Configure the drawable according to the shape's attributes.
         drawStateLines.vertexOrigin.copy(currentData.vertexOrigin)
@@ -326,6 +327,7 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.enableDepthTest = activeAttributes.isDepthTest
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite
         drawStateLines.enableLighting = activeAttributes.isLightingEnabled
+        drawStateLines.isOccluderOnly = isOccluderOnly
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape || activeAttributes.interiorColor.alpha >= 1.0) {
