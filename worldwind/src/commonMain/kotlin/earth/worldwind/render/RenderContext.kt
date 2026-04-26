@@ -55,6 +55,13 @@ open class RenderContext {
     val modelview = Matrix4()
     val modelviewProjection = Matrix4()
     val frustum = Frustum()
+    /**
+     * Bounds of sightlines registered this frame. Populated by [Omni|Directional]Sightline.doRender,
+     * consulted by AbstractShape to keep off-camera shapes alive as occluders. Order matters: a
+     * shape's doRender only sees sightlines whose doRender has already run, so place sightlines
+     * earlier in layer order than the shapes they should shadow.
+     */
+    val sightlineBounds = mutableListOf<BoundingSphere>()
     var uploadQueue : UploadQueue? = null
     var drawableQueue: DrawableQueue? = null
     var drawableTerrain: DrawableQueue? = null
@@ -92,6 +99,7 @@ open class RenderContext {
         modelview.setToIdentity()
         modelviewProjection.setToIdentity()
         frustum.setToUnitFrustum()
+        sightlineBounds.clear()
         uploadQueue = null
         drawableQueue = null
         drawableTerrain = null

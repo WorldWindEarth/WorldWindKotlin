@@ -163,6 +163,10 @@ open class DirectionalSightline @JvmOverloads constructor(
         // Don't render anything if the sightline's coverage area is not visible.
         if (!isVisible(rc)) return
 
+        // Publish coverage volume (the cone-bounding sphere isVisible just computed) so
+        // AbstractShape can keep off-camera shapes alive as occluders.
+        rc.sightlineBounds.add(BoundingSphere().set(boundingSphere.center, boundingSphere.radius))
+
         // Select the currently active attributes.
         determineActiveAttributes(rc)
 

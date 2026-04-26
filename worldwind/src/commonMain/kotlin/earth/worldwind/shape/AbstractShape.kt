@@ -108,6 +108,9 @@ abstract class AbstractShape(
             reset()
         }
     protected var isSurfaceShape = false
+    // True when the shape is off-camera but inside a sightline volume; subclasses propagate
+    // this onto every DrawShapeState in makeDrawable so draw() skips while drawSightlineDepth runs.
+    protected var isOccluderOnly = false
     // Monotonic version counter bumped on every geometry-affecting mutation; passed to
     // [offerGLBufferUpload] so the upload queue can skip writes when the version hasn't moved.
     // [Int] is plenty: ~2.1B mutations is years of runtime even at 100 ops/sec.
@@ -319,8 +322,14 @@ abstract class AbstractShape(
             }
         }
 
-        // Don't render anything if the shape is not visible.
-        if (!isWithinProjectionLimits(rc) || !intersectsFrustum(rc) || isVisible?.invoke(this, rc) == false) return
+        if (!isWithinProjectionLimits(rc) || isVisible?.invoke(this, rc) == false) return
+
+        // Off-camera shapes that fall inside an active sightline are kept alive as occluder-only
+        // drawables so the sightline's depth pass still picks them up via SightlineOccluder.
+        val cameraVisible = intersectsFrustum(rc)
+        val sightlineCaster = !cameraVisible && intersectsAnySightlineBound(rc)
+        if (!cameraVisible && !sightlineCaster) return
+        isOccluderOnly = sightlineCaster
 
         // Adjust to terrain changes
         checkTerrainState(rc)
@@ -366,6 +375,23 @@ abstract class AbstractShape(
         } else {
             boundingBox.intersectsFrustum(rc.frustum)
         }
+    }
+
+    // Surface shapes (unit-box) are skipped: they don't represent occluding volumes.
+    // The OBB is approximated by its outer sphere (box.center, box.radius) for a cheap
+    // sphere-sphere reject; false positives only cost an occluder-only drawable.
+    protected fun intersectsAnySightlineBound(rc: RenderContext): Boolean {
+        if (rc.sightlineBounds.isEmpty()) return false
+        val box = currentBoundindData.boundingBox
+        if (box.isUnitBox) return false
+        for (sphere in rc.sightlineBounds) {
+            val dx = sphere.center.x - box.center.x
+            val dy = sphere.center.y - box.center.y
+            val dz = sphere.center.z - box.center.z
+            val maxDist = sphere.radius + box.radius
+            if (dx * dx + dy * dy + dz * dz <= maxDist * maxDist) return true
+        }
+        return false
     }
 
     protected open fun determineActiveAttributes(rc: RenderContext) {

@@ -37,6 +37,7 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder {
     }
 
     override fun draw(dc: DrawContext) {
+        if (drawState.isOccluderOnly) return // queued only for the sightline depth pass
         val program = drawState.program as? BasicTextureProgram ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build
         if (drawState.vertexBuffer?.bindBuffer(dc) != true) return  // vertex buffer unspecified or failed to bind
