@@ -32,6 +32,7 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder {
     }
 
     override fun draw(dc: DrawContext) {
+        if (drawState.isOccluderOnly) return // queued only for the sightline depth pass
         // TODO shape batching
         val program = drawState.program as? TriangleShaderProgram ?: return // program unspecified
         if (!program.useProgram(dc)) return // program failed to build

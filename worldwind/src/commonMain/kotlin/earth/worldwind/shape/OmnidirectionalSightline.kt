@@ -127,6 +127,9 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
         // Don't render anything if the sightline's coverage area is not visible.
         if (!isVisible(rc)) return
 
+        // Publish coverage volume so AbstractShape can keep off-camera shapes alive as occluders.
+        rc.sightlineBounds.add(BoundingSphere().set(centerPoint, range))
+
         // Select the currently active attributes.
         determineActiveAttributes(rc)
 
