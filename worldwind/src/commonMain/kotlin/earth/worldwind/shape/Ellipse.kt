@@ -108,6 +108,45 @@ open class Ellipse @JvmOverloads constructor(
             reset()
         }
     /**
+     * Azimuth of the first arc vertex of a partial ellipse (sector / pie slice), measured
+     * clockwise from North in the ellipse's local frame. Combined with [sweepAngle], it
+     * defines the angular extent of the visualized sector. Default is [ZERO].
+     *
+     * Has no effect when [sweepAngle] is 0° or 360° — the ellipse renders as a closed shape.
+     */
+    var startAzimuth = ZERO
+        set(value) {
+            field = value
+            reset()
+        }
+    /**
+     * Clockwise angular sweep of a partial ellipse (sector / pie slice), starting at
+     * [startAzimuth]. When 0° or 360° the ellipse renders as a closed shape (default
+     * behavior). Otherwise the geometry becomes a wedge: the perimeter spans
+     * [`startAzimuth`, `startAzimuth + sweepAngle`] and is closed through the ellipse
+     * center, producing a pie-slice fill plus two radial outline edges from the center
+     * to the arc endpoints.
+     *
+     * @throws IllegalArgumentException If the sweep is negative.
+     */
+    var sweepAngle = ZERO
+        set(value) {
+            require(value.inDegrees >= 0.0) {
+                logMessage(ERROR, "Ellipse", "setSweepAngle", "invalidAngle")
+            }
+            field = value
+            reset()
+        }
+    /**
+     * True when [sweepAngle] selects a strict subset of the full ellipse. When false the
+     * shape renders as a closed ellipse via the original parametric strip / GLU pipeline.
+     */
+    protected val isPartial: Boolean
+        get() {
+            val sweep = sweepAngle.inDegrees
+            return sweep > PARTIAL_EPSILON_DEG && sweep < 360.0 - PARTIAL_EPSILON_DEG
+        }
+    /**
      * The maximum pixels a single edge interval will span before the number of intervals is increased. Increasing this
      * value will make ellipses appear coarser.
      */
@@ -172,6 +211,11 @@ open class Ellipse @JvmOverloads constructor(
         // Per-ellipse Int-indexed element buffer for the GLU-tessellated surface fill. The shared
         // per-intervals Short-indexed buffer is still used for the non-surface parametric strip.
         val tessElementBufferKey = Any()
+        // Ranges into [topElements] for partial-ellipse non-surface rendering. Top fan, then
+        // side walls (curved + two radial), then base fan. Unused on the closed-ellipse path.
+        val topRange = Range()
+        val sideRange = Range()
+        val baseRange = Range()
         var refreshVertexArray = true
         var refreshLineVertexArray = true
     }
@@ -218,6 +262,15 @@ open class Ellipse @JvmOverloads constructor(
          * vertices.
          */
         protected const val POLE_EDGE_MAX_SPAN_DEGREES = 5.0
+
+        /**
+         * Sweep widths within this many degrees of 0° or 360° are treated as the closed-ellipse
+         * case (no sector geometry). Below this threshold the wedge degenerates into a near-zero
+         * sliver where the inserted center vertex sits arbitrarily close to the perimeter, and
+         * the fan/wall geometry adds noise without producing anything visually distinct from a
+         * full ellipse.
+         */
+        protected const val PARTIAL_EPSILON_DEG = 1.0e-6
 
         /**
          * Simple interval count based cache of the keys for element buffers. Element buffers are dependent only on the
@@ -394,9 +447,11 @@ open class Ellipse @JvmOverloads constructor(
         rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) { NumericArray.Floats(currentData.vertexArray) }
 
         // Element buffer. Surface shapes use an Int-indexed, per-ellipse buffer produced by GLU
-        // tessellation on the split perimeter. Non-surface shapes use the shared per-intervals
-        // Short-indexed parametric strip buffer (top + side + base ranges).
-        if (isSurfaceShape) {
+        // tessellation on the split perimeter. Non-surface partial (sector) shapes use the same
+        // per-ellipse Int-indexed buffer, sliced by EllipseData.topRange/sideRange/baseRange.
+        // Closed-ellipse non-surface uses the shared per-intervals Short-indexed parametric strip
+        // buffer (top + side + base ranges).
+        if (isSurfaceShape || isPartial) {
             drawState.elementBuffer = rc.getBufferObject(currentData.tessElementBufferKey) {
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
@@ -498,6 +553,19 @@ open class Ellipse @JvmOverloads constructor(
         if (isSurfaceShape) {
             // Surface shapes draw GLU-tessellated triangles from the Int-indexed element buffer.
             drawState.drawElements(GL_TRIANGLES, currentData.topElements.size, GL_UNSIGNED_INT, offset = 0)
+        } else if (isPartial) {
+            // Sector — Int-indexed top fan + side walls + base fan, sliced via EllipseData ranges.
+            val top = currentData.topRange
+            drawState.drawElements(GL_TRIANGLES, top.length, GL_UNSIGNED_INT, top.lower * Int.SIZE_BYTES)
+            if (isExtrude) {
+                val side = currentData.sideRange
+                drawState.texture = null
+                drawState.drawElements(GL_TRIANGLES, side.length, GL_UNSIGNED_INT, side.lower * Int.SIZE_BYTES)
+                if (baseAltitude != 0.0) {
+                    val base = currentData.baseRange
+                    drawState.drawElements(GL_TRIANGLES, base.length, GL_UNSIGNED_INT, base.lower * Int.SIZE_BYTES)
+                }
+            }
         } else {
             val ranges = drawState.elementBuffer!!.ranges!!
             val top = ranges[TOP_RANGE]
@@ -556,6 +624,11 @@ open class Ellipse @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometry(rc: RenderContext) {
+        if (isPartial) {
+            assemblePartialGeometry(rc)
+            return
+        }
+
         // Compute a matrix that transforms from Cartesian coordinates to shape texture coordinates.
         determineModelToTexCoord(rc)
 
@@ -742,6 +815,206 @@ open class Ellipse @JvmOverloads constructor(
                 boundingSector.setEmpty()
             }
         }
+    }
+
+    /**
+     * Sector-shaped (pie / wedge) variant of [assembleGeometry]. Generates only the arc spanning
+     * [`startAzimuth`, `startAzimuth + sweepAngle`] and closes the resulting polygon through the
+     * ellipse center, producing a triangle fan for the fill plus two radial outline edges.
+     *
+     * Surface shapes route the closed `[center, arc...]` polygon through the same densify →
+     * sanitize → split → GLU pipeline as the closed ellipse, so antimeridian crossings still
+     * work. Non-surface shapes build vertex/index arrays directly: top fan + bottom fan +
+     * curved wall + two radial walls when extruded. A partial ellipse cannot enclose a pole
+     * (the only way to enclose a pole is a full sweep), so pole-detour handling is skipped.
+     */
+    protected open fun assemblePartialGeometry(rc: RenderContext) {
+        determineModelToTexCoord(rc)
+
+        if (isSurfaceShape) {
+            currentData.vertexOrigin.set(center.longitude.inDegrees, center.latitude.inDegrees, center.altitude)
+        } else {
+            rc.geographicToCartesian(center, altitudeMode, point)
+            currentData.vertexOrigin.copy(point)
+        }
+
+        // Sample the arc perimeter — uniform azimuth steps from start to start+sweep, computing
+        // the ellipse radius at each azimuth analytically (no parametric-θ inversion needed).
+        val isStandardAxisOrientation = majorRadius > minorRadius
+        val headingAdjustment = if (isStandardAxisOrientation) 90.0 else 0.0
+        val globeRadius = max(rc.globe.equatorialRadius, rc.globe.polarRadius)
+        val a: Double; val b: Double
+        if (isStandardAxisOrientation) {
+            a = majorRadius / globeRadius
+            b = minorRadius / globeRadius
+        } else {
+            a = minorRadius / globeRadius
+            b = majorRadius / globeRadius
+        }
+
+        val sweepDeg = sweepAngle.inDegrees
+        val startDeg = startAzimuth.inDegrees
+        // Match perimeter density to the closed-ellipse case: arcSegments / activeIntervals
+        // ≈ sweep / 360. Floor at 2 segments so a near-zero sweep still emits a triangle.
+        val arcSegments = max(2, ceil(activeIntervals * sweepDeg / 360.0).toInt())
+        val arcSamples = arcSegments + 1
+
+        val perimeterLocs = ArrayList<Location>(arcSamples)
+        for (i in 0 until arcSamples) {
+            val azimuthDeg = startDeg + sweepDeg * i / arcSegments
+            // φ is the angle from the ellipse local +x axis to the desired azimuth direction
+            // (radians). Inverts the closed-ellipse mapping
+            //   azimuth = heading + headingAdjustment + (-atan2(y, x))
+            // so we don't need to walk the parametric θ.
+            val phi = (heading.inDegrees + headingAdjustment - azimuthDeg) * PI / 180.0
+            val cosPhi = cos(phi); val sinPhi = sin(phi)
+            val arcRadius = (a * b) / sqrt(b * b * cosPhi * cosPhi + a * a * sinPhi * sinPhi)
+            center.greatCircleLocation(azimuthDeg.degrees, arcRadius, scratchLocation)
+            perimeterLocs.add(Location(scratchLocation))
+        }
+
+        vertexIndex = 0
+        lineVertexIndex = 0
+        currentData.verticalElements.clear()
+        currentData.outlineElements.clear()
+        currentData.outlineChainStarts.clear()
+        currentData.topElements.clear()
+        currentData.topRange.setEmpty()
+        currentData.sideRange.setEmpty()
+        currentData.baseRange.setEmpty()
+
+        if (isSurfaceShape) {
+            // Closed sector polygon: [center, arc[0], …, arc[N]]. Reuse the full pipeline
+            // (densify + sanitize + split + GLU) so antimeridian-crossing wedges still draw.
+            val sectorPoly = ArrayList<Location>(arcSamples + 1)
+            sectorPoly.add(Location(center.latitude, center.longitude))
+            sectorPoly.addAll(perimeterLocs)
+
+            val needsSplitter = ellipseSurfaceNeedsSplitter(sectorPoly)
+            val splitInfo: ContourInfo? = if (needsSplitter) {
+                val densified = sanitizePoleAntimeridianVertices(densifyPerimeter(sectorPoly))
+                PolygonSplitter.splitContours(listOf(densified)).second[0]
+            } else null
+            val surfacePolygons: List<List<Location>> = splitInfo?.polygons ?: listOf(sectorPoly)
+
+            // Vertex array reserves a baseline + tessCombine slack (matches closed path).
+            val totalSurfaceVertices = surfacePolygons.sumOf { it.size }
+            currentData.vertexArray = FloatArray((totalSurfaceVertices + 8) * VERTEX_STRIDE)
+
+            val lineVertexSlots = totalSurfaceVertices + 12
+            verticalVertexIndex = lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE
+            currentData.lineVertexArray = FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE)
+
+            fillSurfaceViaGlu(rc, surfacePolygons, Pole.NONE, -1)
+
+            for (subPoly in surfacePolygons) {
+                if (subPoly.isNotEmpty()) emitOutlineChain(rc, subPoly, closeLoop = true)
+            }
+
+            with(currentBoundindData) {
+                val count = vertexIndex
+                val origin = currentData.vertexOrigin
+                val crosses = splitInfo != null
+                if (crosses) {
+                    computeAntimeridianSectors(
+                        currentData.vertexArray, count, VERTEX_STRIDE, origin, normalizeLon = true
+                    )
+                } else {
+                    crossesAntimeridian = false
+                    boundingSector.setEmpty()
+                    boundingSector.union(currentData.vertexArray, count, VERTEX_STRIDE)
+                    boundingSector.translate(origin.y, origin.x)
+                }
+                boundingBox.setToUnitBox()
+            }
+        } else {
+            // Vertex layout: top slab [center, arc[0]…arc[N]] then optional bottom slab in
+            // the same order. arrayOffset (in floats) is where the bottom slab starts.
+            val numTopVertices = arcSamples + 1
+            val totalVertices = if (isExtrude) 2 * numTopVertices else numTopVertices
+            currentData.vertexArray = FloatArray(totalVertices * VERTEX_STRIDE)
+
+            val lineVertexSlots = numTopVertices + 8
+            verticalVertexIndex = lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE
+            currentData.lineVertexArray = if (isExtrude) {
+                FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE + (numTopVertices + 1) * VERTICAL_LINE_SEGMENT_STRIDE)
+            } else {
+                FloatArray(lineVertexSlots * OUTLINE_LINE_SEGMENT_STRIDE)
+            }
+            val arrayOffset = if (isExtrude) numTopVertices * VERTEX_STRIDE else 0
+
+            calcPoint(rc, center.latitude, center.longitude, center.altitude, isExtrudedSkirt = isExtrude)
+            addVertex(rc, center.latitude, center.longitude, center.altitude, arrayOffset, isExtrudedSkirt = isExtrude)
+
+            for (loc in perimeterLocs) {
+                calcPoint(rc, loc.latitude, loc.longitude, center.altitude, isExtrudedSkirt = isExtrude)
+                addVertex(rc, loc.latitude, loc.longitude, center.altitude, arrayOffset, isExtrudedSkirt = isExtrude)
+            }
+
+            // Wind every face outward — top fan CCW from above, base fan CCW from below,
+            // walls outward — so back-face culling still works for the wedge.
+            val topStart = currentData.topElements.size
+            for (k in 1 until numTopVertices - 1) {
+                currentData.topElements.add(0)
+                currentData.topElements.add(k + 1)
+                currentData.topElements.add(k)
+            }
+            currentData.topRange.set(topStart, currentData.topElements.size)
+
+            if (isExtrude) {
+                val offset = numTopVertices  // first bottom-vertex index
+                val sideStart = currentData.topElements.size
+
+                for (k in 1 until numTopVertices - 1) {
+                    currentData.topElements.add(k)
+                    currentData.topElements.add(k + 1)
+                    currentData.topElements.add(k + 1 + offset)
+                    currentData.topElements.add(k)
+                    currentData.topElements.add(k + 1 + offset)
+                    currentData.topElements.add(k + offset)
+                }
+                // Radial wall at startAzimuth.
+                currentData.topElements.add(0)
+                currentData.topElements.add(1)
+                currentData.topElements.add(1 + offset)
+                currentData.topElements.add(0)
+                currentData.topElements.add(1 + offset)
+                currentData.topElements.add(offset)
+                // Radial wall at endAzimuth.
+                val n = numTopVertices - 1
+                currentData.topElements.add(n)
+                currentData.topElements.add(0)
+                currentData.topElements.add(offset)
+                currentData.topElements.add(n)
+                currentData.topElements.add(offset)
+                currentData.topElements.add(n + offset)
+                currentData.sideRange.set(sideStart, currentData.topElements.size)
+
+                val baseStart = currentData.topElements.size
+                for (k in 1 until numTopVertices - 1) {
+                    currentData.topElements.add(offset)
+                    currentData.topElements.add(k + offset)
+                    currentData.topElements.add(k + 1 + offset)
+                }
+                currentData.baseRange.set(baseStart, currentData.topElements.size)
+            }
+
+            // Closed chain through the center so the two radial edges draw alongside the arc.
+            val outlineChain = ArrayList<Location>(numTopVertices)
+            outlineChain.add(Location(center.latitude, center.longitude))
+            outlineChain.addAll(perimeterLocs)
+            emitOutlineChain(rc, outlineChain, closeLoop = true)
+
+            with(currentBoundindData) {
+                crossesAntimeridian = false
+                boundingBox.setToPoints(currentData.vertexArray, currentData.vertexArray.size, VERTEX_STRIDE)
+                boundingBox.translate(currentData.vertexOrigin.x, currentData.vertexOrigin.y, currentData.vertexOrigin.z)
+                boundingSector.setEmpty()
+            }
+        }
+
+        currentData.refreshVertexArray = false
+        currentData.refreshLineVertexArray = false
     }
 
     /**

@@ -69,6 +69,30 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
                 isExtrude = true
             }
         )
+
+        // Create a surface pie-slice (sector): a 120° wedge of a circle, opening to the East-Southeast.
+        addRenderable(
+            Ellipse(Position.fromDegrees(15.0, -120.0, 0.0), 400000.0, 400000.0).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                isFollowTerrain = true
+                startAzimuth = 60.0.degrees
+                sweepAngle = 120.0.degrees
+            }
+        )
+
+        // Create an extruded pie-slice ellipse: 90° wedge with the major axis aligned along NE.
+        addRenderable(
+            Ellipse(Position.fromDegrees(15.0, -100.0, 200e3), 500000.0, 300000.0).apply {
+                attributes.apply {
+                    interiorColor = Color(1f, 1f, 1f, 0.5f)
+                    isDrawVerticals = true
+                }
+                isExtrude = true
+                heading = 45.0.degrees
+                startAzimuth = 0.0.degrees
+                sweepAngle = 90.0.degrees
+            }
+        )
     }
 
     override fun start() {
