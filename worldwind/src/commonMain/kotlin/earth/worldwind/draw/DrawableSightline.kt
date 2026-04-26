@@ -5,6 +5,8 @@ import earth.worldwind.geom.Angle.Companion.POS180
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.Color
+import earth.worldwind.render.Framebuffer
+import earth.worldwind.render.program.SightlineCompositeProgram
 import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
@@ -22,9 +24,31 @@ open class DrawableSightline protected constructor() : Drawable {
      * when [omnidirectional] is `true`.
      */
     var directionalFillPasses = 0
+    /**
+     * Radius of the bilateral filter used to dissolve the staircase silhouette that the
+     * triangulated terrain mesh imprints on the visibility map. In screen pixels of the
+     * sightline framebuffer (which matches the camera viewport). 0 disables the filter
+     * - the visibility texture is composited as-is, restoring the pre-filter look.
+     */
+    var bilateralRadius = 6f
+    /**
+     * Standard deviation of the depth-difference Gaussian used by the bilateral filter,
+     * in normalised post-projection depth units (`[0, 1]`). Smaller values make the
+     * filter more edge-preserving (kernel taps falling on nearer/further surfaces are
+     * weighted down more aggressively). Tuned conservatively so close-range geometry
+     * edges aren't visibly bled across.
+     */
+    var bilateralDepthSigma = 0.0005f
     val visibleColor = Color(0f, 0f, 0f, 0f)
     val occludedColor = Color(0f, 0f, 0f, 0f)
     var program: SightlineProgram? = null
+    /**
+     * Bilateral-blur compositing program used to smooth the silhouette of the visibility
+     * texture before alpha-blending it onto the main framebuffer. May be `null` to skip
+     * compositing entirely - in that case the visibility passes still run but their
+     * output is left in the offscreen framebuffer and never reaches the screen.
+     */
+    var compositeProgram: SightlineCompositeProgram? = null
     private var pool: Pool<DrawableSightline>? = null
     private val sightlineView = Matrix4()
     private val matrix = Matrix4()
@@ -53,7 +77,10 @@ open class DrawableSightline protected constructor() : Drawable {
         visibleColor.set(0f, 0f, 0f, 0f)
         occludedColor.set(0f, 0f, 0f, 0f)
         directionalFillPasses = 0
+        bilateralRadius = 6f
+        bilateralDepthSigma = 0.0005f
         program = null
+        compositeProgram = null
         pool?.release(this)
         pool = null
     }
@@ -66,6 +93,19 @@ open class DrawableSightline protected constructor() : Drawable {
         program.loadRange(range)
         program.loadColor(visibleColor, occludedColor)
 
+        // Redirect every occlusion pass to an offscreen visibility framebuffer so we can
+        // bilateral-filter the silhouette before compositing it onto the main framebuffer.
+        // The terrain mesh's triangle edges produce axis-aligned staircase silhouettes in
+        // the raw visibility map; the post-process kernel dissolves them while preserving
+        // genuine geometry edges via depth-aware weighting.
+        val viewportWidth = dc.viewport.width
+        val viewportHeight = dc.viewport.height
+        val visibilityFb = dc.sightlineFramebuffer(viewportWidth, viewportHeight)
+        if (!visibilityFb.bindFramebuffer(dc)) return // framebuffer failed to bind
+        dc.gl.viewport(0, 0, viewportWidth, viewportHeight)
+        dc.gl.clearColor(0f, 0f, 0f, 0f)
+        dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+
         // TODO accumulate only the visible terrain, which can be used in both passes
         // TODO give terrain a bounding box, test with a frustum set using depthviewProjection
         // TODO construct matrix using separate horizontal and vertical fov
@@ -75,7 +115,7 @@ open class DrawableSightline protected constructor() : Drawable {
                 sightlineView.copy(centerTransform)
                 sightlineView.multiplyByMatrix(cubeMapFace[i])
                 sightlineView.invertOrthonormal()
-                if (drawSceneDepth(dc)) drawSceneOcclusion(dc)
+                runFacePass(dc, visibilityFb, viewportWidth, viewportHeight)
             }
         } else {
             // Forward face plus optional close-range fill passes. All passes share
@@ -88,15 +128,78 @@ open class DrawableSightline protected constructor() : Drawable {
             // gates this on the sightline's altitude.
             sightlineView.copy(centerTransform) // should contain rotation for sightline direction
             sightlineView.invertOrthonormal()
-            if (drawSceneDepth(dc)) drawSceneOcclusion(dc)
+            runFacePass(dc, visibilityFb, viewportWidth, viewportHeight)
 
             val fills = directionalFillPasses.coerceIn(0, 2)
             for (i in 1..fills) {
                 sightlineView.copy(centerTransform)
                 sightlineView.multiplyByRotation(1.0, 0.0, 0.0, fieldOfView * -i)
                 sightlineView.invertOrthonormal()
-                if (drawSceneDepth(dc)) drawSceneOcclusion(dc)
+                runFacePass(dc, visibilityFb, viewportWidth, viewportHeight)
             }
+        }
+
+        // Bind the system framebuffer back and run the bilateral compositor over the
+        // accumulated visibility texture. Skip if no compositor was provided - the
+        // visibility map stays in the offscreen FBO and the user sees no sightline at all,
+        // which is the right failure mode (better than uncomposited debug output).
+        dc.bindFramebuffer(KglFramebuffer.NONE)
+        dc.gl.viewport(dc.viewport.x, dc.viewport.y, viewportWidth, viewportHeight)
+        drawComposite(dc, visibilityFb, viewportWidth, viewportHeight)
+    }
+
+    /**
+     * Runs one face of the sightline (depth + occlusion). [drawSceneDepth] toggles the
+     * scratch framebuffer for its own use, so this helper rebinds the visibility FBO
+     * afterwards and clears its depth attachment. Clearing depth between faces prevents
+     * each face's terrain from failing the depth test against the previous face's
+     * (identical-depth) terrain when the depth function is `LESS`.
+     */
+    private fun runFacePass(dc: DrawContext, visibilityFb: Framebuffer, w: Int, h: Int) {
+        if (!drawSceneDepth(dc)) return
+        visibilityFb.bindFramebuffer(dc)
+        dc.gl.viewport(0, 0, w, h)
+        dc.gl.clear(GL_DEPTH_BUFFER_BIT)
+        drawSceneOcclusion(dc)
+    }
+
+    /**
+     * Renders a full-screen quad over the main framebuffer, sampling the visibility
+     * texture and applying the bilateral filter. Disables depth test for the quad and
+     * relies on whatever blend state the renderer already configured (premultiplied
+     * `ONE, ONE_MINUS_SRC_ALPHA`).
+     */
+    private fun drawComposite(dc: DrawContext, visibilityFb: Framebuffer, w: Int, h: Int) {
+        val composite = compositeProgram ?: return
+        if (!composite.useProgram(dc)) return
+
+        composite.loadViewportSize(w, h)
+        composite.loadBilateralRadius(bilateralRadius)
+        composite.loadDepthSigma(bilateralDepthSigma)
+
+        // Bind the visibility colour to TEX0 and depth to TEX1; the shader has already
+        // wired its samplers to those units in initProgram.
+        dc.activeTextureUnit(GL_TEXTURE0)
+        if (!visibilityFb.getAttachedTexture(GL_COLOR_ATTACHMENT0).bindTexture(dc)) return
+        dc.activeTextureUnit(GL_TEXTURE1)
+        if (!visibilityFb.getAttachedTexture(GL_DEPTH_ATTACHMENT).bindTexture(dc)) return
+
+        // Bind the unit-square vertex buffer and configure the single position attribute.
+        if (!dc.unitSquareBuffer.bindBuffer(dc)) return
+        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 2, GL_FLOAT, false, 0, 0)
+
+        // The composite pass writes a full-screen quad; depth test would just discard it.
+        dc.gl.disable(GL_DEPTH_TEST)
+        try {
+            dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        } finally {
+            dc.gl.enable(GL_DEPTH_TEST)
+            // Unbind FBO textures from sampler units to avoid feedback loops on the next
+            // frame's sightline pass.
+            dc.activeTextureUnit(GL_TEXTURE1)
+            dc.defaultTexture.bindTexture(dc)
+            dc.activeTextureUnit(GL_TEXTURE0)
+            dc.defaultTexture.bindTexture(dc)
         }
     }
 
@@ -112,12 +215,17 @@ open class DrawableSightline protected constructor() : Drawable {
             dc.gl.clear(GL_DEPTH_BUFFER_BIT)
 
             // Draw only depth values offset slightly away from the viewer. The offset
-            // prevents terrain from self-shadowing in the occlusion pass (terrain is
-            // both occluder here and receiver there, so its depth needs a small bias to
-            // win the depth comparison against itself).
+            // prevents terrain from self-shadowing in the occlusion pass (terrain is both
+            // occluder here and receiver there, so its depth needs a small bias to win the
+            // comparison against itself). The values are kept as low as possible: at long
+            // sightline range, 16-bit depth precision is coarse enough that one unit of
+            // offset corresponds to several physical metres, so a too-large bias makes
+            // terrain just past a ridge fall inside the offset zone and report as
+            // visible. (1, 1) is enough to cover floating-point round-off without
+            // hiding the back side of opposing slopes.
             dc.gl.colorMask(r = false, g = false, b = false, a = false)
             dc.gl.enable(GL_POLYGON_OFFSET_FILL)
-            dc.gl.polygonOffset(4f, 4f)
+            dc.gl.polygonOffset(1f, 1f)
             for (idx in 0 until dc.drawableTerrainCount) {
                 // Get the drawable terrain associated with the draw context.
                 val terrain = dc.getDrawableTerrain(idx)

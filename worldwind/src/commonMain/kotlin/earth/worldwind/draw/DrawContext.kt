@@ -53,6 +53,9 @@ open class DrawContext(val gl: Kgl) {
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
+    private var sightlineFramebufferCache: Framebuffer? = null
+    private var sightlineFramebufferWidth = 0
+    private var sightlineFramebufferHeight = 0
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
@@ -106,6 +109,40 @@ open class DrawContext(val gl: Kgl) {
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
         attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
     }.also { scratchFramebufferCache = it }
+
+    /**
+     * Returns a viewport-sized RGBA8 framebuffer with a 16-bit depth attachment used by
+     * [earth.worldwind.draw.DrawableSightline] as the intermediate target for its occlusion
+     * passes. Rendering visibility into a separate FBO lets a post-process bilateral blur
+     * smooth the staircased silhouettes that the terrain mesh imprints on the visibility
+     * map. The depth attachment exists so terrain triangles in the occlusion pass still
+     * depth-sort correctly when the framebuffer's bound. Lazily allocated and recreated
+     * whenever the viewport size changes.
+     */
+    fun sightlineFramebuffer(width: Int, height: Int): Framebuffer {
+        val cached = sightlineFramebufferCache
+        if (cached != null && sightlineFramebufferWidth == width && sightlineFramebufferHeight == height) return cached
+        cached?.release(this)
+        val colorIF = if (gl.supportsSizedTextureFormats) GL_RGBA8 else GL_RGBA
+        val depthIF = if (gl.supportsSizedTextureFormats) GL_DEPTH_COMPONENT16 else GL_DEPTH_COMPONENT
+        val colorAttachment = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, colorIF)
+        val depthAttachment = Texture(width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true, depthIF)
+        // Linear filter on color so the composite shader gets smooth taps when sampling
+        // off-pixel-centre offsets; nearest on depth because the bilateral filter inspects
+        // exact per-pixel depth values (no linear filtering of depth on every driver anyway).
+        colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        return Framebuffer().apply {
+            attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
+            attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
+        }.also {
+            sightlineFramebufferCache = it
+            sightlineFramebufferWidth = width
+            sightlineFramebufferHeight = height
+        }
+    }
 
     /**
      * Returns the multisample framebuffer used as the render target for surface shape
@@ -198,6 +235,7 @@ open class DrawContext(val gl: Kgl) {
     fun contextLost() {
         // Clear objects and values associated with the current OpenGL context.
         scratchFramebufferCache?.release(this)
+        sightlineFramebufferCache?.release(this)
         multisampleFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -208,6 +246,9 @@ open class DrawContext(val gl: Kgl) {
         arrayBuffer = KglBuffer.NONE
         elementArrayBuffer = KglBuffer.NONE
         scratchFramebufferCache = null
+        sightlineFramebufferCache = null
+        sightlineFramebufferWidth = 0
+        sightlineFramebufferHeight = 0
         multisampleFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null
