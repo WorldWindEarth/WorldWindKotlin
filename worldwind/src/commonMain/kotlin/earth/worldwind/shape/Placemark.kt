@@ -48,11 +48,7 @@ open class Placemark @JvmOverloads constructor(
      * The placemark's geographic position.
      */
     var position = Position(position)
-        set(value) {
-            field.copy(value)
-            placePointDirty = true
-            groundPointDirty = true
-        }
+        set(value) { field.copy(value) }
     /**
      * The placemark's altitude mode. See [AltitudeMode]
      */
@@ -159,6 +155,7 @@ open class Placemark @JvmOverloads constructor(
     protected var placePointDirty = true
     protected val groundPoint = Vec3()
     protected var groundPointDirty = true
+    protected val cachedPosition = Position()
     protected var cachedGlobeState: Globe.State? = null
     protected var cachedElevationTimestamp = 0L
     protected var cachedVerticalExaggeration = 0.0
@@ -213,10 +210,12 @@ open class Placemark @JvmOverloads constructor(
                 || effectiveAltitudeMode == AltitudeMode.RELATIVE_TO_GROUND
         val globeChanged = globeState != cachedGlobeState
         val terrainChanged = elevationTimestamp != cachedElevationTimestamp || verticalExaggeration != cachedVerticalExaggeration
-        if (globeChanged || (isTerrainDependent && terrainChanged)) placePointDirty = true
-        if (globeChanged || terrainChanged) groundPointDirty = true
+        val positionChanged = cachedPosition != position
+        if (globeChanged || (isTerrainDependent && terrainChanged) || positionChanged) placePointDirty = true
+        if (globeChanged || terrainChanged || positionChanged) groundPointDirty = true
 
         // Store cached state
+        if (positionChanged) cachedPosition.copy(position)
         cachedGlobeState = globeState
         cachedElevationTimestamp = elevationTimestamp
         cachedVerticalExaggeration = verticalExaggeration

@@ -35,10 +35,7 @@ open class Label @JvmOverloads constructor(
      * The label's geographic position.
      */
     var position = Position(position)
-        set(value) {
-            field.copy(value)
-            placePointDirty = true
-        }
+        set(value) { field.copy(value) }
     /**
      * The label's altitude mode. See [AltitudeMode]
      */
@@ -93,6 +90,7 @@ open class Label @JvmOverloads constructor(
     var isVisible: ((Label, RenderContext, Double) -> Boolean)? = null
     protected val placePoint = Vec3()
     protected var placePointDirty = true
+    protected val cachedPosition = Position()
     protected var cachedGlobeState: Globe.State? = null
     protected var cachedElevationTimestamp = 0L
     protected var cachedVerticalExaggeration = 0.0
@@ -135,9 +133,11 @@ open class Label @JvmOverloads constructor(
                 || effectiveAltitudeMode == AltitudeMode.RELATIVE_TO_GROUND
         val globeChanged = globeState != cachedGlobeState
         val terrainChanged = elevationTimestamp != cachedElevationTimestamp || verticalExaggeration != cachedVerticalExaggeration
-        if (globeChanged || (isTerrainDependent && terrainChanged)) placePointDirty = true
+        val positionChanged = cachedPosition != position
+        if (globeChanged || (isTerrainDependent && terrainChanged) || positionChanged) placePointDirty = true
 
         // Store cached state
+        if (positionChanged) cachedPosition.copy(position)
         cachedGlobeState = globeState
         cachedElevationTimestamp = elevationTimestamp
         cachedVerticalExaggeration = verticalExaggeration
