@@ -14,6 +14,8 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
+import earth.worldwind.render.program.SightlineMomentsBlurProgram
+import earth.worldwind.render.program.SightlineMomentsProgram
 import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -251,6 +253,8 @@ open class DirectionalSightline @JvmOverloads constructor(
 
         // Use the sightline GLSL program to draw the coverage.
         drawable.program = rc.getShaderProgram(SightlineProgram.KEY) { SightlineProgram() }
+        drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
+        drawable.momentsBlurProgram = rc.getShaderProgram(SightlineMomentsBlurProgram.KEY) { SightlineMomentsBlurProgram() }
 
         // Enqueue a drawable for processing on the OpenGL thread.
         rc.offerSurfaceDrawable(drawable, zOrder)

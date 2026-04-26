@@ -53,6 +53,8 @@ open class DrawContext(val gl: Kgl) {
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
     private var scratchFramebufferCache: Framebuffer? = null
+    private var momentsFramebufferCache: Framebuffer? = null
+    private var momentsBlurFramebufferCache: Framebuffer? = null
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
@@ -106,6 +108,58 @@ open class DrawContext(val gl: Kgl) {
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
         attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
     }.also { scratchFramebufferCache = it }
+
+    /**
+     * Returns an offscreen framebuffer used by [earth.worldwind.draw.DrawableSightline] when
+     * running its depth pass with Variance Shadow Mapping. Two attachments:
+     *  - colour `RG32F` storing `(R = depth, G = depth^2)`. Full-float gives 23 mantissa bits
+     *    per channel; 8-bit RGBA8 was insufficient because the difference
+     *    `M2 - M1^2` is dominated by quantisation noise and Chebyshev reads that noise as
+     *    a noisy variance, producing visible blob artefacts in the shadow. Float textures
+     *    require GLES3+ / WebGL2 / desktop GL3+; the path is taken only when
+     *    [Kgl.supportsSizedTextureFormats] is true.
+     *  - depth `GL_DEPTH_COMPONENT16` for terrain triangle ordering during the depth pass; the
+     *    occlusion pass never reads it.
+     * Linear filtering is set on the colour attachment so a single hardware tap averages 2x2
+     * neighbouring `(d, d^2)` values - that bilinear blur is what gives Chebyshev a non-zero
+     * variance to operate on. Same per-side resolution as [scratchFramebuffer]; lazily
+     * allocated and cached.
+     */
+    val momentsFramebuffer get() = momentsFramebufferCache ?: Framebuffer().apply {
+        val depthIF = if (gl.supportsSizedTextureFormats) GL_DEPTH_COMPONENT16 else GL_DEPTH_COMPONENT
+        // RG32F render targets require sized formats; on platforms without them the moments
+        // path falls back to RGBA8, which has the precision issues described above. The
+        // VSM result is poor on those platforms - prefer the bilateral path there.
+        val colorAttachment = if (gl.supportsSizedTextureFormats) {
+            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RG, GL_FLOAT, true, GL_RG32F)
+        } else {
+            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
+        }
+        val depthAttachment = Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true, depthIF)
+        colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
+        attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
+    }.also { momentsFramebufferCache = it }
+
+    /**
+     * Single-attachment companion to [momentsFramebuffer] used as the ping-pong target for
+     * the separable Gaussian blur on the moments texture. Same colour format/size as the
+     * moments FBO (so the blurred result can be sampled with the same filter parameters);
+     * no depth attachment because the blur passes don't rasterise geometry.
+     */
+    val momentsBlurFramebuffer get() = momentsBlurFramebufferCache ?: Framebuffer().apply {
+        val colorAttachment = if (gl.supportsSizedTextureFormats) {
+            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RG, GL_FLOAT, true, GL_RG32F)
+        } else {
+            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
+        }
+        colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
+    }.also { momentsBlurFramebufferCache = it }
 
     /**
      * Returns the multisample framebuffer used as the render target for surface shape
@@ -198,6 +252,8 @@ open class DrawContext(val gl: Kgl) {
     fun contextLost() {
         // Clear objects and values associated with the current OpenGL context.
         scratchFramebufferCache?.release(this)
+        momentsFramebufferCache?.release(this)
+        momentsBlurFramebufferCache?.release(this)
         multisampleFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -208,6 +264,8 @@ open class DrawContext(val gl: Kgl) {
         arrayBuffer = KglBuffer.NONE
         elementArrayBuffer = KglBuffer.NONE
         scratchFramebufferCache = null
+        momentsFramebufferCache = null
+        momentsBlurFramebufferCache = null
         multisampleFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null
