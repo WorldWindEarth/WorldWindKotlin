@@ -4,7 +4,7 @@ import dev.icerock.moko.resources.AssetResource
 import dev.icerock.moko.resources.ResourceContainer
 import earth.worldwind.geom.Position
 import earth.worldwind.render.RenderResourceCache
-import earth.worldwind.util.rawPath
+import earth.worldwind.util.assetPath
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -14,7 +14,7 @@ class ColladaLoader(val position: Position, val dirPath: String) {
     private lateinit var catalog: ColladaSceneCatalog
 
     constructor(position: Position, asset: AssetResource) : this(
-        position, asset.rawPath.substringBeforeLast("/", "").let { if (it.isEmpty()) "" else "$it/" }
+        position, asset.assetPath.substringBeforeLast("/", "").let { if (it.isEmpty()) "" else "$it/" }
     ) { this.asset = asset }
 
     suspend fun parse(assets : ResourceContainer<AssetResource>, rrc: RenderResourceCache): ColladaScene {
