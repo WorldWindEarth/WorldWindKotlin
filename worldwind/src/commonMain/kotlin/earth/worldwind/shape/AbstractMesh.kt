@@ -103,12 +103,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
 
     override fun makeDrawable(rc: RenderContext) {
         if (!activeAttributes.isDrawInterior && !activeAttributes.isDrawOutline) return
-
-        // See if the current shape data can be re-used
-        if (mustAssembleGeometry(rc)) {
-            if (!rc.canAssembleGeometry()) return
-            assembleGeometry(rc)
-        }
+        if (!prepareGeometry(rc)) return
 
         // Obtain a drawable form the render context pool.
         val pool = rc.getDrawablePool(DrawableMesh.KEY)
@@ -211,10 +206,9 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         )
     }
 
-    /**
-     * Determines whether this shape's geometry must be re-computed.
-     */
-    protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
+    override val hasGeometry get() = currentData.vertexArray.isNotEmpty()
+
+    override fun mustAssembleGeometry(rc: RenderContext): Boolean {
         currentData = data[rc.globeState] ?: MeshData().also { data[rc.globeState] = it }
         if (currentData.refreshVertexArray) return true
         if (currentData.isDrawInterior != activeAttributes.isDrawInterior) return true
@@ -223,7 +217,8 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         return isTerrainDependent && currentData.isExpired()
     }
 
-    protected open fun assembleGeometry(rc: RenderContext) {
+    override fun assembleGeometry(rc: RenderContext) {
+        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
         // Adjust vertex origin to correspond to the reference position
         with(referencePosition) {
             rc.geographicToCartesian(latitude, longitude, altitude * altitudeScale, altitudeMode, currentData.vertexOrigin)

@@ -121,11 +121,7 @@ open class Path @JvmOverloads constructor(
 
     override fun makeDrawable(rc: RenderContext) {
         if (positions.size < 2) return // nothing to draw
-
-        if (mustAssembleGeometry(rc)) {
-            if (!rc.canAssembleGeometry()) return
-            assembleGeometry(rc)
-        }
+        if (!prepareGeometry(rc)) return
 
         // Obtain a drawable form the render context pool, and compute distance to the render camera.
         val drawable: Drawable
@@ -292,12 +288,15 @@ open class Path @JvmOverloads constructor(
         }
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
+    override val hasGeometry get() = currentData.vertexArray.isNotEmpty()
+
+    override fun mustAssembleGeometry(rc: RenderContext): Boolean {
         currentData = data[rc.globeState] ?: PathData().also { data[rc.globeState] = it }
         return currentData.refreshVertexArray
     }
 
-    protected open fun assembleGeometry(rc: RenderContext) {
+    override fun assembleGeometry(rc: RenderContext) {
+        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
         // Surface shapes go through the densify-then-split pipeline only when actually needed
         // (any edge crosses the antimeridian, or any waypoint is near a pole). Mid-latitude,
         // non-crossing paths fall through to the cheap inline-densify branch — same as 3D.

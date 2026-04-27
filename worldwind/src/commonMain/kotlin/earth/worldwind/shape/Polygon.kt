@@ -215,11 +215,7 @@ open class Polygon @JvmOverloads constructor(
 
     override fun makeDrawable(rc: RenderContext) {
         if (boundaries.isEmpty()) return  // nothing to draw
-
-        if (mustAssembleGeometry(rc)) {
-            if (!rc.canAssembleGeometry()) return
-            assembleGeometry(rc)
-        }
+        if (!prepareGeometry(rc)) return
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
@@ -430,12 +426,15 @@ open class Polygon @JvmOverloads constructor(
         }
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
+    override val hasGeometry get() = currentData.vertexArray.isNotEmpty()
+
+    override fun mustAssembleGeometry(rc: RenderContext): Boolean {
         currentData = data[rc.globeState] ?: PolygonData().also { data[rc.globeState] = it }
         return currentData.refreshVertexArray || isExtrude && !isSurfaceShape && currentData.refreshLineVertexArray
     }
 
-    protected open fun assembleGeometry(rc: RenderContext) {
+    override fun assembleGeometry(rc: RenderContext) {
+        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
         if (currentData.refreshTopology) {
             assembleGeometryFull(rc)
             currentData.refreshTopology = false

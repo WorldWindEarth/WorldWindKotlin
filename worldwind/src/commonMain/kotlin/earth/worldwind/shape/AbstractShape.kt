@@ -111,9 +111,10 @@ abstract class AbstractShape(
     // True when the shape is off-camera but inside a sightline volume; subclasses propagate
     // this onto every DrawShapeState in makeDrawable so draw() skips while drawSightlineDepth runs.
     protected var isOccluderOnly = false
-    // Monotonic version counter bumped on every geometry-affecting mutation; passed to
-    // [offerGLBufferUpload] so the upload queue can skip writes when the version hasn't moved.
-    // [Int] is plenty: ~2.1B mutations is years of runtime even at 100 ops/sec.
+    // Monotonic counter advanced by [assembleGeometry] each time it emits fresh vertex data;
+    // gates the [offerGLBufferUpload] writes. Advancing here (not in [reset]) lets [prepareGeometry]
+    // fall through with the prior GL buffer when the per-frame assembly budget is exhausted —
+    // the version doesn't move, no re-upload happens, last frame's geometry stays on screen.
     protected var bufferDataVersion = 0
     protected val boundingData = mutableMapOf<Globe.State?, BoundingData>()
     // Single-entry cache for the most-recently-used (Globe.State, BoundingData) pair. Most
@@ -210,7 +211,27 @@ abstract class AbstractShape(
     open fun reset() {
         boundingData.clear()
         lastBoundingData = null
-        ++bufferDataVersion
+    }
+
+    /** True when [assembleGeometry] has previously emitted vertex data into the current GL buffer. */
+    protected abstract val hasGeometry: Boolean
+
+    /** Returns true if the shape's per-globe-state vertex data is stale and needs reassembly. */
+    protected abstract fun mustAssembleGeometry(rc: RenderContext): Boolean
+
+    /** (Re)builds the shape's vertex data. Implementations must `++bufferDataVersion` to trigger upload. */
+    protected abstract fun assembleGeometry(rc: RenderContext)
+
+    /**
+     * Reassembles geometry when needed and reports whether [makeDrawable] may continue. When the
+     * per-frame assembly budget is exhausted the call falls through with the existing GL buffer
+     * if one exists — last frame's geometry stays on screen, avoiding visible blink on bulk
+     * dynamic updates. Returns false only on the first frame, before any successful assemble.
+     */
+    protected fun prepareGeometry(rc: RenderContext): Boolean {
+        if (!mustAssembleGeometry(rc)) return true
+        if (rc.canAssembleGeometry()) { assembleGeometry(rc); return true }
+        return hasGeometry
     }
 
     /**
@@ -484,7 +505,6 @@ abstract class AbstractShape(
             it.boundingSector.setEmpty()
             it.boundingBox.setToUnitBox()
         }
-        ++bufferDataVersion
     }
 
     protected open fun calcPoint(

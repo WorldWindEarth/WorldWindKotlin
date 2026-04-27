@@ -394,11 +394,7 @@ open class Ellipse @JvmOverloads constructor(
 
     override fun makeDrawable(rc: RenderContext) {
         if (majorRadius == 0.0 && minorRadius == 0.0) return  // nothing to draw
-
-        if (mustAssembleGeometry(rc)) {
-            if (!rc.canAssembleGeometry()) return
-            assembleGeometry(rc)
-        }
+        if (!prepareGeometry(rc)) return
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
@@ -617,7 +613,9 @@ open class Ellipse @JvmOverloads constructor(
         }
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
+    override val hasGeometry get() = currentData.vertexArray.isNotEmpty()
+
+    override fun mustAssembleGeometry(rc: RenderContext): Boolean {
         val calculatedIntervals = computeIntervals(rc)
         activeIntervals = sanitizeIntervals(calculatedIntervals)
         val dataKey = rc.globeState to activeIntervals
@@ -625,7 +623,8 @@ open class Ellipse @JvmOverloads constructor(
         return currentData.refreshVertexArray || isExtrude && !isSurfaceShape && currentData.refreshLineVertexArray
     }
 
-    protected open fun assembleGeometry(rc: RenderContext) {
+    override fun assembleGeometry(rc: RenderContext) {
+        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
         if (isPartial) {
             assemblePartialGeometry(rc)
             return

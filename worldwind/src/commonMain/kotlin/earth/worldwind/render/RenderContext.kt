@@ -23,15 +23,28 @@ import earth.worldwind.util.glu.GLUtessellator
 import kotlinx.coroutines.CompletableDeferred
 import kotlin.math.tan
 import kotlin.reflect.KClass
+import kotlin.time.TimeSource
 
 open class RenderContext {
     companion object {
         private const val MAX_PICKED_OBJECT_ID = 0xFFFFFF
         /**
-         * Maximum number of shape geometry assemblies allowed per frame. Configurable globally so
-         * applications without a [RenderContext] reference can tune it. Set to [Int.MAX_VALUE] to disable.
+         * Maximum number of shape / label / placemark assemblies allowed per frame. Mostly a
+         * fail-safe — the per-frame [maxAssemblyTimeMillis] cap is the real throttle for heavy
+         * shapes; this count just guards against pathological cases (e.g. a user setting the time
+         * cap to [Long.MAX_VALUE]). Set to [Int.MAX_VALUE] to disable.
          */
-        var maxAssembliesPerFrame = 50
+        var maxAssembliesPerFrame = 500
+        /**
+         * Soft wall-time cap (in milliseconds) on shape geometry assembly per frame. Once the
+         * elapsed assembly time crosses this threshold further [canAssembleGeometry] calls return
+         * false and defer to the next frame, so a batch of heavy shapes (e.g. complex polygons
+         * with thousands of vertices) can't stall the Choreographer callback. Adapts to per-shape
+         * complexity in a way the [maxAssembliesPerFrame] count cannot. Cooperative — the first
+         * assembly each frame always runs and may itself exceed the cap. Set to [Long.MAX_VALUE]
+         * to disable.
+         */
+        var maxAssemblyTimeMillis = 8L
     }
 
     lateinit var globe: Globe
@@ -76,6 +89,7 @@ open class RenderContext {
     private var pickedObjectId = 0
     private var pixelSizeFactor = 0.0
     private var assembliesThisFrame = 0
+    private var assemblyStartMark: TimeSource.Monotonic.ValueTimeMark? = null
     private val userProperties = mutableMapOf<Any, Any>()
     val drawablePools = HashMap<KClass<*>, Pool<*>>()
     private var textRenderer = TextRenderer(this)
@@ -113,17 +127,23 @@ open class RenderContext {
         isRedrawRequested = false
         pixelSizeFactor = 0.0
         assembliesThisFrame = 0
+        assemblyStartMark = null
         userProperties.clear()
     }
 
     fun requestRedraw() { isRedrawRequested = true }
 
-    fun canAssembleGeometry() = if (assembliesThisFrame >= maxAssembliesPerFrame) {
-        isRedrawRequested = true
-        false
-    } else {
+    fun canAssembleGeometry(): Boolean {
+        // Lazy-init [assemblyStartMark] on the first call so the wall-clock window measures only
+        // assembly cost, not whatever pre-render work ran earlier in the Choreographer tick.
+        val mark = assemblyStartMark ?: TimeSource.Monotonic.markNow().also { assemblyStartMark = it }
+        if (assembliesThisFrame >= maxAssembliesPerFrame
+            || mark.elapsedNow().inWholeMilliseconds >= maxAssemblyTimeMillis) {
+            isRedrawRequested = true
+            return false
+        }
         assembliesThisFrame++
-        true
+        return true
     }
 
     /**

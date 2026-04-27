@@ -27,6 +27,8 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 import kotlin.random.Random
 
+private const val PROGRESS_BATCH_SIZE = 200
+
 /**
  * This activity demonstrates rendering Labels, Paths and Polygons on the globe. All of the Renderable objects are
  * loaded from .csv files via an async task. The CreateRenderablesTask creates the individual Renderable objects on a
@@ -66,9 +68,11 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
 
     /**
      * CreateRenderablesTask is an async task that initializes the shapes on a background thread. The task must be
-     * created and executed on the UI Thread.
+     * created and executed on the UI Thread. Renderables are published to the UI thread in batches of
+     * [PROGRESS_BATCH_SIZE] — emitting hundreds of thousands of single-shape `publishProgress` calls would
+     * saturate the main looper with TextView relayouts, freezing input and animation while the file loads.
      */
-    protected open inner class CreateRenderablesTask: CoroutinesAsyncTask<Void, Renderable, Void>() {
+    protected open inner class CreateRenderablesTask: CoroutinesAsyncTask<Void, List<Renderable>, Void>() {
         private var numCountriesCreated = 0
         private var numHighwaysCreated = 0
         private var numPlacesCreated = 0
@@ -86,16 +90,27 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
         }
 
         /**
-         * Updates the RenderableLayer on the UI Thread. Invoked by calls to publishProgress.
-         *
-         * @param values An array of Renderables (length = 1) to add to the shapes layer.
+         * Updates the RenderableLayer on the UI Thread. Invoked by calls to publishProgress, once per batch.
          */
-        override fun onProgressUpdate(vararg values: Renderable) {
+        override fun onProgressUpdate(vararg values: List<Renderable>) {
             super.onProgressUpdate(*values)
-            val shape = values[0]
-            statusText.text = "Added ${shape.displayName} feature..."
-            shapesLayer.addRenderable(shape)
+            for (batch in values) for (shape in batch) shapesLayer.addRenderable(shape)
+            statusText.text = "Loading: %,d places, %,d highways, %,d countries".format(
+                numPlacesCreated, numHighwaysCreated, numCountriesCreated
+            )
             wwd.requestRedraw()
+        }
+
+        /** Publishes [batch] to the UI thread when it reaches [PROGRESS_BATCH_SIZE]; returns the buffer to reuse. */
+        private fun flushIfFull(batch: MutableList<Renderable>): MutableList<Renderable> {
+            if (batch.size < PROGRESS_BATCH_SIZE) return batch
+            publishProgress(batch)
+            return mutableListOf()
+        }
+
+        /** Publishes any remaining shapes in [batch]. */
+        private fun flushFinal(batch: MutableList<Renderable>) {
+            if (batch.isNotEmpty()) publishProgress(batch)
         }
 
         /**
@@ -132,6 +147,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                 var lat = 0
                 var lon = 0
                 var nam = 0
+                var batch = mutableListOf<Renderable>()
                 resources.openRawResource(R.raw.world_placenames).bufferedReader().forEachLine { line ->
                     val fields = line.split(",")
                     if (headers) {
@@ -148,11 +164,12 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                         )
                         label.displayName = label.text
 
-                        // Add the Label object to the RenderableLayer on the UI Thread (see onProgressUpdate)
-                        publishProgress(label)
+                        batch.add(label)
                         numPlacesCreated++
+                        batch = flushIfFull(batch)
                     }
                 }
+                flushFinal(batch)
             } catch (e: IOException) {
                 log(Logger.ERROR, "Exception attempting to read/parse world_placenames file.")
             }
@@ -179,6 +196,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                 // var hwy = 0
                 val wktStart = "\"LINESTRING ("
                 val wktEnd = ")\""
+                var batch = mutableListOf<Renderable>()
                 resources.openRawResource(R.raw.world_highways).bufferedReader().forEachLine { line ->
                     if (headers) {
                         // Process the header in the first line of the CSV file ...
@@ -211,11 +229,12 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                         path.maximumNumEdgeIntervals = 0 // Disable intermediate points for performance reasons
                         path.displayName = attributes
 
-                        // Add the Path object to the RenderableLayer on the UI Thread (see onProgressUpdate)
-                        publishProgress(path)
+                        batch.add(path)
                         numHighwaysCreated++
+                        batch = flushIfFull(batch)
                     }
                 }
+                flushFinal(batch)
             } catch (e: IOException) {
                 log(Logger.ERROR, "Exception attempting to read/parse world_highways file.")
             }
@@ -244,6 +263,7 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                 // var name = 0
                 val wktStart = "\"POLYGON ("
                 val wktEnd = ")\""
+                var batch = mutableListOf<Renderable>()
                 resources.openRawResource(R.raw.world_political_boundaries).bufferedReader().forEachLine { line ->
                     if (headers) {
                         // Process the header in the first line of the CSV file ...
@@ -297,11 +317,12 @@ open class PathsPolygonsLabelsActivity: GeneralGlobeActivity() {
                             polyStart = feature.indexOf("(", polyEnd)
                         }
 
-                        // Add the Polygon object to the RenderableLayer on the UI Thread (see onProgressUpdate).
-                        publishProgress(polygon)
+                        batch.add(polygon)
                         numCountriesCreated++
+                        batch = flushIfFull(batch)
                     }
                 }
+                flushFinal(batch)
             } catch (e: IOException) {
                 log(Logger.ERROR, "Exception attempting to read/parse world_highways file.")
             }

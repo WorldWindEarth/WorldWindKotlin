@@ -162,11 +162,7 @@ open class TextureQuad @JvmOverloads constructor(
 
     override fun makeDrawable(rc: RenderContext) {
         if (locations.isEmpty()) return  // nothing to draw
-
-        if (mustAssembleGeometry(rc)) {
-            if (!rc.canAssembleGeometry()) return
-            assembleGeometry(rc)
-        }
+        if (!prepareGeometry(rc)) return
 
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
@@ -296,12 +292,15 @@ open class TextureQuad @JvmOverloads constructor(
         drawState.drawElements(GL_TRIANGLES, currentData.outlineElements.size, GL_UNSIGNED_INT, offset = 0)
     }
 
-    protected open fun mustAssembleGeometry(rc: RenderContext): Boolean {
+    override val hasGeometry get() = currentData.vertexArray.isNotEmpty()
+
+    override fun mustAssembleGeometry(rc: RenderContext): Boolean {
         currentData = data[rc.globeState] ?: TextureQuadData().also { data[rc.globeState] = it }
         return currentData.refreshVertexArray || isExtrude && !isSurfaceShape
     }
 
-    protected open fun assembleGeometry(rc: RenderContext) {
+    override fun assembleGeometry(rc: RenderContext) {
+        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shape's
         // geometry is assembled.
         vertexIndex = 0

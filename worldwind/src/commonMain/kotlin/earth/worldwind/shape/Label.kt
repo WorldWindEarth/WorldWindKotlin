@@ -90,6 +90,9 @@ open class Label @JvmOverloads constructor(
     var isVisible: ((Label, RenderContext, Double) -> Boolean)? = null
     protected val placePoint = Vec3()
     protected var placePointDirty = true
+    // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
+    // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
+    protected var hasPlacePoint = false
     protected val cachedPosition = Position()
     protected var cachedGlobeState: Globe.State? = null
     protected var cachedElevationTimestamp = 0L
@@ -142,10 +145,15 @@ open class Label @JvmOverloads constructor(
         cachedElevationTimestamp = elevationTimestamp
         cachedVerticalExaggeration = verticalExaggeration
 
-        // Compute the label's Cartesian model point.
+        // Compute the label's Cartesian model point — gated by the per-frame assembly budget.
+        // First-time computes defer (no drawable); recomputes fall through with the stale value
+        // to avoid blinking when terrain updates invalidate faster than the budget can serve.
         if (placePointDirty) {
-            rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
-            placePointDirty = false
+            if (rc.canAssembleGeometry()) {
+                rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
+                placePointDirty = false
+                hasPlacePoint = true
+            } else if (!hasPlacePoint) return
         }
 
         // Compute the square camera distance to the place point, the value which is used for ordering

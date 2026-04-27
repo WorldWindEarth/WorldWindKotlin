@@ -12,9 +12,12 @@ class AbstractShapeTest {
      */
     private class AbstractShapeImpl(attributes: ShapeAttributes = ShapeAttributes()) : AbstractShape(attributes) {
         override val referencePosition get() = Position()
+        override val hasGeometry get() = false
         override fun reset() {}
         override fun moveTo(globe: Globe, position: Position) {}
         override fun makeDrawable(rc: RenderContext) {}
+        override fun mustAssembleGeometry(rc: RenderContext) = false
+        override fun assembleGeometry(rc: RenderContext) {}
     }
 
     @Test

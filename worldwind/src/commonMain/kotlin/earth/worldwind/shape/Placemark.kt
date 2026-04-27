@@ -153,6 +153,9 @@ open class Placemark @JvmOverloads constructor(
     protected var cameraDistance = 0.0
     protected val placePoint = Vec3()
     protected var placePointDirty = true
+    // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
+    // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
+    protected var hasPlacePoint = false
     protected val groundPoint = Vec3()
     protected var groundPointDirty = true
     protected val cachedPosition = Position()
@@ -224,10 +227,14 @@ open class Placemark @JvmOverloads constructor(
         // position is terrain-dependent but off the terrain, then compute it ABSOLUTE so that we have a point for the
         // placemark and are thus able to draw it. Otherwise, its image and label portion that are potentially over the
         // terrain won't get drawn, and would disappear as soon as there is no terrain at the placemark's position. This
-        // can occur at the window edges.
+        // can occur at the window edges. Gated by the per-frame assembly budget — first-time computes defer (avoids
+        // the default-sized placeholder icon), recomputes fall through with the stale value to avoid blinking.
         if (placePointDirty) {
-            rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
-            placePointDirty = false
+            if (rc.canAssembleGeometry()) {
+                rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
+                placePointDirty = false
+                hasPlacePoint = true
+            } else if (!hasPlacePoint) return
         }
 
         // Compute the squared camera distance to the place point for ordering and comparisons; compute the actual
