@@ -55,6 +55,8 @@ open class DrawContext(val gl: Kgl) {
     private var scratchFramebufferCache: Framebuffer? = null
     private var momentsFramebufferCache: Framebuffer? = null
     private var momentsBlurFramebufferCache: Framebuffer? = null
+    private var momentsCubeMapTextureCache: Texture? = null
+    private var momentsCubeMapFramebufferCache: Framebuffer? = null
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
@@ -111,38 +113,85 @@ open class DrawContext(val gl: Kgl) {
 
     /**
      * Returns an offscreen framebuffer used by [earth.worldwind.draw.DrawableSightline] when
-     * running its depth pass with Variance Shadow Mapping. Two attachments:
-     *  - colour `RG32F` storing `(R = depth, G = depth^2)`. Full-float gives 23 mantissa bits
-     *    per channel; 8-bit RGBA8 was insufficient because the difference
-     *    `M2 - M1^2` is dominated by quantisation noise and Chebyshev reads that noise as
-     *    a noisy variance, producing visible blob artefacts in the shadow. Float textures
-     *    require GLES3+ / WebGL2 / desktop GL3+; the path is taken only when
+     * running its depth pass with Moment Shadow Mapping (Hamburger 4-moment, Peters & Klein
+     * 2015). Two attachments:
+     *  - colour `RGBA32F` storing the four raw moments `(d, d^2, d^3, d^4)` of linear
+     *    perpendicular depth from the sightline. Full-float gives 23 mantissa bits per
+     *    channel; the higher-order moments (`d^3`, `d^4`) require it because the Cholesky
+     *    reconstruction in the receiver subtracts close-magnitude products and any
+     *    quantisation noise propagates into a noisy occlusion bound. Float textures require
+     *    GLES3+ / WebGL2 / desktop GL3+; the path is taken only when
      *    [Kgl.supportsSizedTextureFormats] is true.
-     *  - depth `GL_DEPTH_COMPONENT16` for terrain triangle ordering during the depth pass; the
-     *    occlusion pass never reads it.
+     *  - depth `GL_DEPTH_COMPONENT24` for terrain triangle ordering during the depth pass;
+     *    the occlusion pass never reads it. See [createMomentsDepthAttachment] for why 24-bit.
      * Linear filtering is set on the colour attachment so a single hardware tap averages 2x2
-     * neighbouring `(d, d^2)` values - that bilinear blur is what gives Chebyshev a non-zero
-     * variance to operate on. Same per-side resolution as [scratchFramebuffer]; lazily
-     * allocated and cached.
+     * neighbouring `(d, d^2, d^3, d^4)` values; the separable Gaussian in
+     * [SightlineMomentsBlurProgram] widens the support further. Same per-side resolution as
+     * [scratchFramebuffer]; lazily allocated and cached.
      */
     val momentsFramebuffer get() = momentsFramebufferCache ?: Framebuffer().apply {
-        val depthIF = if (gl.supportsSizedTextureFormats) GL_DEPTH_COMPONENT16 else GL_DEPTH_COMPONENT
-        // RG32F render targets require sized formats; on platforms without them the moments
-        // path falls back to RGBA8, which has the precision issues described above. The
-        // VSM result is poor on those platforms - prefer the bilateral path there.
+        // RGBA32F render targets require sized formats; on platforms without them the
+        // moments path falls back to RGBA8, which has the precision issues described above.
+        // The MSM result is unusable on those platforms - prefer the bilateral path there.
         val colorAttachment = if (gl.supportsSizedTextureFormats) {
-            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RG, GL_FLOAT, true, GL_RG32F)
+            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
         } else {
             Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
         }
-        val depthAttachment = Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true, depthIF)
         colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
-        attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
+        attachTexture(this@DrawContext, createMomentsDepthAttachment(), GL_DEPTH_ATTACHMENT)
     }.also { momentsFramebufferCache = it }
+
+    /**
+     * 24-bit depth texture for the moments depth pass (shared between [momentsFramebuffer]
+     * and [momentsCubeMapFramebuffer]). When the depth pass falls back to non-linear
+     * `gl_FragCoord.z` (i.e. `EXT_frag_depth` not honoured), far-plane ridges resolve at
+     * ~3 m at `range = 10 km` on 24-bit vs ~750 m on 16-bit - enough to avoid zebra
+     * banding. Sized format requires GLES3+ / WebGL2 / desktop GL3+; falls back to
+     * `GL_DEPTH_COMPONENT` (driver-default precision) on older platforms.
+     */
+    private fun createMomentsDepthAttachment(): Texture {
+        val sized = gl.supportsSizedTextureFormats
+        return Texture(
+            SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE,
+            GL_DEPTH_COMPONENT, if (sized) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT,
+            true, if (sized) GL_DEPTH_COMPONENT24 else GL_DEPTH_COMPONENT,
+        ).apply {
+            setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        }
+    }
+
+    /**
+     * Cube-map RGBA32F moments texture used by the omnidirectional sightline's cube-map
+     * receiver path. All six faces are allocated with linear filtering; only five are written
+     * by the depth pass (POS_X, NEG_X, POS_Y, NEG_Y, NEG_Z) - the omitted POS_Z face is left
+     * cleared (sentinel d=1) so any upward-pointing fragment direction reads as "visible".
+     * The receiver does a single pass with `samplerCube`, which uses hardware seamless
+     * filtering across face boundaries - the per-face 2D blur seam mismatch that paints a
+     * square contour at the bottom-side seam is avoided entirely. Lazily allocated and
+     * cached; requires `Kgl.supportsSizedTextureFormats` for RGBA32F.
+     */
+    val momentsCubeMapTexture get() = momentsCubeMapTextureCache ?: Texture(
+        SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE,
+        GL_RGBA, GL_FLOAT, true, GL_RGBA32F, target = GL_TEXTURE_CUBE_MAP
+    ).apply {
+        setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+    }.also { momentsCubeMapTextureCache = it }
+
+    /**
+     * Framebuffer paired with [momentsCubeMapTexture] for cube-map depth-pass writes. The
+     * depth-component16 texture is attached once and shared across all six face renders
+     * (depth is cleared between faces). The colour attachment is rebound per face to the
+     * matching cube-map face target via [Framebuffer.attachTexture] with
+     * `GL_TEXTURE_CUBE_MAP_POSITIVE_X + i`. Lazily allocated and cached.
+     */
+    val momentsCubeMapFramebuffer get() = momentsCubeMapFramebufferCache ?: Framebuffer().apply {
+        attachTexture(this@DrawContext, createMomentsDepthAttachment(), GL_DEPTH_ATTACHMENT)
+    }.also { momentsCubeMapFramebufferCache = it }
 
     /**
      * Single-attachment companion to [momentsFramebuffer] used as the ping-pong target for
@@ -152,7 +201,7 @@ open class DrawContext(val gl: Kgl) {
      */
     val momentsBlurFramebuffer get() = momentsBlurFramebufferCache ?: Framebuffer().apply {
         val colorAttachment = if (gl.supportsSizedTextureFormats) {
-            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RG, GL_FLOAT, true, GL_RG32F)
+            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
         } else {
             Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
         }
@@ -254,6 +303,8 @@ open class DrawContext(val gl: Kgl) {
         scratchFramebufferCache?.release(this)
         momentsFramebufferCache?.release(this)
         momentsBlurFramebufferCache?.release(this)
+        momentsCubeMapTextureCache?.release(this)
+        momentsCubeMapFramebufferCache?.release(this)
         multisampleFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -266,6 +317,8 @@ open class DrawContext(val gl: Kgl) {
         scratchFramebufferCache = null
         momentsFramebufferCache = null
         momentsBlurFramebufferCache = null
+        momentsCubeMapTextureCache = null
+        momentsCubeMapFramebufferCache = null
         multisampleFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null

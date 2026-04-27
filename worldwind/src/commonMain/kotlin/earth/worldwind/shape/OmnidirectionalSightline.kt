@@ -11,9 +11,8 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.program.SightlineMomentsBlurProgram
 import earth.worldwind.render.program.SightlineMomentsProgram
-import earth.worldwind.render.program.SightlineProgram
+import earth.worldwind.render.program.SightlineProgramCube
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.jvm.JvmOverloads
@@ -189,10 +188,12 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
         drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
         drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
 
-        // Use the sightline GLSL program to draw the coverage.
-        drawable.program = rc.getShaderProgram(SightlineProgram.KEY) { SightlineProgram() }
+        // Use the cube-map receiver: hardware seamless cube filtering smooths face boundaries
+        // in a single occlusion pass (single sampler, no clipMask, no per-face blend). The
+        // moments depth pass writes 5 cube faces (POS_X, NEG_X, POS_Y, NEG_Y, NEG_Z); POS_Z
+        // is intentionally omitted - terrain isn't visible looking up.
+        drawable.programCube = rc.getShaderProgram(SightlineProgramCube.KEY) { SightlineProgramCube() }
         drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
-        drawable.momentsBlurProgram = rc.getShaderProgram(SightlineMomentsBlurProgram.KEY) { SightlineMomentsBlurProgram() }
 
         // Enqueue a drawable for processing on the OpenGL thread.
         rc.offerSurfaceDrawable(drawable, zOrder)

@@ -45,16 +45,15 @@ class SightlineProgram : AbstractShaderProgram() {
 
             const vec3 minusOne = vec3(-1.0, -1.0, -1.0);
             const vec3 plusOne = vec3(1.0, 1.0, 1.0);
-            /* Floor on variance to avoid 0/0 in the Chebyshev formula on perfectly flat
-               regions of the moments texture (where filtering doesn't introduce variance). */
-            const float minVariance = 1e-5;
-            /* Light-bleeding mitigation. Chebyshev's inequality returns the *upper bound* on
-               occluder visibility, so its raw output drifts toward "partially visible" along
-               shadow boundaries (where filtered moments mix occluder and receiver depths,
-               spiking variance). Remapping `[bleedReduce, 1] -> [0, 1]` clamps low-confidence
-               visibility to fully occluded. The textbook 0.2 leaves a visible green halo at
-               our blur footprint; 0.5 erases the halo at the cost of harder shadow edges. */
-            const float bleedReduce = 0.5;
+            /* Hamburger MSM bias parameters (Peters & Klein 2015). The moment bias mixes the
+               filtered moments toward the moments of a uniform distribution on [0,1]
+               `(1/2, 1/3, 1/4, 1/5)` to keep the Cholesky factorisation numerically stable
+               when the raw depth distribution is rank-deficient (e.g. the all-equal d=1
+               sentinel). Depth bias subtracts a tiny epsilon from the receiver's own depth so
+               a surface compares as "in front of itself" - prevents self-shadow on flat
+               terrain. Both tuned for 32-bit float storage. */
+            const float momentBias = 3e-5;
+            const float depthBias = 1e-5;
 
             void main() {
                 /* Compute a mask that's on when the position is inside the occlusion projection, and off otherwise. Transform the
@@ -66,42 +65,64 @@ class SightlineProgram : AbstractShaderProgram() {
                 /* Compute a mask that's on when the position is inside the sightline's range, and off otherwise.*/
                 float rangeMask = step(sightlineDistance, range);
 
-                /* Variance Shadow Mapping. The moments texture stores (E[d], E[d^2]) per
-                   pixel; bilinear filtering averages neighbouring depth and depth^2 samples
-                   so a kernel of nearby occluders shows up as a non-zero variance. Chebyshev's
-                   one-tailed inequality bounds the probability that a kernel sample lies
-                   *behind* the receiver - i.e. an upper bound on visibility:
-                       d <= M1                 -> definitely visible (visibility = 1)
-                       d  > M1                 -> visibility <= variance / (variance + diff^2)
-                   The smoothness comes from variance, not from a screen-space blur. */
+                /* Moment Shadow Mapping (Hamburger 4-moment, Peters & Klein 2015). The
+                   moments texture stores (E[d], E[d^2], E[d^3], E[d^4]) per pixel; bilinear
+                   filtering and the separable Gaussian average those raw moments over a
+                   kernel of nearby surfaces. Given those four moments the receiver finds the
+                   unique three-point depth distribution matching them, then computes a tight
+                   closed-form upper bound on `P(d <= z_f)`. The bound is tight at depth
+                   discontinuities by construction - no light-bleed crushers needed, no
+                   false-occluder midpoint problem at triangle edges. */
                 vec3 sightlineCoord = clipCoord * 0.5 + 0.5;
                 vec4 moments = texture2D(depthSampler, sightlineCoord.xy);
-                float M1 = moments.r;
-                float M2 = moments.g;
-                /* Linear perpendicular distance from the sightline plane, normalised to
-                   [0, 1] across the sightline range. Matches the metric stored by
-                   SightlineMomentsProgram (gl_Position.w / range). sightlinePosition.w
-                   is -eye_z post-projection, which is exactly perpendicular distance. */
-                float fragmentDepth = sightlinePosition.w / range;
-                float occludeMask;
-                if (fragmentDepth <= M1) {
-                    occludeMask = 0.0;
-                } else {
-                    float variance = max(M2 - M1 * M1, minVariance);
-                    float diff = fragmentDepth - M1;
-                    float visibility = variance / (variance + diff * diff);
-                    /* linstep(bleedReduce, 1, visibility): push small visibility values
-                       (low-confidence partial visibility from kernels straddling two very
-                       different depths) up to fully occluded. Without this, Chebyshev's
-                       upper bound leaks light through hard occluders. */
-                    visibility = clamp((visibility - bleedReduce) / (1.0 - bleedReduce), 0.0, 1.0);
-                    /* Power curve: nonlinearly crushes the residual partial visibility that
-                       survives linstep at the immediate shadow boundary (where filtered
-                       moments produce variance large enough that visibility hovers ~0.6).
-                       k = 4: 0.6 -> 0.13, 0.4 -> 0.026; values near 1 stay near 1. */
-                    visibility = pow(visibility, 4.0);
-                    occludeMask = 1.0 - visibility;
-                }
+                /* Bias the moments toward the moments of a uniform distribution on [0, 1]:
+                   `(E[d], E[d^2], E[d^3], E[d^4]) = (1/2, 1/3, 1/4, 1/5)`. A flat
+                   `(0.5, 0.5, 0.5, 0.5)` target represents a delta function at d=0.5, which
+                   is rank-deficient and makes the Cholesky factorisation singular when
+                   raw moments are all-equal (e.g., the d=1 sentinel). The uniform target
+                   is well-conditioned, so the Cholesky stays stable for any raw input. */
+                vec4 b = mix(moments, vec4(0.5, 0.333333333, 0.25, 0.2), momentBias);
+                /* Receiver depth = perpendicular distance / range. `sightlinePosition.w` is
+                   `-eye_z` after the perspective projection (the projection matrix's `w` row
+                   is `(0,0,-1,0)`), which is exactly what [SightlineMomentsProgram] wrote at
+                   each texel - so bilinear sampling at any texture coordinate returns the
+                   linearly-interpolated perpendicular depth, matching this receiver's z0
+                   exactly at the corresponding surface point. Radial would have been
+                   non-linear, biasing the moment values bilinear sampling produces. */
+                float z0 = (sightlinePosition.w / range) - depthBias;
+                /* Cholesky factorisation of the 3x3 Hankel-style matrix B = [[1, b1, b2],
+                   [b1, b2, b3], [b2, b3, b4]] storing only the non-trivial entries. */
+                float L32D22 = b.z - b.x * b.y;
+                float D22 = b.y - b.x * b.x;
+                float squaredDepthVariance = b.w - b.y * b.y;
+                float D33D22 = squaredDepthVariance * D22 - L32D22 * L32D22;
+                float invD22 = 1.0 / D22;
+                float L32 = L32D22 * invD22;
+                /* Solve L * D * L^T * c = (1, z0, z0^2)^T to obtain the coefficients of the
+                   quadratic whose roots are the non-receiver depths in the reconstructed
+                   3-point depth distribution. */
+                vec3 c = vec3(1.0, z0, z0 * z0);
+                c.y -= b.x;
+                c.z -= b.y + L32 * c.y;
+                c.y *= invD22;
+                c.z *= D22 / D33D22;
+                c.y -= L32 * c.z;
+                c.x -= dot(c.yz, b.xy);
+                /* Solve `c.x + c.y * z + c.z * z^2 = 0` for the two non-receiver depths. */
+                float p = c.y / c.z;
+                float q = c.x / c.z;
+                float D = p * p * 0.25 - q;
+                float r = sqrt(D);
+                float z1 = -p * 0.5 - r;
+                float z2 = -p * 0.5 + r;
+                /* Three cases for the placement of (z0, z1, z2) on the depth axis. The Switch
+                   tuple selects coefficients for the closed-form occlusion fraction. */
+                vec4 sw = (z2 < z0) ? vec4(z1, z0, 1.0, 1.0)
+                        : (z1 < z0) ? vec4(z0, z1, 0.0, 1.0)
+                        : vec4(0.0);
+                float quotient = (sw.x * z2 - b.x * (sw.x + z2) + b.y)
+                               / ((z2 - sw.y) * (z0 - z1));
+                float occludeMask = clamp(sw.z + sw.w * quotient, 0.0, 1.0);
 
                 /* Modulate the RGBA color with the computed masks to display fragments according to the sightline's configuration. */
                 gl_FragColor = mix(color[0], color[1], occludeMask) * clipMask * rangeMask;

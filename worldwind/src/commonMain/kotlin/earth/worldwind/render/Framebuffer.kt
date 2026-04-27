@@ -20,10 +20,17 @@ open class Framebuffer : RenderResource {
         return framebufferName.isValid()
     }
 
-    fun attachTexture(dc: DrawContext, texture: Texture, attachment: Int): Boolean {
+    /**
+     * Attach a texture to the given FBO attachment point. The default `textarget` is
+     * `GL_TEXTURE_2D`; pass a specific cube-map face target (e.g.
+     * `GL_TEXTURE_CUBE_MAP_POSITIVE_X`) to attach a face of a cube-map texture. The same
+     * cube-map texture can be re-attached to the same FBO multiple times with different
+     * faces to render into all six faces of one cube map without rebinding the FBO.
+     */
+    fun attachTexture(dc: DrawContext, texture: Texture, attachment: Int, textarget: Int = GL_TEXTURE_2D): Boolean {
         if (!framebufferName.isValid()) createFramebuffer(dc)
         if (framebufferName.isValid()) {
-            framebufferTexture(dc, texture, attachment)
+            framebufferTexture(dc, texture, attachment, textarget)
             attachedTextures[attachment] = texture
         }
         return framebufferName.isValid()
@@ -56,14 +63,16 @@ open class Framebuffer : RenderResource {
         framebufferName = KglFramebuffer.NONE
     }
 
-    protected open fun framebufferTexture(dc: DrawContext, texture: Texture?, attachment: Int) {
+    protected open fun framebufferTexture(
+        dc: DrawContext, texture: Texture?, attachment: Int, textarget: Int = GL_TEXTURE_2D
+    ) {
         val currentFramebuffer = dc.currentFramebuffer
         try {
             // Make the OpenGL framebuffer object the currently active framebuffer.
             dc.bindFramebuffer(framebufferName)
             // Attach the texture to the framebuffer object, or remove the attachment if the texture is null.
             val textureName = texture?.getTextureName(dc) ?: KglTexture.NONE
-            dc.gl.framebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, textureName, 0 /*level*/)
+            dc.gl.framebufferTexture2D(GL_FRAMEBUFFER, attachment, textarget, textureName, 0 /*level*/)
         } finally {
             // Restore the current OpenGL framebuffer object binding.
             dc.bindFramebuffer(currentFramebuffer)

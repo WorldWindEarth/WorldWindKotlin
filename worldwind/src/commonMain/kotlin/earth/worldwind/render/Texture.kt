@@ -15,12 +15,15 @@ import earth.worldwind.util.math.powerOfTwoCeiling
  *  (e.g. `GL_RGBA8`, `GL_DEPTH_COMPONENT16`) only when [Kgl.supportsSizedTextureFormats] is
  *  `true`. Required for MSAA blit-resolve compatibility — the resolve target's internal
  *  format must literally match the multisample renderbuffer's (`GL_RGBA8`).
+ * @param target texture target. Defaults to `GL_TEXTURE_2D`. Pass `GL_TEXTURE_CUBE_MAP` for
+ *  cube-map storage; the constructor will allocate all six face images.
  */
 open class Texture(
     val width: Int, val height: Int,
     protected val format: Int, protected val type: Int,
     protected val isRT: Boolean = false,
     protected val internalFormat: Int = format,
+    val target: Int = GL_TEXTURE_2D,
 ) : RenderResource {
     companion object {
         private const val TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE
@@ -89,7 +92,14 @@ open class Texture(
 
     fun bindTexture(dc: DrawContext): Boolean {
         if (!name.isValid()) createTexture(dc)
-        if (name.isValid()) dc.bindTexture(name)
+        if (name.isValid()) {
+            // [DrawContext.bindTexture] caches the active GL_TEXTURE_2D binding per texture
+            // unit. For non-2D targets (e.g. GL_TEXTURE_CUBE_MAP) we bypass that cache and
+            // bind directly - the cube-map binding doesn't share state with the 2D one and
+            // is touched only a few times per frame from the sightline path, so the missed
+            // cache is irrelevant.
+            if (target == GL_TEXTURE_2D) dc.bindTexture(name) else dc.gl.bindTexture(target, name)
+        }
         if (name.isValid() && pickMode != dc.isPickMode) {
             setTexParameters(dc)
             pickMode = dc.isPickMode
@@ -100,9 +110,9 @@ open class Texture(
     protected open fun createTexture(dc: DrawContext) {
         val currentTexture = dc.currentTexture
         try {
-            // Create the OpenGL texture 2D object.
+            // Create the OpenGL texture object.
             name = dc.gl.createTexture()
-            dc.gl.bindTexture(GL_TEXTURE_2D, name)
+            dc.gl.bindTexture(target, name)
 
             // Specify the texture object's image data
             allocTexImage(dc)
@@ -110,8 +120,10 @@ open class Texture(
             // Configure the texture object's parameters.
             setTexParameters(dc)
         } finally {
-            // Restore the current OpenGL texture object binding.
-            dc.gl.bindTexture(GL_TEXTURE_2D, currentTexture)
+            // Restore the current binding. [DrawContext.currentTexture] only tracks GL_TEXTURE_2D,
+            // so for non-2D targets we'd be binding a 2D texture to e.g. CUBE_MAP - WebGL hard-
+            // errors on reusing a texture object across targets. Unbind via NONE in that case.
+            dc.gl.bindTexture(target, if (target == GL_TEXTURE_2D) currentTexture else KglTexture.NONE)
         }
     }
 
@@ -123,12 +135,23 @@ open class Texture(
     protected open fun allocTexImage(dc: DrawContext) {
         // Following line of code is a dirty hack to disable AFBC compression on Mali GPU driver,
         // which cause huge memory leak during surface shapes drawing on terrain textures.
-        if (isRT and dc.gl.hasMaliOOMBug) dc.gl.texImage2D(GL_TEXTURE_2D, 0, internalFormat, 1, 1, 0, format, type, null)
+        if (isRT and dc.gl.hasMaliOOMBug) dc.gl.texImage2D(target, 0, internalFormat, 1, 1, 0, format, type, null)
 
-        // Allocate texture memory for the OpenGL texture 2D object. The texture memory is initialized with 0.
-        dc.gl.texImage2D(
-            GL_TEXTURE_2D, 0 /*level*/, internalFormat, width, height, 0 /*border*/, format, type, null /*pixels*/
-        )
+        // Allocate texture memory. For GL_TEXTURE_CUBE_MAP we need to call texImage2D once per
+        // face with the corresponding face target (GL_TEXTURE_CUBE_MAP_POSITIVE_X..NEGATIVE_Z).
+        // For GL_TEXTURE_2D the target is the binding target and a single allocation suffices.
+        if (target == GL_TEXTURE_CUBE_MAP) {
+            for (face in 0 until 6) {
+                dc.gl.texImage2D(
+                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, internalFormat,
+                    width, height, 0, format, type, null
+                )
+            }
+        } else {
+            dc.gl.texImage2D(
+                target, 0 /*level*/, internalFormat, width, height, 0 /*border*/, format, type, null /*pixels*/
+            )
+        }
     }
 
     // TODO refactor setTexParameters to apply all configured tex parameters
@@ -139,31 +162,31 @@ open class Texture(
 
         // Configure the OpenGL texture minification function. Always use the nearest filtering function in picking mode.
         when {
-            dc.isPickMode -> dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            dc.isPickMode -> dc.gl.texParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             getTexParameter(GL_TEXTURE_MIN_FILTER).also { param = it } != 0 ->
-                dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, param)
+                dc.gl.texParameteri(target, GL_TEXTURE_MIN_FILTER, param)
             else -> dc.gl.texParameteri(
-                GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, if (hasMipMap) GL_LINEAR_MIPMAP_LINEAR else GL_LINEAR
+                target, GL_TEXTURE_MIN_FILTER, if (hasMipMap) GL_LINEAR_MIPMAP_LINEAR else GL_LINEAR
             )
         }
 
         // Configure the OpenGL texture magnification function. Always use the nearest filtering function in picking mode.
         when {
-            dc.isPickMode -> dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            dc.isPickMode -> dc.gl.texParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             getTexParameter(GL_TEXTURE_MAG_FILTER).also { param = it } != 0 -> {
-                dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, param)
+                dc.gl.texParameteri(target, GL_TEXTURE_MAG_FILTER, param)
 
                 // Try to enable the anisotropic texture filtering only if we have a linear magnification filter.
                 // This can't be enabled all the time because Windows seems to ignore the TEXTURE_MAG_FILTER parameter when
                 // this extension is enabled.
                 if (param == GL_LINEAR && anisotropicFiltering != AFLevel.OFF) {
-                    dc.gl.texParameteri(GL_TEXTURE_2D, TEXTURE_MAX_ANISOTROPY_EXT, anisotropicFiltering.level)
+                    dc.gl.texParameteri(target, TEXTURE_MAX_ANISOTROPY_EXT, anisotropicFiltering.level)
                 }
             }
             else -> {
-                dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                dc.gl.texParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
                 if (anisotropicFiltering != AFLevel.OFF) {
-                    dc.gl.texParameteri(GL_TEXTURE_2D, TEXTURE_MAX_ANISOTROPY_EXT, anisotropicFiltering.level)
+                    dc.gl.texParameteri(target, TEXTURE_MAX_ANISOTROPY_EXT, anisotropicFiltering.level)
                 }
             }
         }
@@ -171,13 +194,13 @@ open class Texture(
         // Configure the OpenGL texture wrapping function for texture coordinate S. Default to the edge clamping
         // function to render image tiles without seams.
         if (getTexParameter(GL_TEXTURE_WRAP_S).also { param = it } != 0)
-            dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, param)
-        else dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+            dc.gl.texParameteri(target, GL_TEXTURE_WRAP_S, param)
+        else dc.gl.texParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
 
         // Configure the OpenGL texture wrapping function for texture coordinate T. Default to the edge clamping
         // function to render image tiles without seams.
         if (getTexParameter(GL_TEXTURE_WRAP_T).also { param = it } != 0)
-            dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, param)
-        else dc.gl.texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+            dc.gl.texParameteri(target, GL_TEXTURE_WRAP_T, param)
+        else dc.gl.texParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
     }
 }
