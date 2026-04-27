@@ -256,6 +256,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/omnidirectional_sightline_tutorial.html",
                 R.string.title_omni_sightline
             )
+            R.id.nav_viewshed_sightline_activity -> loadTutorial(
+                ViewshedSightlineFragment::class.java,
+                "file:///android_asset/viewshed_sightline_tutorial.html",
+                R.string.title_viewshed_sightline
+            )
             R.id.nav_elevation_heatmap_activity -> loadTutorial(
                 ElevationHeatmapFragment::class.java,
                 "file:///android_asset/elevation_heatmap_tutorial.html",

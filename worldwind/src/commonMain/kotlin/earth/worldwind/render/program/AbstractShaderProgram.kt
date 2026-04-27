@@ -63,9 +63,18 @@ abstract class AbstractShaderProgram: RenderResource {
         return program.isValid()
     }
 
+    /**
+     * GLSL `#version` directive prepended to both vertex and fragment shader sources at build
+     * time. Defaults to [Kgl.glslVersion] (legacy `#version 120` on JOGL, empty elsewhere).
+     * Subclasses targeting GLES 3 / WebGL 2 / GL 3.3 core (e.g. shaders that use `texelFetch`
+     * or sized float-format texture sampling) override this to return [Kgl.glslVersion3].
+     */
+    protected open fun glslVersion(dc: DrawContext): String = dc.gl.glslVersion
+
     protected open fun buildProgram(dc: DrawContext) {
+        val version = glslVersion(dc)
         val vs = dc.gl.createShader(GL_VERTEX_SHADER)
-        dc.gl.shaderSource(vs, programSources[VERTEX_SHADER])
+        dc.gl.shaderSource(vs, version + programSources[VERTEX_SHADER])
         dc.gl.compileShader(vs)
         if (dc.gl.getShaderParameteri(vs, GL_COMPILE_STATUS) != GL_TRUE) {
             val msg = dc.gl.getShaderInfoLog(vs)
@@ -76,7 +85,7 @@ abstract class AbstractShaderProgram: RenderResource {
             return
         }
         val fs = dc.gl.createShader(GL_FRAGMENT_SHADER)
-        dc.gl.shaderSource(fs, dc.gl.glslVersion + programSources[FRAGMENT_SHADER])
+        dc.gl.shaderSource(fs, version + programSources[FRAGMENT_SHADER])
         dc.gl.compileShader(fs)
 
         if (dc.gl.getShaderParameteri(fs, GL_COMPILE_STATUS) != GL_TRUE) {

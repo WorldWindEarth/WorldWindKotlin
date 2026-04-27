@@ -62,6 +62,13 @@ open class RenderContext {
     var lookAtPosition: Position? = null
     var globeState: Globe.State? = null
     var elevationModelTimestamp = 0L
+    /**
+     * Mirrors [earth.worldwind.draw.DrawContext.contextVersion] for this frame. Renderables
+     * that own GPU handles outside [RenderResourceCache] can compare this against a cached
+     * value during `doRender` to detect a GL context teardown (e.g. Android pause / resume)
+     * and reset their stale references.
+     */
+    var contextVersion: Long = 0L
     var cameraPoint = Vec3()
     val viewport = Viewport()
     val projection = Matrix4()

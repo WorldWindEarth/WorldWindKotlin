@@ -14,6 +14,7 @@ class AndroidKgl : Kgl {
     override val hasMaliOOMBug: Boolean by lazy {
         GLES20.glGetString(GL_RENDERER).contains("mali", true)
     }
+    override val glslVersion3 get() = if (isGles3OrLater) "#version 300 es\n" else ""
 
     // RenderResourceCache requests a GLES3 EGL context and falls back to GLES2 if the device
     // doesn't have it. The "OpenGL ES X.Y …" version string tells us which we got — MSAA
@@ -99,6 +100,9 @@ class AndroidKgl : Kgl {
 
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
         GLES20.glBufferData(target, size, sourceData?.let { FloatBuffer.wrap(it, offset, size / 4) }, usage)
+
+    override fun bufferData(target: Int, size: Int, usage: Int) =
+        GLES20.glBufferData(target, size, null, usage)
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) =
         GLES20.glBufferSubData(target, offset, size, ShortBuffer.wrap(sourceData, 0, size / 2))
@@ -204,6 +208,10 @@ class AndroidKgl : Kgl {
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
     ) = GLES20.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { ByteBuffer.wrap(it) })
 
+    override fun texImage2D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = GLES20.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
     override fun activeTexture(texture: Int) = GLES20.glActiveTexture(texture)
 
     override fun bindTexture(target: Int, texture: KglTexture) = GLES20.glBindTexture(target, texture.id)
@@ -260,6 +268,34 @@ class AndroidKgl : Kgl {
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray
     ) = GLES20.glReadPixels(x, y, width, height, format, type, ByteBuffer.wrap(buffer))
+
+    // GLES3 PBO-target readPixels: when GL_PIXEL_PACK_BUFFER is bound, the [offset] arg is
+    // interpreted as a byte offset into that buffer. Non-blocking on the CPU side.
+    override fun readPixelsToBuffer(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int) =
+        GLES30.glReadPixels(x, y, width, height, format, type, offset)
+
+    // GLES 3.0 has glMapBufferRange but not glGetBufferSubData (added only in GLES 3.2). Map
+    // the requested sub-range read-only, copy into the target ByteArray, then unmap.
+    override fun getBufferSubData(target: Int, srcOffset: Int, dst: ByteArray) {
+        val mapped = GLES30.glMapBufferRange(target, srcOffset, dst.size, GL_MAP_READ_BIT) as? ByteBuffer
+        if (mapped != null) {
+            mapped.get(dst)
+            GLES30.glUnmapBuffer(target)
+        }
+    }
+
+    override fun fenceSync() = KglSync(GLES30.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0).toLong())
+
+    override fun isSyncSignalled(sync: KglSync): Boolean {
+        if (!sync.isValid()) return false
+        // 0 timeout + no flush: returns immediately with status. Matches the WebGL2 contract.
+        val result = GLES30.glClientWaitSync(sync.id, 0, 0)
+        return result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED
+    }
+
+    override fun deleteSync(sync: KglSync) {
+        if (sync.isValid()) GLES30.glDeleteSync(sync.id)
+    }
 
     override fun pixelStorei(pname: Int, param: Int) = GLES20.glPixelStorei(pname, param)
 }

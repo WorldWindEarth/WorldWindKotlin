@@ -65,6 +65,15 @@ open class DrawContext(val gl: Kgl) {
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
     /**
+     * Monotonic counter incremented each time [contextLost] runs (typically Android pause /
+     * resume tearing down the GLSurfaceView's GL context). Renderables that own GPU handles
+     * outside [RenderResourceCache] can compare this against a cached value to detect that
+     * their handles are stale and need re-allocating. Propagated to [RenderContext] per frame
+     * by the engine.
+     */
+    var contextVersion = 0L
+        private set
+    /**
      * Returns count of terrain drawables in queue
      */
     val drawableTerrainCount get() = drawableTerrain?.count?:0
@@ -299,6 +308,9 @@ open class DrawContext(val gl: Kgl) {
     }
 
     fun contextLost() {
+        // Bump the version FIRST so anything that happens to read it during the release pass
+        // below already sees the new generation.
+        contextVersion++
         // Clear objects and values associated with the current OpenGL context.
         scratchFramebufferCache?.release(this)
         momentsFramebufferCache?.release(this)

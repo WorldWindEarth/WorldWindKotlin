@@ -38,6 +38,10 @@
             android:icon="@android:drawable/ic_menu_gallery"
             android:title="@string/title_omni_sightline"/>
         <item
+            android:id="@+id/nav_viewshed_sightline_activity"
+            android:icon="@android:drawable/ic_menu_gallery"
+            android:title="@string/title_viewshed_sightline"/>
+        <item
             android:id="@+id/nav_camera_view_activity"
             android:icon="@android:drawable/ic_menu_compass"
             android:title="@string/title_camera_view"/>

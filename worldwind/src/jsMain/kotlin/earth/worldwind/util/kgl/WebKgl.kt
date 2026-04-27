@@ -39,9 +39,15 @@ actual data class KglRenderbuffer(val obj: WebGLRenderbuffer? = null) {
     actual fun isValid() = obj != null
 }
 
+actual data class KglSync(val obj: web.gl.WebGLSync? = null) {
+    actual companion object { actual val NONE = KglSync() }
+    actual fun isValid() = obj != null
+}
+
 class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override val hasMaliOOMBug = false
+    override val glslVersion3 = "#version 300 es\n"
 
     // `as?` compiles to an `instanceof WebGL2RenderingContext` runtime check + cast. The
     // cast through `Any` is needed because the static type of [gl] is the legacy
@@ -121,6 +127,8 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
             ?.let { if (offset == 0 && len == it.length) it else it.subarray(offset, offset + len) }
         if (data != null) gl.bufferData(target, data, usage) else gl.bufferData(target, size, usage)
     }
+
+    override fun bufferData(target: Int, size: Int, usage: Int) = gl.bufferData(target, size, usage)
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) {
         gl.bufferSubData(target, offset, sourceData.unsafeCast<Int16Array>())
@@ -237,6 +245,10 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
     ) = gl.texImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.unsafeCast<Int8Array>())
 
+    override fun texImage2D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = gl.texImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.unsafeCast<Float32Array>())
+
     override fun activeTexture(texture: Int) = gl.activeTexture(texture)
 
     override fun bindTexture(target: Int, texture: KglTexture) = gl.bindTexture(target, texture.obj)
@@ -295,6 +307,43 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray
     ) = gl.readPixels(x, y, width, height, format, type, Uint8Array(buffer.unsafeCast<Int8Array>().buffer))
+
+    // PBO-target readPixels and the sync API are WebGL2-only. Routed through gl2 (the
+    // kotlin-wrappers WebGL2 surface) where the necessary overloads live.
+    override fun readPixelsToBuffer(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int) =
+        requireGl2().readPixels(x, y, width, height, format.glEnum(), type.glEnum(), offset)
+
+    override fun getBufferSubData(target: Int, srcOffset: Int, dst: ByteArray) {
+        // The kotlin-wrappers `web.gl.WebGL2RenderingContext.getBufferSubData` takes its own
+        // `ArrayBufferView<ArrayBufferLike>` generic, but the runtime argument is the same JS
+        // typed-array — the legacy `org.khronos.webgl.Uint8Array` we already use elsewhere in
+        // this file. Routing through `asDynamic()` bypasses the static type-graph mismatch
+        // without forcing a deep dependency on `web.buffer.*`.
+        val view = Uint8Array(dst.unsafeCast<Int8Array>().buffer)
+        requireGl2().asDynamic().getBufferSubData(target.glEnum(), srcOffset, view)
+    }
+
+    // Sync API routes through asDynamic() to sidestep the kotlin-wrappers type maze
+    // (`GLenum`/`GLbitfield`/`GLuint64`/`GLsync` are all opaque generics that don't compose
+    // smoothly with our Int-based Kgl interface). The runtime calls are the same; the
+    // dynamic dispatch just lets us pass plain numbers and receive plain numbers back.
+    override fun fenceSync(): KglSync {
+        val obj = requireGl2().asDynamic().fenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+            .unsafeCast<web.gl.WebGLSync?>()
+        return KglSync(obj)
+    }
+
+    override fun isSyncSignalled(sync: KglSync): Boolean {
+        val obj = sync.obj ?: return false
+        // 0 timeout + no flush: returns immediately with status. ALREADY_SIGNALED or
+        // CONDITION_SATISFIED both indicate the fence is reached; everything else is "not yet".
+        val result = requireGl2().asDynamic().clientWaitSync(obj, 0, 0).unsafeCast<Int>()
+        return result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED
+    }
+
+    override fun deleteSync(sync: KglSync) {
+        sync.obj?.let { requireGl2().asDynamic().deleteSync(it) }
+    }
 
     override fun pixelStorei(pname: Int, param: Int) = gl.pixelStorei(pname, param)
 }

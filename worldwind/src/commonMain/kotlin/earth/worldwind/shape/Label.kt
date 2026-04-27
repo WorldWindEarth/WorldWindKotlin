@@ -117,7 +117,7 @@ open class Label @JvmOverloads constructor(
      * @param globe    not used.
      * @param position the new position of the shape's reference position.
      */
-    override fun moveTo(globe: Globe, position: Position) { this.position = position }
+    override fun moveTo(globe: Globe, position: Position) { this.position.copy(position) }
 
     override fun doRender(rc: RenderContext) {
         if (text?.isEmpty() != false) return  // no text to render

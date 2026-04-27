@@ -37,7 +37,7 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
         addRenderable(object : Placemark(omnidirectionalPosition) {
             override fun moveTo(globe: Globe, position: Position) {
                 super.moveTo(globe, position)
-                omniSightline.position = position
+                omniSightline.position.copy(position)
             }
         }.apply {
             attributes.apply {
@@ -60,7 +60,7 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
         addRenderable(object : Placemark(directionalPosition) {
             override fun moveTo(globe: Globe, position: Position) {
                 super.moveTo(globe, position)
-                directionalSightline.position = position
+                directionalSightline.position.copy(position)
             }
         }.apply {
             attributes.apply {

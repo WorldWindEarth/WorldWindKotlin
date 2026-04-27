@@ -11,6 +11,7 @@ class LwjglKgl : Kgl {
     private val arrF = FloatArray(16)
 
     override val hasMaliOOMBug = false
+    override val glslVersion3 = "#version 330 core\n"
 
     override fun getParameteri(pname: Int): Int {
         GL33.glGetIntegerv(pname, arrI)
@@ -85,6 +86,9 @@ class LwjglKgl : Kgl {
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
         if (sourceData != null) GL33.glBufferData(target, FloatBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
         else GL33.glBufferData(target, size.toLong(), usage)
+
+    override fun bufferData(target: Int, size: Int, usage: Int) =
+        GL33.glBufferData(target, size.toLong(), usage)
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) =
         GL33.glBufferSubData(target, offset.toLong(), ShortBuffer.wrap(sourceData, 0, size / 2))
@@ -181,6 +185,10 @@ class LwjglKgl : Kgl {
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
     ) = GL33.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { ByteBuffer.wrap(it) })
 
+    override fun texImage2D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = GL33.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
     override fun activeTexture(texture: Int) = GL33.glActiveTexture(texture)
 
     override fun bindTexture(target: Int, texture: KglTexture) = GL33.glBindTexture(target, texture.id)
@@ -227,6 +235,26 @@ class LwjglKgl : Kgl {
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray
     ) = GL33.glReadPixels(x, y, width, height, format, type, ByteBuffer.wrap(buffer))
+
+    override fun readPixelsToBuffer(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int) =
+        GL33.glReadPixels(x, y, width, height, format, type, offset.toLong())
+
+    override fun getBufferSubData(target: Int, srcOffset: Int, dst: ByteArray) =
+        GL33.glGetBufferSubData(target, srcOffset.toLong(), ByteBuffer.wrap(dst))
+
+    override fun fenceSync() = KglSync(
+        org.lwjgl.opengl.GL32.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+    )
+
+    override fun isSyncSignalled(sync: KglSync): Boolean {
+        if (!sync.isValid()) return false
+        val result = org.lwjgl.opengl.GL32.glClientWaitSync(sync.id, 0, 0)
+        return result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED
+    }
+
+    override fun deleteSync(sync: KglSync) {
+        if (sync.isValid()) org.lwjgl.opengl.GL32.glDeleteSync(sync.id)
+    }
 
     override fun pixelStorei(pname: Int, param: Int) = GL33.glPixelStorei(pname, param)
 }

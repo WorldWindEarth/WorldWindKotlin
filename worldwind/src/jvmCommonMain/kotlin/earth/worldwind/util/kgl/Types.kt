@@ -34,3 +34,8 @@ actual data class KglRenderbuffer(val id: Int = 0) {
     actual companion object{ actual val NONE = KglRenderbuffer() }
     actual fun isValid() = id != 0
 }
+
+actual data class KglSync(val id: Long = 0L) {
+    actual companion object { actual val NONE = KglSync() }
+    actual fun isValid() = id != 0L
+}

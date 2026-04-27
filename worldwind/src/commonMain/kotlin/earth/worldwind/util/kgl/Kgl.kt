@@ -28,6 +28,10 @@ expect class KglRenderbuffer {
     companion object{ val NONE: KglRenderbuffer }
     fun isValid(): Boolean
 }
+expect class KglSync {
+    companion object { val NONE: KglSync }
+    fun isValid(): Boolean
+}
 
 const val GL_ACTIVE_TEXTURE = 0x84E0
 const val GL_DEPTH_BUFFER_BIT = 0x00000100
@@ -73,8 +77,20 @@ const val GL_ELEMENT_ARRAY_BUFFER = 0x8893
 const val GL_ARRAY_BUFFER_BINDING = 0x8894
 const val GL_ELEMENT_ARRAY_BUFFER_BINDING = 0x8895
 const val GL_STREAM_DRAW = 0x88E0
+const val GL_STREAM_READ = 0x88E1
 const val GL_STATIC_DRAW = 0x88E4
+const val GL_STATIC_READ = 0x88E5
 const val GL_DYNAMIC_DRAW = 0x88E8
+const val GL_DYNAMIC_READ = 0x88E9
+const val GL_PIXEL_PACK_BUFFER = 0x88EB
+const val GL_PIXEL_UNPACK_BUFFER = 0x88EC
+const val GL_MAP_READ_BIT = 0x0001
+const val GL_SYNC_GPU_COMMANDS_COMPLETE = 0x9117
+const val GL_SYNC_FLUSH_COMMANDS_BIT = 0x00000001
+const val GL_ALREADY_SIGNALED = 0x911A
+const val GL_TIMEOUT_EXPIRED = 0x911B
+const val GL_CONDITION_SATISFIED = 0x911C
+const val GL_WAIT_FAILED = 0x911D
 const val GL_BUFFER_SIZE = 0x8764
 const val GL_BUFFER_USAGE = 0x8765
 const val GL_CURRENT_VERTEX_ATTRIB = 0x8626
@@ -389,6 +405,12 @@ const val GL_COMPRESSED_RG = 0x8226
 interface Kgl {
     val hasMaliOOMBug: Boolean
     val glslVersion: String get() = ""
+    /**
+     * `#version` directive for shaders that need GLES 3 / GL 3.3+ features (e.g. `texelFetch`,
+     * sized R32F sampling). Returns `"#version 300 es\n"` on Android / WebGL2, `"#version 330
+     * core\n"` on desktop GL. Empty when no version directive should be emitted.
+     */
+    val glslVersion3: String get() = ""
 
     fun createShader(type: Int): KglShader
     fun shaderSource(shader: KglShader, source: String)
@@ -427,6 +449,13 @@ interface Kgl {
     fun bufferData(target: Int, size: Int, sourceData: ShortArray?, usage: Int, offset: Int = 0)
     fun bufferData(target: Int, size: Int, sourceData: IntArray?, usage: Int, offset: Int = 0)
     fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int = 0)
+    /**
+     * Allocate-only [bufferData] used for round-tripping pixel pack buffers (`GL_STREAM_READ`):
+     * reserves [size] bytes on the GPU without uploading source data. Pair with
+     * [readPixelsToBuffer] to write the framebuffer into the bound PBO and [getBufferSubData]
+     * to drain it back to CPU once a fence has signalled.
+     */
+    fun bufferData(target: Int, size: Int, usage: Int)
     fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray)
     fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray)
     fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray)
@@ -470,6 +499,12 @@ interface Kgl {
     fun createTexture(): KglTexture
     fun deleteTexture(texture: KglTexture)
     fun texImage2D(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?)
+    /**
+     * Float-typed [texImage2D] overload for sized formats like `GL_R32F` whose `type` is
+     * `GL_FLOAT`. Each platform wraps the [buffer] in its native float view (Float32Array on JS,
+     * FloatBuffer on JVM/Android) without an intermediate byte copy.
+     */
+    fun texImage2D(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?)
     fun activeTexture(texture: Int)
     fun bindTexture(target: Int, texture: KglTexture)
     fun generateMipmap(target: Int)
@@ -514,6 +549,34 @@ interface Kgl {
     )
 
     fun readPixels(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray)
+    /**
+     * `glReadPixels` variant that writes into the buffer currently bound to `GL_PIXEL_PACK_BUFFER`
+     * at byte [offset] from its start. Non-blocking on the CPU side - the GPU continues to fill
+     * the PBO asynchronously. Pair with [fenceSync] / [isSyncSignalled] to know when the data is
+     * ready, then [getBufferSubData] to drain it. Requires GLES3+ / WebGL2 / GL3+; falls back to
+     * a synchronous CPU-target [readPixels] is the responsibility of the caller when those
+     * features aren't available.
+     */
+    fun readPixelsToBuffer(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int)
+    /**
+     * Drain bytes from the buffer object bound to [target] (e.g. `GL_PIXEL_PACK_BUFFER`) into
+     * [dst], starting at byte [srcOffset] within the buffer object. Blocks if the GPU is still
+     * writing the source range; the typical pattern is to wait for [fenceSync] to signal first.
+     */
+    fun getBufferSubData(target: Int, srcOffset: Int, dst: ByteArray)
+    /**
+     * Insert a `GL_SYNC_GPU_COMMANDS_COMPLETE` fence into the GL command stream. Pair with
+     * [isSyncSignalled] to test whether all preceding commands have finished, then [deleteSync]
+     * to release. Requires GLES3+ / WebGL2 / GL3+.
+     */
+    fun fenceSync(): KglSync
+    /**
+     * Non-blocking probe for [sync]: returns `true` once the fence has signalled (i.e. all
+     * GL commands issued before [fenceSync] have completed). Internally `glClientWaitSync(sync,
+     * 0, 0)` with no flush.
+     */
+    fun isSyncSignalled(sync: KglSync): Boolean
+    fun deleteSync(sync: KglSync)
     fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean)
     fun lineWidth(width: Float)
     fun pixelStorei(pname: Int, param: Int)

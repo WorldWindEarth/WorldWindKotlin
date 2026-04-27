@@ -467,6 +467,7 @@ open class WorldWind @JvmOverloads constructor(
         rc.atmosphereAltitude = atmosphereAltitude
         rc.globeState = globeState
         rc.elevationModelTimestamp = elevationTimestamp
+        rc.contextVersion = dc.contextVersion
 
         // Configure the frame's Cartesian modelview matrix and eye coordinate projection matrix.
         computeViewingTransform(frame.projection, frame.modelview)

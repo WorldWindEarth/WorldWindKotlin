@@ -15,6 +15,7 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override val hasMaliOOMBug = false
     override val glslVersion = "#version 120\n"
+    override val glslVersion3 = "#version 330 core\n"
 
     override fun getParameteri(pname: Int): Int {
         gl.glGetIntegerv(pname, arrI, 0)
@@ -102,6 +103,9 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
         gl.glBufferData(target, size.toLong(), sourceData?.let { FloatBuffer.wrap(it, offset, sourceData.size - offset) }, usage)
+
+    override fun bufferData(target: Int, size: Int, usage: Int) =
+        gl.glBufferData(target, size.toLong(), null, usage)
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) =
         gl.glBufferSubData(target, offset.toLong(), size.toLong(), ShortBuffer.wrap(sourceData, 0, size / 2))
@@ -195,6 +199,10 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
     ) = gl.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { ByteBuffer.wrap(it) })
 
+    override fun texImage2D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = gl.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
     override fun activeTexture(texture: Int) = gl.glActiveTexture(texture)
 
     override fun bindTexture(target: Int, texture: KglTexture) = gl.glBindTexture(target, texture.id)
@@ -253,6 +261,33 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray
     ) = gl.glReadPixels(x, y, width, height, format, type, ByteBuffer.wrap(buffer))
+
+    // PBO-target readPixels: long offset overload writes into the bound GL_PIXEL_PACK_BUFFER.
+    override fun readPixelsToBuffer(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int) =
+        gl.glReadPixels(x, y, width, height, format, type, offset.toLong())
+
+    override fun getBufferSubData(target: Int, srcOffset: Int, dst: ByteArray) {
+        // JOGL's GL3ES3 doesn't expose glGetBufferSubData (it lives on the GL3/GL4 surfaces).
+        // Map the requested sub-range read-only, copy into the target ByteArray, then unmap -
+        // same approach as AndroidKgl for the same reason.
+        val mapped: ByteBuffer? = gl.glMapBufferRange(target, srcOffset.toLong(), dst.size.toLong(), GL_MAP_READ_BIT)
+        if (mapped != null) {
+            mapped.get(dst)
+            gl.glUnmapBuffer(target)
+        }
+    }
+
+    override fun fenceSync() = KglSync(gl.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0))
+
+    override fun isSyncSignalled(sync: KglSync): Boolean {
+        if (!sync.isValid()) return false
+        val result = gl.glClientWaitSync(sync.id, 0, 0)
+        return result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED
+    }
+
+    override fun deleteSync(sync: KglSync) {
+        if (sync.isValid()) gl.glDeleteSync(sync.id)
+    }
 
     override fun pixelStorei(pname: Int, param: Int) = gl.glPixelStorei(pname, param)
 }

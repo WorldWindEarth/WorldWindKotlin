@@ -135,7 +135,8 @@ open class Texture(
     protected open fun allocTexImage(dc: DrawContext) {
         // Following line of code is a dirty hack to disable AFBC compression on Mali GPU driver,
         // which cause huge memory leak during surface shapes drawing on terrain textures.
-        if (isRT and dc.gl.hasMaliOOMBug) dc.gl.texImage2D(target, 0, internalFormat, 1, 1, 0, format, type, null)
+        // `null as ByteArray?` disambiguates from the FloatArray-buffer overload of texImage2D.
+        if (isRT and dc.gl.hasMaliOOMBug) dc.gl.texImage2D(target, 0, internalFormat, 1, 1, 0, format, type, null as ByteArray?)
 
         // Allocate texture memory. For GL_TEXTURE_CUBE_MAP we need to call texImage2D once per
         // face with the corresponding face target (GL_TEXTURE_CUBE_MAP_POSITIVE_X..NEGATIVE_Z).
@@ -144,12 +145,12 @@ open class Texture(
             for (face in 0 until 6) {
                 dc.gl.texImage2D(
                     GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, internalFormat,
-                    width, height, 0, format, type, null
+                    width, height, 0, format, type, null as ByteArray?
                 )
             }
         } else {
             dc.gl.texImage2D(
-                target, 0 /*level*/, internalFormat, width, height, 0 /*border*/, format, type, null /*pixels*/
+                target, 0 /*level*/, internalFormat, width, height, 0 /*border*/, format, type, null as ByteArray?
             )
         }
     }

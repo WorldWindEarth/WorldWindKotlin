@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Viewshed Sightline Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Viewshed Sightline Tutorial</h1>
+<p>
+    Demonstrates how to create a <code>ViewshedSightline</code> &mdash; a per-cell visibility analysis
+    computed against the source elevation model rather than the rendered terrain mesh. Sampling resolution
+    is decoupled from the camera's terrain LoD, so far-away coverage areas remain accurate even when the
+    visible terrain tiles are coarse.
+</p>
+<p>
+    Two viewshed footprints are placed around Mount St. Helens to show contrasting line-of-sight scenarios:
+</p>
+<ul>
+    <li><b>Circular viewshed</b> &mdash; observer hovers ~120 m above the south crater rim at the geometric
+        center of the crater, with a 15 km radius. Visible terrain (green) covers the crater floor and the
+        ridges within line of sight; occluded terrain (gray) is in the radio shadow of the rim.</li>
+    <li><b>Rectangular viewshed</b> &mdash; observer sits 30 m above Swift Reservoir, with a 14 km &times;
+        4 km E-W rectangle aligned to the long axis of the reservoir. Visibility forms a bright corridor
+        along the water (blue) while the canyon walls cast clean shadows.</li>
+</ul>
+<p>
+    Each placemark is draggable. Move it to a peak and the visible region grows to the full AOI &mdash;
+    that's correct line-of-sight from a summit observer, not a kernel artifact.
+</p>
+<p>
+    The kernel uses an Amanatides-Woo grid traversal per cell with bilinear elevation sampling and an
+    earth-curvature + atmospheric-refraction correction, so visibility verdicts on long sightlines remain
+    accurate.
+</p>
+<h2>Example</h2>
+<h3>ViewshedSightlineFragment.kt</h3>
+<p>
+    The <code>ViewshedSightlineFragment</code> class extends <code>BasicGlobeFragment</code> and overrides
+    <code>createWorldWindow</code> to start a <code>ViewshedSightlineTutorial</code> against the engine.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class ViewshedSightlineFragment: BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a ViewshedSightline.
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also { ViewshedSightlineTutorial(it.engine).start() }
+}
+
+class ViewshedSightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
+
+    private val circleViewshed: ViewshedSightline
+    private val rectangleViewshed: ViewshedSightline
+
+    private val layer = RenderableLayer("Viewshed Sightline").apply {
+        val circlePosition = Position.fromDegrees(46.200, -122.188, 2650.0)
+        val rectanglePosition = Position.fromDegrees(46.050, -122.100, 30.0)
+
+        // Circular viewshed centered on the MSH south crater rim, radius 15 km.
+        circleViewshed = ViewshedSightline(
+            circlePosition, ViewshedArea.Circle(radius = 15000.0)
+        ).apply {
+            isPickEnabled = false
+            altitudeMode = AltitudeMode.ABSOLUTE
+            attributes.apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
+            occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
+        }
+        addRenderable(circleViewshed)
+
+        // Draggable placemark; dragging it moves the underlying viewshed observer.
+        addRenderable(object : Placemark(circlePosition) {
+            override fun moveTo(globe: Globe, position: Position) {
+                super.moveTo(globe, position)
+                circleViewshed.position.copy(position)
+            }
+        }.apply {
+            altitudeMode = AltitudeMode.ABSOLUTE
+            attributes.apply {
+                imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
+                imageOffset = Offset.bottomCenter()
+                imageScale = 2.0
+                isDrawLeader = true
+            }
+        })
+
+        // Rectangular viewshed over Swift Reservoir, 14 km E-W by 4 km N-S.
+        rectangleViewshed = ViewshedSightline(
+            rectanglePosition, ViewshedArea.Rectangle(widthMeters = 14000.0, heightMeters = 4000.0)
+        ).apply {
+            isPickEnabled = false
+            altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
+            attributes.apply { interiorColor = Color(0f, 0f, 1f, 0.5f) }
+            occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
+        }
+        addRenderable(rectangleViewshed)
+
+        addRenderable(object : Placemark(rectanglePosition) {
+            override fun moveTo(globe: Globe, position: Position) {
+                super.moveTo(globe, position)
+                rectangleViewshed.position.copy(position)
+            }
+        }.apply {
+            altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
+            attributes.apply {
+                imageSource = ImageSource.fromResource(MR.images.aircraft_fixwing)
+                imageOffset = Offset.bottomCenter()
+                imageScale = 2.0
+                isDrawLeader = true
+            }
+        })
+    }
+
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+        // Camera framed due south of the scene looking north so both viewsheds are visible at once.
+        engine.cameraFromLookAt(
+            LookAt(
+                position = Position(46.130.degrees, (-122.130).degrees, 0.0),
+                altitudeMode = AltitudeMode.ABSOLUTE,
+                range = 2.3e4, heading = 0.0.degrees, tilt = 60.0.degrees, roll = 0.0.degrees
+            )
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
+    }
+
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>
