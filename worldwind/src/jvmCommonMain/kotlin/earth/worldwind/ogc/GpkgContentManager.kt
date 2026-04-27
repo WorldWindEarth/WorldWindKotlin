@@ -51,9 +51,9 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         if (file.exists()) Instant.fromEpochMilliseconds(file.lastModified()) else null
     }
 
-    override suspend fun getImageLayersCount() = geoPackage.countContent(TILES).toInt()
+    override suspend fun getImageLayersCount() = withContext(Dispatchers.IO) { geoPackage.countContent(TILES).toInt() }
 
-    override suspend fun getImageLayers(contentKeys: List<String>?) =
+    override suspend fun getImageLayers(contentKeys: List<String>?) = withContext(Dispatchers.IO) {
         geoPackage.getContent(TILES, contentKeys).mapNotNull { content ->
             // Try to build the level set. It may fail due to unsupported projection or other requirements.
             runCatching { geoPackage.buildLevelSetConfig(content) }.onFailure {
@@ -134,10 +134,11 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 }
             }
         }
+    }
 
     override suspend fun setupImageLayerCache(
         layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean
-    ) {
+    ) = withContext(Dispatchers.IO) {
         val tiledSurfaceImage = layer.tiledSurfaceImage ?: error("Surface image not defined")
         val levelSet = tiledSurfaceImage.levelSet
         val imageFormat = (layer as? WebImageLayer)?.imageFormat ?: "image/png"
@@ -173,9 +174,9 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(geoPackage, content, imageFormat)
     }
 
-    override suspend fun getElevationCoveragesCount() = geoPackage.countContent(COVERAGE).toInt()
+    override suspend fun getElevationCoveragesCount() = withContext(Dispatchers.IO) { geoPackage.countContent(COVERAGE).toInt() }
 
-    override suspend fun getElevationCoverages(contentKeys: List<String>?) =
+    override suspend fun getElevationCoverages(contentKeys: List<String>?) = withContext(Dispatchers.IO) {
         geoPackage.getContent(COVERAGE, contentKeys).mapNotNull { content ->
             runCatching {
                 val metadata = geoPackage.getGriddedCoverage(content)
@@ -230,10 +231,11 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 logMessage(WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
             }.getOrNull()
         }
+    }
 
     override suspend fun setupElevationCoverageCache(
         coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean, isFloat: Boolean
-    ) {
+    ) = withContext(Dispatchers.IO) {
         val content = geoPackage.getContent(contentKey)?.also { content ->
             // Check if the current layer fits cache content
             val matrixSet = geoPackage.buildTileMatrixSet(content)
@@ -257,12 +259,12 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         coverage.cacheSourceFactory = GpkgElevationSourceFactory(geoPackage, content, isFloat)
     }
 
-    override suspend fun deleteContent(contentKey: String) = geoPackage.deleteContent(contentKey)
+    override suspend fun deleteContent(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.deleteContent(contentKey) }
 
-    suspend fun getFeatureLayersCount() = geoPackage.countContent(FEATURES).toInt()
+    suspend fun getFeatureLayersCount() = withContext(Dispatchers.IO) { geoPackage.countContent(FEATURES).toInt() }
 
-    suspend fun getFeatureLayers(contentKeys: List<String>? = null) = geoPackage.getContent(FEATURES, contentKeys)
-        .mapNotNull { content ->
+    suspend fun getFeatureLayers(contentKeys: List<String>? = null) = withContext(Dispatchers.IO) {
+        geoPackage.getContent(FEATURES, contentKeys).mapNotNull { content ->
             runCatching {
                 RenderableLayer(geoPackage.getRenderables(content)).apply {
                     displayName = content.identifier
@@ -275,8 +277,9 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message!!)
             }.getOrNull()
         }
+    }
 
-    suspend fun getFeatureLayerSize(contentKey: String) = geoPackage.readFeaturesDataSize(contentKey)
+    suspend fun getFeatureLayerSize(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.readFeaturesDataSize(contentKey) }
 
     companion object {
         const val FEATURE_CONTENT_KEY = "featureContentKey"
