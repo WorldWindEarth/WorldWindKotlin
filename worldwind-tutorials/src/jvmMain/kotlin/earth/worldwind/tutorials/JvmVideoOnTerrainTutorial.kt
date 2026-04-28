@@ -65,4 +65,11 @@ abstract class JvmVideoOnTerrainTutorial<T>(
         inner = null
         player = null
     }
+
+    // Surface the inner tutorial's UI actions (currently the 3D-projection toggle) to the
+    // JVM tutorial host so they render as buttons next to the dropdown. Read AFTER `start`
+    // so `inner` is non-null; the host's call sequence is start() then `actions`.
+    override val actions: ArrayList<String>? get() = inner?.actions
+
+    final override fun runAction(actionName: String) { inner?.runAction(actionName) }
 }

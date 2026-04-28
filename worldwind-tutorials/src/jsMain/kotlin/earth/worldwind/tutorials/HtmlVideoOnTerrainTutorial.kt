@@ -88,6 +88,14 @@ class HtmlVideoOnTerrainTutorial(private val engine: WorldWind) : AbstractTutori
         try { video.pause() } catch (_: Throwable) { /* idempotent */ }
     }
 
+    // Surface the inner tutorial's UI actions to the JS tutorial host. The host reads
+    // `actions` synchronously right after `start()`, but `inner` is built inside a
+    // coroutine that may not have resolved yet, so we expose the static label list and
+    // forward `runAction` calls - they no-op until `inner` is ready.
+    override val actions = arrayListOf(VideoOnTerrainTutorial.ACTION_TOGGLE_3D)
+
+    override fun runAction(actionName: String) { inner?.runAction(actionName) }
+
     private suspend fun fetchText(url: String): String? = try {
         val response = window.fetch(url).await()
         (response.asDynamic().text() as Promise<String>).await()

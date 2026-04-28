@@ -579,4 +579,88 @@ class Matrix3Test {
             assertEquals(expected[i], result[i].toDouble(), 0.0, i.toString())
         }
     }
+
+    /** Apply the row-major 3x3 homography H to (x, y, 1). Returns (u, v, w). */
+    private fun applyHomography(h: Matrix3, x: Double, y: Double): DoubleArray {
+        val m = h.m
+        return doubleArrayOf(
+            m[0] * x + m[1] * y + m[2],
+            m[3] * x + m[4] * y + m[5],
+            m[6] * x + m[7] * y + m[8],
+        )
+    }
+
+    private fun assertMapsTo(
+        h: Matrix3, px: Double, py: Double, expectedU: Double, expectedV: Double, label: String,
+    ) {
+        val r = applyHomography(h, px, py)
+        val w = r[2]
+        check(kotlin.math.abs(w) > 1e-12) { "$label: w should be non-zero, got $w" }
+        assertEquals(expectedU, r[0] / w, 1e-9, "$label u")
+        assertEquals(expectedV, r[1] / w, 1e-9, "$label v")
+    }
+
+    @Test
+    fun testQuadToUnitSquareHomography_unitSquareIdentity() {
+        // Inputs already on the unit square: H should map each corner to its UV target.
+        val h = Matrix3().setToQuadToUnitSquareHomography(
+            p1x = 1.0, p1y = 0.0,
+            p2x = 1.0, p2y = 1.0,
+            p3x = 0.0, p3y = 1.0,
+        )
+        assertMapsTo(h, 0.0, 0.0, 0.0, 0.0, "BL")
+        assertMapsTo(h, 1.0, 0.0, 1.0, 0.0, "BR")
+        assertMapsTo(h, 1.0, 1.0, 1.0, 1.0, "TR")
+        assertMapsTo(h, 0.0, 1.0, 0.0, 1.0, "TL")
+    }
+
+    @Test
+    fun testQuadToUnitSquareHomography_parallelogramIsAffine() {
+        // Parallelogram input: dx3 == dy3 == 0, so the bottom row of Hi collapses to
+        // (0, 0, 1) and the inverse stays affine. Verify the canonical bottom row.
+        val h = Matrix3().setToQuadToUnitSquareHomography(
+            p1x = 2.0, p1y = 0.0,
+            p2x = 3.0, p2y = 1.0,
+            p3x = 1.0, p3y = 1.0,
+        )
+        assertEquals(0.0, h.m[6], 1e-12)
+        assertEquals(0.0, h.m[7], 1e-12)
+        assertEquals(1.0, h.m[8], 1e-12)
+        assertMapsTo(h, 0.0, 0.0, 0.0, 0.0, "BL")
+        assertMapsTo(h, 2.0, 0.0, 1.0, 0.0, "BR")
+        assertMapsTo(h, 3.0, 1.0, 1.0, 1.0, "TR")
+        assertMapsTo(h, 1.0, 1.0, 0.0, 1.0, "TL")
+    }
+
+    @Test
+    fun testQuadToUnitSquareHomography_perspectiveQuadCornersRoundTrip() {
+        // True trapezoid: bottom row carries a real perspective term. Each ground corner
+        // must still round-trip exactly to its UV target.
+        val h = Matrix3().setToQuadToUnitSquareHomography(
+            p1x = 4.0, p1y = 0.0,
+            p2x = 3.0, p2y = 2.0,
+            p3x = 1.0, p3y = 2.0,
+        )
+        assertMapsTo(h, 0.0, 0.0, 0.0, 0.0, "BL")
+        assertMapsTo(h, 4.0, 0.0, 1.0, 0.0, "BR")
+        assertMapsTo(h, 3.0, 2.0, 1.0, 1.0, "TR")
+        assertMapsTo(h, 1.0, 2.0, 0.0, 1.0, "TL")
+    }
+
+    @Test
+    fun testQuadToUnitSquareHomography_centroidStaysInsideUnitSquare() {
+        // Convex-quad sanity: any interior point projects strictly inside the unit square.
+        val h = Matrix3().setToQuadToUnitSquareHomography(
+            p1x = 4.0, p1y = 0.0,
+            p2x = 3.0, p2y = 2.0,
+            p3x = 1.0, p3y = 2.0,
+        )
+        val cx = (0.0 + 4.0 + 3.0 + 1.0) / 4.0
+        val cy = (0.0 + 0.0 + 2.0 + 2.0) / 4.0
+        val r = applyHomography(h, cx, cy)
+        val uu = r[0] / r[2]
+        val vv = r[1] / r[2]
+        assertTrue(uu in 0.0..1.0, "centroid u in [0,1], got $uu")
+        assertTrue(vv in 0.0..1.0, "centroid v in [0,1], got $vv")
+    }
 }

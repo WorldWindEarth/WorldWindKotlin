@@ -2,6 +2,7 @@ package earth.worldwind.shape
 
 import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawableSurfaceTexture
+import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.render.AbstractSurfaceRenderable
 import earth.worldwind.render.RenderContext
@@ -63,4 +64,37 @@ open class SurfaceImage : AbstractSurfaceRenderable {
 
     protected open fun getShaderProgram(rc: RenderContext) =
         rc.getShaderProgram(SurfaceTextureProgram.KEY) { SurfaceTextureProgram() }
+
+    companion object {
+        /**
+         * Build a non-axis-aligned surface image from four arbitrary ground corners. The
+         * returned [ProjectedMediaSurface] drapes [imageSource] onto terrain via its planar
+         * 2D-homography path, exact for flat ground and a close approximation for typical
+         * sub-km footprints over rolling relief.
+         *
+         * Use this for projected-imagery scenarios that don't fit a [Sector]: oblique
+         * photos, parallelogram MISB image-frames, or any quad whose corners aren't
+         * lat/lon-aligned. Corners are in image-frame order (bottom-left through top-left,
+         * counter-clockwise as seen from above).
+         *
+         * For full 3D camera-frustum projection (correct over arbitrary relief), use
+         * [ProjectedMediaSurface] directly and set its `imageProjection` matrix.
+         */
+        fun forCorners(
+            bottomLeft: Location, bottomRight: Location, topRight: Location, topLeft: Location,
+            imageSource: ImageSource,
+        ) = ProjectedMediaSurface(bottomLeft, bottomRight, topRight, topLeft, imageSource)
+
+        /** GPU-direct variant of [forCorners] — caller owns the [Texture]'s lifecycle. */
+        fun forCorners(
+            bottomLeft: Location, bottomRight: Location, topRight: Location, topLeft: Location,
+            texture: Texture,
+        ) = ProjectedMediaSurface(
+            bottomLeft, bottomRight, topRight, topLeft,
+            ShapeAttributes().apply {
+                isDrawOutline = false
+                isPickInterior = false
+            }
+        ).also { it.texture = texture }
+    }
 }

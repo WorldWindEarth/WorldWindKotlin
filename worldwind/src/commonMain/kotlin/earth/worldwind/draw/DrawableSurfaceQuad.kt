@@ -236,28 +236,37 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
         )
         program.loadModelviewProjection(mvpMatrix)
 
-        // Use the shape's vertex point attribute.
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
-        dc.gl.disable(GL_CULL_FACE)
-        // Draw the specified primitives to the framebuffer texture.
-        for (primIdx in 0 until shape.drawState.primCount) {
-            val prim = shape.drawState.prims[primIdx]
-            program.loadColor(prim.color)
-            program.loadOpacity(prim.opacity)
-            if (prim.texture?.bindTexture(dc) == true) {
-                program.loadTexCoordMatrix(prim.texCoordMatrix)
-                program.loadHomography(prim.homography)
-                program.enableTexture(true)
-            } else {
-                program.enableTexture(false)
-                // prevent "RENDER WARNING: there is no texture bound to unit 0"
-                dc.defaultTexture.bindTexture(dc)
+        // SurfaceQuadShaderProgram only uses attribute 0; disable the 1/2/3 slots that
+        // the outer scope enabled for the outline pass. WebGL's drawElements rejects an
+        // enabled attribute without a bound buffer, and the outline pass that follows
+        // expects them re-enabled.
+        dc.gl.disableVertexAttribArray(1)
+        dc.gl.disableVertexAttribArray(2)
+        dc.gl.disableVertexAttribArray(3)
+        try {
+            dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, shape.drawState.vertexStride, 0)
+            dc.gl.disable(GL_CULL_FACE)
+            for (primIdx in 0 until shape.drawState.primCount) {
+                val prim = shape.drawState.prims[primIdx]
+                program.loadColor(prim.color)
+                program.loadOpacity(prim.opacity)
+                if (prim.texture?.bindTexture(dc) == true) {
+                    program.loadTexCoordMatrix(prim.texCoordMatrix)
+                    program.loadHomography(prim.homography)
+                    program.enableTexture(true)
+                } else {
+                    program.enableTexture(false)
+                    dc.defaultTexture.bindTexture(dc) // prevents "no texture bound to unit 0"
+                }
+                dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
             }
-
-            dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
+            dc.gl.enable(GL_CULL_FACE)
+            return true
+        } finally {
+            dc.gl.enableVertexAttribArray(1)
+            dc.gl.enableVertexAttribArray(2)
+            dc.gl.enableVertexAttribArray(3)
         }
-        dc.gl.enable(GL_CULL_FACE)
-        return true
     }
 
     protected open fun drawShapesToTextureOutline(

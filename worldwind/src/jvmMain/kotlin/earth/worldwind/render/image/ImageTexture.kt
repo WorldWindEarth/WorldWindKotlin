@@ -11,7 +11,15 @@ import java.awt.image.DataBufferInt
 
 open class ImageTexture(image: BufferedImage) : Texture(image.width, image.height, GL_BGRA, GL_UNSIGNED_BYTE) {
     protected var bgraBytes: ByteArray? = image.toBgraBytes()
-    override val hasMipMap = isPowerOfTwo(image.width) && isPowerOfTwo(image.height)
+    /**
+     * Set by [allocTexImage] once the runtime can be probed: we always generate mipmaps for
+     * power-of-two images (every GL profile supports it) and additionally for NPOT images
+     * on modern GL where `supportsSizedTextureFormats` is true (proxies for
+     * GLES3+/WebGL2/desktop GL, which gate NPOT mipmap support in lockstep with sized
+     * texture formats). Anisotropic filtering pairs with mipmaps to keep oblique-angle
+     * samples sharp.
+     */
+    override var hasMipMap = false
 
     init {
         coordTransform.setToVerticalFlip()
@@ -31,9 +39,14 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
             dc.gl.texImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, format, type, pixels)
             dc.gl.pixelStorei(GL_UNPACK_ALIGNMENT, 0)
 
-            // If the bitmap has power-of-two dimensions, generate the texture object's image data for image levels 1
-            // through level N, and configure the texture object's filtering modes to use those image levels.
-            if (hasMipMap) dc.gl.generateMipmap(GL_TEXTURE_2D)
+            // Generate mipmaps when the runtime supports them: always for POT dimensions (every
+            // GL profile), additionally for NPOT on GLES3+/WebGL2/desktop GL (proxied by
+            // supportsSizedTextureFormats). Skipping on GLES2/WebGL1 NPOT avoids the spec's
+            // incomplete-texture trap.
+            if ((isPowerOfTwo(width) && isPowerOfTwo(height)) || dc.gl.supportsSizedTextureFormats) {
+                dc.gl.generateMipmap(GL_TEXTURE_2D)
+                hasMipMap = true
+            }
         } catch (e: Exception) {
             logMessage(
                 ERROR, "Texture", "loadTexImage",

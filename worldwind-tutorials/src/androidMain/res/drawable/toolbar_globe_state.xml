@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Globe-shape indicator for the projection toggle. Checked = 2D Mercator (flat),
+    unchecked = WGS84 round globe. Used as the `android:button` of the is2d CheckBox so
+    the icon itself reflects the current state — no text label needed.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true"  android:drawable="@drawable/ic_globe_flat" />
+    <item                                 android:drawable="@drawable/ic_globe_round" />
+</selector>

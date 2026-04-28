@@ -16,7 +16,7 @@ import org.w3c.dom.HTMLImageElement
 
 open class ImageTexture(image: TexImageSource, width: Int, height: Int) : Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE) {
     protected var image: TexImageSource? = image
-    override val hasMipMap = isPowerOfTwo(width) && isPowerOfTwo(height)
+    override var hasMipMap = false
 
     constructor(image: HTMLImageElement) : this(image, image.width, image.height)
 
@@ -38,9 +38,14 @@ open class ImageTexture(image: TexImageSource, width: Int, height: Int) : Textur
             (dc.gl as WebKgl).gl.texImage2D(GL_TEXTURE_2D, 0, format, format, type, image)
             dc.gl.pixelStorei(UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0)
 
-            // If the bitmap has power-of-two dimensions, generate the texture object's image data for image levels 1
-            // through level N, and configure the texture object's filtering modes to use those image levels.
-            if (hasMipMap) dc.gl.generateMipmap(GL_TEXTURE_2D)
+            // Generate mipmaps when the runtime supports them: always for POT dimensions,
+            // additionally for NPOT on WebGL2 (proxied by supportsSizedTextureFormats).
+            // WebGL1 forbids mipmaps on NPOT textures and would leave the texture
+            // incomplete - so skip there.
+            if ((isPowerOfTwo(width) && isPowerOfTwo(height)) || dc.gl.supportsSizedTextureFormats) {
+                dc.gl.generateMipmap(GL_TEXTURE_2D)
+                hasMipMap = true
+            }
         } catch (e: Exception) {
             // The Android utility was unable to load the texture image data.
             logMessage(

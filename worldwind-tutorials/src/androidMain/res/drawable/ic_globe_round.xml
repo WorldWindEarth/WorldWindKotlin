@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Outlined globe with equator and a meridian — represents the round-Earth (Wgs84)
+         projection. Stroked-only so the icon stays legible on the toolbar's tinted
+         background, regardless of theme. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.6"
+        android:pathData="M12,3 C7.03,3 3,7.03 3,12 C3,16.97 7.03,21 12,21 C16.97,21 21,16.97 21,12 C21,7.03 16.97,3 12,3 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.4"
+        android:pathData="M3,12 L21,12 M12,3 C9.5,5 8,8.5 8,12 C8,15.5 9.5,19 12,21 M12,3 C14.5,5 16,8.5 16,12 C16,15.5 14.5,19 12,21" />
+</vector>

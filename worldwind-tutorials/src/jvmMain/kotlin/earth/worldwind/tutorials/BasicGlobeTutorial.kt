@@ -223,6 +223,7 @@ fun main() {
             add(tutorialCombo)
             add(JLabel("Projection:"))
             add(projectionCombo)
+            add(actionsPanel)
         }
 
         JFrame("WorldWind Kotlin - Tutorials").apply {
@@ -230,7 +231,6 @@ fun main() {
             layout = BorderLayout()
             add(controlsPanel, BorderLayout.NORTH)
             add(wwd, BorderLayout.CENTER)
-            add(actionsPanel, BorderLayout.SOUTH)
             setSize(1280, 800)
             setLocationRelativeTo(null)
             isVisible = true

@@ -1,13 +1,15 @@
 package earth.worldwind.shape
 
 import earth.worldwind.draw.DrawQuadState
-import earth.worldwind.draw.Drawable
+import earth.worldwind.draw.DrawableProjectedSurface
 import earth.worldwind.draw.DrawableSurfaceQuad
 import earth.worldwind.geom.*
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
+import earth.worldwind.render.program.Surface3DProjectionShaderProgram
+import earth.worldwind.render.program.Surface3DProjectionShaderProgramOES
 import earth.worldwind.render.program.SurfaceQuadShaderProgram
 import earth.worldwind.render.program.SurfaceQuadShaderProgramOES
 import earth.worldwind.render.program.TriangleShaderProgram
@@ -33,6 +35,7 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         bottomLeft, bottomRight, topRight, topLeft, ShapeAttributes().apply {
             interiorImageSource = imageSource
             isDrawOutline = false
+            isPickInterior = false
         }
     )
 
@@ -52,6 +55,7 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         ShapeAttributes().apply {
             interiorImageSource = imageSource
             isDrawOutline = false
+            isPickInterior = false
         }
     )
 
@@ -66,6 +70,42 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
      * Caller owns the texture's lifecycle.
      */
     var texture: Texture? = null
+
+    /**
+     * Optional 4x4 matrix mapping a world WGS84-ECEF position to image clip space, applied
+     * per-fragment on the terrain surface. When non-null the shape switches from the planar
+     * 2D-homography path (which approximates as if the four corners lie on a flat plane) to
+     * a true 3D camera-frustum projection path that's mathematically correct over arbitrary
+     * relief.
+     *
+     * Build via [earth.worldwind.geom.CameraPose.setToLookAt] (lat/lon/alt + look-at
+     * target + FOV) or [earth.worldwind.geom.CameraPose.setFromPlatformAndSensorPose]
+     * (KLV-style platform yaw/pitch/roll composed with sensor relative angles).
+     *
+     * Trade-offs:
+     *  * Cost: one mat4*vec4 per fragment per terrain tile, plus a per-tile CPU recompute,
+     *    versus one mat3*vec3 per fragment for the homography path. The 3D path also
+     *    breaks the surface-drawable batching so each shape is its own draw call.
+     *  * Quality: the homography is exact only on a flat ground plane; the 3D path is
+     *    exact regardless of terrain relief. For sub-km drone footprints over typical
+     *    rolling terrain the visible difference is small. For 10+ km photo footprints
+     *    over mountainous terrain the homography distorts noticeably.
+     *
+     * `null` (default) keeps the homography path with its lower per-frame cost.
+     */
+    var imageProjection: Matrix4? = null
+
+    /**
+     * 3D-projection-only soft-edge fade margin in normalised UV units (range 0..0.5). The
+     * fragment shader ramps interior alpha 0..1 across the inner [0..fadeMargin] strip on
+     * each side, blending the projection's frustum boundary into the surrounding terrain
+     * instead of guillotining at the unit-square edge.
+     *
+     * 0 (default) renders a hard cutoff and is free at runtime: the shader's
+     * uniform-controlled branch skips the fade math entirely. The 2D-homography path
+     * ignores this value.
+     */
+    var fadeMargin: Float = 0f
 
     override val referencePosition: Position get() {
         val sector = Sector()
@@ -181,57 +221,96 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
     override fun makeDrawable(rc: RenderContext) {
         if (locations.isEmpty()) return  // nothing to draw
         if (!prepareGeometry(rc)) return
+        if (!isSurfaceShape) error("ProjectedMediaSurface must be surface shape")
 
-        // Obtain a drawable form the render context pool.
-        val drawable: Drawable
-        val drawState: DrawQuadState
-        val drawableLines: Drawable
-        val drawStateLines: DrawQuadState
-        val cameraDistance: Double
-        if (isSurfaceShape) {
-            val pool = rc.getDrawablePool(DrawableSurfaceQuad.KEY)
-            drawable = DrawableSurfaceQuad.obtain(pool)
-            drawState = drawable.drawState
-            drawable.offset = rc.globe.offset
-            drawable.sector.copy(currentBoundindData.boundingSector)
-            drawable.version = computeVersion()
-            drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
-        } else {
-            error("ProjectedMediaSurface must be surface shape")
-        }
+        if (imageProjection != null) emit3DProjectionDrawable(rc) else emitHomographyDrawable(rc)
 
-        drawInterior(rc, drawState)
-        rc.offerSurfaceDrawable(drawable, zOrder)
-
+        // Outline path is shared between the two interior modes - it doesn't depend on the
+        // image projection at all, just the four ground corners.
         if (activeAttributes.isDrawOutline) {
-            drawableLines = DrawableSurfaceQuad.obtain(rc.getDrawablePool(DrawableSurfaceQuad.KEY))
+            val drawableLines = DrawableSurfaceQuad.obtain(rc.getDrawablePool(DrawableSurfaceQuad.KEY))
             drawableLines.offset = rc.globe.offset
             drawableLines.sector.copy(currentBoundindData.boundingSector)
             drawableLines.version = computeVersion()
             drawableLines.isDynamic = isDynamic || rc.currentLayer.isDynamic
 
-            cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
-            drawStateLines = drawableLines.drawState
-
-            drawOutline(rc, drawStateLines, cameraDistance)
+            val cameraDistance = cameraDistanceGeographic(rc, currentBoundindData.boundingSector)
+            drawOutline(rc, drawableLines.drawState, cameraDistance)
             rc.offerSurfaceDrawable(drawableLines, zOrder)
         }
     }
 
+    /** Homography (2D, planar-ground) path: surface-quad with per-fragment mat3 from corners. */
+    private fun emitHomographyDrawable(rc: RenderContext) {
+        val pool = rc.getDrawablePool(DrawableSurfaceQuad.KEY)
+        val drawable = DrawableSurfaceQuad.obtain(pool)
+        drawable.offset = rc.globe.offset
+        drawable.sector.copy(currentBoundindData.boundingSector)
+        drawable.version = computeVersion()
+        drawable.isDynamic = isDynamic || rc.currentLayer.isDynamic
+        drawInterior(rc, drawable.drawState)
+        rc.offerSurfaceDrawable(drawable, zOrder)
+    }
+
+    /**
+     * 3D camera-frustum path: render the source texture directly against terrain triangles
+     * with per-fragment image-clip math. No surface-skin stage; precision is preserved by
+     * keeping the per-vertex math in tile-local space (the drawable bakes
+     * `imageProjection * translation(tileOrigin)` per tile).
+     */
+    private fun emit3DProjectionDrawable(rc: RenderContext) {
+        if (skipInterior(rc)) return
+        val resolvedTexture = resolveInteriorTexture(rc) ?: return
+        val matrix = imageProjection ?: return
+
+        val drawable = DrawableProjectedSurface.obtain(rc.getDrawablePool(DrawableProjectedSurface.KEY))
+        drawable.offset = rc.globe.offset
+        drawable.sector.copy(currentBoundindData.boundingSector)
+        drawable.program = pick3DProjectionShader(rc, resolvedTexture)
+        drawable.texture = resolvedTexture
+        drawable.imageProjection.copy(matrix)
+        drawable.texCoordMatrix.copy(resolvedTexture.coordTransform)
+        drawable.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+        drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+        drawable.fadeMargin = fadeMargin
+        rc.offerSurfaceDrawable(drawable, zOrder)
+    }
+
+    /**
+     * Resolve the interior texture: prefer the direct [texture] field over the cached
+     * imageSource path. Returns `null` when neither is available (e.g. the imageSource is
+     * still loading on its first reference).
+     */
+    private fun resolveInteriorTexture(rc: RenderContext): Texture? = texture
+        ?: activeAttributes.interiorImageSource?.let { rc.getTexture(it) }
+
+    /**
+     * Whether the current frame should skip the interior pass (interior disabled, or pick
+     * pass over a non-pickable interior). Shared by the homography and 3D paths.
+     */
+    private fun skipInterior(rc: RenderContext) =
+        !activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior
+
+    /**
+     * Pick the 3D-projection shader variant matching the texture target: OES external for
+     * Android `SurfaceTexture` video, plain `sampler2D` for everything else.
+     */
+    private fun pick3DProjectionShader(rc: RenderContext, tex: Texture) =
+        if (tex.target == GL_TEXTURE_EXTERNAL_OES) {
+            rc.getShaderProgram(Surface3DProjectionShaderProgramOES.KEY) { Surface3DProjectionShaderProgramOES() }
+        } else {
+            rc.getShaderProgram(Surface3DProjectionShaderProgram.KEY) { Surface3DProjectionShaderProgram() }
+        }
+
     protected open fun drawInterior(rc: RenderContext, drawState: DrawQuadState) {
-        if (!activeAttributes.isDrawInterior || rc.isPickMode && !activeAttributes.isPickInterior) return
+        if (skipInterior(rc)) return
 
         drawState.isLine = false
 
-        // Resolve the interior texture: prefer the direct [texture] field (e.g. an OES-bound
-        // SurfaceTexture for video) over the cached imageSource path. The shader program is
-        // chosen to match the texture's target - OES external samplers need a different
-        // sampler type than 2D ones.
-        val directTexture = texture
-        val resolvedTexture = directTexture
-            ?: activeAttributes.interiorImageSource?.let { rc.getTexture(it) }
-        val isOes = resolvedTexture?.target == GL_TEXTURE_EXTERNAL_OES
-        drawState.programDrawToTexture = if (isOes) {
+        // Resolve the interior texture and pick the shader variant matching its target.
+        // OES external samplers need a different shader than plain sampler2D.
+        val resolvedTexture = resolveInteriorTexture(rc)
+        drawState.programDrawToTexture = if (resolvedTexture?.target == GL_TEXTURE_EXTERNAL_OES) {
             rc.getShaderProgram(SurfaceQuadShaderProgramOES.KEY) { SurfaceQuadShaderProgramOES() }
         } else {
             rc.getShaderProgram(SurfaceQuadShaderProgram.KEY) { SurfaceQuadShaderProgram() }
@@ -459,50 +538,22 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
     }
 
     /**
-     * Solve the 3x3 ground-to-image homography from the four corner correspondences
-     * (bottomLeft, bottomRight, topRight, topLeft) -> (0,0), (1,0), (1,1), (0,1) and write
-     * the row-major matrix into [ProjectedMediaSurfaceData.homography].
-     *
-     * Approach: build the image-to-ground square-to-quad homography Hi via Heckbert's
-     * closed-form (*Fundamentals of Texture Mapping and Image Warping*), then invert 3x3
-     * to get the direction the fragment shader needs. The local frame is anchored at
-     * bottomLeft (matches the vertex buffer's vertexOrigin), so x0 = y0 = 0, which drops
-     * the third column of Hi to (0, 0, 1) and roughly halves the cofactor terms.
+     * Solve the ground-to-image homography from the four corner correspondences
+     * (bottomLeft, bottomRight, topRight, topLeft) -> unit square and write the row-major
+     * matrix into [ProjectedMediaSurfaceData.homography]. The local frame is anchored at
+     * bottomLeft (matches the vertex buffer's vertexOrigin), so the four corners are
+     * passed relative to it - which is exactly the contract of the Heckbert utility.
      *
      * Inputs are (lon, lat) in degrees treated as a planar coordinate system; for typical
      * footprint sizes (sub-km to a few km) the curvature error is well under a metre.
      */
     private fun computeHomography() {
-        // Origin = bottomLeft. Local frame: (lon - ox, lat - oy). Vertex 0 is (0, 0).
         val ox = locations[0].longitude.inDegrees
         val oy = locations[0].latitude.inDegrees
-        val x1 = locations[1].longitude.inDegrees - ox; val y1 = locations[1].latitude.inDegrees - oy
-        val x2 = locations[2].longitude.inDegrees - ox; val y2 = locations[2].latitude.inDegrees - oy
-        val x3 = locations[3].longitude.inDegrees - ox; val y3 = locations[3].latitude.inDegrees - oy
-
-        // Image-to-ground homography Hi. Bottom row (a31, a32, 1) carries the perspective
-        // term; for parallelograms it's (0, 0, 1) and the transform collapses to affine.
-        val dx1 = x1 - x2; val dx2 = x3 - x2; val dx3 = x2 - x1 - x3
-        val dy1 = y1 - y2; val dy2 = y3 - y2; val dy3 = y2 - y1 - y3
-        val a31: Double; val a32: Double
-        if (dx3 == 0.0 && dy3 == 0.0) {
-            a31 = 0.0; a32 = 0.0
-        } else {
-            val denom = dx1 * dy2 - dy1 * dx2
-            a31 = (dx3 * dy2 - dy3 * dx2) / denom
-            a32 = (dx1 * dy3 - dy1 * dx3) / denom
-        }
-        val a11 = x1 + a31 * x1
-        val a12 = x3 + a32 * x3
-        val a21 = y1 + a31 * y1
-        val a22 = y3 + a32 * y3
-
-        // Invert Hi -> H (ground-to-image). With the third column (0, 0, 1), det collapses
-        // to a11*a22 - a12*a21 and several cofactors fall out to 0 / 1.
-        val invDet = 1.0 / (a11 * a22 - a12 * a21)
-        val m = currentData.homography.m
-        m[0] =  a22 * invDet;                  m[1] = -a12 * invDet;                  m[2] = 0.0
-        m[3] = -a21 * invDet;                  m[4] =  a11 * invDet;                  m[5] = 0.0
-        m[6] = (a21 * a32 - a22 * a31) * invDet; m[7] = (a12 * a31 - a11 * a32) * invDet; m[8] = 1.0
+        currentData.homography.setToQuadToUnitSquareHomography(
+            p1x = locations[1].longitude.inDegrees - ox, p1y = locations[1].latitude.inDegrees - oy,
+            p2x = locations[2].longitude.inDegrees - ox, p2y = locations[2].latitude.inDegrees - oy,
+            p3x = locations[3].longitude.inDegrees - ox, p3y = locations[3].latitude.inDegrees - oy,
+        )
     }
 }

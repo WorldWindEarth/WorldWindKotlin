@@ -31,14 +31,35 @@
                 android:layout_height="?attr/actionBarSize"
                 android:background="?attr/colorPrimary"
                 app:popupTheme="@style/AppTheme.PopupOverlay">
-                <CheckBox
-                    android:id="@+id/is2d"
-                    android:text="2D"
-                    android:button="@null"
-                    android:drawableEnd="?android:attr/listChoiceIndicatorMultiple"
-                    android:layout_gravity="end"
+                <LinearLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"/>
+                    android:layout_height="match_parent"
+                    android:layout_gravity="end"
+                    android:orientation="horizontal">
+                    <!-- Tutorial-specific 3D-projection toggle (currently only the
+                         video-on-terrain fragment exposes it). Hidden by default; the
+                         fragment makes it visible in onResume. Icon swaps perspective
+                         frustum <-> planar homography depending on state. -->
+                    <CheckBox
+                        android:id="@+id/is3d"
+                        android:button="@drawable/toolbar_projection_state"
+                        android:contentDescription="@string/toolbar_3d_projection_desc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginEnd="12dp"
+                        android:padding="6dp"
+                        android:visibility="gone"/>
+                    <!-- Globe-projection toggle: round (Wgs84) <-> flat (Mercator). The
+                         icon itself reflects the current state via a state-list selector
+                         on `android:button`, so no text label is needed. -->
+                    <CheckBox
+                        android:id="@+id/is2d"
+                        android:button="@drawable/toolbar_globe_state"
+                        android:contentDescription="@string/toolbar_2d_projection_desc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:padding="6dp"/>
+                </LinearLayout>
             </androidx.appcompat.widget.Toolbar>
 
         </com.google.android.material.appbar.AppBarLayout>

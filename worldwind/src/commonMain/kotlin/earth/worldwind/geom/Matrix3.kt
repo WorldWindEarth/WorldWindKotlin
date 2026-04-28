@@ -270,6 +270,59 @@ open class Matrix3 private constructor(
     }
 
     /**
+     * Set this matrix to the ground-to-image homography that maps four arbitrary corners
+     * (`(0,0)`, `(p1x,p1y)`, `(p2x,p2y)`, `(p3x,p3y)`, in counter-clockwise order:
+     * bottom-left, bottom-right, top-right, top-left) to the unit square `(0,0), (1,0),
+     * (1,1), (0,1)`.
+     *
+     * Approach: build the image-to-ground square-to-quad homography Hi via Heckbert's
+     * closed-form (*Fundamentals of Texture Mapping and Image Warping*), then invert 3x3
+     * to get the direction the fragment shader needs. The corners are passed relative to
+     * the bottom-left (so it's treated as the origin), which drops the third column of Hi
+     * to `(0, 0, 1)` and roughly halves the cofactor terms.
+     *
+     * Inputs are 2D coordinates in any consistent linear frame (e.g. lon/lat in degrees,
+     * or local-tangent meters); for sub-km footprints the planar approximation is well
+     * under a metre even on a curved Earth.
+     *
+     * @param p1x x of bottom-right relative to bottom-left
+     * @param p1y y of bottom-right relative to bottom-left
+     * @param p2x x of top-right relative to bottom-left
+     * @param p2y y of top-right relative to bottom-left
+     * @param p3x x of top-left relative to bottom-left
+     * @param p3y y of top-left relative to bottom-left
+     */
+    fun setToQuadToUnitSquareHomography(
+        p1x: Double, p1y: Double,
+        p2x: Double, p2y: Double,
+        p3x: Double, p3y: Double,
+    ) = apply {
+        // Image-to-ground homography Hi. Bottom row (a31, a32, 1) carries the perspective
+        // term; for parallelograms it's (0, 0, 1) and the transform collapses to affine.
+        val dx1 = p1x - p2x; val dx2 = p3x - p2x; val dx3 = p2x - p1x - p3x
+        val dy1 = p1y - p2y; val dy2 = p3y - p2y; val dy3 = p2y - p1y - p3y
+        val a31: Double; val a32: Double
+        if (dx3 == 0.0 && dy3 == 0.0) {
+            a31 = 0.0; a32 = 0.0
+        } else {
+            val denom = dx1 * dy2 - dy1 * dx2
+            a31 = (dx3 * dy2 - dy3 * dx2) / denom
+            a32 = (dx1 * dy3 - dy1 * dx3) / denom
+        }
+        val a11 = p1x + a31 * p1x
+        val a12 = p3x + a32 * p3x
+        val a21 = p1y + a31 * p1y
+        val a22 = p3y + a32 * p3y
+
+        // Invert Hi -> H (ground-to-image). With the third column (0, 0, 1), det collapses
+        // to a11*a22 - a12*a21 and several cofactors fall out to 0 / 1.
+        val invDet = 1.0 / (a11 * a22 - a12 * a21)
+        m[0] =  a22 * invDet;                    m[1] = -a12 * invDet;                    m[2] = 0.0
+        m[3] = -a21 * invDet;                    m[4] =  a11 * invDet;                    m[5] = 0.0
+        m[6] = (a21 * a32 - a22 * a31) * invDet; m[7] = (a12 * a31 - a11 * a32) * invDet; m[8] = 1.0
+    }
+
+    /**
      * Sets this matrix to the matrix product of two specified matrices.
      *
      * @param a the first matrix multiplicand

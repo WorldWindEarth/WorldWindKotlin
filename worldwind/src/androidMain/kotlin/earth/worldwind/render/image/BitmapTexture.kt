@@ -15,7 +15,7 @@ open class BitmapTexture(
     protected var bitmap: Bitmap? = bitmap
     // TODO consider using Bitmap.hasMipMap
     //override val hasMipMap = bitmap.hasMipMap()
-    override val hasMipMap = isPowerOfTwo(bitmap.width) && isPowerOfTwo(bitmap.height)
+    override var hasMipMap = false
 
     init {
         coordTransform.setToVerticalFlip()
@@ -33,9 +33,13 @@ open class BitmapTexture(
                 // Specify the OpenGL texture 2D object's base image data (level 0).
                 GLUtils.texImage2D(GL_TEXTURE_2D, 0 /*level*/, bitmap, 0 /*border*/)
 
-                // If the bitmap has power-of-two dimensions, generate the texture object's image data for image levels 1
-                // through level N, and configure the texture object's filtering modes to use those image levels.
-                if (hasMipMap) dc.gl.generateMipmap(GL_TEXTURE_2D)
+                // Generate mipmaps when the runtime supports them: always for POT dimensions,
+                // additionally for NPOT on GLES3+ (proxied by supportsSizedTextureFormats).
+                // GLES2 forbids mipmaps on NPOT and would leave the texture incomplete.
+                if ((isPowerOfTwo(bitmap.width) && isPowerOfTwo(bitmap.height)) || dc.gl.supportsSizedTextureFormats) {
+                    dc.gl.generateMipmap(GL_TEXTURE_2D)
+                    hasMipMap = true
+                }
             }
         } catch (e: Exception) {
             // The Android utility was unable to load the texture image data.

@@ -39,4 +39,7 @@
 
     <string name="spacer" />
 
+    <string name="toolbar_2d_projection_desc">Toggle flat-map projection</string>
+    <string name="toolbar_3d_projection_desc">Toggle 3D camera-frustum projection</string>
+
 </resources>

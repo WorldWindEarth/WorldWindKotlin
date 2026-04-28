@@ -22,8 +22,14 @@ class KlvSample(
     var trLat: Double = 0.0, var trLon: Double = 0.0,
     var brLat: Double = 0.0, var brLon: Double = 0.0,
     var blLat: Double = 0.0, var blLon: Double = 0.0,
-    // Sensor (camera) world position. Altitude is meters MSL, NaN if absent.
-    var sLat: Double = Double.NaN, var sLon: Double = Double.NaN, var sAlt: Double = Double.NaN,
+    // Sensor (camera) world position. NaN if absent.
+    //  * `sAlt` = MSL altitude (KLV Tag 15), meters above mean sea level.
+    //  * `sHae` = ellipsoid height (KLV Tag 75), meters above the WGS84 ellipsoid.
+    // Some platforms (e.g. BlackHornet) emit only [sHae]. Consumers should prefer [sAlt]
+    // when available and fall back to [sHae] otherwise; the geoid undulation between them
+    // is small enough (~tens of metres) for typical drone-footprint projections.
+    var sLat: Double = Double.NaN, var sLon: Double = Double.NaN,
+    var sAlt: Double = Double.NaN, var sHae: Double = Double.NaN,
     // Platform body angles (degrees). NaN if absent.
     var pHdg: Double = Double.NaN, var pPit: Double = Double.NaN, var pRol: Double = Double.NaN,
     // Sensor look angles relative to platform body (degrees). NaN if absent.
@@ -117,7 +123,8 @@ class KlvTimeline(
         dst.trLat = src.trLat; dst.trLon = src.trLon
         dst.brLat = src.brLat; dst.brLon = src.brLon
         dst.blLat = src.blLat; dst.blLon = src.blLon
-        dst.sLat = src.sLat; dst.sLon = src.sLon; dst.sAlt = src.sAlt
+        dst.sLat = src.sLat; dst.sLon = src.sLon
+        dst.sAlt = src.sAlt; dst.sHae = src.sHae
         dst.pHdg = src.pHdg; dst.pPit = src.pPit; dst.pRol = src.pRol
         dst.rAz = src.rAz; dst.rEl = src.rEl; dst.rRol = src.rRol
         dst.hFov = src.hFov; dst.vFov = src.vFov
@@ -143,6 +150,7 @@ class KlvTimeline(
         into.sLat = interpNullable(p0.sLat, p1.sLat, p2.sLat, p3.sLat, f, interp)
         into.sLon = interpNullable(p0.sLon, p1.sLon, p2.sLon, p3.sLon, f, interp)
         into.sAlt = interpNullable(p0.sAlt, p1.sAlt, p2.sAlt, p3.sAlt, f, interp)
+        into.sHae = interpNullable(p0.sHae, p1.sHae, p2.sHae, p3.sHae, f, interp)
     }
 
     /** Spline-interp four channels but pass NaN through (NaN in any → NaN out). */
@@ -264,6 +272,7 @@ class KlvTimeline(
                 "sLat" -> s.sLat = v
                 "sLon" -> s.sLon = v
                 "sAlt" -> s.sAlt = v
+                "sHae" -> s.sHae = v
                 "pHdg" -> s.pHdg = v
                 "pPit" -> s.pPit = v
                 "pRol" -> s.pRol = v

@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import android.content.res.AssetFileDescriptor
 import android.media.MediaPlayer
 import android.os.Build
+import android.widget.CheckBox
 import earth.worldwind.WorldWind
 import earth.worldwind.WorldWindow
 import earth.worldwind.render.video.MediaSurfaceTexture
@@ -111,12 +112,28 @@ class VideoOnTerrainFragment : BasicGlobeFragment() {
         // have been torn down so the texture name will be invalidated; MediaPlayer will be
         // re-bound to a fresh Surface via onSurfaceReady.
         try { mediaPlayer?.pause() } catch (_: IllegalStateException) { /* idempotent */ }
+        // Hide the 3D toggle the activity hosts in its toolbar - it belongs to this
+        // fragment only. Other tutorials re-use the same toolbar without it.
+        toolbar3dCheckbox()?.apply {
+            setOnCheckedChangeListener(null)
+            visibility = android.view.View.GONE
+        }
     }
 
     override fun onResume() {
         super.onResume()
         try { mediaPlayer?.start() } catch (_: IllegalStateException) { /* idempotent */ }
+        // Wire the activity's toolbar 3D toggle to this tutorial. Visible alongside the
+        // existing 2D projection checkbox so all globe controls share one row.
+        toolbar3dCheckbox()?.apply {
+            visibility = android.view.View.VISIBLE
+            isChecked = tutorial?.useCameraProjection == true
+            setOnCheckedChangeListener { _, on -> tutorial?.useCameraProjection = on }
+        }
     }
+
+    /** Resolve the 3D-toggle checkbox declared in `activity_main.xml`. */
+    private fun toolbar3dCheckbox(): CheckBox? = activity?.findViewById(R.id.is3d)
 
     override fun onDestroyView() {
         super.onDestroyView()
