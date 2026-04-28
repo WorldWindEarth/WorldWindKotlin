@@ -87,6 +87,10 @@ class LwjglKgl : Kgl {
         if (sourceData != null) GL33.glBufferData(target, FloatBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
         else GL33.glBufferData(target, size.toLong(), usage)
 
+    override fun bufferData(target: Int, size: Int, sourceData: ByteArray?, usage: Int, offset: Int) =
+        if (sourceData != null) GL33.glBufferData(target, ByteBuffer.wrap(sourceData, offset, sourceData.size - offset), usage)
+        else GL33.glBufferData(target, size.toLong(), usage)
+
     override fun bufferData(target: Int, size: Int, usage: Int) =
         GL33.glBufferData(target, size.toLong(), usage)
 
@@ -98,6 +102,25 @@ class LwjglKgl : Kgl {
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) =
         GL33.glBufferSubData(target, offset.toLong(), FloatBuffer.wrap(sourceData, 0, size / 4))
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ByteArray) =
+        GL33.glBufferSubData(target, offset.toLong(), ByteBuffer.wrap(sourceData, 0, size))
+
+    override fun mapAndCopyBufferRange(
+        target: Int, offset: Int, length: Int, source: ByteArray, srcOffset: Int, access: Int
+    ) {
+        // LWJGL's glMapBufferRange returns a nullable ByteBuffer. When mapping fails
+        // (rare — usually unsupported access combo) the driver writes a GL_INVALID_*
+        // error and returns null; fall back to glBufferSubData so the upload still
+        // completes.
+        val mapped: ByteBuffer? = GL33.glMapBufferRange(target, offset.toLong(), length.toLong(), access)
+        if (mapped != null) {
+            mapped.put(source, srcOffset, length)
+            GL33.glUnmapBuffer(target)
+        } else {
+            GL33.glBufferSubData(target, offset.toLong(), ByteBuffer.wrap(source, srcOffset, length))
+        }
+    }
 
     override fun deleteBuffer(buffer: KglBuffer) = GL33.glDeleteBuffers(buffer.id)
 
@@ -188,6 +211,22 @@ class LwjglKgl : Kgl {
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
     ) = GL33.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray?
+    ) {
+        if (buffer != null) {
+            GL33.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, ByteBuffer.wrap(buffer))
+        } else {
+            // null = read from currently-bound GL_PIXEL_UNPACK_BUFFER at offset 0; LWJGL's
+            // ByteBuffer overload isn't @Nullable, so route via the long-offset variant.
+            GL33.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, 0L)
+        }
+    }
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
+    ) = GL33.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, offset.toLong())
 
     override fun activeTexture(texture: Int) = GL33.glActiveTexture(texture)
 

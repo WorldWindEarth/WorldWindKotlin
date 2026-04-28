@@ -25,6 +25,9 @@ serialization = "1.11.0"
 tiff = "3.0.0"
 geojson = "0.6.6"
 uri-kmp = "0.0.21"
+vlcj = "4.8.3"
+javacv = "1.5.10"
+javafx = "21.0.4"
 xmlutil = "0.91.3"
 
 [plugins]
@@ -82,6 +85,12 @@ pngj = { module = "ar.com.hjg:pngj", version.ref = "pngj" }
 tiff = { module = "mil.nga:tiff", version.ref = "tiff" }
 geojson = { module = "io.data2viz.geojson:core", version.ref = "geojson" }
 uri-kmp = { module = "com.eygraber:uri-kmp", version.ref = "uri-kmp" }
+vlcj = { module = "uk.co.caprica:vlcj", version.ref = "vlcj" }
+javacv-platform = { module = "org.bytedeco:javacv-platform", version.ref = "javacv" }
+javafx-base = { module = "org.openjfx:javafx-base", version.ref = "javafx" }
+javafx-graphics = { module = "org.openjfx:javafx-graphics", version.ref = "javafx" }
+javafx-media = { module = "org.openjfx:javafx-media", version.ref = "javafx" }
+javafx-swing = { module = "org.openjfx:javafx-swing", version.ref = "javafx" }
 
 kotlin-wrappers-bom = { module = "org.jetbrains.kotlin-wrappers:kotlin-wrappers-bom", version.ref = "kotlin-wrappers" }
 kotlin-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser" }

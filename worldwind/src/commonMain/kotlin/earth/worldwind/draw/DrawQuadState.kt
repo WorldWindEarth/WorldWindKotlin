@@ -1,7 +1,6 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix3
-import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Vec3
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
@@ -19,10 +18,13 @@ open class DrawQuadState internal constructor() {
     var elementBuffer: BufferObject? = null
     val vertexOrigin = Vec3()
 
-    var a = Vec2()
-    var b = Vec2()
-    var c = Vec2()
-    var d = Vec2()
+    /**
+     * Ground-to-image homography in the same local frame as the vertex buffer (corner positions
+     * relative to [vertexOrigin]). Mapping: H * (P_x, P_y, 1)^T -> (u*w, v*w, w); fragment
+     * shader divides by w to land in the unit-square image space and then runs
+     * [texCoordMatrix].
+     */
+    val homography = Matrix3()
     var vertexStride = 0
     var enableCullFace = true
     var enableDepthTest = true
@@ -60,10 +62,7 @@ open class DrawQuadState internal constructor() {
         texCoordAttrib.size = 0
         texCoordAttrib.offset = 0
         primCount = 0
-        a.set(0.0, 0.0)
-        b.set(0.0, 0.0)
-        c.set(0.0, 0.0)
-        d.set(0.0, 0.0)
+        homography.setToIdentity()
 
         for (idx in 0 until MAX_DRAW_ELEMENTS) prims[idx].texture = null
     }
@@ -82,10 +81,7 @@ open class DrawQuadState internal constructor() {
         prim.textureLod = textureLod
         prim.texCoordMatrix.copy(texCoordMatrix)
         prim.texCoordAttrib.copy(texCoordAttrib)
-        prim.a.copy(a)
-        prim.b.copy(b)
-        prim.c.copy(c)
-        prim.d.copy(d)
+        prim.homography.copy(homography)
     }
 
     internal open class DrawElements {
@@ -101,11 +97,7 @@ open class DrawQuadState internal constructor() {
         var textureLod = 0
         val texCoordMatrix = Matrix3()
         val texCoordAttrib = VertexAttrib()
-
-        var a = Vec2()
-        var b = Vec2()
-        var c = Vec2()
-        var d = Vec2()
+        val homography = Matrix3()
     }
 
     open class VertexAttrib {

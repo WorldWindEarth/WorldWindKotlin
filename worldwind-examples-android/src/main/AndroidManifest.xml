@@ -119,9 +119,9 @@
             android:theme="@style/AppTheme.NoActionBar">
         </activity>
         <activity
-            android:name=".TextureQuadExampleActivity"
+            android:name=".ProjectedMediaSurfaceExampleActivity"
             android:configChanges="orientation|screenSize"
-            android:label="@string/title_texture_quad_example"
+            android:label="@string/title_projected_media_surface_example"
             android:launchMode="singleInstance"
             android:noHistory="true"
             android:theme="@style/AppTheme.NoActionBar">

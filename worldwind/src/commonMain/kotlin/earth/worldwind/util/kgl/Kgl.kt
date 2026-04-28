@@ -84,7 +84,30 @@ const val GL_DYNAMIC_DRAW = 0x88E8
 const val GL_DYNAMIC_READ = 0x88E9
 const val GL_PIXEL_PACK_BUFFER = 0x88EB
 const val GL_PIXEL_UNPACK_BUFFER = 0x88EC
+const val GL_TEXTURE_EXTERNAL_OES = 0x8D65
+/**
+ * Per-channel sampler swizzle masks (GL 3.3+ / GLES 3.0+ / WebGL2). Setting
+ * `GL_TEXTURE_SWIZZLE_A = GL_ONE` on a texture makes the sampler return alpha=1.0
+ * regardless of the actual texture bytes — useful for video frames where the decoder
+ * leaves the X byte undefined and we'd otherwise have to force-fill alpha on every
+ * frame on the CPU.
+ */
+const val GL_TEXTURE_SWIZZLE_R = 0x8E42
+const val GL_TEXTURE_SWIZZLE_G = 0x8E43
+const val GL_TEXTURE_SWIZZLE_B = 0x8E44
+const val GL_TEXTURE_SWIZZLE_A = 0x8E45
 const val GL_MAP_READ_BIT = 0x0001
+/**
+ * Bits for [Kgl.mapAndCopyBufferRange]. The combination
+ * `WRITE_BIT | INVALIDATE_RANGE_BIT | UNSYNCHRONIZED_BIT` is the standard "rename"
+ * upload idiom — the driver hands back fresh-mapped staging memory without waiting for
+ * the previous transfer to complete.
+ */
+const val GL_MAP_WRITE_BIT = 0x0002
+const val GL_MAP_INVALIDATE_RANGE_BIT = 0x0004
+const val GL_MAP_INVALIDATE_BUFFER_BIT = 0x0008
+const val GL_MAP_FLUSH_EXPLICIT_BIT = 0x0010
+const val GL_MAP_UNSYNCHRONIZED_BIT = 0x0020
 const val GL_SYNC_GPU_COMMANDS_COMPLETE = 0x9117
 const val GL_SYNC_FLUSH_COMMANDS_BIT = 0x00000001
 const val GL_ALREADY_SIGNALED = 0x911A
@@ -450,6 +473,12 @@ interface Kgl {
     fun bufferData(target: Int, size: Int, sourceData: IntArray?, usage: Int, offset: Int = 0)
     fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int = 0)
     /**
+     * Byte-typed [bufferData] overload — used to upload pre-packed pixel bytes (e.g. a
+     * decoded video frame) into a `GL_PIXEL_UNPACK_BUFFER` for an asynchronous
+     * [texSubImage2D] DMA into a texture.
+     */
+    fun bufferData(target: Int, size: Int, sourceData: ByteArray?, usage: Int, offset: Int = 0)
+    /**
      * Allocate-only [bufferData] used for round-tripping pixel pack buffers (`GL_STREAM_READ`):
      * reserves [size] bytes on the GPU without uploading source data. Pair with
      * [readPixelsToBuffer] to write the framebuffer into the bound PBO and [getBufferSubData]
@@ -459,6 +488,22 @@ interface Kgl {
     fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray)
     fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: IntArray)
     fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray)
+    fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ByteArray)
+    /**
+     * Upload [length] bytes from [source] (starting at [srcOffset]) into the buffer object
+     * currently bound to [target], at byte [offset] within the buffer. Implemented via
+     * `glMapBufferRange(... access)` + memcpy + `glUnmapBuffer` where supported (JVM /
+     * Android with GLES3+); falls back to [bufferSubData] on JS / older runtimes.
+     *
+     * The mapping path lets the driver hand back fresh-mapped staging memory directly when
+     * the previous transfer is still in flight (no implicit synchronization), saving a
+     * driver round-trip vs. the `bufferData(null) + bufferData(data)` orphan idiom.
+     *
+     * Caller passes the access mask explicitly so the same primitive can be used for "rename
+     * the whole buffer" (`WRITE | INVALIDATE_BUFFER | UNSYNCHRONIZED`) and "patch a sub-range"
+     * (`WRITE | INVALIDATE_RANGE`) patterns.
+     */
+    fun mapAndCopyBufferRange(target: Int, offset: Int, length: Int, source: ByteArray, srcOffset: Int = 0, access: Int)
     fun deleteBuffer(buffer: KglBuffer)
 
     fun vertexAttribPointer(location: Int, size: Int, type: Int, normalized: Boolean, stride: Int, offset: Int)
@@ -505,6 +550,20 @@ interface Kgl {
      * FloatBuffer on JVM/Android) without an intermediate byte copy.
      */
     fun texImage2D(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?)
+    /**
+     * Replace a sub-rectangle of an already-allocated 2D texture. Cheaper than [texImage2D]
+     * for steady-state video uploads — re-uploads pixels into existing storage rather than
+     * re-allocating the GPU image. Caller must ensure the texture was previously sized
+     * with [texImage2D] at the matching width/height.
+     */
+    fun texSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray?)
+    /**
+     * PBO variant: read pixels for [texSubImage2D] from the buffer currently bound to
+     * `GL_PIXEL_UNPACK_BUFFER`, starting at byte [offset] within the buffer object. The
+     * driver copies asynchronously, so the GL thread doesn't block on pixel transfer.
+     * Requires GLES3+ / WebGL2 / GL3+.
+     */
+    fun texSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int)
     fun activeTexture(texture: Int)
     fun bindTexture(target: Int, texture: KglTexture)
     fun generateMipmap(target: Int)

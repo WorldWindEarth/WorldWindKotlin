@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Photo on Terrain Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Photo on Terrain Tutorial</h1>
+<p>
+    Drapes a single oblique aerial photo onto the actual terrain by handing four ground
+    corners and an <code>ImageSource</code> to <code>ProjectedMediaSurface</code>. The engine's
+    fragment shader applies a 2D homography from the four corners at every fragment, so the
+    texture stays draped on the terrain (no 3D mesh, no intersection) and the interior is
+    perspective-correct even for trapezoidal footprints.
+</p>
+<p>
+    This is the static counterpart of <em>Video on Terrain</em>, which drives the same
+    <code>ProjectedMediaSurface</code> from a live KLV stream by calling <code>setLocations</code>
+    once per render frame.
+</p>
+
+<h2>Example</h2>
+<h3>PhotoOnTerrainFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class PhotoOnTerrainFragment : BasicGlobeFragment() {
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        PhotoOnTerrainTutorial(it.engine).start()
+    }
+}
+
+class PhotoOnTerrainTutorial(private val engine: WorldWind) : AbstractTutorial() {
+    private val layer = RenderableLayer("Photo on terrain")
+
+    init {
+        layer.addRenderable(
+            ProjectedMediaSurface(
+                bottomLeft  = Location(51.26891660167462.degrees,  30.0096671570868.degrees),
+                bottomRight = Location(51.27062637593827.degrees,  30.01240117718469.degrees),
+                topRight    = Location(51.271804026840556.degrees, 30.01029779181104.degrees),
+                topLeft     = Location(51.270125460836965.degrees, 30.00779959572076.degrees),
+                attributes = ShapeAttributes().apply {
+                    interiorImageSource = ImageSource.fromResource(MR.images.korogode_image)
+                    isDrawOutline = true
+                    outlineWidth = 2.0f
+                    outlineColor = Color(1.0f, 0.0f, 0.0f, 1.0f)
+                },
+            )
+        )
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+
+
+</script>
+</body>
+</html>

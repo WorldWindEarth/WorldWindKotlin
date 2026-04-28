@@ -3,39 +3,46 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
-import earth.worldwind.geom.Vec2
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
-class SurfaceQuadShaderProgram : AbstractShaderProgram() {
+/**
+ * Surface-quad fragment shader that maps any planar quadrilateral footprint to a unit-square
+ * image space via a 2D **homography** (3x3 perspective transform). The homography is the
+ * inverse of the perspective projection a planar source image has on a planar ground patch,
+ * and is uniquely determined by the four corner correspondences. For rectangular footprints
+ * the homography reduces to an affine transform, identical to bilinear interpolation, so
+ * axis-aligned [earth.worldwind.shape.ProjectedMediaSurface] usages don't change. For
+ * trapezoidal footprints (as produced by a tilted drone gimbal) the homography is the
+ * mathematically correct interior interpolation; bilinear gives a different, incorrect
+ * result that diverges from a true perspective the further you stray from the corners.
+ *
+ * The matrix is computed CPU-side from the four ground corners + the unit-square image
+ * corners and uploaded as the [homography] uniform per draw. The vertex shader passes the
+ * geographic position to the fragment shader as a varying; the fragment stage applies the
+ * homography to the interpolated geographic position and divides by `w` to land in image
+ * UV space, then runs the standard `texCoordMatrix` and texture sample.
+ */
+open class SurfaceQuadShaderProgram : AbstractShaderProgram() {
     override var programSources = arrayOf(
         """
             uniform mat4 mvpMatrix;
             uniform bool enableTexture;
-            uniform vec2 A;
-            uniform vec2 B;
-            uniform vec2 C;
-            uniform vec2 D;
-            
+
             attribute vec4 pointA;
 
-            varying vec2 q;
-            varying vec2 b1;
-            varying vec2 b2;
-            varying vec2 b3;
-            
+            // Geographic position in the local frame the homography was solved against
+            // (corner positions relative to vertexOrigin). Bilinear-interpolated across the
+            // quad's two triangles by the rasterizer; the perspective math lives in the
+            // fragment stage.
+            varying vec2 P;
+
             void main() {
-                /* Transform the vertex position by the modelview-projection matrix. */
+                // Transform the vertex position by the modelview-projection matrix.
                 gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
 
-                /* Transform the vertex tex coord by the tex coord matrix. */
                 if (enableTexture) {
-                    // Set up inverse bilinear interpolation
-                    vec2 P = pointA.xy;
-                    q = P - A;
-                    b1 = B - A;
-                    b2 = D - A;
-                    b3 = A - B - D + C;
+                    P = pointA.xy;
                 }
             }
         """.trimIndent(),
@@ -43,68 +50,27 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             #ifdef GL_ES
             precision highp float;
             #endif
-            
+
+            uniform mat3 homography;
             uniform mat3 texCoordMatrix;
             uniform bool enablePickMode;
             uniform bool enableTexture;
             uniform vec4 color;
             uniform float opacity;
             uniform sampler2D texSampler;
-            
-            varying vec2 q;
-            varying vec2 b1;
-            varying vec2 b2;
-            varying vec2 b3;
-            
-            float Wedge2D(vec2 v, vec2 w)
-            {
-              return v.x*w.y - v.y*w.x;
-            }
-            
+
+            varying vec2 P;
+
             void main() {
-                vec2 uv = vec2(0.0, 0.0);
-                float eps = 1e-9;
-                if (dot(b3, b3) < eps)
-                {
-                    float denom = Wedge2D(b1, b2);
-                
-                    uv.x = Wedge2D(q, b2) / denom;
-                    uv.y = Wedge2D(b1, q) / denom;
-                }
-                else
-                {
-                    // Set up quadratic formula
-                    float A = Wedge2D(b2, b3);
-                    float B = Wedge2D(b3, q) - Wedge2D(b1, b2);
-                    float C = Wedge2D(b1, q);
-                    // Solve for v
-    
-                    if (abs(A) < eps)
-                    {
-                      // Linear form
-                      uv.y = -C/B;
-                    }
-                    else
-                    {
-                      // Quadratic form. Take positive root for CCW winding with V-up
-                      float discrim = max(B * B - 4.0 * A * C, 0.0);
-                      float sqrtD = sqrt(discrim);
-    
-                        float v1 = (-B + sqrtD) / (2.0 * A);
-                        float v2 = (-B - sqrtD) / (2.0 * A);
-                        uv.y = (v1 >= 0.0 && v1 <= 1.0) ? v1 : v2;
-                    }
-                    
-                    // Solve for u, using largest-magnitude component
-                    vec2 denom = b1 + uv.y * b3;
-                    if (abs(denom.x) > abs(denom.y))
-                        uv.x = (q.x - b2.x * uv.y) / max(abs(denom.x), eps) * sign(denom.x);
-                    else
-                        uv.x = (q.y - b2.y * uv.y) / max(abs(denom.y), eps) * sign(denom.y);
-                }
-                  
+                // Apply the ground-to-image homography to this fragment's local
+                // geographic position. The third coordinate carries the perspective
+                // denominator; dividing by it yields UV in [0,1]^2 across the quad's
+                // interior with the perspective foreshortening a planar capture would
+                // produce.
+                vec3 uvh = homography * vec3(P, 1.0);
+                vec2 uv = uvh.xy / uvh.z;
                 uv = (texCoordMatrix * vec3(uv, 1.0)).xy;
-                
+
                 if (enablePickMode && enableTexture) {
                     /* Modulate the RGBA color with the 2D texture's Alpha component (rounded to 0.0 or 1.0). */
                     float texMask = floor(texture2D(texSampler, uv).a + 0.5);
@@ -125,6 +91,7 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
     private var enableTexture = false
     private val mvpMatrix = Matrix4()
     private val texCoordMatrix = Matrix3()
+    private val homography = Matrix3()
     private val color = Color()
     private var opacity = 1.0f
     private var mvpMatrixId = KglUniformLocation.NONE
@@ -134,11 +101,7 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
     private var enableTextureId = KglUniformLocation.NONE
     private var texCoordMatrixId = KglUniformLocation.NONE
     private var texSamplerId = KglUniformLocation.NONE
-
-    private var aId = KglUniformLocation.NONE
-    private var bId = KglUniformLocation.NONE
-    private var cId = KglUniformLocation.NONE
-    private var dId = KglUniformLocation.NONE
+    private var homographyId = KglUniformLocation.NONE
 
     private val array = FloatArray(16)
 
@@ -165,11 +128,9 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
 
-
-        aId = gl.getUniformLocation(program, "A")
-        bId = gl.getUniformLocation(program, "B")
-        cId = gl.getUniformLocation(program, "C")
-        dId = gl.getUniformLocation(program, "D")
+        homographyId = gl.getUniformLocation(program, "homography")
+        homography.transposeToArray(array, 0) // 3 x 3 identity matrix
+        gl.uniformMatrix3fv(homographyId, 1, false, array, 0)
     }
 
     fun enablePickMode(enable: Boolean) {
@@ -186,11 +147,19 @@ class SurfaceQuadShaderProgram : AbstractShaderProgram() {
         }
     }
 
-    fun loadABCD(a: Vec2, b: Vec2, c: Vec2, d: Vec2) {
-        gl.uniform2f(aId, a.x.toFloat(), a.y.toFloat())
-        gl.uniform2f(bId, b.x.toFloat(), b.y.toFloat())
-        gl.uniform2f(cId, c.x.toFloat(), c.y.toFloat())
-        gl.uniform2f(dId, d.x.toFloat(), d.y.toFloat())
+    /**
+     * Load the ground-to-image [Matrix3] for this draw. The fragment shader applies it to
+     * each fragment's local (lon, lat) and divides by `w` to land in unit-square image
+     * space. Skips the upload when the matrix matches what's already on the GPU - covers
+     * the common case of static photos and paused video, where re-binding the same
+     * surface drawable on every render frame would otherwise re-upload an unchanged value.
+     */
+    fun loadHomography(matrix: Matrix3) {
+        if (homography != matrix) {
+            homography.copy(matrix)
+            matrix.transposeToArray(array, 0)
+            gl.uniformMatrix3fv(homographyId, 1, false, array, 0)
+        }
     }
 
     fun loadTexCoordMatrix(matrix: Matrix3) {

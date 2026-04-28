@@ -128,6 +128,12 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
         if (data != null) gl.bufferData(target, data, usage) else gl.bufferData(target, size, usage)
     }
 
+    override fun bufferData(target: Int, size: Int, sourceData: ByteArray?, usage: Int, offset: Int) {
+        val data = sourceData?.unsafeCast<Int8Array>()
+            ?.let { if (offset == 0 && size == it.length) it else it.subarray(offset, offset + size) }
+        if (data != null) gl.bufferData(target, data, usage) else gl.bufferData(target, size, usage)
+    }
+
     override fun bufferData(target: Int, size: Int, usage: Int) = gl.bufferData(target, size, usage)
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ShortArray) {
@@ -140,6 +146,20 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) {
         gl.bufferSubData(target, offset, sourceData.unsafeCast<Float32Array>())
+    }
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ByteArray) {
+        gl.bufferSubData(target, offset, sourceData.unsafeCast<Int8Array>())
+    }
+
+    override fun mapAndCopyBufferRange(
+        target: Int, offset: Int, length: Int, source: ByteArray, srcOffset: Int, access: Int
+    ) {
+        // WebGL2 has no buffer-mapping API (security model — pages can't get raw GPU
+        // pointers). Fall back to bufferSubData; the [access] hint is ignored.
+        val view = source.unsafeCast<Int8Array>()
+            .let { if (srcOffset == 0 && length == it.length) it else it.subarray(srcOffset, srcOffset + length) }
+        gl.bufferSubData(target, offset, view)
     }
 
     override fun deleteBuffer(buffer: KglBuffer) = gl.deleteBuffer(buffer.obj)
@@ -248,6 +268,22 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
     ) = gl.texImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.unsafeCast<Float32Array>())
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type, buffer?.unsafeCast<Int8Array>())
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
+    ) {
+        // PBO-bound texSubImage2D — only available on WebGL2. The gl-binding's typed
+        // signature for the int-offset variant isn't on the legacy WebGL1
+        // RenderingContext binding, so route through asDynamic to call the real DOM
+        // overload. Caller is responsible for ensuring a WebGL2 context.
+        requireGl2().asDynamic().texSubImage2D(
+            target, level, xoffset, yoffset, width, height, format, type, offset
+        )
+    }
 
     override fun activeTexture(texture: Int) = gl.activeTexture(texture)
 

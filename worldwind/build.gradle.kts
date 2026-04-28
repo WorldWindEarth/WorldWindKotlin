@@ -95,6 +95,33 @@ kotlin {
                 implementation(libs.ormlite.jdbc)
 
                 implementation(libs.kotlinx.coroutines.swing)
+
+                // Optional video-texture backends. All compileOnly: heavyweight (each pulls
+                // ~200 MB+ of native binaries), and apps choose at most one or two. Apps that
+                // want video texturing must add the matching dependency themselves.
+                //
+                // VLCJ — libVLC bindings, requires VLC 3.0+ installed on the host.
+                compileOnly(libs.vlcj)
+                // JavaCV / FFmpeg via javacpp-presets — bundles its own ffmpeg natives.
+                // Used by both JavaCvVideoTexture (high-level FFmpegFrameGrabber) and
+                // FFmpegVideoTexture (raw avformat/avcodec/swscale).
+                compileOnly(libs.javacv.platform)
+                // JavaFX Media — bundles its own gstreamer-based media decoder. Used by
+                // JavaFxVideoTexture (off-screen MediaView snapshot loop). The no-classifier
+                // openjfx JARs on Maven Central are empty placeholders; the actual classes
+                // live in the platform-classified JARs (any platform has the same classes,
+                // they only differ in bundled native libs). Pick the host classifier so
+                // the engine compiles wherever it's built.
+                val javafxVersion = libs.versions.javafx.get()
+                val javafxPlatform = when {
+                    System.getProperty("os.name").lowercase().contains("win") -> "win"
+                    System.getProperty("os.name").lowercase().contains("mac") -> "mac"
+                    else -> "linux"
+                }
+                compileOnly("org.openjfx:javafx-base:$javafxVersion:$javafxPlatform")
+                compileOnly("org.openjfx:javafx-graphics:$javafxVersion:$javafxPlatform")
+                compileOnly("org.openjfx:javafx-media:$javafxVersion:$javafxPlatform")
+                compileOnly("org.openjfx:javafx-swing:$javafxVersion:$javafxPlatform")
             }
         }
         jvmTest {
@@ -250,6 +277,64 @@ signing {
     )
     sign(publishing.publications)
 }
+
+/**
+ * Build-time guard: refuse to compile shader programs that contain non-ASCII bytes inside
+ * their `programSources` triple-quoted strings. GLSL ES drivers are spec-permitted to
+ * silently fail to compile sources containing bytes > 0x7F, which produces empty programs
+ * and transparent draws with no compiler error log. Catching this at build time means we
+ * never ship a shader source that's invisibly broken on a subset of platforms.
+ *
+ * Scope: matches `*ShaderProgram*.kt` under `commonMain/kotlin`. Triple-quoted GLSL strings
+ * inside those files are scanned for any byte outside the printable ASCII range. Comments
+ * and KDoc OUTSIDE the shader-source strings are left alone (they never reach the GLSL
+ * compiler). Failure prints the file, line number, and offending substring.
+ */
+val checkShaderSourcesAscii by tasks.registering {
+    val shaderFiles = fileTree("src/commonMain/kotlin") {
+        include("**/*ShaderProgram*.kt")
+    }
+    inputs.files(shaderFiles)
+    doLast {
+        val violations = mutableListOf<String>()
+        shaderFiles.forEach { file ->
+            // Cheap heuristic: walk the file character-by-character with a single boolean
+            // tracking whether we're inside a triple-quoted string. That's enough to
+            // separate KDoc / comments / Kotlin code from the shader-source payloads we
+            // actually care about, without pulling in a full Kotlin parser.
+            val text = file.readText()
+            var inTripleQuote = false
+            var line = 1
+            var col = 1
+            var i = 0
+            while (i < text.length) {
+                if (!inTripleQuote && i + 2 < text.length && text[i] == '"' && text[i+1] == '"' && text[i+2] == '"') {
+                    inTripleQuote = true; i += 3; col += 3; continue
+                }
+                if (inTripleQuote && i + 2 < text.length && text[i] == '"' && text[i+1] == '"' && text[i+2] == '"') {
+                    inTripleQuote = false; i += 3; col += 3; continue
+                }
+                val c = text[i]
+                if (inTripleQuote && c.code > 0x7F) {
+                    violations += "${file.path}:$line:$col  non-ASCII U+${"%04X".format(c.code)} ('$c') in shader source"
+                }
+                if (c == '\n') { line++; col = 1 } else col++
+                i++
+            }
+        }
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                "Non-ASCII characters in GLSL shader sources (will silently fail on some drivers):\n  " +
+                    violations.joinToString("\n  ")
+            )
+        }
+    }
+}
+
+tasks.named("compileKotlinJvm") { dependsOn(checkShaderSourcesAscii) }
+tasks.named("compileKotlinJs") { dependsOn(checkShaderSourcesAscii) }
+tasks.matching { it.name == "compileDebugKotlinAndroid" || it.name == "compileReleaseKotlinAndroid" }
+    .configureEach { dependsOn(checkShaderSourcesAscii) }
 
 // https://github.com/gradle/gradle/issues/26091
 tasks.withType<AbstractPublishToMaven>().configureEach {

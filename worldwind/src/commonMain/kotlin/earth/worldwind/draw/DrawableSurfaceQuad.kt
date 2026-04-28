@@ -246,7 +246,7 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
             program.loadOpacity(prim.opacity)
             if (prim.texture?.bindTexture(dc) == true) {
                 program.loadTexCoordMatrix(prim.texCoordMatrix)
-                program.loadABCD(prim.a, prim.b, prim.c, prim.d)
+                program.loadHomography(prim.homography)
                 program.enableTexture(true)
             } else {
                 program.enableTexture(false)

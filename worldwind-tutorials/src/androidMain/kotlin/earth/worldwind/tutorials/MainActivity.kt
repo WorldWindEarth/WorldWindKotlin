@@ -336,10 +336,15 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/surface_image_tutorial.html",
                 R.string.title_surface_image
             )
-            R.id.nav_texture_quad_activity -> loadTutorial(
-                TextureQuadFragment::class.java,
-                "file:///android_asset/texture_quad_tutorial.html",
-                R.string.title_texture_quad
+            R.id.nav_photo_on_terrain_activity -> loadTutorial(
+                PhotoOnTerrainFragment::class.java,
+                "file:///android_asset/photo_on_terrain_tutorial.html",
+                R.string.title_photo_on_terrain
+            )
+            R.id.nav_video_on_terrain_activity -> loadTutorial(
+                VideoOnTerrainFragment::class.java,
+                "file:///android_asset/video_on_terrain_tutorial.html",
+                R.string.title_video_on_terrain
             )
             R.id.nav_wms_layer_activity -> loadTutorial(
                 WmsLayerFragment::class.java,

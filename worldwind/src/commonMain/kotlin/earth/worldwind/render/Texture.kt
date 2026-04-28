@@ -29,9 +29,14 @@ open class Texture(
         private const val TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE
 
         /**
-         * Global anisotropic filtering level for all GL_LINEAR textures
+         * Global anisotropic filtering level for all GL_LINEAR textures. Defaults to 16x:
+         * the cost is paid only on textures whose minification/magnification ratio is high
+         * (oblique drone footage projected on terrain, sharply-tilted SurfaceImage tiles),
+         * exactly the cases where the sharpening is visible. Front-facing textures see no
+         * runtime difference. Drivers that don't support GL_TEXTURE_MAX_ANISOTROPY_EXT
+         * silently ignore the parameter.
          */
-        var anisotropicFiltering = AFLevel.AF4X
+        var anisotropicFiltering = AFLevel.AF16X
 
         protected fun estimateByteCount(width: Int, height: Int, format: Int, type: Int, hasMipMap: Boolean): Int {
             require(width >= 0 && height >= 0) {
@@ -90,7 +95,7 @@ open class Texture(
         return name
     }
 
-    fun bindTexture(dc: DrawContext): Boolean {
+    open fun bindTexture(dc: DrawContext): Boolean {
         if (!name.isValid()) createTexture(dc)
         if (name.isValid()) {
             // [DrawContext.bindTexture] caches the active GL_TEXTURE_2D binding per texture

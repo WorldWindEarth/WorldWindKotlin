@@ -28,7 +28,8 @@
     <string name="title_mgrs_graticule">MGRS Graticule</string>
     <string name="title_gk_graticule">Gauss-Kruger Graticule</string>
     <string name="title_surface_image">Surface Image</string>
-    <string name="title_texture_quad">Texture Quad</string>
+    <string name="title_photo_on_terrain">Photo on Terrain</string>
+    <string name="title_video_on_terrain">Video on Terrain (KLV)</string>
     <string name="title_wms_layer">WMS Layer</string>
     <string name="title_wmts_layer">WMTS Layer</string>
     <string name="title_wcs_elevation_coverage">WCS Elevation Coverage</string>

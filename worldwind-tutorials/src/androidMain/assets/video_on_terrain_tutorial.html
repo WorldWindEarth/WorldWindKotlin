@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Video on Terrain Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Video on Terrain (KLV)</h1>
+<p>
+    Drapes a real STANAG 4609 drone clip onto the terrain via the OES external-texture path
+    (<code>MediaPlayer</code> &rarr; <code>SurfaceTexture</code> &rarr;
+    <code>GL_TEXTURE_EXTERNAL_OES</code>) and animates the projected footprint with the
+    embedded MISB ST 0601 KLV telemetry.
+</p>
+<p>
+    The video and a pre-extracted KLV timeline JSON are bundled cross-platform via
+    moko-resources at <code>commonMain/moko-resources/assets/video/</code> &mdash; accessed on
+    Android as <code>MR.assets.video.drone_motion_mp4</code> /
+    <code>drone_motion_json</code>, on JVM via the bundled JAR classpath, and on JS as
+    webpack-rewritten asset URLs. The standalone extractor at
+    <code>tools/ExtractKlv.java</code> demuxes the MPEG-TS, parses ST 0601, and emits a flat
+    <code>{tMs, tl, tr, br, bl}</code> JSON per telemetry sample.
+</p>
+
+<h2>Pipeline</h2>
+<ul>
+    <li><code>MediaSurfaceTexture</code> wraps a <code>SurfaceTexture</code> bound to a
+        <code>GL_TEXTURE_EXTERNAL_OES</code> name allocated lazily by the engine.</li>
+    <li><code>ProjectedMediaSurface.texture</code> takes the OES texture directly; the OES variant
+        of the homography surface-quad shader is selected automatically.</li>
+    <li>Each render frame, <code>VideoOnTerrainTutorial.tick()</code> resamples the timeline
+        at the player's current position and updates the surface's four corners.</li>
+</ul>
+
+<h2>Example</h2>
+<h3>VideoOnTerrainFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class VideoOnTerrainFragment : BasicGlobeFragment() {
+
+    private var mediaPlayer: MediaPlayer? = null
+    private var videoTexture: MediaSurfaceTexture? = null
+    private var tutorial: VideoOnTerrainTutorial? = null
+
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+
+        val timeline = KlvTimeline.parse(
+            MR.assets.video.drone_motion_json.readText(requireContext())
+        )
+
+        val mp4 = MR.assets.video.drone_motion_mp4
+        val tmp = File(requireContext().cacheDir, "drone_motion.mp4").also { f ->
+            if (!f.exists() || f.length() == 0L) {
+                mp4.getInputStream(requireContext()).use { it.copyTo(f.outputStream()) }
+            }
+        }
+
+        val tex = MediaSurfaceTexture(width = 640, height = 480).also { videoTexture = it }
+        tex.onFrameAvailable = { wwd.requestRedraw() }
+        tex.onSurfaceReady = {
+            wwd.post {
+                val surface = tex.surface ?: return@post
+                mediaPlayer = MediaPlayer().apply {
+                    setSurface(surface)
+                    setDataSource(tmp.absolutePath)
+                    isLooping = true
+                    setOnPreparedListener { it.start() }
+                    prepareAsync()
+                }
+                WorldWind.requestRedraw()
+            }
+        }
+
+        tutorial = VideoOnTerrainTutorial(
+            engine = wwd.engine,
+            timeline = timeline,
+            texture = tex,
+            currentTimeMs = {
+                try { mediaPlayer?.currentPosition?.toLong()?.coerceAtLeast(0L) ?: 0L }
+                catch (_: IllegalStateException) { 0L }
+            },
+        ).also { it.start() }
+
+        return wwd
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+    var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+    });
+</script>
+</body>
+</html>

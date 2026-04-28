@@ -104,6 +104,9 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
         gl.glBufferData(target, size.toLong(), sourceData?.let { FloatBuffer.wrap(it, offset, sourceData.size - offset) }, usage)
 
+    override fun bufferData(target: Int, size: Int, sourceData: ByteArray?, usage: Int, offset: Int) =
+        gl.glBufferData(target, size.toLong(), sourceData?.let { ByteBuffer.wrap(it, offset, sourceData.size - offset) }, usage)
+
     override fun bufferData(target: Int, size: Int, usage: Int) =
         gl.glBufferData(target, size.toLong(), null, usage)
 
@@ -115,6 +118,26 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) =
         gl.glBufferSubData(target, offset.toLong(), size.toLong(), FloatBuffer.wrap(sourceData, 0, size / 4))
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ByteArray) =
+        gl.glBufferSubData(target, offset.toLong(), size.toLong(), ByteBuffer.wrap(sourceData, 0, size))
+
+    override fun mapAndCopyBufferRange(
+        target: Int, offset: Int, length: Int, source: ByteArray, srcOffset: Int, access: Int
+    ) {
+        // glMapBufferRange returns a ByteBuffer that's a direct view of the GPU-mapped
+        // staging memory (or driver-allocated rename memory when INVALIDATE+UNSYNCHRONIZED
+        // are set). Falls back to glBufferSubData if mapping fails (driver out of memory,
+        // unsupported access bits) — the visible upload result is the same.
+        val mapped: ByteBuffer? = gl.glMapBufferRange(target, offset.toLong(), length.toLong(), access)
+        if (mapped != null) {
+            mapped.put(source, srcOffset, length)
+            gl.glUnmapBuffer(target)
+        } else {
+            gl.glBufferSubData(target, offset.toLong(), length.toLong(),
+                ByteBuffer.wrap(source, srcOffset, length))
+        }
+    }
 
     override fun deleteBuffer(buffer: KglBuffer) {
         arrI[0] = buffer.id
@@ -202,6 +225,14 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
     ) = gl.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = gl.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, buffer?.let { ByteBuffer.wrap(it) })
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
+    ) = gl.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, offset.toLong())
 
     override fun activeTexture(texture: Int) = gl.glActiveTexture(texture)
 

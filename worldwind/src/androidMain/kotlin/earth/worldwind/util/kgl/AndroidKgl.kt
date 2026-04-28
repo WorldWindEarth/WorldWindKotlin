@@ -101,6 +101,9 @@ class AndroidKgl : Kgl {
     override fun bufferData(target: Int, size: Int, sourceData: FloatArray?, usage: Int, offset: Int) =
         GLES20.glBufferData(target, size, sourceData?.let { FloatBuffer.wrap(it, offset, size / 4) }, usage)
 
+    override fun bufferData(target: Int, size: Int, sourceData: ByteArray?, usage: Int, offset: Int) =
+        GLES20.glBufferData(target, size, sourceData?.let { ByteBuffer.wrap(it, offset, size) }, usage)
+
     override fun bufferData(target: Int, size: Int, usage: Int) =
         GLES20.glBufferData(target, size, null, usage)
 
@@ -112,6 +115,24 @@ class AndroidKgl : Kgl {
 
     override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: FloatArray) =
         GLES20.glBufferSubData(target, offset, size, FloatBuffer.wrap(sourceData, 0, size / 4))
+
+    override fun bufferSubData(target: Int, offset: Int, size: Int, sourceData: ByteArray) =
+        GLES20.glBufferSubData(target, offset, size, ByteBuffer.wrap(sourceData, 0, size))
+
+    override fun mapAndCopyBufferRange(
+        target: Int, offset: Int, length: Int, source: ByteArray, srcOffset: Int, access: Int
+    ) {
+        // GLES30.glMapBufferRange returns java.nio.Buffer; cast to ByteBuffer (it always is
+        // for byte-sized targets like GL_PIXEL_UNPACK_BUFFER). Falls through to the
+        // bufferSubData path if the driver returns null (rare; bad access combo).
+        val mapped = GLES30.glMapBufferRange(target, offset, length, access) as? ByteBuffer
+        if (mapped != null) {
+            mapped.put(source, srcOffset, length)
+            GLES30.glUnmapBuffer(target)
+        } else {
+            GLES20.glBufferSubData(target, offset, length, ByteBuffer.wrap(source, srcOffset, length))
+        }
+    }
 
     override fun deleteBuffer(buffer: KglBuffer) {
         arrI[0] = buffer.id
@@ -211,6 +232,23 @@ class AndroidKgl : Kgl {
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
     ) = GLES20.glTexImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.let { FloatBuffer.wrap(it) })
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = GLES20.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, buffer?.let { ByteBuffer.wrap(it) })
+
+    override fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
+    ) {
+        // Android's GLES30 binding doesn't expose a `glTexSubImage2D(...int offset)` variant
+        // for 2D textures (only the 3D one and the Buffer-typed 2D variant exist). When
+        // GL_PIXEL_UNPACK_BUFFER is bound, calling the Buffer variant with `null` reads from
+        // the PBO at byte offset 0 — sufficient for our single-buffered video upload path.
+        // Non-zero offsets aren't exposed; callers needing them must use the JVM/desktop
+        // path or seek the PBO with bufferSubData beforehand.
+        require(offset == 0) { "AndroidKgl.texSubImage2D PBO path supports only offset=0" }
+        GLES30.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, null as java.nio.Buffer?)
+    }
 
     override fun activeTexture(texture: Int) = GLES20.glActiveTexture(texture)
 
