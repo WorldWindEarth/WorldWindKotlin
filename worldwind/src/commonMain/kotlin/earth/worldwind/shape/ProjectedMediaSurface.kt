@@ -90,6 +90,14 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
      *    exact regardless of terrain relief. For sub-km drone footprints over typical
      *    rolling terrain the visible difference is small. For 10+ km photo footprints
      *    over mountainous terrain the homography distorts noticeably.
+     *  * **JS / WebGL**: this path renders incorrectly on JS - browser GLSL compilers
+     *    produce wrong per-fragment results for typical perspective `mat4 * vec4`
+     *    regardless of `highp`, RTE source-shifting, fp64 emulation, or WebGL 2 +
+     *    GLSL ES 3.00 migration. JS callers should leave [imageProjection] `null` and
+     *    rely on the homography path (which renders the same drone footage correctly
+     *    via the four ground-corner KLV tags). JVM and Android render the 3D path as
+     *    written. Full investigation log and remaining options:
+     *    `docs/webgl-3d-projection-investigation.md`.
      *
      * `null` (default) keeps the homography path with its lower per-frame cost.
      */
