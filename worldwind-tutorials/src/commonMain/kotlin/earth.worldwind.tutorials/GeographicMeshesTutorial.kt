@@ -34,7 +34,7 @@ class GeographicMeshesTutorial(private val engine: WorldWind) : AbstractTutorial
     }
 
     init {
-        crearteMeshes()
+        createMeshes()
     }
 
     override fun start() {
@@ -59,7 +59,7 @@ class GeographicMeshesTutorial(private val engine: WorldWind) : AbstractTutorial
         isStarted = false
     }
 
-    private fun crearteMeshes() {
+    private fun createMeshes() {
         // Create the mesh's positions.
         val meshPositions = mutableListOf<Array<Position>>()
         var lat = 30.0
@@ -153,7 +153,7 @@ class GeographicMeshesTutorial(private val engine: WorldWind) : AbstractTutorial
                 // Create a descriptive label showing the intersection number
                 val distanceInMeters = intersection.distance.roundToInt()
                 placemark.label = "Intersection ${i + 1}: $distanceInMeters m"
-                placemarkLayer.addRenderable(placemark);
+                placemarkLayer.addRenderable(placemark)
             }
         }
     }

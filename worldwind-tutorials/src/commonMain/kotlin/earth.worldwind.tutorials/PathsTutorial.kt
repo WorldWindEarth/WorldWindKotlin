@@ -9,7 +9,9 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.shape.Path
 
-class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class PathsTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndicatorTutorial {
+
+    override val picker = PickResultIndicator()
 
     private val layer = RenderableLayer("Paths").apply {
         // Create a basic path with the default attributes, the default altitude mode (ABSOLUTE),
@@ -75,6 +77,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
     override fun start() {
         super.start()
         engine.layers.addLayer(layer)
+        picker.attach(engine)
         engine.camera.set(
             30.0.degrees, (-100.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
@@ -84,6 +87,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
     override fun stop() {
         super.stop()
         engine.layers.removeLayer(layer)
+        picker.detach(engine)
     }
 
 }

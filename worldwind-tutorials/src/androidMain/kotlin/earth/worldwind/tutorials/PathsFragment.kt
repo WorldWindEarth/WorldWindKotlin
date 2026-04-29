@@ -6,5 +6,9 @@ class PathsFragment : BasicGlobeFragment() {
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { PathsTutorial(it.engine).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        val tutorial = PathsTutorial(it.engine)
+        tutorial.start()
+        installDepthPickIndicator(tutorial.picker)
+    }
 }

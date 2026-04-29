@@ -6,5 +6,9 @@ class EllipsesFragment: BasicGlobeFragment() {
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { EllipsesTutorial(it.engine).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        val tutorial = EllipsesTutorial(it.engine)
+        tutorial.start()
+        installDepthPickIndicator(tutorial.picker)
+    }
 }

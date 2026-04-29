@@ -33,7 +33,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.*
 import org.w3c.dom.events.EventListener
-import org.w3c.dom.pointerevents.PointerEvent
+import org.w3c.dom.events.MouseEvent
 
 fun main() {
     // Register an event listener to be called when the page is loaded.
@@ -44,54 +44,53 @@ fun main() {
         val projectionSelect = document.getElementById("Projections") as HTMLSelectElement
         val actionsContainer = document.getElementById("Actions") as HTMLDivElement
         val mainScope = MainScope()
+        // Single global click listener per picker. `picker.isActive` gates the call so listeners
+        // for non-current tutorials short-circuit and don't cross-talk. WorldWindow swallows
+        // click events that came from a drag, so no tap-vs-drag check is needed here.
+        fun installDepthPicker(picker: PickResultIndicator) {
+            wwd.addEventListener("click", EventListener { e ->
+                if (!picker.isActive || e !is MouseEvent) return@EventListener
+                val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
+                picker.showPick(wwd.engine, wwd.pick(clickPoint).topPickedObject?.cartesianPoint)
+                wwd.requestRedraw()
+            })
+        }
+        // Ray-pick (CPU multi-hit) variant for Mesh / Collada tutorials.
+        fun installRayPicker(isActive: () -> Boolean, onPick: (Line) -> Unit) {
+            wwd.addEventListener("click", EventListener { e ->
+                if (!isActive() || e !is MouseEvent) return@EventListener
+                val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
+                val clickRay = Line()
+                if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
+                    onPick(clickRay)
+                    wwd.requestRedraw()
+                }
+            })
+        }
+
         val tutorials = mapOf(
             "Basic globe" to BasicTutorial(wwd.engine),
             "Set camera view" to CameraViewTutorial(wwd.engine),
             "Set \"look at\" view" to LookAtViewTutorial(wwd.engine),
             "Placemarks" to PlacemarksTutorial(wwd.engine),
-            "Paths" to PathsTutorial(wwd.engine),
-            "Polygons" to PolygonsTutorial(wwd.engine),
-            "Ellipses" to EllipsesTutorial(wwd.engine),
+            "Paths" to PathsTutorial(wwd.engine).also { installDepthPicker(it.picker) },
+            "Polygons" to PolygonsTutorial(wwd.engine).also { installDepthPicker(it.picker) },
+            "Ellipses" to EllipsesTutorial(wwd.engine).also { installDepthPicker(it.picker) },
             "Geographic meshes" to GeographicMeshesTutorial(wwd.engine).also {
-                // Add click handler to detect intersections
-                wwd.addEventListener("click", EventListener { e ->
-                    if (!it.isStarted || e !is PointerEvent) return@EventListener
-                    val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
-                    val clickRay = Line()
-                    if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
-                        it.pickMesh(clickRay, wwd.engine.globe)
-                        wwd.requestRedraw()
-                    }
-                })
+                installRayPicker({ it.isStarted }) { ray -> it.pickMesh(ray, wwd.engine.globe) }
             },
             "Triangle meshes" to TriangleMeshesTutorial(wwd.engine).also {
-                // Add click handler to detect intersections
-                wwd.addEventListener("click", EventListener { e ->
-                    if (!it.isStarted || e !is PointerEvent) return@EventListener
-                    val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
-                    val clickRay = Line()
-                    if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
-                        it.pickMesh(clickRay, wwd.engine.globe)
-                        wwd.requestRedraw()
-                    }
-                })
+                installRayPicker({ it.isStarted }) { ray -> it.pickMesh(ray, wwd.engine.globe) }
             },
             "COLLADA" to ColladaTutorial(wwd.engine).also { tutorial ->
                 mainScope.launch {
                     tutorial.setupScene()
                     wwd.requestRedraw()
                 }
-                wwd.addEventListener("click", EventListener { e ->
-                    if (!tutorial.isStarted || e !is PointerEvent) return@EventListener
-                    val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
-                    val clickRay = Line()
-                    if (wwd.engine.rayThroughScreenPoint(clickPoint.x, clickPoint.y, clickRay)) {
-                        tutorial.pickScene(clickRay, wwd.engine.globe)
-                        wwd.requestRedraw()
-                    }
-                })
+                installRayPicker({ tutorial.isStarted }) { ray -> tutorial.pickScene(ray, wwd.engine.globe) }
             },
             "GLTF" to GltfTutorial(wwd.engine).also { tutorial ->
+                installDepthPicker(tutorial.picker)
                 mainScope.launch {
                     tutorial.setupScene()
                     wwd.requestRedraw()

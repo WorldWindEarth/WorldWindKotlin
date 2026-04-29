@@ -33,6 +33,10 @@ import java.awt.event.MouseEvent
 import javax.swing.*
 
 fun main() {
+    // Demo apps run on whatever JDK the user has installed; outdated `cacerts` truststores
+    // reject NASA / DLR / USGS endpoints with PKIX path-building failures. Trust-all is fine
+    // for tutorials but should never ship in production.
+    installPermissiveSslForTutorials()
     SwingUtilities.invokeLater {
         val mainScope = MainScope()
         val tutorialCombo = JComboBox<String>()
@@ -134,8 +138,18 @@ fun main() {
                         actionsPanel.isVisible = tutorial.actions?.isNotEmpty() == true
                         actionsPanel.revalidate()
                     }
-                    clickHandler = when (name) {
-                        "Geographic meshes" -> { e ->
+                    val picker = (tutorials[name] as? PickIndicatorTutorial)?.picker
+                    clickHandler = when {
+                        picker != null -> { e ->
+                            // pickAsync resolves on the JOGL thread; await it via mainScope.
+                            val p = wwd!!.viewportCoordinates(e.x, e.y)
+                            mainScope.launch {
+                                picker.showPick(engine, wwd!!.pickAsync(p.x, p.y).await().topPickedObject?.cartesianPoint)
+                                wwd?.requestRedraw()
+                            }
+                            Unit
+                        }
+                        name == "Geographic meshes" -> { e ->
                             if (geoMeshTutorial.isStarted) {
                                 val ray = Line()
                                 val p = wwd!!.viewportCoordinates(e.x, e.y)
@@ -145,7 +159,7 @@ fun main() {
                                 }
                             }
                         }
-                        "Triangle meshes" -> { e ->
+                        name == "Triangle meshes" -> { e ->
                             if (triMeshTutorial.isStarted) {
                                 val ray = Line()
                                 val p = wwd!!.viewportCoordinates(e.x, e.y)
@@ -155,7 +169,7 @@ fun main() {
                                 }
                             }
                         }
-                        "COLLADA" -> { e ->
+                        name == "COLLADA" -> { e ->
                             if (colladaTutorial.isStarted) {
                                 val ray = Line()
                                 val p = wwd!!.viewportCoordinates(e.x, e.y)

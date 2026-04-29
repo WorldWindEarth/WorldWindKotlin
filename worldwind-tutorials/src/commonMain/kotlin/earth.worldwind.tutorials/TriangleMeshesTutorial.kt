@@ -34,7 +34,7 @@ class TriangleMeshesTutorial(private val engine: WorldWind) : AbstractTutorial()
     }
 
     init {
-        crearteMeshes()
+        createMeshes()
     }
 
     override fun start() {
@@ -59,7 +59,7 @@ class TriangleMeshesTutorial(private val engine: WorldWind) : AbstractTutorial()
         isStarted = false
     }
 
-    private fun crearteMeshes() {
+    private fun createMeshes() {
         // Create a mesh that displays a texture image from an image file.
         val altitude = 100e3
         val numRadialPositions = 40
@@ -215,7 +215,7 @@ class TriangleMeshesTutorial(private val engine: WorldWind) : AbstractTutorial()
         // Create the mesh
         val gridMesh = TriangleMesh(gridPositions.toTypedArray(), gridIndices.toIntArray(), gridMeshAttributes)
         gridMesh.textureCoordinates = gridTexCoords.toTypedArray()
-        meshLayer.addRenderable(gridMesh);
+        meshLayer.addRenderable(gridMesh)
     }
 
     fun pickMesh(clickRay: Line, globe: Globe) {

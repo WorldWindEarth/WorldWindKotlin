@@ -8,8 +8,11 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
 
-class GltfTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class GltfTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndicatorTutorial {
     private val gltfLayer = RenderableLayer("GLTF Box")
+    override val picker = PickResultIndicator()
+    var isStarted = false
+        private set
 
     suspend fun setupScene() {
         val position = Position(40.009993372683.degrees, (-105.272774533734).degrees, 1500.0)
@@ -21,6 +24,7 @@ class GltfTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
     override fun start() {
         engine.layers.addLayer(gltfLayer)
+        picker.attach(engine)
         engine.cameraFromLookAt(
             LookAt(
                 position = Position(40.009993372683.degrees, (-105.272774533734).degrees, 1500.0),
@@ -31,10 +35,13 @@ class GltfTutorial(private val engine: WorldWind) : AbstractTutorial() {
                 roll = 0.0.degrees
             )
         )
+        isStarted = true
     }
 
     override fun stop() {
         engine.layers.removeLayer(gltfLayer)
         gltfLayer.clearRenderables()
+        picker.detach(engine)
+        isStarted = false
     }
 }

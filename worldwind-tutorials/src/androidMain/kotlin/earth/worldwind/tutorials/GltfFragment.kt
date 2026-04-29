@@ -9,6 +9,7 @@ class GltfFragment : BasicGlobeFragment() {
         val wwd = super.createWorldWindow()
         val tutorial = GltfTutorial(wwd.engine)
         tutorial.start()
+        installDepthPickIndicator(tutorial.picker)
         lifecycleScope.launch {
             tutorial.setupScene()
             wwd.requestRedraw()

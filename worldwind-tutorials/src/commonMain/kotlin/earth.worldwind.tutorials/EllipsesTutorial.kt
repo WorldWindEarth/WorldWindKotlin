@@ -9,7 +9,9 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.shape.Ellipse
 
-class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
+class EllipsesTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndicatorTutorial {
+
+    override val picker = PickResultIndicator()
 
     private val layer = RenderableLayer("Ellipses").apply {
         // Create a surface ellipse with the default attributes, a 500km major-radius and a 300km minor-radius. Surface
@@ -98,6 +100,7 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
     override fun start() {
         super.start()
         engine.layers.addLayer(layer)
+        picker.attach(engine)
         engine.camera.set(
             30.0.degrees, (-110.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
@@ -107,6 +110,7 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
     override fun stop() {
         super.stop()
         engine.layers.removeLayer(layer)
+        picker.detach(engine)
     }
 
 }

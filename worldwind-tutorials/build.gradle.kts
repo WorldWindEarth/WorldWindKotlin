@@ -49,6 +49,11 @@ kotlin {
         }
         jvmMain {
             dependencies {
+                // Make Ktor's OkHttp engine + OkHttpClient types visible to the tutorial-only
+                // permissive-SSL hook (`installPermissiveSslForTutorials`). The engine module
+                // already pulls these in for its own HTTP client, but `implementation`-scoped
+                // there so they don't leak transitively.
+                implementation(libs.ktor.client.okhttp)
                 // VLCJ — uses the host's installed VLC 3.0+ libraries (no bundled natives).
                 implementation(libs.vlcj)
                 // JavaCV / FFmpeg via javacpp-presets. Pulls FFmpeg native binaries for the
