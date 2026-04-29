@@ -49,6 +49,11 @@ class ColladaScene(
     var computedNormals = false
         set(value) { field = value; normalsRewritten = false; invalidate() }
     var localTransforms = true
+        set(value) {
+            if (field == value) return
+            field = value
+            localBoundingRadius = -1.0 // depends on whether nodeWorldMatrix is applied
+        }
     var useTexturePaths = true
     var nodesToHide = setOf<String>()
     var hideNodes = false
@@ -70,6 +75,12 @@ class ColladaScene(
     private var transformValid = false
     private var normalsRewritten = false
     private var cachedTransformedPoints: List<List<Vec3>>? = null
+    // Local-space radius covering every vertex after node.worldMatrix. World radius adds
+    // the user xyz-translation and scales by scale × unitScale. Invalidated when normals
+    // are recomputed (rewriteBufferNormals expands indexed meshes) or localTransforms toggles.
+    private var localBoundingRadius = -1.0
+    private val boundingSphere = BoundingSphere()
+    private val scratchVec = Vec3()
 
     init { flattenModel() }
 
@@ -107,15 +118,25 @@ class ColladaScene(
 
     override fun doRender(rc: RenderContext) {
         rc.geographicToCartesian(position.latitude, position.longitude, position.altitude, altitudeMode, placePoint)
-        if (!rc.frustum.containsPoint(placePoint)) return
-
-        val distanceSq = rc.cameraPoint.distanceToSquared(placePoint)
 
         if (computedNormals && !normalsRewritten) {
             for (entity in entities) rewriteBufferNormals(entity.mesh)
             normalsRewritten = true
             bufferVersion++
+            localBoundingRadius = -1.0 // vertex buffers were rewritten
         }
+
+        // Bounding-sphere cull, not centerpoint cull: in pick mode the frustum is the pick rect
+        // (typically 3x3 px), so a model's centerpoint usually falls outside even when its body
+        // overlaps the pick.
+        if (localBoundingRadius < 0) computeLocalBoundingRadius()
+        val totalScale = scale * unitScale
+        val translationOffset = sqrt(xTranslation * xTranslation + yTranslation * yTranslation + zTranslation * zTranslation)
+        boundingSphere.center.copy(placePoint)
+        boundingSphere.radius = ((localBoundingRadius + translationOffset) * totalScale).coerceAtLeast(1.0)
+        if (!boundingSphere.intersectsFrustum(rc.frustum)) return
+
+        val distanceSq = rc.cameraPoint.distanceToSquared(placePoint)
 
         if (!transformValid) {
             buildTransformationMatrix(rc)
@@ -280,6 +301,23 @@ class ColladaScene(
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
             rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
         }
+    }
+
+    private fun computeLocalBoundingRadius() {
+        var maxSquared = 0.0
+        for (entity in entities) {
+            val vtx = entity.mesh.vertices
+            val mat = entity.node.worldMatrix
+            var i = 0
+            while (i + 2 < vtx.size) {
+                scratchVec.set(vtx[i].toDouble(), vtx[i + 1].toDouble(), vtx[i + 2].toDouble())
+                if (localTransforms) scratchVec.multiplyByMatrix(mat)
+                val sq = scratchVec.x * scratchVec.x + scratchVec.y * scratchVec.y + scratchVec.z * scratchVec.z
+                if (sq > maxSquared) maxSquared = sq
+                i += 3
+            }
+        }
+        localBoundingRadius = sqrt(maxSquared)
     }
 
     private fun buildTransformationMatrix(rc: RenderContext) {

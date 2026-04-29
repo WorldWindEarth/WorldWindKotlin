@@ -11,6 +11,7 @@ import earth.worldwind.render.MultisampleFramebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.buffer.BufferPool
+import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
@@ -45,6 +46,8 @@ open class DrawContext(val gl: Kgl) {
     var pickedObjects: PickedObjectList? = null
     var pickViewport: Viewport? = null
     var pickPoint: Vec2? = null
+    /** Pick-only depth-to-color packer; null on regular frames. See [DepthToColorProgram]. */
+    var depthToColorProgram: DepthToColorProgram? = null
     var isPickMode = false
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
@@ -52,6 +55,8 @@ open class DrawContext(val gl: Kgl) {
     private val textures = Array(32) { KglTexture.NONE }
     private var arrayBuffer = KglBuffer.NONE
     private var elementArrayBuffer = KglBuffer.NONE
+    private var pickFramebufferCache: Framebuffer? = null
+    private var pickDepthReadbackFramebufferCache: Framebuffer? = null
     private var scratchFramebufferCache: Framebuffer? = null
     private var momentsFramebufferCache: Framebuffer? = null
     private var momentsBlurFramebufferCache: Framebuffer? = null
@@ -95,6 +100,19 @@ open class DrawContext(val gl: Kgl) {
      * multitexture unit may be determined by calling currentTextureUnit.
      */
     val currentTexture get() = currentTexture(textureUnit)
+
+    /** Pick-pass FBO: RGBA8 color (pick IDs) + DEPTH16. Allocate via [ensurePickFramebuffer]. */
+    val pickFramebuffer
+        get() = pickFramebufferCache ?: error("Pick framebuffer not initialized")
+
+    /**
+     * Color-only FBO that receives [DepthToColorProgram]'s RG-pack of [pickFramebuffer]'s depth
+     * texture, since `glReadPixels` can't portably read DEPTH_COMPONENT on WebGL1 / GLES2.
+     * Allocate via [ensurePickFramebuffer].
+     */
+    val pickDepthReadbackFramebuffer
+        get() = pickDepthReadbackFramebufferCache ?: error("Pick depth-readback framebuffer not initialized")
+
     /**
      * Returns an OpenGL framebuffer object suitable for offscreen drawing. The framebuffer has a 32-bit color buffer
      * and a 32-bit depth buffer, both attached as OpenGL texture 2D objects.
@@ -301,6 +319,7 @@ open class DrawContext(val gl: Kgl) {
         pickedObjects = null
         pickViewport = null
         pickPoint = null
+        depthToColorProgram = null
         isPickMode = false
         scratchBuffer.fill(0)
         scratchList.clear()
@@ -312,6 +331,8 @@ open class DrawContext(val gl: Kgl) {
         // below already sees the new generation.
         contextVersion++
         // Clear objects and values associated with the current OpenGL context.
+        pickFramebufferCache?.release(this)
+        pickDepthReadbackFramebufferCache?.release(this)
         scratchFramebufferCache?.release(this)
         momentsFramebufferCache?.release(this)
         momentsBlurFramebufferCache?.release(this)
@@ -326,6 +347,8 @@ open class DrawContext(val gl: Kgl) {
         textureUnit = GL_TEXTURE0
         arrayBuffer = KglBuffer.NONE
         elementArrayBuffer = KglBuffer.NONE
+        pickFramebufferCache = null
+        pickDepthReadbackFramebufferCache = null
         scratchFramebufferCache = null
         momentsFramebufferCache = null
         momentsBlurFramebufferCache = null
@@ -492,28 +515,109 @@ open class DrawContext(val gl: Kgl) {
      * @return a set containing the unique fragment colors
      */
     fun readPixelColors(x: Int, y: Int, width: Int, height: Int): Set<Color> {
-        // Read the fragment pixels as a tightly packed array of RGBA 8888 colors.
-        val pixelCount = width * height
-        val pixelBuffer = scratchBuffer(pixelCount * 4)
-        val packAlignment = gl.getParameteri(GL_PACK_ALIGNMENT)
-        gl.pixelStorei(GL_PACK_ALIGNMENT, 1) // read byte aligned
-        gl.readPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixelBuffer)
-        gl.pixelStorei(GL_PACK_ALIGNMENT, packAlignment) // restore the pack alignment
+        val pixelBuffer = readPixelsRgba8(x, y, width, height)
         val resultSet = mutableSetOf<Color>()
         var result = Color()
-        for (i in 0 until pixelCount) {
+        for (i in 0 until width * height) {
             val idx = i * 4
-
-            // Convert the RGBA 8888 color to a WorldWind color.
             result.red = (pixelBuffer[idx + 0].toInt() and 0xFF) / 0xFF.toFloat()
             result.green = (pixelBuffer[idx + 1].toInt() and 0xFF) / 0xFF.toFloat()
             result.blue = (pixelBuffer[idx + 2].toInt() and 0xFF) / 0xFF.toFloat()
             result.alpha = (pixelBuffer[idx + 3].toInt() and 0xFF) / 0xFF.toFloat()
-
-            // Accumulate the unique colors in a set.
+            // Accumulate the unique colors in a set; only allocate a new Color when one is added.
             if (resultSet.add(result)) result = Color()
         }
         return resultSet
+    }
+
+    /**
+     * Reads fragment colors over a screen rectangle into a row-major list (no de-duplication),
+     * indexed `row * width + col`. Companion to [readPixelDepths] so colors and depths can be
+     * iterated in lockstep.
+     */
+    fun readPixelColorList(x: Int, y: Int, width: Int, height: Int): ArrayList<Color> {
+        val pixelCount = width * height
+        val pixelBuffer = readPixelsRgba8(x, y, width, height)
+        val result = ArrayList<Color>(pixelCount)
+        for (i in 0 until pixelCount) {
+            val idx = i * 4
+            result.add(
+                Color(
+                    (pixelBuffer[idx + 0].toInt() and 0xFF) / 0xFF.toFloat(),
+                    (pixelBuffer[idx + 1].toInt() and 0xFF) / 0xFF.toFloat(),
+                    (pixelBuffer[idx + 2].toInt() and 0xFF) / 0xFF.toFloat(),
+                    (pixelBuffer[idx + 3].toInt() and 0xFF) / 0xFF.toFloat()
+                )
+            )
+        }
+        return result
+    }
+
+    /** Single-pixel depth from the RG-packed depth color attachment. See [DepthToColorProgram]. */
+    fun readPixelDepth(x: Int, y: Int) = readPixelDepths(x, y, 1, 1)[0]
+
+    /**
+     * Row-major 16-bit normalized depths over a screen rectangle, in `[0, 1]`. Reads from the
+     * RG-packed depth color attachment; see [DepthToColorProgram].
+     */
+    fun readPixelDepths(x: Int, y: Int, width: Int, height: Int): FloatArray {
+        val pixelCount = width * height
+        val pixelBuffer = readPixelsRgba8(x, y, width, height)
+        val result = FloatArray(pixelCount)
+        for (i in 0 until pixelCount) {
+            val idx = i * 4
+            val r = pixelBuffer[idx + 0].toInt() and 0xFF
+            val g = pixelBuffer[idx + 1].toInt() and 0xFF
+            // Depth lives in R (high byte) + G (low byte); see DepthToColorProgram.packD16.
+            result[i] = r / 255f + g / (255f * 255f)
+        }
+        return result
+    }
+
+    /**
+     * Reads `width × height` RGBA8 pixels from the active framebuffer into [scratchBuffer]. GL_RGBA
+     * + GL_UNSIGNED_BYTE is the only readPixels combo guaranteed by GLES2 / WebGL — GL_RGB silently
+     * returns zeros on Android and WebGL even though desktop drivers tolerate it.
+     */
+    private fun readPixelsRgba8(x: Int, y: Int, width: Int, height: Int): ByteArray {
+        val pixelBuffer = scratchBuffer(width * height * 4)
+        val packAlignment = gl.getParameteri(GL_PACK_ALIGNMENT)
+        gl.pixelStorei(GL_PACK_ALIGNMENT, 1)
+        gl.readPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixelBuffer)
+        gl.pixelStorei(GL_PACK_ALIGNMENT, packAlignment)
+        return pixelBuffer
+    }
+
+    /**
+     * Lazily allocates [pickFramebuffer] and [pickDepthReadbackFramebuffer], reallocating both
+     * when the cached attachments are smaller than `width × height` (e.g. after viewport resize).
+     */
+    fun ensurePickFramebuffer(width: Int, height: Int) {
+        val existing = pickFramebufferCache
+        if (existing != null) {
+            val color = existing.getAttachedTexture(GL_COLOR_ATTACHMENT0)
+            if (color.width >= width && color.height >= height) return
+            existing.release(this)
+            pickDepthReadbackFramebufferCache?.release(this)
+        }
+
+        // Sized internal formats on WebGL2 / GLES3+ (WebGL2 leaves the FBO incomplete otherwise);
+        // unsized on WebGL1 / GLES2.
+        val colorIF = if (gl.supportsSizedTextureFormats) GL_RGBA8 else GL_RGBA
+        val depthIF = if (gl.supportsSizedTextureFormats) GL_DEPTH_COMPONENT16 else GL_DEPTH_COMPONENT
+
+        pickFramebufferCache = Framebuffer().apply {
+            val color = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, colorIF)
+            val depth = Texture(width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true, depthIF)
+            depth.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            depth.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            attachTexture(this@DrawContext, color, GL_COLOR_ATTACHMENT0)
+            attachTexture(this@DrawContext, depth, GL_DEPTH_ATTACHMENT)
+        }
+        pickDepthReadbackFramebufferCache = Framebuffer().apply {
+            val color = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, colorIF)
+            attachTexture(this@DrawContext, color, GL_COLOR_ATTACHMENT0)
+        }
     }
 
     /**

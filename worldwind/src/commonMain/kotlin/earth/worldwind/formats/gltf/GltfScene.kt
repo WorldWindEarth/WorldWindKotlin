@@ -49,12 +49,23 @@ class GltfScene internal constructor(
     private val iboKey = Any()
     private val bufferVersion = 0
     private var transformValid = false
+    // Local-space radius covering every vertex after worldMatrix; world radius = this × scale.
+    // Rotations preserve magnitude, so heading/pitch/roll changes don't invalidate the cache.
+    private var localBoundingRadius = -1.0
+    private val boundingSphere = BoundingSphere()
+    private val scratchVec = Vec3()
 
     private fun invalidate() { transformValid = false }
 
     override fun doRender(rc: RenderContext) {
         rc.geographicToCartesian(position.latitude, position.longitude, position.altitude, altitudeMode, placePoint)
-        if (!rc.frustum.containsPoint(placePoint)) return
+        // Bounding-sphere cull, not centerpoint cull: in pick mode the frustum is the pick rect
+        // (typically 3x3 px), so a model's centerpoint usually falls outside even when its body
+        // overlaps the pick.
+        if (localBoundingRadius < 0) computeLocalBoundingRadius()
+        boundingSphere.center.copy(placePoint)
+        boundingSphere.radius = (localBoundingRadius * scale).coerceAtLeast(1.0)
+        if (!boundingSphere.intersectsFrustum(rc.frustum)) return
 
         val distanceSq = rc.cameraPoint.distanceToSquared(placePoint)
 
@@ -175,6 +186,22 @@ class GltfScene internal constructor(
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
             rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
         }
+    }
+
+    private fun computeLocalBoundingRadius() {
+        var maxSquared = 0.0
+        for (entity in entities) {
+            val v = entity.vertices
+            var i = 0
+            while (i + 2 < v.size) {
+                scratchVec.set(v[i].toDouble(), v[i + 1].toDouble(), v[i + 2].toDouble())
+                scratchVec.multiplyByMatrix(entity.worldMatrix)
+                val sq = scratchVec.x * scratchVec.x + scratchVec.y * scratchVec.y + scratchVec.z * scratchVec.z
+                if (sq > maxSquared) maxSquared = sq
+                i += 3
+            }
+        }
+        localBoundingRadius = sqrt(maxSquared)
     }
 
     private fun buildTransformationMatrix(rc: RenderContext) {

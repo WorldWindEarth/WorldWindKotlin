@@ -140,6 +140,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
         val texture = if (!useCache) colorAttachment
         else Texture(colorAttachment.width, colorAttachment.height, GL_RGBA, GL_UNSIGNED_BYTE, true)
+        // Restore the caller's binding after the offscreen pass, not always NONE — pick mode
+        // expects the pick FBO to remain bound between drawables.
+        val previousFramebuffer = dc.currentFramebuffer
         try {
             // Attach the cache texture as the resolve target before binding the draw FBO.
             if (useCache) framebuffer.attachTexture(dc, texture, GL_COLOR_ATTACHMENT0)
@@ -230,8 +233,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             if (useCache) dc.texturesCache.put(hash, texture, 1)
         } finally {
             if (useCache) framebuffer.attachTexture(dc, colorAttachment, GL_COLOR_ATTACHMENT0)
-            // Restore the default WorldWind OpenGL state.
-            dc.bindFramebuffer(KglFramebuffer.NONE)
+            dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_DEPTH_TEST)
         }

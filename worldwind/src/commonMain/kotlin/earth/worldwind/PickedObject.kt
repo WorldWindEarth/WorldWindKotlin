@@ -1,6 +1,7 @@
 package earth.worldwind
 
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.Layer
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
@@ -10,6 +11,14 @@ import kotlin.math.roundToInt
 open class PickedObject protected constructor(
     val identifier: Int, val userObject: Any, val layer: Layer? = null, val terrainPosition: Position? = null
 ) {
+    /**
+     * Cartesian point on the picked surface, reconstructed from the depth buffer at pick time.
+     * Set only on non-terrain top picks (terrain picks expose the geographic location via
+     * [terrainPosition] instead). Null when no shape was hit, or when the pick produced no
+     * usable depth value (e.g. cleared background).
+     */
+    var cartesianPoint: Vec3? = null
+        internal set
     var isOnTop = false
         protected set
     val isTerrain get() = terrainPosition != null
@@ -48,5 +57,5 @@ open class PickedObject protected constructor(
 
     internal fun markOnTop() { isOnTop = true }
 
-    override fun toString() = "PickedObject(isOnTop=$isOnTop, identifier=$identifier, userObject=$userObject, layer=$layer, terrainPosition=$terrainPosition)"
+    override fun toString() = "PickedObject(isOnTop=$isOnTop, identifier=$identifier, userObject=$userObject, layer=$layer, terrainPosition=$terrainPosition, cartesianPoint=$cartesianPoint)"
 }

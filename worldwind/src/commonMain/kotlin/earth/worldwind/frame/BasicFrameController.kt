@@ -15,7 +15,12 @@ import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.GL_COLOR_BUFFER_BIT
+import earth.worldwind.util.kgl.GL_DEPTH_ATTACHMENT
 import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
+import earth.worldwind.util.kgl.GL_FLOAT
+import earth.worldwind.util.kgl.GL_TEXTURE0
+import earth.worldwind.util.kgl.GL_TRIANGLE_STRIP
+import earth.worldwind.util.kgl.KglFramebuffer
 import kotlin.math.roundToInt
 
 open class BasicFrameController: FrameController {
@@ -27,6 +32,7 @@ open class BasicFrameController: FrameController {
     private val fullSphere = Sector().setFullSphere()
     private val scratchPoint = Vec3()
     private val scratchRay = Line()
+    private val invModelviewProjection = Matrix4()
 
     override fun renderFrame(rc: RenderContext) {
         if (!rc.isPickMode) lastTerrains.clear()
@@ -110,11 +116,20 @@ open class BasicFrameController: FrameController {
     }
 
     override fun drawFrame(dc: DrawContext) {
+        if (dc.isPickMode) {
+            dc.ensurePickFramebuffer(dc.viewport.width, dc.viewport.height)
+            dc.pickFramebuffer.bindFramebuffer(dc)
+        }
         setViewport(dc)
         clearFrame(dc)
         uploadBuffers(dc)
         drawDrawables(dc)
-        if (dc.isPickMode) resolvePick(dc)
+        if (dc.isPickMode) {
+            // Skip the depth-to-color blit when no shapes were drawn (most clicks on empty space).
+            if (dc.pickedObjects?.count != 0) copyDepthToReadbackFramebuffer(dc)
+            resolvePick(dc)
+            dc.bindFramebuffer(KglFramebuffer.NONE)
+        }
     }
 
     protected open fun setViewport(dc: DrawContext) {
@@ -146,6 +161,27 @@ open class BasicFrameController: FrameController {
         }
     }
 
+    /**
+     * RG-packs the pick framebuffer's depth attachment into the readback framebuffer so its
+     * 16-bit depth can be retrieved via `glReadPixels` (DEPTH_COMPONENT isn't portably readable
+     * on WebGL1 / GLES2). No-op when the engine hasn't provided a [DepthToColorProgram].
+     */
+    protected open fun copyDepthToReadbackFramebuffer(dc: DrawContext) {
+        val program = dc.depthToColorProgram ?: return
+        if (!program.useProgram(dc)) return
+        if (!dc.unitSquareBuffer.bindBuffer(dc)) return
+
+        dc.pickDepthReadbackFramebuffer.bindFramebuffer(dc)
+        dc.gl.clear(GL_COLOR_BUFFER_BIT)
+
+        dc.activeTextureUnit(GL_TEXTURE0)
+        val depthTexture = dc.pickFramebuffer.getAttachedTexture(GL_DEPTH_ATTACHMENT)
+        if (!depthTexture.bindTexture(dc)) return
+
+        dc.gl.vertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0)
+        dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
+    }
+
     protected open fun resolvePick(dc: DrawContext) {
         val pickedObjects = dc.pickedObjects ?: return
         if (pickedObjects.count == 0) return  // no eligible objects; avoid expensive calls to glReadPixels
@@ -154,40 +190,67 @@ open class BasicFrameController: FrameController {
         var objectFound = false
 
         dc.pickPoint?.let { pickPoint ->
-            // Read the fragment color at the pick point.
-            dc.readPixelColor(pickPoint.x.roundToInt(), pickPoint.y.roundToInt(), pickColor)
+            val px = pickPoint.x.roundToInt()
+            val py = pickPoint.y.roundToInt()
 
-            // Convert the fragment color to a picked object ID. It returns zero if the color cannot indicate a picked
-            // object ID, in which case no objects have been drawn at the pick point.
+            dc.pickFramebuffer.bindFramebuffer(dc)
+            dc.readPixelColor(px, py, pickColor)
             val topObjectId = uniqueColorToIdentifier(pickColor)
-            if (topObjectId != 0) {
-                val topObject = pickedObjects.pickedObjectWithId(topObjectId)
-                if (topObject != null) {
-                    if (!topObject.isTerrain) objectFound = true // Non-terrain object found in pick point
-                    if (pickPointOnly || objectFound) {
-                        topObject.markOnTop()
-                        // Remove picked objects except top and terrain in case of object found or point only mode
-                        // Using clearPickedObjects and two offerPickedObject is faster than keepTopAndTerrainObjects
-                        val terrainObject = pickedObjects.terrainPickedObject
-                        pickedObjects.clearPickedObjects()
-                        pickedObjects.offerPickedObject(topObject)
-                        // handles null objects and duplicate objects
-                        if (terrainObject != null) pickedObjects.offerPickedObject(terrainObject)
-                    }
-                } else if (pickPointOnly) pickedObjects.clearPickedObjects() // no eligible objects drawn at the pick point
-            } else if (pickPointOnly) pickedObjects.clearPickedObjects() // no objects drawn at the pick point
+            val topObject = if (topObjectId != 0) pickedObjects.pickedObjectWithId(topObjectId) else null
+
+            if (topObject == null) {
+                if (pickPointOnly) pickedObjects.clearPickedObjects()
+                return@let
+            }
+            if (!topObject.isTerrain) {
+                objectFound = true
+                // Reconstruct the Cartesian point only when a non-terrain shape was actually hit;
+                // a 4x4 invert is wasted on terrain-only picks and on misses.
+                invModelviewProjection.copy(dc.modelviewProjection).invert()
+                dc.pickDepthReadbackFramebuffer.bindFramebuffer(dc)
+                val depth = dc.readPixelDepth(px, py)
+                topObject.cartesianPoint = Vec3().also {
+                    invModelviewProjection.unProject(pickPoint.x, pickPoint.y, depth.toDouble(), dc.viewport, it)
+                }
+            }
+            if (pickPointOnly || objectFound) {
+                topObject.markOnTop()
+                // Remove non-top non-terrain picks. clearPickedObjects + two offers is faster
+                // than keepTopAndTerrainObjects.
+                val terrainObject = pickedObjects.terrainPickedObject
+                pickedObjects.clearPickedObjects()
+                pickedObjects.offerPickedObject(topObject)
+                if (terrainObject != null) pickedObjects.offerPickedObject(terrainObject)
+            }
         }
 
-        if (!pickPointOnly && !objectFound) {
-            // Read the unique fragment colors in the pick rectangle.
-            dc.readPixelColors(pickViewport.x, pickViewport.y, pickViewport.width, pickViewport.height).forEach { pickColor ->
-                // Convert the fragment color to a picked object ID. This returns zero if the color cannot indicate a picked
-                // object ID.
-                val topObjectId = uniqueColorToIdentifier(pickColor)
-                if (topObjectId != 0) {
-                    val topObject = pickedObjects.pickedObjectWithId(topObjectId)
-                    if (topObject?.isTerrain == false) topObject.markOnTop()
-                }
+        if (pickPointOnly || objectFound) return
+
+        // Rect path: pair each pixel's color with its depth at the same index.
+        dc.pickDepthReadbackFramebuffer.bindFramebuffer(dc)
+        val pickDepths = dc.readPixelDepths(pickViewport.x, pickViewport.y, pickViewport.width, pickViewport.height)
+        dc.pickFramebuffer.bindFramebuffer(dc)
+        val pickColors = dc.readPixelColorList(pickViewport.x, pickViewport.y, pickViewport.width, pickViewport.height)
+        var invMVPReady = false
+
+        for (i in pickColors.indices) {
+            val topObjectId = uniqueColorToIdentifier(pickColors[i])
+            if (topObjectId == 0) continue
+            val topObject = pickedObjects.pickedObjectWithId(topObjectId) ?: continue
+            if (topObject.isTerrain) continue
+            topObject.markOnTop()
+            // Set the Cartesian point on the first pixel that hits each object.
+            if (topObject.cartesianPoint != null) continue
+            if (!invMVPReady) {
+                invModelviewProjection.copy(dc.modelviewProjection).invert()
+                invMVPReady = true
+            }
+            val px = pickViewport.x + (i % pickViewport.width)
+            val py = pickViewport.y + (i / pickViewport.width)
+            topObject.cartesianPoint = Vec3().also {
+                invModelviewProjection.unProject(
+                    px.toDouble(), py.toDouble(), pickDepths[i].toDouble(), dc.viewport, it
+                )
             }
         }
     }

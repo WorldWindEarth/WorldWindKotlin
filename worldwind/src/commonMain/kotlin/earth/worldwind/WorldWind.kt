@@ -15,6 +15,7 @@ import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.LayerList
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
+import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.Logger
 import earth.worldwind.util.SynchronizedList
 import earth.worldwind.util.kgl.*
@@ -503,6 +504,10 @@ open class WorldWind @JvmOverloads constructor(
         rc.pickRay = frame.pickRay
         rc.isPickMode = frame.isPickMode
 
+        // The depth-as-color shader program is only needed for the pick pass to reconstruct
+        // Cartesian points from the depth buffer, so allocate it lazily and only on pick frames.
+        if (pickMode) frame.depthToColorProgram = rc.getShaderProgram(DepthToColorProgram.KEY) { DepthToColorProgram() }
+
         // Let the frame controller render the WorldWindow's current state.
         frameController.renderFrame(rc)
 
@@ -545,6 +550,7 @@ open class WorldWind @JvmOverloads constructor(
         dc.pickedObjects = frame.pickedObjects
         dc.pickViewport = frame.pickViewport
         dc.pickPoint = frame.pickPoint
+        dc.depthToColorProgram = frame.depthToColorProgram
         dc.isPickMode = frame.isPickMode
 
         // Let the frame controller draw the frame.
