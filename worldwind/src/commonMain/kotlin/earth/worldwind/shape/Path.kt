@@ -179,7 +179,8 @@ open class Path @JvmOverloads constructor(
         drawState.vertexOrigin.copy(currentData.vertexOrigin)
         drawState.enableCullFace = false
         drawState.enableDepthTest = activeAttributes.isDepthTest
-        drawState.enableDepthWrite = activeAttributes.isDepthWrite
+        drawState.enableDepthWrite = activeAttributes.isDepthWrite &&
+            drawState.color.alpha * drawState.opacity >= 1f
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.isOccluderOnly = isOccluderOnly
 
@@ -272,13 +273,14 @@ open class Path @JvmOverloads constructor(
             // Configure the drawable according to the shape's attributes.
             drawStateExtrusion.vertexOrigin.copy(currentData.vertexOrigin)
             drawStateExtrusion.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
-            drawStateExtrusion.enableCullFace = false
-            drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
-            drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite
-            drawStateExtrusion.enableLighting = activeAttributes.isLightingEnabled
-            drawStateExtrusion.isOccluderOnly = isOccluderOnly
             drawStateExtrusion.color.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawStateExtrusion.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
+            drawStateExtrusion.enableCullFace = false
+            drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
+            drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite &&
+                drawStateExtrusion.color.alpha * drawStateExtrusion.opacity >= 1f
+            drawStateExtrusion.enableLighting = activeAttributes.isLightingEnabled
+            drawStateExtrusion.isOccluderOnly = isOccluderOnly
             drawStateExtrusion.texture = null
             drawStateExtrusion.texCoordAttrib.size = 2
             drawStateExtrusion.texCoordAttrib.offset = 12
