@@ -18,8 +18,10 @@ import org.khronos.webgl.WebGLContextAttributes
 import org.khronos.webgl.WebGLContextEvent
 import org.khronos.webgl.WebGLRenderingContext
 import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.EventListener
+import org.w3c.dom.events.MouseEvent
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -88,6 +90,30 @@ open class WorldWindow(
     }
 
     init {
+        // Suppress `click` events that came from a drag (movement > tap slop) so consumers of
+        // `addEventListener("click", ...)` don't fire on drag-end (e.g. releasing a Movable
+        // shape after a drag). Capture-phase + stopImmediatePropagation runs before the bubble
+        // listeners that `addEventListener` registers below.
+        var pressX = Double.NaN
+        var pressY = Double.NaN
+        val recordPress = { e: Event ->
+            when (e) {
+                is MouseEvent -> { pressX = e.clientX.toDouble(); pressY = e.clientY.toDouble() }
+                is TouchEvent -> e.changedTouches.item(0)?.let { pressX = it.clientX.toDouble(); pressY = it.clientY.toDouble() }
+            }
+        }
+        canvas.addEventListener("pointerdown", recordPress, true)
+        canvas.addEventListener("mousedown", recordPress, true)
+        canvas.addEventListener("touchstart", recordPress, true)
+        canvas.addEventListener("click", { e ->
+            if (e is MouseEvent && !pressX.isNaN()) {
+                val dx = e.clientX - pressX
+                val dy = e.clientY - pressY
+                pressX = Double.NaN // consume; subsequent clicks without a press are programmatic
+                if (dx * dx + dy * dy > CLICK_TAP_SLOP_SQUARED) e.stopImmediatePropagation()
+            }
+        }, true)
+
         // Prevent the browser's default actions in response to mouse and touch events, which interfere with
         // navigation. Register these event listeners  before any others to ensure that they're called last.
         val preventDefaultListener = EventListener { e -> e.preventDefault() }
@@ -409,6 +435,9 @@ open class WorldWindow(
     }
 
     companion object {
+        /** Squared tap-vs-drag threshold in CSS pixels for the click-after-drag suppressor in [init]. */
+        private const val CLICK_TAP_SLOP_SQUARED = 100.0
+
         /**
          * Creates the WebGL context for the canvas. Prefers WebGL2 (enables sized internal
          * formats and the MSAA-resolve path that antialiases surface shapes) and falls back
