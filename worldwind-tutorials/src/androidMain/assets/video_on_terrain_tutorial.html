@@ -46,37 +46,68 @@ class VideoOnTerrainFragment : BasicGlobeFragment() {
     private var mediaPlayer: MediaPlayer? = null
     private var videoTexture: MediaSurfaceTexture? = null
     private var tutorial: VideoOnTerrainTutorial? = null
+    private var videoAssetFd: AssetFileDescriptor? = null
 
     override fun createWorldWindow(): WorldWindow {
         val wwd = super.createWorldWindow()
 
+        // Pre-extracted KLV timeline JSON, bundled cross-platform via moko-resources at
+        // `MR.assets.video.drone_motion_json`. moko's Android AssetResource exposes a
+        // `readText(context)` helper that goes through the platform's AssetManager.
         val timeline = KlvTimeline.parse(
             MR.assets.video.drone_motion_json.readText(requireContext())
         )
 
-        val mp4 = MR.assets.video.drone_motion_mp4
-        val tmp = File(requireContext().cacheDir, "drone_motion.mp4").also { f ->
-            if (!f.exists() || f.length() == 0L) {
-                mp4.getInputStream(requireContext()).use { it.copyTo(f.outputStream()) }
-            }
-        }
+        // Open the bundled MP4 directly as an AssetFileDescriptor so MediaPlayer streams
+        // out of the APK with no cache-dir copy. The asset is pre-compressed (H.264 in
+        // MP4), so AAPT keeps it uncompressed in the APK and `openFd` returns a valid
+        // offset/length pair. The FD must outlive the player; we close it in onDestroyView.
+        val videoFd = requireContext().assets
+            .openFd(MR.assets.video.drone_motion_mp4.originalPath)
+            .also { videoAssetFd = it }
 
+        // Allocate the OES texture (the GL name itself is created lazily on the first
+        // bindTexture). Width/height are advisory — producer frame dimensions win on
+        // each updateTexImage.
+        // MediaSurfaceTexture calls WorldWind.requestRedraw() internally on each frame
+        // (and re-fires onSurfaceReady after a GL context loss), so the fragment doesn't
+        // need to wire either hook unless it has additional per-frame work to do.
         val tex = MediaSurfaceTexture(width = 640, height = 480).also { videoTexture = it }
-        tex.onFrameAvailable = { wwd.requestRedraw() }
+
+        // Surface becomes available on the GL thread after the texture name is allocated.
+        // Fires once at startup, and again after a GL context loss with a fresh Surface
+        // bound to the regenerated GL name. Hop to main (MediaPlayer needs a Looper) and
+        // either construct the player (initial) or just rebind it (post-context-loss).
         tex.onSurfaceReady = {
             wwd.post {
                 val surface = tex.surface ?: return@post
-                mediaPlayer = MediaPlayer().apply {
-                    setSurface(surface)
-                    setDataSource(tmp.absolutePath)
-                    isLooping = true
-                    setOnPreparedListener { it.start() }
-                    prepareAsync()
+                val existing = mediaPlayer
+                if (existing != null) {
+                    // Context-loss recovery — rebind the existing decoder to the new Surface.
+                    try { existing.setSurface(surface) } catch (_: Throwable) { /* idempotent */ }
+                } else {
+                    mediaPlayer = MediaPlayer().apply {
+                        setSurface(surface)
+                        setDataSource(videoFd.fileDescriptor, videoFd.startOffset, videoFd.length)
+                        isLooping = true
+                        setOnPreparedListener { it.start() }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            prepareAsync()
+                        } else {
+                            @Suppress("DEPRECATION")
+                            prepare()
+                            start()
+                        }
+                    }
                 }
                 WorldWind.requestRedraw()
             }
         }
 
+        // Start the inner tutorial up-front. It adds the ProjectedMediaSurface with `tex` to a layer;
+        // the first render frame will bind the OES texture (allocating its GL name), which
+        // triggers the onSurfaceReady wiring above. Until the MediaPlayer is constructed
+        // the time source returns 0, so the quad sits at the timeline's first sample.
         tutorial = VideoOnTerrainTutorial(
             engine = wwd.engine,
             timeline = timeline,
@@ -88,6 +119,38 @@ class VideoOnTerrainFragment : BasicGlobeFragment() {
         ).also { it.start() }
 
         return wwd
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try { mediaPlayer?.pause() } catch (_: IllegalStateException) { /* idempotent */ }
+        toolbar3dCheckbox()?.apply {
+            setOnCheckedChangeListener(null)
+            visibility = android.view.View.GONE
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try { mediaPlayer?.start() } catch (_: IllegalStateException) { /* idempotent */ }
+        toolbar3dCheckbox()?.apply {
+            visibility = android.view.View.VISIBLE
+            isChecked = tutorial?.useCameraProjection == true
+            setOnCheckedChangeListener { _, on -> tutorial?.useCameraProjection = on }
+        }
+    }
+
+    private fun toolbar3dCheckbox(): CheckBox? = activity?.findViewById(R.id.is3d)
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        try { mediaPlayer?.release() } catch (_: Throwable) { /* best effort */ }
+        mediaPlayer = null
+        tutorial?.stop()
+        tutorial = null
+        videoTexture = null
+        runCatching { videoAssetFd?.close() }
+        videoAssetFd = null
     }
 }
     </textarea>

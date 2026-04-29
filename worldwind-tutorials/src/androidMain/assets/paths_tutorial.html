@@ -37,10 +37,16 @@ class PathsFragment : BasicGlobeFragment() {
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { PathsTutorial(it.engine).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        val tutorial = PathsTutorial(it.engine)
+        tutorial.start()
+        installDepthPickIndicator(tutorial.picker)
+    }
 }
 
 class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
+
+    val picker = PickResultIndicator()
 
     private val layer = RenderableLayer("Paths").apply {
         // Create a basic path with the default attributes, the default altitude mode (ABSOLUTE),
@@ -106,8 +112,9 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
     override fun start() {
         super.start()
         engine.layers.addLayer(layer)
+        picker.attach(engine)
         engine.camera.set(
-            Angle.fromDegrees(30.0), Angle.fromDegrees(-100.0), engine.distanceToViewGlobeExtents * 1.1,
+            30.0.degrees, (-100.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
     }
@@ -115,6 +122,7 @@ class PathsTutorial(private val engine: WorldWind) : AbstractTutorial() {
     override fun stop() {
         super.stop()
         engine.layers.removeLayer(layer)
+        picker.detach(engine)
     }
 
 }

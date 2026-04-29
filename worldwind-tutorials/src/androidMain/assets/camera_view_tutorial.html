@@ -51,7 +51,7 @@ class CameraViewTutorial(private val engine: WorldWind) : AbstractTutorial() {
         val heading = aircraft.greatCircleAzimuth(airport)
         val distanceRadians = aircraft.greatCircleDistance(airport)
         val distanceMeters = distanceRadians * engine.globe.getRadiusAt(aircraft.latitude, aircraft.longitude)
-        val tilt = Angle.fromRadians(atan(distanceMeters / aircraft.altitude))
+        val tilt = atan(distanceMeters / aircraft.altitude).radians
 
         // Apply the camera view
         engine.camera.set(

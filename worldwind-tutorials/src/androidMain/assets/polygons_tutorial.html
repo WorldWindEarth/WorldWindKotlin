@@ -39,10 +39,16 @@ class PolygonsFragment : BasicGlobeFragment() {
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { PolygonsTutorial(it.engine).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        val tutorial = PolygonsTutorial(it.engine)
+        tutorial.start()
+        installDepthPickIndicator(tutorial.picker)
+    }
 }
 
 class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
+
+    val picker = PickResultIndicator()
 
     private val layer = RenderableLayer("Polygons").apply {
         // Create a basic polygon with the default attributes, the default altitude mode (ABSOLUTE),
@@ -71,7 +77,7 @@ class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
                 )
             ).apply {
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the polygon vertices to the ground
-                followTerrain = true // follow the ground between polygon vertices
+                isFollowTerrain = true // follow the ground between polygon vertices
             }
         )
 
@@ -138,7 +144,7 @@ class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
         // Create an extruded polygon with an inner hole and custom attributes that display the extruded vertical lines,
         // make the extruded interior 50% transparent, and increase the polygon line with.
         addRenderable(
-            Polygon(emptyList()).apply {
+            Polygon().apply {
                 attributes.apply {
                     isDrawVerticals = true // display the extruded verticals
                     interiorColor = Color(1f, 1f, 1f, 0.5f) // 50% transparent white
@@ -169,8 +175,9 @@ class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
     override fun start() {
         super.start()
         engine.layers.addLayer(layer)
+        picker.attach(engine)
         engine.camera.set(
-            Angle.fromDegrees(30.0), Angle.fromDegrees(-115.0), engine.distanceToViewGlobeExtents * 1.1,
+            30.0.degrees, (-115.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
     }
@@ -178,6 +185,7 @@ class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial() {
     override fun stop() {
         super.stop()
         engine.layers.removeLayer(layer)
+        picker.detach(engine)
     }
 
 }

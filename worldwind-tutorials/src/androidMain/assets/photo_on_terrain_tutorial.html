@@ -35,6 +35,7 @@ class PhotoOnTerrainFragment : BasicGlobeFragment() {
 }
 
 class PhotoOnTerrainTutorial(private val engine: WorldWind) : AbstractTutorial() {
+
     private val layer = RenderableLayer("Photo on terrain")
 
     init {
@@ -52,6 +53,20 @@ class PhotoOnTerrainTutorial(private val engine: WorldWind) : AbstractTutorial()
                 },
             )
         )
+    }
+
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+        engine.camera.set(
+            51.270125460836965.degrees, 30.00989959572076.degrees, 900.0,
+            AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO,
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
     }
 }
     </textarea>

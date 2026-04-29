@@ -39,10 +39,16 @@ class EllipsesFragment: BasicGlobeFragment() {
      *
      * @return The WorldWindow object containing the globe.
      */
-    override fun createWorldWindow() = super.createWorldWindow().also { EllipsesTutorial(it.engine).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        val tutorial = EllipsesTutorial(it.engine)
+        tutorial.start()
+        installDepthPickIndicator(tutorial.picker)
+    }
 }
 
 class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
+
+    val picker = PickResultIndicator()
 
     private val layer = RenderableLayer("Ellipses").apply {
         // Create a surface ellipse with the default attributes, a 500km major-radius and a 300km minor-radius. Surface
@@ -73,7 +79,7 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
             Ellipse(Position.fromDegrees(35.0, -120.0, 0.0), 500000.0, 300000.0).apply {
                 altitudeMode = AltitudeMode.CLAMP_TO_GROUND // clamp the ellipse's center position to the terrain surface
                 isFollowTerrain = true // cause the ellipse geometry to follow the terrain surface
-                heading = Angle.fromDegrees(45.0)
+                heading = 45.0.degrees
             }
         )
 
@@ -102,13 +108,38 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
                 isExtrude = true
             }
         )
+
+        // Create a surface pie-slice (sector): a 120° wedge of a circle, opening to the East-Southeast.
+        addRenderable(
+            Ellipse(Position.fromDegrees(15.0, -120.0, 0.0), 400000.0, 400000.0).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                isFollowTerrain = true
+                startAzimuth = 60.0.degrees
+                sweepAngle = 120.0.degrees
+            }
+        )
+
+        // Create an extruded pie-slice ellipse: 90° wedge with the major axis aligned along NE.
+        addRenderable(
+            Ellipse(Position.fromDegrees(15.0, -100.0, 200e3), 500000.0, 300000.0).apply {
+                attributes.apply {
+                    interiorColor = Color(1f, 1f, 1f, 0.5f)
+                    isDrawVerticals = true
+                }
+                isExtrude = true
+                heading = 45.0.degrees
+                startAzimuth = 0.0.degrees
+                sweepAngle = 90.0.degrees
+            }
+        )
     }
 
     override fun start() {
         super.start()
         engine.layers.addLayer(layer)
+        picker.attach(engine)
         engine.camera.set(
-            Angle.fromDegrees(30.0), Angle.fromDegrees(-110.0), engine.distanceToViewGlobeExtents * 1.1,
+            30.0.degrees, (-110.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
             AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
         )
     }
@@ -116,6 +147,7 @@ class EllipsesTutorial(private val engine: WorldWind): AbstractTutorial() {
     override fun stop() {
         super.stop()
         engine.layers.removeLayer(layer)
+        picker.detach(engine)
     }
 
 }
