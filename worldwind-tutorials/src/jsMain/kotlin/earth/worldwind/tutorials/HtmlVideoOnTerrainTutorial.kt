@@ -63,7 +63,6 @@ class HtmlVideoOnTerrainTutorial(private val engine: WorldWind) : AbstractTutori
                 timeline = timeline,
                 texture = texture,
                 currentTimeMs = { (video.currentTime * 1000.0).toLong().coerceAtLeast(0L) },
-                telemetryDelayMs = VideoOnTerrainTutorial.BUNDLED_DRONE_MOTION_DELAY_MS,
             )
             inner = tutorial
             tutorial.start()

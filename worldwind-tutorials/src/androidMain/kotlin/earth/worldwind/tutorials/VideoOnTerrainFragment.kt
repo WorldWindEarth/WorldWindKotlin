@@ -100,7 +100,6 @@ class VideoOnTerrainFragment : BasicGlobeFragment() {
                 try { mediaPlayer?.currentPosition?.toLong()?.coerceAtLeast(0L) ?: 0L }
                 catch (_: IllegalStateException) { 0L }
             },
-            telemetryDelayMs = VideoOnTerrainTutorial.BUNDLED_DRONE_MOTION_DELAY_MS,
         ).also { it.start() }
 
         return wwd

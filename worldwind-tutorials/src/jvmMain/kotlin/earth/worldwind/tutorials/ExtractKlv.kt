@@ -16,9 +16,13 @@ import kotlin.system.exitProcess
  * otherwise frame-center + offset-corners 23-24 + 26-33), and writes a compact JSON
  * timeline keyed by playback-relative milliseconds. Pure Kotlin/JVM, no third-party deps.
  *
- * JSON tMs values are video-relative: t=0 corresponds to the file's earliest PTS across
- * ALL PES streams (typically the first video frame), so consumers can look up corners by
- * `mediaPlayer.currentPosition` directly with no per-clip skew constant.
+ * JSON tMs values are video-relative: t=0 corresponds to the video stream's first PTS,
+ * so consumers can look up corners by `mediaPlayer.currentPosition` directly with no
+ * per-clip skew constant. KLV samples that precede the first video frame (telemetry
+ * pre-roll, common when the platform starts emitting metadata before the camera has
+ * locked the first frame) get negative tMs values; [KlvTimeline.sampleAt] handles those
+ * naturally — at player time 0 it interpolates between the last pre-roll and first
+ * post-roll sample.
  *
  * Run via Gradle (replace classpath as needed) or as a script:
  * ```
@@ -107,11 +111,18 @@ fun extractKlvToJsonString(tsBytes: ByteArray): Pair<String, Int> {
     for (p in pes) collectTags(p.payload, seenTags)
     println("Tags observed: $seenTags")
 
-    // Use the file's earliest PTS across all PES streams (video + KLV + audio) as t=0 so
-    // the JSON tMs values match player currentTime. Without this, the KLV stream's basePts
-    // often lags the video stream by a few seconds (the muxer doesn't start emitting
-    // metadata until the platform has a fix), leaving consumers to compensate manually.
-    val basePts90khz = findEarliestPts(tsBytes).takeIf { it >= 0 } ?: pes[0].pts
+    // Anchor t=0 on the video stream's first PTS so player time directly indexes the
+    // timeline with no per-clip skew constant. KLV that precedes the first video frame
+    // (pre-roll telemetry — common when the platform starts emitting metadata before the
+    // camera locks) ends up with negative tMs and is correctly handled by sampleAt.
+    // Falls back to the file-earliest PTS when no video PID is identifiable in the PMT.
+    val videoPid = findVideoPid(tsBytes)
+    println("Video PID = ${if (videoPid >= 0) "0x${videoPid.toString(16)}" else "<not found>"}")
+    val videoPts = if (videoPid >= 0) findEarliestPts(tsBytes, videoPid) else -1L
+    val basePts90khz = when {
+        videoPts >= 0 -> videoPts
+        else -> findEarliestPts(tsBytes).takeIf { it >= 0 } ?: pes[0].pts
+    }
 
     val json = StringBuilder().append("[\n")
     var first = true
@@ -215,6 +226,64 @@ internal fun findKlvPid(data: ByteArray): Int {
         off += 188
     }
     return klvPid ?: 0x1F1
+}
+
+/**
+ * Scan PMTs for the first video elementary stream and return its PID. Recognises the
+ * common ISO/IEC 13818-1 video stream-type IDs:
+ * - 0x01 / 0x02: MPEG-1 / MPEG-2 video
+ * - 0x10: MPEG-4 visual
+ * - 0x1B: H.264 / AVC
+ * - 0x24: H.265 / HEVC
+ * - 0x42: AVS
+ * Returns -1 if no video PID can be identified.
+ */
+internal fun findVideoPid(data: ByteArray): Int {
+    val patPid = 0x0000
+    var pmtPid: Int? = null
+    var off = 0
+    while (off + 188 <= data.size) {
+        if ((data[off].toInt() and 0xFF) != 0x47) { off += 188; continue }
+        val hdr1 = data[off + 1].toInt() and 0xFF
+        val hdr2 = data[off + 2].toInt() and 0xFF
+        val pid = ((hdr1 and 0x1F) shl 8) or hdr2
+        val pusi = (hdr1 shr 6) and 0x01
+        val afc = (data[off + 3].toInt() and 0x30) shr 4
+        if (afc == 0 || afc == 2) { off += 188; continue }
+        val payloadStart = 4 + (if (afc == 3) 1 + (data[off + 4].toInt() and 0xFF) else 0)
+        if (pid == patPid && pusi == 1 && pmtPid == null) {
+            var p = payloadStart
+            p += (data[off + p].toInt() and 0xFF) + 1
+            val sectionLen = ((data[off + p + 1].toInt() and 0x0F) shl 8) or (data[off + p + 2].toInt() and 0xFF)
+            val progStart = p + 8
+            val progEnd = p + 3 + sectionLen - 4
+            var q = progStart
+            while (q + 4 <= progEnd) {
+                val progNum = ((data[off + q].toInt() and 0xFF) shl 8) or (data[off + q + 1].toInt() and 0xFF)
+                val pid2 = ((data[off + q + 2].toInt() and 0x1F) shl 8) or (data[off + q + 3].toInt() and 0xFF)
+                if (progNum != 0) { pmtPid = pid2; break }
+                q += 4
+            }
+        } else if (pmtPid != null && pid == pmtPid && pusi == 1) {
+            var p = payloadStart
+            p += (data[off + p].toInt() and 0xFF) + 1
+            val sectionLen = ((data[off + p + 1].toInt() and 0x0F) shl 8) or (data[off + p + 2].toInt() and 0xFF)
+            val progInfoLen = ((data[off + p + 10].toInt() and 0x0F) shl 8) or (data[off + p + 11].toInt() and 0xFF)
+            val esStart = p + 12 + progInfoLen
+            val esEnd = p + 3 + sectionLen - 4
+            var q = esStart
+            while (q + 5 <= esEnd) {
+                val streamType = data[off + q].toInt() and 0xFF
+                val esPid = ((data[off + q + 1].toInt() and 0x1F) shl 8) or (data[off + q + 2].toInt() and 0xFF)
+                val esInfoLen = ((data[off + q + 3].toInt() and 0x0F) shl 8) or (data[off + q + 4].toInt() and 0xFF)
+                if (streamType == 0x01 || streamType == 0x02 || streamType == 0x10 ||
+                    streamType == 0x1B || streamType == 0x24 || streamType == 0x42) return esPid
+                q += 5 + esInfoLen
+            }
+        }
+        off += 188
+    }
+    return -1
 }
 
 internal class PesPacket(val pts: Long, val payload: ByteArray)
@@ -325,13 +394,19 @@ internal fun reassemblePes(data: ByteArray, targetPid: Int): List<PesPacket> {
  * Scan every TS packet in the file, parse the PTS of every PUSI=1 PES header that carries
  * one, and return the minimum 90 kHz PTS observed - which is normally the video stream's
  * first frame. Returns -1 if no PTS-bearing PES headers are seen.
+ *
+ * Pass [targetPid] to restrict the scan to a single elementary stream (e.g. video only),
+ * or -1 to scan across every PID.
  */
-internal fun findEarliestPts(data: ByteArray): Long {
+internal fun findEarliestPts(data: ByteArray, targetPid: Int = -1): Long {
     var earliest = -1L
     var off = 0
     while (off + 188 <= data.size) {
         if ((data[off].toInt() and 0xFF) != 0x47) { off += 188; continue }
         val hdr1 = data[off + 1].toInt() and 0xFF
+        val hdr2 = data[off + 2].toInt() and 0xFF
+        val pid = ((hdr1 and 0x1F) shl 8) or hdr2
+        if (targetPid >= 0 && pid != targetPid) { off += 188; continue }
         val pusi = (hdr1 shr 6) and 0x01
         val afc = (data[off + 3].toInt() and 0x30) shr 4
         if (afc == 0 || afc == 2 || pusi == 0) { off += 188; continue }

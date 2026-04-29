@@ -37,13 +37,6 @@ open class VideoOnTerrainTutorial(
     private val texture: Texture,
     private val currentTimeMs: () -> Long,
     /**
-     * KLV-vs-video PTS skew in ms. Negative when telemetry leads the video. Applied as
-     * `timeline.sampleAt(now - telemetryDelayMs)`, so JSON tMs values stay raw. Bundled
-     * drone_motion uses [BUNDLED_DRONE_MOTION_DELAY_MS]; user-supplied media re-extracted
-     * with the [ExtractKlv] tool (file-wide earliest PTS as t=0) can leave this at 0.
-     */
-    private val telemetryDelayMs: Long = 0L,
-    /**
      * Initial value for [useCameraProjection]. The runtime property is exposed via the
      * [ACTION_TOGGLE_3D] action (auto-rendered as a button on JS/JVM hosts; mapped to the
      * toolbar `is3d` checkbox on Android).
@@ -148,7 +141,7 @@ open class VideoOnTerrainTutorial(
     private fun tick() {
         val now = currentTimeMs()
         if (now == lastTickTMs) return
-        val s = timeline.sampleAt(now - telemetryDelayMs, scratchSample) ?: return
+        val s = timeline.sampleAt(now, scratchSample) ?: return
         lastTickTMs = now
         applyCorners(s)
         surface.setLocations(
@@ -245,14 +238,6 @@ open class VideoOnTerrainTutorial(
     }
 
     companion object {
-        /**
-         * PTS skew baked into the bundled drone_motion clip: the KLV timeline leads the
-         * video by ~2.29 s on this source. Pass this as `telemetryDelayMs` when wiring the
-         * bundled tutorial; user-supplied media will need its own calibration (or 0 if the
-         * source preserves PTS alignment between video and KLV).
-         */
-        const val BUNDLED_DRONE_MOTION_DELAY_MS = -2290L
-
         /**
          * Action label for the 3D-projection toggle. JS / JVM tutorial hosts render this
          * automatically via [actions]; the Android fragment owns its own Switch overlay

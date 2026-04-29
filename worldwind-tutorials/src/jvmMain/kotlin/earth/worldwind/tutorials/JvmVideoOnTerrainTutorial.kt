@@ -53,7 +53,6 @@ abstract class JvmVideoOnTerrainTutorial<T>(
             timeline = timeline,
             texture = p,
             currentTimeMs = { p.timeMs.coerceAtLeast(0L) },
-            telemetryDelayMs = VideoOnTerrainTutorial.BUNDLED_DRONE_MOTION_DELAY_MS,
         ).also { it.start() }
         p.play()
     }
