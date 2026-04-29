@@ -133,13 +133,24 @@ open class Polygon @JvmOverloads constructor(
         protected var tessEdgeFlag = true
         protected var tessVertexCount = 0
 
-        // Running unwrapped longitude for [addVertex]'s 3D path. Lat/lon GLU input keeps the
-        // top-plane triangulation curvature-following, but a raw +180° → −180° jump on an
+        // Running unwrapped longitude for [addVertex]'s 3D lat/lon path. Lat/lon GLU input keeps
+        // the top-plane triangulation curvature-following, but a raw +180° → −180° jump on an
         // antimeridian-crossing polygon makes GLU emit huge spurious triangles. We shift each
         // subsequent lon by ±360° as needed so the sequence stays continuous. NaN means
         // "first vertex of this polygon, no prior to compare against"; reset at the start of
         // each polygon assembly.
         protected var prevTessLon = Double.NaN
+        // True when the current 3D assemble is feeding Cartesian (relative to vertexOrigin) to
+        // GLU instead of lat/lon. Engaged for pole-encircling polygons, where lat/lon GLU input
+        // degenerates to a ~360° winding band that excludes the pole.
+        protected var currentUseCartesianTess = false
+        // Outward polygon normal for the Cartesian tess path, plus scratch vertices used to
+        // compute it. Reused across polygons since tessellation is single-threaded.
+        protected val polygonNormal = Vec3()
+        protected val normalScratchA = Vec3()
+        protected val normalScratchB = Vec3()
+        protected val normalScratchC = Vec3()
+        protected val scratchCombinePos = Position()
         // Sequential scratch pool of [Position] instances for [densifyEdgeWithAltitude]. Without
         // it the densifier allocates a fresh Position per intermediate sample, producing serious
         // GC pressure on dense polar polygons. Reset at the start of each densification pass.
@@ -446,28 +457,23 @@ open class Polygon @JvmOverloads constructor(
     }
 
     protected open fun assembleGeometryFull(rc: RenderContext) {
-        // Splitter is used only for SURFACE shapes that actually need it — they rasterize in
-        // lat/lon tile space, where a 340° longitude jump across the antimeridian produces huge
-        // spurious triangles unless the polygon is split along ±180°, and a near-pole edge bows
-        // visibly below the true great-circle path unless the boundary is densified along it.
-        // 3D shapes feed raw 3D Cartesian coords to the GLU tessellator so neither concern
-        // applies. Surface shapes that are far from both ±180° and the poles also fall through
-        // to the cheap per-boundary loop — the splitter pipeline (which densifies + walks each
-        // edge for intersection tests) is wasted work for the common mid-latitude polygon.
+        // Splitter handles SURFACE shapes that cross ±180° / approach a pole — lat/lon raster
+        // space mishandles them otherwise. Mid-latitude surface polygons fall through to the
+        // cheap per-boundary loop. 3D polygons skip the splitter: antimeridian crossings are
+        // handled by per-vertex longitude unwrap, and pole encirclement triggers the Cartesian
+        // tessellation path below (where the pole is a regular interior point).
         val surfaceNeedsSplitter = isSurfaceShape && boundaries.isNotEmpty() && surfaceNeedsSplitter()
-        val surfaceBoundaries: List<List<Position>>
         val splitContours: List<ContourInfo>?
         val splitCrossesAntimeridian: Boolean
         if (!surfaceNeedsSplitter) {
-            surfaceBoundaries = boundaries
             splitContours = null
             splitCrossesAntimeridian = false
         } else {
-            surfaceBoundaries = densifyBoundariesForSurface()
-            val (crosses, contours) = PolygonSplitter.splitContours(surfaceBoundaries)
+            val (crosses, contours) = PolygonSplitter.splitContours(densifyBoundariesForSurface())
             splitContours = contours
             splitCrossesAntimeridian = crosses
         }
+        currentUseCartesianTess = !isSurfaceShape && boundaries.isNotEmpty() && encirclesPole()
 
         // Determine the number of vertices. The per-edge subdivision count differs by shape kind:
         // surface paths through the splitter use [maxIntermediatesPerEdge] (worst case) since
@@ -543,11 +549,13 @@ open class Polygon @JvmOverloads constructor(
         // Compute a matrix that transforms from Cartesian coordinates to shape texture coordinates.
         determineModelToTexCoord(rc)
         val tess = rc.tessellator
-        // Both surface and 3D feed lat/lon/alt to GLU with +Z normal. Lat/lon space stays
-        // well-conditioned regardless of altitude variation (keeps the top-plane triangulation
-        // dense and curvature-following) and the splitter / unwrap logic below handles the
-        // antimeridian. Reset the per-polygon unwrap state used by [addVertex].
-        GLU.gluTessNormal(tess, 0.0, 0.0, 1.0)
+        // Lat/lon tessCoords use +Z; Cartesian tessCoords use the polygon's outward normal.
+        if (currentUseCartesianTess) {
+            computePolygonNormal(rc, polygonNormal)
+            GLU.gluTessNormal(tess, polygonNormal.x, polygonNormal.y, polygonNormal.z)
+        } else {
+            GLU.gluTessNormal(tess, 0.0, 0.0, 1.0)
+        }
         prevTessLon = Double.NaN
         GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, tessCallback)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_VERTEX_DATA, tessCallback)
@@ -940,13 +948,12 @@ open class Polygon @JvmOverloads constructor(
     }
 
     /**
-     * Inserts intermediate fill+line vertices along a 3D polygon edge with **uniform** stepping
-     * and a **fixed per-edge count** of [maximumNumEdgeIntervals] (no length scaling, no polar
-     * throttle). GLU triangulates the polygon top using only the boundary vertices we feed it,
-     * with chord-flat triangles between non-adjacent samples; if those samples are sparse the
-     * cap visibly facets. Length-scaling produced near-zero intermediates for the typical
-     * few-degree edge — fixed count keeps the cap bowing with the globe at the cost of more
-     * vertices on long edges.
+     * Inserts intermediate fill+line vertices along a 3D polygon edge with length-scaled
+     * stepping (`maximumNumEdgeIntervals * length / PI`). A fixed per-edge count was tried
+     * (commit `ad4e333a`) to densify caps further but flooded GLU on polygon-with-hole shapes
+     * — outer intermediates landed close to hole edges in lat/lon space, destabilising GLU's
+     * edge-intersection math and producing a fill-sliver into the hole that flickered as the
+     * polygon was dragged.
      */
     protected open fun addIntermediateVertices(rc: RenderContext, begin: Position, end: Position) {
         if (maximumNumEdgeIntervals <= 0) return // subdivision disabled
@@ -956,7 +963,8 @@ open class Polygon @JvmOverloads constructor(
             else -> return // LINEAR: no intermediate vertices
         }
         if (length < NEAR_ZERO_THRESHOLD) return
-        val steps = maximumNumEdgeIntervals
+        val steps = (maximumNumEdgeIntervals * length / PI).roundToInt()
+        if (steps <= 0) return
         val dt = 1.0 / steps
         val pos = intermediatePosition
         var t = dt
@@ -970,7 +978,7 @@ open class Polygon @JvmOverloads constructor(
         }
     }
 
-    /** Line-only counterpart of [addIntermediateVertices]; same fixed-count rationale. */
+    /** Line-only counterpart of [addIntermediateVertices]; same length-scaled rationale. */
     protected open fun addIntermediateLineVertices(rc: RenderContext, begin: Position, end: Position) {
         if (maximumNumEdgeIntervals <= 0) return
         val length = when (pathType) {
@@ -979,7 +987,8 @@ open class Polygon @JvmOverloads constructor(
             else -> return
         }
         if (length < NEAR_ZERO_THRESHOLD) return
-        val steps = maximumNumEdgeIntervals
+        val steps = (maximumNumEdgeIntervals * length / PI).roundToInt()
+        if (steps <= 0) return
         val dt = 1.0 / steps
         val pos = intermediatePosition
         var t = dt
@@ -1002,21 +1011,23 @@ open class Polygon @JvmOverloads constructor(
         }
         val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
         if (type != VERTEX_COMBINED) {
-            // Both shape kinds feed lat/lon/alt to GLU. For 3D, unwrap the lon to keep the
-            // sequence continuous across the antimeridian — calcPoint produces the same
-            // Cartesian for 185° and −175° so the unwrap is invisible to the rendered mesh.
-            // Surface shapes use the splitter, which already cuts at ±180°, so no unwrap.
-            var lonForTess = longitude.inDegrees
-            if (!isSurfaceShape) {
-                if (!prevTessLon.isNaN()) {
-                    while (lonForTess - prevTessLon > 180.0) lonForTess -= 360.0
-                    while (lonForTess - prevTessLon < -180.0) lonForTess += 360.0
+            if (currentUseCartesianTess) {
+                tessCoords[0] = point.x - vertexOrigin.x
+                tessCoords[1] = point.y - vertexOrigin.y
+                tessCoords[2] = point.z - vertexOrigin.z
+            } else {
+                var lonForTess = longitude.inDegrees
+                if (!isSurfaceShape) {
+                    if (!prevTessLon.isNaN()) {
+                        while (lonForTess - prevTessLon > 180.0) lonForTess -= 360.0
+                        while (lonForTess - prevTessLon < -180.0) lonForTess += 360.0
+                    }
+                    prevTessLon = lonForTess
                 }
-                prevTessLon = lonForTess
+                tessCoords[0] = lonForTess
+                tessCoords[1] = latitude.inDegrees
+                tessCoords[2] = altitude
             }
-            tessCoords[0] = lonForTess
-            tessCoords[1] = latitude.inDegrees
-            tessCoords[2] = altitude
             GLU.gluTessVertex(rc.tessellator, tessCoords, coords_offset = 0, vertex)
         }
         if (isSurfaceShape) {
@@ -1096,6 +1107,61 @@ open class Polygon @JvmOverloads constructor(
         }
     }
 
+    /** True when any boundary encircles a pole. */
+    protected open fun encirclesPole(): Boolean {
+        for (boundary in boundaries) if (PolygonSplitter.encirclesPole(boundary)) return true
+        return false
+    }
+
+    /**
+     * Computes a unit-length polygon normal in 3D Cartesian space from the first non-empty
+     * boundary's first three non-colinear vertices, **oriented outward** (away from the globe
+     * center). Falls back to the surface normal at the reference position when the boundary is
+     * degenerate. Writes into [result] and returns it.
+     *
+     * Outward orientation matters because GLU emits triangle vertices in CCW order relative to
+     * the supplied normal — outward-facing triangles render correctly under standard backface
+     * culling regardless of the user's vertex winding.
+     */
+    protected open fun computePolygonNormal(rc: RenderContext, result: Vec3): Vec3 {
+        val firstBoundary = boundaries.firstOrNull { it.size >= 3 }
+        if (firstBoundary != null) {
+            val a = normalScratchA
+            val b = normalScratchB
+            val c = normalScratchC
+            rc.geographicToCartesian(firstBoundary[0], altitudeMode, a)
+            var bIdx = -1
+            for (i in 1 until firstBoundary.size) {
+                rc.geographicToCartesian(firstBoundary[i], altitudeMode, b)
+                if (a.distanceToSquared(b) > 1.0e-6) { bIdx = i; break }
+            }
+            if (bIdx != -1) {
+                for (i in bIdx + 1 until firstBoundary.size) {
+                    rc.geographicToCartesian(firstBoundary[i], altitudeMode, c)
+                    val abx = b.x - a.x; val aby = b.y - a.y; val abz = b.z - a.z
+                    val acx = c.x - a.x; val acy = c.y - a.y; val acz = c.z - a.z
+                    val nx = aby * acz - abz * acy
+                    val ny = abz * acx - abx * acz
+                    val nz = abx * acy - aby * acx
+                    val magSq = nx * nx + ny * ny + nz * nz
+                    if (magSq > 1.0e-12) {
+                        val mag = sqrt(magSq)
+                        // Flip if the cross-product points inward. The geographic-to-Cartesian
+                        // origin is the globe center, so the position vector at `a` points
+                        // outward; same-sign dot product means the normal is outward.
+                        val sign = if (nx * a.x + ny * a.y + nz * a.z >= 0) 1.0 else -1.0
+                        result.set(sign * nx / mag, sign * ny / mag, sign * nz / mag)
+                        return result
+                    }
+                }
+            }
+        }
+        // Degenerate boundary — fall back to the surface normal at the reference position.
+        val refPos = referencePosition
+        rc.globe.geographicToCartesianNormal(refPos.latitude, refPos.longitude, result)
+        return result
+    }
+
     protected open fun determineModelToTexCoord(rc: RenderContext) {
         var mx = 0.0
         var my = 0.0
@@ -1123,13 +1189,27 @@ open class Polygon @JvmOverloads constructor(
         rc: RenderContext, coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>
     ) {
         ensureVertexArrayCapacity() // Increment array size to fit combined vertexes
-        // tessCoords are lat/lon/alt for both surface and 3D (see [addVertex]). For 3D the lon
-        // may be the unwrapped variant (e.g. 185° for an antimeridian-crossing polygon);
-        // calcPoint produces the same Cartesian for 185° and −175° so the unwrap is invisible
-        // to the rendered geometry.
-        val longitude = coords[0].degrees
-        val latitude = coords[1].degrees
-        val altitude = coords[2]
+        // coords come back in the space [addVertex] fed GLU; convert the Cartesian path back to
+        // lat/lon so the downstream texCoord/vertex pipeline is uniform.
+        val latitude: Angle
+        val longitude: Angle
+        val altitude: Double
+        if (currentUseCartesianTess) {
+            val pos = scratchCombinePos
+            rc.globe.cartesianToGeographic(
+                coords[0] + currentData.vertexOrigin.x,
+                coords[1] + currentData.vertexOrigin.y,
+                coords[2] + currentData.vertexOrigin.z,
+                pos
+            )
+            latitude = pos.latitude
+            longitude = pos.longitude
+            altitude = pos.altitude
+        } else {
+            longitude = coords[0].degrees
+            latitude = coords[1].degrees
+            altitude = coords[2]
+        }
         calcPoint(rc, latitude, longitude, altitude, isAbsolute = isPlain)
         val combinedIdx = addVertex(rc, latitude, longitude, altitude, type = VERTEX_COMBINED)
         outData[0] = combinedIdx

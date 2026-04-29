@@ -52,6 +52,25 @@ class PolygonSplitter {
         }
 
         /**
+         * Returns true when [boundary] encircles a pole, by winding-number test: |Σ shortest-dλ|
+         * around the polygon ≈ 360° iff a pole is enclosed. Stable against the floating-point
+         * jitter that makes sign-flip / odd-crossing tests flicker near ±180°.
+         */
+        fun encirclesPole(boundary: List<Location>): Boolean {
+            val n = boundary.size
+            if (n < 3) return false
+            var windingDegrees = 0.0
+            for (i in 0 until n) {
+                val cur = boundary[i]
+                val next = boundary[(i + 1) % n]
+                var dLon = next.longitude.inDegrees - cur.longitude.inDegrees
+                if (dLon > 180.0) dLon -= 360.0 else if (dLon < -180.0) dLon += 360.0
+                windingDegrees += dLon
+            }
+            return abs(windingDegrees) > 180.0
+        }
+
+        /**
          * Linearly interpolates the latitude where the segment between p1 and p2 crosses the given meridian.
          */
         fun meridianIntersection(p1: Location, p2: Location, meridian: Double): Double? {
