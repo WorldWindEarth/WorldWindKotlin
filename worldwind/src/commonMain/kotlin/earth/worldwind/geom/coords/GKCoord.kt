@@ -4,12 +4,20 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Location
 import earth.worldwind.util.format.format
+import kotlin.jvm.JvmField
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class GKCoord private constructor(val latitude: Angle, val longitude: Angle, val x: Double, val y: Double) {
     companion object {
+        /**
+         * Pattern that recognises the canonical Gauss-Krüger textual form — `XX-XXXXX, YY-YYYYY`.
+         * Used by [Location.fromString] to dispatch to [fromString].
+         */
+        @JvmField
+        val STRING_PATTERN = Regex("""^\d+-\d{5,}\s*,?\s*\d+-\d{5,}\s*$""")
+
         /**
          * Create a set of Gauss-Kruger coordinates from a pair of latitude and longitude.
          *

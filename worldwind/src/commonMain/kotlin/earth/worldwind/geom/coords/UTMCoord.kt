@@ -3,6 +3,7 @@ package earth.worldwind.geom.coords
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Location
+import kotlin.jvm.JvmField
 import kotlin.jvm.JvmStatic
 import kotlin.math.roundToInt
 
@@ -13,6 +14,14 @@ class UTMCoord private constructor(
     val latitude: Angle, val longitude: Angle, val zone: Int, val hemisphere: Hemisphere, val easting: Double, val northing: Double
 ) {
     companion object {
+        /**
+         * Pattern that recognises the canonical UTM textual form on uppercased input —
+         * `<zone> <N|S> <easting>E <northing>N`. Used by [Location.fromString] to dispatch to
+         * [fromString].
+         */
+        @JvmField
+        val STRING_PATTERN = Regex("""^\d+\s+[NS]\s+\d+\s*E\s+\d+\s*N\s*$""")
+
         /**
          * Create a set of UTM coordinates from a pair of latitude and longitude for the given `Globe`.
          *

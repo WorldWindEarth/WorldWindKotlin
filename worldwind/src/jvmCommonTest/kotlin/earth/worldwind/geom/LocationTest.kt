@@ -8,6 +8,8 @@ import earth.worldwind.geom.Angle.Companion.toDegrees
 import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Location.Companion.fromRadians
+import earth.worldwind.geom.Location.Companion.fromString
+import earth.worldwind.geom.coords.MGRSCoord
 import earth.worldwind.shape.PathType
 import kotlin.math.sqrt
 import kotlin.math.ulp
@@ -788,5 +790,67 @@ class LocationTest {
         val result = begin.rhumbDistance(end)
         val expected = 0.08472006153859046
         assertEquals(expected, result, 1e-15, "Rhumb distance")
+    }
+
+    @Test
+    fun testFromString_DecimalDegrees() {
+        val location = fromString("36.5 -122.25")
+        assertEquals(36.5, location.latitude.inDegrees, TOLERANCE)
+        assertEquals(-122.25, location.longitude.inDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun testFromString_HemisphereMarkers() {
+        val location = fromString("36.5N 122.25W")
+        assertEquals(36.5, location.latitude.inDegrees, TOLERANCE)
+        assertEquals(-122.25, location.longitude.inDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun testFromString_DegreesMinutesSeconds() {
+        val location = fromString("36° 30' 25\" N, 122° 12' 33\" W")
+        assertEquals(36.0 + 30.0 / 60.0 + 25.0 / 3600.0, location.latitude.inDegrees, TOLERANCE)
+        assertEquals(-(122.0 + 12.0 / 60.0 + 33.0 / 3600.0), location.longitude.inDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun testFromString_AutodetectsUtm() {
+        // "36 N 329839E 5581722N" is a UTM zone/easting/northing string. The previous lenient
+        // parser silently produced longitude=422867.7°; the dispatcher now routes UTM-shaped
+        // input to UTMCoord and returns a real geodetic location in zone 36 N.
+        val location = fromString("36 N 329839E 5581722N")
+        assertTrue(location.latitude.inDegrees in 0.0..90.0, "latitude $location in zone 36 N")
+        assertTrue(location.longitude.inDegrees in 30.0..36.0, "longitude $location in zone 36")
+    }
+
+    @Test
+    fun testFromString_AutodetectsMgrs() {
+        // Round-trip: format a known location to MGRS, parse it back, and verify it returns
+        // close to the original.
+        val original = fromDegrees(36.5, 122.25)
+        val mgrs = MGRSCoord.fromLatLon(original.latitude, original.longitude).toString()
+        val parsed = fromString(mgrs)
+        assertEquals(original.latitude.inDegrees, parsed.latitude.inDegrees, 1e-3)
+        assertEquals(original.longitude.inDegrees, parsed.longitude.inDegrees, 1e-3)
+    }
+
+    @Test
+    fun testFromString_RejectsOutOfRangeLatitude() {
+        assertFailsWith<IllegalArgumentException> { fromString("100 N 50 E") }
+    }
+
+    @Test
+    fun testFromString_RejectsOutOfRangeLongitude() {
+        assertFailsWith<IllegalArgumentException> { fromString("36 N 200 E") }
+    }
+
+    @Test
+    fun testFromString_RejectsMissingLongitude() {
+        assertFailsWith<IllegalArgumentException> { fromString("36.5 N") }
+    }
+
+    @Test
+    fun testFromString_RejectsBlank() {
+        assertFailsWith<IllegalArgumentException> { fromString("   ") }
     }
 }

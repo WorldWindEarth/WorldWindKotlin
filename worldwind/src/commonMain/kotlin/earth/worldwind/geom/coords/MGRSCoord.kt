@@ -3,6 +3,7 @@ package earth.worldwind.geom.coords
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Location
+import kotlin.jvm.JvmField
 import kotlin.jvm.JvmStatic
 
 /**
@@ -11,6 +12,15 @@ import kotlin.jvm.JvmStatic
  */
 class MGRSCoord private constructor(val latitude: Angle, val longitude: Angle, private val MGRSString: String) {
     companion object {
+        /**
+         * Pattern that recognises the canonical MGRS textual form on uppercased input — Grid
+         * Zone Designator (1–2 digits + band letter) followed by a 100 km square (two letters)
+         * and one or two digit groups for easting/northing. Used by [Location.fromString] to
+         * dispatch to [fromString].
+         */
+        @JvmField
+        val STRING_PATTERN = Regex("""^\d{1,2}\s*[A-Z]\s*[A-Z]{2}\s*\d+(?:\s+\d+)?\s*$""")
+
         /**
          * Create a MGRS coordinate from a pair of latitude and longitude [Angle]
          * with the maximum precision of five digits (one meter).

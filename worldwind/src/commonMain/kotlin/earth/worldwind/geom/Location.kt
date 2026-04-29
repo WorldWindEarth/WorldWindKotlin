@@ -5,10 +5,13 @@ import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.fromDegrees
 import earth.worldwind.geom.Angle.Companion.fromRadians
 import earth.worldwind.geom.Angle.Companion.normalizeLongitude
+import earth.worldwind.geom.coords.GKCoord
+import earth.worldwind.geom.coords.MGRSCoord
+import earth.worldwind.geom.coords.UTMCoord
+import earth.worldwind.geom.coords.WGSCoord
 import earth.worldwind.shape.PathType
 import earth.worldwind.shape.PathType.GREAT_CIRCLE
 import earth.worldwind.shape.PathType.RHUMB_LINE
-import earth.worldwind.util.format.format
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.offsetIn
 import kotlin.jvm.JvmStatic
@@ -145,25 +148,30 @@ open class Location(
             return false
         }
 
+        /**
+         * Parses a geographic location from text, autodetecting the coordinate format. The
+         * dispatcher matches the input against each coord class's [STRING_PATTERN] in turn —
+         * MGRS (e.g. `32TLP5626635418`), UTM (e.g. `36 N 329839E 5581722N`), Gauss-Krüger
+         * (e.g. `53-01351, 66-65624`) — and falls back to [WGSCoord.fromString] for any
+         * WGS-84 lat/lon notation (decimal degrees, D M, D M S with optional N/S/E/W markers
+         * and the usual decoration characters as separators).
+         *
+         * @throws IllegalArgumentException when the string is empty or cannot be parsed as one
+         * of the supported formats. In particular, malformed lat/lon (out-of-range angles,
+         * repeated hemisphere markers, unrecognised tokens) is reported instead of being silently
+         * mis-converted, which guards against e.g. UTM-shaped input being read as raw degrees.
+         */
         @JvmStatic
         fun fromString(coordinates: String): Location {
-            val tokens = coordinates.replace("[*'\"NSEW;°′″,]".toRegex(), " ").trim { it <= ' ' }.split("\\s+".toRegex())
-            // Lat
-            var lat = 0.0
-            var exponent = 0
-            var i = 0
-            while (i < tokens.size / 2) {
-                lat += tokens[i].toDouble() / 60.0.pow(exponent++.toDouble())
-                i++
+            require(coordinates.isNotBlank()) { "Empty coordinates string" }
+            val trimmed = coordinates.trim()
+            val upper = trimmed.uppercase()
+            return when {
+                MGRSCoord.STRING_PATTERN.matches(upper) -> MGRSCoord.fromString(upper).toLocation()
+                UTMCoord.STRING_PATTERN.matches(upper) -> UTMCoord.fromString(upper).toLocation()
+                GKCoord.STRING_PATTERN.matches(upper) -> GKCoord.fromString(upper).toLocation()
+                else -> WGSCoord.fromString(trimmed).toLocation()
             }
-            // Lon
-            var lon = 0.0
-            exponent = 0
-            while (i < tokens.size) {
-                lon += tokens[i].toDouble() / 60.0.pow(exponent++.toDouble())
-                i++
-            }
-            return fromDegrees(if (coordinates.contains("S")) -lat else lat, if (coordinates.contains("W")) -lon else lon)
         }
     }
 
@@ -538,25 +546,10 @@ open class Location(
 
     override fun toString() = "Location(latitude=$latitude, longitude=$longitude)"
 
-    fun toDDString() = "%s%09.6f°, %s%010.6f°"
-        .format(latitude.latitudeLetter, abs(latitude.inDegrees), longitude.longitudeLetter, abs(longitude.inDegrees))
+    fun toDDString() = WGSCoord.fromLatLon(latitude, longitude).toDDString()
 
-    fun toDMString(): String {
-        val lat = latitude.toDMS()
-        val lon = longitude.toDMS()
-        return "%s%02d°%06.3f′, %s%03d°%06.3f′".format(
-            latitude.latitudeLetter, lat[1], lat[2] + lat[3] / 60.0,
-            longitude.longitudeLetter, lon[1], lon[2] + lon[3] / 60.0
-        )
-    }
+    fun toDMString() = WGSCoord.fromLatLon(latitude, longitude).toDMString()
 
-    fun toDMSString(): String {
-        val lat = latitude.toDMS()
-        val lon = longitude.toDMS()
-        return "%s%02d°%02d′%04.1f″, %s%03d°%02d′%04.1f″".format(
-            latitude.latitudeLetter, lat[1], lat[2], lat[3],
-            longitude.longitudeLetter, lon[1], lon[2], lon[3]
-        )
-    }
+    fun toDMSString() = WGSCoord.fromLatLon(latitude, longitude).toDMSString()
 
 }
