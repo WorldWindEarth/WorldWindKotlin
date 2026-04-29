@@ -26,6 +26,7 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
 import java.awt.event.MouseWheelEvent
 import java.util.LinkedList
+import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.math.ceil
@@ -70,10 +71,19 @@ open class WorldWindow @JvmOverloads constructor(
     protected var isWaitingForRedraw = false
 
     /**
-     * Swing OpenGL panel that presents rendered frames.
-     * WorldWindow does not inherit [GLJPanel] directly to hide JOGL dependency from application.
+     * Swing OpenGL panel that presents rendered frames. Exposed as a generic [JComponent] so
+     * consumers can attach focus or input listeners (e.g. [KeyboardControls]) without leaking
+     * the underlying JOGL type. WorldWindow does not inherit [GLJPanel] directly for the same
+     * reason.
      */
-    private val glPanel = GLJPanel(capabilities)
+    val glPanel: JComponent = GLJPanel(capabilities)
+    private inline val glJPanel get() = glPanel as GLJPanel
+
+    /**
+     * The controller used to manipulate the globe with the keyboard. Declared after [glPanel]
+     * so its initializer can attach listeners to the already-constructed Swing component.
+     */
+    open val keyboardControls = KeyboardControls(this)
 
     /**
      * Keep JOGL-specific listener private to avoid leaking JOGL types in WorldWindow's public API.
@@ -140,7 +150,7 @@ open class WorldWindow @JvmOverloads constructor(
 
     init {
         add(glPanel, BorderLayout.CENTER)
-        glPanel.addGLEventListener(glEventListener)
+        glJPanel.addGLEventListener(glEventListener)
         glPanel.addMouseListener(object : MouseAdapter() {
             override fun mousePressed(e: MouseEvent) = dispatchMouseEvent(e)
             override fun mouseReleased(e: MouseEvent) = dispatchMouseEvent(e)
@@ -291,7 +301,7 @@ open class WorldWindow @JvmOverloads constructor(
         val redrawRequired = engine.renderFrame(frame)
         if (redrawRequired) isWaitingForRedraw = false
         if (frame.isPickMode) pickQueue.offer(frame) else frameQueue.offer(frame)
-        glPanel.display()
+        glJPanel.display()
         if (!frame.isPickMode && redrawRequired) doRequestRedraw()
     }
 
