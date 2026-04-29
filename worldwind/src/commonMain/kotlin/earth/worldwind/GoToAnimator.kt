@@ -1,5 +1,8 @@
 package earth.worldwind
 
+import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.ZERO
+import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
@@ -53,6 +56,8 @@ open class GoToAnimator(
     protected var maxAltitudeReachedTime = Instant.DISTANT_PAST
     protected var panVelocity = 0.0
     protected var rangeVelocity = 0.0
+    protected var startTilt: Angle = ZERO
+    protected var tiltVelocity = 0.0
 
     /**
      * Stop the current animation.
@@ -79,8 +84,11 @@ open class GoToAnimator(
             position.latitude, position.longitude, if (position is Position) position.altitude else lookAt.range
         ).also { targetPosition = it }
 
-        // Capture the start position and start time.
+        // Capture the start position, the start tilt and the start time. The animation always finishes with
+        // tilt = 0 so the camera ends up directly above the target — otherwise the terrain may intersect a
+        // tilted view ray before the requested ground location and produce an unexpected lookAt position.
         val startPosition = Position(lookAt.position.latitude, lookAt.position.longitude, lookAt.range).also { startPosition = it }
+        startTilt = lookAt.tilt
         startTime = Clock.System.now()
 
         // Determination of the pan and range velocities requires the distance to be travelled.
@@ -135,6 +143,10 @@ open class GoToAnimator(
         // Determine the range velocity, in meters per millisecond.
         rangeVelocity = rangeDistance / animationDuration // meters per millisecond
 
+        // Determine the tilt velocity, in degrees per millisecond, so tilt reaches 0 at the same time
+        // pan and range animations finish.
+        tiltVelocity = abs(startTilt.inDegrees) / animationDuration
+
         // Set up the animation timer.
         setUpAnimationTimer()
     }
@@ -148,14 +160,34 @@ open class GoToAnimator(
     }
 
     /**
-     * This is the timer callback function. It invokes the range animator and the pan animator.
+     * This is the timer callback function. It invokes the tilt, range and pan animators.
      */
     protected open fun update(): Boolean {
         val currentPosition = Position(lookAt.position.latitude, lookAt.position.longitude, lookAt.range)
+        // Update tilt before range/location so the [engine.cameraFromLookAt] calls inside those steps pick
+        // up the new tilt for this frame.
+        val continueUpdateTilt = updateTilt()
         val continueUpdateRange = updateRange(currentPosition)
         val continueUpdateLocation = updateLocation(currentPosition)
         WorldWind.requestRedraw()
-        return continueUpdateRange || continueUpdateLocation
+        return continueUpdateTilt || continueUpdateRange || continueUpdateLocation
+    }
+
+    /**
+     * This function animates the tilt towards 0.
+     */
+    protected open fun updateTilt(): Boolean {
+        val startTiltDegrees = startTilt.inDegrees
+        if (startTiltDegrees == 0.0) return false
+        val elapsedTime = Clock.System.now() - startTime
+        val nextTiltDegrees = if (startTiltDegrees > 0.0) {
+            max(0.0, startTiltDegrees - tiltVelocity * elapsedTime.inWholeMilliseconds)
+        } else {
+            min(0.0, startTiltDegrees + tiltVelocity * elapsedTime.inWholeMilliseconds)
+        }
+        lookAt.tilt = nextTiltDegrees.degrees
+        // We're done once tilt has reached 0.
+        return nextTiltDegrees != 0.0
     }
 
     /**
