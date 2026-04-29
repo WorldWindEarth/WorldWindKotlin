@@ -215,7 +215,7 @@ class FFmpegVideoTexture(
     }
 
     /** Run each [actions] in sequence, swallowing any exception so one failure can't block the rest. */
-    private inline fun closeAll(vararg actions: () -> Unit) {
+    private fun closeAll(vararg actions: () -> Unit) {
         for (a in actions) runCatching(a)
     }
 
