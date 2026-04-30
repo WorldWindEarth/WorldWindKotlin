@@ -30,11 +30,19 @@ open class DrawableShadow protected constructor() : Drawable {
     var momentsBlurProgram: SightlineMomentsBlurProgram? = null
 
     /**
-     * Spacing between adjacent taps in the moments-blur kernel, measured in shadow-map texels.
-     * Same role as [DrawableSightline.momentsBlurTexelSpacing]. Wider = softer shadow edges,
-     * narrower = sharper. Tuned at 2 to match the sightline path.
+     * Per-cascade tap spacing (in shadow-map texels) for the separable Gaussian blur applied
+     * to each cascade's moments. One entry per cascade; index 0 is the closest cascade.
+     *  - `> 0` runs the blur with that tap spacing — wider = softer shadow edges, narrower =
+     *    sharper. The sightline pipeline uses `2.0`.
+     *  - `0` skips the blur entirely; the cascade is sampled raw. Hard penumbra but two GL
+     *    draw calls saved per frame.
+     *
+     * Default `[2, 2, 1]` keeps the close cascades fully soft and tightens cascade 2 to a
+     * narrower kernel — distant shadows occupy a few pixels on screen so the visual penalty
+     * is small while the kernel cost roughly halves there. Set to `[2, 2, 2]` for uniform
+     * softness everywhere or `[2, 2, 0]` to skip the far cascade's blur outright.
      */
-    var momentsBlurTexelSpacing: Float = 2f
+    var momentsBlurTexelSpacing: FloatArray = floatArrayOf(2f, 2f, 1f)
 
     /**
      * Active cascade matrix during caster dispatch. Set by [draw] for each cascade so
@@ -85,7 +93,9 @@ open class DrawableShadow protected constructor() : Drawable {
                 val cascade = state.cascades[i]
                 if (!cascade.isValid) continue
                 drawCascadeDepth(dc, i, cascade)
-                blurCascadeMoments(dc, i)
+                if (i < momentsBlurTexelSpacing.size && momentsBlurTexelSpacing[i] > 0f) {
+                    blurCascadeMoments(dc, i)
+                }
             }
         } finally {
             // Restore default WorldWind state regardless of which cascade failed.
@@ -250,6 +260,7 @@ open class DrawableShadow protected constructor() : Drawable {
         val cascadeTex = cascadeFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
         val tempTex = tempFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
         val texelStep = 1f / cascadeTex.width.toFloat()
+        val tapSpacing = momentsBlurTexelSpacing[cascadeIndex] * texelStep
 
         if (!dc.unitSquareBuffer.bindBuffer(dc)) return
         dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 2, GL_FLOAT, false, 0, 0)
@@ -261,14 +272,14 @@ open class DrawableShadow protected constructor() : Drawable {
             dc.gl.viewport(0, 0, cascadeTex.width, cascadeTex.height)
             dc.activeTextureUnit(GL_TEXTURE0)
             if (!cascadeTex.bindTexture(dc)) return
-            blur.loadBlurDirection(momentsBlurTexelSpacing * texelStep, 0f)
+            blur.loadBlurDirection(tapSpacing, 0f)
             dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
 
             // Pass 2: vertical. tempFb -> cascadeFb.
             if (!cascadeFb.bindFramebuffer(dc)) return
             dc.gl.viewport(0, 0, cascadeTex.width, cascadeTex.height)
             if (!tempTex.bindTexture(dc)) return
-            blur.loadBlurDirection(0f, momentsBlurTexelSpacing * texelStep)
+            blur.loadBlurDirection(0f, tapSpacing)
             dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
         } finally {
             dc.gl.enable(GL_DEPTH_TEST)
