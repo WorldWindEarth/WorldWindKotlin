@@ -38,6 +38,8 @@ open class BasicWorldWindowController(
 
     override fun requestRedraw() = wwd.requestRedraw()
 
+    override fun cancelFling() = fling.cancel()
+
     private fun stopVcRepeat() {
         vcRepeatTimer?.stop()
         vcRepeatTimer = null
@@ -84,7 +86,6 @@ open class BasicWorldWindowController(
         when (event.id) {
             MouseEvent.MOUSE_PRESSED -> {
                 if (event.button != MouseEvent.BUTTON1 && event.button != MouseEvent.BUTTON3) return false
-                fling.cancel() // a new press interrupts any in-progress fling
                 activeButton = event.button
                 isDragging = true
                 beginX = event.x

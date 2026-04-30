@@ -74,9 +74,6 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
     }
 
     override fun handleEvent(event: Event) {
-        super.handleEvent(event)
-        if (event.defaultPrevented) return
-
         // Classify once. WorldWindow registers either Pointer or Touch events based on
         // navigator.maxTouchPoints (never both), so each phase has to accept either family.
         val type = event.type
@@ -85,13 +82,15 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         val isRelease = type == "pointerup" || type == "touchend"
         val isCancel = type == "pointercancel" || type == "touchcancel"
 
-        if (isPress) {
-            // Cancel any in-progress fling so the user is in control immediately, not after
-            // the pan-recognizer's interpretDistance threshold trips. Capture the press point
-            // for tap detection so minimap-tap and VC-click can both consume it below.
-            fling.cancel()
-            eventCanvasCoords(event)?.let { p -> tapDownX = p.x; tapDownY = p.y }
-        }
+        // Must run before super dispatch / defaultPrevented short-circuit; otherwise an app
+        // gesture listener that prevents the default action also blocks fling cancellation.
+        if (isPress) fling.cancel()
+
+        super.handleEvent(event)
+        if (event.defaultPrevented) return
+
+        // Capture the press point for tap detection so minimap-tap and VC-click can both consume it below.
+        if (isPress) eventCanvasCoords(event)?.let { p -> tapDownX = p.x; tapDownY = p.y }
 
         val vcl = viewControlsLayer
         if (vcl != null && isPress) {

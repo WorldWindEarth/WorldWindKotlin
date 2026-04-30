@@ -34,6 +34,9 @@ open class BasicWorldWindowController(
     override fun createFlingScheduler(): FrameScheduler = ChoreographerFrameScheduler()
 
     override fun requestRedraw() = wwd.requestRedraw()
+
+    override fun cancelFling() = fling.cancel()
+
     protected val panRecognizer: GestureRecognizer = PanRecognizer().also {
         it.addListener(this)
         it.maxNumberOfPointers = 1 // Do not pan during tilt
@@ -113,10 +116,6 @@ open class BasicWorldWindowController(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (handleViewControls(event)) return true
-
-        // Cancel any in-progress fling as soon as a finger lands so the user feels in control immediately,
-        // not after the pan-recognizer's interpretDistance threshold finally trips.
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) fling.cancel()
 
         // Track first-finger position for tap detection
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {

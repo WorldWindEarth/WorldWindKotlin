@@ -364,6 +364,8 @@ open class WorldWindow @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) controller.cancelFling()
+
         // Give the superclass first opportunity to handle the event.
         if (super.onTouchEvent(event)) return true
 

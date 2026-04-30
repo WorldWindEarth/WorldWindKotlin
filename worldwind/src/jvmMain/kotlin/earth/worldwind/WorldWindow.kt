@@ -315,6 +315,7 @@ open class WorldWindow @JvmOverloads constructor(
 
     protected open fun dispatchMouseEvent(event: MouseEvent) {
         if (!::engine.isInitialized) return
+        if (event.id == MouseEvent.MOUSE_PRESSED) controller.cancelFling()
         try {
             selectDragDetector.onMouseEvent(event) || controller.onMouseEvent(event)
         } catch (e: Exception) {
