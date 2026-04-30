@@ -16,7 +16,7 @@ import kotlin.math.*
 /**
  * Illustrates how to display shapes built with triangles.
  */
-class TriangleMeshesTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class TriangleMeshesTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     var isStarted = false
         private set

@@ -23,6 +23,16 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
      * Display light location on a specified time point. If null, then light is located at camera position.
      */
     var time : Instant? = null
+    /**
+     * Per-frame callback invoked when [time] is null to compute the world-space sun direction.
+     * The callback should write the desired direction (unit vector pointing toward the light)
+     * into `rc.lightDirection`. When both [time] is null and this provider is null, the layer
+     * leaves the WorldWind default (camera-foot-point normal) in place. When [time] is set it
+     * takes precedence and this provider is ignored. Tutorials use this to apply a custom
+     * camera-relative sun angle without enabling the day/night terminator (which only fires
+     * when [time] is set).
+     */
+    var lightDirectionProvider: ((RenderContext) -> Unit)? = null
     protected val activeLightDirection = Vec3()
     private val fullSphereSector = Sector().setFullSphere()
 
@@ -45,16 +55,20 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     }
 
     protected open fun determineLightDirection(rc: RenderContext) {
-        // TODO Make light/sun direction an optional property of the WorldWindow and attach it to the RenderContext each frame
-        // TODO RenderContext property defaults to the eye lat/lon like we have below
-        time?.let {
-            val lightLocation = SunPosition.getAsGeographicLocation(it)
+        // [time] takes precedence: it drives both the day/night terminator and sun-direction
+        // shadows. When null, an optional [lightDirectionProvider] can write a custom direction
+        // into [rc.lightDirection] for shadows-without-terminator scenarios. Otherwise the
+        // WorldWind default (camera-foot-point normal) is left in place.
+        val t = time
+        if (t != null) {
+            val lightLocation = SunPosition.getAsGeographicLocation(t)
             rc.globe.geographicToCartesianNormal(
-                lightLocation.latitude, lightLocation.longitude, activeLightDirection
+                lightLocation.latitude, lightLocation.longitude, rc.lightDirection
             )
-        } ?: rc.globe.geographicToCartesianNormal(
-            rc.camera.position.latitude, rc.camera.position.longitude, activeLightDirection
-        )
+        } else {
+            lightDirectionProvider?.invoke(rc)
+        }
+        activeLightDirection.copy(rc.lightDirection)
     }
 
     protected open fun renderSky(rc: RenderContext) {

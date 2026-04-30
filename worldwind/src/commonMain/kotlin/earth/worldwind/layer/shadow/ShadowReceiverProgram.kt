@@ -1,0 +1,70 @@
+package earth.worldwind.layer.shadow
+
+import earth.worldwind.draw.DrawContext
+import earth.worldwind.geom.Matrix4
+import earth.worldwind.util.kgl.GL_COLOR_ATTACHMENT0
+import earth.worldwind.util.kgl.GL_TEXTURE0
+import earth.worldwind.util.kgl.GL_TEXTURE1
+
+/**
+ * Common contract implemented by every shader program that samples the cascaded shadow map
+ * (see [ShadowReceiverGlsl] for the GLSL these methods drive). Lets
+ * [applyShadowReceiverUniforms] bind cascade textures and load the per-frame cascade matrices
+ * in one place rather than copy-pasting the recipe into every receiver drawable.
+ */
+interface ShadowReceiverProgram {
+
+    /**
+     * Enables shadow sampling and uploads the cascade matrices and view-depth ranges. Cascade
+     * sampler bindings (`GL_TEXTURE1..3`) are baked in at program init time; the caller is
+     * responsible for binding the matching cascade textures to those units before invoking
+     * this method - [applyShadowReceiverUniforms] does both in lockstep.
+     */
+    fun loadShadowEnabled(
+        ambientShadow: Float,
+        lightProjectionView0: Matrix4,
+        lightProjectionView1: Matrix4,
+        lightProjectionView2: Matrix4,
+        cascadeFarDepth0: Float,
+        cascadeFarDepth1: Float,
+        cascadeFarDepth2: Float,
+    )
+
+    /** Disables shadow sampling. Receivers' fragments fall through to a fixed `1.0` visibility. */
+    fun loadShadowDisabled()
+}
+
+/**
+ * Binds the per-frame cascade moments textures to texture units 1..3 and pushes the cascade
+ * matrices into [program] - or, when no shadow state is available (no [ShadowLayer] this
+ * frame, or pick mode, or the platform doesn't support `RGBA32F` for moments), calls
+ * [ShadowReceiverProgram.loadShadowDisabled] so the receiver shader's `applyShadow` branch
+ * elides the lookup. Active texture unit is restored to `GL_TEXTURE0` on the way out so
+ * subsequent texture binds in the caller's draw method land on the surface texture as
+ * expected.
+ *
+ * Centralising this here means the per-receiver drawables ([DrawableMesh], [DrawableShape],
+ * [DrawableCollada], [DrawableSurfaceTexture], [DrawableSurfaceShape]) drop ~30 lines of
+ * copy-pasted state-binding into a single call.
+ */
+fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram) {
+    val state = shadowState
+    if (isPickMode || state == null || !state.useMSM) {
+        program.loadShadowDisabled()
+        return
+    }
+    for (i in 0 until state.cascadeCount) {
+        activeTextureUnit(GL_TEXTURE1 + i)
+        shadowCascadeFramebuffer(i).getAttachedTexture(GL_COLOR_ATTACHMENT0).bindTexture(this)
+    }
+    activeTextureUnit(GL_TEXTURE0)
+    program.loadShadowEnabled(
+        state.ambientShadow,
+        state.cascades[0].lightProjectionView,
+        state.cascades[1].lightProjectionView,
+        state.cascades[2].lightProjectionView,
+        state.cascades[0].farViewDepth.toFloat(),
+        state.cascades[1].farViewDepth.toFloat(),
+        state.cascades[2].farViewDepth.toFloat(),
+    )
+}

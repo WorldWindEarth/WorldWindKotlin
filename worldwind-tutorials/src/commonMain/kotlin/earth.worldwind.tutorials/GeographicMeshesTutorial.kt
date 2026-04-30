@@ -16,7 +16,7 @@ import kotlin.math.*
 /**
  * Illustrates how to display GeographicMesh shapes.
  */
-class GeographicMeshesTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class GeographicMeshesTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     var isStarted = false
         private set

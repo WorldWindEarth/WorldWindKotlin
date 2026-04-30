@@ -7,7 +7,7 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.heatmap.ElevationHeatmapLayer
 
-class ElevationHeatmapTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class ElevationHeatmapTutorial(engine: WorldWind) : AbstractTutorial(engine) {
     var elevationHeatmapLayer = ElevationHeatmapLayer();
 
     override fun start() {

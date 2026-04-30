@@ -14,7 +14,7 @@ import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.ViewshedArea
 import earth.worldwind.shape.ViewshedSightline
 
-class ViewshedSightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class ViewshedSightlineTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val circleViewshed: ViewshedSightline
     private val rectangleViewshed: ViewshedSightline

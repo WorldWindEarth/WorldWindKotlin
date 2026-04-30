@@ -3,6 +3,9 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.shadow.ShadowReceiverGlsl
+import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
@@ -10,22 +13,38 @@ import earth.worldwind.util.kgl.KglUniformLocation
 // TODO index to select the state for a surface tile. This reduces the uniform calls when many surface tiles intersect
 // TODO one terrain tile.
 // TODO Try class representing transform with a specific scale+translate object that can be uploaded to a GLSL vec4
-class SurfaceTextureProgram : AbstractShaderProgram() {
+class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     override var programSources = arrayOf(
         """
             uniform bool enableTexture;
             uniform mat4 mvpMatrix;
             uniform mat3 texCoordMatrix[2];
+            /* Tile-local -> world translation for shadow receivers. Same value [DrawableSurfaceTexture]
+               feeds via [multiplyByTranslation] when composing mvpMatrix; passing it separately here
+               lets the fragment shader recover world-space position for the shadow lookup without
+               re-uploading any matrices. */
+            uniform vec3 vertexOrigin;
 
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
 
             varying vec2 texCoord;
             varying vec2 tileCoord;
+            /* Shadow receiver inputs: world-space position (Cartesian) and view-space depth
+               (positive distance from camera plane). [gl_Position.w] equals -eye_z for OpenGL
+               perspective projections, so we read the view depth straight off it. */
+            varying vec3 worldPos;
+            varying float viewDepth;
 
             void main() {
                 /* Transform the vertex position by the modelview-projection matrix. */
                 gl_Position = mvpMatrix * vertexPoint;
+
+                /* World-space position for shadow sampling. Tile-local coordinates plus origin
+                   reconstructs the original Cartesian point that the [ShadowLayer]'s cascade
+                   matrices were built against. */
+                worldPos = vertexPoint.xyz + vertexOrigin;
+                viewDepth = gl_Position.w;
 
                 /* Transform the vertex tex coord by the tex coord matrices. */
                 if (enableTexture) {
@@ -50,6 +69,10 @@ class SurfaceTextureProgram : AbstractShaderProgram() {
 
             varying vec2 texCoord;
             varying vec2 tileCoord;
+            varying vec3 worldPos;
+            varying float viewDepth;
+
+            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
 
             void main() {
                 /* Using the second texture coordinate, compute a mask that's 1.0 when the fragment is inside the surface tile, and
@@ -71,6 +94,14 @@ class SurfaceTextureProgram : AbstractShaderProgram() {
                     /* Modulate the RGBA color by the tile mask to suppress fragments outside the surface tile. */
                     gl_FragColor = color * opacity * tileMask;
                 }
+
+                /* Shadow attenuation. [computeShadowVisibility] returns 1.0 when [applyShadow]
+                   is false (no [ShadowLayer]) so this is a no-op in that case; otherwise it
+                   modulates by the cascade-sampled visibility factor. Picks bypass via the
+                   draw-side toggle so picked terrain isn't darkened in the depth-color pack. */
+                if (!enablePickMode) {
+                    gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
+                }
             }
         """.trimIndent()
     )
@@ -85,8 +116,16 @@ class SurfaceTextureProgram : AbstractShaderProgram() {
     private var texSamplerId = KglUniformLocation.NONE
     private var colorId = KglUniformLocation.NONE
     private var opacityId = KglUniformLocation.NONE
+    private var vertexOriginId = KglUniformLocation.NONE
+    private var applyShadowId = KglUniformLocation.NONE
+    private var ambientShadowId = KglUniformLocation.NONE
+    /** Cascade moments samplers, one per cascade, bound to [GL_TEXTURE1] + cascadeIndex. */
+    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
     private val mvpMatrixArray = FloatArray(16)
     private val texCoordMatrixArray = FloatArray(9 * 2)
+    private val lightProjectionViewArray = FloatArray(16)
     private val color = Color()
     private var opacity = 1.0f
 
@@ -110,6 +149,23 @@ class SurfaceTextureProgram : AbstractShaderProgram() {
         gl.uniform1f(opacityId, opacity)
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
+
+        // Shadow receiver uniforms. Sampler unit assignments are fixed: GL_TEXTURE1 .. 3
+        // hold cascades 0 .. 2. The drawable rebinds the cascade textures to those units
+        // each frame; the program's sampler indices stay constant.
+        vertexOriginId = gl.getUniformLocation(program, "vertexOrigin")
+        gl.uniform3f(vertexOriginId, 0f, 0f, 0f)
+        applyShadowId = gl.getUniformLocation(program, "applyShadow")
+        gl.uniform1i(applyShadowId, 0) // shadows disabled by default; ShadowLayer flips it on.
+        ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
+        gl.uniform1f(ambientShadowId, 0.4f)
+        for (i in shadowMapIds.indices) {
+            shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
+            gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
+            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
+            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
+            gl.uniform1f(cascadeFarDepthIds[i], 0f)
+        }
     }
 
     fun enablePickMode(enable: Boolean) { gl.uniform1i(enablePickModeId, if (enable) 1 else 0) }
@@ -140,6 +196,40 @@ class SurfaceTextureProgram : AbstractShaderProgram() {
             this.opacity = opacity
             gl.uniform1f(opacityId, opacity)
         }
+    }
+
+    /**
+     * Sets the tile-local -> world translation for the next draw call. Per-tile because each
+     * terrain tile uses its own local frame; loaded each iteration of the tile loop.
+     */
+    fun loadVertexOrigin(x: Float, y: Float, z: Float) {
+        gl.uniform3f(vertexOriginId, x, y, z)
+    }
+
+    override fun loadShadowDisabled() {
+        gl.uniform1i(applyShadowId, 0)
+    }
+
+    override fun loadShadowEnabled(
+        ambientShadow: Float,
+        lightProjectionView0: Matrix4,
+        lightProjectionView1: Matrix4,
+        lightProjectionView2: Matrix4,
+        cascadeFarDepth0: Float,
+        cascadeFarDepth1: Float,
+        cascadeFarDepth2: Float,
+    ) {
+        gl.uniform1i(applyShadowId, 1)
+        gl.uniform1f(ambientShadowId, ambientShadow)
+        lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView1.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView2.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, lightProjectionViewArray, 0)
+        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
+        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
+        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
     }
 
     companion object {

@@ -285,14 +285,16 @@ signing {
  * and transparent draws with no compiler error log. Catching this at build time means we
  * never ship a shader source that's invisibly broken on a subset of platforms.
  *
- * Scope: matches `*ShaderProgram*.kt` under `commonMain/kotlin`. Triple-quoted GLSL strings
- * inside those files are scanned for any byte outside the printable ASCII range. Comments
- * and KDoc OUTSIDE the shader-source strings are left alone (they never reach the GLSL
- * compiler). Failure prints the file, line number, and offending substring.
+ * Scope: matches `*ShaderProgram*.kt` and `*Glsl*.kt` under `commonMain/kotlin` (the latter
+ * captures shared GLSL helpers like `ShadowReceiverGlsl` whose triple-quoted bodies are
+ * `${...}`-interpolated into shader programs and reach the GLSL compiler the same way).
+ * Triple-quoted strings inside those files are scanned for any byte outside the printable
+ * ASCII range. Comments and KDoc OUTSIDE the strings are left alone (they never reach the
+ * GLSL compiler). Failure prints the file, line number, and offending substring.
  */
 val checkShaderSourcesAscii by tasks.registering {
     val shaderFiles = fileTree("src/commonMain/kotlin") {
-        include("**/*ShaderProgram*.kt")
+        include("**/*ShaderProgram*.kt", "**/*Glsl*.kt")
     }
     inputs.files(shaderFiles)
     doLast {

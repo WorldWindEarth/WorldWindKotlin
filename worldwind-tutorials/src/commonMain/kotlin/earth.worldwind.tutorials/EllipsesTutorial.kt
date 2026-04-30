@@ -9,7 +9,7 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.shape.Ellipse
 
-class EllipsesTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndicatorTutorial {
+class EllipsesTutorial(engine: WorldWind) : AbstractTutorial(engine), PickIndicatorTutorial {
 
     override val picker = PickResultIndicator()
 

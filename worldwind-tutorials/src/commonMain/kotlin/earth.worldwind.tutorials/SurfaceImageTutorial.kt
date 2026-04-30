@@ -9,7 +9,7 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.SurfaceImage
 
-class SurfaceImageTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class SurfaceImageTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val layer = RenderableLayer("Surface image").apply {
         // Configure a Surface Image to display an Android resource showing the WorldWindEarth logo.

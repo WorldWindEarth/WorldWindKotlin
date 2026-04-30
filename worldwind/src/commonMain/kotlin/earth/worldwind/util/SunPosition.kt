@@ -76,7 +76,8 @@ object SunPosition {
     fun computeJulianDate(instant: Instant): Double {
         val date = instant.toLocalDateTime(TimeZone.UTC)
         var year = date.year
-        var month = date.month.number + 1
+        // [Month.number] is already 1-based (January = 1) in kotlinx-datetime; do not add 1.
+        var month = date.month.number
         val day = date.day
         val hour = date.hour
         val minute = date.minute

@@ -6,7 +6,9 @@ import earth.worldwind.draw.UploadQueue
 import earth.worldwind.geom.Line
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec2
+import earth.worldwind.geom.Vec3
 import earth.worldwind.geom.Viewport
+import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.Pool
 import kotlinx.coroutines.CompletableDeferred
@@ -16,6 +18,23 @@ open class Frame {
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
+    /**
+     * World-space (Cartesian) unit vector pointing toward the light source. Captured from
+     * [earth.worldwind.render.RenderContext.lightDirection] at the end of the frame's render
+     * phase (after layers, including AtmosphereLayer, have had a chance to override it) and
+     * propagated to [earth.worldwind.draw.DrawContext.lightDirection] for the draw phase.
+     */
+    val lightDirection = Vec3(0.0, 0.0, 1.0)
+    /**
+     * Per-frame snapshot of the cascaded shadow-map state. Pre-allocated and owned by this
+     * Frame: on Android, render runs on the main thread and draw on the GL thread, so we
+     * cannot share [ShadowLayer]'s in-place-mutated scratch instance by reference -
+     * [ShadowState.copyFrom] populates this snapshot at the end of render. Valid only when
+     * [hasShadowState] is `true`.
+     */
+    val shadowState: ShadowState = ShadowState()
+    /** `true` when [ShadowLayer] populated [shadowState] this frame. */
+    var hasShadowState: Boolean = false
 //    val infiniteProjection = Matrix4()
     val uploadQueue = UploadQueue()
     val drawableQueue = DrawableQueue()
@@ -42,6 +61,8 @@ open class Frame {
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()
+        lightDirection.set(0.0, 0.0, 1.0)
+        hasShadowState = false
 //        infiniteProjection.setToIdentity()
         uploadQueue.clearUploads()
         drawableQueue.clearDrawables()

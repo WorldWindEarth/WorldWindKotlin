@@ -70,6 +70,22 @@ open class RenderContext {
      */
     var contextVersion: Long = 0L
     var cameraPoint = Vec3()
+    /**
+     * World-space (Cartesian) unit vector pointing **toward** the light source. Populated each
+     * frame before layer rendering: defaults to the surface normal at the camera's geographic
+     * position (a "light from above the user's foot point") and is overridden by
+     * [earth.worldwind.layer.atmosphere.AtmosphereLayer] when its `time` property is set, so
+     * shape lighting and atmospheric scattering use the same sun direction.
+     */
+    val lightDirection = Vec3(0.0, 0.0, 1.0)
+    /**
+     * Per-frame state for the directional sun-shadow pipeline. Non-null when a
+     * [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list and has computed
+     * cascades for this frame; null otherwise. Snapshotted into [earth.worldwind.frame.Frame]
+     * at the end of render and propagated to [earth.worldwind.draw.DrawContext.shadowState]
+     * for the draw phase.
+     */
+    var shadowState: earth.worldwind.layer.shadow.ShadowState? = null
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -115,6 +131,8 @@ open class RenderContext {
         globeState = null
         elevationModelTimestamp = 0L
         cameraPoint.set(0.0, 0.0, 0.0)
+        lightDirection.set(0.0, 0.0, 1.0)
+        shadowState = null
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()

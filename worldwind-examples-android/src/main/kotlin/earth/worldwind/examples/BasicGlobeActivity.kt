@@ -11,10 +11,12 @@ import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
+import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.GpkgContentManager
 import kotlinx.coroutines.launch
 import java.io.File
+import kotlin.time.Clock
 
 /**
  * Creates a simple view of a globe with touch navigation and a few layers.
@@ -68,7 +70,8 @@ The globe uses the default navigation gestures:
                 lifecycleScope.launch { configureCache(contentManager, "GSat") }
             })
             addLayer(StarFieldLayer())
-            addLayer(AtmosphereLayer())
+            addLayer(AtmosphereLayer().apply { time = Clock.System.now() })
+            addLayer(ShadowLayer())
         }
 
         // Setting up the WorldWindow's elevation coverages.

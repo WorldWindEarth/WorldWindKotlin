@@ -1,6 +1,12 @@
 package earth.worldwind.layer.atmosphere
 
-class GroundProgram: AbstractAtmosphereProgram() {
+import earth.worldwind.draw.DrawContext
+import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.shadow.ShadowReceiverGlsl
+import earth.worldwind.layer.shadow.ShadowReceiverProgram
+import earth.worldwind.util.kgl.KglUniformLocation
+
+class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
     override var programSources = arrayOf(
         """
             #ifdef GL_ES
@@ -41,6 +47,10 @@ class GroundProgram: AbstractAtmosphereProgram() {
             varying vec3 secondaryColor;
             varying vec3 direction;
             varying vec2 texCoord;
+            /* Shadow receiver outputs. The fragment shader projects [worldPos] into each
+               cascade's clip space; [viewDepth] selects the cascade. */
+            varying vec3 worldPos;
+            varying float viewDepth;
 
             float scaleFunc(float cos) {
                 float x = 1.0 - cos;
@@ -74,13 +84,13 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 float depth = exp((globeRadius - atmosphereRadius) / scaleDepth);
                 float eyeAngle = dot(-ray, point) / length(point);
                 float lightAngle = dot(lightDirection, point) / length(point);
-                
+
                 /* Cap eyeScale to limit excessive atmospheric thickness for near-horizontal rays.
                    (when the camera is close to the ground and look at the horizon)
                    Only eyeScale is capped: lightScale is untouched so the day/night terminator
                    and night-side darkening remain physically correct. */
                 float eyeScale = min(scaleFunc(max(eyeAngle, 0.0)), 2.0 * scaleDepth);
-                
+
                 float lightScale = scaleFunc(lightAngle);
                 float eyeOffset = depth*eyeScale;
                 float temp = (lightScale + eyeScale);
@@ -98,11 +108,11 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 {
                     float height = length(samplePoint);
                     float depth = exp(scaleOverScaleDepth * (globeRadius - height));
-                    
+
                     // Clamp scatter to 0 to prevent negative values (non-physical brightening) which cause absurd values (negative lightning)
                     // No upper clamp: the night side needs large scatter values to go fully dark.
                     float scatter = max(0.0, depth*temp - eyeOffset);
-                    
+
                     attenuate = exp(-scatter * (invWavelength * Kr4PI + Km4PI));
                     frontColor += attenuate * (depth * scaledLength);
                     samplePoint += sampleRay;
@@ -114,6 +124,13 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 /* Transform the vertex point by the modelview-projection matrix */
                 gl_Position = mvpMatrix * vertexPoint;
 
+                /* Shadow receiver outputs. [point] is already vertexOrigin + vertexPoint so the
+                   cascade matrices (built against ECEF Cartesian) get the same coords the depth
+                   pass rasterised. [gl_Position.w] equals -eye_z for perspective projection -
+                   that's the per-cascade picker's positive view depth. */
+                worldPos = point;
+                viewDepth = gl_Position.w;
+
                 if (fragMode == FRAGMODE_PRIMARY_TEX_BLEND) {
                     /* Transform the vertex texture coordinate by the tex coord matrix */
                     texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
@@ -121,7 +138,10 @@ class GroundProgram: AbstractAtmosphereProgram() {
             }
         """.trimIndent(),
         """
-            #ifdef GL_ES
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */
+            #elif defined(GL_ES)
             precision mediump float;
             precision mediump int;
             #endif
@@ -136,12 +156,22 @@ class GroundProgram: AbstractAtmosphereProgram() {
             varying vec3 primaryColor;
             varying vec3 secondaryColor;
             varying vec2 texCoord;
+            varying vec3 worldPos;
+            varying float viewDepth;
+
+            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
 
             void main () {
                 if (fragMode == FRAGMODE_PRIMARY) {
                     gl_FragColor = vec4(primaryColor, 1.0);
                 } else if (fragMode == FRAGMODE_SECONDARY) {
-                    gl_FragColor = vec4(secondaryColor, 1.0);
+                    /* SECONDARY pass uses [GL_DST_COLOR, GL_ZERO] blend, so the framebuffer
+                       gets multiplied by [secondaryColor]. Folding [computeShadowVisibility]
+                       into the attenuation factor here darkens shadowed terrain in the same
+                       multiply with no extra pass. The PRIMARY pass adds sky scatter; that's
+                       deliberately left unmodulated because the atmospheric column above
+                       shadowed ground is itself unshadowed. */
+                    gl_FragColor = vec4(secondaryColor * computeShadowVisibility(worldPos, viewDepth), 1.0);
                 } else if (fragMode == FRAGMODE_PRIMARY_TEX_BLEND) {
                     vec4 texColor = texture2D(texSampler, texCoord);
                     gl_FragColor = vec4(primaryColor + texColor.rgb * (1.0 - secondaryColor), 1.0);
@@ -152,6 +182,57 @@ class GroundProgram: AbstractAtmosphereProgram() {
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint")
+
+    private var applyShadowId = KglUniformLocation.NONE
+    private var ambientShadowId = KglUniformLocation.NONE
+    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewArray = FloatArray(16)
+
+    override fun initProgram(dc: DrawContext) {
+        super.initProgram(dc)
+        // Sampler unit assignments mirror the other receivers (BasicTextureProgram,
+        // SurfaceTextureProgram, TriangleShaderProgram): cascade i lives on GL_TEXTURE1 + i.
+        // applyShadowReceiverUniforms binds the matching textures each frame.
+        applyShadowId = gl.getUniformLocation(program, "applyShadow")
+        gl.uniform1i(applyShadowId, 0)
+        ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
+        gl.uniform1f(ambientShadowId, 0.4f)
+        for (i in shadowMapIds.indices) {
+            shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
+            gl.uniform1i(shadowMapIds[i], 1 + i)
+            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
+            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
+            gl.uniform1f(cascadeFarDepthIds[i], 0f)
+        }
+    }
+
+    override fun loadShadowDisabled() {
+        gl.uniform1i(applyShadowId, 0)
+    }
+
+    override fun loadShadowEnabled(
+        ambientShadow: Float,
+        lightProjectionView0: Matrix4,
+        lightProjectionView1: Matrix4,
+        lightProjectionView2: Matrix4,
+        cascadeFarDepth0: Float,
+        cascadeFarDepth1: Float,
+        cascadeFarDepth2: Float,
+    ) {
+        gl.uniform1i(applyShadowId, 1)
+        gl.uniform1f(ambientShadowId, ambientShadow)
+        lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView1.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView2.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, lightProjectionViewArray, 0)
+        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
+        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
+        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
+    }
 
     companion object {
         val KEY = GroundProgram::class

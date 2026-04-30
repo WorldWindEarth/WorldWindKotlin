@@ -3,7 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.layer.graticule.utm.MGRSGraticuleLayer
 
-class MGRSGraticuleTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class MGRSGraticuleTutorial(engine: WorldWind) : AbstractTutorial(engine) {
     // Create a layer that displays the globe's tessellation geometry.
     private val layer = MGRSGraticuleLayer()
 

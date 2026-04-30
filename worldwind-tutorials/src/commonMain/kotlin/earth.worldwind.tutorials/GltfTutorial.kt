@@ -8,7 +8,7 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
 
-class GltfTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndicatorTutorial {
+class GltfTutorial(engine: WorldWind) : AbstractTutorial(engine), PickIndicatorTutorial {
     private val gltfLayer = RenderableLayer("GLTF Box")
     override val picker = PickResultIndicator()
     var isStarted = false
@@ -23,6 +23,7 @@ class GltfTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndi
     }
 
     override fun start() {
+        super.start()
         engine.layers.addLayer(gltfLayer)
         picker.attach(engine)
         engine.cameraFromLookAt(
@@ -39,8 +40,11 @@ class GltfTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndi
     }
 
     override fun stop() {
+        super.stop()
         engine.layers.removeLayer(gltfLayer)
-        gltfLayer.clearRenderables()
+        // Don't clear [gltfLayer]'s renderable: [setupScene] runs only once at app startup
+        // (`mainScope.launch { tutorial.setupScene() }`), so a second [start] would re-add
+        // an empty layer if we dropped the scene here.
         picker.detach(engine)
         isStarted = false
     }

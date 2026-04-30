@@ -3,7 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.layer.graticule.gk.GKGraticuleLayer
 
-class GKGraticuleTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class GKGraticuleTutorial(engine: WorldWind) : AbstractTutorial(engine) {
     private val layer = GKGraticuleLayer()
 
     override fun start() {

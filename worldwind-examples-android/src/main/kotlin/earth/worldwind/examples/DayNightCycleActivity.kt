@@ -29,8 +29,8 @@ open class DayNightCycleActivity : BasicGlobeActivity(), FrameCallback {
     """.trimIndent()
 
         wwd.engine.layers.run {
-            starFieldLayer = getLayer(indexOfLayerNamed("StarField")) as StarFieldLayer
-            atmosphereLayer = getLayer(indexOfLayerNamed("Atmosphere")) as AtmosphereLayer
+            starFieldLayer = first { it is StarFieldLayer } as StarFieldLayer
+            atmosphereLayer = first { it is AtmosphereLayer } as AtmosphereLayer
         }
 
         // Initialize the Atmosphere layer's light location to our custom location. By default, the light location is

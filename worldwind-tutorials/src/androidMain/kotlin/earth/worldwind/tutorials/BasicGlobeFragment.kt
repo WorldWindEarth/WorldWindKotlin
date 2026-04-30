@@ -19,6 +19,7 @@ import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
+import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.GpkgContentManager
 import earth.worldwind.render.Renderable
@@ -52,7 +53,11 @@ open class BasicGlobeFragment: Fragment() {
                 lifecycleScope.launch { configureCache(contentManager, "GSat") }
             })
             addLayer(StarFieldLayer())
+            // Atmosphere `time` is null by default: no day/night terminator. BasicTutorial
+            // sets it (and animates) on start; other tutorials use the layer's
+            // [lightDirectionProvider] so shadows still get a sun direction.
             addLayer(AtmosphereLayer())
+            addLayer(ShadowLayer())
             addLayer(CompassLayer())
             addLayer(WorldMapLayer().apply { corner = WorldMapLayer.Corner.TOP_LEFT })
             addLayer(ViewControlsLayer())

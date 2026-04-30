@@ -32,7 +32,7 @@ import kotlin.math.tan
  * [Location] scratches are mutated each tick.
  */
 open class VideoOnTerrainTutorial(
-    protected val engine: WorldWind,
+    engine: WorldWind,
     private val timeline: KlvTimeline,
     private val texture: Texture,
     private val currentTimeMs: () -> Long,
@@ -42,7 +42,7 @@ open class VideoOnTerrainTutorial(
      * toolbar `is3d` checkbox on Android).
      */
     initialUseCameraProjection: Boolean = false,
-) : AbstractTutorial() {
+) : AbstractTutorial(engine) {
 
     /**
      * When `true`, drives [ProjectedMediaSurface] in 3D camera-frustum mode: a world-ECEF

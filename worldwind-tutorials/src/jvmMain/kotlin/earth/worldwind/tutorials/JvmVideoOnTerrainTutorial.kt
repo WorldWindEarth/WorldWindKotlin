@@ -23,10 +23,10 @@ import earth.worldwind.util.Logger.log
  * usually a single-line constructor call.
  */
 abstract class JvmVideoOnTerrainTutorial<T>(
-    protected val engine: WorldWind,
+    engine: WorldWind,
     /** Short label used as a prefix on log lines (e.g. `"VLCJ"`, `"JavaCV"`). */
     private val tag: String,
-) : AbstractTutorial() where T : Texture, T : VideoPlayback {
+) : AbstractTutorial(engine) where T : Texture, T : VideoPlayback {
 
     private val timeline = KlvTimeline.parse(MR.assets.video.drone_motion_json.readText())
     private var inner: VideoOnTerrainTutorial? = null

@@ -10,7 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class WmsLayerTutorial(private val engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial() {
+class WmsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
 
     private var wmsLayer: TiledImageLayer? = null
     private var job: Job? = null

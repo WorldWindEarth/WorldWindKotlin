@@ -9,7 +9,7 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.shape.Path
 
-class PathsTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndicatorTutorial {
+class PathsTutorial(engine: WorldWind) : AbstractTutorial(engine), PickIndicatorTutorial {
 
     override val picker = PickResultIndicator()
 

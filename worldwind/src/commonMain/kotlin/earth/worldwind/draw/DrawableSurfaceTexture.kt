@@ -3,6 +3,7 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
+import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.program.SurfaceTextureProgram
@@ -88,7 +89,12 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
 
         // Enable the program to display surface textures from multi-texture unit 0.
         program.enableTexture(true)
-        dc.activeTextureUnit(GL_TEXTURE0)
+
+        // Bind the cascade shadow maps once per draw - they're per-frame state, not per-tile.
+        // [applyShadowReceiverUniforms] no-ops in pick mode and on platforms without RGBA32F
+        // moments support, leaving [DrawableSurfaceTexture] free to render terrain tiles in
+        // both cases without further branching here.
+        dc.applyShadowReceiverUniforms(program)
 
         // Set up to use vertex tex coord attributes.
         dc.gl.enableVertexAttribArray(1)
@@ -121,6 +127,12 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
                     program.mvpMatrix.copy(dc.modelviewProjection)
                     program.mvpMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
                     program.loadModelviewProjection()
+                    // Tile-local -> world translation for the shadow receiver. Same origin
+                    // [mvpMatrix] was just translated by; passed separately so the fragment
+                    // shader can recover Cartesian world position for cascade sampling.
+                    program.loadVertexOrigin(
+                        terrainOrigin.x.toFloat(), terrainOrigin.y.toFloat(), terrainOrigin.z.toFloat()
+                    )
                 }
                 if (!usingTerrainAttrs) continue  // terrain vertex attribute failed to bind
 

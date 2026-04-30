@@ -3,13 +3,16 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.shadow.ShadowReceiverGlsl
+import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
-class TriangleShaderProgram : AbstractShaderProgram() {
+class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     override var programSources = arrayOf(
         """
             uniform mat4 mvpMatrix;
+            uniform mat4 modelMatrix;
             uniform float lineWidth;
             uniform vec2 miterLengthCutoff;
             uniform vec4 screen;
@@ -17,18 +20,21 @@ class TriangleShaderProgram : AbstractShaderProgram() {
             uniform bool enableOneVertexMode;
             uniform mat3 texCoordMatrix;
             uniform float clipDistance;
-            
+
             attribute vec4 pointA;
             attribute vec4 pointB;
             attribute vec4 pointC;
             attribute vec2 vertexTexCoord;
-            
+
             varying vec2 texCoord;
-            
+            varying vec3 worldPos;
+            varying float viewDepth;
+
             void main() {
                 if (enableOneVertexMode) {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
+                    worldPos = (modelMatrix * vec4(pointA.xyz, 1.0)).xyz;
                 } else {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
@@ -87,8 +93,13 @@ class TriangleShaderProgram : AbstractShaderProgram() {
                         gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * miter * lineWidth * miterLength) * screen.zw);
                     }
                     gl_Position.zw = pointBScreen.zw;
+                    /* Line mode: use pointB (the middle of the 3-vertex line stencil) as the
+                       fragment's world-space position for shadow sampling. Coarse but visually
+                       acceptable since lines are typically narrow on-screen. */
+                    worldPos = (modelMatrix * vec4(pointB.xyz, 1.0)).xyz;
                 }
-                
+                viewDepth = gl_Position.w;
+
                 /* Transform the vertex tex coord by the tex coord matrix. */
                 if (enableTexture) {
                     texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
@@ -96,18 +107,24 @@ class TriangleShaderProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
-            #ifdef GL_ES
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            #elif defined(GL_ES)
             precision mediump float;
             #endif
-            
+
             uniform bool enablePickMode;
             uniform bool enableTexture;
             uniform vec4 color;
             uniform float opacity;
             uniform sampler2D texSampler;
-            
+
             varying vec2 texCoord;
-            
+            varying vec3 worldPos;
+            varying float viewDepth;
+
+            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+
             void main() {
                 if (enablePickMode && enableTexture) {
                     /* Modulate the RGBA color with the 2D texture's Alpha component (rounded to 0.0 or 1.0). */
@@ -119,6 +136,12 @@ class TriangleShaderProgram : AbstractShaderProgram() {
                 } else {
                     /* Return the RGBA color as-is. */
                     gl_FragColor = color * opacity;
+                }
+                /* Shadow attenuation. computeShadowVisibility returns 1.0 when applyShadow is
+                   false, so this is a no-op when no [ShadowLayer] is active. Pick mode skips
+                   the multiply so pick IDs aren't darkened. */
+                if (!enablePickMode) {
+                    gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
             }
         """.trimIndent()
@@ -139,6 +162,7 @@ class TriangleShaderProgram : AbstractShaderProgram() {
     private var clipDistance = 0.0f
 
     private var mvpMatrixId = KglUniformLocation.NONE
+    private var modelMatrixId = KglUniformLocation.NONE
     private var colorId = KglUniformLocation.NONE
     private var opacityId = KglUniformLocation.NONE
     private var lineWidthId = KglUniformLocation.NONE
@@ -150,6 +174,12 @@ class TriangleShaderProgram : AbstractShaderProgram() {
     private var texCoordMatrixId = KglUniformLocation.NONE
     private var texSamplerId = KglUniformLocation.NONE
     private var clipDistanceId = KglUniformLocation.NONE
+    private var applyShadowId = KglUniformLocation.NONE
+    private var ambientShadowId = KglUniformLocation.NONE
+    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewArray = FloatArray(16)
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -184,6 +214,23 @@ class TriangleShaderProgram : AbstractShaderProgram() {
         gl.uniformMatrix3fv(texCoordMatrixId, 1, false, array, 0)
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
+
+        // Shadow receiver uniforms. modelMatrix defaults to identity so a drawable that does
+        // not load it still produces correct world positions (vertices already in world).
+        modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
+        Matrix4().transposeToArray(array, 0)
+        gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+        applyShadowId = gl.getUniformLocation(program, "applyShadow")
+        gl.uniform1i(applyShadowId, 0)
+        ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
+        gl.uniform1f(ambientShadowId, 0.4f)
+        for (i in shadowMapIds.indices) {
+            shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
+            gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
+            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
+            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
+            gl.uniform1f(cascadeFarDepthIds[i], 0f)
+        }
     }
 
     fun enablePickMode(enable: Boolean) {
@@ -215,6 +262,41 @@ class TriangleShaderProgram : AbstractShaderProgram() {
         // Don't bother testing whether mvpMatrix has changed, the common case is to load a different matrix.
         matrix.transposeToArray(array, 0)
         gl.uniformMatrix4fv(mvpMatrixId, 1, false, array, 0)
+    }
+
+    /**
+     * Loads the model -> world transform for the shadow receiver. Pass the same translation /
+     * compose the drawable applied to [mvpMatrix] minus the camera modelview-projection.
+     */
+    fun loadModelMatrix(matrix: Matrix4) {
+        matrix.transposeToArray(array, 0)
+        gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+    }
+
+    override fun loadShadowDisabled() {
+        gl.uniform1i(applyShadowId, 0)
+    }
+
+    override fun loadShadowEnabled(
+        ambientShadow: Float,
+        lightProjectionView0: Matrix4,
+        lightProjectionView1: Matrix4,
+        lightProjectionView2: Matrix4,
+        cascadeFarDepth0: Float,
+        cascadeFarDepth1: Float,
+        cascadeFarDepth2: Float,
+    ) {
+        gl.uniform1i(applyShadowId, 1)
+        gl.uniform1f(ambientShadowId, ambientShadow)
+        lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView1.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView2.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, lightProjectionViewArray, 0)
+        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
+        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
+        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
     }
 
     fun loadColor(color: Color) {

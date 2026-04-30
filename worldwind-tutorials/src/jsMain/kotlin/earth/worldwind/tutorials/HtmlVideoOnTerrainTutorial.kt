@@ -24,7 +24,7 @@ import kotlin.js.Promise
  * resolves to the webpack-rewritten URL of the bundled file (so cache-busted hashes etc. are
  * handled automatically); we feed that URL straight to the `<video>` element and to `fetch()`.
  */
-class HtmlVideoOnTerrainTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class HtmlVideoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val video: HTMLVideoElement = (document.createElement("video") as HTMLVideoElement).apply {
         src = MR.assets.video.drone_motion_mp4.originalPath

@@ -9,7 +9,7 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.shape.Polygon
 
-class PolygonsTutorial(private val engine: WorldWind) : AbstractTutorial(), PickIndicatorTutorial {
+class PolygonsTutorial(engine: WorldWind) : AbstractTutorial(engine), PickIndicatorTutorial {
 
     override val picker = PickResultIndicator()
 

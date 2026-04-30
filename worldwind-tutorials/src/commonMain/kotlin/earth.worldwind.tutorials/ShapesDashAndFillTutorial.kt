@@ -12,7 +12,7 @@ import earth.worldwind.shape.Path
 import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.ShapeAttributes
 
-class ShapesDashAndFillTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class ShapesDashAndFillTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val layer = RenderableLayer("Dash and fill").apply {
         // Thicken all lines used in the tutorial.

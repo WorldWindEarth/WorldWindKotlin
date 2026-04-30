@@ -7,7 +7,7 @@ import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Position
 import kotlin.math.atan
 
-class CameraViewTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class CameraViewTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun start() {
         super.start()

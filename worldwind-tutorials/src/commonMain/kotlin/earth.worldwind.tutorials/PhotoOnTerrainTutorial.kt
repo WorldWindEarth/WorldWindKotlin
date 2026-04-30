@@ -20,7 +20,7 @@ import earth.worldwind.shape.ProjectedMediaSurface
  * Same patch over Pripyat that [ProjectedMediaSurfaceTutorial] uses; this is the static counterpart
  * of [VideoOnTerrainTutorial], which drives the same [ProjectedMediaSurface] from a live KLV stream.
  */
-class PhotoOnTerrainTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class PhotoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val layer = RenderableLayer("Photo on terrain")
 

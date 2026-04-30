@@ -4,6 +4,7 @@ import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
+import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.program.TriangleShaderProgram
@@ -21,6 +22,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
     private var pool: Pool<DrawableSurfaceShape>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
+    private val modelMatrix = Matrix4()
 
     companion object {
         val KEY = DrawableSurfaceShape::class
@@ -156,6 +158,12 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
             // Use the draw context's pick mode.
             program.enablePickMode(dc.isPickMode)
+            // The rasterize-to-texture pass uses a texture-space orthographic [mvpMatrix],
+            // so `gl_Position.w == 1` and [viewDepth] / [worldPos] aren't meaningful for a
+            // shadow lookup. Surface shapes pick up shadow attenuation in the composite pass
+            // ([drawTextureToTerrain]) where the terrain's vertex position drives the
+            // receiver, not here.
+            program.loadShadowDisabled()
 
             // Compute the tile common matrix that transforms geographic coordinates to texture fragments appropriate
             // for the terrain sector.
@@ -266,6 +274,16 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             mvpMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
             program.loadModelviewProjection(mvpMatrix)
             program.loadClipDistance(0.0f)
+
+            // Apply shadow attenuation in the composite-to-terrain pass (the rasterize-to-
+            // texture pass disabled it earlier) so surface shapes pick up the same
+            // 3D-caster shadows that fall on the terrain underneath them. Receivers'
+            // `worldPos` needs `modelMatrix = translate(terrainOrigin)` to resolve to ECEF
+            // Cartesian; do that even when shadows are disabled so future receivers
+            // sharing the program see a sensible default.
+            dc.applyShadowReceiverUniforms(program)
+            modelMatrix.setToTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
+            program.loadModelMatrix(modelMatrix)
 
             // Draw the terrain as triangles.
             terrain.drawTriangles(dc)

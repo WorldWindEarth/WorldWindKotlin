@@ -12,7 +12,7 @@ import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.milstd2525.MilStd2525Placemark
 import earth.worldwind.shape.milstd2525.MilStd2525TacticalGraphic
 
-class MilStd2525Tutorial(private val engine: WorldWind) : AbstractTutorial() {
+class MilStd2525Tutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val layer = RenderableLayer("Tactical Graphics").apply {
         // Add a "MIL-STD-2525 Friendly SOF Drone Aircraft"

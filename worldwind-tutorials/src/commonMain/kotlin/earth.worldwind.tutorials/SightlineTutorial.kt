@@ -16,7 +16,7 @@ import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.ShapeAttributes
 
-class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class SightlineTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val omniSightline: OmnidirectionalSightline
     private val directionalSightline: DirectionalSightline

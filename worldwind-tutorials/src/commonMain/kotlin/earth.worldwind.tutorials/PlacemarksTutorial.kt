@@ -9,7 +9,7 @@ import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.PlacemarkAttributes
 
-class PlacemarksTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class PlacemarksTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private val layer = RenderableLayer("Placemarks").apply {
         // Create a simple placemark at downtown Ventura, CA. This placemark is a 20x20 cyan square centered on the

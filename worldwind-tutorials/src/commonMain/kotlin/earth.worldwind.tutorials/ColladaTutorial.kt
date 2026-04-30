@@ -13,7 +13,7 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.shape.Placemark
 
-class ColladaTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class ColladaTutorial(engine: WorldWind) : AbstractTutorial(engine) {
     var isStarted = false
         private set
 
@@ -47,6 +47,7 @@ class ColladaTutorial(private val engine: WorldWind) : AbstractTutorial() {
     }
 
     override fun start() {
+        super.start()
         engine.layers.addLayer(colladaLayer)
         engine.layers.addLayer(pickLayer)
         engine.cameraFromLookAt(
@@ -63,11 +64,14 @@ class ColladaTutorial(private val engine: WorldWind) : AbstractTutorial() {
     }
 
     override fun stop() {
+        super.stop()
         engine.layers.removeLayer(colladaLayer)
         engine.layers.removeLayer(pickLayer)
-        colladaLayer.clearRenderables()
+        // Don't clear [colladaLayer]'s renderable or null out [scene]: [setupScene] is only
+        // invoked once at app start (`mainScope.launch { tutorial.setupScene() }`), so a
+        // second [start] re-adds an empty layer otherwise. The pick layer is transient picks
+        // accumulated by [pickScene] - safe to drop here.
         pickLayer.clearRenderables()
-        scene = null
         isStarted = false
     }
 }

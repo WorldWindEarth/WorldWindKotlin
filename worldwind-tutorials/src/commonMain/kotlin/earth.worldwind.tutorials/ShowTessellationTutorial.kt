@@ -3,7 +3,7 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.layer.ShowTessellationLayer
 
-class ShowTessellationTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class ShowTessellationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
     // Create a layer that displays the globe's tessellation geometry.
     private val layer = ShowTessellationLayer()
 

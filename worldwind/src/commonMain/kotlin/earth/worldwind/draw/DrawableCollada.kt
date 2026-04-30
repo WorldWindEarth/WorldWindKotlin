@@ -2,13 +2,16 @@ package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.shadow.ShadowCaster
+import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.BasicTextureProgram
 import earth.worldwind.util.kgl.*
 
-class DrawableCollada : Drawable, SightlineOccluder {
+class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
     class EntityDrawState {
         var vertexByteOffset = 0
         var uvByteOffset = 0
@@ -41,6 +44,8 @@ class DrawableCollada : Drawable, SightlineOccluder {
 
     private val mvpMatrix = Matrix4()
     private val normalMatrix = Matrix4()
+    private val modelMatrix = Matrix4()
+    private val eyeLightDirection = Vec3()
 
     companion object {
         val KEY = DrawableCollada::class
@@ -63,6 +68,14 @@ class DrawableCollada : Drawable, SightlineOccluder {
         prog.loadModulateColor(dc.isPickMode)
         prog.loadTextureEnabled(false)
         dc.gl.enableVertexAttribArray(0) // vertexPoint
+
+        // Eye-space light direction is shared across all entities in this draw.
+        eyeLightDirection.copy(dc.lightDirection).multiplyByMatrix(dc.modelviewNormalTransform).normalize()
+        prog.loadLightDirection(eyeLightDirection)
+
+        // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass
+        // shadow application so pick IDs aren't darkened.
+        dc.applyShadowReceiverUniforms(prog)
 
         if (doubleSided) dc.gl.disable(GL_CULL_FACE)
 
@@ -124,6 +137,12 @@ class DrawableCollada : Drawable, SightlineOccluder {
         if (entity.useLocalTransforms) mvpMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
         prog.loadModelviewProjection(mvpMatrix)
 
+        // Model -> world for the shadow receiver. Same composition as MVP minus the camera
+        // modelview-projection: transformationMatrix * (per-entity nodeWorldMatrix).
+        modelMatrix.copy(transformationMatrix)
+        if (entity.useLocalTransforms) modelMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
+        prog.loadModelMatrix(modelMatrix)
+
         // Vertex positions
         dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, 0, entity.vertexByteOffset)
 
@@ -156,6 +175,29 @@ class DrawableCollada : Drawable, SightlineOccluder {
             mvpMatrix.copy(transformationMatrix)
             if (entity.useLocalTransforms) mvpMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
             sightline.loadOccluderMatrix(mvpMatrix)
+
+            dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, entity.vertexByteOffset)
+
+            if (entity.indexed) {
+                dc.gl.drawElements(GL_TRIANGLES, entity.indexCount, entity.indexType, entity.indexByteOffset)
+            } else {
+                dc.gl.drawArrays(GL_TRIANGLES, 0, entity.vertexCount)
+            }
+        }
+        if (doubleSided) dc.gl.enable(GL_CULL_FACE)
+    }
+
+    override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {
+        // Same per-entity model matrix dispatch as the sightline path, but routed through
+        // the active shadow cascade's lightView via [DrawableShadow.loadCasterMatrix].
+        if (vertexBuffer?.bindBuffer(dc) != true) return
+        indexBuffer?.bindBuffer(dc)
+
+        if (doubleSided) dc.gl.disable(GL_CULL_FACE)
+        for (entity in entities) {
+            mvpMatrix.copy(transformationMatrix)
+            if (entity.useLocalTransforms) mvpMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
+            shadow.loadCasterMatrix(mvpMatrix)
 
             dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, entity.vertexByteOffset)
 

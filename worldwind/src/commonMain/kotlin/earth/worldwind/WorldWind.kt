@@ -463,6 +463,9 @@ open class WorldWind @JvmOverloads constructor(
         globe.geographicToCartesian(
             cameraPosition.latitude, cameraPosition.longitude, cameraPosition.altitude, rc.cameraPoint
         )
+        // Default world-space light direction: surface normal at the camera's foot point. Layers
+        // (e.g. AtmosphereLayer with a time set) may override this before shapes are enqueued.
+        globe.geographicToCartesianNormal(cameraPosition.latitude, cameraPosition.longitude, rc.lightDirection)
         rc.renderResourceCache = renderResourceCache
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude
@@ -511,6 +514,20 @@ open class WorldWind @JvmOverloads constructor(
         // Let the frame controller render the WorldWindow's current state.
         frameController.renderFrame(rc)
 
+        // Snapshot the per-frame light direction (possibly overridden by AtmosphereLayer.doRender)
+        // so the draw phase has it via [DrawContext.lightDirection].
+        frame.lightDirection.copy(rc.lightDirection)
+        // Snapshot the layer's scratch shadow state into the frame-owned instance. On Android
+        // render and draw run on different threads, so passing the layer's mutating reference
+        // would let the GL thread read partially-updated cascade matrices.
+        val activeShadowState = rc.shadowState
+        if (activeShadowState != null) {
+            frame.shadowState.copyFrom(activeShadowState)
+            frame.hasShadowState = true
+        } else {
+            frame.hasShadowState = false
+        }
+
         // Propagate redraw requests submitted during rendering.
         val isRedrawRequested = !pickMode && rc.isRedrawRequested
 
@@ -542,6 +559,11 @@ open class WorldWind @JvmOverloads constructor(
         // The matrix that transforms normal vectors in model coordinates to normal vectors in eye coordinates.
         // Typically used to transform a shape's normal vectors during lighting calculations.
         dc.modelviewNormalTransform.copy(Matrix4().invertOrthonormalMatrix(frame.modelview).upper3By3().transpose())
+
+        // Light direction (world space) was snapshot at the end of render; expose to drawables.
+        dc.lightDirection.copy(frame.lightDirection)
+        // Shadow cascade state (or null when shadows are disabled this frame).
+        dc.shadowState = if (frame.hasShadowState) frame.shadowState else null
 
         // Process the drawables in the frame's drawable queue and drawable terrain data structures.
         dc.uploadQueue = frame.uploadQueue

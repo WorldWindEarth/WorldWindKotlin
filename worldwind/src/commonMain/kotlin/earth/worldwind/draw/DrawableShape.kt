@@ -1,6 +1,8 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.shadow.ShadowCaster
+import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
@@ -9,10 +11,11 @@ import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import kotlin.jvm.JvmStatic
 
-open class DrawableShape protected constructor(): Drawable, SightlineOccluder {
+open class DrawableShape protected constructor(): Drawable, SightlineOccluder, ShadowCaster {
     val drawState = DrawShapeState()
     private var pool: Pool<DrawableShape>? = null
     private val mvpMatrix = Matrix4()
+    private val modelMatrix = Matrix4()
 
     companion object {
         val KEY = DrawableShape::class
@@ -53,6 +56,13 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder {
         }
         mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
         program.loadModelviewProjection(mvpMatrix)
+
+        // Model -> world transform for the shadow receiver.
+        modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+        program.loadModelMatrix(modelMatrix)
+
+        // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass.
+        dc.applyShadowReceiverUniforms(program)
 
         // Disable triangle back face culling if requested.
         if (!drawState.enableCullFace) dc.gl.disable(GL_CULL_FACE)
@@ -123,5 +133,11 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder {
         // Line shapes are wide expanded triangles with a non-position vertex layout - they
         // can't be reused as opaque occluders, and they're not occluding volumes anyway.
         if (!drawState.isLine) sightline.drawShapeStateOccluder(dc, drawState, drawState.vertexStride)
+    }
+
+    override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {
+        // Same rationale as [drawSightlineDepth]: lines are screen-space-expanded triangles
+        // and would alias as silhouettes in the shadow map.
+        if (!drawState.isLine) shadow.drawShapeStateOccluder(dc, drawState, drawState.vertexStride)
     }
 }

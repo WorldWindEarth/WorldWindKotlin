@@ -9,7 +9,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.Wcs100ElevationCoverage
 import kotlin.math.atan
 
-class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class WcsElevationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
     // Create an elevation coverage from a version 1.0.0 WCS
     private val wcsElevationCoverage by lazy {
         Wcs100ElevationCoverage(

@@ -9,7 +9,7 @@ import earth.worldwind.geom.Position
 import kotlin.math.atan
 import kotlin.math.sqrt
 
-class LookAtViewTutorial(private val engine: WorldWind) : AbstractTutorial() {
+class LookAtViewTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun start() {
         super.start()

@@ -3,11 +3,14 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.shadow.ShadowReceiverGlsl
+import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import earth.worldwind.util.kgl.KglUniformLocation
 
-class BasicTextureProgram : AbstractShaderProgram() {
+class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     override var programSources = arrayOf(
         """
             attribute vec4 vertexPoint;
@@ -20,25 +23,38 @@ class BasicTextureProgram : AbstractShaderProgram() {
             uniform mat3 texCoordMatrix;
             uniform bool applyLighting;
             uniform bool isRenderLine;
+            /* Model -> world transform for shadow receivers. Composed by the drawable as the
+               combined per-shape / per-entity transform that maps tile-local vertices to ECEF
+               Cartesian. Identity is fine when the drawable already places vertices in world. */
+            uniform mat4 modelMatrix;
 
             varying vec2 texCoord;
             varying vec4 normal;
+            /* Shadow receiver inputs. Always populated; the fragment shader's [applyShadow]
+               branch elides the lookup when no [ShadowLayer] is active. */
+            varying vec3 worldPos;
+            varying float viewDepth;
 
             void main() {
                 if (isRenderLine) {
                     vec4 vPoint = vec4(vertexPoint.xyz + normalVector.xyz * (segmentWidth / 2.0), 1.0);
                     gl_Position = mvpMatrix * vPoint;
+                    worldPos = (modelMatrix * vPoint).xyz;
                 } else {
                     gl_Position = mvpMatrix * vertexPoint;
+                    worldPos = (modelMatrix * vertexPoint).xyz;
                     texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
                     if (applyLighting) {
                         normal = mvInverseMatrix * normalVector;
                     }
                 }
+                viewDepth = gl_Position.w;
             }
         """.trimIndent(),
         """
-            #ifdef GL_ES
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            #elif defined(GL_ES)
             precision mediump float;
             #endif
 
@@ -48,13 +64,21 @@ class BasicTextureProgram : AbstractShaderProgram() {
             uniform bool modulateColor;
             uniform sampler2D texSampler;
             uniform bool applyLighting;
+            /* Eye-space unit vector pointing toward the light source. CPU pre-multiplies the
+               world-space sun direction by the modelview rotation so the fragment shader can
+               dot directly against the eye-space normal. */
+            uniform vec3 lightDirection;
 
             varying vec2 texCoord;
             varying vec4 normal;
+            varying vec3 worldPos;
+            varying float viewDepth;
+
+            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
 
             void main() {
                 vec4 textureColor = texture2D(texSampler, texCoord);
-                float ambient = 0.15; vec4 lightDirection = vec4(0, 0, 1, 0);
+                float ambient = 0.15;
                 if (enableTexture && !modulateColor)
                     gl_FragColor = textureColor * color * opacity;
                 else if (enableTexture && modulateColor)
@@ -63,8 +87,13 @@ class BasicTextureProgram : AbstractShaderProgram() {
                     gl_FragColor = color * opacity;
                 if (gl_FragColor.a == 0.0) {discard;}
                 if (applyLighting) {
-                    vec4 n = normal * (gl_FrontFacing ? 1.0 : -1.0);
+                    vec3 n = normalize(normal.xyz) * (gl_FrontFacing ? 1.0 : -1.0);
                     gl_FragColor.rgb *= clamp(ambient + dot(lightDirection, n), 0.0, 1.0);
+                }
+                /* Shadow attenuation. No-op when [applyShadow] is false. Picks ([modulateColor]
+                   path) bypass shadow application so pick IDs aren't darkened. */
+                if (!modulateColor) {
+                    gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
             }
         """.trimIndent()
@@ -80,8 +109,16 @@ class BasicTextureProgram : AbstractShaderProgram() {
     private val texCoordMatrix = Matrix3()
     private val color = Color()
     private var opacity = 1.0f
+    private val lightDirection = Vec3(0.0, 0.0, 1.0)
     private var mvpMatrixId = KglUniformLocation.NONE
     private var mvInverseMatrixId = KglUniformLocation.NONE
+    private var modelMatrixId = KglUniformLocation.NONE
+    private var applyShadowId = KglUniformLocation.NONE
+    private var ambientShadowId = KglUniformLocation.NONE
+    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewArray = FloatArray(16)
     private var colorId = KglUniformLocation.NONE
     private var enableTextureId = KglUniformLocation.NONE
     private var modulateColorId = KglUniformLocation.NONE
@@ -89,6 +126,7 @@ class BasicTextureProgram : AbstractShaderProgram() {
     private var texCoordMatrixId = KglUniformLocation.NONE
     private var opacityId = KglUniformLocation.NONE
     private var applyLightingId = KglUniformLocation.NONE
+    private var lightDirectionId = KglUniformLocation.NONE
     private var isRenderLineId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
@@ -116,8 +154,27 @@ class BasicTextureProgram : AbstractShaderProgram() {
         gl.uniform1f(opacityId, opacity)
         applyLightingId = gl.getUniformLocation(program, "applyLighting")
         gl.uniform1i(applyLightingId, if (applyLighting) 1 else 0)
+        lightDirectionId = gl.getUniformLocation(program, "lightDirection")
+        gl.uniform3f(lightDirectionId, lightDirection.x.toFloat(), lightDirection.y.toFloat(), lightDirection.z.toFloat())
         isRenderLineId = gl.getUniformLocation(program, "isRenderLine")
         gl.uniform1i(isRenderLineId, if (isRenderLine) 1 else 0)
+
+        // Shadow receiver uniforms. modelMatrix defaults to identity so drawables that don't
+        // bother loading it (no [ShadowLayer] active) still produce correct world positions.
+        modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
+        Matrix4().transposeToArray(array, 0)
+        gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+        applyShadowId = gl.getUniformLocation(program, "applyShadow")
+        gl.uniform1i(applyShadowId, 0)
+        ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
+        gl.uniform1f(ambientShadowId, 0.4f)
+        for (i in shadowMapIds.indices) {
+            shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
+            gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
+            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
+            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
+            gl.uniform1f(cascadeFarDepthIds[i], 0f)
+        }
     }
 
     /**
@@ -231,8 +288,58 @@ class BasicTextureProgram : AbstractShaderProgram() {
     }
 
     /**
+     * Loads an eye-space unit vector pointing toward the light source. Callers transform the
+     * world-space sun direction by the modelview rotation (see [DrawContext.modelviewNormalTransform])
+     * before passing it in, so the fragment shader can dot it directly against eye-space normals.
+     *
+     * @param direction Eye-space light direction. Must be normalized.
+     */
+    fun loadLightDirection(direction: Vec3) {
+        if (lightDirection != direction) {
+            lightDirection.copy(direction)
+            gl.uniform3f(lightDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
+        }
+    }
+
+    /**
+     * Loads the model -> world transform for shadow receivers. Pass the same translate /
+     * compose that the drawable applied to [mvpMatrix] (minus the modelview-projection
+     * portion). Identity matrix means "vertices are already in world space".
+     */
+    fun loadModelMatrix(matrix: Matrix4) {
+        matrix.transposeToArray(array, 0)
+        gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+    }
+
+    override fun loadShadowDisabled() {
+        gl.uniform1i(applyShadowId, 0)
+    }
+
+    override fun loadShadowEnabled(
+        ambientShadow: Float,
+        lightProjectionView0: Matrix4,
+        lightProjectionView1: Matrix4,
+        lightProjectionView2: Matrix4,
+        cascadeFarDepth0: Float,
+        cascadeFarDepth1: Float,
+        cascadeFarDepth2: Float,
+    ) {
+        gl.uniform1i(applyShadowId, 1)
+        gl.uniform1f(ambientShadowId, ambientShadow)
+        lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView1.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, lightProjectionViewArray, 0)
+        lightProjectionView2.transposeToArray(lightProjectionViewArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, lightProjectionViewArray, 0)
+        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
+        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
+        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
+    }
+
+    /**
      * Loads the specified boolean as the value of this program's 'isRenderLine' uniform variable.
-     * 
+     *
      * @param isRenderLine true if rendering lines, otherwise false.
      */
     fun loadIsRenderLine(isRenderLine: Boolean) {

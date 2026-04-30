@@ -7,6 +7,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.atmosphere.AbstractAtmosphereProgram.FragMode.*
+import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.render.Texture
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
@@ -53,6 +54,12 @@ open class DrawableGroundAtmosphere : Drawable {
 
         // Use this layer's light direction.
         program.loadLightDirection(lightDirection)
+
+        // Bind cascade textures to GL_TEXTURE1..3 and upload cascade matrices for the
+        // ground shader's [computeShadowVisibility] sampler. No-op when no [ShadowLayer]
+        // is active; in that case the shader's [applyShadow] uniform stays 0 and the
+        // SECONDARY pass's [computeShadowVisibility] returns 1.0 (no darkening).
+        dc.applyShadowReceiverUniforms(program)
 
         // Set up to use the shared tile tex coord attributes.
         dc.gl.enableVertexAttribArray(1)

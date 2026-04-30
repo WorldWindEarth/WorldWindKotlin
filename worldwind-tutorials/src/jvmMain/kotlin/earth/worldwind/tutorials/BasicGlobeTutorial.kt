@@ -22,6 +22,7 @@ import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
+import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
@@ -57,7 +58,11 @@ fun main() {
                     )
                 )
                 addLayer(StarFieldLayer())
+                // Atmosphere `time` is null by default: no day/night terminator. BasicTutorial
+                // sets it (and animates) on start; other tutorials use the layer's
+                // [lightDirectionProvider] so shadows still get a sun direction.
                 addLayer(AtmosphereLayer())
+                addLayer(ShadowLayer())
                 addLayer(CompassLayer())
                 addLayer(CoordinatesDisplayLayer())
                 addLayer(WorldMapLayer().apply { mapWidthDp = 300.0 })

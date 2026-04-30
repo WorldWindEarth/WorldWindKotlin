@@ -13,7 +13,7 @@ import earth.worldwind.render.FontWeight
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.OrientationMode
 
-class LabelsTutorial(private val engine: WorldWind): AbstractTutorial() {
+class LabelsTutorial(engine: WorldWind): AbstractTutorial(engine) {
 
     private val layer = RenderableLayer("Labels").apply {
         // Create a basic label with the default attributes, including the default text color (white), the default text
