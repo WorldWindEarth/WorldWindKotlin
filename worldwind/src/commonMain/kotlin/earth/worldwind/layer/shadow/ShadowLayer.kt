@@ -11,6 +11,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.sqrt
 
 /**
  * Adds directional sun-shadow rendering to the scene. When this layer is in the layer list,
@@ -119,6 +120,22 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     override fun doRender(rc: RenderContext) {
         if (rc.globe.is2D) return // No shadow rendering on 2D globe
         if (rc.isPickMode) return // Picks bypass shadows entirely
+
+        // Sun-below-horizon early-exit. [RenderContext.lightDirection] points TOWARD the sun
+        // (the shadow pipeline negates it later to get the travel direction). Dot it with the
+        // camera's local up (= cameraPoint normalised, in ECEF) to recover sin(elevation):
+        // `+1` when the sun is overhead, `0` at the horizon, negative when below. The small
+        // `< -0.05` margin keeps the test from flickering on the exact terminator and avoids
+        // running the shadow pass for the night side of the globe, where receivers fall back
+        // to ambient anyway.
+        val cp = rc.cameraPoint
+        val eyeMagSq = cp.x * cp.x + cp.y * cp.y + cp.z * cp.z
+        if (eyeMagSq > 0.0) {
+            val invEyeMag = 1.0 / sqrt(eyeMagSq)
+            val sinElevation = (rc.lightDirection.x * cp.x +
+                rc.lightDirection.y * cp.y + rc.lightDirection.z * cp.z) * invEyeMag
+            if (sinElevation < -0.05) return
+        }
 
         // Auto-scale cascade extents with camera altitude. The user-set [maxCascadeDistance]
         // and [casterPullback] act as floors; at planetary-scale views the altitude-derived
