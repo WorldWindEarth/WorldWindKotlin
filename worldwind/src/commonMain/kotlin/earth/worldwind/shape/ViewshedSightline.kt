@@ -143,6 +143,29 @@ open class ViewshedSightline @JvmOverloads constructor(
         set(value) { field = value; invalidate() }
     override val referencePosition: Position get() = position
     override val isPointShape get() = true
+    /**
+     * Picking flows through the inner [surfaceImage] (it owns the surface texture drawable
+     * the user actually clicks on), so propagate the outer's pick state to it. Without this,
+     * a click on the viewshed overlay returns the internal [SurfaceImage] as the picked
+     * `userObject` instead of this [ViewshedSightline]. The outer's `render()` gate already
+     * suppresses pick rendering when [isPickEnabled] is false, but we still mirror the flag
+     * onto [surfaceImage] for defence in depth.
+     */
+    override var isPickEnabled: Boolean = true
+        set(value) {
+            field = value
+            surfaceImage?.isPickEnabled = value
+        }
+    override var pickDelegate: Any? = null
+        set(value) {
+            field = value
+            surfaceImage?.pickDelegate = value ?: this
+        }
+    override var displayName: String? = null
+        set(value) {
+            field = value
+            surfaceImage?.displayName = value
+        }
 
     /**
      * Resolution multiplier applied to [samplesPerSide] while the observer is being dragged.
@@ -548,7 +571,11 @@ open class ViewshedSightline @JvmOverloads constructor(
         // the kernel's fresh output for this exact sector.
         val existing = surfaceImage
         if (existing == null) {
-            surfaceImage = SurfaceImage(pending.sector, texture)
+            surfaceImage = SurfaceImage(pending.sector, texture).also {
+                it.pickDelegate = pickDelegate ?: this
+                it.isPickEnabled = isPickEnabled
+                it.displayName = displayName
+            }
         } else {
             existing.sector.copy(pending.sector)
             if (existing.texture !== texture) existing.texture = texture
