@@ -273,6 +273,8 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
     }
 
+    override var shadowUploadStamp: Long = -1L
+
     override fun loadShadowDisabled() {
         gl.uniform1i(applyShadowId, 0)
     }

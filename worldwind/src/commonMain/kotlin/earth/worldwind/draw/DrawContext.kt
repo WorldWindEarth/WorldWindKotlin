@@ -56,6 +56,13 @@ open class DrawContext(val gl: Kgl) {
      * for this frame.
      */
     var shadowState: ShadowState? = null
+    /**
+     * Frame stamp of the last [ShadowState] whose cascade textures were bound to texture units
+     * 1..3. Used by [earth.worldwind.layer.shadow.applyShadowReceiverUniforms] to skip the
+     * (cheap but redundant) `activeTexture` + `bindTexture` pairs after the first receiver in
+     * a frame. Reset to `-1` on context reset.
+     */
+    var lastShadowTextureBindStamp: Long = -1L
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -391,6 +398,7 @@ open class DrawContext(val gl: Kgl) {
         eyePoint.set(0.0, 0.0, 0.0)
         lightDirection.set(0.0, 0.0, 1.0)
         shadowState = null
+        lastShadowTextureBindStamp = -1L
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()

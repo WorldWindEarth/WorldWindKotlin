@@ -32,6 +32,14 @@ interface ShadowReceiverProgram {
 
     /** Disables shadow sampling. Receivers' fragments fall through to a fixed `1.0` visibility. */
     fun loadShadowDisabled()
+
+    /**
+     * Frame stamp of the last [ShadowState] whose uniforms were uploaded into this program.
+     * GL uniforms are program-state and persist across draw calls, so once a program has been
+     * loaded with the current frame's cascades it doesn't need to be loaded again until the
+     * cascades change. Implementations declare this as a plain `var` field, default `-1L`.
+     */
+    var shadowUploadStamp: Long
 }
 
 /**
@@ -51,20 +59,38 @@ fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram) {
     val state = shadowState
     if (isPickMode || state == null || !state.useMSM) {
         program.loadShadowDisabled()
+        // Pick passes (and shadow-disabled frames) wipe `applyShadowId` to 0 and may displace
+        // cascade-texture bindings on units 1..3. Reset both caches so the next enabled call
+        // re-binds textures and re-uploads uniforms — without this, the JVM/Android display
+        // pipeline (pick frame followed by a redraw of the same regular frame, same stamp)
+        // would skip the re-upload and leave shadows turned off until the camera moves.
+        program.shadowUploadStamp = -1L
+        lastShadowTextureBindStamp = -1L
         return
     }
-    for (i in 0 until state.cascadeCount) {
-        activeTextureUnit(GL_TEXTURE1 + i)
-        shadowCascadeFramebuffer(i).getAttachedTexture(GL_COLOR_ATTACHMENT0).bindTexture(this)
+    val stamp = state.frameStamp
+    // Cascade textures sit on units 1..3; once bound they stay bound for the rest of the
+    // frame because no other drawable touches those units. Skip the redundant rebinds.
+    if (lastShadowTextureBindStamp != stamp) {
+        for (i in 0 until state.cascadeCount) {
+            activeTextureUnit(GL_TEXTURE1 + i)
+            shadowCascadeFramebuffer(i).getAttachedTexture(GL_COLOR_ATTACHMENT0).bindTexture(this)
+        }
+        activeTextureUnit(GL_TEXTURE0)
+        lastShadowTextureBindStamp = stamp
     }
-    activeTextureUnit(GL_TEXTURE0)
-    program.loadShadowEnabled(
-        state.ambientShadow,
-        state.cascades[0].lightProjectionView,
-        state.cascades[1].lightProjectionView,
-        state.cascades[2].lightProjectionView,
-        state.cascades[0].farViewDepth.toFloat(),
-        state.cascades[1].farViewDepth.toFloat(),
-        state.cascades[2].farViewDepth.toFloat(),
-    )
+    // GL uniforms persist on the program until overwritten. Skip the matrix uploads when this
+    // program already saw the current frame's cascades.
+    if (program.shadowUploadStamp != stamp) {
+        program.loadShadowEnabled(
+            state.ambientShadow,
+            state.cascades[0].lightProjectionView,
+            state.cascades[1].lightProjectionView,
+            state.cascades[2].lightProjectionView,
+            state.cascades[0].farViewDepth.toFloat(),
+            state.cascades[1].farViewDepth.toFloat(),
+            state.cascades[2].farViewDepth.toFloat(),
+        )
+        program.shadowUploadStamp = stamp
+    }
 }

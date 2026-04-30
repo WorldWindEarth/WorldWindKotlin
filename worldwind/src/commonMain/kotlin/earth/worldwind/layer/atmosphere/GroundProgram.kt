@@ -208,6 +208,8 @@ class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
         }
     }
 
+    override var shadowUploadStamp: Long = -1L
+
     override fun loadShadowDisabled() {
         gl.uniform1i(applyShadowId, 0)
     }

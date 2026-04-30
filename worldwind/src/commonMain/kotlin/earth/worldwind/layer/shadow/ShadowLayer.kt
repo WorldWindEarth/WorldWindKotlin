@@ -148,6 +148,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         // [useMSM] is finalized at draw time by DrawableShadow once the GL context is available.
         shadowState.ambientShadow = ambientShadow
         shadowState.maxCascadeDistance = effectiveMaxCascadeDistance
+        shadowState.frameStamp++
         shadowState.reset()
 
         // Compute camera near/far from the projection matrix. Standard OpenGL perspective:

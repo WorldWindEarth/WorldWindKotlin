@@ -49,6 +49,14 @@ class ShadowState(
      */
     var useMSM: Boolean = true
 
+    /**
+     * Monotonic counter incremented every frame that [ShadowLayer.doRender] populates new
+     * cascades. Drives the per-frame caching in [applyShadowReceiverUniforms]: cascade texture
+     * binds and per-program uniform uploads are skipped when this stamp hasn't changed since
+     * the last call.
+     */
+    var frameStamp: Long = 0
+
     /** Linear depth metric range for moments storage = `1.0 / maxCascadeDistance`. */
     val invMaxCascadeDistance: Float get() = (1.0 / maxCascadeDistance).toFloat()
 
