@@ -113,16 +113,39 @@ object ShadowReceiverGlsl {
             return msmOcclusion(moments, receiverDepth);
         }
 
+        /* Fraction of each cascade's depth range used as the blend zone with the next cascade.
+           A larger value gives a softer transition at the cost of double-sampling more
+           fragments. 0.15 = the deepest 15% of each cascade fades into the next. */
+        const float cascadeBlendFraction = 0.15;
+
         /* Cascade picker: linearly compare viewDepth (positive distance to camera plane)
            against per-cascade far depths. Returns the visibility factor in [0, 1]. */
         float computeShadowVisibility(vec3 worldPos, float viewDepth) {
             if (!applyShadow) return 1.0;
             int cascade;
-            if (viewDepth < cascadeFarDepth0) cascade = 0;
-            else if (viewDepth < cascadeFarDepth1) cascade = 1;
-            else if (viewDepth < cascadeFarDepth2) cascade = 2;
-            else return 1.0; /* beyond all cascades -> unshadowed */
+            float cascadeNear;
+            float cascadeFar;
+            if (viewDepth < cascadeFarDepth0) {
+                cascade = 0; cascadeNear = 0.0;             cascadeFar = cascadeFarDepth0;
+            } else if (viewDepth < cascadeFarDepth1) {
+                cascade = 1; cascadeNear = cascadeFarDepth0; cascadeFar = cascadeFarDepth1;
+            } else if (viewDepth < cascadeFarDepth2) {
+                cascade = 2; cascadeNear = cascadeFarDepth1; cascadeFar = cascadeFarDepth2;
+            } else {
+                return 1.0; /* beyond all cascades -> unshadowed */
+            }
             float visibility = sampleCascade(cascade, worldPos);
+            /* Smooth boundary: in the deepest [cascadeBlendFraction] of this cascade, lerp
+               toward the next cascade's visibility to hide the cascade seam. The last cascade
+               has no successor so the blend is skipped there. */
+            if (cascade < 2) {
+                float blendStart = cascadeFar - cascadeBlendFraction * (cascadeFar - cascadeNear);
+                float t = smoothstep(blendStart, cascadeFar, viewDepth);
+                if (t > 0.0) {
+                    float visibilityNext = sampleCascade(cascade + 1, worldPos);
+                    visibility = mix(visibility, visibilityNext, t);
+                }
+            }
             /* Mix the shadowed value toward the ambient floor so fully-occluded fragments
                still receive [ambientShadow] amount of "skylight" rather than going pure black. */
             return mix(ambientShadow, 1.0, visibility);
