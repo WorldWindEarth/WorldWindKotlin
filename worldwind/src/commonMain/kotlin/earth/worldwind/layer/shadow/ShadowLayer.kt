@@ -299,9 +299,10 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         if (depthRange <= 0.0 || sphereRadius <= 0.0) return false
 
         // Texel-grid snap on the sphere centre. Each shadow texel covers `2*sphereRadius /
-        // SHADOW_MAP_SIZE` light-eye metres; snapping the centre to integer multiples pins
-        // the discrete cells to fixed world positions across frames.
-        val mapSize = DrawContext.SHADOW_MAP_SIZE.toDouble()
+        // mapSize` light-eye metres; snapping the centre to integer multiples pins the
+        // discrete cells to fixed world positions across frames. mapSize is per-cascade
+        // (the far cascade can be smaller — see [DrawContext.SHADOW_CASCADE_MAP_SIZES]).
+        val mapSize = DrawContext.SHADOW_CASCADE_MAP_SIZES[cascadeIndex].toDouble()
         val texelSize = 2.0 * sphereRadius / mapSize
         cx = floor(cx / texelSize) * texelSize
         cy = floor(cy / texelSize) * texelSize

@@ -35,9 +35,19 @@ open class DrawContext(val gl: Kgl) {
          * Per-side resolution of each cascaded shadow map. 1024 matches the existing scratch /
          * moments FBOs (GL implementations rarely fault when reusing the same allocation
          * footprint), and is enough to keep shadow texels under one screen pixel for typical
-         * close-range cascades on a 1080p viewport.
+         * close-range cascades on a 1080p viewport. Used by [SHADOW_CASCADE_MAP_SIZES] as the
+         * default for close cascades.
          */
         const val SHADOW_MAP_SIZE = 1024
+        /**
+         * Per-cascade shadow-map resolution. Index 0 is the closest cascade; cascades farther
+         * from the camera occupy fewer screen pixels per shadow texel and benefit far less
+         * from a large map, so the far cascade halves its side. At default 3 cascades the
+         * footprint is `2 * 1024² + 1 * 512² ≈ 9 MB` of moments storage (RGBA32F) — `4 MB`
+         * less than uniform 1024², and the visual difference is invisible at typical viewing
+         * angles.
+         */
+        val SHADOW_CASCADE_MAP_SIZES = intArrayOf(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE / 2)
     }
 
     val eyePoint = Vec3()
@@ -93,7 +103,7 @@ open class DrawContext(val gl: Kgl) {
     private var momentsCubeMapTextureCache: Texture? = null
     private var momentsCubeMapFramebufferCache: Framebuffer? = null
     private val shadowCascadeFramebufferCache = arrayOfNulls<Framebuffer>(ShadowState.DEFAULT_CASCADE_COUNT)
-    private var shadowBlurFramebufferCache: Framebuffer? = null
+    private val shadowBlurFramebufferCache = HashMap<Int, Framebuffer>(2)
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
@@ -211,10 +221,10 @@ open class DrawContext(val gl: Kgl) {
      * banding. Sized format requires GLES3+ / WebGL2 / desktop GL3+; falls back to
      * `GL_DEPTH_COMPONENT` (driver-default precision) on older platforms.
      */
-    private fun createMomentsDepthAttachment(): Texture {
+    private fun createMomentsDepthAttachment(size: Int = SCRATCH_FRAMEBUFFER_SIZE): Texture {
         val sized = gl.supportsSizedTextureFormats
         return Texture(
-            SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE,
+            size, size,
             GL_DEPTH_COMPONENT, if (sized) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT,
             true, if (sized) GL_DEPTH_COMPONENT24 else GL_DEPTH_COMPONENT,
         ).apply {
@@ -293,10 +303,11 @@ open class DrawContext(val gl: Kgl) {
             "shadowCascadeFramebuffer: cascadeIndex $cascadeIndex out of range"
         }
         return shadowCascadeFramebufferCache[cascadeIndex] ?: Framebuffer().apply {
+            val size = SHADOW_CASCADE_MAP_SIZES[cascadeIndex]
             val colorAttachment = if (gl.supportsSizedTextureFormats) {
-                Texture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
+                Texture(size, size, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
             } else {
-                Texture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
+                Texture(size, size, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
             }
             colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
@@ -305,27 +316,30 @@ open class DrawContext(val gl: Kgl) {
             colorAttachment.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
             colorAttachment.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
             attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
-            attachTexture(this@DrawContext, createMomentsDepthAttachment(), GL_DEPTH_ATTACHMENT)
+            attachTexture(this@DrawContext, createMomentsDepthAttachment(size), GL_DEPTH_ATTACHMENT)
         }.also { shadowCascadeFramebufferCache[cascadeIndex] = it }
     }
 
     /**
-     * Single ping-pong target for the separable Gaussian blur applied to each cascade's
-     * moments texture before the receiver pass. Reused across cascades because blur passes
-     * are sequential. Same `RGBA32F` colour format and `SHADOW_MAP_SIZE` per side as the
-     * cascade FBOs so blurred moments can be resampled with the same filter parameters.
-     * Lazily allocated and cached.
+     * Per-size ping-pong target for the separable Gaussian blur applied to each cascade's
+     * moments texture before the receiver pass. Cached per `size` because [SHADOW_CASCADE_MAP_SIZES]
+     * mixes resolutions across cascades — sampling a 512² cascade through a 1024² blur FBO
+     * would either read uninitialised memory or need scale-aware UVs in the blur shader.
+     * Allocating one blur FBO per unique cascade size sidesteps both. Same `RGBA32F` colour
+     * format as the cascade FBOs.
      */
-    val shadowBlurFramebuffer get() = shadowBlurFramebufferCache ?: Framebuffer().apply {
-        val colorAttachment = if (gl.supportsSizedTextureFormats) {
-            Texture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
-        } else {
-            Texture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
+    fun shadowBlurFramebuffer(size: Int): Framebuffer = shadowBlurFramebufferCache.getOrPut(size) {
+        Framebuffer().apply {
+            val colorAttachment = if (gl.supportsSizedTextureFormats) {
+                Texture(size, size, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
+            } else {
+                Texture(size, size, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
+            }
+            colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
         }
-        colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
-    }.also { shadowBlurFramebufferCache = it }
+    }
 
     /**
      * Returns the multisample framebuffer used as the render target for surface shape
@@ -432,7 +446,7 @@ open class DrawContext(val gl: Kgl) {
         momentsCubeMapTextureCache?.release(this)
         momentsCubeMapFramebufferCache?.release(this)
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i]?.release(this)
-        shadowBlurFramebufferCache?.release(this)
+        for (fb in shadowBlurFramebufferCache.values) fb.release(this)
         multisampleFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -450,7 +464,7 @@ open class DrawContext(val gl: Kgl) {
         momentsCubeMapTextureCache = null
         momentsCubeMapFramebufferCache = null
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i] = null
-        shadowBlurFramebufferCache = null
+        shadowBlurFramebufferCache.clear()
         multisampleFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null

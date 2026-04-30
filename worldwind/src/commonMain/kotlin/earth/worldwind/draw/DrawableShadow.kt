@@ -256,8 +256,11 @@ open class DrawableShadow protected constructor() : Drawable {
         if (!blur.useProgram(dc)) return
 
         val cascadeFb = dc.shadowCascadeFramebuffer(cascadeIndex)
-        val tempFb = dc.shadowBlurFramebuffer
         val cascadeTex = cascadeFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
+        // Match the blur ping-pong's size to this cascade so unit-square UVs read the full
+        // texture in both passes — mixed-size sampling would either alias or read uninitialised
+        // memory beyond the rendered subregion.
+        val tempFb = dc.shadowBlurFramebuffer(cascadeTex.width)
         val tempTex = tempFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
         val texelStep = 1f / cascadeTex.width.toFloat()
         val tapSpacing = momentsBlurTexelSpacing[cascadeIndex] * texelStep
