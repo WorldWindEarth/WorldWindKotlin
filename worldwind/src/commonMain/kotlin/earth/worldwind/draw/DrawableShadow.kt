@@ -150,6 +150,12 @@ open class DrawableShadow protected constructor() : Drawable {
         // mountain-vs-valley `perpDepth` separation. Self-shadow acne is prevented by the
         // receiver's [msmDepthBias] in [ShadowReceiverGlsl], not by polygon offset.
         //
+        // Per-cascade tile cull: tiles whose bounding sphere falls entirely outside the
+        // active cascade's footprint are skipped. Globe-scale terrain has hundreds of tiles
+        // visible in the camera frustum but only a fraction reach into close cascades —
+        // big win on cascade 0/1 in particular. Tiles without bounds (radius `<= 0`) are
+        // dispatched into every cascade as before.
+        //
         // Disable face culling for the terrain depth pass. WorldWind's terrain mesh winds
         // opposite to what GL_CULL_FACE_BACK from the sun's POV expects, so back-face culling
         // rejects the sun-facing slopes — the actual occluders — and only the anti-sun slopes
@@ -160,6 +166,8 @@ open class DrawableShadow protected constructor() : Drawable {
         for (idx in 0 until dc.drawableTerrainCount) {
             val terrain = dc.getDrawableTerrain(idx)
             val terrainOrigin = terrain.vertexOrigin
+            val terrainRadius = terrain.boundingSphereRadius
+            if (terrainRadius > 0.0 && !cascade.intersectsSphere(terrainOrigin, terrainRadius)) continue
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
             scratchMatrix.copy(cascade.lightView)
             scratchMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)

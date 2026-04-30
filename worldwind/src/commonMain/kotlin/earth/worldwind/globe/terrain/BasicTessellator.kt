@@ -5,6 +5,7 @@ import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Range
 import earth.worldwind.geom.Sector
+import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
@@ -46,6 +47,7 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected var levelSetVertexTexCoordBuffer: BufferObject? = null
     protected var levelSetElementBuffer: BufferObject? = null
     protected var lastGlobeState: Globe.State? = null
+    private val scratchCorner = Vec3()
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
      */
@@ -137,6 +139,16 @@ open class BasicTessellator: Tessellator, TileFactory {
         // Assemble the drawable's geographic sector and Cartesian vertex origin.
         drawable.sector.copy(tile.sector)
         drawable.vertexOrigin.copy(tile.origin)
+
+        // Bounding-sphere radius around [tile.origin] that conservatively contains every tile
+        // vertex (including peak elevation), used by [DrawableShadow]'s per-cascade terrain
+        // cull. Distance from the centroid (origin, alt 0) to the NE corner at max elevation
+        // covers all four corners by symmetry on a globe and overshoots the centre fringes by
+        // a tile-curvature term that's a small fraction of the diagonal — fine for culling.
+        rc.globe.geographicToCartesian(
+            tile.sector.maxLatitude, tile.sector.maxLongitude, tile.heightLimits[1].toDouble(), scratchCorner
+        )
+        drawable.boundingSphereRadius = scratchCorner.distanceTo(tile.origin)
 
         // Assemble the drawable's element buffer ranges.
         drawable.lineElementRange.copy(levelSetLineElementRange)

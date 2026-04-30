@@ -16,6 +16,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     override var offset = Globe.Offset.Center
     override val sector = Sector()
     override val vertexOrigin = Vec3()
+    override var boundingSphereRadius: Double = 0.0
     val lineElementRange = Range()
     val triStripElementRange = Range()
     var vertexPoints: BufferObject? = null
@@ -40,6 +41,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
         vertexHeights = null
         vertexTexCoords = null
         elements = null
+        boundingSphereRadius = 0.0
         pool?.release(this)
         pool = null
     }
