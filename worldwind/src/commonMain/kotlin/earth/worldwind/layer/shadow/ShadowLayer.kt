@@ -1,5 +1,6 @@
 package earth.worldwind.layer.shadow
 
+import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.DrawableShadow
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
@@ -8,6 +9,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.SightlineMomentsBlurProgram
 import earth.worldwind.render.program.SightlineMomentsProgram
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -255,22 +257,38 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         // View → world.
         for (corner in cascadeWorldCorners) corner.multiplyByMatrix(viewToWorld)
 
-        // Find AABB of the corners after rotation into light-eye space (no translation yet).
-        var xMin = Double.POSITIVE_INFINITY
-        var xMax = Double.NEGATIVE_INFINITY
-        var yMin = Double.POSITIVE_INFINITY
-        var yMax = Double.NEGATIVE_INFINITY
+        // Stable cascade footprint: bounding sphere of the 8 corners in light-eye-rotated
+        // space (no translation yet). Tight AABB of the slice corners is rotation-dependent —
+        // a pure camera rotation stretches/squeezes the AABB extent and changes the per-texel
+        // metre quantum, producing a 1-pixel shimmer along shadow edges. The bounding sphere
+        // is rotation-invariant, so the cascade footprint stays the same size as the camera
+        // orbits; texel-snapping the sphere centre then pins each shadow-map cell to a fixed
+        // world position. Cost is ~1.4× lower texel density than the tight AABB.
+        var cx = 0.0
+        var cy = 0.0
         var zMin = Double.POSITIVE_INFINITY
         var zMax = Double.NEGATIVE_INFINITY
         for (corner in cascadeWorldCorners) {
             scratchVec.copy(corner).multiplyByMatrix(lightRotation)
-            if (scratchVec.x < xMin) xMin = scratchVec.x
-            if (scratchVec.x > xMax) xMax = scratchVec.x
-            if (scratchVec.y < yMin) yMin = scratchVec.y
-            if (scratchVec.y > yMax) yMax = scratchVec.y
+            cx += scratchVec.x
+            cy += scratchVec.y
             if (scratchVec.z < zMin) zMin = scratchVec.z
             if (scratchVec.z > zMax) zMax = scratchVec.z
         }
+        cx /= cascadeWorldCorners.size.toDouble()
+        cy /= cascadeWorldCorners.size.toDouble()
+
+        // Max squared distance from centroid (in xy plane) gives the sphere radius. Z extent
+        // is handled separately — depth shimmer doesn't affect shadow edges, only x/y does.
+        var maxR2 = 0.0
+        for (corner in cascadeWorldCorners) {
+            scratchVec.copy(corner).multiplyByMatrix(lightRotation)
+            val dx = scratchVec.x - cx
+            val dy = scratchVec.y - cy
+            val r2 = dx * dx + dy * dy
+            if (r2 > maxR2) maxR2 = r2
+        }
+        val sphereRadius = sqrt(maxR2)
 
         // Pull the near plane (closest-to-light = highest eye_z) further toward the sun so
         // tall casters between the sun and the slice are captured. The far plane stays at
@@ -278,7 +296,20 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         val zNearLight = zMax + effectiveCasterPullback
         val zFarLight = zMin
         val depthRange = zNearLight - zFarLight
-        if (depthRange <= 0.0 || xMax <= xMin || yMax <= yMin) return false
+        if (depthRange <= 0.0 || sphereRadius <= 0.0) return false
+
+        // Texel-grid snap on the sphere centre. Each shadow texel covers `2*sphereRadius /
+        // SHADOW_MAP_SIZE` light-eye metres; snapping the centre to integer multiples pins
+        // the discrete cells to fixed world positions across frames.
+        val mapSize = DrawContext.SHADOW_MAP_SIZE.toDouble()
+        val texelSize = 2.0 * sphereRadius / mapSize
+        cx = floor(cx / texelSize) * texelSize
+        cy = floor(cy / texelSize) * texelSize
+
+        val xMin = cx - sphereRadius
+        val xMax = cx + sphereRadius
+        val yMin = cy - sphereRadius
+        val yMax = cy + sphereRadius
 
         // Translate light-eye space so eye_z = 0 lies at the near plane. Equivalent to
         //   lightView = translate(0, 0, -zNearLight) * lightRotation
