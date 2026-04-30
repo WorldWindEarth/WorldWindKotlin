@@ -177,6 +177,8 @@ open class Path @JvmOverloads constructor(
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(currentData.vertexOrigin)
+        drawState.boundingCenter.copy(currentBoundindData.boundingBox.center)
+        drawState.boundingRadius = currentBoundindData.boundingBox.radius
         drawState.enableCullFace = false
         drawState.enableDepthTest = activeAttributes.isDepthTest
         drawState.enableDepthWrite = activeAttributes.isDepthWrite &&

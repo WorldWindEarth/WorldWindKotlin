@@ -17,6 +17,15 @@ open class DrawShapeState internal constructor() {
     var elementBuffer: BufferObject? = null
     val vertexOrigin = Vec3()
     var vertexStride = 0
+
+    /**
+     * World-space bounding sphere of this shape, used by the shadow cascade dispatcher to skip
+     * cascades whose AABB doesn't intersect the shape. [boundingRadius] left at `0.0` opts out
+     * of culling (the shape is rasterised into every cascade). Populated by shapes whose
+     * `currentBoundindData.boundingBox` is meaningful.
+     */
+    val boundingCenter = Vec3()
+    var boundingRadius: Double = 0.0
     var enableCullFace = true
     var enableDepthTest = true
     var enableDepthWrite = true
@@ -40,6 +49,8 @@ open class DrawShapeState internal constructor() {
         vertexBuffer = other.vertexBuffer
         elementBuffer = other.elementBuffer
         vertexOrigin.copy(other.vertexOrigin)
+        boundingCenter.copy(other.boundingCenter)
+        boundingRadius = other.boundingRadius
         vertexStride = other.vertexStride
         enableCullFace = other.enableCullFace
         enableDepthTest = other.enableDepthTest
@@ -70,6 +81,8 @@ open class DrawShapeState internal constructor() {
         vertexBuffer = null
         elementBuffer = null
         vertexOrigin.set(0.0, 0.0, 0.0)
+        boundingCenter.set(0.0, 0.0, 0.0)
+        boundingRadius = 0.0
         vertexStride = 0
         enableCullFace = true
         enableDepthTest = true

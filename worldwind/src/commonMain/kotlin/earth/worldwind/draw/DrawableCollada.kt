@@ -42,6 +42,12 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
     var layerOpacity = 1f
     val entities = mutableListOf<EntityDrawState>()
 
+    /** World-space bounding sphere for [ShadowCaster] cascade culling. */
+    val boundingCenter = Vec3()
+    var boundingRadius: Double = 0.0
+    override val shadowCasterCenter get() = if (boundingRadius > 0.0) boundingCenter else null
+    override val shadowCasterRadius get() = boundingRadius
+
     private val mvpMatrix = Matrix4()
     private val normalMatrix = Matrix4()
     private val modelMatrix = Matrix4()
@@ -56,6 +62,8 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         vertexBuffer = null
         indexBuffer = null
         entities.clear()
+        boundingCenter.set(0.0, 0.0, 0.0)
+        boundingRadius = 0.0
     }
 
     override fun draw(dc: DrawContext) {

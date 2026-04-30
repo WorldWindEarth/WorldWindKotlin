@@ -17,6 +17,9 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder, S
     private val mvpMatrix = Matrix4()
     private val modelMatrix = Matrix4()
 
+    override val shadowCasterCenter get() = if (drawState.boundingRadius > 0.0) drawState.boundingCenter else null
+    override val shadowCasterRadius get() = drawState.boundingRadius
+
     companion object {
         val KEY = DrawableShape::class
 

@@ -232,6 +232,8 @@ class ColladaScene(
         drawable.layerOpacity = rc.currentLayer.opacity
         drawable.transformationMatrix.copy(transformationMatrix)
         drawable.normalTransformMatrix.copy(normalTransformMatrix)
+        drawable.boundingCenter.copy(boundingSphere.center)
+        drawable.boundingRadius = boundingSphere.radius
 
         var pickedObjectId = 0
         if (rc.isPickMode) {

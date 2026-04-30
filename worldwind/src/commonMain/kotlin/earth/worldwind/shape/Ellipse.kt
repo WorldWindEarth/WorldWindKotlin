@@ -489,6 +489,8 @@ open class Ellipse @JvmOverloads constructor(
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(currentData.vertexOrigin)
+        drawState.boundingCenter.copy(currentBoundindData.boundingBox.center)
+        drawState.boundingRadius = currentBoundindData.boundingBox.radius
         drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest

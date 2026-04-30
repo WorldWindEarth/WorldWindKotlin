@@ -1,6 +1,7 @@
 package earth.worldwind.layer.shadow
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
 
 /**
  * Per-frame state for the directional sun-shadow pipeline. Owned by [ShadowLayer], populated
@@ -94,6 +95,16 @@ class ShadowState(
         /** View-space `-z` upper bound of the camera-frustum slice this cascade covers. */
         var farViewDepth: Double = 0.0
 
+        /**
+         * Light-eye-space xy AABB of the cascade's stable bounding sphere — populated by
+         * [ShadowLayer.computeCascade] after the texel-grid snap. Used by [intersectsSphere]
+         * to fast-reject casters that fall entirely outside this cascade.
+         */
+        var boxXMin: Double = 0.0
+        var boxXMax: Double = 0.0
+        var boxYMin: Double = 0.0
+        var boxYMax: Double = 0.0
+
         /** `true` when this cascade has been populated for the current frame. */
         var isValid: Boolean = false
 
@@ -104,7 +115,30 @@ class ShadowState(
             range = source.range
             nearViewDepth = source.nearViewDepth
             farViewDepth = source.farViewDepth
+            boxXMin = source.boxXMin
+            boxXMax = source.boxXMax
+            boxYMin = source.boxYMin
+            boxYMax = source.boxYMax
             isValid = source.isValid
+        }
+
+        /**
+         * Sphere-vs-AABB intersection test in light-eye space. The world-space sphere
+         * `(worldCenter, worldRadius)` is transformed through [lightView] and tested against
+         * the cascade's xy AABB plus its `[-range, +infty]` z range — casters above the slice
+         * (positive `ez`) still cast shadows down, so there's no upper z bound.
+         */
+        fun intersectsSphere(worldCenter: Vec3, worldRadius: Double): Boolean {
+            // Inline lightView * worldCenter to avoid a Vec3 allocation on the hot path.
+            // lightView is rotation + z-translation, so x/y of the result lives in the same
+            // light-eye-rotated frame as boxX/Y; z is post-translation.
+            val m = lightView.m
+            val ex = m[0] * worldCenter.x + m[1] * worldCenter.y + m[2] * worldCenter.z + m[3]
+            val ey = m[4] * worldCenter.x + m[5] * worldCenter.y + m[6] * worldCenter.z + m[7]
+            val ez = m[8] * worldCenter.x + m[9] * worldCenter.y + m[10] * worldCenter.z + m[11]
+            if (ex + worldRadius < boxXMin || ex - worldRadius > boxXMax) return false
+            if (ey + worldRadius < boxYMin || ey - worldRadius > boxYMax) return false
+            return ez + worldRadius >= -range
         }
     }
 
@@ -121,6 +155,7 @@ class ShadowState(
         ambientShadow = source.ambientShadow
         maxCascadeDistance = source.maxCascadeDistance
         useMSM = source.useMSM
+        frameStamp = source.frameStamp
         for (i in cascades.indices) cascades[i].copyFrom(source.cascades[i])
     }
 

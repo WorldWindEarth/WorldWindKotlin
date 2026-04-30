@@ -2,6 +2,7 @@ package earth.worldwind.layer.shadow
 
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.DrawableShadow
+import earth.worldwind.geom.Vec3
 
 /**
  * Implemented by [earth.worldwind.draw.Drawable]s that can be rendered into the cascaded
@@ -26,4 +27,15 @@ interface ShadowCaster {
      * (or issue raw draws for non-DrawShapeState geometry).
      */
     fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow)
+
+    /**
+     * World-space bounding sphere center used to skip cascades whose AABB doesn't intersect
+     * this caster. Default `null` opts out of culling — the caster is dispatched into every
+     * cascade. Implementations populate this from their shape's `boundingBox.center` to gain
+     * per-cascade culling.
+     */
+    val shadowCasterCenter: Vec3? get() = null
+
+    /** World-space bounding sphere radius. Only consulted when [shadowCasterCenter] is non-null. */
+    val shadowCasterRadius: Double get() = 0.0
 }

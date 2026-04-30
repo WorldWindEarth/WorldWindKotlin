@@ -171,12 +171,22 @@ open class DrawableShadow protected constructor() : Drawable {
      * in by implementing [ShadowCaster] (currently [DrawableShape], [DrawableMesh],
      * [DrawableCollada]) participate. Surface decals, screen sprites, sightline volumes,
      * lambdas, and the depth pass itself are skipped.
+     *
+     * Casters whose [ShadowCaster.shadowCasterCenter] is non-null are sphere-tested against
+     * the active cascade's light-eye AABB (see
+     * [ShadowState.CascadeState.intersectsSphere]) so a near-camera shape doesn't waste time
+     * rasterising into the far cascade. Casters that don't expose bounds (radius `<= 0`) are
+     * dispatched into every cascade — the safe default.
      */
     protected open fun drawShapeCasters(dc: DrawContext) {
         val queue = dc.drawableQueue ?: return
+        val cascade = activeCascade ?: return
         for (i in 0 until queue.count) {
             val drawable = queue.getDrawable(i)
-            if (drawable is ShadowCaster) drawable.drawShadowDepth(dc, this)
+            if (drawable !is ShadowCaster) continue
+            val center = drawable.shadowCasterCenter
+            if (center != null && !cascade.intersectsSphere(center, drawable.shadowCasterRadius)) continue
+            drawable.drawShadowDepth(dc, this)
         }
     }
 

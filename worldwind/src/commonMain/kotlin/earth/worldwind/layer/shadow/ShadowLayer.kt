@@ -344,6 +344,13 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         cascade.range = depthRange
         cascade.nearViewDepth = sliceNear
         cascade.farViewDepth = sliceFar
+        // Cache the snapped xy AABB for per-cascade caster culling. Same coordinate frame as
+        // [CascadeState.lightView]'s rotation: x/y are light-eye-rotated, z is the slice's
+        // post-translation depth window — handled separately inside [intersectsSphere].
+        cascade.boxXMin = xMin
+        cascade.boxXMax = xMax
+        cascade.boxYMin = yMin
+        cascade.boxYMax = yMax
         cascade.isValid = true
         return true
     }

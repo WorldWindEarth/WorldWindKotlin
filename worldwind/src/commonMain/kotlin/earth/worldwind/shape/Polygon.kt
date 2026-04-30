@@ -321,6 +321,8 @@ open class Polygon @JvmOverloads constructor(
         // Configure the drawable according to the shape's attributes. Disable triangle backface culling when we're
         // displaying a polygon without extruded sides, so we want to draw the top and the bottom.
         drawState.vertexOrigin.copy(currentData.vertexOrigin)
+        drawState.boundingCenter.copy(currentBoundindData.boundingBox.center)
+        drawState.boundingRadius = currentBoundindData.boundingBox.radius
         drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest
