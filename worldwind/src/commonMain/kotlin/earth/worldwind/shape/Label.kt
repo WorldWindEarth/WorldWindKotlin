@@ -76,6 +76,7 @@ open class Label @JvmOverloads constructor(
      * simply it's position property.
      */
     override val referencePosition get() = position
+    override val isPointShape get() = true
     /**
      * Indicates whether this placemark has visual priority over other shapes in the scene.
      */

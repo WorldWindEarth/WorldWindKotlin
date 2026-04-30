@@ -4,6 +4,7 @@ import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.SphericalRotation
 import earth.worldwind.geom.Vec2
 import earth.worldwind.gesture.GestureState.*
 import earth.worldwind.render.Renderable
@@ -23,10 +24,6 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
      * If disabled, highlighting of Renderables and all callbacks will be switched off.
      */
     var isEnabled = true
-    /**
-     * Enable/disable dragging of flying objects using their terrain projection position
-     */
-    var isDragTerrainPosition = false
     protected var pickedPosition: Position? = null
     protected var pickedRenderable: Renderable? = null
     protected val oldHighlighted = mutableSetOf<Highlightable>()
@@ -35,6 +32,11 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected var isDraggingArmed = false
     private val dragRefPt = Vec2()
     private val lastTranslation = Vec2()
+    // Press-time rigid rotation taking the cursor's terrain pick to the renderable's reference.
+    // Captured only for extended shapes (Polygon, Path, Mesh) that need the grabbed point pinned
+    // to the cursor; null for point shapes (Placemark, Label, sightlines) which snap their anchor
+    // directly to the cursor each event.
+    private var grabRotation: SphericalRotation? = null
 
     protected val handlePick = EventListener { event ->
         // Do not pick new items if dragging is in progress or detector is disabled
@@ -122,6 +124,15 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
 
         // Determine whether the dragging flag should be "armed".
         isDraggingArmed = topPickedObject is Renderable && callback?.canMoveRenderable(topPickedObject) == true
+
+        // Capture grab-anchor rotation for extended shapes only. Mousedown is filtered out by the
+        // `buttons != 0` guard above, so this captures the last hover before press (mouse) or the
+        // touchstart event itself (touch).
+        val movable = topPickedObject as? Movable
+        val terrainPos = pickList.terrainPickedObject?.terrainPosition
+        grabRotation = if (movable != null && !movable.isPointShape && terrainPos != null) {
+            SphericalRotation(terrainPos, movable.referencePosition)
+        } else null
     }
 
     protected val handlePrimaryClick: (GestureRecognizer) -> Unit = {
@@ -157,33 +168,33 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                     // Signal that dragging is in progress
                     isDragging = true
 
-                    // Compute the screen coordinates of the reference position's "ground" point and
-                    // shift it by the cursor's screen delta. This translates the reference in
-                    // parallel to the cursor — the grabbed point on the shape stays under the
-                    // cursor — instead of snapping the reference to the cursor, which would jump
-                    // the shape whenever the user grabbed any point other than the reference.
                     val toPosition = Position()
-                    val clapToGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
-                    val refMappedToScreen = wwd.engine.geographicToScreenPoint(
-                        fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt
-                    )
-                    val deltaX = (recognizer.translationX - lastTranslation.x) * wwd.engine.densityFactor
-                    val deltaY = (recognizer.translationY - lastTranslation.y) * wwd.engine.densityFactor
-                    val newRefX = dragRefPt.x + deltaX
-                    val newRefY = dragRefPt.y + deltaY
-                    if (refMappedToScreen && (
-                        clapToGround && wwd.engine.pickTerrainPosition(newRefX, newRefY, toPosition)
-                        || !clapToGround && wwd.engine.screenPointToGroundPosition(newRefX, newRefY, toPosition)
-                    )) {
-                        // Backup last translation
-                        lastTranslation.set(recognizer.translationX, recognizer.translationY)
-                        // Restore original altitude
+                    val toGround = renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
+                    val moved = if (toGround) {
+                        // Snap-to-cursor for point shapes (grabRotation == null), grab-anchor for
+                        // extended shapes (grabRotation rotates the fresh terrain pick into the
+                        // reference's frame, preserving the press-time offset).
+                        val cursor = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
+                        wwd.engine.pickTerrainPosition(cursor.x, cursor.y, toPosition).also {
+                            if (it) grabRotation?.apply(toPosition)
+                        }
+                    } else {
+                        // Screen-delta: project the reference at sea level, shift by the cursor's
+                        // incremental delta, resolve back at sea level. Both ends must use altitude
+                        // 0 to keep projection symmetric and avoid per-event drift.
+                        val refMappedToScreen = wwd.engine.geographicToScreenPoint(
+                            fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt
+                        )
+                        val deltaX = (recognizer.translationX - lastTranslation.x) * wwd.engine.densityFactor
+                        val deltaY = (recognizer.translationY - lastTranslation.y) * wwd.engine.densityFactor
+                        refMappedToScreen && wwd.engine.screenPointToGroundPosition(
+                            dragRefPt.x + deltaX, dragRefPt.y + deltaY, toPosition
+                        ).also { if (it) lastTranslation.set(recognizer.translationX, recognizer.translationY) }
+                    }
+                    if (moved) {
                         toPosition.altitude = fromPosition.altitude
-                        // Notify callback
                         callback.onRenderableMoved(renderable, fromPosition, toPosition)
-                        // Update movable position
                         if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
-                        // Reflect the change in position on the globe.
                         wwd.requestRedraw()
                     } else {
                         // Probably clipped by near/far clipping plane or off the globe.

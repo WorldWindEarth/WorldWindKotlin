@@ -131,6 +131,7 @@ open class DirectionalSightline @JvmOverloads constructor(
      * OmnidirectionalSightline, this is simply it's position property.
      */
     override val referencePosition get() = position
+    override val isPointShape get() = true
 
     /**
      * The attributes to use for visible features during the current render pass.

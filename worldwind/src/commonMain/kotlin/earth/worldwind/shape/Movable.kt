@@ -28,4 +28,16 @@ interface Movable {
      * @param position the new position of the shape's reference position.
      */
     fun moveTo(globe: Globe, position: Position)
+
+    /**
+     * `true` when this shape's [referencePosition] coincides with where the user actually sees the shape
+     * (Placemark, Label, sightlines — the reference *is* the rendered location). `false` for shapes whose
+     * reference is computed from extended geometry and may sit far from where the user grabbed
+     * (Polygon centroid, Path centroid, Mesh).
+     *
+     * Drag handlers use this to decide between snap-to-cursor (point shapes — the anchor must end up
+     * exactly under the cursor) and grab-anchor (extended shapes — the *grabbed* point of the geometry
+     * must stay under the cursor, so the reference moves rigidly along with it).
+     */
+    val isPointShape: Boolean get() = false
 }

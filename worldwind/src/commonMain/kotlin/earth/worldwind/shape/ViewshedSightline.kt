@@ -142,6 +142,7 @@ open class ViewshedSightline @JvmOverloads constructor(
     override var highlightAttributes: ShapeAttributes? = null
         set(value) { field = value; invalidate() }
     override val referencePosition: Position get() = position
+    override val isPointShape get() = true
 
     /**
      * Resolution multiplier applied to [samplesPerSide] while the observer is being dragged.

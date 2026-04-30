@@ -3,6 +3,7 @@ package earth.worldwind.gesture
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.SphericalRotation
 import earth.worldwind.geom.Vec2
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
@@ -12,19 +13,20 @@ import java.awt.event.MouseEvent
 open class SelectDragDetector(protected val wwd: WorldWindow) {
     var callback: SelectDragCallback? = null
     var isEnabled = true
-    var isDragTerrainPosition = false
 
     protected var pickedRenderable: Renderable? = null
     protected var pickedPosition: Position? = null
     protected var isDraggingArmed = false
     protected var isDragging = false
-    // Cursor screen position from the previous drag event, so we can apply incremental deltas
-    // and shift the reference point in parallel to the cursor — instead of snapping it under
-    // the cursor, which would jump the shape if the user grabbed any point other than the
-    // reference itself.
+    // Cursor screen position from the previous drag event (screen-delta path only).
     private var lastDragX = 0.0
     private var lastDragY = 0.0
     private val dragRefPt = Vec2()
+    // Press-time rigid rotation taking the cursor's terrain pick to the renderable's reference.
+    // Captured only for extended shapes (Polygon, Path, Mesh) that need the grabbed point pinned
+    // to the cursor; null for point shapes (Placemark, Label, sightlines) which snap their anchor
+    // directly to the cursor each event.
+    private var grabRotation: SphericalRotation? = null
 
     open fun onMouseEvent(event: MouseEvent): Boolean {
         if (!isEnabled || callback == null) return false
@@ -50,23 +52,28 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                 val fromPosition = if (renderable is Movable) renderable.referencePosition else pickedPosition ?: return false
                 val toPosition = Position()
 
-                val toGround = isDragTerrainPosition || renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
+                val toGround = renderable !is Movable || renderable.altitudeMode == AltitudeMode.CLAMP_TO_GROUND
                 val p = wwd.viewportCoordinates(event.x, event.y)
-                // Cursor delta since the previous drag event. We translate the reference's
-                // screen position by this same delta so the picked shape moves rigidly with
-                // the cursor (no jump to cursor position).
-                val deltaX = p.x - lastDragX
-                val deltaY = p.y - lastDragY
+                val moved = if (toGround) {
+                    // Snap-to-cursor for point shapes (grabRotation == null), grab-anchor for
+                    // extended shapes (grabRotation rotates the fresh terrain pick into the
+                    // reference's frame, preserving the press-time offset).
+                    wwd.engine.pickTerrainPosition(p.x, p.y, toPosition).also {
+                        if (it) grabRotation?.apply(toPosition)
+                    }
+                } else {
+                    // Screen-delta: project the reference at sea level, shift by the cursor's
+                    // incremental delta, resolve back at sea level. Both ends must use altitude 0
+                    // to keep projection symmetric and avoid per-event drift.
+                    val refMappedToScreen = wwd.engine.geographicToScreenPoint(
+                        fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt
+                    )
+                    refMappedToScreen && wwd.engine.screenPointToGroundPosition(
+                        dragRefPt.x + (p.x - lastDragX), dragRefPt.y + (p.y - lastDragY), toPosition
+                    )
+                }
                 lastDragX = p.x
                 lastDragY = p.y
-                val refMappedToScreen = wwd.engine.geographicToScreenPoint(
-                    fromPosition.latitude, fromPosition.longitude, 0.0, dragRefPt
-                )
-                val moved = refMappedToScreen && if (toGround) {
-                    wwd.engine.pickTerrainPosition(dragRefPt.x + deltaX, dragRefPt.y + deltaY, toPosition)
-                } else {
-                    wwd.engine.screenPointToGroundPosition(dragRefPt.x + deltaX, dragRefPt.y + deltaY, toPosition)
-                }
 
                 if (moved) {
                     toPosition.altitude = fromPosition.altitude
@@ -122,10 +129,14 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         val p = wwd.viewportCoordinates(event.x, event.y)
         val pickList = runBlocking { wwd.pickAsync(p.x, p.y, 4.0, 4.0).await() }
         val topObject = pickList.topPickedObject?.userObject
-        pickedRenderable = topObject as? Renderable
-        pickedPosition = pickList.terrainPickedObject?.terrainPosition
-            ?: (topObject as? Movable)?.referencePosition
-        val r = pickedRenderable
-        isDraggingArmed = r != null && callback?.canMoveRenderable(r) == true
+        val movable = topObject as? Movable
+        val terrainPos = pickList.terrainPickedObject?.terrainPosition
+        val renderable = topObject as? Renderable
+        pickedRenderable = renderable
+        pickedPosition = terrainPos ?: movable?.referencePosition
+        isDraggingArmed = renderable != null && callback?.canMoveRenderable(renderable) == true
+        grabRotation = if (movable != null && !movable.isPointShape && terrainPos != null) {
+            SphericalRotation(terrainPos, movable.referencePosition)
+        } else null
     }
 }

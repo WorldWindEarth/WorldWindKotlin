@@ -138,6 +138,7 @@ open class Placemark @JvmOverloads constructor(
      * @return [Placemark.position]
      */
     override val referencePosition get() = position
+    override val isPointShape get() = true
     /**
      * The attributes identified for use during the current render pass.
      */
