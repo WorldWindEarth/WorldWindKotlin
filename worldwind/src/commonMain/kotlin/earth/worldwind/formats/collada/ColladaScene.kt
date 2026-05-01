@@ -3,6 +3,7 @@ package earth.worldwind.formats.collada
 import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawableCollada
 import earth.worldwind.geom.*
+import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
@@ -46,6 +47,13 @@ class ColladaScene(
     var scale = 1.0
         set(value) { field = value; invalidate() }
     var doubleSided = false
+    /**
+     * Cast/receive selector for cascaded sun shadows. Default [ShadowMode.ENABLED] = scene
+     * both casts onto terrain/other receivers and receives shadows on its own surface.
+     * Common opt-out: [ShadowMode.RECEIVE_ONLY] to drop the cascade depth pass for
+     * HUD-style or self-lit models that look wrong projected onto the ground.
+     */
+    var shadowMode: ShadowMode = ShadowMode.ENABLED
     var computedNormals = false
         set(value) { field = value; normalsRewritten = false; invalidate() }
     var localTransforms = true
@@ -229,6 +237,7 @@ class ColladaScene(
         drawable.vertexBuffer = vbo
         drawable.indexBuffer = iboRef
         drawable.doubleSided = doubleSided
+        drawable.shadowMode = shadowMode
         drawable.layerOpacity = rc.currentLayer.opacity
         drawable.transformationMatrix.copy(transformationMatrix)
         drawable.normalTransformMatrix.copy(normalTransformMatrix)

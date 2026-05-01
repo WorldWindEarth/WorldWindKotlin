@@ -184,6 +184,7 @@ open class Path @JvmOverloads constructor(
         drawState.enableDepthWrite = activeAttributes.isDepthWrite &&
             drawState.color.alpha * drawState.opacity >= 1f
         drawState.enableLighting = activeAttributes.isLightingEnabled
+        drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
 
         // Enqueue the drawable for processing on the OpenGL thread.
@@ -282,6 +283,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite &&
                 drawStateExtrusion.color.alpha * drawStateExtrusion.opacity >= 1f
             drawStateExtrusion.enableLighting = activeAttributes.isLightingEnabled
+            drawStateExtrusion.shadowMode = activeAttributes.shadowMode
             drawStateExtrusion.isOccluderOnly = isOccluderOnly
             drawStateExtrusion.texture = null
             drawStateExtrusion.texCoordAttrib.size = 2

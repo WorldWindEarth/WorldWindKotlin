@@ -64,8 +64,9 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder, S
         modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
         program.loadModelMatrix(modelMatrix)
 
-        // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass.
-        dc.applyShadowReceiverUniforms(program)
+        // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass,
+        // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.
+        dc.applyShadowReceiverUniforms(program, drawState.shadowMode.receivesShadows)
 
         // Disable triangle back face culling if requested.
         if (!drawState.enableCullFace) dc.gl.disable(GL_CULL_FACE)
@@ -139,8 +140,10 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder, S
     }
 
     override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {
+        // Per-shape opt-out: `shadowMode = DISABLED` or `RECEIVE_ONLY` skips the depth pass.
         // Same rationale as [drawSightlineDepth]: lines are screen-space-expanded triangles
         // and would alias as silhouettes in the shadow map.
-        if (!drawState.isLine) shadow.drawShapeStateOccluder(dc, drawState, drawState.vertexStride)
+        if (!drawState.shadowMode.castsShadows || drawState.isLine) return
+        shadow.drawShapeStateOccluder(dc, drawState, drawState.vertexStride)
     }
 }

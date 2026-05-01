@@ -3,6 +3,7 @@ package earth.worldwind.formats.gltf
 import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawableCollada
 import earth.worldwind.geom.*
+import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.render.AbstractRenderable
@@ -41,6 +42,12 @@ class GltfScene internal constructor(
         set(value) { field = value; invalidate() }
     var scale = 1.0
         set(value) { field = value; invalidate() }
+    /**
+     * Cast/receive selector for cascaded sun shadows. Default [ShadowMode.ENABLED] = scene
+     * both casts and receives. Common opt-out: [ShadowMode.RECEIVE_ONLY] for HUD-style or
+     * self-lit glTFs that look wrong projected onto the ground.
+     */
+    var shadowMode: ShadowMode = ShadowMode.ENABLED
 
     private val placePoint = Vec3()
     private val transformationMatrix = Matrix4()
@@ -142,6 +149,7 @@ class GltfScene internal constructor(
         drawable.vertexBuffer = vbo
         drawable.indexBuffer = iboRef
         drawable.doubleSided = false
+        drawable.shadowMode = shadowMode
         drawable.layerOpacity = rc.currentLayer.opacity
         drawable.transformationMatrix.copy(transformationMatrix)
         drawable.normalTransformMatrix.copy(normalTransformMatrix)

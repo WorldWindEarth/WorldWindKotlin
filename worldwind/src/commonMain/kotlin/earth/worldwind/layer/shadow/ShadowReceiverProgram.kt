@@ -49,20 +49,23 @@ interface ShadowReceiverProgram {
 /**
  * Binds the per-frame cascade moments textures to texture units 1..3 and pushes the cascade
  * matrices into [program] - or, when no shadow state is available (no [ShadowLayer] this
- * frame, or pick mode, or the platform doesn't support `RGBA32F` for moments), calls
- * [ShadowReceiverProgram.loadShadowDisabled] so the receiver shader's `applyShadow` branch
- * elides the lookup. Active texture unit is restored to `GL_TEXTURE0` on the way out so
- * subsequent texture binds in the caller's draw method land on the surface texture as
- * expected.
+ * frame, or pick mode, or the platform doesn't support `RGBA32F` for moments, or the caller
+ * passes `applyShadow = false`), calls [ShadowReceiverProgram.loadShadowDisabled] so the
+ * receiver shader's `applyShadow` branch elides the lookup. Active texture unit is restored
+ * to `GL_TEXTURE0` on the way out so subsequent texture binds in the caller's draw method
+ * land on the surface texture as expected.
+ *
+ * The [applyShadow] parameter lets per-shape drawables opt out (e.g. a shape with
+ * `isLightingEnabled = false` is sun-independent and shouldn't receive shadow attenuation).
  *
  * Centralising this here means the per-receiver drawables ([DrawableMesh], [DrawableShape],
  * [DrawableCollada], [DrawableSurfaceTexture], [DrawableSurfaceShape]) drop ~30 lines of
  * copy-pasted state-binding into a single call.
  */
-fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram) {
+fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram, applyShadow: Boolean = true) {
     val state = shadowState
     val algorithm = state?.algorithm
-    if (isPickMode || state == null || algorithm == null) {
+    if (!applyShadow || isPickMode || state == null || algorithm == null) {
         program.loadShadowDisabled()
         // Pick passes (and shadow-disabled frames) wipe `applyShadowId` to 0 and may displace
         // cascade-texture bindings on units 1..3. Reset both caches so the next enabled call

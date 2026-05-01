@@ -4,6 +4,7 @@ import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowCaster
+import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
@@ -38,6 +39,12 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
     val normalTransformMatrix = Matrix4()
     val texCoordMatrix = Matrix3(1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0, 1.0) // unit Y-flip: v' = 1 - v
     var doubleSided = false
+    /**
+     * Cast/receive selector for cascaded sun shadows. Set per scene by
+     * [earth.worldwind.formats.collada.ColladaScene] and [earth.worldwind.formats.gltf.GltfScene].
+     * Default [ShadowMode.ENABLED] = both casts and receives.
+     */
+    var shadowMode: ShadowMode = ShadowMode.ENABLED
     val pickColor = Color()
     var layerOpacity = 1f
     val entities = mutableListOf<EntityDrawState>()
@@ -64,6 +71,7 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         entities.clear()
         boundingCenter.set(0.0, 0.0, 0.0)
         boundingRadius = 0.0
+        shadowMode = ShadowMode.ENABLED
     }
 
     override fun draw(dc: DrawContext) {
@@ -82,8 +90,8 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         prog.loadLightDirection(eyeLightDirection)
 
         // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass
-        // shadow application so pick IDs aren't darkened.
-        dc.applyShadowReceiverUniforms(prog)
+        // shadow application so pick IDs aren't darkened. RECEIVE_ONLY/DISABLED skips here.
+        dc.applyShadowReceiverUniforms(prog, shadowMode.receivesShadows)
 
         if (doubleSided) dc.gl.disable(GL_CULL_FACE)
 
@@ -198,6 +206,9 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
     override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {
         // Same per-entity model matrix dispatch as the sightline path, but routed through
         // the active shadow cascade's lightView via [DrawableShadow.loadCasterMatrix].
+        // RECEIVE_ONLY/DISABLED skips the depth pass — model still receives but doesn't
+        // project onto the ground (typical for HUD-style or self-lit glTFs).
+        if (!shadowMode.castsShadows) return
         if (vertexBuffer?.bindBuffer(dc) != true) return
         indexBuffer?.bindBuffer(dc)
 

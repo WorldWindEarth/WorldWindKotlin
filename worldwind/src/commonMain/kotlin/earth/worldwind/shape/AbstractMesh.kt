@@ -174,6 +174,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         drawState.enableDepthWrite = activeAttributes.isDepthWrite &&
             drawState.color.alpha * drawState.opacity >= 1f
         drawState.enableLighting = activeAttributes.isLightingEnabled
+        drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
 
         // Enqueue the drawable for processing on the OpenGL thread.

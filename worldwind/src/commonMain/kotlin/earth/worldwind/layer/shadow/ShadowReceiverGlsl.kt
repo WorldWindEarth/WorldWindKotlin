@@ -95,7 +95,7 @@ object ShadowReceiverGlsl {
 
         /* 9-tap PCF (3x3 grid) with per-pixel grid rotation. The rotation hides the kernel
            pattern - without it neighbouring fragments sample identical offsets and the grid
-           shows as a regular dither. Same approach Cesium and MapBox use as their default. */
+           shows as a regular dither. Common industry-default penumbra reconstruction. */
         float pcfShadow(sampler2D shadowMap, vec2 shadowUV, float receiverDepth, vec2 texelSize) {
             float angle = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318530718;
             float cosA = cos(angle);

@@ -1,5 +1,6 @@
 package earth.worldwind.shape
 
+import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.render.Color
 import earth.worldwind.render.image.ImageSource
 
@@ -31,8 +32,11 @@ open class ShapeAttributes(
      */
     var isDepthWrite: Boolean,
     /**
-     * Sets whether shape lighting is enabled. When true, the appearance of a shape's color and image source may be
-     * modified by shading applied from a global light source.
+     * Sets whether shape lighting is enabled. When true, the appearance of a shape's color and
+     * image source may be modified by shading applied from a global light source. Lambertian
+     * shading currently only applies to mesh shapes (TriangleMesh / GeographicMesh); other
+     * shape types ignore this flag. Shadow casting/receiving is controlled independently by
+     * [shadowMode], matching GIS industrial conventions.
      */
     var isLightingEnabled: Boolean,
     /**
@@ -68,6 +72,13 @@ open class ShapeAttributes(
      * Allows to pick outline elements of shape
      */
     var isPickOutline: Boolean,
+    /**
+     * Whether the shape participates in cascaded sun shadows when [earth.worldwind.layer.shadow.ShadowLayer]
+     * is in the layer list. See [ShadowMode] for the cast/receive matrix. Default [ShadowMode.ENABLED]
+     * means the shape both casts and receives. Decoupled from [isLightingEnabled] so an unlit shape can
+     * still drop a shadow, and a lit shape can opt out of casting onto terrain.
+     */
+    var shadowMode: ShadowMode = ShadowMode.ENABLED,
 ) {
     /**
      * Indicates the color and opacity of shape interiors.
@@ -114,6 +125,7 @@ open class ShapeAttributes(
         attributes.outlineImageSource,
         attributes.isPickInterior,
         attributes.isPickOutline,
+        attributes.shadowMode,
     )
 
     fun copy(attributes: ShapeAttributes) = apply {
@@ -130,6 +142,7 @@ open class ShapeAttributes(
         outlineImageSource = attributes.outlineImageSource
         isPickInterior = attributes.isPickInterior
         isPickOutline = attributes.isPickOutline
+        shadowMode = attributes.shadowMode
     }
 
     override fun equals(other: Any?): Boolean {
@@ -148,6 +161,7 @@ open class ShapeAttributes(
         if (outlineImageSource != other.outlineImageSource) return false
         if (isPickInterior != other.isPickInterior) return false
         if (isPickOutline != other.isPickOutline) return false
+        if (shadowMode != other.shadowMode) return false
 
         return true
     }
@@ -166,6 +180,7 @@ open class ShapeAttributes(
         result = 31 * result + (outlineImageSource?.hashCode() ?: 0)
         result = 31 * result + isPickInterior.hashCode()
         result = 31 * result + isPickOutline.hashCode()
+        result = 31 * result + shadowMode.hashCode()
         return result
     }
 }

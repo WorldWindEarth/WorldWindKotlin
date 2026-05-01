@@ -67,8 +67,9 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder, Sh
         dc.activeTextureUnit(GL_TEXTURE0)
         program.loadTextureUnit(GL_TEXTURE0)
 
-        // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass.
-        dc.applyShadowReceiverUniforms(program)
+        // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass,
+        // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.
+        dc.applyShadowReceiverUniforms(program, drawState.shadowMode.receivesShadows)
 
         // Model -> world transform: vertex origin is added to tile-local positions to recover
         // ECEF Cartesian for the shadow receiver. Same transform implicit in [mvpMatrix].
@@ -138,7 +139,9 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder, Sh
     }
 
     override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {
+        // Per-shape opt-out: `shadowMode = DISABLED` or `RECEIVE_ONLY` skips the depth pass.
         // Same dispatch as the sightline path; positions tightly packed, stride 0.
+        if (!drawState.shadowMode.castsShadows) return
         shadow.drawShapeStateOccluder(dc, drawState, 0)
     }
 }

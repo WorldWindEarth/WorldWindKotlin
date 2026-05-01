@@ -329,6 +329,7 @@ open class Polygon @JvmOverloads constructor(
         drawState.enableDepthWrite = activeAttributes.isDepthWrite &&
             drawState.color.alpha * drawState.opacity >= 1f
         drawState.enableLighting = activeAttributes.isLightingEnabled
+        drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
 
         // Configure the drawable according to the shape's attributes.
@@ -338,6 +339,7 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite &&
             drawStateLines.color.alpha * drawStateLines.opacity >= 1f
         drawStateLines.enableLighting = activeAttributes.isLightingEnabled
+        drawStateLines.shadowMode = activeAttributes.shadowMode
         drawStateLines.isOccluderOnly = isOccluderOnly
 
         // Enqueue the drawable for processing on the OpenGL thread.

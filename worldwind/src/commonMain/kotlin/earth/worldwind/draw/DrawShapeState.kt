@@ -2,6 +2,7 @@ package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
@@ -30,6 +31,7 @@ open class DrawShapeState internal constructor() {
     var enableDepthTest = true
     var enableDepthWrite = true
     var enableLighting = false
+    var shadowMode: ShadowMode = ShadowMode.ENABLED
     var depthOffset = 0.0
     var isLine = false
     // True when the drawable is queued only for SightlineOccluder; main draw() short-circuits.
@@ -56,6 +58,7 @@ open class DrawShapeState internal constructor() {
         enableDepthTest = other.enableDepthTest
         enableDepthWrite = other.enableDepthWrite
         enableLighting = other.enableLighting
+        shadowMode = other.shadowMode
         isLine = other.isLine
         isOccluderOnly = other.isOccluderOnly
         depthOffset = other.depthOffset
@@ -87,6 +90,7 @@ open class DrawShapeState internal constructor() {
         enableCullFace = true
         enableDepthTest = true
         enableLighting = false
+        shadowMode = ShadowMode.ENABLED
         isLine = false
         isOccluderOnly = false
         depthOffset = 0.0

@@ -27,11 +27,13 @@ import kotlin.math.sqrt
  * [splitBlend]; the largest cascade's far cap is `max(maxCascadeDistance, cameraAltitude*2)`
  * so it auto-scales from city-scale at low altitude to horizon-scale at globe view.
  *
- * Receivers (terrain, lit shapes, unlit shapes) sample the cascade moments textures in their
- * own fragment shaders and modulate their output colour by the resulting occlusion factor.
- * The [ambientShadow] knob controls how dark fully-occluded fragments appear: `0.0` = pure
- * black shadow, `1.0` = no darkening (sky-light only term). Shadow attenuation always applies
- * – the layer doesn't gate on whether a shape's `isLightingEnabled` flag is set.
+ * Receivers (terrain, shapes, COLLADA / glTF models) sample the cascade moments textures in
+ * their own fragment shaders and modulate their output colour by the resulting occlusion
+ * factor. The [ambientShadow] knob controls how dark fully-occluded fragments appear: `0.0` =
+ * pure black shadow, `1.0` = no darkening (sky-light only term). Per-shape opt-out is via
+ * `ShapeAttributes.shadowMode` (and `ColladaScene.shadowMode` / `GltfScene.shadowMode` for
+ * 3D models) - the [ShadowMode] enum is decoupled from `isLightingEnabled` and separates
+ * cast vs receive. Terrain always receives.
  *
  * Performance:
  *  - Each cascade adds a depth pass over caster geometry plus a separable Gaussian blur.
