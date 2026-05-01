@@ -180,6 +180,12 @@ open class BasicFrameController: FrameController {
 
         dc.gl.vertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0)
         dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
+
+        // Unbind the pick depth texture from unit 0. Back-to-back picks (e.g. drag) reuse the
+        // same texture as [pickFramebuffer]'s depth attachment, and any next-pick drawable whose
+        // program references unit 0 (e.g. [DrawableSurfaceColor] / [BasicShaderProgram] even
+        // with `enableTexture=false`) trips a WebGL feedback loop on the still-bound sampler.
+        dc.defaultTexture.bindTexture(dc)
     }
 
     protected open fun resolvePick(dc: DrawContext) {
