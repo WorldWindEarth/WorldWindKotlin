@@ -17,7 +17,7 @@ import kotlin.time.Instant
 
 open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     override var isPickEnabled = false
-    var nightImageSource = fromResource(MR.images.dnb_land_ocean_ice_2012)
+    var nightImageSource = fromResource(MR.images.black_marble_2016)
     var nightImageOptions = ImageOptions(ImageConfig.RGB_565)
     /**
      * Display light location on a specified time point. If null, then light is located at camera position.
