@@ -75,6 +75,17 @@ open class DrawableShadow protected constructor() : Drawable {
             return
         }
 
+        // Unbind cascade textures from units 1..3. They were left bound by the previous frame's
+        // receiver pass; binding the cascade FBO now (with the same texture as colour attachment)
+        // forms a feedback loop that WebGL flags as GL_INVALID_OPERATION on every depth-pass
+        // draw call. Invalidate the bind stamp so the first receiver in this frame re-binds them.
+        for (i in 0 until state.cascadeCount) {
+            dc.activeTextureUnit(GL_TEXTURE1 + i)
+            dc.bindTexture(KglTexture.NONE)
+        }
+        dc.activeTextureUnit(GL_TEXTURE0)
+        dc.lastShadowTextureBindStamp = -1L
+
         try {
             for (i in 0 until state.cascadeCount) {
                 val cascade = state.cascades[i]
