@@ -13,11 +13,10 @@ import earth.worldwind.geom.Vec3
  * sized to that slice's world-space footprint. Receivers select a cascade per-fragment from
  * view-space depth.
  *
- * Shadow attenuation is **Moment Shadow Mapping** (Hamburger 4-moment, Peters & Klein 2015) –
- * the same scheme used by the omnidirectional sightline. Soft edges come for free from the
- * receiver's Cholesky reconstruction; an MSM moments texture is shared with the existing
- * sightline pipeline only conceptually – the FBOs are separate. On platforms without
- * `RGBA32F` (e.g. WebGL1) the receivers fall back to PCF.
+ * Shadow attenuation is selectable via [ShadowLayer.algorithm]: PCF (16-tap rotated grid,
+ * default) or MSM (Hamburger 4-moment, Peters & Klein 2015). PCF is robust on every GL
+ * implementation; MSM has subtler precision requirements that some mobile shader compilers
+ * don't meet. Both consume the same `RGBA32F` cascade depth pass.
  */
 class ShadowState(
     /**
@@ -44,11 +43,11 @@ class ShadowState(
     var maxCascadeDistance: Double = DEFAULT_MAX_CASCADE_DISTANCE
 
     /**
-     * `true` when the underlying GL implementation supports `RGBA32F` colour attachments and
-     * the engine is using the MSM moments path; `false` when receivers should use PCF instead.
-     * Set by [ShadowLayer] during render.
+     * Active shadow algorithm for this frame. `null` = cascade pipeline can't run on this
+     * GL implementation (no `RGBA32F`); receivers treat fragments as fully lit. Otherwise
+     * this is [ShadowLayer.algorithm]. Finalised by [DrawableShadow] at draw time.
      */
-    var useMSM: Boolean = true
+    var algorithm: ShadowAlgorithm? = null
 
     /**
      * Monotonic counter incremented every frame that [ShadowLayer.doRender] populates new
@@ -154,7 +153,7 @@ class ShadowState(
         require(cascadeCount == source.cascadeCount) { "cascadeCount mismatch" }
         ambientShadow = source.ambientShadow
         maxCascadeDistance = source.maxCascadeDistance
-        useMSM = source.useMSM
+        algorithm = source.algorithm
         frameStamp = source.frameStamp
         for (i in cascades.indices) cascades[i].copyFrom(source.cascades[i])
     }

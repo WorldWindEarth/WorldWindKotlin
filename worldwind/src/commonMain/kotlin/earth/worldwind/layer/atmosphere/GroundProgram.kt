@@ -47,8 +47,6 @@ class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
             varying vec3 secondaryColor;
             varying vec3 direction;
             varying vec2 texCoord;
-            /* Shadow receiver outputs. The fragment shader projects [worldPos] into each
-               cascade's clip space; [viewDepth] selects the cascade. */
             varying vec3 worldPos;
             varying float viewDepth;
 
@@ -124,10 +122,6 @@ class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
                 /* Transform the vertex point by the modelview-projection matrix */
                 gl_Position = mvpMatrix * vertexPoint;
 
-                /* Shadow receiver outputs. [point] is already vertexOrigin + vertexPoint so the
-                   cascade matrices (built against ECEF Cartesian) get the same coords the depth
-                   pass rasterised. [gl_Position.w] equals -eye_z for perspective projection -
-                   that's the per-cascade picker's positive view depth. */
                 worldPos = point;
                 viewDepth = gl_Position.w;
 
@@ -165,12 +159,8 @@ class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
                 if (fragMode == FRAGMODE_PRIMARY) {
                     gl_FragColor = vec4(primaryColor, 1.0);
                 } else if (fragMode == FRAGMODE_SECONDARY) {
-                    /* SECONDARY pass uses [GL_DST_COLOR, GL_ZERO] blend, so the framebuffer
-                       gets multiplied by [secondaryColor]. Folding [computeShadowVisibility]
-                       into the attenuation factor here darkens shadowed terrain in the same
-                       multiply with no extra pass. The PRIMARY pass adds sky scatter; that's
-                       deliberately left unmodulated because the atmospheric column above
-                       shadowed ground is itself unshadowed. */
+                    /* SECONDARY uses [GL_DST_COLOR, GL_ZERO] blend - folding shadow visibility
+                       into [secondaryColor] darkens shadowed terrain via the same multiply. */
                     gl_FragColor = vec4(secondaryColor * computeShadowVisibility(worldPos, viewDepth), 1.0);
                 } else if (fragMode == FRAGMODE_PRIMARY_TEX_BLEND) {
                     vec4 texColor = texture2D(texSampler, texCoord);
@@ -184,6 +174,7 @@ class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
     override val attribBindings = arrayOf("vertexPoint")
 
     private var applyShadowId = KglUniformLocation.NONE
+    private var useMSMId = KglUniformLocation.NONE
     private var ambientShadowId = KglUniformLocation.NONE
     private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
     private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
@@ -192,11 +183,10 @@ class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
-        // Sampler unit assignments mirror the other receivers (BasicTextureProgram,
-        // SurfaceTextureProgram, TriangleShaderProgram): cascade i lives on GL_TEXTURE1 + i.
-        // applyShadowReceiverUniforms binds the matching textures each frame.
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
         gl.uniform1i(applyShadowId, 0)
+        useMSMId = gl.getUniformLocation(program, "useMSM")
+        gl.uniform1i(useMSMId, 0)
         ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
         gl.uniform1f(ambientShadowId, 0.4f)
         for (i in shadowMapIds.indices) {
@@ -222,8 +212,10 @@ class GroundProgram: AbstractAtmosphereProgram(), ShadowReceiverProgram {
         cascadeFarDepth0: Float,
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
+        useMSM: Boolean,
     ) {
         gl.uniform1i(applyShadowId, 1)
+        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
         gl.uniform1f(ambientShadowId, ambientShadow)
         lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
         gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)

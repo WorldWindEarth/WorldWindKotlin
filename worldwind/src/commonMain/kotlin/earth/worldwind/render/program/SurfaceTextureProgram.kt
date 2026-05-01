@@ -30,9 +30,6 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
 
             varying vec2 texCoord;
             varying vec2 tileCoord;
-            /* Shadow receiver inputs: world-space position (Cartesian) and view-space depth
-               (positive distance from camera plane). [gl_Position.w] equals -eye_z for OpenGL
-               perspective projections, so we read the view depth straight off it. */
             varying vec3 worldPos;
             varying float viewDepth;
 
@@ -40,9 +37,6 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                 /* Transform the vertex position by the modelview-projection matrix. */
                 gl_Position = mvpMatrix * vertexPoint;
 
-                /* World-space position for shadow sampling. Tile-local coordinates plus origin
-                   reconstructs the original Cartesian point that the [ShadowLayer]'s cascade
-                   matrices were built against. */
                 worldPos = vertexPoint.xyz + vertexOrigin;
                 viewDepth = gl_Position.w;
 
@@ -95,10 +89,7 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     gl_FragColor = color * opacity * tileMask;
                 }
 
-                /* Shadow attenuation. [computeShadowVisibility] returns 1.0 when [applyShadow]
-                   is false (no [ShadowLayer]) so this is a no-op in that case; otherwise it
-                   modulates by the cascade-sampled visibility factor. Picks bypass via the
-                   draw-side toggle so picked terrain isn't darkened in the depth-color pack. */
+                /* Skip shadow attenuation in pick mode so picked terrain isn't darkened. */
                 if (!enablePickMode) {
                     gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
@@ -118,6 +109,7 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     private var opacityId = KglUniformLocation.NONE
     private var vertexOriginId = KglUniformLocation.NONE
     private var applyShadowId = KglUniformLocation.NONE
+    private var useMSMId = KglUniformLocation.NONE
     private var ambientShadowId = KglUniformLocation.NONE
     /** Cascade moments samplers, one per cascade, bound to [GL_TEXTURE1] + cascadeIndex. */
     private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
@@ -150,13 +142,12 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
 
-        // Shadow receiver uniforms. Sampler unit assignments are fixed: GL_TEXTURE1 .. 3
-        // hold cascades 0 .. 2. The drawable rebinds the cascade textures to those units
-        // each frame; the program's sampler indices stay constant.
         vertexOriginId = gl.getUniformLocation(program, "vertexOrigin")
         gl.uniform3f(vertexOriginId, 0f, 0f, 0f)
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
-        gl.uniform1i(applyShadowId, 0) // shadows disabled by default; ShadowLayer flips it on.
+        gl.uniform1i(applyShadowId, 0)
+        useMSMId = gl.getUniformLocation(program, "useMSM")
+        gl.uniform1i(useMSMId, 0)
         ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
         gl.uniform1f(ambientShadowId, 0.4f)
         for (i in shadowMapIds.indices) {
@@ -220,8 +211,10 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         cascadeFarDepth0: Float,
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
+        useMSM: Boolean,
     ) {
         gl.uniform1i(applyShadowId, 1)
+        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
         gl.uniform1f(ambientShadowId, ambientShadow)
         lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
         gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)

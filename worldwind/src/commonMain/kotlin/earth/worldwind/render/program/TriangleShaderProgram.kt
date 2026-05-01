@@ -137,9 +137,7 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     /* Return the RGBA color as-is. */
                     gl_FragColor = color * opacity;
                 }
-                /* Shadow attenuation. computeShadowVisibility returns 1.0 when applyShadow is
-                   false, so this is a no-op when no [ShadowLayer] is active. Pick mode skips
-                   the multiply so pick IDs aren't darkened. */
+                /* Skip shadow attenuation in pick mode so pick IDs aren't darkened. */
                 if (!enablePickMode) {
                     gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
@@ -175,6 +173,7 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     private var texSamplerId = KglUniformLocation.NONE
     private var clipDistanceId = KglUniformLocation.NONE
     private var applyShadowId = KglUniformLocation.NONE
+    private var useMSMId = KglUniformLocation.NONE
     private var ambientShadowId = KglUniformLocation.NONE
     private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
     private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
@@ -215,13 +214,15 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
 
-        // Shadow receiver uniforms. modelMatrix defaults to identity so a drawable that does
-        // not load it still produces correct world positions (vertices already in world).
+        // modelMatrix defaults to identity so drawables that don't load it still produce
+        // correct world positions (no [ShadowLayer] active).
         modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
         Matrix4().transposeToArray(array, 0)
         gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
         gl.uniform1i(applyShadowId, 0)
+        useMSMId = gl.getUniformLocation(program, "useMSM")
+        gl.uniform1i(useMSMId, 0)
         ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
         gl.uniform1f(ambientShadowId, 0.4f)
         for (i in shadowMapIds.indices) {
@@ -287,8 +288,10 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         cascadeFarDepth0: Float,
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
+        useMSM: Boolean,
     ) {
         gl.uniform1i(applyShadowId, 1)
+        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
         gl.uniform1f(ambientShadowId, ambientShadow)
         lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
         gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)

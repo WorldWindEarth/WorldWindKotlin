@@ -177,6 +177,10 @@ open class Texture(
         }
 
         // Configure the OpenGL texture magnification function. Always use the nearest filtering function in picking mode.
+        // Render targets ([isRT]) skip anisotropic filtering: applying anisotropy to a non-mipmapped float render
+        // target on Adreno (and likely other tile-based GPUs) produces wildly wrong sampling patterns - the cascade
+        // moments / sightline cube faces end up looking like scrambled image content rather than smoothly varying
+        // depths, and the receiver shaders inherit the noise wholesale.
         when {
             dc.isPickMode -> dc.gl.texParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             getTexParameter(GL_TEXTURE_MAG_FILTER).also { param = it } != 0 -> {
@@ -185,13 +189,13 @@ open class Texture(
                 // Try to enable the anisotropic texture filtering only if we have a linear magnification filter.
                 // This can't be enabled all the time because Windows seems to ignore the TEXTURE_MAG_FILTER parameter when
                 // this extension is enabled.
-                if (param == GL_LINEAR && anisotropicFiltering != AFLevel.OFF) {
+                if (param == GL_LINEAR && anisotropicFiltering != AFLevel.OFF && !isRT) {
                     dc.gl.texParameteri(target, TEXTURE_MAX_ANISOTROPY_EXT, anisotropicFiltering.level)
                 }
             }
             else -> {
                 dc.gl.texParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-                if (anisotropicFiltering != AFLevel.OFF) {
+                if (anisotropicFiltering != AFLevel.OFF && !isRT) {
                     dc.gl.texParameteri(target, TEXTURE_MAX_ANISOTROPY_EXT, anisotropicFiltering.level)
                 }
             }

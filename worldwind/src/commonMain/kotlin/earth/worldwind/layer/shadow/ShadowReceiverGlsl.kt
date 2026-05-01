@@ -1,44 +1,37 @@
 package earth.worldwind.layer.shadow
 
+import earth.worldwind.draw.DrawContext
+
 /**
- * Reusable GLSL fragments for shadow receivers (terrain, lit shapes, unlit shapes). Each
- * receiver shader concatenates these chunks into its source so all receivers compute occlusion
- * the same way and only one Cholesky implementation needs maintenance.
+ * Reusable GLSL fragments concatenated into every shadow receiver's fragment shader so all
+ * receivers compute occlusion the same way.
  *
- * Conventions:
- *  - The vertex shader emits a varying `vec3 worldPos` containing the fragment's world-space
- *    Cartesian position (i.e. `vertexOrigin + localPosition`). The receiver's fragment shader
- *    transforms this into each cascade's clip space on demand.
- *  - The vertex shader emits a varying `float viewDepth = -eyeSpaceZ` (positive distance to
- *    the camera plane); receivers select a cascade by comparing this against the per-cascade
- *    far depth uniform.
- *  - Cascade textures are bound to the texture units passed in the per-receiver uniforms.
- *  - When `applyShadow` is `false` (no [ShadowLayer] active for the frame) the helper returns
- *    `1.0` (fully lit) without sampling, so receivers can call it unconditionally and pay
- *    only one branch.
+ * Conventions the receiver's vertex shader must follow:
+ *  - emit `varying vec3 worldPos` = world-space Cartesian position (`vertexOrigin + localPosition`).
+ *  - emit `varying float viewDepth` = positive distance to the camera plane (`gl_Position.w`
+ *    for a standard perspective projection).
  *
- * The Cholesky reconstruction is identical to [earth.worldwind.render.program.SightlineProgramCube]
- * — the same Hamburger 4-moment formulation produces the same `occludeMask ∈ [0, 1]` here.
- * `1.0 - occludeMask` is the visibility (lighting) factor; that's what receivers multiply
- * their lit term by.
+ * The receiver fragment shader calls [computeShadowVisibility] which returns 1.0 fully lit,
+ * [ambientShadow] fully occluded, smoothly varying in between. When `applyShadow` is false
+ * it short-circuits to 1.0; receivers can call it unconditionally.
+ *
+ * Two algorithms are available, selected at runtime via the `useMSM` uniform: 9-tap rotated
+ * PCF (default; portable) or Hamburger 4-moment Cholesky (smoother penumbra; precision-fragile
+ * on Adreno-class shader compilers). The cascade depth pass writes linear caster depth to
+ * `moments.x`, which both algorithms read.
  */
 object ShadowReceiverGlsl {
-    /** Number of cascades the receivers' shader code is unrolled for. Matches [ShadowState.DEFAULT_CASCADE_COUNT]. */
+    /** Number of cascades the shader code is unrolled for. Matches [ShadowState.DEFAULT_CASCADE_COUNT]. */
     const val CASCADE_COUNT = ShadowState.DEFAULT_CASCADE_COUNT
 
-    /**
-     * Fragment-shader uniforms and helper function. Declares:
-     *  - `bool applyShadow` — false disables shadow sampling.
-     *  - `sampler2D shadowMap[CASCADE_COUNT]` — cascade moments textures.
-     *  - `mat4 lightProjectionView[CASCADE_COUNT]` — world → light-clip per cascade.
-     *  - `float cascadeFarDepth[CASCADE_COUNT]` — view-space far depth per cascade.
-     *  - `float ambientShadow` — colour multiplier for fully-occluded fragments [0, 1].
-     *
-     * Returns `float computeShadowVisibility(vec3 worldPos, float viewDepth)`:
-     * `1.0` for fully lit, `ambientShadow` for fully occluded, smoothly varying in between.
-     */
+    private val texel0 = (1.0 / DrawContext.SHADOW_CASCADE_MAP_SIZES[0]).toFloat()
+    private val texel1 = (1.0 / DrawContext.SHADOW_CASCADE_MAP_SIZES[1]).toFloat()
+    private val texel2 = (1.0 / DrawContext.SHADOW_CASCADE_MAP_SIZES[2]).toFloat()
+
     val FRAGMENT_DECLARATIONS: String = """
         uniform bool applyShadow;
+        /* Selects the receiver path: false = PCF, true = MSM. Driven by [ShadowLayer.algorithm]. */
+        uniform bool useMSM;
         uniform sampler2D shadowMap0;
         uniform sampler2D shadowMap1;
         uniform sampler2D shadowMap2;
@@ -50,12 +43,27 @@ object ShadowReceiverGlsl {
         uniform float cascadeFarDepth2;
         uniform float ambientShadow;
 
-        /* Hamburger MSM bias (Peters & Klein 2015). Same constants as the sightline cube
-           receiver - full-float storage tolerates very small biases. */
+        /* Per-cascade texel size in normalised UV units. Constants from [DrawContext.SHADOW_CASCADE_MAP_SIZES];
+           the PCF kernel scales offsets by this so penumbra width stays consistent across cascade resolutions. */
+        const vec2 cascadeTexelSize0 = vec2($texel0);
+        const vec2 cascadeTexelSize1 = vec2($texel1);
+        const vec2 cascadeTexelSize2 = vec2($texel2);
+
+        /* PCF tunables. [pcfDepthBias] sized for the 3x3 kernel - a sloped receiver projects
+           different depths across the kernel; without enough bias half the taps register as
+           shadowed even on a fully-lit slope (~50% gray artifact). The trade-off is mild
+           peter-panning on steep silhouettes. */
+        const float pcfKernelRadius = 2.5;
+        const float pcfDepthBias = 5e-3;
+
+        /* MSM tunables. Reference biases work on IEEE-FP-strict compilers (JVM / desktop GL /
+           WebGL2). Adreno-class compilers reorder the Cholesky's catastrophic-cancellation
+           subtractions and produce noise at this bias - PCF is the appropriate choice there. */
         const float msmMomentBias = 3e-5;
         const float msmDepthBias = 1e-5;
 
-        /* Cholesky 4-moment occlusion. Returns 1.0 = visible, 0.0 = fully occluded. */
+        /* Hamburger 4-moment Cholesky reconstruction (Peters & Klein 2015).
+           Returns 1.0 = visible, 0.0 = fully occluded. */
         float msmOcclusion(vec4 moments, float receiverDepth) {
             vec4 b = mix(moments, vec4(0.5, 0.333333333, 0.25, 0.2), msmMomentBias);
             float z0 = receiverDepth - msmDepthBias;
@@ -82,44 +90,62 @@ object ShadowReceiverGlsl {
             float quotient = (sw.x * z2 - b.x * (sw.x + z2) + b.y)
                            / ((z2 - sw.y) * (z0 - z1));
             float occludeMask = clamp(sw.z + sw.w * quotient, 0.0, 1.0);
-            /* 1.0 - occludeMask = visibility (lighting factor). */
             return 1.0 - occludeMask;
         }
 
-        /* Maps a world-space position into the chosen cascade's [0, 1]^3 shadow space and
-           returns 1.0 when the position lands outside the [0, 1]^2 footprint (fragment lit
-           by sky-light only - i.e. fully visible to the cascade gate but still subject to
-           the next-cascade lookup if the caller chose to chain). */
+        /* 9-tap PCF (3x3 grid) with per-pixel grid rotation. The rotation hides the kernel
+           pattern - without it neighbouring fragments sample identical offsets and the grid
+           shows as a regular dither. Same approach Cesium and MapBox use as their default. */
+        float pcfShadow(sampler2D shadowMap, vec2 shadowUV, float receiverDepth, vec2 texelSize) {
+            float angle = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318530718;
+            float cosA = cos(angle);
+            float sinA = sin(angle);
+            float sum = 0.0;
+            for (int j = 0; j < 3; j++) {
+                for (int i = 0; i < 3; i++) {
+                    vec2 grid = vec2(float(i) - 1.0, float(j) - 1.0);
+                    vec2 rotated = vec2(cosA * grid.x - sinA * grid.y,
+                                        sinA * grid.x + cosA * grid.y);
+                    vec2 offset = rotated * pcfKernelRadius * texelSize;
+                    float casterDepth = texture2D(shadowMap, shadowUV + offset).x;
+                    sum += step(receiverDepth, casterDepth + pcfDepthBias);
+                }
+            }
+            return sum * (1.0 / 9.0);
+        }
+
+        /* Projects worldPos into the chosen cascade's shadow space and runs the active
+           reconstruction (PCF or MSM). Returns 1.0 when worldPos lands outside the [0, 1]^2
+           footprint - the cascade picker is expected to choose an in-bounds cascade. */
         float sampleCascade(int cascadeIndex, vec3 worldPos) {
             vec4 lightClip;
             if (cascadeIndex == 0) lightClip = lightProjectionView0 * vec4(worldPos, 1.0);
             else if (cascadeIndex == 1) lightClip = lightProjectionView1 * vec4(worldPos, 1.0);
             else lightClip = lightProjectionView2 * vec4(worldPos, 1.0);
-            /* Orthographic light projection -> w == 1, no perspective divide needed. */
+            /* Orthographic light projection - w == 1, no perspective divide. */
             vec3 ndc = lightClip.xyz;
             vec2 shadowUV = ndc.xy * 0.5 + 0.5;
             float receiverDepth = ndc.z * 0.5 + 0.5;
-            /* Outside cascade footprint -> treat as visible; the cascade picker promotes
-               the fragment to a wider cascade in that case, so the visible result here is
-               fine when the picker lands on the closest in-bounds cascade. */
             if (any(lessThan(shadowUV, vec2(0.0))) || any(greaterThan(shadowUV, vec2(1.0)))
                 || receiverDepth < 0.0 || receiverDepth > 1.0) {
                 return 1.0;
             }
-            vec4 moments;
-            if (cascadeIndex == 0) moments = texture2D(shadowMap0, shadowUV);
-            else if (cascadeIndex == 1) moments = texture2D(shadowMap1, shadowUV);
-            else moments = texture2D(shadowMap2, shadowUV);
-            return msmOcclusion(moments, receiverDepth);
+            if (useMSM) {
+                vec4 moments;
+                if (cascadeIndex == 0) moments = texture2D(shadowMap0, shadowUV);
+                else if (cascadeIndex == 1) moments = texture2D(shadowMap1, shadowUV);
+                else moments = texture2D(shadowMap2, shadowUV);
+                return msmOcclusion(moments, receiverDepth);
+            }
+            if (cascadeIndex == 0) return pcfShadow(shadowMap0, shadowUV, receiverDepth, cascadeTexelSize0);
+            else if (cascadeIndex == 1) return pcfShadow(shadowMap1, shadowUV, receiverDepth, cascadeTexelSize1);
+            else return pcfShadow(shadowMap2, shadowUV, receiverDepth, cascadeTexelSize2);
         }
 
         /* Fraction of each cascade's depth range used as the blend zone with the next cascade.
-           A larger value gives a softer transition at the cost of double-sampling more
-           fragments. 0.15 = the deepest 15% of each cascade fades into the next. */
+           Larger = softer transition at the cost of double-sampling more fragments. */
         const float cascadeBlendFraction = 0.15;
 
-        /* Cascade picker: linearly compare viewDepth (positive distance to camera plane)
-           against per-cascade far depths. Returns the visibility factor in [0, 1]. */
         float computeShadowVisibility(vec3 worldPos, float viewDepth) {
             if (!applyShadow) return 1.0;
             int cascade;
@@ -135,9 +161,8 @@ object ShadowReceiverGlsl {
                 return 1.0; /* beyond all cascades -> unshadowed */
             }
             float visibility = sampleCascade(cascade, worldPos);
-            /* Smooth boundary: in the deepest [cascadeBlendFraction] of this cascade, lerp
-               toward the next cascade's visibility to hide the cascade seam. The last cascade
-               has no successor so the blend is skipped there. */
+            /* Smooth boundary: in the deepest [cascadeBlendFraction] of this cascade lerp
+               toward the next cascade's visibility to hide the seam. */
             if (cascade < 2) {
                 float blendStart = cascadeFar - cascadeBlendFraction * (cascadeFar - cascadeNear);
                 float t = smoothstep(blendStart, cascadeFar, viewDepth);
@@ -146,8 +171,6 @@ object ShadowReceiverGlsl {
                     visibility = mix(visibility, visibilityNext, t);
                 }
             }
-            /* Mix the shadowed value toward the ambient floor so fully-occluded fragments
-               still receive [ambientShadow] amount of "skylight" rather than going pure black. */
             return mix(ambientShadow, 1.0, visibility);
         }
     """.trimIndent()

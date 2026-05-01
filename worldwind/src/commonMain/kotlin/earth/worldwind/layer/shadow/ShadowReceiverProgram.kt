@@ -15,10 +15,13 @@ import earth.worldwind.util.kgl.GL_TEXTURE1
 interface ShadowReceiverProgram {
 
     /**
-     * Enables shadow sampling and uploads the cascade matrices and view-depth ranges. Cascade
-     * sampler bindings (`GL_TEXTURE1..3`) are baked in at program init time; the caller is
-     * responsible for binding the matching cascade textures to those units before invoking
-     * this method - [applyShadowReceiverUniforms] does both in lockstep.
+     * Enables shadow sampling and uploads the cascade matrices, view-depth ranges, and
+     * receiver algorithm choice. Cascade sampler bindings (`GL_TEXTURE1..3`) are baked in
+     * at program init time; the caller is responsible for binding the matching cascade
+     * textures to those units before invoking this method - [applyShadowReceiverUniforms]
+     * does both in lockstep. The [useMSM] flag drives the GLSL branch in
+     * [ShadowReceiverGlsl.computeShadowVisibility]: `true` runs the Hamburger 4-moment
+     * Cholesky path, `false` runs PCF.
      */
     fun loadShadowEnabled(
         ambientShadow: Float,
@@ -28,6 +31,7 @@ interface ShadowReceiverProgram {
         cascadeFarDepth0: Float,
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
+        useMSM: Boolean,
     )
 
     /** Disables shadow sampling. Receivers' fragments fall through to a fixed `1.0` visibility. */
@@ -57,7 +61,8 @@ interface ShadowReceiverProgram {
  */
 fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram) {
     val state = shadowState
-    if (isPickMode || state == null || !state.useMSM) {
+    val algorithm = state?.algorithm
+    if (isPickMode || state == null || algorithm == null) {
         program.loadShadowDisabled()
         // Pick passes (and shadow-disabled frames) wipe `applyShadowId` to 0 and may displace
         // cascade-texture bindings on units 1..3. Reset both caches so the next enabled call
@@ -90,6 +95,7 @@ fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram) {
             state.cascades[0].farViewDepth.toFloat(),
             state.cascades[1].farViewDepth.toFloat(),
             state.cascades[2].farViewDepth.toFloat(),
+            algorithm == ShadowAlgorithm.MSM,
         )
         program.shadowUploadStamp = stamp
     }

@@ -29,20 +29,8 @@ open class DrawableShadow protected constructor() : Drawable {
     var momentsProgram: SightlineMomentsProgram? = null
     var momentsBlurProgram: SightlineMomentsBlurProgram? = null
 
-    /**
-     * Per-cascade tap spacing (in shadow-map texels) for the separable Gaussian blur applied
-     * to each cascade's moments. One entry per cascade; index 0 is the closest cascade.
-     *  - `> 0` runs the blur with that tap spacing — wider = softer shadow edges, narrower =
-     *    sharper. The sightline pipeline uses `2.0`.
-     *  - `0` skips the blur entirely; the cascade is sampled raw. Hard penumbra but two GL
-     *    draw calls saved per frame.
-     *
-     * Default `[2, 2, 1]` keeps the close cascades fully soft and tightens cascade 2 to a
-     * narrower kernel — distant shadows occupy a few pixels on screen so the visual penalty
-     * is small while the kernel cost roughly halves there. Set to `[2, 2, 2]` for uniform
-     * softness everywhere or `[2, 2, 0]` to skip the far cascade's blur outright.
-     */
-    var momentsBlurTexelSpacing: FloatArray = floatArrayOf(2f, 2f, 1f)
+    /** Per-cascade Gaussian-blur tap spacing in shadow-map texels. `[0, 0, 0]` skips the blur. */
+    var momentsBlurTexelSpacing: FloatArray = floatArrayOf(0f, 0f, 0f)
 
     /**
      * Active cascade matrix during caster dispatch. Set by [draw] for each cascade so
@@ -74,19 +62,18 @@ open class DrawableShadow protected constructor() : Drawable {
     }
 
     override fun draw(dc: DrawContext) {
-        // Read the per-frame snapshot owned by [Frame], not a reference cached at enqueue
-        // time - on Android, the layer's scratch state is mutated by the next render pass
-        // on the main thread while this draw runs on the GL thread.
+        // Per-frame snapshot owned by [Frame] - the layer's scratch state is mutated on the
+        // main thread while this draw runs on the GL thread.
         val state = dc.shadowState ?: return
         val moments = momentsProgram ?: return
         if (!moments.useProgram(dc)) return
 
-        // Decide the receiver path now that the GL context is available. RGBA32F-backed
-        // moments storage requires sized internal formats (GLES3+/WebGL2/desktop GL3+). On
-        // platforms without it the cascade FBOs allocate as RGBA8, the receiver shaders
-        // fall back to PCF and never read these moments — but we still run the depth pass
-        // so the FBOs hold valid depth values for that fallback.
-        state.useMSM = dc.gl.supportsSizedTextureFormats
+        // Both PCF and MSM need the cascade depth at full RGBA32F precision; without sized
+        // formats (GLES2 / WebGL1) disable the receivers so they don't sample garbage.
+        if (!dc.gl.supportsSizedTextureFormats) {
+            state.algorithm = null
+            return
+        }
 
         try {
             for (i in 0 until state.cascadeCount) {

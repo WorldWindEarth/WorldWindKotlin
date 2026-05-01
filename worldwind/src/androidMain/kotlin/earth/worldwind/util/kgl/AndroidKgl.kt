@@ -322,7 +322,7 @@ class AndroidKgl : Kgl {
         }
     }
 
-    override fun fenceSync() = KglSync(GLES30.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0).toLong())
+    override fun fenceSync() = KglSync(GLES30.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0))
 
     override fun isSyncSignalled(sync: KglSync): Boolean {
         if (!sync.isValid()) return false

@@ -97,6 +97,12 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     var ambientShadow: Float = ShadowState.DEFAULT_AMBIENT_SHADOW
 
     /**
+     * Receiver-side soft-shadow algorithm. PCF is portable; MSM gives a smoother analytic
+     * penumbra but produces precision noise on Adreno-class shader compilers.
+     */
+    var algorithm: ShadowAlgorithm = ShadowAlgorithm.PCF
+
+    /**
      * Shared per-frame state. Reused across frames – the layer mutates the cascade matrices
      * in place every render, then attaches the same instance to [RenderContext.shadowState].
      */
@@ -147,9 +153,11 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         effectiveCasterPullback = max(casterPullback, cameraAltitude * 0.1)
 
         // Sync state knobs to ShadowState so receivers see the current configuration.
-        // [useMSM] is finalized at draw time by DrawableShadow once the GL context is available.
+        // [algorithm] is finalised at draw time by DrawableShadow (it may set null when the
+        // GL context can't support the cascade pipeline at all).
         shadowState.ambientShadow = ambientShadow
         shadowState.maxCascadeDistance = effectiveMaxCascadeDistance
+        shadowState.algorithm = algorithm
         shadowState.frameStamp++
         shadowState.reset()
 

@@ -30,8 +30,6 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
 
             varying vec2 texCoord;
             varying vec4 normal;
-            /* Shadow receiver inputs. Always populated; the fragment shader's [applyShadow]
-               branch elides the lookup when no [ShadowLayer] is active. */
             varying vec3 worldPos;
             varying float viewDepth;
 
@@ -90,8 +88,7 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     vec3 n = normalize(normal.xyz) * (gl_FrontFacing ? 1.0 : -1.0);
                     gl_FragColor.rgb *= clamp(ambient + dot(lightDirection, n), 0.0, 1.0);
                 }
-                /* Shadow attenuation. No-op when [applyShadow] is false. Picks ([modulateColor]
-                   path) bypass shadow application so pick IDs aren't darkened. */
+                /* Skip shadow attenuation in pick mode so pick IDs aren't darkened. */
                 if (!modulateColor) {
                     gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
@@ -114,6 +111,7 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     private var mvInverseMatrixId = KglUniformLocation.NONE
     private var modelMatrixId = KglUniformLocation.NONE
     private var applyShadowId = KglUniformLocation.NONE
+    private var useMSMId = KglUniformLocation.NONE
     private var ambientShadowId = KglUniformLocation.NONE
     private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
     private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
@@ -159,13 +157,15 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         isRenderLineId = gl.getUniformLocation(program, "isRenderLine")
         gl.uniform1i(isRenderLineId, if (isRenderLine) 1 else 0)
 
-        // Shadow receiver uniforms. modelMatrix defaults to identity so drawables that don't
-        // bother loading it (no [ShadowLayer] active) still produce correct world positions.
+        // modelMatrix defaults to identity so drawables that don't load it still produce
+        // correct world positions (no [ShadowLayer] active).
         modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
         Matrix4().transposeToArray(array, 0)
         gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
         gl.uniform1i(applyShadowId, 0)
+        useMSMId = gl.getUniformLocation(program, "useMSM")
+        gl.uniform1i(useMSMId, 0)
         ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
         gl.uniform1f(ambientShadowId, 0.4f)
         for (i in shadowMapIds.indices) {
@@ -325,8 +325,10 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         cascadeFarDepth0: Float,
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
+        useMSM: Boolean,
     ) {
         gl.uniform1i(applyShadowId, 1)
+        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
         gl.uniform1f(ambientShadowId, ambientShadow)
         lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
         gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
