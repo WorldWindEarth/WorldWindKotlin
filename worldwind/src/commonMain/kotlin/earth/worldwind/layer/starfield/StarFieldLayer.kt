@@ -120,7 +120,8 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
         if (drawable.isShowSun) {
             drawable.sunTexture = rc.getTexture(sunImageSource, null)
             if (drawable.sunTexture != null) {
-                drawable.sunSize = sunSize
+                val scaledSunSize = sunSize * rc.densityFactor
+                drawable.sunSize = scaledSunSize
 
                 val sunCelestialLocation = SunPosition.getAsCelestialLocation(time)
 
@@ -130,10 +131,9 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
                 //.w = magnitude
                 sunBufferView[0] = sunCelestialLocation.declination.inDegrees.toFloat()
                 sunBufferView[1] = sunCelestialLocation.rightAscension.inDegrees.toFloat()
-                // Use sunSize directly here; clamping against maxGlPointSize happens at draw time in DrawableStarField.
-                // maxGlPointSize is 0f until the first draw call, so clamping here would set point size to 0 (invisible).
-                sunBufferView[2] = sunSize
-                // Sentinel: above maxMagnitude so magnitudeWeight clamps to 1.0 -> size multiplier = 1x -> sunSize unchanged.
+                sunBufferView[2] = scaledSunSize
+                // Sentinel above maxMagnitude so the shader's clamped weight = 1.0 makes
+                // mix(2.0, 1.0, weight) collapse to 1.0 -> sunSize is rendered unscaled.
                 sunBufferView[3] = maxMagnitude + 1f
 
                 drawable.sunPositionsBuffer = rc.getBufferObject(sunPositionsCacheKey) {
@@ -186,7 +186,8 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
             val rightAscension = starInfo[indexes[0]] //for longitude
             val declination = starInfo[indexes[1]] //for latitude
             val magnitude = starInfo[indexes[2]]
-            val pointSize = if (magnitude < 2) 2f else 1f
+            // Base size is the glow radius; the shader's Gaussian falloff keeps the bright core small.
+            val pointSize = if (magnitude < 2) 4f else 3f
 
             positions[positionIndex++] = declination
             positions[positionIndex++] = rightAscension

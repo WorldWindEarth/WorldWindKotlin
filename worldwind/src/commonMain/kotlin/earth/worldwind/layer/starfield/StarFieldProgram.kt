@@ -66,28 +66,17 @@ class StarFieldProgram : AbstractShaderProgram() {
 
             varying float magnitudeWeight;
 
-            const vec4 white = vec4(1.0, 1.0, 1.0, 1.0);
-            const vec4 grey = vec4(0.6, 0.6, 0.6, 1.0);
-
             void main() {
                 if (textureEnabled == 1) {
                     vec4 color = texture2D(textureSampler, gl_PointCoord);
-            
-                    // Optional discard (safe on both ES and desktop)
-                    if (color.a < 0.01)
-                        discard;
-            
+                    if (color.a < 0.01) discard;
                     gl_FragColor = color;
                 } else {
-                    // Round point sprite mask
+                    // Gaussian star profile: bright core with exp() halo, mimicking a sensor PSF.
                     vec2 coord = gl_PointCoord - vec2(0.5);
-                    if (dot(coord, coord) > 0.25)
-                        discard;
-            
-                    // Smooth brightness falloff
-                    float alpha = 1.0 - magnitudeWeight * 0.85;
-            
-                    // Pre-multiplied alpha
+                    float r2 = dot(coord, coord);
+                    if (r2 > 0.25) discard;
+                    float alpha = (1.0 - magnitudeWeight * 0.5) * exp(-r2 * 22.0);
                     gl_FragColor = vec4(alpha, alpha, alpha, alpha);
                 }
             }
