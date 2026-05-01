@@ -97,10 +97,19 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     var ambientShadow: Float = ShadowState.DEFAULT_AMBIENT_SHADOW
 
     /**
-     * Receiver-side soft-shadow algorithm. PCF is portable; MSM gives a smoother analytic
-     * penumbra but produces precision noise on Adreno-class shader compilers.
+     * Receiver-side soft-shadow algorithm. Defaults to [defaultShadowAlgorithm] - PCF on
+     * JVM/Android (Adreno can't do MSM cleanly), MSM on JS (WebGL2/ANGLE handles MSM's
+     * 1-tap analytic reconstruction far faster than PCF's 9 manual rotated taps).
      */
-    var algorithm: ShadowAlgorithm = ShadowAlgorithm.PCF
+    var algorithm: ShadowAlgorithm = defaultShadowAlgorithm
+
+    /**
+     * Per-cascade Gaussian-blur tap spacing applied to the moments texture before the
+     * receiver pass. Defaults to [defaultMomentsBlurTexelSpacing] - non-zero on JS to
+     * widen MSM's analytic penumbra, zero on JVM/Android where PCF doesn't benefit from
+     * pre-blurred moments. Index 0 is the closest cascade.
+     */
+    var momentsBlurTexelSpacing: FloatArray = defaultMomentsBlurTexelSpacing
 
     /**
      * Shared per-frame state. Reused across frames – the layer mutates the cascade matrices
@@ -228,6 +237,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         val drawable = DrawableShadow.obtain(pool)
         drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
         drawable.momentsBlurProgram = rc.getShaderProgram(SightlineMomentsBlurProgram.KEY) { SightlineMomentsBlurProgram() }
+        drawable.momentsBlurTexelSpacing = momentsBlurTexelSpacing
         rc.offerBackgroundDrawable(drawable)
     }
 
