@@ -148,6 +148,7 @@ open class WorldWind @JvmOverloads constructor(
 
         // Clear any cached OpenGL resources and state, which are now invalid.
         dc.contextLost()
+        rc.releaseShaderPrograms(dc)
 
         // Set the WorldWindow's depth bits.
         depthBits = dc.gl.getParameteri(GL_DEPTH_BITS)

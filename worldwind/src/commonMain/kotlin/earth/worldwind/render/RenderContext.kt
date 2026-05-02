@@ -121,6 +121,12 @@ open class RenderContext {
 
     val tessellator: GLUtessellator by lazy { GLU.gluNewTess() }
 
+    /** Drops all shader programs, releasing each one's GL handles. Called after a GL context loss. */
+    fun releaseShaderPrograms(dc: DrawContext) {
+        for (program in shaderPrograms.values) program.release(dc)
+        shaderPrograms.clear()
+    }
+
     open fun reset() {
         densityFactor = 1f
         horizonDistance = 0.0
@@ -380,12 +386,16 @@ open class RenderContext {
         return result
     }
 
-    // TODO redesign ShaderProgram to operate as a resource accessible from DrawContext
-    // TODO created automatically on OpenGL thread, unless the caller wants to explicitly create a program
+    /**
+     * Per-WorldWindow shader programs. Kept out of the shared [renderResourceCache] so each
+     * WorldWindow owns its own program object - GL uniform values are per-context, so a
+     * shared Kotlin program would have its `loadX` cache fields clobbered across windows.
+     */
+    private val shaderPrograms = HashMap<KClass<*>, AbstractShaderProgram>()
+
     @Suppress("UNCHECKED_CAST")
-    fun <T: AbstractShaderProgram> getShaderProgram(key: KClass<T>, builder: () -> T): T {
-        return renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.programLength) } } as T
-    }
+    fun <T: AbstractShaderProgram> getShaderProgram(key: KClass<T>, builder: () -> T): T =
+        (shaderPrograms[key] ?: builder().also { shaderPrograms[key] = it }) as T
 
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions? = null, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
