@@ -424,6 +424,17 @@ const val GL_RG32UI = 0x823C
 const val GL_RG = 0x8227
 const val GL_COMPRESSED_RED = 0x8225
 const val GL_COMPRESSED_RG = 0x8226
+const val GL_RGB16F = 0x881B
+const val GL_RGB32F = 0x8815
+/**
+ * 3D texture target (`GL_TEXTURE_3D`) and the matching wrap-R parameter, both core in
+ * GLES 3.0 / WebGL 2 / GL 1.2+. Required by [Kgl.texImage3D] and the LUT plumbing for
+ * Bruneton-style precomputed atmospheric scattering (3D scattering tables).
+ */
+const val GL_TEXTURE_3D = 0x806F
+const val GL_TEXTURE_WRAP_R = 0x8072
+const val GL_MAX_3D_TEXTURE_SIZE = 0x8073
+const val GL_TEXTURE_BINDING_3D = 0x806A
 
 interface Kgl {
     val hasMaliOOMBug: Boolean
@@ -580,6 +591,45 @@ interface Kgl {
     fun deleteFramebuffer(framebuffer: KglFramebuffer)
     fun checkFramebufferStatus(target: Int): Int
     fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int)
+
+    /**
+     * `true` on GLES3+ / GL3+ / WebGL2 — runtimes that expose `glTexImage3D`,
+     * `glTexSubImage3D`, `glFramebufferTextureLayer` and the `GL_TEXTURE_3D` /
+     * `GL_TEXTURE_2D_ARRAY` targets. The 3D-texture methods below ([texImage3D],
+     * [texSubImage3D], [framebufferTextureLayer]) may throw when this is `false`; guard
+     * call sites with this flag (e.g. the Bruneton atmospheric-scattering precomputation
+     * path is ES3-only).
+     */
+    val supportsTexture3D: Boolean get() = supportsSizedTextureFormats
+    /**
+     * Allocate / re-allocate a 3D-texture image. `buffer` is uploaded as the initial
+     * contents of all `width × height × depth` texels at the given mip level; pass
+     * `null` to allocate storage without uploading (the typical pattern for LUTs that
+     * are then populated via render-to-texture on each Z-slice). Backed by
+     * `glTexImage3D` on every platform; requires GLES3 / WebGL2 / GL 1.2+.
+     */
+    fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    )
+    /** Float-typed [texImage3D] overload for sized float formats (`GL_R32F`, `GL_RGB16F`, …). */
+    fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    )
+    /** Replace a sub-volume of an already-allocated 3D texture. Cheaper than [texImage3D]. */
+    fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    )
+    /**
+     * Attach a single layer ([layer], i.e. one Z-slice for `GL_TEXTURE_3D` or one
+     * 2D image for `GL_TEXTURE_2D_ARRAY`) of [texture] as a framebuffer color
+     * attachment. The standard ES3/WebGL2 substitute for `glFramebufferTexture3D` /
+     * geometry-shader layer routing — drive Z-slice render passes by looping
+     * `framebufferTextureLayer(...,zSlice)` + `drawArrays`.
+     */
+    fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int)
 
     /**
      * `true` on GLES3+ / GL3+ / WebGL2 — runtimes where multisample renderbuffers and

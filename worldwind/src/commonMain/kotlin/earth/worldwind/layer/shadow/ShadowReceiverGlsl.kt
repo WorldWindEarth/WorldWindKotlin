@@ -147,7 +147,12 @@ object ShadowReceiverGlsl {
            Larger = softer transition at the cost of double-sampling more fragments. */
         const float cascadeBlendFraction = 0.15;
 
-        float computeShadowVisibility(vec3 worldPos, float viewDepth) {
+        /* Raw 0..1 visibility - 1.0 fully sun-lit, 0.0 fully occluded. No [ambientShadow]
+           floor mixed in; [computeShadowVisibility] applies that on top for the legacy
+           receivers. The Bruneton ground shader uses the raw value to occlude only the
+           direct-sun term (skylight is unaffected by surface shadows), so the fixed
+           ambient-shadow floor would break that math. */
+        float computeRawShadowVisibility(vec3 worldPos, float viewDepth) {
             if (!applyShadow) return 1.0;
             int cascade;
             float cascadeNear;
@@ -172,7 +177,11 @@ object ShadowReceiverGlsl {
                     visibility = mix(visibility, visibilityNext, t);
                 }
             }
-            return mix(ambientShadow, 1.0, visibility);
+            return visibility;
+        }
+
+        float computeShadowVisibility(vec3 worldPos, float viewDepth) {
+            return mix(ambientShadow, 1.0, computeRawShadowVisibility(worldPos, viewDepth));
         }
     """.trimIndent()
 }

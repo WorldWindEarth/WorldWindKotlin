@@ -283,6 +283,31 @@ class AndroidKgl : Kgl {
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         GLES20.glFramebufferTexture2D(target, attachment, textarget, texture.id, level)
 
+    override val supportsTexture3D get() = isGles3OrLater
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = GLES30.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { ByteBuffer.wrap(it) }
+    )
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = GLES30.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { FloatBuffer.wrap(it) }
+    )
+    override fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = GLES30.glTexSubImage3D(
+        target, level, xoffset, yoffset, zoffset, width, height, depth, format, type,
+        buffer?.let { ByteBuffer.wrap(it) }
+    )
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) =
+        GLES30.glFramebufferTextureLayer(target, attachment, texture.id, level, layer)
+
     override fun createRenderbuffer(): KglRenderbuffer {
         GLES20.glGenRenderbuffers(1, arrI, 0)
         return KglRenderbuffer(arrI[0])

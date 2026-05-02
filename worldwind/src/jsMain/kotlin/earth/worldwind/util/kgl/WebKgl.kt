@@ -312,6 +312,43 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         gl.framebufferTexture2D(target, attachment, textarget, texture.obj, level)
 
+    // 3D-texture / layered-FBO surface — WebGL2-only. Routed through asDynamic() to
+    // sidestep the kotlin-wrappers `web.gl.GLenum` / typed-array generics: the WebGL2 DOM
+    // overloads accept numbers and ArrayBufferViews directly, so dynamic dispatch is the
+    // simplest mapping for our Int + plain-array Kgl interface. requireGl2() throws when
+    // called on a WebGL1 context; call sites must check supportsTexture3D first.
+    override val supportsTexture3D get() = isWebGL2
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    ) {
+        requireGl2().asDynamic().texImage3D(
+            target, level, internalFormat, width, height, depth, border, format, type,
+            buffer?.unsafeCast<Int8Array>()
+        )
+    }
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) {
+        requireGl2().asDynamic().texImage3D(
+            target, level, internalFormat, width, height, depth, border, format, type,
+            buffer?.unsafeCast<Float32Array>()
+        )
+    }
+    override fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    ) {
+        requireGl2().asDynamic().texSubImage3D(
+            target, level, xoffset, yoffset, zoffset, width, height, depth, format, type,
+            buffer?.unsafeCast<Int8Array>()
+        )
+    }
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) {
+        requireGl2().asDynamic().framebufferTextureLayer(target, attachment, texture.obj, level, layer)
+    }
+
     // MSAA framebuffers and sized internal formats are both WebGL2-core / WebGL1-absent.
     override val supportsMultisampleFBO get() = isWebGL2
     override val supportsSizedTextureFormats get() = isWebGL2

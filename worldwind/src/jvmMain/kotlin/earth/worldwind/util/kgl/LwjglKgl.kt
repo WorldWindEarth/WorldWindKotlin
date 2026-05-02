@@ -255,6 +255,43 @@ class LwjglKgl : Kgl {
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         GL33.glFramebufferTexture2D(target, attachment, textarget, texture.id, level)
 
+    override val supportsTexture3D get() = true
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = GL33.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { ByteBuffer.wrap(it) }
+    )
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = GL33.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { FloatBuffer.wrap(it) }
+    )
+    override fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    ) {
+        if (buffer != null) {
+            GL33.glTexSubImage3D(
+                target, level, xoffset, yoffset, zoffset, width, height, depth,
+                format, type, ByteBuffer.wrap(buffer)
+            )
+        } else {
+            // null = read from currently-bound GL_PIXEL_UNPACK_BUFFER at offset 0; LWJGL's
+            // ByteBuffer-typed `glTexSubImage3D` overload isn't @Nullable, so route through
+            // the long-offset variant — same idiom used by [texSubImage2D] above.
+            GL33.glTexSubImage3D(
+                target, level, xoffset, yoffset, zoffset, width, height, depth,
+                format, type, 0L
+            )
+        }
+    }
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) =
+        GL33.glFramebufferTextureLayer(target, attachment, texture.id, level, layer)
+
     override val supportsMultisampleFBO get() = true
     override val supportsSizedTextureFormats get() = true
     override fun createRenderbuffer() = KglRenderbuffer(GL33.glGenRenderbuffers())

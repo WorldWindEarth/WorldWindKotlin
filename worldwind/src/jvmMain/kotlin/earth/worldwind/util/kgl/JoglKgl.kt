@@ -40,7 +40,12 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun createShader(type: Int) = KglShader(gl.glCreateShader(type))
 
     override fun shaderSource(shader: KglShader, source: String) {
-        arrI[0] = source.length
+        // JOGL forwards the Java String as UTF-8 bytes to glShaderSource's `length` array,
+        // which the GL driver interprets as a BYTE count. Using `source.length` (UTF-16 code
+        // units) is wrong for any source containing non-ASCII characters: the byte length
+        // exceeds the char length, and the driver truncates the tail (manifesting as
+        // "pre-mature EOF" on shaders with non-ASCII comments). Pass the encoded byte size.
+        arrI[0] = source.encodeToByteArray().size
         gl.glShaderSource(shader.id, 1, arrayOf(source), IntBuffer.wrap(arrI))
     }
 
@@ -266,6 +271,31 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         gl.glFramebufferTexture2D(target, attachment, textarget, texture.id, level)
+
+    override val supportsTexture3D get() = true
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = gl.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { ByteBuffer.wrap(it) }
+    )
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = gl.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { FloatBuffer.wrap(it) }
+    )
+    override fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = gl.glTexSubImage3D(
+        target, level, xoffset, yoffset, zoffset, width, height, depth, format, type,
+        buffer?.let { ByteBuffer.wrap(it) }
+    )
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) =
+        gl.glFramebufferTextureLayer(target, attachment, texture.id, level, layer)
 
     override val supportsMultisampleFBO get() = true
     override val supportsSizedTextureFormats get() = true
