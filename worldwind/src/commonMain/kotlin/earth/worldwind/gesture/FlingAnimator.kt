@@ -35,7 +35,9 @@ class FlingAnimator(
     /** Begins a fling at the given velocity. A no-op if the speed is below [minVelocity]. */
     fun start(vx0: Double, vy0: Double) {
         cancel()
-        if (sqrt(vx0 * vx0 + vy0 * vy0) < minVelocity) return
+        // Non-finite check is explicit: `sqrt(NaN) < minVelocity` is false, so without it a NaN
+        // seed would zombify the fling (tick keeps firing, never auto-cancels).
+        if (!vx0.isFinite() || !vy0.isFinite() || sqrt(vx0 * vx0 + vy0 * vy0) < minVelocity) return
         vx = vx0
         vy = vy0
         isActive = true
