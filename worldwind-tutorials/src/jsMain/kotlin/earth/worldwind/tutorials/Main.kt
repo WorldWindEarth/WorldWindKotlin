@@ -77,6 +77,7 @@ fun main() {
             "Paths" to PathsTutorial(wwd.engine).also { installDepthPicker(it.picker) },
             "Polygons" to PolygonsTutorial(wwd.engine).also { installDepthPicker(it.picker) },
             "Ellipses" to EllipsesTutorial(wwd.engine).also { installDepthPicker(it.picker) },
+            "Ellipsoids" to EllipsoidsTutorial(wwd.engine),
             "Geographic meshes" to GeographicMeshesTutorial(wwd.engine).also {
                 installRayPicker({ it.isStarted }) { ray -> it.pickMesh(ray, wwd.engine.globe) }
             },

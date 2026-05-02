@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Ellipsoids Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Ellipsoid Tutorial</h1>
+<p>
+    Demonstrates how to add 3D Ellipsoid shapes to a RenderableLayer.
+</p>
+<p>
+    An <code>Ellipsoid</code> is a 3D volumetric shape with three independent semi-axes
+    (xRadius / yRadius / zRadius). Setting <code>xRadius == yRadius</code> produces a
+    rotation spheroid (the common "two-radius" case where one equatorial radius pairs
+    with a polar radius). Lighting (Lambertian shading) is opt-in via
+    <code>attributes.isLightingEnabled</code>.
+</p>
+<p>
+    This example renders six ellipsoids:
+</p>
+<ul>
+    <li>The Northwestern sphere is lit (Lambertian shading on).</li>
+    <li>The Northeastern sphere is unlit (flat fill) - same shape, for comparison.</li>
+    <li>The Western shape is an oblate spheroid (equatorial &gt; polar).</li>
+    <li>The Eastern shape is a prolate spheroid (polar &gt; equatorial).</li>
+    <li>The Southwestern shape is tri-axial with a 30 degree heading and a yellow outline.</li>
+    <li>The Southeastern shape is ground-clamped: its centre drops to the terrain so the
+        sphere is half-submerged.</li>
+</ul>
+<h2>Example</h2>
+<h3>EllipsoidsFragment.kt</h3>
+<p>
+    The EllipsoidsFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
+    Here we create and add a RenderableLayer to the globe, and then define and add ellipsoids to the layer.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class EllipsoidsFragment: BasicGlobeFragment() {
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        EllipsoidsTutorial(it.engine).start()
+    }
+}
+
+class EllipsoidsTutorial(private val engine: WorldWind): AbstractTutorial() {
+
+    private val layer = RenderableLayer("Ellipsoids").apply {
+        // Sphere with lighting on.
+        addRenderable(
+            Ellipsoid(
+                Position.fromDegrees(45.0, -120.0, 200e3),
+                250e3, 250e3, 250e3
+            ).apply {
+                attributes.apply {
+                    isLightingEnabled = true
+                    isDrawOutline = false
+                    interiorColor = Color(0.9f, 0.4f, 0.4f, 1f)
+                }
+            }
+        )
+
+        // Same sphere with lighting OFF for comparison.
+        addRenderable(
+            Ellipsoid(
+                Position.fromDegrees(45.0, -100.0, 200e3),
+                250e3, 250e3, 250e3
+            ).apply {
+                attributes.apply {
+                    isLightingEnabled = false
+                    isDrawOutline = false
+                    interiorColor = Color(0.9f, 0.4f, 0.4f, 1f)
+                }
+            }
+        )
+
+        // Oblate spheroid (equatorial > polar). Heading is irrelevant when xRadius == yRadius.
+        addRenderable(
+            Ellipsoid(
+                Position.fromDegrees(30.0, -120.0, 200e3),
+                350e3, 350e3, 150e3
+            ).apply {
+                attributes.apply {
+                    isLightingEnabled = true
+                    isDrawOutline = false
+                    interiorColor = Color(0.4f, 0.7f, 0.9f, 1f)
+                }
+            }
+        )
+
+        // Prolate spheroid (polar > equatorial) - "American football" shape.
+        addRenderable(
+            Ellipsoid(
+                Position.fromDegrees(30.0, -100.0, 200e3),
+                150e3, 150e3, 350e3
+            ).apply {
+                attributes.apply {
+                    isLightingEnabled = true
+                    isDrawOutline = false
+                    interiorColor = Color(0.4f, 0.9f, 0.5f, 1f)
+                }
+            }
+        )
+
+        // Tri-axial ellipsoid with a 30-degree heading and visible equator outline.
+        addRenderable(
+            Ellipsoid(
+                Position.fromDegrees(15.0, -120.0, 200e3),
+                400e3, 200e3, 250e3
+            ).apply {
+                heading = 30.0.degrees
+                attributes.apply {
+                    isLightingEnabled = true
+                    isDrawOutline = true
+                    outlineColor = Color(1f, 1f, 0f, 1f)
+                    outlineWidth = 2f
+                    interiorColor = Color(0.8f, 0.5f, 0.9f, 1f)
+                }
+            }
+        )
+
+        // Ground-clamped sphere - half-submerged.
+        addRenderable(
+            Ellipsoid(
+                Position.fromDegrees(15.0, -100.0, 0.0),
+                250e3, 250e3, 250e3
+            ).apply {
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                attributes.apply {
+                    isLightingEnabled = true
+                    isDrawOutline = false
+                    interiorColor = Color(0.95f, 0.85f, 0.4f, 1f)
+                }
+            }
+        )
+    }
+
+    override fun start() {
+        super.start()
+        engine.layers.addLayer(layer)
+        engine.camera.set(
+            30.0.degrees, (-110.0).degrees, engine.distanceToViewGlobeExtents * 1.1,
+            AltitudeMode.ABSOLUTE, heading = Angle.ZERO, tilt = Angle.ZERO, roll = Angle.ZERO
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        engine.layers.removeLayer(layer)
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+    var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+    });
+</script>
+</body>
+</html>

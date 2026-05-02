@@ -231,6 +231,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/ellipse_tutorial.html",
                 R.string.title_ellipses
             )
+            R.id.nav_ellipsoid_activity -> loadTutorial(
+                EllipsoidsFragment::class.java,
+                "file:///android_asset/ellipsoid_tutorial.html",
+                R.string.title_ellipsoids
+            )
             R.id.nav_geopackage_activity -> loadTutorial(
                 GeoPackageFragment::class.java,
                 "file:///android_asset/geopackage_tutorial.html",

@@ -86,6 +86,7 @@ fun main() {
                 "Paths" to PathsTutorial(engine),
                 "Polygons" to PolygonsTutorial(engine),
                 "Ellipses" to EllipsesTutorial(engine),
+                "Ellipsoids" to EllipsoidsTutorial(engine),
                 "Geographic meshes" to geoMeshTutorial,
                 "Triangle meshes" to triMeshTutorial,
                 "COLLADA" to colladaTutorial,
