@@ -55,7 +55,7 @@ open class Placemark @JvmOverloads constructor(
     override var altitudeMode = AltitudeMode.ABSOLUTE
         set(value) {
             field = value
-            placePointDirty = true
+            data.values.forEach { it.placePointDirty = true }
         }
     /**
      * The attributes to use when the placemark is highlighted.
@@ -152,17 +152,25 @@ open class Placemark @JvmOverloads constructor(
      * The distance from the camera to the placemark in meters.
      */
     protected var cameraDistance = 0.0
-    protected val placePoint = Vec3()
-    protected var placePointDirty = true
-    // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
-    // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
-    protected var hasPlacePoint = false
-    protected val groundPoint = Vec3()
-    protected var groundPointDirty = true
-    protected val cachedPosition = Position()
-    protected var cachedGlobeState: Globe.State? = null
-    protected var cachedElevationTimestamp = 0L
-    protected var cachedVerticalExaggeration = 0.0
+
+    protected lateinit var currentData: PlacemarkData
+    protected val data = mutableMapOf<Globe.State?, PlacemarkData>()
+
+    protected open class PlacemarkData {
+        val placePoint = Vec3()
+        var placePointDirty = true
+        // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
+        // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
+        var hasPlacePoint = false
+        val groundPoint = Vec3()
+        var groundPointDirty = true
+        val cachedPosition = Position()
+        var cachedElevationTimestamp = 0L
+        var cachedVerticalExaggeration = 0.0
+    }
+
+    protected val placePoint: Vec3 get() = currentData.placePoint
+    protected val groundPoint: Vec3 get() = currentData.groundPoint
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -203,26 +211,22 @@ open class Placemark @JvmOverloads constructor(
         // Filter out renderable outside projection limits.
         if (rc.globe.projectionLimits?.contains(position) == false) return
 
-        // Get cached state
-        val globeState = rc.globeState
+        currentData = data.getOrPut(rc.globeState) { PlacemarkData() }
         val elevationTimestamp = rc.elevationModelTimestamp
         val verticalExaggeration = rc.globe.verticalExaggeration
 
-        // Check if cartesian points should be recalculated
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
         val isTerrainDependent = effectiveAltitudeMode == AltitudeMode.CLAMP_TO_GROUND
                 || effectiveAltitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        val globeChanged = globeState != cachedGlobeState
-        val terrainChanged = elevationTimestamp != cachedElevationTimestamp || verticalExaggeration != cachedVerticalExaggeration
-        val positionChanged = cachedPosition != position
-        if (globeChanged || (isTerrainDependent && terrainChanged) || positionChanged) placePointDirty = true
-        if (globeChanged || terrainChanged || positionChanged) groundPointDirty = true
+        val terrainChanged = elevationTimestamp != currentData.cachedElevationTimestamp
+                || verticalExaggeration != currentData.cachedVerticalExaggeration
+        val positionChanged = currentData.cachedPosition != position
+        if ((isTerrainDependent && terrainChanged) || positionChanged) currentData.placePointDirty = true
+        if (terrainChanged || positionChanged) currentData.groundPointDirty = true
 
-        // Store cached state
-        if (positionChanged) cachedPosition.copy(position)
-        cachedGlobeState = globeState
-        cachedElevationTimestamp = elevationTimestamp
-        cachedVerticalExaggeration = verticalExaggeration
+        if (positionChanged) currentData.cachedPosition.copy(position)
+        currentData.cachedElevationTimestamp = elevationTimestamp
+        currentData.cachedVerticalExaggeration = verticalExaggeration
 
         // Compute the placemark's Cartesian model point and corresponding distance to the eye point. If the placemark's
         // position is terrain-dependent but off the terrain, then compute it ABSOLUTE so that we have a point for the
@@ -230,12 +234,12 @@ open class Placemark @JvmOverloads constructor(
         // terrain won't get drawn, and would disappear as soon as there is no terrain at the placemark's position. This
         // can occur at the window edges. Gated by the per-frame assembly budget — first-time computes defer (avoids
         // the default-sized placeholder icon), recomputes fall through with the stale value to avoid blinking.
-        if (placePointDirty) {
+        if (currentData.placePointDirty) {
             if (rc.canAssembleGeometry()) {
-                rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
-                placePointDirty = false
-                hasPlacePoint = true
-            } else if (!hasPlacePoint) return
+                rc.geographicToCartesian(position, effectiveAltitudeMode, currentData.placePoint)
+                currentData.placePointDirty = false
+                currentData.hasPlacePoint = true
+            } else if (!currentData.hasPlacePoint) return
         }
 
         // Compute the squared camera distance to the place point for ordering and comparisons; compute the actual
@@ -332,9 +336,9 @@ open class Placemark @JvmOverloads constructor(
         // drawable in order to give the icon visual priority over the leader.
         if (mustDrawLeader(rc)) {
             // Compute the placemark's Cartesian ground point.
-            if (groundPointDirty) {
-                rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
-                groundPointDirty = false
+            if (currentData.groundPointDirty) {
+                rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, currentData.groundPoint)
+                currentData.groundPointDirty = false
             }
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.

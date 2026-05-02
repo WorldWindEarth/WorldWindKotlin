@@ -42,7 +42,7 @@ open class Label @JvmOverloads constructor(
     override var altitudeMode = AltitudeMode.ABSOLUTE
         set(value) {
             field = value
-            placePointDirty = true
+            data.values.forEach { it.placePointDirty = true }
         }
     /**
      * Indicates the rotation applied to this label. The rotation represents clockwise clockwise degrees relative to
@@ -89,15 +89,21 @@ open class Label @JvmOverloads constructor(
      * Optional lambda to control current label visibility based on its attributes, frame render context and camera distance
      */
     var isVisible: ((Label, RenderContext, Double) -> Boolean)? = null
-    protected val placePoint = Vec3()
-    protected var placePointDirty = true
-    // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
-    // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
-    protected var hasPlacePoint = false
-    protected val cachedPosition = Position()
-    protected var cachedGlobeState: Globe.State? = null
-    protected var cachedElevationTimestamp = 0L
-    protected var cachedVerticalExaggeration = 0.0
+    protected lateinit var currentData: LabelData
+    protected val data = mutableMapOf<Globe.State?, LabelData>()
+
+    protected open class LabelData {
+        val placePoint = Vec3()
+        var placePointDirty = true
+        // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
+        // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
+        var hasPlacePoint = false
+        val cachedPosition = Position()
+        var cachedElevationTimestamp = 0L
+        var cachedVerticalExaggeration = 0.0
+    }
+
+    protected val placePoint: Vec3 get() = currentData.placePoint
 
     companion object {
         /**
@@ -126,35 +132,31 @@ open class Label @JvmOverloads constructor(
         // Filter out renderable outside projection limits.
         if (rc.globe.projectionLimits?.contains(position) == false) return
 
-        // Get cached state
-        val globeState = rc.globeState
+        currentData = data.getOrPut(rc.globeState) { LabelData() }
         val elevationTimestamp = rc.elevationModelTimestamp
         val verticalExaggeration = rc.globe.verticalExaggeration
 
-        // Check if cartesian points should be recalculated
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
         val isTerrainDependent = effectiveAltitudeMode == AltitudeMode.CLAMP_TO_GROUND
                 || effectiveAltitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        val globeChanged = globeState != cachedGlobeState
-        val terrainChanged = elevationTimestamp != cachedElevationTimestamp || verticalExaggeration != cachedVerticalExaggeration
-        val positionChanged = cachedPosition != position
-        if (globeChanged || (isTerrainDependent && terrainChanged) || positionChanged) placePointDirty = true
+        val terrainChanged = elevationTimestamp != currentData.cachedElevationTimestamp
+                || verticalExaggeration != currentData.cachedVerticalExaggeration
+        val positionChanged = currentData.cachedPosition != position
+        if ((isTerrainDependent && terrainChanged) || positionChanged) currentData.placePointDirty = true
 
-        // Store cached state
-        if (positionChanged) cachedPosition.copy(position)
-        cachedGlobeState = globeState
-        cachedElevationTimestamp = elevationTimestamp
-        cachedVerticalExaggeration = verticalExaggeration
+        if (positionChanged) currentData.cachedPosition.copy(position)
+        currentData.cachedElevationTimestamp = elevationTimestamp
+        currentData.cachedVerticalExaggeration = verticalExaggeration
 
         // Compute the label's Cartesian model point — gated by the per-frame assembly budget.
         // First-time computes defer (no drawable); recomputes fall through with the stale value
         // to avoid blinking when terrain updates invalidate faster than the budget can serve.
-        if (placePointDirty) {
+        if (currentData.placePointDirty) {
             if (rc.canAssembleGeometry()) {
-                rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
-                placePointDirty = false
-                hasPlacePoint = true
-            } else if (!hasPlacePoint) return
+                rc.geographicToCartesian(position, effectiveAltitudeMode, currentData.placePoint)
+                currentData.placePointDirty = false
+                currentData.hasPlacePoint = true
+            } else if (!currentData.hasPlacePoint) return
         }
 
         // Compute the square camera distance to the place point, the value which is used for ordering
