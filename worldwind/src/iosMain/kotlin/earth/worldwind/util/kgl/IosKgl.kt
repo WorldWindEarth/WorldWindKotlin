@@ -69,6 +69,7 @@ import platform.gles3.glFenceSync
 import platform.gles3.glFinish
 import platform.gles3.glFramebufferRenderbuffer
 import platform.gles3.glFramebufferTexture2D
+import platform.gles3.glFramebufferTextureLayer
 import platform.gles3.glFrontFace
 import platform.gles3.glGenBuffers
 import platform.gles3.glGenFramebuffers
@@ -98,8 +99,10 @@ import platform.gles3.glStencilFunc
 import platform.gles3.glStencilMask
 import platform.gles3.glStencilOp
 import platform.gles3.glTexImage2D
+import platform.gles3.glTexImage3D
 import platform.gles3.glTexParameteri
 import platform.gles3.glTexSubImage2D
+import platform.gles3.glTexSubImage3D
 import platform.gles3.glUniform1f
 import platform.gles3.glUniform1fv
 import platform.gles3.glUniform1i
@@ -486,6 +489,63 @@ class IosKgl : Kgl {
         )
     }
 
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    ) {
+        if (buffer == null) {
+            glTexImage3D(
+                target.toUInt(), level, internalFormat, width, height, depth, border,
+                format.toUInt(), type.toUInt(), null
+            )
+        } else {
+            buffer.usePinned {
+                glTexImage3D(
+                    target.toUInt(), level, internalFormat, width, height, depth, border,
+                    format.toUInt(), type.toUInt(), it.addressOf(0)
+                )
+            }
+        }
+    }
+
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) {
+        if (buffer == null) {
+            glTexImage3D(
+                target.toUInt(), level, internalFormat, width, height, depth, border,
+                format.toUInt(), type.toUInt(), null
+            )
+        } else {
+            buffer.usePinned {
+                glTexImage3D(
+                    target.toUInt(), level, internalFormat, width, height, depth, border,
+                    format.toUInt(), type.toUInt(), it.addressOf(0)
+                )
+            }
+        }
+    }
+
+    override fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    ) {
+        if (buffer == null) {
+            glTexSubImage3D(
+                target.toUInt(), level, xoffset, yoffset, zoffset, width, height, depth,
+                format.toUInt(), type.toUInt(), null
+            )
+        } else {
+            buffer.usePinned {
+                glTexSubImage3D(
+                    target.toUInt(), level, xoffset, yoffset, zoffset, width, height, depth,
+                    format.toUInt(), type.toUInt(), it.addressOf(0)
+                )
+            }
+        }
+    }
+
     override fun activeTexture(texture: Int) { glActiveTexture(texture.toUInt()) }
     override fun bindTexture(target: Int, texture: KglTexture) { glBindTexture(target.toUInt(), texture.id) }
     override fun generateMipmap(target: Int) { glGenerateMipmap(target.toUInt()) }
@@ -511,6 +571,10 @@ class IosKgl : Kgl {
 
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) {
         glFramebufferTexture2D(target.toUInt(), attachment.toUInt(), textarget.toUInt(), texture.id, level)
+    }
+
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) {
+        glFramebufferTextureLayer(target.toUInt(), attachment.toUInt(), texture.id, level, layer)
     }
 
     override fun createRenderbuffer() = KglRenderbuffer(genName { n, p -> glGenRenderbuffers(n, p) })

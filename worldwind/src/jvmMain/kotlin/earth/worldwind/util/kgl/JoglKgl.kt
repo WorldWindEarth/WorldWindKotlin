@@ -43,7 +43,10 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun shaderSource(shader: KglShader, source: String) {
         val translated = translateLegacyGlsl(shader, source)
-        arrI[0] = translated.length
+        // JOGL forwards the Java String as UTF-8 bytes to glShaderSource's `length` array,
+        // which the GL driver interprets as a BYTE count. Using `length` (UTF-16 code units)
+        // truncates the tail of any source containing non-ASCII characters.
+        arrI[0] = translated.encodeToByteArray().size
         gl.glShaderSource(shader.id, 1, arrayOf(translated), IntBuffer.wrap(arrI))
     }
 
@@ -316,6 +319,31 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun framebufferTexture2D(target: Int, attachment: Int, textarget: Int, texture: KglTexture, level: Int) =
         gl.glFramebufferTexture2D(target, attachment, textarget, texture.id, level)
+
+    override val supportsTexture3D get() = true
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = gl.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { ByteBuffer.wrap(it) }
+    )
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = gl.glTexImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type,
+        buffer?.let { FloatBuffer.wrap(it) }
+    )
+    override fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = gl.glTexSubImage3D(
+        target, level, xoffset, yoffset, zoffset, width, height, depth, format, type,
+        buffer?.let { ByteBuffer.wrap(it) }
+    )
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) =
+        gl.glFramebufferTextureLayer(target, attachment, texture.id, level, layer)
 
     override val supportsMultisampleFBO get() = true
     override val supportsSizedTextureFormats get() = true

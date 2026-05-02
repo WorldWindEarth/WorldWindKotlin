@@ -85,6 +85,15 @@ private external interface WebGL2RenderingContext : JsAny {
         width: Int, height: Int, format: Int, type: Int, pboOffset: Int,
     )
     fun getBufferSubData(target: Int, srcOffset: Int, view: Uint8Array)
+    fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, source: ArrayBufferView?,
+    )
+    fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, source: ArrayBufferView?,
+    )
+    fun framebufferTextureLayer(target: Int, attachment: Int, texture: WebGLTexture?, level: Int, layer: Int)
     fun drawBuffers(buffers: JsAny)
     fun readBuffer(src: Int)
     fun fenceSync(condition: Int, flags: Int): WebGLSync?
@@ -475,6 +484,30 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
         dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
         mask: Int, filter: Int
     ) = requireGl2().blitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
+    // 3D-texture / layered-FBO surface - WebGL2-only, so `requireGl2()` throws on WebGL1;
+    // call sites must check [supportsTexture3D] first.
+    override val supportsTexture3D get() = isWebGL2
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = requireGl2().texImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type, buffer?.asUint8Array()
+    )
+    override fun texImage3D(
+        target: Int, level: Int, internalFormat: Int, width: Int, height: Int, depth: Int,
+        border: Int, format: Int, type: Int, buffer: FloatArray?
+    ) = requireGl2().texImage3D(
+        target, level, internalFormat, width, height, depth, border, format, type, buffer?.toFloat32Array()
+    )
+    override fun texSubImage3D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int, zoffset: Int,
+        width: Int, height: Int, depth: Int, format: Int, type: Int, buffer: ByteArray?
+    ) = requireGl2().texSubImage3D(
+        target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, buffer?.asUint8Array()
+    )
+    override fun framebufferTextureLayer(target: Int, attachment: Int, texture: KglTexture, level: Int, layer: Int) =
+        requireGl2().framebufferTextureLayer(target, attachment, texture.obj, level, layer)
+
     private fun requireGl2(): WebGL2RenderingContext =
         gl2 ?: throw UnsupportedOperationException("WebGL2 required for MSAA / multisample renderbuffer operations")
 
