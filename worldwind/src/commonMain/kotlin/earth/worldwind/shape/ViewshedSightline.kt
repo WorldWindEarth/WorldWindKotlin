@@ -144,27 +144,27 @@ open class ViewshedSightline @JvmOverloads constructor(
     override val referencePosition: Position get() = position
     override val isPointShape get() = true
     /**
-     * Picking flows through the inner [surfaceImage] (it owns the surface texture drawable
-     * the user actually clicks on), so propagate the outer's pick state to it. Without this,
-     * a click on the viewshed overlay returns the internal [SurfaceImage] as the picked
-     * `userObject` instead of this [ViewshedSightline]. The outer's `render()` gate already
-     * suppresses pick rendering when [isPickEnabled] is false, but we still mirror the flag
-     * onto [surfaceImage] for defence in depth.
+     * Picking flows through the inner per-window `surfaceImage` (it owns the surface texture
+     * drawable the user actually clicks on), so propagate the outer's pick state onto every
+     * window's [SurfaceImage]. Without this, a click on the viewshed overlay returns the
+     * internal [SurfaceImage] as the picked `userObject` instead of this [ViewshedSightline].
+     * The outer's `render()` gate already suppresses pick rendering when [isPickEnabled] is
+     * false, but we still mirror the flag onto each [SurfaceImage] for defence in depth.
      */
     override var isPickEnabled: Boolean = true
         set(value) {
             field = value
-            surfaceImage?.isPickEnabled = value
+            states.values.forEach { it.surfaceImage?.isPickEnabled = value }
         }
     override var pickDelegate: Any? = null
         set(value) {
             field = value
-            surfaceImage?.pickDelegate = value ?: this
+            states.values.forEach { it.surfaceImage?.pickDelegate = value ?: this }
         }
     override var displayName: String? = null
         set(value) {
             field = value
-            surfaceImage?.displayName = value
+            states.values.forEach { it.surfaceImage?.displayName = value }
         }
 
     /**
@@ -224,19 +224,12 @@ open class ViewshedSightline @JvmOverloads constructor(
     protected var framesSinceTimestampChange = 0
     protected val cachedPosition = Position()
     protected var samplingJob: Job? = null
-    protected var pendingDispatch: PendingDispatch? = null
-    protected var gpuInFlight = false
-    protected var drawable: DrawableViewshedKernel? = null
     /**
-     * Render-target RGBA8 texture the kernel writes into. Owned here so it lives across
-     * dispatches and is referenced directly by [surfaceImage] (no CPU readback round-trip).
-     * Reallocated when the grid size changes; the previous instance is handed to the drawable's
-     * `texturesToRelease` list for deferred GL-thread release on the next dispatch's draw.
+     * Most-recent finished sample, kept around until every active window has dispatched it
+     * (i.e. each window's [PerWindowState.lastDispatchedSampleId] reaches [currentSampleId]).
      */
-    protected var outputTexture: Texture? = null
-    protected var outputTextureW = 0
-    protected var outputTextureH = 0
-    protected var surfaceImage: SurfaceImage? = null
+    protected var currentSample: PendingDispatch? = null
+    protected var currentSampleId: Long = 0L
     /** Frames since the observer last moved; reset to 0 each time [position] changes. */
     protected var framesSinceChange = Int.MAX_VALUE
     /**
@@ -249,12 +242,11 @@ open class ViewshedSightline @JvmOverloads constructor(
     /** Set by [dispose]; the next [doRender] schedules GPU resource release and stops rendering. */
     protected var disposeRequested = false
     /**
-     * Last-seen [RenderContext.contextVersion]. When the engine reports a higher value our
-     * cached GPU handles ([outputTexture], [drawable]'s elevTexture/framebuffer, [surfaceImage]'s
-     * texture reference) are stale — drop them so the next dispatch lazily allocates fresh
-     * objects against the new GL context.
+     * `RenderResourceCache` key for the kernel's RGBA8 render target. Stable per [ViewshedSightline]
+     * instance so windows that share a cache reuse the same texture; windows with separate
+     * caches each get their own entry. RRC handles GL release on `remove` / eviction.
      */
-    protected var lastSeenContextVersion = 0L
+    protected val outputTextureKey = Any()
     /**
      * Ping-pong pool for the elevation `FloatArray` handed to the kernel. Two buffers because
      * sample N+1 starts off-thread inside the same `doRender` that dispatches kernel N - and
@@ -267,6 +259,23 @@ open class ViewshedSightline @JvmOverloads constructor(
     private var elevationBuffersW = 0
     private var elevationBuffersH = 0
     private var nextElevationBuffer = 0
+
+    /**
+     * Per-`RenderContext` GPU state. The drawable's R32F sampler / FBO are GL-context-bound
+     * and the surface image's texture reference must point at *this* window's RRC entry, so
+     * neither can be flat single-instance fields once a sightline is shared across windows
+     * with separate GL contexts.
+     */
+    protected open class PerWindowState {
+        var drawable: DrawableViewshedKernel? = null
+        var surfaceImage: SurfaceImage? = null
+        var gpuInFlight = false
+        /** Compared with `<` (not `!=`) so cross-window switches don't ping-pong it. */
+        var lastSeenContextVersion = 0L
+        /** Highest [currentSampleId] this window has dispatched into its RRC's output texture. */
+        var lastDispatchedSampleId = 0L
+    }
+    protected val states = HashMap<RenderContext, PerWindowState>(2)
 
     init {
         require(samplesPerSide in 2..MAX_SAMPLES_PER_SIDE) {
@@ -295,7 +304,8 @@ open class ViewshedSightline @JvmOverloads constructor(
     protected fun cancelInFlightSample() {
         samplingJob?.cancel()
         samplingJob = null
-        pendingDispatch = null
+        currentSample = null
+        states.values.forEach { it.lastDispatchedSampleId = 0L }
     }
 
     /**
@@ -314,8 +324,8 @@ open class ViewshedSightline @JvmOverloads constructor(
         cancelInFlightSample()
     }
 
-    /** True when no sample or GPU dispatch is in flight. */
-    protected val isIdle: Boolean get() = samplingJob == null && !gpuInFlight
+    /** True when no sample is in flight and no window's kernel is in flight. */
+    protected val isIdle: Boolean get() = samplingJob == null && states.values.none { it.gpuInFlight }
 
     /**
      * Compute the [samplesPerSide] count that yields approximately [metersPerPixel] resolution given
@@ -338,29 +348,18 @@ open class ViewshedSightline @JvmOverloads constructor(
 
     override fun doRender(rc: RenderContext) {
         if (disposeRequested) {
-            performDispose(rc)
+            states[rc]?.let { performDispose(rc, it) }
             return
         }
-        // Detect GL context teardown (e.g. Android pause / resume) and drop stale GPU handles.
-        // Our outputTexture, the drawable's elevTexture/framebuffer, and surfaceImage's
-        // texture reference are all kept outside RenderResourceCache so they don't get the
-        // engine's automatic clear; we instead piggyback on dc.contextVersion via rc, which
-        // ticks in DrawContext.contextLost(). Just nulling references is enough — the
-        // underlying GL objects are already invalidated by the OS, no need to delete.
-        if (rc.contextVersion != lastSeenContextVersion) {
-            lastSeenContextVersion = rc.contextVersion
-            outputTexture = null
-            outputTextureW = 0
-            outputTextureH = 0
-            surfaceImage = null
-            drawable = null
-            // Pending dispatch (if any) holds an elevations FloatArray that's still valid CPU
-            // data; we could keep it, but the simpler path is to re-sample - position may have
-            // shifted in the meantime anyway. Mark dirty so the next idle frame re-triggers.
-            pendingDispatch = null
-            samplingJob?.cancel()
-            samplingJob = null
-            dirty = true
+        val state = states.getOrPut(rc) { PerWindowState() }
+
+        // Per-window context-loss detection: only fires when *this* window's contextVersion
+        // actually advanced. The next dispatch reallocates fresh GL objects.
+        if (state.lastSeenContextVersion < rc.contextVersion) {
+            state.lastSeenContextVersion = rc.contextVersion
+            state.surfaceImage = null
+            state.drawable = null
+            state.lastDispatchedSampleId = 0L
         }
 
         // Skip new sampling and dispatch when the AOI is completely off the visible terrain -
@@ -370,7 +369,7 @@ open class ViewshedSightline @JvmOverloads constructor(
         // this is essentially a couple of float comparisons per frame.
         val aoiSector = computeAoiSector(rc.globe)
         if (aoiSector.isEmpty || !aoiSector.intersects(rc.terrain.sector)) {
-            surfaceImage?.render(rc)
+            state.surfaceImage?.render(rc)
             return
         }
 
@@ -407,19 +406,18 @@ open class ViewshedSightline @JvmOverloads constructor(
             if (readyToTrigger) dirty = true else rc.requestRedraw()
         }
 
-        // Enqueue the GPU drawable when sampling has produced a new request. The kernel runs
-        // in this same frame's draw phase and its callback clears [gpuInFlight] before the
-        // next frame starts - no async readback to poll across frames.
-        val pending = pendingDispatch
-        if (pending != null && !gpuInFlight) {
-            pendingDispatch = null
-            dispatch(rc, pending)
+        // Each window runs its own kernel into its RRC's output texture. Shared RRC → both
+        // windows resolve to the same Texture (identical data written twice, wasteful but
+        // correct); separate RRC → each window has its own texture.
+        val sample = currentSample
+        if (sample != null && state.lastDispatchedSampleId < currentSampleId && !state.gpuInFlight) {
+            state.lastDispatchedSampleId = currentSampleId
+            dispatch(rc, state, sample)
         }
 
         // Detect input changes and kick off elevation sampling when nothing else is in flight.
-        // Sampling runs off-thread on Dispatchers.Default; on completion it sets
-        // [pendingDispatch] and requests a redraw, which the dispatch branch above consumes
-        // on the next frame.
+        // Sampling runs off-thread on Dispatchers.Default; on completion it publishes
+        // [currentSample] + bumps [currentSampleId] and requests a redraw.
         val triggered = dirty || positionChanged || elevationSettled
         if (triggered && isIdle) {
             if (positionChanged) cachedPosition.copy(position)
@@ -428,7 +426,7 @@ open class ViewshedSightline @JvmOverloads constructor(
             dirty = false
         }
 
-        surfaceImage?.render(rc)
+        state.surfaceImage?.render(rc)
     }
 
     /**
@@ -488,8 +486,8 @@ open class ViewshedSightline @JvmOverloads constructor(
     /**
      * Snapshot inputs from the render context and start the elevation sampling coroutine. The
      * coroutine samples the elevation grid off the render thread on [Dispatchers.Default] and,
-     * on completion, parks the result in [pendingDispatch] for the next render frame to enqueue
-     * onto the GL thread via [dispatch].
+     * on completion, parks the result in [currentSample] (with [currentSampleId] bumped) for
+     * each window's next render frame to enqueue onto its GL thread via [dispatch].
      */
     protected open fun recompute(rc: RenderContext) {
         // Capture the draft predicate so we can record [lastWasDraft] for this dispatch
@@ -532,7 +530,7 @@ open class ViewshedSightline @JvmOverloads constructor(
                 globe.getElevationGrid(sector, w, h, buffer)
                 buffer
             }
-            pendingDispatch = PendingDispatch(
+            currentSample = PendingDispatch(
                 sector = sector,
                 width = w,
                 height = h,
@@ -546,6 +544,8 @@ open class ViewshedSightline @JvmOverloads constructor(
                 occludedColor = occludedColor,
                 elevations = elevations,
             )
+            // Bump after the write so a window observing the new id is guaranteed a non-null sample.
+            currentSampleId++
             lastWasDraft = isDraft
             samplingJob = null
             WorldWind.requestRedraw()
@@ -553,25 +553,19 @@ open class ViewshedSightline @JvmOverloads constructor(
     }
 
     /**
-     * Populate the drawable with [pending]'s data, sync the inner [SurfaceImage] to the new
-     * sector + texture, and enqueue the kernel drawable. The SurfaceImage update happens here
-     * (synchronously) rather than from the drawable's callback because
-     * [earth.worldwind.draw.DrawableSurfaceTexture.set] *copies* the sector at enqueue time;
-     * a callback-based update on the same frame would land after `surfaceImage.render(rc)` had
-     * already enqueued a drawable with the old sector — visible during a drag as a 1-frame
-     * mismatch between the kernel's new texture data and the projection sector. By updating
-     * before [surfaceImage] renders, both fall into lockstep.
+     * Populate this window's drawable with [pending]'s data, sync this window's [SurfaceImage]
+     * to the new sector + texture, and enqueue the kernel drawable into [rc]'s draw queue. The
+     * SurfaceImage update happens synchronously (not from the drawable's callback) because
+     * [earth.worldwind.draw.DrawableSurfaceTexture.set] copies the sector at enqueue time — a
+     * callback-based update would land one frame late and the surface drawable would render
+     * with the previous sector while the kernel's texture had the new one.
      */
-    private fun dispatch(rc: RenderContext, pending: PendingDispatch) {
-        val texture = ensureOutputTexture(pending.width, pending.height)
-        // Sync the SurfaceImage NOW so its drawable, enqueued shortly after via
-        // surfaceImage?.render(rc), captures the same sector + texture the kernel is about to
-        // render into during this frame's draw phase. The kernel drawable is enqueued first
-        // (just below), so by the time the surface drawable runs the texture already holds
-        // the kernel's fresh output for this exact sector.
-        val existing = surfaceImage
+    private fun dispatch(rc: RenderContext, state: PerWindowState, pending: PendingDispatch) {
+        val texture = ensureOutputTexture(rc, pending.width, pending.height)
+
+        val existing = state.surfaceImage
         if (existing == null) {
-            surfaceImage = SurfaceImage(pending.sector, texture).also {
+            state.surfaceImage = SurfaceImage(pending.sector, texture).also {
                 it.pickDelegate = pickDelegate ?: this
                 it.isPickEnabled = isPickEnabled
                 it.displayName = displayName
@@ -581,7 +575,7 @@ open class ViewshedSightline @JvmOverloads constructor(
             if (existing.texture !== texture) existing.texture = texture
         }
 
-        val d = drawable ?: DrawableViewshedKernel().also { drawable = it }
+        val d = state.drawable ?: DrawableViewshedKernel().also { state.drawable = it }
         d.program = rc.getShaderProgram(ViewshedKernelShaderProgram.KEY) {
             ViewshedKernelShaderProgram()
         }
@@ -602,8 +596,8 @@ open class ViewshedSightline @JvmOverloads constructor(
         d.visibleColor.copy(pending.visibleColor)
         d.occludedColor.copy(pending.occludedColor)
         d.missingValue = MISSING_DATA
-        d.callback = { gpuInFlight = false }
-        gpuInFlight = true
+        d.callback = { state.gpuInFlight = false }
+        state.gpuInFlight = true
         rc.offerSurfaceDrawable(d, 0.0)
     }
 
@@ -630,50 +624,44 @@ open class ViewshedSightline @JvmOverloads constructor(
     }
 
     /**
-     * Schedule release of all GPU resources via the drawable, then drop renderable-side
-     * references. Runs on the GL thread (called from `doRender`) - the actual `glDelete*` calls
-     * happen one frame later when the drawable's `draw` runs. After this returns, the
-     * renderable holds no GPU references and is effectively inert.
+     * Schedule release of this window's GPU resources and drop its [PerWindowState] entry.
+     * [disposeRequested] stays `true`, so other windows' next renders run through the same path
+     * for their own state. Once the last entry is removed the shared CPU-side state goes too.
      */
-    private fun performDispose(rc: RenderContext) {
-        val d = drawable
-        if (d != null) {
-            outputTexture?.let { d.texturesToRelease += it }
-            d.disposeOnNextDraw = true
-            rc.offerSurfaceDrawable(d, 0.0)
+    private fun performDispose(rc: RenderContext, state: PerWindowState) {
+        state.drawable?.let {
+            it.disposeOnNextDraw = true
+            rc.offerSurfaceDrawable(it, 0.0)
         }
-        outputTexture = null
-        outputTextureW = 0
-        outputTextureH = 0
-        surfaceImage = null
-        drawable = null
-        elevationBuffers[0] = null
-        elevationBuffers[1] = null
-        elevationBuffersW = 0
-        elevationBuffersH = 0
-        disposeRequested = false
+        rc.renderResourceCache.remove(outputTextureKey)
+        states.remove(rc)
+        if (states.isEmpty()) {
+            elevationBuffers[0] = null
+            elevationBuffers[1] = null
+            elevationBuffersW = 0
+            elevationBuffersH = 0
+            currentSample = null
+        }
     }
 
     /**
      * Lazy-allocate (or rebuild on grid-size change) the RGBA8 render target the kernel writes
-     * into. The kernel writes south-at-FBO-row-0 (`gl_FragCoord.y == 0` reads `elevations[0]`,
-     * which `Globe.getElevationGrid` populates as the southernmost row), and `SurfaceImage`'s
-     * natural sector → tex-coord mapping puts `v=0` at the south edge — so no vertical flip
-     * on [Texture.coordTransform] is needed.
+     * into, stored in `RenderResourceCache` under [outputTextureKey] so two WorldWindows that
+     * share a cache see the same texture. The kernel writes south-at-FBO-row-0
+     * (`gl_FragCoord.y == 0` reads `elevations[0]`, which `Globe.getElevationGrid` populates
+     * as the southernmost row), and `SurfaceImage`'s natural sector → tex-coord mapping puts
+     * `v=0` at the south edge — so no vertical flip on [Texture.coordTransform] is needed.
      *
-     * The previous texture (if any) is handed to the drawable's `texturesToRelease` list for
-     * deferred release on the next dispatch's draw — drawables drain that list before
-     * rendering. Drawable is non-null whenever current is non-null (they're created together
-     * in the first dispatch).
+     * Resizing drops the old entry into RRC's eviction queue ahead of the new `put`, so the
+     * cache's used-capacity stays consistent and `Texture.release(dc)` runs on the GL thread
+     * once all drawables that referenced the old texture this frame have completed.
      */
-    private fun ensureOutputTexture(w: Int, h: Int): Texture {
-        val current = outputTexture
-        if (current != null && outputTextureW == w && outputTextureH == h) return current
-        if (current != null) drawable?.texturesToRelease?.add(current)
+    private fun ensureOutputTexture(rc: RenderContext, w: Int, h: Int): Texture {
+        val cached = rc.renderResourceCache[outputTextureKey] as? Texture
+        if (cached != null && cached.width == w && cached.height == h) return cached
+        if (cached != null) rc.renderResourceCache.remove(outputTextureKey)
         val fresh = Texture(w, h, GL_RGBA, GL_UNSIGNED_BYTE, isRT = true, internalFormat = GL_RGBA8)
-        outputTexture = fresh
-        outputTextureW = w
-        outputTextureH = h
+        rc.renderResourceCache.put(outputTextureKey, fresh, fresh.byteCount)
         return fresh
     }
 
