@@ -56,10 +56,11 @@ object ShadowReceiverGlsl {
         const float pcfKernelRadius = 2.5;
         const float pcfDepthBias = 5e-3;
 
-        /* MSM tunables. Reference biases work on IEEE-FP-strict compilers (JVM / desktop GL /
-           WebGL2). Adreno-class compilers reorder the Cholesky's catastrophic-cancellation
-           subtractions and produce noise at this bias - PCF is the appropriate choice there. */
-        const float msmMomentBias = 3e-5;
+        /* MSM tunables. [msmMomentBias] is platform-templated via [defaultMsmMomentBias]:
+           IEEE-FP-strict compilers (JVM / desktop GL / WebGL2 / ANGLE) get the reference
+           `3e-5`; Adreno-class compilers get `3e-2` because their reordering of the Cholesky's
+           catastrophic-cancellation subtraction produces noise at the lower bias. */
+        const float msmMomentBias = $defaultMsmMomentBias;
         const float msmDepthBias = 1e-5;
 
         /* Hamburger 4-moment Cholesky reconstruction (Peters & Klein 2015).

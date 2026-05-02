@@ -31,3 +31,15 @@ expect val defaultShadowAlgorithm: ShadowAlgorithm
  * Index 0 is the closest cascade.
  */
 expect val defaultMomentsBlurTexelSpacing: FloatArray
+
+/**
+ * Platform-default MSM moment bias. The Cholesky reconstruction mixes the sampled moments
+ * toward a uniform-distribution sentinel by this fraction; small values preserve sharp
+ * penumbras, large values smear the analytic distribution but mask reconstruction noise on
+ * shader compilers that fold the catastrophic-cancellation `D22 = b.y - b.x*b.x` into
+ * garbage. Adreno-class compilers need a much larger bias (`~3e-2`) to produce a usable
+ * - if visibly translucent - shadow at all; IEEE-FP-strict compilers (JVM / desktop GL /
+ * WebGL2 / ANGLE) get clean reconstruction at `3e-5`. Templated into the shader source as
+ * a `const float` so the GPU can constant-fold it.
+ */
+expect val defaultMsmMomentBias: Float
