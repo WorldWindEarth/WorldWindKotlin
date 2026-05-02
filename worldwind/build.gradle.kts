@@ -227,15 +227,32 @@ val javadocJar = tasks.register<Jar>("javadocJar") {
     from(dokkaOutputDir)
 }
 
+// Karakum's Java-style KDoc refs in C5Ren.kt fail Dokka link resolution. Stage a copy with
+// those KDoc blocks stripped and feed it to Dokka instead of the original.
+val dokkaJsSourcesDir = layout.buildDirectory.dir("dokkaSources/jsMain")
+val prepareDokkaJsSources by tasks.registering(Sync::class) {
+    from(file("src/jsMain/kotlin"))
+    into(dokkaJsSourcesDir)
+    doLast {
+        val c5ren = dokkaJsSourcesDir.get().file("earth/worldwind/shape/milstd2525/C5Ren.kt").asFile
+        if (c5ren.exists()) {
+            c5ren.writeText(c5ren.readText().replace(Regex("""/\*\*[\s\S]*?\*/\s*"""), ""))
+        }
+    }
+}
+
 dokka {
     moduleName.set("WorldWind Kotlin")
     pluginsConfiguration.html { footerMessage.set("(c) WorldWind Earth") }
     dokkaPublications.html { outputDirectory.set(dokkaOutputDir) }
     dokkaSourceSets.named("jsMain") {
-        // C5Ren.kt is auto-generated (Karakum) and contains unresolvable Java/platform references
-        suppressedFiles.from(file("src/jsMain/kotlin/earth/worldwind/shape/milstd2525/C5Ren.kt"))
+        sourceRoots.setFrom(dokkaJsSourcesDir)
+        // C5Ren.kt is JS bindings only — keep it out of the published output too.
+        suppressedFiles.from(dokkaJsSourcesDir.map { it.file("earth/worldwind/shape/milstd2525/C5Ren.kt") })
     }
 }
+
+tasks.named("dokkaGeneratePublicationHtml") { dependsOn(prepareDokkaJsSources) }
 
 publishing {
     publications {
