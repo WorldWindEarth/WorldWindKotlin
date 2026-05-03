@@ -120,7 +120,7 @@ abstract class AbstractShape(
     // Single-entry cache for the most-recently-used (Globe.State, BoundingData) pair. Most
     // applications render against a single Globe.State, so the map lookup in [doRender] resolves
     // to the same entry every frame; checking the cache first turns it into a field read +
-    // identity compare. Invalidated on [reset] (which clears [boundingData]).
+    // identity compare. Invalidated implicitly when [doRender] resolves a different state.
     private var lastBoundingDataState: Globe.State? = null
     private var lastBoundingData: BoundingData? = null
 
@@ -209,8 +209,16 @@ abstract class AbstractShape(
     }
 
     open fun reset() {
-        boundingData.clear()
-        lastBoundingData = null
+        // Don't discard boundingData / lastBoundingData here. Each per-state BoundingData
+        // (boundingSector, boundingBox) describes last frame's geometry — same lifetime as the
+        // GL vertex buffer that [prepareGeometry]'s budget-exhausted fall-through preserves —
+        // and is overwritten by [assembleGeometry] on the next successful reassemble. Clearing
+        // it would leave currentBoundindData.boundingSector empty during fall-through, causing
+        // surface drawables to be filtered out by DrawableSurfaceShape.drawShapesToTexture
+        // (intersectsOrNextTo against an empty Sector matches only tiles touching 0°, 0°) —
+        // i.e. a one-frame blink, the opposite of what the fall-through was added to prevent.
+        // Subclasses are responsible for marking their per-state caches stale (e.g. via
+        // refreshVertexArray / refreshTopology flags).
     }
 
     /** True when [assembleGeometry] has previously emitted vertex data into the current GL buffer. */
