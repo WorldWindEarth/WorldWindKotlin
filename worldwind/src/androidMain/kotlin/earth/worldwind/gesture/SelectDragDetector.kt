@@ -203,11 +203,17 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
 
     private suspend fun awaitPickResult(movement: Boolean): Pair<Any?, Position?> {
         val pickList = pickRequest.await()
-        val userObject = pickList.topPickedObject?.userObject
+        val topPicked = pickList.topPickedObject
+        val userObject = topPicked?.userObject
         val referencePosition = (userObject as? Movable)?.referencePosition
         val terrainPosition = pickList.terrainPickedObject?.terrainPosition
-        // Reference position is a priority during movement, but terrain position is a priority on pick
-        val position = if (movement) referencePosition ?: terrainPosition else terrainPosition ?: referencePosition
+        // Movement keeps reference-first priority; pick/context/double-tap prefers the depth-tested
+        // shape-surface point over the terrain behind the shape.
+        val position = if (movement) {
+            referencePosition ?: terrainPosition
+        } else {
+            topPicked?.geographicPoint(wwd.engine.globe) ?: terrainPosition ?: referencePosition
+        }
         return userObject to position
     }
 

@@ -77,8 +77,11 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // Pick objects in selected point
         val pickList = wwd.pick(pickPoint)
 
-        // Get picked position from terrain object, if user pressed inside the globe
-        pickedPosition = pickList.terrainPickedObject?.terrainPosition
+        val topPicked = pickList.topPickedObject
+        val topPickedObject = topPicked?.userObject
+        val terrainPos = pickList.terrainPickedObject?.terrainPosition
+        // Prefer the depth-tested shape-surface point over the terrain behind the shape.
+        pickedPosition = topPicked?.geographicPoint(wwd.engine.globe) ?: terrainPos
 
 //        // NOTE Region selection use bounding box intersection with specified rectangle. Use highlighter path thickness instead.
 //        if (!pickList.hasNonTerrainObjects) {
@@ -115,8 +118,6 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // Update the window if we changed anything
         if (redrawRequired) wwd.requestRedraw()
 
-        // Get top picked renderable to use it in listener callbacks
-        val topPickedObject = pickList.topPickedObject?.userObject
         if (topPickedObject is Renderable) pickedRenderable = topPickedObject
 
         // Take reference position as a backup, if user pressed outside the globe
@@ -129,7 +130,6 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // `buttons != 0` guard above, so this captures the last hover before press (mouse) or the
         // touchstart event itself (touch).
         val movable = topPickedObject as? Movable
-        val terrainPos = pickList.terrainPickedObject?.terrainPosition
         grabRotation = if (movable != null && !movable.isPointShape && terrainPos != null) {
             SphericalRotation(terrainPos, movable.referencePosition)
         } else null

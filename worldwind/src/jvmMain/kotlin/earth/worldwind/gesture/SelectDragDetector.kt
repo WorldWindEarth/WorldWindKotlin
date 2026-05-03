@@ -128,12 +128,14 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected open fun pick(event: MouseEvent) {
         val p = wwd.viewportCoordinates(event.x, event.y)
         val pickList = runBlocking { wwd.pickAsync(p.x, p.y, 4.0, 4.0).await() }
-        val topObject = pickList.topPickedObject?.userObject
+        val topPicked = pickList.topPickedObject
+        val topObject = topPicked?.userObject
         val movable = topObject as? Movable
         val terrainPos = pickList.terrainPickedObject?.terrainPosition
         val renderable = topObject as? Renderable
         pickedRenderable = renderable
-        pickedPosition = terrainPos ?: movable?.referencePosition
+        // Prefer the depth-tested shape-surface point over the terrain behind the shape.
+        pickedPosition = topPicked?.geographicPoint(wwd.engine.globe) ?: terrainPos ?: movable?.referencePosition
         isDraggingArmed = renderable != null && callback?.canMoveRenderable(renderable) == true
         grabRotation = if (movable != null && !movable.isPointShape && terrainPos != null) {
             SphericalRotation(terrainPos, movable.referencePosition)

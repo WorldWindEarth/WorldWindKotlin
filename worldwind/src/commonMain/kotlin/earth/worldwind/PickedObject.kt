@@ -2,6 +2,7 @@ package earth.worldwind
 
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Vec3
+import earth.worldwind.globe.Globe
 import earth.worldwind.layer.Layer
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
@@ -11,6 +12,11 @@ import kotlin.math.roundToInt
 open class PickedObject protected constructor(
     val identifier: Int, val userObject: Any, val layer: Layer? = null, val terrainPosition: Position? = null
 ) {
+    var isOnTop = false
+        protected set
+
+    val isTerrain get() = terrainPosition != null
+
     /**
      * Cartesian point on the picked surface, reconstructed from the depth buffer at pick time.
      * Set only on non-terrain top picks (terrain picks expose the geographic location via
@@ -19,9 +25,13 @@ open class PickedObject protected constructor(
      */
     var cartesianPoint: Vec3? = null
         internal set
-    var isOnTop = false
-        protected set
-    val isTerrain get() = terrainPosition != null
+
+    /**
+     * Geographic equivalent of [cartesianPoint] on the given [globe], or `null` when no depth
+     * value was usable.
+     */
+    fun geographicPoint(globe: Globe, result: Position = Position()) =
+        cartesianPoint?.let { globe.cartesianToGeographic(it.x, it.y, it.z, result) }
 
     companion object {
         @JvmStatic
