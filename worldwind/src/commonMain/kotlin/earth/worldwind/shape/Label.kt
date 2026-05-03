@@ -40,10 +40,6 @@ open class Label @JvmOverloads constructor(
      * The label's altitude mode. See [AltitudeMode]
      */
     override var altitudeMode = AltitudeMode.ABSOLUTE
-        set(value) {
-            field = value
-            placePointDirty = true
-        }
     /**
      * Indicates the rotation applied to this label. The rotation represents clockwise clockwise degrees relative to
      * this label's labelRotationMode.
@@ -89,15 +85,6 @@ open class Label @JvmOverloads constructor(
      * Optional lambda to control current label visibility based on its attributes, frame render context and camera distance
      */
     var isVisible: ((Label, RenderContext, Double) -> Boolean)? = null
-    protected val placePoint = Vec3()
-    protected var placePointDirty = true
-    // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
-    // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
-    protected var hasPlacePoint = false
-    protected val cachedPosition = Position()
-    protected var cachedGlobeState: Globe.State? = null
-    protected var cachedElevationTimestamp = 0L
-    protected var cachedVerticalExaggeration = 0.0
 
     companion object {
         /**
@@ -126,42 +113,15 @@ open class Label @JvmOverloads constructor(
         // Filter out renderable outside projection limits.
         if (rc.globe.projectionLimits?.contains(position) == false) return
 
-        // Get cached state
-        val globeState = rc.globeState
-        val elevationTimestamp = rc.elevationModelTimestamp
-        val verticalExaggeration = rc.globe.verticalExaggeration
-
-        // Check if cartesian points should be recalculated
+        // Compute the label's Cartesian model point.
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
-        val isTerrainDependent = effectiveAltitudeMode == AltitudeMode.CLAMP_TO_GROUND
-                || effectiveAltitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        val globeChanged = globeState != cachedGlobeState
-        val terrainChanged = elevationTimestamp != cachedElevationTimestamp || verticalExaggeration != cachedVerticalExaggeration
-        val positionChanged = cachedPosition != position
-        if (globeChanged || (isTerrainDependent && terrainChanged) || positionChanged) placePointDirty = true
-
-        // Store cached state
-        if (positionChanged) cachedPosition.copy(position)
-        cachedGlobeState = globeState
-        cachedElevationTimestamp = elevationTimestamp
-        cachedVerticalExaggeration = verticalExaggeration
-
-        // Compute the label's Cartesian model point — gated by the per-frame assembly budget.
-        // First-time computes defer (no drawable); recomputes fall through with the stale value
-        // to avoid blinking when terrain updates invalidate faster than the budget can serve.
-        if (placePointDirty) {
-            if (rc.canAssembleGeometry()) {
-                rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
-                placePointDirty = false
-                hasPlacePoint = true
-            } else if (!hasPlacePoint) return
-        }
+        rc.geographicToCartesian(position, effectiveAltitudeMode, renderData.placePoint)
 
         // Compute the square camera distance to the place point, the value which is used for ordering
         // the label drawable and determining the amount of depth offset to apply
         renderData.cameraDistanceSq = if (isAlwaysOnTop) 0.0
         else if (rc.globe.is2D) rc.viewingDistance * rc.viewingDistance
-        else rc.cameraPoint.distanceToSquared(placePoint)
+        else rc.cameraPoint.distanceToSquared(renderData.placePoint)
 
         // Do not draw labels after the specified threshold
         if (visibilityThreshold > 0.0 && renderData.cameraDistanceSq > visibilityThreshold * visibilityThreshold) return
@@ -175,7 +135,7 @@ open class Label @JvmOverloads constructor(
 
         // Project the label's model point to screen coordinates, using the screen depth offset to push the screen
         // point's z component closer to the eye point.
-        if (!rc.projectWithDepth(placePoint, depthOffset, renderData.screenPlacePoint)) return  // clipped by the near plane or the far plane
+        if (!rc.projectWithDepth(renderData.placePoint, depthOffset, renderData.screenPlacePoint)) return  // clipped by the near plane or the far plane
 
         // Select the currently active attributes. Don't render anything if the attributes are unspecified.
         determineActiveAttributes(rc)
@@ -204,7 +164,7 @@ open class Label @JvmOverloads constructor(
     protected open fun makeDrawable(rc: RenderContext) {
         // Render the label's texture when the label's position is in the frustum. If the label's position is outside
         // the frustum we don't do anything. This ensures that label textures are rendered only as necessary.
-        val texture = rc.getText(text, activeAttributes, rc.frustum.containsPoint(placePoint)) ?: return
+        val texture = rc.getText(text, activeAttributes, rc.frustum.containsPoint(renderData.placePoint)) ?: return
 
         // Initialize the unit square transform to the identity matrix.
         renderData.unitSquareTransform.setToIdentity()
@@ -269,6 +229,10 @@ open class Label @JvmOverloads constructor(
      * Properties associated with the label during a render pass.
      */
     protected open class RenderData {
+        /**
+         * The model coordinate point corresponding to the label's position.
+         */
+        val placePoint = Vec3()
         /**
          * The screen coordinate point corresponding to the label's position.
          */

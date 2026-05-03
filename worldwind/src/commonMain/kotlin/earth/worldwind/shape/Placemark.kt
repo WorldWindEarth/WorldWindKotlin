@@ -53,10 +53,6 @@ open class Placemark @JvmOverloads constructor(
      * The placemark's altitude mode. See [AltitudeMode]
      */
     override var altitudeMode = AltitudeMode.ABSOLUTE
-        set(value) {
-            field = value
-            placePointDirty = true
-        }
     /**
      * The attributes to use when the placemark is highlighted.
      */
@@ -152,17 +148,6 @@ open class Placemark @JvmOverloads constructor(
      * The distance from the camera to the placemark in meters.
      */
     protected var cameraDistance = 0.0
-    protected val placePoint = Vec3()
-    protected var placePointDirty = true
-    // Flips on the first successful [placePoint] conversion and never resets — lets [doRender]
-    // render with a stale placePoint when the budget refuses a recompute (avoids blinking).
-    protected var hasPlacePoint = false
-    protected val groundPoint = Vec3()
-    protected var groundPointDirty = true
-    protected val cachedPosition = Position()
-    protected var cachedGlobeState: Globe.State? = null
-    protected var cachedElevationTimestamp = 0L
-    protected var cachedVerticalExaggeration = 0.0
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -203,40 +188,12 @@ open class Placemark @JvmOverloads constructor(
         // Filter out renderable outside projection limits.
         if (rc.globe.projectionLimits?.contains(position) == false) return
 
-        // Get cached state
-        val globeState = rc.globeState
-        val elevationTimestamp = rc.elevationModelTimestamp
-        val verticalExaggeration = rc.globe.verticalExaggeration
-
-        // Check if cartesian points should be recalculated
+        // Compute the placemark's Cartesian model point. If the placemark's position is terrain-dependent but off the
+        // terrain, then compute it ABSOLUTE so that we have a point for the placemark and are thus able to draw it.
+        // Otherwise, its image and label portion that are potentially over the terrain won't get drawn, and would
+        // disappear as soon as there is no terrain at the placemark's position. This can occur at the window edges.
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
-        val isTerrainDependent = effectiveAltitudeMode == AltitudeMode.CLAMP_TO_GROUND
-                || effectiveAltitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        val globeChanged = globeState != cachedGlobeState
-        val terrainChanged = elevationTimestamp != cachedElevationTimestamp || verticalExaggeration != cachedVerticalExaggeration
-        val positionChanged = cachedPosition != position
-        if (globeChanged || (isTerrainDependent && terrainChanged) || positionChanged) placePointDirty = true
-        if (globeChanged || terrainChanged || positionChanged) groundPointDirty = true
-
-        // Store cached state
-        if (positionChanged) cachedPosition.copy(position)
-        cachedGlobeState = globeState
-        cachedElevationTimestamp = elevationTimestamp
-        cachedVerticalExaggeration = verticalExaggeration
-
-        // Compute the placemark's Cartesian model point and corresponding distance to the eye point. If the placemark's
-        // position is terrain-dependent but off the terrain, then compute it ABSOLUTE so that we have a point for the
-        // placemark and are thus able to draw it. Otherwise, its image and label portion that are potentially over the
-        // terrain won't get drawn, and would disappear as soon as there is no terrain at the placemark's position. This
-        // can occur at the window edges. Gated by the per-frame assembly budget — first-time computes defer (avoids
-        // the default-sized placeholder icon), recomputes fall through with the stale value to avoid blinking.
-        if (placePointDirty) {
-            if (rc.canAssembleGeometry()) {
-                rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
-                placePointDirty = false
-                hasPlacePoint = true
-            } else if (!hasPlacePoint) return
-        }
+        rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
 
         // Compute the squared camera distance to the place point for ordering and comparisons; compute the actual
         // distance only when needed for math (eye-distance scaling, billboard pixel size, level-of-detail selector).
@@ -316,10 +273,7 @@ open class Placemark @JvmOverloads constructor(
 
         // Project the placemark's model point to screen coordinates, using the screen depth offset to push the screen
         // point's z component closer to the eye point.
-        if (!rc.projectWithDepth(placePoint, depthOffset, screenPlacePoint)) {
-            placePoint.subtract(billboardVector) // Restore correct cached value
-            return // clipped by the near plane or the far plane
-        }
+        if (!rc.projectWithDepth(placePoint, depthOffset, screenPlacePoint)) return // clipped by the near plane or the far plane
 
         // Keep track of the drawable count to determine whether this placemark has enqueued drawables.
         val drawableCount = rc.drawableCount
@@ -332,10 +286,7 @@ open class Placemark @JvmOverloads constructor(
         // drawable in order to give the icon visual priority over the leader.
         if (mustDrawLeader(rc)) {
             // Compute the placemark's Cartesian ground point.
-            if (groundPointDirty) {
-                rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
-                groundPointDirty = false
-            }
+            rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
@@ -387,9 +338,6 @@ open class Placemark @JvmOverloads constructor(
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
             rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
         }
-
-        // Restore placePoint to its cached (pre-billboard) value so the cache remains valid for subsequent frames.
-        placePoint.subtract(billboardVector)
     }
 
     /**
@@ -590,8 +538,10 @@ open class Placemark @JvmOverloads constructor(
          */
         const val DEFAULT_EYE_DISTANCE_SCALING_THRESHOLD = 4e5
         protected const val DEFAULT_DEPTH_OFFSET = -0.03
+        private val placePoint = Vec3()
         private val billboardVector = Vec3()
         private val screenPlacePoint = Vec3()
+        private val groundPoint = Vec3()
         private val offset = Vec2()
         private val imageTransform = Matrix4()
         private val labelTransform = Matrix4()
