@@ -152,7 +152,7 @@ open class Path @JvmOverloads constructor(
         drawState.isLine = true
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+        drawState.program = TriangleShaderProgram.get(rc)
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
@@ -255,7 +255,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.isLine = false
 
             // Use the basic GLSL program to draw the shape.
-            drawStateExtrusion.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+            drawStateExtrusion.program = TriangleShaderProgram.get(rc)
 
             // Assemble the drawable's OpenGL vertex buffer object.
             drawStateExtrusion.vertexBuffer = rc.getBufferObject(currentData.extrudeVertexBufferKey) {

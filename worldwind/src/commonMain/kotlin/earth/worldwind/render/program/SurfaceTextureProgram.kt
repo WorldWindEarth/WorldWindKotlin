@@ -3,42 +3,60 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
-import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.render.Color
+import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.KglUniformLocation
 
 // TODO Try accumulating surface tile state (texCoordMatrix, texSampler), loading uniforms once, then loading a uniform
 // TODO index to select the state for a surface tile. This reduces the uniform calls when many surface tiles intersect
 // TODO one terrain tile.
 // TODO Try class representing transform with a specific scale+translate object that can be uploaded to a GLSL vec4
-class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
+/**
+ * Surface tile / surface texture program. A single GLSL source carries both the no-shadow
+ * (default) and the shadow-aware paths, gated by a `#define SHADOWS_ENABLED` preprocessor
+ * symbol that [shadowsEnabled] toggles. Most apps don't use shadows, so the default
+ * `SurfaceTextureProgram()` instance compiles to the smaller-binary no-shadow program.
+ * The sentinel subclass [SurfaceTextureProgramShadow] - selected by [get] when an
+ * [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list - exists only to give
+ * the cache a distinct [kotlin.reflect.KClass] key for the shadow-aware variant; it carries
+ * no GLSL or method overrides of its own.
+ */
+open class SurfaceTextureProgram(
+    protected val shadowsEnabled: Boolean = false,
+) : AbstractShaderProgram(), ShadowReceiverProgram {
     override var programSources = arrayOf(
-        """
+        defines() + """
             uniform bool enableTexture;
             uniform mat4 mvpMatrix;
             uniform mat3 texCoordMatrix[2];
+            #ifdef SHADOWS_ENABLED
             /* Tile-local -> world translation for shadow receivers. Same value [DrawableSurfaceTexture]
                feeds via [multiplyByTranslation] when composing mvpMatrix; passing it separately here
                lets the fragment shader recover world-space position for the shadow lookup without
                re-uploading any matrices. */
             uniform vec3 vertexOrigin;
+            #endif
 
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
 
             varying vec2 texCoord;
             varying vec2 tileCoord;
+            #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
+            #endif
 
             void main() {
                 /* Transform the vertex position by the modelview-projection matrix. */
                 gl_Position = mvpMatrix * vertexPoint;
 
+                #ifdef SHADOWS_ENABLED
                 worldPos = vertexPoint.xyz + vertexOrigin;
                 viewDepth = gl_Position.w;
+                #endif
 
                 /* Transform the vertex tex coord by the tex coord matrices. */
                 if (enableTexture) {
@@ -48,7 +66,7 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                 }
             }
         """.trimIndent(),
-        """
+        defines() + """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             #elif defined(GL_ES)
@@ -63,10 +81,12 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
 
             varying vec2 texCoord;
             varying vec2 tileCoord;
+            #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
 
             ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            #endif
 
             void main() {
                 /* Using the second texture coordinate, compute a mask that's 1.0 when the fragment is inside the surface tile, and
@@ -89,14 +109,18 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     gl_FragColor = color * opacity * tileMask;
                 }
 
+                #ifdef SHADOWS_ENABLED
                 /* Skip shadow attenuation in pick mode so picked terrain isn't darkened. */
                 if (!enablePickMode) {
                     gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
+                #endif
             }
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint", "vertexTexCoord")
+
+    private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
 
     val mvpMatrix = Matrix4()
     val texCoordMatrix = arrayOf(Matrix3(), Matrix3())
@@ -142,6 +166,9 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
 
+        // Shadow receiver uniforms - getUniformLocation returns NONE on the no-shadow variant
+        // (GLSL preprocessor stripped the declarations); subsequent uniformX calls are silent
+        // GL no-ops there.
         vertexOriginId = gl.getUniformLocation(program, "vertexOrigin")
         gl.uniform3f(vertexOriginId, 0f, 0f, 0f)
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
@@ -192,6 +219,8 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     /**
      * Sets the tile-local -> world translation for the next draw call. Per-tile because each
      * terrain tile uses its own local frame; loaded each iteration of the tile loop.
+     * Drawables only call this when [earth.worldwind.draw.DrawContext.shadowState] is non-null,
+     * so the call doesn't happen on no-shadow frames at all.
      */
     fun loadVertexOrigin(x: Float, y: Float, z: Float) {
         gl.uniform3f(vertexOriginId, x, y, z)
@@ -200,7 +229,9 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     override var shadowUploadStamp: Long = -1L
 
     override fun loadShadowDisabled() {
-        gl.uniform1i(applyShadowId, 0)
+        // Called once per drawable per frame; skip the JNI roundtrip on the no-shadow variant
+        // (applyShadowId is NONE and the GL call would be a silent no-op).
+        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
     }
 
     override fun loadShadowEnabled(
@@ -229,5 +260,30 @@ class SurfaceTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
 
     companion object {
         val KEY = SurfaceTextureProgram::class
+
+        /**
+         * Resolves the right [SurfaceTextureProgram] variant for [rc] - the shadow-aware
+         * variant when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is in the layer
+         * list, the smaller-binary no-shadow variant otherwise.
+         */
+        fun get(rc: RenderContext): SurfaceTextureProgram = if (rc.hasShadowLayer) {
+            rc.getShaderProgram(SurfaceTextureProgramShadow.KEY) { SurfaceTextureProgramShadow() }
+        } else {
+            rc.getShaderProgram(KEY) { SurfaceTextureProgram() }
+        }
+    }
+}
+
+/**
+ * Sentinel subclass: distinct cache key for the shadow-aware GLSL variant of
+ * [SurfaceTextureProgram]. No GLSL or method overrides of its own - the parent's GLSL is the
+ * single source of truth, the `#define SHADOWS_ENABLED` flipped on by the constructor
+ * argument selects the shadow-aware compilation, and the parent's `loadShadowX` /
+ * `loadVertexOrigin` bodies do the actual uniform uploads against the now-valid uniform
+ * locations.
+ */
+class SurfaceTextureProgramShadow : SurfaceTextureProgram(shadowsEnabled = true) {
+    companion object {
+        val KEY = SurfaceTextureProgramShadow::class
     }
 }

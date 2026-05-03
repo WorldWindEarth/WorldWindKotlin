@@ -13,6 +13,7 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.globe.terrain.BasicTessellator
 import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.LayerList
+import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.render.program.DepthToColorProgram
@@ -507,6 +508,10 @@ open class WorldWind @JvmOverloads constructor(
         rc.pickPoint = frame.pickPoint
         rc.pickRay = frame.pickRay
         rc.isPickMode = frame.isPickMode
+
+        // Snapshot once per frame: receivers pick their shader variant before
+        // [ShadowLayer.doRender] runs, so they can't read [rc.shadowState] yet.
+        rc.hasShadowLayer = layers.firstOrNull { it is ShadowLayer }?.isEnabled == true
 
         // The depth-as-color shader program is only needed for the pick pass to reconstruct
         // Cartesian points from the depth buffer, so allocate it lazily and only on pick frames.

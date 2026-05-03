@@ -71,10 +71,11 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder, Sh
         // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.
         dc.applyShadowReceiverUniforms(program, drawState.shadowMode.receivesShadows)
 
-        // Model -> world transform: vertex origin is added to tile-local positions to recover
-        // ECEF Cartesian for the shadow receiver. Same transform implicit in [mvpMatrix].
-        modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
-        program.loadModelMatrix(modelMatrix)
+        // Model -> world transform for the shadow-receiver pass; skipped on no-shadow frames.
+        if (dc.shadowState != null) {
+            modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+            program.loadModelMatrix(modelMatrix)
+        }
 
         // Use the shape's vertex point attribute.
         dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, 0)

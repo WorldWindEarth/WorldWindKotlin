@@ -114,7 +114,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         )
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram(BasicTextureProgram.KEY) { BasicTextureProgram() }
+        drawState.program = BasicTextureProgram.get(rc)
 
         // Load the vertex data since both the interior and outline use it
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {

@@ -7,12 +7,22 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.render.Color
+import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import earth.worldwind.util.kgl.KglUniformLocation
 
-class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
+/**
+ * Lit / unlit textured-mesh program. A single GLSL source carries both the no-shadow
+ * (default) and shadow-aware paths, gated by a `#define SHADOWS_ENABLED` preprocessor
+ * symbol that [shadowsEnabled] toggles. Default `BasicTextureProgram()` is the smaller-binary
+ * no-shadow variant; [BasicTextureProgramShadow] - selected by [get] when an
+ * [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list - flips the `#define` on.
+ */
+open class BasicTextureProgram(
+    protected val shadowsEnabled: Boolean = false,
+) : AbstractShaderProgram(), ShadowReceiverProgram {
     override var programSources = arrayOf(
-        """
+        defines() + """
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
             attribute vec4 normalVector;
@@ -23,33 +33,43 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
             uniform mat3 texCoordMatrix;
             uniform bool applyLighting;
             uniform bool isRenderLine;
+            #ifdef SHADOWS_ENABLED
             /* Model -> world transform for shadow receivers. Composed by the drawable as the
                combined per-shape / per-entity transform that maps tile-local vertices to ECEF
                Cartesian. Identity is fine when the drawable already places vertices in world. */
             uniform mat4 modelMatrix;
+            #endif
 
             varying vec2 texCoord;
-            varying vec4 normal;
+            varying vec3 normal;
+            #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
+            #endif
 
             void main() {
                 if (isRenderLine) {
                     vec4 vPoint = vec4(vertexPoint.xyz + normalVector.xyz * (segmentWidth / 2.0), 1.0);
                     gl_Position = mvpMatrix * vPoint;
+                    #ifdef SHADOWS_ENABLED
                     worldPos = (modelMatrix * vPoint).xyz;
+                    #endif
                 } else {
                     gl_Position = mvpMatrix * vertexPoint;
+                    #ifdef SHADOWS_ENABLED
                     worldPos = (modelMatrix * vertexPoint).xyz;
+                    #endif
                     texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
                     if (applyLighting) {
-                        normal = mvInverseMatrix * normalVector;
+                        normal = (mvInverseMatrix * normalVector).xyz;
                     }
                 }
+                #ifdef SHADOWS_ENABLED
                 viewDepth = gl_Position.w;
+                #endif
             }
         """.trimIndent(),
-        """
+        defines() + """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             #elif defined(GL_ES)
@@ -68,14 +88,20 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
             uniform vec3 lightDirection;
 
             varying vec2 texCoord;
-            varying vec4 normal;
+            varying vec3 normal;
+            #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
 
             ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            #endif
 
             void main() {
                 vec4 textureColor = texture2D(texSampler, texCoord);
+                /* Early discard for transparent texels - skips the color compose, lighting,
+                   and shadow work below. On tile-based GPUs (Adreno, Mali) this also preserves
+                   the tile's hidden-surface-removal which a later discard would disable. */
+                if (enableTexture && textureColor.a == 0.0) discard;
                 float ambient = 0.15;
                 if (enableTexture && !modulateColor)
                     gl_FragColor = textureColor * color * opacity;
@@ -83,19 +109,23 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     gl_FragColor = color * ceil(textureColor.a);
                 else
                     gl_FragColor = color * opacity;
-                if (gl_FragColor.a == 0.0) {discard;}
+                if (gl_FragColor.a == 0.0) discard;
                 if (applyLighting) {
-                    vec3 n = normalize(normal.xyz) * (gl_FrontFacing ? 1.0 : -1.0);
+                    vec3 n = normalize(normal) * (gl_FrontFacing ? 1.0 : -1.0);
                     gl_FragColor.rgb *= clamp(ambient + dot(lightDirection, n), 0.0, 1.0);
                 }
+                #ifdef SHADOWS_ENABLED
                 /* Skip shadow attenuation in pick mode so pick IDs aren't darkened. */
                 if (!modulateColor) {
                     gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
+                #endif
             }
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint", "normalVector", "vertexTexCoord")
+
+    private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
 
     private var enableTexture = false
     private var modulateColor = false
@@ -103,6 +133,9 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     private var isRenderLine = false
     private val mvpMatrix = Matrix4()
     private val mvInverseMatrix = Matrix4()
+    /** Cached value of the last uploaded `modelMatrix`; defaults to identity (matches the
+     *  init-time upload). Used by [loadModelMatrix] to skip redundant uploads. */
+    private val modelMatrix = Matrix4()
     private val texCoordMatrix = Matrix3()
     private val color = Color()
     private var opacity = 1.0f
@@ -157,10 +190,10 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         isRenderLineId = gl.getUniformLocation(program, "isRenderLine")
         gl.uniform1i(isRenderLineId, if (isRenderLine) 1 else 0)
 
-        // modelMatrix defaults to identity so drawables that don't load it still produce
-        // correct world positions (no [ShadowLayer] active).
+        // Shadow receiver uniforms - see SurfaceTextureProgram.initProgram for the no-shadow
+        // GL-no-op rationale.
         modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
-        Matrix4().transposeToArray(array, 0)
+        modelMatrix.transposeToArray(array, 0) // 4 x 4 identity matrix
         gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
         gl.uniform1i(applyShadowId, 0)
@@ -178,32 +211,31 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     }
 
     /**
-     * Loads the specified matrix as the value of this program's 'mvInverseMatrix' uniform variable.
-     *
-     * @param matrix The matrix to load.
+     * Loads the specified matrix as the value of this program's 'mvInverseMatrix' uniform
+     * variable. Skips the upload when the value matches the cached one - COLLADA / glTF
+     * scenes with many sub-meshes sharing the same camera state see the same matrix on
+     * every draw, so dirty-checking pays off.
      */
     fun loadModelviewInverse(matrix: Matrix4) {
-        // Don't bother testing whether mvpMatrix has changed, the common case is to load a different matrix.
-        matrix.transposeToArray(array, 0)
-        gl.uniformMatrix4fv(mvInverseMatrixId, 1, false, array, 0)
+        if (mvInverseMatrix != matrix) {
+            mvInverseMatrix.copy(matrix)
+            matrix.transposeToArray(array, 0)
+            gl.uniformMatrix4fv(mvInverseMatrixId, 1, false, array, 0)
+        }
     }
 
     /**
      * Loads the specified matrix as the value of this program's 'mvpMatrix' uniform variable.
-     *
-     * @param matrix The matrix to load.
+     * Dirty-checked - same rationale as [loadModelviewInverse].
      */
     fun loadModelviewProjection(matrix: Matrix4) {
-        // Don't bother testing whether mvpMatrix has changed, the common case is to load a different matrix.
-        matrix.transposeToArray(array, 0)
-        gl.uniformMatrix4fv(mvpMatrixId, 1, false, array, 0)
+        if (mvpMatrix != matrix) {
+            mvpMatrix.copy(matrix)
+            matrix.transposeToArray(array, 0)
+            gl.uniformMatrix4fv(mvpMatrixId, 1, false, array, 0)
+        }
     }
 
-    /**
-     * Loads the specified color as the value of this program's 'color' uniform variable.
-     *
-     * @param color The color to load.
-     */
     fun loadColor(color: Color) {
         if (this.color != color) {
             this.color.copy(color)
@@ -212,11 +244,6 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         }
     }
 
-    /**
-     * Loads the specified boolean as the value of this program's 'enableTexture' uniform variable.
-     * 
-     * @param enable true to enable texturing, false to disable texturing.
-     */
     fun loadTextureEnabled(enable: Boolean) {
         if (enableTexture != enable) {
             enableTexture = enable
@@ -224,16 +251,6 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         }
     }
 
-    /**
-     * Loads the specified boolean as the value of this program's 'modulateColor' uniform variable. When this
-     * value is true and the value of the textureEnabled variable is true, the color uniform of this shader is
-     * multiplied by the rounded alpha component of the texture color at each fragment. This causes the color
-     * to be either fully opaque or fully transparent depending on the value of the texture color's alpha value.
-     * This is used during picking to replace opaque or mostly opaque texture colors with the pick color, and
-     * to make all other texture colors transparent.
-     * 
-     * @param enable true to enable modulation, false to disable modulation.
-     */
     fun loadModulateColor(enable: Boolean) {
         if (modulateColor != enable) {
             modulateColor = enable
@@ -241,20 +258,10 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         }
     }
 
-    /**
-     * Loads the specified number as the value of this program's 'textureSampler' uniform variable.
-     * 
-     * @param unit The texture unit.
-     */
     fun loadTextureUnit(unit: Int) {
         gl.uniform1i(texSamplerId, unit - GL_TEXTURE0)
     }
 
-    /**
-     * Loads the specified matrix as the value of this program's 'texCoordMatrix' uniform variable.
-     * 
-     * @param matrix The texture coordinate matrix.
-     */
     fun loadTextureMatrix(matrix: Matrix3) {
         if (texCoordMatrix != matrix) {
             texCoordMatrix.copy(matrix)
@@ -263,11 +270,6 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         }
     }
 
-    /**
-     * Loads the specified number as the value of this program's 'opacity' uniform variable.
-     * 
-     * @param opacity The opacity in the range [0, 1].
-     */
     fun loadOpacity(opacity: Float) {
         if (this.opacity != opacity) {
             this.opacity = opacity
@@ -275,11 +277,6 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         }
     }
 
-    /**
-     * Loads the specified boolean as the value of this program's 'applyLighting' uniform variable.
-     * 
-     * @param applyLighting true to apply lighting, otherwise false.
-     */
     fun loadApplyLighting(applyLighting: Boolean) {
         if (this.applyLighting != applyLighting) {
             this.applyLighting = applyLighting
@@ -291,8 +288,6 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
      * Loads an eye-space unit vector pointing toward the light source. Callers transform the
      * world-space sun direction by the modelview rotation (see [DrawContext.modelviewNormalTransform])
      * before passing it in, so the fragment shader can dot it directly against eye-space normals.
-     *
-     * @param direction Eye-space light direction. Must be normalized.
      */
     fun loadLightDirection(direction: Vec3) {
         if (lightDirection != direction) {
@@ -302,19 +297,23 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
     }
 
     /**
-     * Loads the model -> world transform for shadow receivers. Pass the same translate /
-     * compose that the drawable applied to [mvpMatrix] (minus the modelview-projection
-     * portion). Identity matrix means "vertices are already in world space".
+     * Loads the model -> world transform for shadow receivers. Dirty-checked: COLLADA / glTF
+     * scenes with many sub-meshes sharing the same root world transform see the same matrix
+     * on every draw. Drawables only call this when [earth.worldwind.draw.DrawContext.shadowState]
+     * is non-null, so it doesn't run on no-shadow frames at all.
      */
     fun loadModelMatrix(matrix: Matrix4) {
-        matrix.transposeToArray(array, 0)
-        gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+        if (modelMatrix != matrix) {
+            modelMatrix.copy(matrix)
+            matrix.transposeToArray(array, 0)
+            gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+        }
     }
 
     override var shadowUploadStamp: Long = -1L
 
     override fun loadShadowDisabled() {
-        gl.uniform1i(applyShadowId, 0)
+        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
     }
 
     override fun loadShadowEnabled(
@@ -341,11 +340,6 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
     }
 
-    /**
-     * Loads the specified boolean as the value of this program's 'isRenderLine' uniform variable.
-     *
-     * @param isRenderLine true if rendering lines, otherwise false.
-     */
     fun loadIsRenderLine(isRenderLine: Boolean) {
         if (this.isRenderLine != isRenderLine) {
             this.isRenderLine = isRenderLine
@@ -355,5 +349,23 @@ class BasicTextureProgram : AbstractShaderProgram(), ShadowReceiverProgram {
 
     companion object {
         val KEY = BasicTextureProgram::class
+
+        /**
+         * Resolves the [BasicTextureProgram] variant for [rc] - the shadow-aware variant
+         * when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list,
+         * the smaller-binary no-shadow variant otherwise.
+         */
+        fun get(rc: RenderContext): BasicTextureProgram = if (rc.hasShadowLayer) {
+            rc.getShaderProgram(BasicTextureProgramShadow.KEY) { BasicTextureProgramShadow() }
+        } else {
+            rc.getShaderProgram(KEY) { BasicTextureProgram() }
+        }
+    }
+}
+
+/** Sentinel subclass: distinct cache key for the shadow-aware GLSL variant. See [BasicTextureProgram]. */
+class BasicTextureProgramShadow : BasicTextureProgram(shadowsEnabled = true) {
+    companion object {
+        val KEY = BasicTextureProgramShadow::class
     }
 }

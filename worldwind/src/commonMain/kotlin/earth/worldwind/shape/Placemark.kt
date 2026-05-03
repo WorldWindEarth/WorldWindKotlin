@@ -501,7 +501,7 @@ open class Placemark @JvmOverloads constructor(
      */
     protected open fun prepareDrawableLeader(rc: RenderContext, drawable: DrawableLines) {
         // Use the basic GLSL program to draw the placemark's leader.
-        drawable.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+        drawable.program = TriangleShaderProgram.get(rc)
 
         var vertexIndex = 0
         val upperLeftCorner = encodeOrientationVector(-1f, 1f)

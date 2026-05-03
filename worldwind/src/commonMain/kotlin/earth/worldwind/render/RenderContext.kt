@@ -86,6 +86,15 @@ open class RenderContext {
      * for the draw phase.
      */
     var shadowState: earth.worldwind.layer.shadow.ShadowState? = null
+    /**
+     * `true` when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is present in [layers]
+     * for this frame. Computed once at the start of [earth.worldwind.WorldWind.renderFrame]
+     * before any [Layer.render] runs, so receivers that touch every visible fragment
+     * (surface tiles, atmosphere ground) can pick the smaller-binary no-shadow shader
+     * variant up-front. Independent of [shadowState], which is populated later by
+     * [earth.worldwind.layer.shadow.ShadowLayer.doRender].
+     */
+    var hasShadowLayer: Boolean = false
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -139,6 +148,7 @@ open class RenderContext {
         cameraPoint.set(0.0, 0.0, 0.0)
         lightDirection.set(0.0, 0.0, 1.0)
         shadowState = null
+        hasShadowLayer = false
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()

@@ -160,7 +160,7 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     }
 
     protected open fun determineActiveProgram(rc: RenderContext) {
-        activeProgram = rc.getShaderProgram(SurfaceTextureProgram.KEY) { SurfaceTextureProgram() }
+        activeProgram = SurfaceTextureProgram.get(rc)
     }
 
     protected open fun assembleTiles(rc: RenderContext) {

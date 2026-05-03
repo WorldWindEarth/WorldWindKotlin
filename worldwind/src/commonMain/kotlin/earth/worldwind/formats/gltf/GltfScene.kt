@@ -81,7 +81,7 @@ class GltfScene internal constructor(
             transformValid = true
         }
 
-        val program = rc.getShaderProgram(BasicTextureProgram.KEY) { BasicTextureProgram() }
+        val program = BasicTextureProgram.get(rc)
 
         // VBO layout: [vertices0][vertices1]...[normals0][normals1]...
         var vertexFloatOffset = 0

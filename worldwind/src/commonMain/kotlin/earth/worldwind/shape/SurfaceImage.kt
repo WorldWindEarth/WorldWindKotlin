@@ -62,8 +62,7 @@ open class SurfaceImage : AbstractSurfaceRenderable {
         }
     }
 
-    protected open fun getShaderProgram(rc: RenderContext) =
-        rc.getShaderProgram(SurfaceTextureProgram.KEY) { SurfaceTextureProgram() }
+    protected open fun getShaderProgram(rc: RenderContext) = SurfaceTextureProgram.get(rc)
 
     companion object {
         /**

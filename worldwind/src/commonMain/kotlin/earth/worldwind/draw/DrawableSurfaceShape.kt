@@ -275,15 +275,14 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             program.loadModelviewProjection(mvpMatrix)
             program.loadClipDistance(0.0f)
 
-            // Apply shadow attenuation in the composite-to-terrain pass (the rasterize-to-
-            // texture pass disabled it earlier) so surface shapes pick up the same
-            // 3D-caster shadows that fall on the terrain underneath them. Receivers'
-            // `worldPos` needs `modelMatrix = translate(terrainOrigin)` to resolve to ECEF
-            // Cartesian; do that even when shadows are disabled so future receivers
-            // sharing the program see a sensible default.
+            // Apply shadow attenuation in the composite-to-terrain pass so surface shapes pick
+            // up the 3D-caster shadows the terrain underneath received. modelMatrix is only
+            // sampled by the shadow-receiver path; skipped on no-shadow frames.
             dc.applyShadowReceiverUniforms(program)
-            modelMatrix.setToTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
-            program.loadModelMatrix(modelMatrix)
+            if (dc.shadowState != null) {
+                modelMatrix.setToTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
+                program.loadModelMatrix(modelMatrix)
+            }
 
             // Draw the terrain as triangles.
             terrain.drawTriangles(dc)

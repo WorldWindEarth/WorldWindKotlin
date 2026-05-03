@@ -6,13 +6,25 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.render.Color
+import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.KglUniformLocation
 
-class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
+/**
+ * Triangle / line strip program. A single GLSL source carries both the no-shadow (default)
+ * and shadow-aware paths, gated by a `#define SHADOWS_ENABLED` preprocessor symbol that
+ * [shadowsEnabled] toggles. Default `TriangleShaderProgram()` is the smaller-binary
+ * no-shadow variant; [TriangleShaderProgramShadow] - selected by [get] when an
+ * [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list - flips the `#define` on.
+ */
+open class TriangleShaderProgram(
+    protected val shadowsEnabled: Boolean = false,
+) : AbstractShaderProgram(), ShadowReceiverProgram {
     override var programSources = arrayOf(
-        """
+        defines() + """
             uniform mat4 mvpMatrix;
+            #ifdef SHADOWS_ENABLED
             uniform mat4 modelMatrix;
+            #endif
             uniform float lineWidth;
             uniform vec2 miterLengthCutoff;
             uniform vec4 screen;
@@ -27,24 +39,28 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
             attribute vec2 vertexTexCoord;
 
             varying vec2 texCoord;
+            #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
+            #endif
 
             void main() {
                 if (enableOneVertexMode) {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
+                    #ifdef SHADOWS_ENABLED
                     worldPos = (modelMatrix * vec4(pointA.xyz, 1.0)).xyz;
+                    #endif
                 } else {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
                     vec4 pointBScreen = mvpMatrix * vec4(pointB.xyz, 1);
                     vec4 pointCScreen = mvpMatrix * vec4(pointC.xyz, 1);
                     vec4 interpolationPoint = pointB.w < 0.0 ? pointAScreen : pointCScreen; // not a mistake, this should be assigned here
-                    
+
                     if (pointBScreen.w < 0.0) {
                         pointBScreen = mix(pointBScreen, interpolationPoint, clamp((clipDistance - pointBScreen.w)/(interpolationPoint.w - pointBScreen.w), 0.0, 1.0));
-                        if (pointB.w < 0.0) { 
+                        if (pointB.w < 0.0) {
                             pointCScreen = pointBScreen;
                         } else {
                             pointAScreen = pointBScreen;
@@ -58,13 +74,13 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     if (pointCScreen.w < 0.0) {
                         pointCScreen  = mix(pointCScreen, pointBScreen, clamp((clipDistance - pointCScreen.w)/(pointBScreen.w - pointCScreen.w), 0.0, 1.0));
                     }
-                    
+
                     pointAScreen.xy = pointAScreen.xy / pointAScreen.w;
                     pointBScreen.xy = pointBScreen.xy / pointBScreen.w;
                     pointCScreen.xy = pointCScreen.xy / pointCScreen.w;
-                    
+
                     float eps = 0.2 * length(screen.zw);
-                    
+
                     if (length(pointBScreen.xy - pointAScreen.xy) < eps) {
                         pointAScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointCScreen.xy);
                     }
@@ -74,16 +90,16 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     if (length(pointAScreen.xy - pointCScreen.xy) < eps) {
                         pointCScreen.xy = pointBScreen.xy + normalize(pointBScreen.xy - pointAScreen.xy);
                     }
-                    
+
                     vec2 AB = normalize((pointBScreen.xy - pointAScreen.xy) * screen.xy);
                     vec2 BC = normalize((pointCScreen.xy - pointBScreen.xy) * screen.xy);
                     vec2 tangent = normalize(AB + BC);
                     vec2 point = normalize(AB - BC);
-                    
+
                     vec2 miter = vec2(-tangent.y, tangent.x);
                     vec2 normalA = vec2(-AB.y, AB.x);
                     float miterLength = 1.0 / max(dot(miter, normalA), miterLengthCutoff.y);
-                    
+
                     float cornerX = sign(pointB.w);
                     float cornerY = (pointB.w - cornerX) * 2.0;
                     if (abs(miterLength - miterLengthCutoff.x) < eps && cornerY * dot(miter, point) > 0.0) {
@@ -93,12 +109,16 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                         gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * miter * lineWidth * miterLength) * screen.zw);
                     }
                     gl_Position.zw = pointBScreen.zw;
+                    #ifdef SHADOWS_ENABLED
                     /* Line mode: use pointB (the middle of the 3-vertex line stencil) as the
                        fragment's world-space position for shadow sampling. Coarse but visually
                        acceptable since lines are typically narrow on-screen. */
                     worldPos = (modelMatrix * vec4(pointB.xyz, 1.0)).xyz;
+                    #endif
                 }
+                #ifdef SHADOWS_ENABLED
                 viewDepth = gl_Position.w;
+                #endif
 
                 /* Transform the vertex tex coord by the tex coord matrix. */
                 if (enableTexture) {
@@ -106,7 +126,7 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                 }
             }
         """.trimIndent(),
-        """
+        defines() + """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             #elif defined(GL_ES)
@@ -120,10 +140,12 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
             uniform sampler2D texSampler;
 
             varying vec2 texCoord;
+            #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
 
             ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            #endif
 
             void main() {
                 if (enablePickMode && enableTexture) {
@@ -137,19 +159,26 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
                     /* Return the RGBA color as-is. */
                     gl_FragColor = color * opacity;
                 }
+                #ifdef SHADOWS_ENABLED
                 /* Skip shadow attenuation in pick mode so pick IDs aren't darkened. */
                 if (!enablePickMode) {
                     gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
+                #endif
             }
         """.trimIndent()
     )
     override val attribBindings = arrayOf("pointA", "pointB", "pointC", "vertexTexCoord")
 
+    private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
+
     private var enablePickMode = false
     private var enableTexture = false
     private var enableOneVertexMode = false
     private val mvpMatrix = Matrix4()
+    /** Cached value of the last uploaded `modelMatrix`; defaults to identity. Used by
+     *  [loadModelMatrix] to skip redundant uploads. */
+    private val modelMatrix = Matrix4()
     private val texCoordMatrix = Matrix3()
     private val color = Color()
     private var opacity = 1.0f
@@ -214,10 +243,10 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
 
-        // modelMatrix defaults to identity so drawables that don't load it still produce
-        // correct world positions (no [ShadowLayer] active).
+        // Shadow receiver uniforms - see SurfaceTextureProgram.initProgram for the no-shadow
+        // GL-no-op rationale.
         modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
-        Matrix4().transposeToArray(array, 0)
+        modelMatrix.transposeToArray(array, 0) // 4 x 4 identity matrix
         gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
         gl.uniform1i(applyShadowId, 0)
@@ -260,24 +289,32 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
         }
     }
     fun loadModelviewProjection(matrix: Matrix4) {
-        // Don't bother testing whether mvpMatrix has changed, the common case is to load a different matrix.
-        matrix.transposeToArray(array, 0)
-        gl.uniformMatrix4fv(mvpMatrixId, 1, false, array, 0)
+        if (mvpMatrix != matrix) {
+            mvpMatrix.copy(matrix)
+            matrix.transposeToArray(array, 0)
+            gl.uniformMatrix4fv(mvpMatrixId, 1, false, array, 0)
+        }
     }
 
     /**
-     * Loads the model -> world transform for the shadow receiver. Pass the same translation /
-     * compose the drawable applied to [mvpMatrix] minus the camera modelview-projection.
+     * Loads the model -> world transform for the shadow receiver. Dirty-checked: shapes that
+     * share the same world transform across multiple draws (line + fill, multi-segment paths)
+     * see the same matrix repeatedly. Drawables only call this when
+     * [earth.worldwind.draw.DrawContext.shadowState] is non-null, so it doesn't run on
+     * no-shadow frames at all.
      */
     fun loadModelMatrix(matrix: Matrix4) {
-        matrix.transposeToArray(array, 0)
-        gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+        if (modelMatrix != matrix) {
+            modelMatrix.copy(matrix)
+            matrix.transposeToArray(array, 0)
+            gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
+        }
     }
 
     override var shadowUploadStamp: Long = -1L
 
     override fun loadShadowDisabled() {
-        gl.uniform1i(applyShadowId, 0)
+        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
     }
 
     override fun loadShadowEnabled(
@@ -350,5 +387,23 @@ class TriangleShaderProgram : AbstractShaderProgram(), ShadowReceiverProgram {
 
     companion object {
         val KEY = TriangleShaderProgram::class
+
+        /**
+         * Resolves the [TriangleShaderProgram] variant for [rc] - the shadow-aware variant
+         * when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list,
+         * the smaller-binary no-shadow variant otherwise.
+         */
+        fun get(rc: RenderContext): TriangleShaderProgram = if (rc.hasShadowLayer) {
+            rc.getShaderProgram(TriangleShaderProgramShadow.KEY) { TriangleShaderProgramShadow() }
+        } else {
+            rc.getShaderProgram(KEY) { TriangleShaderProgram() }
+        }
+    }
+}
+
+/** Sentinel subclass: distinct cache key for the shadow-aware GLSL variant. See [TriangleShaderProgram]. */
+class TriangleShaderProgramShadow : TriangleShaderProgram(shadowsEnabled = true) {
+    companion object {
+        val KEY = TriangleShaderProgramShadow::class
     }
 }

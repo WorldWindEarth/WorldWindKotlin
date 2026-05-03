@@ -60,9 +60,11 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder, S
         mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
         program.loadModelviewProjection(mvpMatrix)
 
-        // Model -> world transform for the shadow receiver.
-        modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
-        program.loadModelMatrix(modelMatrix)
+        // Model -> world transform for the shadow-receiver pass; skipped on no-shadow frames.
+        if (dc.shadowState != null) {
+            modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+            program.loadModelMatrix(modelMatrix)
+        }
 
         // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass,
         // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.

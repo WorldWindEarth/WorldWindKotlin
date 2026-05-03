@@ -62,22 +62,21 @@ open class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             varying vec2 P;
 
             void main() {
-                // Apply the ground-to-image homography to this fragment's local
-                // geographic position. The third coordinate carries the perspective
-                // denominator; dividing by it yields UV in [0,1]^2 across the quad's
-                // interior with the perspective foreshortening a planar capture would
-                // produce.
-                vec3 uvh = homography * vec3(P, 1.0);
-                vec2 uv = uvh.xy / uvh.z;
-                uv = (texCoordMatrix * vec3(uv, 1.0)).xy;
+                // Compose the ground-to-image homography with the per-tile [texCoordMatrix]
+                // in the projective domain. texCoordMatrix's third row is `(0, 0, 1)` for the
+                // standard scale + translate tile transforms used here, so the projective weight
+                // (third component) carries through unchanged. texture2DProj divides xy by w in
+                // the sampler unit, saving an explicit per-fragment divide vs computing
+                // `uvh.xy / uvh.z` and a separate texCoordMatrix multiply on the divided UV.
+                vec3 uvh = texCoordMatrix * homography * vec3(P, 1.0);
 
                 if (enablePickMode && enableTexture) {
                     /* Modulate the RGBA color with the 2D texture's Alpha component (rounded to 0.0 or 1.0). */
-                    float texMask = floor(texture2D(texSampler, uv).a + 0.5);
+                    float texMask = floor(texture2DProj(texSampler, uvh).a + 0.5);
                     gl_FragColor = color * texMask;
                 } else if (!enablePickMode && enableTexture) {
                     /* Modulate the RGBA color with the 2D texture's RGBA color. */
-                    gl_FragColor = color * texture2D(texSampler, uv) * opacity;
+                    gl_FragColor = color * texture2DProj(texSampler, uvh) * opacity;
                 } else {
                     /* Return the RGBA color as-is. */
                     gl_FragColor = color * opacity;

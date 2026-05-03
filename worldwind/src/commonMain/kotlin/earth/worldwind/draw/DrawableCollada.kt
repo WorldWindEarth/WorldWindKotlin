@@ -153,11 +153,13 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         if (entity.useLocalTransforms) mvpMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
         prog.loadModelviewProjection(mvpMatrix)
 
-        // Model -> world for the shadow receiver. Same composition as MVP minus the camera
-        // modelview-projection: transformationMatrix * (per-entity nodeWorldMatrix).
-        modelMatrix.copy(transformationMatrix)
-        if (entity.useLocalTransforms) modelMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
-        prog.loadModelMatrix(modelMatrix)
+        // Model -> world for the shadow-receiver pass: MVP minus the camera modelview-projection.
+        // Skipped on no-shadow frames.
+        if (dc.shadowState != null) {
+            modelMatrix.copy(transformationMatrix)
+            if (entity.useLocalTransforms) modelMatrix.multiplyByMatrix(entity.nodeWorldMatrix)
+            prog.loadModelMatrix(modelMatrix)
+        }
 
         // Vertex positions
         dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, 0, entity.vertexByteOffset)

@@ -151,7 +151,7 @@ class ColladaScene(
             transformValid = true
         }
 
-        val program = rc.getShaderProgram(BasicTextureProgram.KEY) { BasicTextureProgram() }
+        val program = BasicTextureProgram.get(rc)
 
         // --- Compute VBO layout ---
         var vertexFloatOffset = 0

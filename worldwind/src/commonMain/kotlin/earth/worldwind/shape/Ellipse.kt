@@ -436,7 +436,7 @@ open class Ellipse @JvmOverloads constructor(
         }
 
         // Use the basic GLSL program to draw the shape.
-        drawState.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+        drawState.program = TriangleShaderProgram.get(rc)
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
@@ -467,7 +467,7 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.isLine = true
 
         // Use the basic GLSL program to draw the shape.
-        drawStateLines.program = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+        drawStateLines.program = TriangleShaderProgram.get(rc)
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawStateLines.vertexBuffer = rc.getBufferObject(currentData.lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }

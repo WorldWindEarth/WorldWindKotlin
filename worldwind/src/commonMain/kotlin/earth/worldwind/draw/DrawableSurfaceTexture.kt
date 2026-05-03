@@ -127,12 +127,13 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
                     program.mvpMatrix.copy(dc.modelviewProjection)
                     program.mvpMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
                     program.loadModelviewProjection()
-                    // Tile-local -> world translation for the shadow receiver. Same origin
-                    // [mvpMatrix] was just translated by; passed separately so the fragment
-                    // shader can recover Cartesian world position for cascade sampling.
-                    program.loadVertexOrigin(
-                        terrainOrigin.x.toFloat(), terrainOrigin.y.toFloat(), terrainOrigin.z.toFloat()
-                    )
+                    // Tile-local -> world translation for the shadow-receiver pass. Skipped on
+                    // no-shadow frames since the fragment shader doesn't read worldPos there.
+                    if (dc.shadowState != null) {
+                        program.loadVertexOrigin(
+                            terrainOrigin.x.toFloat(), terrainOrigin.y.toFloat(), terrainOrigin.z.toFloat()
+                        )
+                    }
                 }
                 if (!usingTerrainAttrs) continue  // terrain vertex attribute failed to bind
 

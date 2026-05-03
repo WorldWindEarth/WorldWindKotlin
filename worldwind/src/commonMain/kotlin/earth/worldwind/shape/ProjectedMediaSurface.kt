@@ -323,7 +323,7 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         } else {
             rc.getShaderProgram(SurfaceQuadShaderProgram.KEY) { SurfaceQuadShaderProgram() }
         }
-        drawState.programDrawTextureToTerrain = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+        drawState.programDrawTextureToTerrain = TriangleShaderProgram.get(rc)
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
@@ -364,8 +364,8 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         drawState.isLine = true
 
         // Use the geom lines GLSL program to draw the shape.
-        drawState.programDrawToTexture = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
-        drawState.programDrawTextureToTerrain = rc.getShaderProgram(TriangleShaderProgram.KEY) { TriangleShaderProgram() }
+        drawState.programDrawToTexture = TriangleShaderProgram.get(rc)
+        drawState.programDrawTextureToTerrain = TriangleShaderProgram.get(rc)
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexLinesBufferKey) {

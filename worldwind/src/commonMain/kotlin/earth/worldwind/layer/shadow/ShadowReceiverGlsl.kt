@@ -24,6 +24,13 @@ object ShadowReceiverGlsl {
     /** Number of cascades the shader code is unrolled for. Matches [ShadowState.DEFAULT_CASCADE_COUNT]. */
     const val CASCADE_COUNT = ShadowState.DEFAULT_CASCADE_COUNT
 
+    /**
+     * GLSL preprocessor define enabled by each receiver program's `shadowsEnabled` flag.
+     * Receivers prepend this to their GLSL source so `#ifdef SHADOWS_ENABLED ... #endif`
+     * blocks are included on the shadow-aware variant and stripped on the no-shadow one.
+     */
+    const val SHADOWS_ENABLED_DEFINE = "#define SHADOWS_ENABLED\n"
+
     private val texel0 = (1.0 / DrawContext.SHADOW_CASCADE_MAP_SIZES[0]).toFloat()
     private val texel1 = (1.0 / DrawContext.SHADOW_CASCADE_MAP_SIZES[1]).toFloat()
     private val texel2 = (1.0 / DrawContext.SHADOW_CASCADE_MAP_SIZES[2]).toFloat()
