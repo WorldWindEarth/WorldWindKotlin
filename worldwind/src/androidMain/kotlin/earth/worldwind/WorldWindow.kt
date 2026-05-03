@@ -26,7 +26,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.ceil
@@ -62,7 +61,6 @@ open class WorldWindow @JvmOverloads constructor(
     protected val pickQueue = ConcurrentLinkedQueue<Frame>()
     protected var currentFrame: Frame? = null
     protected val mainHandler = Handler(Looper.getMainLooper())
-    protected val redrawPosted = AtomicBoolean(false)
     protected var isWaitingForRedraw = false
     /**
      * Control memory consumption and trim render resource cache when system os low on memory
@@ -226,14 +224,8 @@ open class WorldWindow @JvmOverloads constructor(
      * called from any thread.
      */
     override fun requestRedraw() {
-        if (Thread.currentThread() == Looper.getMainLooper().thread) {
-            doRequestRedraw()
-        } else if (redrawPosted.compareAndSet(false, true)) {
-            mainHandler.post {
-                redrawPosted.set(false)
-                doRequestRedraw()
-            }
-        }
+        if (Thread.currentThread() == Looper.getMainLooper().thread) doRequestRedraw()
+        else mainHandler.post { doRequestRedraw() }
     }
 
     protected open fun doRequestRedraw() {
