@@ -6,11 +6,18 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.layer.Layer
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
+import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 import kotlin.math.roundToInt
 
 open class PickedObject protected constructor(
-    val identifier: Int, val userObject: Any, val layer: Layer? = null, val terrainPosition: Position? = null
+    val identifier: Int, val userObject: Any, val layer: Layer? = null, val terrainPosition: Position? = null,
+    /**
+     * Skip the depth-buffer unprojection in [earth.worldwind.frame.BasicFrameController.resolvePick]
+     * for picks that live on the terrain surface (rasterised surface shapes / decals). Leaves
+     * [cartesianPoint] null so the caller falls back to the terrain pick's [terrainPosition].
+     */
+    val useTerrainPosition: Boolean = false,
 ) {
     var isOnTop = false
         protected set
@@ -34,9 +41,9 @@ open class PickedObject protected constructor(
         cartesianPoint?.let { globe.cartesianToGeographic(it.x, it.y, it.z, result) }
 
     companion object {
-        @JvmStatic
-        fun fromRenderable(identifier: Int, renderable: Renderable, layer: Layer) =
-            PickedObject(identifier, renderable.pickDelegate ?: renderable, layer)
+        @JvmStatic @JvmOverloads
+        fun fromRenderable(identifier: Int, renderable: Renderable, layer: Layer, useTerrainPosition: Boolean = false) =
+            PickedObject(identifier, renderable.pickDelegate ?: renderable, layer, useTerrainPosition = useTerrainPosition)
 
         @JvmStatic
         fun fromTerrain(identifier: Int, position: Position): PickedObject {

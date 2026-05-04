@@ -210,13 +210,18 @@ open class BasicFrameController: FrameController {
             }
             if (!topObject.isTerrain) {
                 objectFound = true
-                // Reconstruct the Cartesian point only when a non-terrain shape was actually hit;
-                // a 4x4 invert is wasted on terrain-only picks and on misses.
-                invModelviewProjection.copy(dc.modelviewProjection).invert()
-                dc.pickDepthReadbackFramebuffer.bindFramebuffer(dc)
-                val depth = dc.readPixelDepth(px, py)
-                topObject.cartesianPoint = Vec3().also {
-                    invModelviewProjection.unProject(pickPoint.x, pickPoint.y, depth.toDouble(), dc.viewport, it)
+                // Surface shapes skip the unprojection (depth-readback drift can land the
+                // recovered point on the antipode); SelectDragDetector falls back to the
+                // terrain pick's terrainPosition.
+                if (!topObject.useTerrainPosition) {
+                    // Reconstruct the Cartesian point only when a non-terrain shape was actually hit;
+                    // a 4x4 invert is wasted on terrain-only picks and on misses.
+                    invModelviewProjection.copy(dc.modelviewProjection).invert()
+                    dc.pickDepthReadbackFramebuffer.bindFramebuffer(dc)
+                    val depth = dc.readPixelDepth(px, py)
+                    topObject.cartesianPoint = Vec3().also {
+                        invModelviewProjection.unProject(pickPoint.x, pickPoint.y, depth.toDouble(), dc.viewport, it)
+                    }
                 }
             }
             if (pickPointOnly || objectFound) {
@@ -246,7 +251,7 @@ open class BasicFrameController: FrameController {
             if (topObject.isTerrain) continue
             topObject.markOnTop()
             // Set the Cartesian point on the first pixel that hits each object.
-            if (topObject.cartesianPoint != null) continue
+            if (topObject.cartesianPoint != null || topObject.useTerrainPosition) continue
             if (!invMVPReady) {
                 invModelviewProjection.copy(dc.modelviewProjection).invert()
                 invMVPReady = true

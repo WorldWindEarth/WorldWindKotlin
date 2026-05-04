@@ -382,7 +382,9 @@ abstract class AbstractShape(
 
         // Enqueue a picked object that associates the shape's drawables with its picked object ID.
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
-            rc.offerPickedObject(PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer))
+            rc.offerPickedObject(
+                PickedObject.fromRenderable(pickedObjectId, this, rc.currentLayer, useTerrainPosition = isSurfaceShape)
+            )
         }
     }
 
