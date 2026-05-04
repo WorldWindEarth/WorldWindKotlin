@@ -292,7 +292,8 @@ signing {
         System.getenv("GPG_PRIVATE_KEY"),
         System.getenv("GPG_PRIVATE_PASSWORD")
     )
-    sign(publishing.publications)
+    // Skip signing for local MavenLocal publishes (no GPG key configured). CI sets the env vars.
+    if (!System.getenv("GPG_PRIVATE_KEY").isNullOrBlank()) sign(publishing.publications)
 }
 
 /**

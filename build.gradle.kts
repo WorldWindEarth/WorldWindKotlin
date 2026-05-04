@@ -17,7 +17,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.13.2"
+    version = "1.13.3"
 
     extra.apply {
         set("minSdk", 24)
