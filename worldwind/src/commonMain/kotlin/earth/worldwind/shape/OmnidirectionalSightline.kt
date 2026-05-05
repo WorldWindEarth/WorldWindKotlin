@@ -166,37 +166,26 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
     }
 
     protected open fun makeDrawable(rc: RenderContext) {
-        // Obtain a pooled drawable and configure it to draw the sightline's coverage.
+        rc.hasActiveSightline = true
+        // Two drawables (depth-only in BACKGROUND, overlay-only in SURFACE) - same rationale
+        // as DirectionalSightline: receivers that splice [SightlineReceiverGlsl] need state
+        // populated before they draw.
         val pool = rc.getDrawablePool(DrawableSightline.KEY)
-        val drawable = DrawableSightline.obtain(pool)
-
-        // Choose omnidirectional mode
-        drawable.omnidirectional = true
-
-        // Set FOV to 90
-        drawable.fieldOfView = POS90
-
-        // Compute the transform from sightline local coordinates to world coordinates.
-        rc.globe.cartesianToLocalTransform(
-            centerPoint.x, centerPoint.y, centerPoint.z, drawable.centerTransform
-        )
-
-        // Clamp range to max float value as OpenGL drawable operates with float range
-        drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
-
-        // Configure the drawable colors according to the current attributes. When picking use a unique color associated
-        // with the picked object ID. Null attributes indicate that nothing is drawn.
-        drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
-        drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
-
-        // Use the cube-map receiver: hardware seamless cube filtering smooths face boundaries
-        // in a single occlusion pass (single sampler, no clipMask, no per-face blend). The
-        // moments depth pass writes 5 cube faces (POS_X, NEG_X, POS_Y, NEG_Y, NEG_Z); POS_Z
-        // is intentionally omitted - terrain isn't visible looking up.
-        drawable.programCube = rc.getShaderProgram(SightlineProgramCube.KEY) { SightlineProgramCube() }
-        drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
-
-        // Enqueue a drawable for processing on the OpenGL thread.
-        rc.offerSurfaceDrawable(drawable, zOrder)
+        fun configure(drawable: DrawableSightline) {
+            drawable.omnidirectional = true
+            drawable.fieldOfView = POS90
+            rc.globe.cartesianToLocalTransform(centerPoint.x, centerPoint.y, centerPoint.z, drawable.centerTransform)
+            drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
+            drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+            drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
+            drawable.programCube = rc.getShaderProgram(SightlineProgramCube.KEY) { SightlineProgramCube() }
+            drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
+        }
+        val depth = DrawableSightline.obtain(pool).also(::configure)
+        depth.renderMode = DrawableSightline.RenderMode.DEPTH_ONLY
+        rc.offerBackgroundDrawable(depth)
+        val overlay = DrawableSightline.obtain(pool).also(::configure)
+        overlay.renderMode = DrawableSightline.RenderMode.OVERLAY_ONLY
+        rc.offerSurfaceDrawable(overlay, zOrder)
     }
 }

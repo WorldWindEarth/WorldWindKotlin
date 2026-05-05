@@ -95,6 +95,14 @@ open class RenderContext {
      * [earth.worldwind.layer.shadow.ShadowLayer.doRender].
      */
     var hasShadowLayer: Boolean = false
+    /**
+     * Per-frame flag set by [DirectionalSightline.makeDrawable] / [OmnidirectionalSightline.makeDrawable]
+     * when a visible sightline is enqueued. Read by `Ogc3dTilesProgram.get` (and any other
+     * program that splices [earth.worldwind.layer.sightline.SightlineReceiverGlsl]) to pick
+     * the sightline-aware variant up front. Independent of [DrawContext.sightlineState],
+     * which is populated later during the depth pass.
+     */
+    var hasActiveSightline: Boolean = false
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -149,6 +157,7 @@ open class RenderContext {
         lightDirection.set(0.0, 0.0, 1.0)
         shadowState = null
         hasShadowLayer = false
+        hasActiveSightline = false
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()

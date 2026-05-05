@@ -6,6 +6,7 @@ import earth.worldwind.geom.Vec2
 import earth.worldwind.geom.Vec3
 import earth.worldwind.geom.Viewport
 import earth.worldwind.layer.shadow.ShadowState
+import earth.worldwind.layer.sightline.SightlineState
 import earth.worldwind.render.Color
 import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.MultisampleFramebuffer
@@ -73,6 +74,15 @@ open class DrawContext(val gl: Kgl) {
      * a frame. Reset to `-1` on context reset.
      */
     var lastShadowTextureBindStamp: Long = -1L
+    /**
+     * Per-frame sightline-receiver state. Populated by [DrawableSightline] when its depth pass
+     * runs (BACKGROUND group); read by every shape program that splices in
+     * [earth.worldwind.layer.sightline.SightlineReceiverGlsl] so the shape's own fragment
+     * shader can sample the moments map and self-shadow without an overlay re-rasterisation.
+     */
+    var sightlineState: SightlineState? = null
+    /** Frame stamp of the last sightline-moments rebind on units 4 / 5. See [shadowState]. */
+    var lastSightlineTextureBindStamp: Long = -1L
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -413,6 +423,8 @@ open class DrawContext(val gl: Kgl) {
         lightDirection.set(0.0, 0.0, 1.0)
         shadowState = null
         lastShadowTextureBindStamp = -1L
+        sightlineState = null
+        lastSightlineTextureBindStamp = -1L
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()

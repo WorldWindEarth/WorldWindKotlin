@@ -2,6 +2,7 @@ package earth.worldwind.draw
 
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.sightline.SightlineState
 import earth.worldwind.render.Color
 import earth.worldwind.render.program.SightlineMomentsBlurProgram
 import earth.worldwind.render.program.SightlineMomentsProgram
@@ -25,6 +26,19 @@ open class DrawableSightline protected constructor() : Drawable {
     var directionalFillPasses = 0
     val visibleColor = Color(0f, 0f, 0f, 0f)
     val occludedColor = Color(0f, 0f, 0f, 0f)
+
+    /**
+     * Selects which phases this drawable runs. The sightline shapes enqueue two drawables per
+     * frame: [RenderMode.DEPTH_ONLY] in BACKGROUND so the moments map and [DrawContext.sightlineState]
+     * are populated before any embedded-receiver fragment shader runs (3D tiles need this), and
+     * [RenderMode.OVERLAY_ONLY] in SURFACE so terrain — and any [SightlineReceiver] that opted into
+     * the overlay path — gets tinted after opaque receivers have rendered. [RenderMode.DEPTH_AND_OVERLAY]
+     * preserves the legacy single-drawable path for callers that don't split the work.
+     */
+    var renderMode: RenderMode = RenderMode.DEPTH_AND_OVERLAY
+
+    enum class RenderMode { DEPTH_AND_OVERLAY, DEPTH_ONLY, OVERLAY_ONLY }
+
     var program: SightlineProgram? = null
     /**
      * Cube-map MSM receiver shader for the omnidirectional path. When set together with
@@ -152,6 +166,7 @@ open class DrawableSightline protected constructor() : Drawable {
         occludedColor.set(0f, 0f, 0f, 0f)
         directionalFillPasses = 0
         momentsBlurTexelSpacing = 2f
+        renderMode = RenderMode.DEPTH_AND_OVERLAY
         program = null
         programCube = null
         momentsProgram = null
@@ -161,11 +176,26 @@ open class DrawableSightline protected constructor() : Drawable {
     }
 
     override fun draw(dc: DrawContext) {
-        // TODO accumulate only the visible terrain, which can be used in both passes
-        // TODO give terrain a bounding box, test with a frustum set using depthviewProjection
-        // TODO construct matrix using separate horizontal and vertical fov
         cubeMapProjection.setToPerspectiveProjection(1, 1, fieldOfView, 1.0, range.toDouble())
         if (omnidirectional) drawOmniCubeMap(dc) else drawDirectional(dc)
+        if (renderMode != RenderMode.OVERLAY_ONLY) publishSightlineState(dc)
+    }
+
+    /**
+     * Publishes the current sightline configuration into [DrawContext.sightlineState] so
+     * [earth.worldwind.layer.sightline.SightlineReceiverProgram] implementations can sample
+     * the moments texture during their own draw. Called at the end of the depth phase — the
+     * moments framebuffer / cube map are fully populated by the time receivers read this.
+     */
+    private fun publishSightlineState(dc: DrawContext) {
+        val state = dc.sightlineState ?: SightlineState().also { dc.sightlineState = it }
+        state.omnidirectional = omnidirectional
+        state.range = range
+        state.visibleColor.copy(visibleColor)
+        state.occludedColor.copy(occludedColor)
+        state.sightlineView.copy(centerTransform).invertOrthonormal()
+        state.cubeMapProjection.copy(cubeMapProjection)
+        state.bumpFrameStamp()
     }
 
     /**
@@ -181,7 +211,11 @@ open class DrawableSightline protected constructor() : Drawable {
         if (!cube.useProgram(dc)) return
         cube.loadRange(range)
         cube.loadColor(visibleColor, occludedColor)
-        if (drawSceneDepthCube(dc)) drawSceneOcclusionCube(dc, cube)
+        // Skip the depth pass for OVERLAY_ONLY (the BACKGROUND-group depth-only twin already
+        // populated the moments cube map). Skip the occlusion pass for DEPTH_ONLY (the SURFACE
+        // overlay twin runs it later, after opaque receivers have rendered).
+        val depthOk = renderMode == RenderMode.OVERLAY_ONLY || drawSceneDepthCube(dc)
+        if (depthOk && renderMode != RenderMode.DEPTH_ONLY) drawSceneOcclusionCube(dc, cube)
     }
 
     /**
@@ -214,10 +248,14 @@ open class DrawableSightline protected constructor() : Drawable {
     }
 
     private fun renderFace(dc: DrawContext) {
-        if (drawSceneDepth(dc)) {
+        // OVERLAY_ONLY skips depth+blur (its BACKGROUND twin already wrote the moments map);
+        // DEPTH_ONLY skips occlusion (the SURFACE overlay twin runs it after opaque receivers).
+        val depthOk = if (renderMode == RenderMode.OVERLAY_ONLY) true else {
+            if (!drawSceneDepth(dc)) return
             blurMoments(dc)
-            drawSceneOcclusion(dc)
+            true
         }
+        if (depthOk && renderMode != RenderMode.DEPTH_ONLY) drawSceneOcclusion(dc)
     }
 
     protected open fun drawSceneDepth(dc: DrawContext): Boolean {

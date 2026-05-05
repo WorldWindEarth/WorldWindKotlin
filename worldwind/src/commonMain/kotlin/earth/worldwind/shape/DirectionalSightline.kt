@@ -215,49 +215,40 @@ open class DirectionalSightline @JvmOverloads constructor(
     }
 
     protected open fun makeDrawable(rc: RenderContext) {
-        // Obtain a pooled drawable and configure it to draw the sightline's coverage.
+        // Receiver-aware programs (Ogc3dTilesProgram, future TerrainProgram embed) gate on this
+        // to pick their sightline-aware variant. Set before enqueue so the next program-fetch
+        // sees it.
+        rc.hasActiveSightline = true
+
+        // Two drawables per sightline: a depth-only pass in BACKGROUND so [DrawContext.sightlineState]
+        // is populated before any receiver fragment runs (3D-tile self-shadow needs this), and an
+        // overlay-only pass in SURFACE that tints terrain (and any non-embedded receivers) the same
+        // way as before. Each holds its own copy of the configuration; they don't share state.
         val pool = rc.getDrawablePool(DrawableSightline.KEY)
-        val drawable = DrawableSightline.obtain(pool)
-
-        // Choose directional mode
-        drawable.omnidirectional = false
-
-        // Set horizontal FOV to angle
-        drawable.fieldOfView = fieldOfView
-
-        // Compute the transform from sightline local coordinates to world coordinates.
-        rc.globe.cartesianToLocalTransform(
-            centerPoint.x, centerPoint.y, centerPoint.z, drawable.centerTransform
-        )
-
-        // Rotate to azimuth
-        drawable.centerTransform.multiplyByRotation(1.0, 0.0, 0.0, POS90).multiplyByRotation(0.0, -1.0, 0.0, heading)
-
-        // Clamp range to max float value as OpenGL drawable operates with float range
-        drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
-
-        // Choose how many close-range fill passes to render. When the sightline sits well
-        // above terrain, the forward frustum's bottom edge is far ahead and the area
-        // immediately below the sightline goes unshadowed without extra passes. The
-        // thresholds use altitude relative to the sightline's range, which captures both
-        // the geometric significance of the gap and the user's expected visible scale.
-        drawable.directionalFillPasses = when {
-            position.altitude > range * 0.1 -> 2
-            position.altitude > range * 0.01 -> 1
-            else -> 0
+        fun configure(drawable: DrawableSightline) {
+            drawable.omnidirectional = false
+            drawable.fieldOfView = fieldOfView
+            rc.globe.cartesianToLocalTransform(centerPoint.x, centerPoint.y, centerPoint.z, drawable.centerTransform)
+            drawable.centerTransform.multiplyByRotation(1.0, 0.0, 0.0, POS90).multiplyByRotation(0.0, -1.0, 0.0, heading)
+            drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
+            drawable.directionalFillPasses = when {
+                position.altitude > range * 0.1 -> 2
+                position.altitude > range * 0.01 -> 1
+                else -> 0
+            }
+            drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
+            drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
+            drawable.program = rc.getShaderProgram(SightlineProgram.KEY) { SightlineProgram() }
+            drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
+            drawable.momentsBlurProgram = rc.getShaderProgram(SightlineMomentsBlurProgram.KEY) { SightlineMomentsBlurProgram() }
         }
 
-        // Configure the drawable colors according to the current attributes. When picking use a unique color associated
-        // with the picked object ID. Null attributes indicate that nothing is drawn.
-        drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
-        drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
+        val depth = DrawableSightline.obtain(pool).also(::configure)
+        depth.renderMode = DrawableSightline.RenderMode.DEPTH_ONLY
+        rc.offerBackgroundDrawable(depth)
 
-        // Use the sightline GLSL program to draw the coverage.
-        drawable.program = rc.getShaderProgram(SightlineProgram.KEY) { SightlineProgram() }
-        drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
-        drawable.momentsBlurProgram = rc.getShaderProgram(SightlineMomentsBlurProgram.KEY) { SightlineMomentsBlurProgram() }
-
-        // Enqueue a drawable for processing on the OpenGL thread.
-        rc.offerSurfaceDrawable(drawable, zOrder)
+        val overlay = DrawableSightline.obtain(pool).also(::configure)
+        overlay.renderMode = DrawableSightline.RenderMode.OVERLAY_ONLY
+        rc.offerSurfaceDrawable(overlay, zOrder)
     }
 }
