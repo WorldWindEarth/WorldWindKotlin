@@ -8,11 +8,12 @@ val targetSdkVersion = providers.gradleProperty("worldwind.targetSdk").get().toI
 val minSdkVersion = providers.gradleProperty("worldwind.minSdk").get().toInt()
 
 android {
-    namespace = "${project.group}.examples"
+    // Distinct namespace from the :worldwind-tutorials library; applicationId stays public.
+    namespace = "${project.group}.tutorials.app"
     compileSdk = targetSdkVersion
 
     defaultConfig {
-        applicationId = namespace
+        applicationId = "${project.group}.tutorials"
         minSdk = minSdkVersion
         targetSdk = targetSdkVersion
         versionCode = providers.gradleProperty("worldwind.versionCode").get().toInt()
@@ -36,15 +37,10 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
-        optIn.add("kotlin.time.ExperimentalTime")
     }
 }
 
 dependencies {
-    implementation(project(":worldwind"))
-    implementation(libs.androidx.appcompat)
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.material)
-
+    implementation(project(":worldwind-tutorials"))
     coreLibraryDesugaring(libs.desugar)
 }

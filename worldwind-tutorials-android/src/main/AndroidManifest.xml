@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shell manifest. The application/activity/permission entries live in the
+  worldwind-tutorials library manifest (src/androidMain/AndroidManifest.xml)
+  and are merged into this app at build time.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

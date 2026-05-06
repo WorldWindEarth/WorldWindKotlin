@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     kotlin("multiplatform")
-    id("com.android.application")
+    id("com.android.kotlin.multiplatform.library")
     id("dev.icerock.mobile.multiplatform-resources")
 }
 
@@ -29,9 +29,20 @@ kotlin {
             }
         }
     }
-    androidTarget {
+    @Suppress("UnstableApiUsage")
+    android {
+        namespace = "${project.group}.tutorials"
+        compileSdk = providers.gradleProperty("worldwind.targetSdk").get().toInt()
+        minSdk = providers.gradleProperty("worldwind.minSdk").get().toInt()
+
+        enableCoreLibraryDesugaring = true
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
+        }
+
+        androidResources {
+            enable = true
         }
     }
     sourceSets {
@@ -85,33 +96,6 @@ kotlin {
                 }
             }
         }
-    }
-}
-
-android {
-    namespace = "${project.group}.tutorials"
-    compileSdk = extra["targetSdk"] as Int
-    sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-
-    defaultConfig {
-        applicationId = namespace
-        minSdk = extra["minSdk"] as Int
-        targetSdk = extra["targetSdk"] as Int
-        versionCode = extra["versionCode"] as Int
-        versionName = version as String
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            setProguardFiles(listOf(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"))
-        }
-    }
-
-    compileOptions {
-        isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 

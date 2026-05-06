@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("com.android.library")
+    id("com.android.kotlin.multiplatform.library")
     id("dev.icerock.mobile.multiplatform-resources")
     id("maven-publish")
     id("signing")
@@ -32,10 +32,28 @@ kotlin {
             }
         }
     }
-    androidTarget {
-        publishLibraryVariants("release")
+    @Suppress("UnstableApiUsage")
+    android {
+        namespace = project.group.toString()
+        compileSdk = providers.gradleProperty("worldwind.targetSdk").get().toInt()
+        minSdk = providers.gradleProperty("worldwind.minSdk").get().toInt()
+
+        enableCoreLibraryDesugaring = true
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
+        }
+
+        withHostTestBuilder { }.configure { }
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }.configure {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
+
+        optimization {
+            consumerKeepRules.publish = true
+            consumerKeepRules.files.add(file("proguard-rules.pro"))
         }
     }
     sourceSets {
@@ -151,10 +169,10 @@ kotlin {
                 implementation(libs.ormlite.android)
             }
         }
-        androidUnitTest {
+        getByName("androidHostTest") {
             dependsOn(jvmCommonTest)
         }
-        androidInstrumentedTest {
+        getByName("androidDeviceTest") {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.mockk.android)
@@ -174,38 +192,13 @@ kotlin {
     }
 }
 
-android {
-    namespace = project.group.toString()
-    compileSdk = extra["targetSdk"] as Int
-    sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-
-    defaultConfig {
-        minSdk = extra["minSdk"] as Int
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        consumerProguardFiles("proguard-rules.pro")
-    }
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-            withJavadocJar()
-        }
-    }
-    compileOptions {
-        isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
 dependencies {
     coreLibraryDesugaring(libs.desugar)
 }
 
 // Do not generate Intrinsics runtime assertion for performance reasons
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class)
-    .all {
+    .configureEach {
         compilerOptions {
             freeCompilerArgs.addAll(
                 listOf(
@@ -353,7 +346,8 @@ val checkShaderSourcesAscii by tasks.registering {
 
 tasks.named("compileKotlinJvm") { dependsOn(checkShaderSourcesAscii) }
 tasks.named("compileKotlinJs") { dependsOn(checkShaderSourcesAscii) }
-tasks.matching { it.name == "compileDebugKotlinAndroid" || it.name == "compileReleaseKotlinAndroid" }
+// AGP registers the Android Kotlin compile task lazily, so match by name rather than `named`.
+tasks.matching { it.name == "compileKotlinAndroid" }
     .configureEach { dependsOn(checkShaderSourcesAscii) }
 
 // https://github.com/gradle/gradle/issues/26091
