@@ -14,6 +14,9 @@ pluginManagement {
 }
 rootProject.name = "WorldWindKotlin"
 include(":worldwind")
+include(":worldwind-compose")
+include(":worldwind-compose-samples")
+include(":worldwind-compose-samples-android")
 include(":worldwind-examples-android")
 include(":worldwind-tutorials")
 include(":worldwind-tutorials-android")
