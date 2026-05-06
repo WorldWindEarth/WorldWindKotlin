@@ -47,7 +47,10 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // the shape during the pan threshold into a globe pan. Mouse hover still re-picks
         // for highlighting.
         if (event is MouseEvent && event.buttons.toInt() != 0) return@EventListener
-        if (event is TouchEvent && event.type == "touchmove") return@EventListener
+        // Type-string check first: macOS Safari does not define a global `TouchEvent`, so
+        // `event is TouchEvent` (compiled to `instanceof TouchEvent`) throws ReferenceError
+        // and aborts the whole handler. String compare short-circuits the instanceof away.
+        if (event.type == "touchmove") return@EventListener
 
         // Determine pick point from event
         var clientX = 0
