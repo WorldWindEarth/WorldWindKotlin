@@ -92,7 +92,7 @@ class CoordinatesDisplayLayer : AbstractLayer("Coordinates") {
 
         val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
         val drawable = DrawableScreenTexture.obtain(pool)
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
         drawable.unitSquareTransform.copy(transform)
         drawable.color.set(1f, 1f, 1f, 1f)
         drawable.opacity = rc.currentLayer.opacity

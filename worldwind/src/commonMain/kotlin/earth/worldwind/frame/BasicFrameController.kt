@@ -88,7 +88,7 @@ open class BasicFrameController: FrameController {
         val drawable = obtain(pool)
         drawable.color.set(0f, 0f, 0f, 0f)
         drawable.opacity = 1.0f // Just to be sure to reset opacity
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
         rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
     }
 
@@ -103,7 +103,7 @@ open class BasicFrameController: FrameController {
         val drawable = obtain(pool)
         identifierToUniqueColor(pickedObjectId, drawable.color)
         drawable.opacity = 1.0f // Just to be sure to reset opacity
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
         rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
 
         // If the pick ray intersects the terrain, enqueue a picked object that associates the terrain drawable with its

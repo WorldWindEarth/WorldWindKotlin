@@ -126,8 +126,4 @@ class SkyProgram : AbstractAtmosphereProgram() {
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint")
-
-    companion object {
-        val KEY = SkyProgram::class
-    }
 }

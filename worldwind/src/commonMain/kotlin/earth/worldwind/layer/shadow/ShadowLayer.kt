@@ -237,8 +237,8 @@ open class ShadowLayer : AbstractLayer("Shadow") {
 
         val pool = rc.getDrawablePool(DrawableShadow.KEY)
         val drawable = DrawableShadow.obtain(pool)
-        drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
-        drawable.momentsBlurProgram = rc.getShaderProgram(SightlineMomentsBlurProgram.KEY) { SightlineMomentsBlurProgram() }
+        drawable.momentsProgram = rc.getShaderProgram { SightlineMomentsProgram() }
+        drawable.momentsBlurProgram = rc.getShaderProgram { SightlineMomentsBlurProgram() }
         drawable.momentsBlurTexelSpacing = momentsBlurTexelSpacing
         rc.offerBackgroundDrawable(drawable)
     }

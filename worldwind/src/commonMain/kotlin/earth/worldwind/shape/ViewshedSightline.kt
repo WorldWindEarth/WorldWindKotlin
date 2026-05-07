@@ -576,9 +576,7 @@ open class ViewshedSightline @JvmOverloads constructor(
         }
 
         val d = state.drawable ?: DrawableViewshedKernel().also { state.drawable = it }
-        d.program = rc.getShaderProgram(ViewshedKernelShaderProgram.KEY) {
-            ViewshedKernelShaderProgram()
-        }
+        d.program = rc.getShaderProgram { ViewshedKernelShaderProgram() }
         d.width = pending.width
         d.height = pending.height
         d.outputTexture = texture

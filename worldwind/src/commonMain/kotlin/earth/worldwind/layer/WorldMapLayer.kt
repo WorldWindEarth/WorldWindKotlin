@@ -78,7 +78,7 @@ class WorldMapLayer : AbstractLayer("World Map") {
 
         val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
         val drawable = DrawableScreenTexture.obtain(pool)
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
         drawable.unitSquareTransform.copy(dotTransform)
         drawable.color.copy(dotColor)
         drawable.opacity = rc.currentLayer.opacity

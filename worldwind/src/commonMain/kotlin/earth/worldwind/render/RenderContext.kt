@@ -413,8 +413,11 @@ open class RenderContext {
     private val shaderPrograms = HashMap<KClass<*>, AbstractShaderProgram>()
 
     @Suppress("UNCHECKED_CAST")
-    fun <T: AbstractShaderProgram> getShaderProgram(key: KClass<T>, builder: () -> T): T =
-        (shaderPrograms[key] ?: builder().also { shaderPrograms[key] = it }) as T
+    fun <P: AbstractShaderProgram> getShaderProgram(key: KClass<P>, builder: () -> P): P =
+        (shaderPrograms[key] ?: builder().also { shaderPrograms[key] = it }) as P
+
+    inline fun <reified P : AbstractShaderProgram> getShaderProgram(noinline create: () -> P): P =
+        getShaderProgram(P::class, create)
 
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions? = null, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?

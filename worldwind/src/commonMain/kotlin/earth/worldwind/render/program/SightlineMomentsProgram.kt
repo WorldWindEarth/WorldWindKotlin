@@ -111,8 +111,4 @@ class SightlineMomentsProgram : AbstractShaderProgram() {
     fun loadRange(range: Float) {
         gl.uniform1f(invRangeId, if (range > 0f) 1f / range else 1f)
     }
-
-    companion object {
-        val KEY = SightlineMomentsProgram::class
-    }
 }

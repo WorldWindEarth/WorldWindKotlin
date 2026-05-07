@@ -386,24 +386,18 @@ open class TriangleShaderProgram(
     }
 
     companion object {
-        val KEY = TriangleShaderProgram::class
-
         /**
          * Resolves the [TriangleShaderProgram] variant for [rc] - the shadow-aware variant
          * when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list,
          * the smaller-binary no-shadow variant otherwise.
          */
         fun get(rc: RenderContext): TriangleShaderProgram = if (rc.hasShadowLayer) {
-            rc.getShaderProgram(TriangleShaderProgramShadow.KEY) { TriangleShaderProgramShadow() }
+            rc.getShaderProgram { TriangleShaderProgramShadow() }
         } else {
-            rc.getShaderProgram(KEY) { TriangleShaderProgram() }
+            rc.getShaderProgram { TriangleShaderProgram() }
         }
     }
 }
 
 /** Sentinel subclass: distinct cache key for the shadow-aware GLSL variant. See [TriangleShaderProgram]. */
-class TriangleShaderProgramShadow : TriangleShaderProgram(shadowsEnabled = true) {
-    companion object {
-        val KEY = TriangleShaderProgramShadow::class
-    }
-}
+class TriangleShaderProgramShadow : TriangleShaderProgram(shadowsEnabled = true)

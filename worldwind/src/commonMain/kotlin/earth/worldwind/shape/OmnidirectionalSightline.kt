@@ -178,8 +178,8 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
             drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
             drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
-            drawable.programCube = rc.getShaderProgram(SightlineProgramCube.KEY) { SightlineProgramCube() }
-            drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
+            drawable.programCube = rc.getShaderProgram { SightlineProgramCube() }
+            drawable.momentsProgram = rc.getShaderProgram { SightlineMomentsProgram() }
         }
         val depth = DrawableSightline.obtain(pool).also(::configure)
         depth.renderMode = DrawableSightline.RenderMode.DEPTH_ONLY

@@ -147,7 +147,7 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
             }
         }
 
-        drawable.program = rc.getShaderProgram(StarFieldProgram.KEY) { StarFieldProgram() }
+        drawable.program = rc.getShaderProgram { StarFieldProgram() }
         rc.offerBackgroundDrawable(drawable)
     }
 

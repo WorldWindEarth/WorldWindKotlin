@@ -138,8 +138,4 @@ class BasicShaderProgram : AbstractShaderProgram() {
             gl.uniform1f(opacityId, opacity)
         }
     }
-
-    companion object {
-        val KEY = BasicShaderProgram::class
-    }
 }

@@ -515,7 +515,7 @@ open class WorldWind @JvmOverloads constructor(
 
         // The depth-as-color shader program is only needed for the pick pass to reconstruct
         // Cartesian points from the depth buffer, so allocate it lazily and only on pick frames.
-        if (pickMode) frame.depthToColorProgram = rc.getShaderProgram(DepthToColorProgram.KEY) { DepthToColorProgram() }
+        if (pickMode) frame.depthToColorProgram = rc.getShaderProgram { DepthToColorProgram() }
 
         // Let the frame controller render the WorldWindow's current state.
         frameController.renderFrame(rc)

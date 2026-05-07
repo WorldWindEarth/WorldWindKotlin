@@ -25,8 +25,4 @@ class SurfaceQuadShaderProgramOES : SurfaceQuadShaderProgram() {
                 src[1].replace("sampler2D", "samplerExternalOES")
         )
     }
-
-    companion object {
-        val KEY = SurfaceQuadShaderProgramOES::class
-    }
 }

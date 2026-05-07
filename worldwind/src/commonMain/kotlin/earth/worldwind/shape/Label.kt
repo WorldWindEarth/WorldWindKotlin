@@ -205,7 +205,7 @@ open class Label @JvmOverloads constructor(
         val drawable = DrawableScreenTexture.obtain(pool)
 
         // Use the basic GLSL program to draw the text.
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
 
         // Use the text's unit square transform matrix.
         drawable.unitSquareTransform.copy(renderData.unitSquareTransform)

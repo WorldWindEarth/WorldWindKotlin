@@ -187,8 +187,4 @@ open class Surface3DProjectionShaderProgram : AbstractShaderProgram() {
             gl.uniform1f(fadeMarginId, fadeMargin)
         }
     }
-
-    companion object {
-        val KEY = Surface3DProjectionShaderProgram::class
-    }
 }

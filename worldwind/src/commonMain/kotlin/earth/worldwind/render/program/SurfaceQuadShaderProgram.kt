@@ -189,8 +189,4 @@ open class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             gl.uniform1f(opacityId, opacity)
         }
     }
-
-    companion object {
-        val KEY = SurfaceQuadShaderProgram::class
-    }
 }

@@ -400,7 +400,7 @@ open class Placemark @JvmOverloads constructor(
      */
     protected open fun prepareDrawableIcon(rc: RenderContext, drawable: DrawableScreenTexture, activeTexture: Texture?) {
         // Use the basic GLSL program to draw the placemark's icon.
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
 
         // Use the plaemark's unit square transform matrix.
         drawable.unitSquareTransform.copy(imageTransform)
@@ -424,7 +424,7 @@ open class Placemark @JvmOverloads constructor(
      */
     protected open fun prepareDrawableLabel(rc: RenderContext, drawable: DrawableScreenTexture, labelTexture: Texture) {
         // Use the basic GLSL program to draw the placemark's label.
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
 
         // Use the label's unit square transform matrix.
         drawable.unitSquareTransform.copy(labelTransform)

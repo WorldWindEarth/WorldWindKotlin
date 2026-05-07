@@ -84,8 +84,4 @@ class SightlineMomentsBlurProgram : AbstractShaderProgram() {
     fun loadBlurDirection(x: Float, y: Float) {
         gl.uniform2f(blurDirectionId, x, y)
     }
-
-    companion object {
-        val KEY = SightlineMomentsBlurProgram::class
-    }
 }

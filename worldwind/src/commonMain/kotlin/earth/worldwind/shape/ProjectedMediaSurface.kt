@@ -305,9 +305,9 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
      */
     private fun pick3DProjectionShader(rc: RenderContext, tex: Texture) =
         if (tex.target == GL_TEXTURE_EXTERNAL_OES) {
-            rc.getShaderProgram(Surface3DProjectionShaderProgramOES.KEY) { Surface3DProjectionShaderProgramOES() }
+            rc.getShaderProgram { Surface3DProjectionShaderProgramOES() }
         } else {
-            rc.getShaderProgram(Surface3DProjectionShaderProgram.KEY) { Surface3DProjectionShaderProgram() }
+            rc.getShaderProgram { Surface3DProjectionShaderProgram() }
         }
 
     protected open fun drawInterior(rc: RenderContext, drawState: DrawQuadState) {
@@ -319,9 +319,9 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         // OES external samplers need a different shader than plain sampler2D.
         val resolvedTexture = resolveInteriorTexture(rc)
         drawState.programDrawToTexture = if (resolvedTexture?.target == GL_TEXTURE_EXTERNAL_OES) {
-            rc.getShaderProgram(SurfaceQuadShaderProgramOES.KEY) { SurfaceQuadShaderProgramOES() }
+            rc.getShaderProgram { SurfaceQuadShaderProgramOES() }
         } else {
-            rc.getShaderProgram(SurfaceQuadShaderProgram.KEY) { SurfaceQuadShaderProgram() }
+            rc.getShaderProgram { SurfaceQuadShaderProgram() }
         }
         drawState.programDrawTextureToTerrain = TriangleShaderProgram.get(rc)
 

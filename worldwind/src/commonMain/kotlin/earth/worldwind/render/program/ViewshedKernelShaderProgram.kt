@@ -75,8 +75,6 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
     fun loadMissingValue(v: Float) = gl.uniform1f(missingValueId, v)
 
     companion object {
-        val KEY = ViewshedKernelShaderProgram::class
-
         // Fullscreen triangle in NDC, emitted from gl_VertexID without a vertex buffer:
         // (-1,-1), (3,-1), (-1,3). One triangle covers the entire viewport — cheaper than a
         // quad's two triangles, no buffer-management overhead. gl_VertexID is core in GLES 3 /

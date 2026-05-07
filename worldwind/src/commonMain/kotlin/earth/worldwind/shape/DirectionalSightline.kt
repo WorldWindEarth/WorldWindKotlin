@@ -238,9 +238,9 @@ open class DirectionalSightline @JvmOverloads constructor(
             }
             drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
-            drawable.program = rc.getShaderProgram(SightlineProgram.KEY) { SightlineProgram() }
-            drawable.momentsProgram = rc.getShaderProgram(SightlineMomentsProgram.KEY) { SightlineMomentsProgram() }
-            drawable.momentsBlurProgram = rc.getShaderProgram(SightlineMomentsBlurProgram.KEY) { SightlineMomentsBlurProgram() }
+            drawable.program = rc.getShaderProgram { SightlineProgram() }
+            drawable.momentsProgram = rc.getShaderProgram { SightlineMomentsProgram() }
+            drawable.momentsBlurProgram = rc.getShaderProgram { SightlineMomentsBlurProgram() }
         }
 
         val depth = DrawableSightline.obtain(pool).also(::configure)

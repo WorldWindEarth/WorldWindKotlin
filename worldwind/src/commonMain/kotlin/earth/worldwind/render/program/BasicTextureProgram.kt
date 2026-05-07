@@ -348,24 +348,18 @@ open class BasicTextureProgram(
     }
 
     companion object {
-        val KEY = BasicTextureProgram::class
-
         /**
          * Resolves the [BasicTextureProgram] variant for [rc] - the shadow-aware variant
          * when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list,
          * the smaller-binary no-shadow variant otherwise.
          */
         fun get(rc: RenderContext): BasicTextureProgram = if (rc.hasShadowLayer) {
-            rc.getShaderProgram(BasicTextureProgramShadow.KEY) { BasicTextureProgramShadow() }
+            rc.getShaderProgram { BasicTextureProgramShadow() }
         } else {
-            rc.getShaderProgram(KEY) { BasicTextureProgram() }
+            rc.getShaderProgram { BasicTextureProgram() }
         }
     }
 }
 
 /** Sentinel subclass: distinct cache key for the shadow-aware GLSL variant. See [BasicTextureProgram]. */
-class BasicTextureProgramShadow : BasicTextureProgram(shadowsEnabled = true) {
-    companion object {
-        val KEY = BasicTextureProgramShadow::class
-    }
-}
+class BasicTextureProgramShadow : BasicTextureProgram(shadowsEnabled = true)

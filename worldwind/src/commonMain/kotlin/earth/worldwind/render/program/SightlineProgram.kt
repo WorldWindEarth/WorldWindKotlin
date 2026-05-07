@@ -172,8 +172,4 @@ class SightlineProgram : AbstractShaderProgram() {
         occludedColor.premultiplyToArray(array, 4)
         gl.uniform4fv(colorId, 2, array, 0)
     }
-
-    companion object {
-        val KEY = SightlineProgram::class
-    }
 }

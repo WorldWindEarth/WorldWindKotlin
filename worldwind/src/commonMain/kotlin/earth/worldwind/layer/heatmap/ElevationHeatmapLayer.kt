@@ -41,7 +41,7 @@ open class ElevationHeatmapLayer: AbstractLayer("Elevation Heatmap") {
         drawable.colors.forEachIndexed { i, color -> color.copy(colors[i]) }
         drawable.opacity = opacity
         drawable.offset = rc.globe.offset
-        drawable.program = rc.getShaderProgram(ElevationHeatmapProgram.KEY) { ElevationHeatmapProgram() }
+        drawable.program = rc.getShaderProgram { ElevationHeatmapProgram() }
         rc.offerSurfaceDrawable(drawable, zOrder)
     }
 }

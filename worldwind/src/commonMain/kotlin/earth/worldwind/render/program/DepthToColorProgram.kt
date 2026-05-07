@@ -57,8 +57,4 @@ class DepthToColorProgram : AbstractShaderProgram() {
         depthLoc = gl.getUniformLocation(program, "uDepth")
         gl.uniform1i(depthLoc, 0)
     }
-
-    companion object {
-        val KEY = DepthToColorProgram::class
-    }
 }

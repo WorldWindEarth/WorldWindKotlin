@@ -259,17 +259,15 @@ open class SurfaceTextureProgram(
     }
 
     companion object {
-        val KEY = SurfaceTextureProgram::class
-
         /**
          * Resolves the right [SurfaceTextureProgram] variant for [rc] - the shadow-aware
          * variant when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is in the layer
          * list, the smaller-binary no-shadow variant otherwise.
          */
         fun get(rc: RenderContext): SurfaceTextureProgram = if (rc.hasShadowLayer) {
-            rc.getShaderProgram(SurfaceTextureProgramShadow.KEY) { SurfaceTextureProgramShadow() }
+            rc.getShaderProgram { SurfaceTextureProgramShadow() }
         } else {
-            rc.getShaderProgram(KEY) { SurfaceTextureProgram() }
+            rc.getShaderProgram { SurfaceTextureProgram() }
         }
     }
 }
@@ -282,8 +280,4 @@ open class SurfaceTextureProgram(
  * `loadVertexOrigin` bodies do the actual uniform uploads against the now-valid uniform
  * locations.
  */
-class SurfaceTextureProgramShadow : SurfaceTextureProgram(shadowsEnabled = true) {
-    companion object {
-        val KEY = SurfaceTextureProgramShadow::class
-    }
-}
+class SurfaceTextureProgramShadow : SurfaceTextureProgram(shadowsEnabled = true)

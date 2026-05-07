@@ -59,7 +59,7 @@ open class ScreenImage(
 
         val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
         val drawable = DrawableScreenTexture.obtain(pool)
-        drawable.program = rc.getShaderProgram(BasicShaderProgram.KEY) { BasicShaderProgram() }
+        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
         drawable.unitSquareTransform.copy(transform)
         drawable.color.copy(color)
         drawable.opacity = opacity * rc.currentLayer.opacity

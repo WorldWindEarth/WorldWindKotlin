@@ -22,8 +22,4 @@ class Surface3DProjectionShaderProgramOES : Surface3DProjectionShaderProgram() {
                 src[1].replace("sampler2D", "samplerExternalOES")
         )
     }
-
-    companion object {
-        val KEY = Surface3DProjectionShaderProgramOES::class
-    }
 }
