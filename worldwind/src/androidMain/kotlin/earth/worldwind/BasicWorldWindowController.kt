@@ -198,6 +198,10 @@ open class BasicWorldWindowController(
             BEGAN -> {
                 gestureDidBegin()
                 captureBeginLookAtPoint()
+                lastX = 0f
+                lastY = 0f
+                velocitySampler.reset()
+                lastPanEventNanos = System.nanoTime()
             }
             CHANGED -> {
                 val metersPerPixel = engine.pixelSizeAtDistance(lookAt.range)
@@ -211,8 +215,22 @@ open class BasicWorldWindowController(
                 val y = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
                 engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
                 applyChanges()
+
+                val now = System.nanoTime()
+                velocitySampler.record(
+                    (tx - lastX).toDouble(), (ty - lastY).toDouble(),
+                    (now - lastPanEventNanos) / 1_000_000.0
+                )
+                lastX = tx
+                lastY = ty
+                lastPanEventNanos = now
             }
-            ENDED, CANCELLED -> gestureDidEnd()
+            ENDED -> {
+                val (vx, vy) = velocitySampler.computeReleaseVelocity()
+                fling.start(vx, vy)
+                gestureDidEnd()
+            }
+            CANCELLED -> gestureDidEnd()
             else -> {}
         }
     }
@@ -227,7 +245,7 @@ open class BasicWorldWindowController(
             }
             CHANGED -> if (scale != 0f) {
                 lookAt.range = beginLookAt.range / scale
-                if (!engine.globe.is2D) zoomAnchor.apply()
+                zoomAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()

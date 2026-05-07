@@ -210,6 +210,9 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             BEGAN -> {
                 gestureDidBegin()
                 captureBeginLookAtPoint()
+                lastPoint.set(0.0, 0.0)
+                velocitySampler.reset()
+                lastPanEventMs = window.performance.now()
             }
             CHANGED -> {
                 val metersPerPixel = engine.pixelSizeAtDistance(lookAt.range) * engine.densityFactor
@@ -223,8 +226,18 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
                 val y = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
                 engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
                 applyChanges()
+
+                val now = window.performance.now()
+                velocitySampler.record(tx - lastPoint.x, ty - lastPoint.y, now - lastPanEventMs)
+                lastPoint.set(tx, ty)
+                lastPanEventMs = now
             }
-            ENDED, CANCELLED -> gestureDidEnd()
+            ENDED -> {
+                val (vx, vy) = velocitySampler.computeReleaseVelocity()
+                fling.start(vx, vy)
+                gestureDidEnd()
+            }
+            CANCELLED -> gestureDidEnd()
             else -> {}
         }
     }
@@ -264,7 +277,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             }
             CHANGED -> if (scale != 0.0) {
                 lookAt.range = beginLookAt.range / scale
-                if (!wwd.engine.globe.is2D) zoomAnchor.apply()
+                zoomAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -325,7 +338,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             wwd.engine.cameraAsLookAt(lookAt)
             lastWheelEvent = timeStamp
             val cp = wwd.canvasCoordinates(event.clientX, event.clientY)
-            if (!wwd.engine.globe.is2D) zoomAnchor.capture(cp.x, cp.y) else zoomAnchor.invalidate()
+            zoomAnchor.capture(cp.x, cp.y)
         }
 
         // Normalize the wheel delta based on the wheel delta mode. This produces a roughly consistent delta across

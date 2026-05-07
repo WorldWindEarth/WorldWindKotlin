@@ -40,16 +40,24 @@ abstract class AbstractWorldWindowController {
     /** Trailing-window velocity tracker used to seed [fling] on gesture release. */
     val velocitySampler = ReleaseVelocitySampler()
 
-    /** Inertial pan animator. Each platform's [createFlingScheduler] supplies the per-frame clock. */
+    /** Inertial pan animator. Each platform's [createFlingScheduler] supplies the per-frame clock.
+     *  The per-frame action dispatches by projection: 2D uses incremental projected-meters math,
+     *  3D uses great-circle radians. Picking the right one matters because Mercator metersPerPixel
+     *  diverges from the 3D radians-on-a-sphere formula away from the equator. */
     val fling: FlingAnimator by lazy {
         FlingAnimator(
             scheduler = createFlingScheduler(),
-            applyPanDelta = { dx, dy -> applyPanDelta3D(dx, dy) },
+            applyPanDelta = { dx, dy ->
+                if (engine.globe.is2D) applyPanDelta2D(dx, dy) else applyPanDelta3D(dx, dy)
+            },
             // Hold a "virtual gesture" while the fling runs so a fresh real gesture cleanly
             // cancels us via gestureDidBegin -> fling.cancel.
             onActiveChange = { active -> if (active) activeGestures++ else if (activeGestures > 0) activeGestures-- },
         )
     }
+
+    /** Scratch buffer for [applyPanDelta2D]; reused across frames. */
+    private val panDelta2DCart = Vec3()
 
     /** Schedules a redraw of the host WorldWindow. */
     protected abstract fun requestRedraw()
@@ -133,6 +141,31 @@ abstract class AbstractWorldWindowController {
             lookAt.position.latitude = lat
             lookAt.position.longitude = lon
         }
+        applyChanges()
+    }
+
+    /**
+     * Applies a screen-pixel pan delta to [lookAt].position in 2D-projection Cartesian space. Reads
+     * the current lookAt back to Cartesian each call so the delta accumulates smoothly across many
+     * fling frames; using `beginLookAtPoint` here would only work for the first event of a sequence.
+     * `metersPerPixel` is true for the projection at the current range, so this stays accurate at
+     * any zoom level — unlike [applyPanDelta3D]'s great-circle approximation, which diverges from
+     * Mercator metersPerPixel away from the equator.
+     */
+    protected open fun applyPanDelta2D(deltaPxX: Double, deltaPxY: Double) {
+        val mpp = engine.pixelSizeAtDistance(max(1.0, lookAt.range)) * gestureToViewportPixels
+        val forwardMeters = deltaPxY * mpp
+        val sideMeters = -deltaPxX * mpp
+
+        val heading = lookAt.heading
+        val sinHeading = sin(heading.inRadians)
+        val cosHeading = cos(heading.inRadians)
+        engine.globe.geographicToCartesian(
+            lookAt.position.latitude, lookAt.position.longitude, lookAt.position.altitude, panDelta2DCart
+        )
+        val x = panDelta2DCart.x + forwardMeters * sinHeading + sideMeters * cosHeading
+        val y = panDelta2DCart.y + forwardMeters * cosHeading - sideMeters * sinHeading
+        engine.globe.cartesianToGeographic(x, y, panDelta2DCart.z, lookAt.position)
         applyChanges()
     }
 
