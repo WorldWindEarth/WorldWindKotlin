@@ -90,7 +90,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         if (rc.terrain.sector.isEmpty) return  // no terrain surface to render on
         val pool = rc.getDrawablePool(DrawableGroundAtmosphere.KEY)
         val drawable = DrawableGroundAtmosphere.obtain(pool)
-        drawable.program = GroundProgram.get(rc)
+        drawable.program = rc.getShaderProgram(GroundProgram.KEY) { GroundProgram() }
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe.equatorialRadius
         drawable.atmosphereAltitude = rc.atmosphereAltitude

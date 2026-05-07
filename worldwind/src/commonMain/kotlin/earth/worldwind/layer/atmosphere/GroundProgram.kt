@@ -1,25 +1,8 @@
 package earth.worldwind.layer.atmosphere
 
-import earth.worldwind.draw.DrawContext
-import earth.worldwind.geom.Matrix4
-import earth.worldwind.layer.shadow.ShadowReceiverGlsl
-import earth.worldwind.layer.shadow.ShadowReceiverProgram
-import earth.worldwind.render.RenderContext
-import earth.worldwind.util.kgl.KglUniformLocation
-
-/**
- * Atmosphere ground-rendering program. A single GLSL source carries both the no-shadow
- * (default) and shadow-aware paths, gated by a `#define SHADOWS_ENABLED` preprocessor
- * symbol that [shadowsEnabled] toggles. Default `GroundProgram()` is the smaller-binary
- * no-shadow variant; the sentinel subclass [GroundProgramShadow] - selected by [get] when
- * an [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list - flips the `#define`
- * on. Pick the variant via [get].
- */
-open class GroundProgram(
-    protected val shadowsEnabled: Boolean = false,
-) : AbstractAtmosphereProgram(), ShadowReceiverProgram {
+class GroundProgram: AbstractAtmosphereProgram() {
     override var programSources = arrayOf(
-        defines() + """
+        """
             #ifdef GL_ES
             precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */
             #endif
@@ -57,10 +40,6 @@ open class GroundProgram(
             varying vec3 primaryColor;
             varying vec3 secondaryColor;
             varying vec2 texCoord;
-            #ifdef SHADOWS_ENABLED
-            varying vec3 worldPos;
-            varying float viewDepth;
-            #endif
 
             float scaleFunc(float cos) {
                 float x = 1.0 - cos;
@@ -134,18 +113,13 @@ open class GroundProgram(
                 /* Transform the vertex point by the modelview-projection matrix */
                 gl_Position = mvpMatrix * vertexPoint;
 
-                #ifdef SHADOWS_ENABLED
-                worldPos = point;
-                viewDepth = gl_Position.w;
-                #endif
-
                 if (fragMode == FRAGMODE_PRIMARY_TEX_BLEND) {
                     /* Transform the vertex texture coordinate by the tex coord matrix */
                     texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
                 }
             }
         """.trimIndent(),
-        defines() + """
+        """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */
@@ -164,24 +138,12 @@ open class GroundProgram(
             varying vec3 primaryColor;
             varying vec3 secondaryColor;
             varying vec2 texCoord;
-            #ifdef SHADOWS_ENABLED
-            varying vec3 worldPos;
-            varying float viewDepth;
-
-            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
-            #endif
 
             void main () {
                 if (fragMode == FRAGMODE_PRIMARY) {
                     gl_FragColor = vec4(primaryColor, 1.0);
                 } else if (fragMode == FRAGMODE_SECONDARY) {
-                #ifdef SHADOWS_ENABLED
-                    /* SECONDARY uses [GL_DST_COLOR, GL_ZERO] blend - folding shadow visibility
-                       into [secondaryColor] darkens shadowed terrain via the same multiply. */
-                    gl_FragColor = vec4(secondaryColor * computeShadowVisibility(worldPos, viewDepth), 1.0);
-                #else
                     gl_FragColor = vec4(secondaryColor, 1.0);
-                #endif
                 } else if (fragMode == FRAGMODE_PRIMARY_TEX_BLEND) {
                     vec4 texColor = texture2D(texSampler, texCoord);
                     gl_FragColor = vec4(primaryColor + texColor.rgb * (1.0 - secondaryColor), 1.0);
@@ -193,84 +155,7 @@ open class GroundProgram(
     )
     override val attribBindings = arrayOf("vertexPoint")
 
-    private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
-
-    private var applyShadowId = KglUniformLocation.NONE
-    private var useMSMId = KglUniformLocation.NONE
-    private var ambientShadowId = KglUniformLocation.NONE
-    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val lightProjectionViewArray = FloatArray(16)
-
-    override fun initProgram(dc: DrawContext) {
-        super.initProgram(dc)
-        // Shadow receiver uniforms - see SurfaceTextureProgram.initProgram for the no-shadow
-        // GL-no-op rationale.
-        applyShadowId = gl.getUniformLocation(program, "applyShadow")
-        gl.uniform1i(applyShadowId, 0)
-        useMSMId = gl.getUniformLocation(program, "useMSM")
-        gl.uniform1i(useMSMId, 0)
-        ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
-        gl.uniform1f(ambientShadowId, 0.4f)
-        for (i in shadowMapIds.indices) {
-            shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
-            gl.uniform1i(shadowMapIds[i], 1 + i)
-            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
-            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
-            gl.uniform1f(cascadeFarDepthIds[i], 0f)
-        }
-    }
-
-    override var shadowUploadStamp: Long = -1L
-
-    override fun loadShadowDisabled() {
-        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
-    }
-
-    override fun loadShadowEnabled(
-        ambientShadow: Float,
-        lightProjectionView0: Matrix4,
-        lightProjectionView1: Matrix4,
-        lightProjectionView2: Matrix4,
-        cascadeFarDepth0: Float,
-        cascadeFarDepth1: Float,
-        cascadeFarDepth2: Float,
-        useMSM: Boolean,
-    ) {
-        gl.uniform1i(applyShadowId, 1)
-        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
-        gl.uniform1f(ambientShadowId, ambientShadow)
-        lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
-        lightProjectionView1.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, lightProjectionViewArray, 0)
-        lightProjectionView2.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, lightProjectionViewArray, 0)
-        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
-        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
-        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
-    }
-
     companion object {
         val KEY = GroundProgram::class
-
-        /**
-         * Resolves the right [GroundProgram] variant for [rc] - the shadow-aware variant when
-         * an enabled [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list, the
-         * smaller-binary no-shadow variant otherwise.
-         */
-        fun get(rc: RenderContext): GroundProgram = if (rc.hasShadowLayer) {
-            rc.getShaderProgram(GroundProgramShadow.KEY) { GroundProgramShadow() }
-        } else {
-            rc.getShaderProgram(KEY) { GroundProgram() }
-        }
-    }
-}
-
-/** Sentinel subclass: distinct cache key for the shadow-aware GLSL variant. See [GroundProgram]. */
-class GroundProgramShadow : GroundProgram(shadowsEnabled = true) {
-    companion object {
-        val KEY = GroundProgramShadow::class
     }
 }
