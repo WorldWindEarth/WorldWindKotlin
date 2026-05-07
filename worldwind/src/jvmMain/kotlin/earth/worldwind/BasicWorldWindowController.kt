@@ -95,6 +95,7 @@ open class BasicWorldWindowController(
                 velocitySampler.reset()
                 lastDragNanos = System.nanoTime()
                 gestureDidBegin()
+                captureBeginLookAtPoint()
                 return true
             }
 

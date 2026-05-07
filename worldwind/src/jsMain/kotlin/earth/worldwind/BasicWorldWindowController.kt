@@ -207,7 +207,10 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         val ty = recognizer.translationY
 
         when (state) {
-            BEGAN -> gestureDidBegin()
+            BEGAN -> {
+                gestureDidBegin()
+                captureBeginLookAtPoint()
+            }
             CHANGED -> {
                 val metersPerPixel = engine.pixelSizeAtDistance(lookAt.range) * engine.densityFactor
                 val forwardMeters = ty * metersPerPixel

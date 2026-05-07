@@ -25,7 +25,8 @@ abstract class AbstractWorldWindowController {
 
     /** A copy of the viewing parameters at the start of a gesture as a look-at view. */
     protected val beginLookAt = LookAt()
-    /** Cartesian projection of [beginLookAt].position; populated by [gestureDidBegin] for 2D pan. */
+    /** Cartesian projection of [beginLookAt].position; refreshed by [captureBeginLookAtPoint]
+     *  at the start of each 2D pan, after [beginLookAt] is set. */
     protected val beginLookAtPoint = Vec3()
     /** The current viewing parameters during a gesture. */
     protected val lookAt = LookAt()
@@ -75,15 +76,22 @@ abstract class AbstractWorldWindowController {
         if (activeGestures++ == 0) {
             engine.cameraAsLookAt(beginLookAt)
             lookAt.copy(beginLookAt)
-            // Pre-compute the begin point in Cartesian so 2D pan handlers can translate from it
-            // without re-running the geographic→Cartesian transform on every CHANGED.
-            engine.globe.geographicToCartesian(
-                beginLookAt.position.latitude,
-                beginLookAt.position.longitude,
-                beginLookAt.position.altitude,
-                beginLookAtPoint
-            )
         }
+    }
+
+    /**
+     * Refreshes [beginLookAtPoint] from the current [beginLookAt]. 2D pan handlers must call this
+     * at gesture begin so the per-CHANGED translation operates from the correct origin. Kept
+     * separate from [gestureDidBegin] so subclasses overriding it (e.g. to source [beginLookAt]
+     * from a navigator event instead of the camera) don't silently break 2D pan.
+     */
+    protected fun captureBeginLookAtPoint() {
+        engine.globe.geographicToCartesian(
+            beginLookAt.position.latitude,
+            beginLookAt.position.longitude,
+            beginLookAt.position.altitude,
+            beginLookAtPoint
+        )
     }
 
     protected open fun gestureDidEnd() {
