@@ -222,7 +222,7 @@ open class WorldWind @JvmOverloads constructor(
         camera.tilt = scratchModelview.extractTilt()
         camera.roll = lookAt.roll // roll passes straight through
 
-        if (clampCameraToTerrain()) {
+        if (clampCameraToTerrain(COLLISION_THRESHOLD)) {
             // Re-derive tilt so the look-at anchor stays in view after the camera was lifted.
             globe.geographicToCartesian(
                 camera.position.latitude, camera.position.longitude, camera.position.altitude, scratchPoint
@@ -238,15 +238,15 @@ open class WorldWind @JvmOverloads constructor(
     }
 
     /**
-     * Lift the camera above the terrain surface (plus [COLLISION_THRESHOLD]) if it sits below.
+     * Lift the camera above the terrain surface (plus [threshold]) if it sits below.
      * In 2D the surface is treated as elevation 0, so only the threshold itself acts as a floor.
      *
      * @return true if the camera position was modified, false otherwise.
      */
-    private fun clampCameraToTerrain(): Boolean {
+    private fun clampCameraToTerrain(threshold: Double = 0.0): Boolean {
         val position = globe.getAbsolutePosition(camera.position, camera.altitudeMode)
-        val elevation = if (globe.is2D) COLLISION_THRESHOLD
-        else globe.getElevation(position.latitude, position.longitude) + COLLISION_THRESHOLD
+        val elevation = if (globe.is2D) threshold
+        else globe.getElevation(position.latitude, position.longitude) + threshold
         if (elevation <= position.altitude) return false
         position.altitude = elevation
         camera.position.copy(position)
