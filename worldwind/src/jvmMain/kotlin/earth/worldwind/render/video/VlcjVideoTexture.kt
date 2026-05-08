@@ -2,6 +2,7 @@ package earth.worldwind.render.video
 
 import earth.worldwind.util.kgl.GL_BGRA
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
+import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback
@@ -40,12 +41,26 @@ class VlcjVideoTexture(
         // decoder's mapped memory via the ByteBuffer submitFrame overload (no scratch hop).
         val surface = factory.videoSurfaces().newVideoSurface(
             object : BufferFormatCallback {
-                override fun getBufferFormat(w: Int, h: Int): BufferFormat = RV32BufferFormat(w, h)
-                override fun allocatedBuffers(buffers: Array<out ByteBuffer>) { /* no-op */ }
+                override fun getBufferFormat(sourceWidth: Int, sourceHeight: Int): BufferFormat =
+                    RV32BufferFormat(sourceWidth, sourceHeight)
+                override fun newFormatSize(
+                    bufferWidth: Int, bufferHeight: Int, displayWidth: Int, displayHeight: Int,
+                ) { /* no-op */ }
+                override fun allocatedBuffers(buffers: Array<ByteBuffer>) { /* no-op */ }
             },
-            RenderCallback { _, buffers, fmt ->
-                buffers[0].rewind()
-                submitFrame(buffers[0], fmt.width, fmt.height)
+            object : RenderCallback {
+                override fun lock(mediaPlayer: MediaPlayer) { /* no-op */ }
+                override fun display(
+                    mediaPlayer: MediaPlayer,
+                    nativeBuffers: Array<ByteBuffer>,
+                    bufferFormat: BufferFormat,
+                    displayWidth: Int,
+                    displayHeight: Int,
+                ) {
+                    nativeBuffers[0].rewind()
+                    submitFrame(nativeBuffers[0], bufferFormat.width, bufferFormat.height)
+                }
+                override fun unlock(mediaPlayer: MediaPlayer) { /* no-op */ }
             },
             true,
         )
