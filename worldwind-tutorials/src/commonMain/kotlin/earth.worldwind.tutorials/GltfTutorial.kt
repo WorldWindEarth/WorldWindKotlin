@@ -20,6 +20,8 @@ class GltfTutorial(engine: WorldWind) : AbstractTutorial(engine), PickIndicatorT
         scene.scale = 5000.0
         gltfLayer.clearRenderables()
         gltfLayer.addRenderable(scene)
+        // Async parse finishes after [start]'s initial redraw; nudge the engine.
+        WorldWind.requestRedraw()
     }
 
     override fun start() {

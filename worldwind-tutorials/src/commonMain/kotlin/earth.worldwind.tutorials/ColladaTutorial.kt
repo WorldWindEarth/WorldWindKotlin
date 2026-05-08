@@ -28,6 +28,8 @@ class ColladaTutorial(engine: WorldWind) : AbstractTutorial(engine) {
             scene = it
             colladaLayer.clearRenderables()
             colladaLayer.addRenderable(it)
+            // Async parse finishes after [start]'s initial redraw; nudge the engine.
+            WorldWind.requestRedraw()
         }
     }
 
