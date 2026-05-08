@@ -1,5 +1,7 @@
 package earth.worldwind.layer.sightline
 
+import earth.worldwind.layer.shadow.defaultSightlineMomentBias
+
 /**
  * Reusable GLSL fragments that any program can splice into its fragment shader to make its
  * own pixels modulate against the active sightline's moments map. Mirrors
@@ -73,7 +75,10 @@ object SightlineReceiverGlsl {
 
         const vec3 sightlineMinusOne = vec3(-1.0, -1.0, -1.0);
         const vec3 sightlinePlusOne  = vec3( 1.0,  1.0,  1.0);
-        const float sightlineMomentBias = 3e-5;
+        /* Platform-templated via [defaultSightlineMomentBias]: IEEE-strict 3e-5 on JVM/JS/
+           Android/desktop; 3e-2 on iOS Mac Simulator's Metal-backed GLES3 only, where the
+           Cholesky reorder produces light-leak noise even in sightline's tight depth range. */
+        const float sightlineMomentBias = $defaultSightlineMomentBias;
         const float sightlineDepthBias  = 1e-5;
 
         /* Hamburger 4-moment occlusion bound. Returns 0 = visible, 1 = fully occluded. */

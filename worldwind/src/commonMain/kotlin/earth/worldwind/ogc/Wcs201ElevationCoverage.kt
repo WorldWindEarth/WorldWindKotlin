@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Generates elevations from OGC Web Coverage Service (WCS) version 2.0.1.
@@ -182,7 +183,7 @@ open class Wcs201ElevationCoverage private constructor(
             )
         }
 
-        @Throws(OwsException::class)
+        @Throws(OwsException::class, CancellationException::class)
         suspend fun describeCoverage(serviceAddress: String, coverageId: String) = DefaultHttpClient().use {
             val serviceUri = Uri.parse(serviceAddress).buildUpon()
                 .appendQueryParameter("VERSION", VERSION)

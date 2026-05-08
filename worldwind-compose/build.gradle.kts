@@ -25,6 +25,9 @@ kotlin {
             }
         }
     }
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
     @Suppress("UnstableApiUsage")
     android {
         namespace = "earth.worldwind.compose"
@@ -58,6 +61,20 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(compose.html.core)
+            }
+        }
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain.get())
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+            dependencies {
+                // Compose UI brings the iOS UIKitView interop API.
+                implementation(compose.foundation)
+                implementation(compose.ui)
             }
         }
         all {

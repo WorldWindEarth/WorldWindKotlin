@@ -596,6 +596,22 @@ interface Kgl {
      * multisample renderbuffer's `GL_RGBA8`).
      */
     val supportsSizedTextureFormats: Boolean
+    /**
+     * Largest float color-buffer precision that is *render-target* complete on this GL
+     * implementation. `32` => `GL_RGBA32F` is renderable (desktop GL3+ / WebGL2 with
+     * `EXT_color_buffer_float` / Android+iOS-device GLES3 with the same extension);
+     * `16` => only `GL_RGBA16F` is renderable (some iOS Simulator GLES3 builds, GLES2
+     * with `EXT_color_buffer_half_float`); `0` => no float color attachment is renderable
+     * and consumers must fall back to `GL_RGBA8`.
+     *
+     * Currently consulted by `DrawContext.momentsFramebuffer`,
+     * `DrawContext.momentsCubeMapTexture` and `DrawContext.momentsBlurFramebuffer` to pick
+     * the precision tier of the MSM moments storage. RGBA16F gives ~11 bits of mantissa,
+     * enough for visible-but-coarser sightline / shadow penumbras (see
+     * `feedback_no_rgba16f_msm_shadows`); RGBA8 is unusable for MSM but lets the engine
+     * boot rather than producing all-black sightlines.
+     */
+    val maxRenderableFloatBits: Int get() = if (supportsSizedTextureFormats) 32 else 0
     fun createRenderbuffer(): KglRenderbuffer
     fun deleteRenderbuffer(renderbuffer: KglRenderbuffer)
     fun bindRenderbuffer(target: Int, renderbuffer: KglRenderbuffer)

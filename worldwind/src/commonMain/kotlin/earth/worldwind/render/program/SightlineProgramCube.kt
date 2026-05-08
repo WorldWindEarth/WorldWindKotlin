@@ -2,6 +2,7 @@ package earth.worldwind.render.program
 
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.shadow.defaultSightlineMomentBias
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
@@ -56,7 +57,8 @@ class SightlineProgramCube : AbstractShaderProgram() {
             /* Hamburger MSM bias parameters (Peters & Klein 2015). Tuned for 32-bit float
                storage; the d=1 sentinel is rank-deficient so the moments are mixed toward
                the moments of a uniform distribution on [0,1] = (1/2, 1/3, 1/4, 1/5). */
-            const float momentBias = 3e-5;
+            /* Platform-templated; see [earth.worldwind.layer.shadow.defaultSightlineMomentBias]. */
+            const float momentBias = $defaultSightlineMomentBias;
             const float depthBias = 1e-5;
             /* Screen-pixel radius of the receiver-side blur. The 5-tap kernel covers ~2 *
                BLUR_RADIUS texels per axis, wide enough at 3 to dissolve cube-grid-aligned

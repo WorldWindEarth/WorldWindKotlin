@@ -33,13 +33,18 @@ expect val defaultShadowAlgorithm: ShadowAlgorithm
 expect val defaultMomentsBlurTexelSpacing: FloatArray
 
 /**
- * Platform-default MSM moment bias. The Cholesky reconstruction mixes the sampled moments
- * toward a uniform-distribution sentinel by this fraction; small values preserve sharp
- * penumbras, large values smear the analytic distribution but mask reconstruction noise on
- * shader compilers that fold the catastrophic-cancellation `D22 = b.y - b.x*b.x` into
- * garbage. Adreno-class compilers need a much larger bias (`~3e-2`) to produce a usable
- * - if visibly translucent - shadow at all; IEEE-FP-strict compilers (JVM / desktop GL /
- * WebGL2 / ANGLE) get clean reconstruction at `3e-5`. Templated into the shader source as
- * a `const float` so the GPU can constant-fold it.
+ * Platform-default MSM moment bias for cascade shadow. The Cholesky mixes sampled moments
+ * toward a uniform-distribution sentinel by this fraction; large values mask reconstruction
+ * noise on compilers that fold the `D22 = b.y - b.x*b.x` cancellation into garbage, at the
+ * cost of penumbra sharpness. Tuned independently from [defaultSightlineMomentBias] because
+ * cascade shadow's wide depth range stresses the cancellation harder.
  */
 expect val defaultMsmMomentBias: Float
+
+/**
+ * Platform-default MSM moment bias for the sightline pipeline (directional + omni cube-map).
+ * Tighter frustum than cascade shadow, so most platforms reconstruct cleanly at IEEE-strict
+ * `3e-5`. Adreno tolerates `3e-5` here despite needing `3e-2` on cascade shadow; iOS Mac Sim
+ * is precision-fragile enough to need `3e-2` even in sightline's tight range.
+ */
+expect val defaultSightlineMomentBias: Float

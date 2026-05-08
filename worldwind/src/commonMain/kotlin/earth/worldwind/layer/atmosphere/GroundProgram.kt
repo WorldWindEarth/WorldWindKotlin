@@ -4,6 +4,13 @@ class GroundProgram: AbstractAtmosphereProgram() {
     override var programSources = arrayOf(
         """
             #ifdef GL_ES
+            /* Force highp float for the scatter loop. iOS Simulator's Metal-backed GLES3
+               defaults vertex math to half-precision SIMD lanes on shaders that don't ask
+               explicitly; the SAMPLE_COUNT exp() accumulator amplifies per-lane precision
+               into per-vertex jitter that the rasterizer interpolates into visible noise
+               across the terrain. Other GLES3 implementations already default to highp
+               for vertex. */
+            precision highp float;
             precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */
             #endif
 

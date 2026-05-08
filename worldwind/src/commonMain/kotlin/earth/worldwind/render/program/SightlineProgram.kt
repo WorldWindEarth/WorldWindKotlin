@@ -2,6 +2,7 @@ package earth.worldwind.render.program
 
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.shadow.defaultSightlineMomentBias
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.KglUniformLocation
 
@@ -52,7 +53,8 @@ class SightlineProgram : AbstractShaderProgram() {
                sentinel). Depth bias subtracts a tiny epsilon from the receiver's own depth so
                a surface compares as "in front of itself" - prevents self-shadow on flat
                terrain. Both tuned for 32-bit float storage. */
-            const float momentBias = 3e-5;
+            /* Platform-templated; see [earth.worldwind.layer.shadow.defaultSightlineMomentBias]. */
+            const float momentBias = $defaultSightlineMomentBias;
             const float depthBias = 1e-5;
 
             void main() {

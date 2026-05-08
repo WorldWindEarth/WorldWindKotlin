@@ -3,6 +3,12 @@ package earth.worldwind.layer.atmosphere
 class SkyProgram : AbstractAtmosphereProgram() {
     override var programSources = arrayOf(
         """
+            #ifdef GL_ES
+            /* Same rationale as GroundProgram: pin vertex math to highp so iOS Simulator's
+               Metal-backed GLES3 doesn't run the scatter loop at half-precision. */
+            precision highp float;
+            #endif
+
             const int SAMPLE_COUNT = 2;
             const float SAMPLES = 2.0;
 

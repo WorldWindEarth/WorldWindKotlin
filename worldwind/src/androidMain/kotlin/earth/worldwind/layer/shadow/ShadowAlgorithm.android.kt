@@ -1,8 +1,7 @@
 package earth.worldwind.layer.shadow
 
-// Adreno-class compilers reorder the Cholesky's catastrophic-cancellation subtractions
-// and produce noise at `3e-5`. The larger bias here mixes the moments far enough toward
-// the uniform-distribution sentinel that the noise washes out, at the cost of a visibly
-// translucent / "glass-bottle" shadow. Apps that target only IEEE-FP-strict Android GPUs
-// can override [ShadowLayer] knobs to recover sharp MSM if their device tolerates it.
+// Adreno reorders the Cholesky catastrophic-cancellation; cascade shadow's wide depth range
+// needs 3e-2 to mask the noise. Sightline's tighter frustum reconstructs cleanly at 3e-5;
+// 3e-2 there over-mixes and bleeds light past the caster.
 actual val defaultMsmMomentBias: Float = 3e-2f
+actual val defaultSightlineMomentBias: Float = 3e-5f

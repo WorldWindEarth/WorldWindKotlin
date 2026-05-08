@@ -32,6 +32,9 @@ kotlin {
             }
         }
     }
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
     @Suppress("UnstableApiUsage")
     android {
         namespace = project.group.toString()
@@ -77,8 +80,18 @@ kotlin {
                 implementation(libs.moko.resources.test)
             }
         }
-        val jvmCommonMain by creating {
+        // Intermediate source set for everything-except-iOS. MIL-STD-2525 expects/abstracts
+        // live here so iOS doesn't have to provide no-op actuals — the iOS framework
+        // genuinely does not include MIL-STD-2525, and trying to use those types from iOS
+        // is a compile error.
+        val nonIosMain by creating {
             dependsOn(commonMain.get())
+        }
+        val nonIosTest by creating {
+            dependsOn(commonTest.get())
+        }
+        val jvmCommonMain by creating {
+            dependsOn(nonIosMain)
             dependencies {
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.geopackage.core.get().toString()) {
@@ -88,7 +101,7 @@ kotlin {
             }
         }
         val jvmCommonTest by creating {
-            dependsOn(commonTest.get())
+            dependsOn(nonIosTest)
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.mockk.jvm)
@@ -145,6 +158,7 @@ kotlin {
             dependsOn(jvmCommonTest)
         }
         jsMain {
+            dependsOn(nonIosMain)
             dependencies {
                 implementation(libs.ktor.client.js)
                 implementation(project.dependencies.platform(libs.kotlin.wrappers.bom))
@@ -154,9 +168,31 @@ kotlin {
             }
         }
         jsTest {
+            dependsOn(nonIosTest)
             dependencies {
                 implementation(kotlin("test-js"))
             }
+        }
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain.get())
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+            dependencies {
+                implementation(libs.ktor.client.darwin)
+            }
+        }
+        val iosX64Test by getting
+        val iosArm64Test by getting
+        val iosSimulatorArm64Test by getting
+        val iosTest by creating {
+            dependsOn(commonTest.get())
+            iosX64Test.dependsOn(this)
+            iosArm64Test.dependsOn(this)
+            iosSimulatorArm64Test.dependsOn(this)
         }
         androidMain {
             dependsOn(jvmCommonMain)
@@ -348,6 +384,41 @@ tasks.named("compileKotlinJs") { dependsOn(checkShaderSourcesAscii) }
 // AGP registers the Android Kotlin compile task lazily, so match by name rather than `named`.
 tasks.matching { it.name == "compileKotlinAndroid" }
     .configureEach { dependsOn(checkShaderSourcesAscii) }
+
+// Strip moko-resources' iOS PackAppleResourcesToKLibAction on Windows hosts only — the action
+// writes a directory whose name embeds the klib's Maven `unique_name` (`<group>:<artifact>`),
+// and `:` is illegal in NTFS. On macOS we let moko pack normally; otherwise iOS apps lose all
+// moko-resources lookups and crash with "FileResource retrieval failed".
+val isWindowsHost = System.getProperty("os.name").lowercase().contains("win")
+afterEvaluate {
+    val unwrap: (Any) -> String = { wrapper ->
+        var current: Any = wrapper
+        var name = current.javaClass.name
+        repeat(4) {
+            val field = current.javaClass.declaredFields
+                .firstOrNull { it.name in listOf("action", "delegate", "originalAction") }
+            if (field != null) {
+                field.isAccessible = true
+                val next = field.get(current)
+                if (next != null) {
+                    current = next
+                    name = current.javaClass.name
+                }
+            }
+        }
+        name
+    }
+    if (!isWindowsHost) return@afterEvaluate
+    tasks.matching { it.name.startsWith("compileKotlinIos") }.configureEach {
+        val task = this
+        val before = task.actions.size
+        task.actions.removeAll { unwrap(it).contains("PackAppleResources") }
+        val removed = before - task.actions.size
+        if (removed > 0) {
+            logger.lifecycle("[ios-pack-strip] dropped $removed moko-resources action(s) on ${task.name}")
+        }
+    }
+}
 
 // https://github.com/gradle/gradle/issues/26091
 tasks.withType<AbstractPublishToMaven>().configureEach {

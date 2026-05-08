@@ -28,6 +28,16 @@ kotlin {
             }
         }
     }
+    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            // Static framework: simpler embedding for SwiftUI/UIKit hosts (no need to add
+            // a "Embed and Sign" copy phase; Xcode just links the .a). Compose Multiplatform
+            // apps name this "ComposeApp" by convention so Swift code can `import ComposeApp`
+            // and call `MainViewController()` from a UIViewControllerRepresentable.
+            baseName = "ComposeApp"
+            isStatic = true
+        }
+    }
     @Suppress("UnstableApiUsage")
     android {
         namespace = "earth.worldwind.compose.samples"
@@ -66,6 +76,21 @@ kotlin {
                 implementation(compose.html.core)
             }
         }
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain.get())
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+            dependencies {
+                // compose.foundation + compose.ui pull in the Compose-iOS runtime, including
+                // ComposeUIViewController which our MainViewController() helper wraps.
+                implementation(compose.foundation)
+                implementation(compose.ui)
+            }
+        }
         all {
             languageSettings {
                 @Suppress("OPT_IN_USAGE")
@@ -73,6 +98,39 @@ kotlin {
                     freeCompilerArgs.add("-Xexpect-actual-classes")
                 }
             }
+        }
+    }
+}
+
+// Mirror the workaround from :worldwind: moko-resources packs into a klib subdirectory
+// whose name is the klib unique_name (`<group>:<artifact>`), and `:` is illegal in NTFS
+// filenames. Strip the doLast action on iOS compile tasks so the build runs on Windows.
+// See `project_moko_resources_windows_ios` memory.
+afterEvaluate {
+    val unwrap: (Any) -> String = { wrapper ->
+        var current: Any = wrapper
+        var name = current.javaClass.name
+        repeat(4) {
+            val field = current.javaClass.declaredFields
+                .firstOrNull { it.name in listOf("action", "delegate", "originalAction") }
+            if (field != null) {
+                field.isAccessible = true
+                val next = field.get(current)
+                if (next != null) {
+                    current = next
+                    name = current.javaClass.name
+                }
+            }
+        }
+        name
+    }
+    tasks.matching { it.name.startsWith("compileKotlinIos") }.configureEach {
+        val task = this
+        val before = task.actions.size
+        task.actions.removeAll { unwrap(it).contains("PackAppleResources") }
+        val removed = before - task.actions.size
+        if (removed > 0) {
+            logger.lifecycle("[ios-pack-strip] dropped $removed moko-resources action(s) on ${task.name}")
         }
     }
 }

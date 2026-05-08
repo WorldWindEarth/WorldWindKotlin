@@ -3,32 +3,23 @@ package earth.worldwind.layer.shadow
 import earth.worldwind.draw.DrawContext
 
 /**
- * Reusable GLSL fragments concatenated into every shadow receiver's fragment shader so all
- * receivers compute occlusion the same way.
+ * Reusable GLSL fragments concatenated into every shadow receiver's fragment shader.
  *
- * Conventions the receiver's vertex shader must follow:
- *  - emit `varying vec3 worldPos` = world-space Cartesian position (`vertexOrigin + localPosition`).
- *  - emit `varying float viewDepth` = positive distance to the camera plane (`gl_Position.w`
- *    for a standard perspective projection).
+ * Receiver vertex shader must emit:
+ *  - `varying vec3 worldPos` — world-space Cartesian position
+ *  - `varying float viewDepth` — positive distance to the camera plane (`gl_Position.w`)
  *
- * The receiver fragment shader calls [computeShadowVisibility] which returns 1.0 fully lit,
- * [ambientShadow] fully occluded, smoothly varying in between. When `applyShadow` is false
- * it short-circuits to 1.0; receivers can call it unconditionally.
+ * Receiver fragment shader calls [computeShadowVisibility]: returns 1.0 lit, [ambientShadow]
+ * occluded, smoothly varying in between. Short-circuits to 1.0 when `applyShadow` is false.
  *
- * Two algorithms are available, selected at runtime via the `useMSM` uniform: 9-tap rotated
- * PCF (default; portable) or Hamburger 4-moment Cholesky (smoother penumbra; precision-fragile
- * on Adreno-class shader compilers). The cascade depth pass writes linear caster depth to
- * `moments.x`, which both algorithms read.
+ * Two algorithms, selected by the `useMSM` uniform: rotated PCF (portable) or Hamburger
+ * 4-moment Cholesky (smoother penumbra; precision-fragile on Adreno-class compilers).
  */
 object ShadowReceiverGlsl {
     /** Number of cascades the shader code is unrolled for. Matches [ShadowState.DEFAULT_CASCADE_COUNT]. */
     const val CASCADE_COUNT = ShadowState.DEFAULT_CASCADE_COUNT
 
-    /**
-     * GLSL preprocessor define enabled by each receiver program's `shadowsEnabled` flag.
-     * Receivers prepend this to their GLSL source so `#ifdef SHADOWS_ENABLED ... #endif`
-     * blocks are included on the shadow-aware variant and stripped on the no-shadow one.
-     */
+    /** Toggled by each receiver program's `shadowsEnabled` flag. */
     const val SHADOWS_ENABLED_DEFINE = "#define SHADOWS_ENABLED\n"
 
     private val texel0 = (1.0 / DrawContext.SHADOW_CASCADE_MAP_SIZES[0]).toFloat()
@@ -37,7 +28,6 @@ object ShadowReceiverGlsl {
 
     val FRAGMENT_DECLARATIONS: String = """
         uniform bool applyShadow;
-        /* Selects the receiver path: false = PCF, true = MSM. Driven by [ShadowLayer.algorithm]. */
         uniform bool useMSM;
         uniform sampler2D shadowMap0;
         uniform sampler2D shadowMap1;
@@ -50,8 +40,6 @@ object ShadowReceiverGlsl {
         uniform float cascadeFarDepth2;
         uniform float ambientShadow;
 
-        /* Per-cascade texel size in normalised UV units. Constants from [DrawContext.SHADOW_CASCADE_MAP_SIZES];
-           the PCF kernel scales offsets by this so penumbra width stays consistent across cascade resolutions. */
         const vec2 cascadeTexelSize0 = vec2($texel0);
         const vec2 cascadeTexelSize1 = vec2($texel1);
         const vec2 cascadeTexelSize2 = vec2($texel2);
@@ -63,15 +51,13 @@ object ShadowReceiverGlsl {
         const float pcfKernelRadius = 2.5;
         const float pcfDepthBias = 5e-3;
 
-        /* MSM tunables. [msmMomentBias] is platform-templated via [defaultMsmMomentBias]:
-           IEEE-FP-strict compilers (JVM / desktop GL / WebGL2 / ANGLE) get the reference
-           `3e-5`; Adreno-class compilers get `3e-2` because their reordering of the Cholesky's
-           catastrophic-cancellation subtraction produces noise at the lower bias. */
+        /* MSM bias is platform-templated via [defaultMsmMomentBias]: IEEE-strict 3e-5 on
+           desktop GL / WebGL2 / ANGLE; 3e-2 on Adreno-class and iOS Mac Sim's Metal-backed
+           GLES3, both of which reorder the Cholesky catastrophic cancellation. */
         const float msmMomentBias = $defaultMsmMomentBias;
         const float msmDepthBias = 1e-5;
 
-        /* Hamburger 4-moment Cholesky reconstruction (Peters & Klein 2015).
-           Returns 1.0 = visible, 0.0 = fully occluded. */
+        /* Hamburger 4-moment Cholesky reconstruction (Peters & Klein 2015). */
         float msmOcclusion(vec4 moments, float receiverDepth) {
             vec4 b = mix(moments, vec4(0.5, 0.333333333, 0.25, 0.2), msmMomentBias);
             float z0 = receiverDepth - msmDepthBias;
@@ -101,11 +87,11 @@ object ShadowReceiverGlsl {
             return 1.0 - occludeMask;
         }
 
-        /* 9-tap PCF (3x3 grid) with per-pixel grid rotation. The rotation hides the kernel
-           pattern - without it neighbouring fragments sample identical offsets and the grid
-           shows as a regular dither. Common industry-default penumbra reconstruction. */
+        /* 9-tap PCF (3x3) with per-pixel rotation. Hash is Interleaved Gradient Noise
+           (Jimenez 2014); avoids `fract(sin(dot))` which collapses on Mac iPad Sim's
+           Metal-backed GLES3. */
         float pcfShadow(sampler2D shadowMap, vec2 shadowUV, float receiverDepth, vec2 texelSize) {
-            float angle = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318530718;
+            float angle = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.28318530718;
             float cosA = cos(angle);
             float sinA = sin(angle);
             float sum = 0.0;
@@ -122,9 +108,8 @@ object ShadowReceiverGlsl {
             return sum * (1.0 / 9.0);
         }
 
-        /* Projects worldPos into the chosen cascade's shadow space and runs the active
-           reconstruction (PCF or MSM). Returns 1.0 when worldPos lands outside the [0, 1]^2
-           footprint - the cascade picker is expected to choose an in-bounds cascade. */
+        /* Projects worldPos into the chosen cascade and runs the active reconstruction.
+           Returns 1.0 when worldPos lands outside the [0, 1]^2 footprint. */
         float sampleCascade(int cascadeIndex, vec3 worldPos) {
             vec4 lightClip;
             if (cascadeIndex == 0) lightClip = lightProjectionView0 * vec4(worldPos, 1.0);
@@ -150,8 +135,7 @@ object ShadowReceiverGlsl {
             else return pcfShadow(shadowMap2, shadowUV, receiverDepth, cascadeTexelSize2);
         }
 
-        /* Fraction of each cascade's depth range used as the blend zone with the next cascade.
-           Larger = softer transition at the cost of double-sampling more fragments. */
+        /* Fraction of each cascade's depth range used as the blend zone with its successor. */
         const float cascadeBlendFraction = 0.15;
 
         float computeShadowVisibility(vec3 worldPos, float viewDepth) {
@@ -169,8 +153,9 @@ object ShadowReceiverGlsl {
                 return 1.0; /* beyond all cascades -> unshadowed */
             }
             float visibility = sampleCascade(cascade, worldPos);
-            /* Smooth boundary: in the deepest [cascadeBlendFraction] of this cascade lerp
-               toward the next cascade's visibility to hide the seam. */
+            /* In the deepest [cascadeBlendFraction] of each cascade lerp toward the next
+               cascade's visibility to hide the seam. The last cascade has no successor;
+               its far edge stays as a hard cutoff returning 1.0 (handled above). */
             if (cascade < 2) {
                 float blendStart = cascadeFar - cascadeBlendFraction * (cascadeFar - cascadeNear);
                 float t = smoothstep(blendStart, cascadeFar, viewDepth);

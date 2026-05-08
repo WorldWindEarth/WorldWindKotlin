@@ -1,0 +1,41 @@
+package earth.worldwind.util.kgl
+
+actual data class KglShader(val id: UInt = 0u) {
+    actual companion object{ actual val NONE = KglShader() }
+    actual fun isValid() = id != 0u
+}
+
+actual data class KglProgram(val id: UInt = 0u) {
+    actual companion object{ actual val NONE = KglProgram() }
+    actual fun isValid() = id != 0u
+}
+
+actual data class KglUniformLocation(val id: Int = -1) {
+    actual companion object{ actual val NONE = KglUniformLocation() }
+    actual fun isValid() = id != -1
+}
+
+actual data class KglBuffer(val id: UInt = 0u) {
+    actual companion object{ actual val NONE = KglBuffer() }
+    actual fun isValid() = id != 0u
+}
+
+actual data class KglTexture(val id: UInt = 0u) {
+    actual companion object{ actual val NONE = KglTexture() }
+    actual fun isValid() = id != 0u
+}
+
+actual data class KglFramebuffer(val id: UInt = 0u) {
+    actual companion object{ actual val NONE = KglFramebuffer() }
+    actual fun isValid() = id != 0u
+}
+
+actual data class KglRenderbuffer(val id: UInt = 0u) {
+    actual companion object{ actual val NONE = KglRenderbuffer() }
+    actual fun isValid() = id != 0u
+}
+
+actual data class KglSync(val id: Long = 0L) {
+    actual companion object { actual val NONE = KglSync() }
+    actual fun isValid() = id != 0L
+}

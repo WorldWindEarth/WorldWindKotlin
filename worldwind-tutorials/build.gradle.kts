@@ -29,6 +29,19 @@ kotlin {
             }
         }
     }
+    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            // The SwiftUI tutorials app embeds this static framework. Apps `import WorldWindTutorials`
+            // and call into the registry / WorldWindow factory from Swift.
+            baseName = "WorldWindTutorials"
+            isStatic = true
+            // Re-export :worldwind so its types (WorldWindow, WorldWind engine, ...) appear in
+            // the Obj-C/Swift header with their natural names. Without this, Swift sees them
+            // as UIView*/WorldwindWorldWind etc., and code like `MainKt.createWorldWindow()`
+            // (declared as returning earth.worldwind.WorldWindow) returns plain UIView.
+            export(project(":worldwind"))
+        }
+    }
     @Suppress("UnstableApiUsage")
     android {
         namespace = "${project.group}.tutorials"
@@ -51,7 +64,14 @@ kotlin {
                 implementation(project(":worldwind"))
             }
         }
+        // Mirrors the :worldwind module's source-set hierarchy. Tutorials that exercise
+        // MIL-STD-2525 live here so iOS doesn't try to compile a tutorial for a feature
+        // it doesn't support.
+        val nonIosMain by creating {
+            dependsOn(commonMain.get())
+        }
         androidMain {
+            dependsOn(nonIosMain)
             dependencies {
                 implementation(libs.androidx.appcompat)
                 implementation(libs.kotlinx.coroutines.android)
@@ -59,6 +79,7 @@ kotlin {
             }
         }
         jvmMain {
+            dependsOn(nonIosMain)
             dependencies {
                 // Make Ktor's OkHttp engine + OkHttpClient types visible to the tutorial-only
                 // permissive-SSL hook (`installPermissiveSslForTutorials`). The engine module
@@ -87,6 +108,24 @@ kotlin {
                 implementation("org.openjfx:javafx-swing:$javafxVersion:$javafxPlatform")
             }
         }
+        jsMain {
+            dependsOn(nonIosMain)
+        }
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain.get())
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+            // export() in the framework block requires the dependency to be visible as `api`
+            // on the consuming source set. commonMain declares it as `implementation`; iOS
+            // promotes it here so the Obj-C header re-exports :worldwind types.
+            dependencies {
+                api(project(":worldwind"))
+            }
+        }
         all {
             languageSettings {
                 @Suppress("OPT_IN_USAGE")
@@ -95,6 +134,39 @@ kotlin {
                     optIn.add("kotlin.time.ExperimentalTime")
                 }
             }
+        }
+    }
+}
+
+// Mirror :worldwind's Windows-host workaround: moko-resources packs into a klib subdir
+// whose name is the klib unique_name (`<group>:<artifact>`); `:` is illegal in NTFS.
+val isWindowsHost = System.getProperty("os.name").lowercase().contains("win")
+afterEvaluate {
+    if (!isWindowsHost) return@afterEvaluate
+    val unwrap: (Any) -> String = { wrapper ->
+        var current: Any = wrapper
+        var name = current.javaClass.name
+        repeat(4) {
+            val field = current.javaClass.declaredFields
+                .firstOrNull { it.name in listOf("action", "delegate", "originalAction") }
+            if (field != null) {
+                field.isAccessible = true
+                val next = field.get(current)
+                if (next != null) {
+                    current = next
+                    name = current.javaClass.name
+                }
+            }
+        }
+        name
+    }
+    tasks.matching { it.name.startsWith("compileKotlinIos") }.configureEach {
+        val task = this
+        val before = task.actions.size
+        task.actions.removeAll { unwrap(it).contains("PackAppleResources") }
+        val removed = before - task.actions.size
+        if (removed > 0) {
+            logger.lifecycle("[ios-pack-strip] dropped $removed moko-resources action(s) on ${task.name}")
         }
     }
 }

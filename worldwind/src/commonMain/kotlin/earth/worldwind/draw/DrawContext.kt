@@ -40,15 +40,11 @@ open class DrawContext(val gl: Kgl) {
          * default for close cascades.
          */
         const val SHADOW_MAP_SIZE = 1024
-        /**
-         * Per-cascade shadow-map resolution. Index 0 is the closest cascade; cascades farther
-         * from the camera occupy fewer screen pixels per shadow texel and benefit far less
-         * from a large map, so the far cascade halves its side. At default 3 cascades the
-         * footprint is `2 * 1024² + 1 * 512² ≈ 9 MB` of moments storage (RGBA32F) — `4 MB`
-         * less than uniform 1024², and the visual difference is invisible at typical viewing
-         * angles.
-         */
-        val SHADOW_CASCADE_MAP_SIZES = intArrayOf(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE / 2)
+        /** Per-cascade shadow-map resolution. Uniform 1024² across all three cascades; an
+         *  earlier `[1024, 1024, 512]` mix saved ~3 MB of moments storage but produced a
+         *  visible kernel-pattern grid on the far cascade at globe-scale viewing where one
+         *  shadow texel spans 50+ km on the ground. */
+        val SHADOW_CASCADE_MAP_SIZES = intArrayOf(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
     }
 
     val eyePoint = Vec3()
@@ -209,14 +205,11 @@ open class DrawContext(val gl: Kgl) {
      * [scratchFramebuffer]; lazily allocated and cached.
      */
     val momentsFramebuffer get() = momentsFramebufferCache ?: Framebuffer().apply {
-        // RGBA32F render targets require sized formats; on platforms without them the
-        // moments path falls back to RGBA8, which has the precision issues described above.
-        // The MSM result is unusable on those platforms - prefer the bilateral path there.
-        val colorAttachment = if (gl.supportsSizedTextureFormats) {
-            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
-        } else {
-            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
-        }
+        // Float render targets require sized formats; the MSM moments path falls back to
+        // RGBA8 on platforms without them, which has the precision issues described above.
+        // Use the highest-precision float colour buffer the GL implementation can render to
+        // (RGBA32F preferred, RGBA16F second, RGBA8 last - see Kgl.maxRenderableFloatBits).
+        val colorAttachment = createMomentsColorAttachment(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE)
         colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
@@ -244,6 +237,20 @@ open class DrawContext(val gl: Kgl) {
     }
 
     /**
+     * Best moments-storage colour attachment renderable on the current GL — RGBA32F where
+     * the GL has full float colour buffers, RGBA16F where only half-float is renderable
+     * (e.g. iOS Simulator's Metal-backed GLES3), or RGBA8 as the unusable-but-bootable
+     * fallback. Centralised so all moments / shadow / cube-moments paths pick the same
+     * tier without duplicating the [Kgl.maxRenderableFloatBits] branch.
+     */
+    private fun createMomentsColorAttachment(width: Int, height: Int, target: Int = GL_TEXTURE_2D): Texture =
+        when (gl.maxRenderableFloatBits) {
+            32 -> Texture(width, height, GL_RGBA, GL_FLOAT, true, GL_RGBA32F, target = target)
+            16 -> Texture(width, height, GL_RGBA, GL_HALF_FLOAT, true, GL_RGBA16F, target = target)
+            else -> Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA, target = target)
+        }
+
+    /**
      * Cube-map RGBA32F moments texture used by the omnidirectional sightline's cube-map
      * receiver path. All six faces are allocated with linear filtering; only five are written
      * by the depth pass (POS_X, NEG_X, POS_Y, NEG_Y, NEG_Z) - the omitted POS_Z face is left
@@ -253,13 +260,13 @@ open class DrawContext(val gl: Kgl) {
      * square contour at the bottom-side seam is avoided entirely. Lazily allocated and
      * cached; requires `Kgl.supportsSizedTextureFormats` for RGBA32F.
      */
-    val momentsCubeMapTexture get() = momentsCubeMapTextureCache ?: Texture(
-        SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE,
-        GL_RGBA, GL_FLOAT, true, GL_RGBA32F, target = GL_TEXTURE_CUBE_MAP
-    ).apply {
-        setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-    }.also { momentsCubeMapTextureCache = it }
+    val momentsCubeMapTexture get() = momentsCubeMapTextureCache
+        ?: createMomentsColorAttachment(
+            SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, target = GL_TEXTURE_CUBE_MAP
+        ).apply {
+            setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        }.also { momentsCubeMapTextureCache = it }
 
     /**
      * Framebuffer paired with [momentsCubeMapTexture] for cube-map depth-pass writes. The
@@ -279,11 +286,7 @@ open class DrawContext(val gl: Kgl) {
      * no depth attachment because the blur passes don't rasterise geometry.
      */
     val momentsBlurFramebuffer get() = momentsBlurFramebufferCache ?: Framebuffer().apply {
-        val colorAttachment = if (gl.supportsSizedTextureFormats) {
-            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
-        } else {
-            Texture(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
-        }
+        val colorAttachment = createMomentsColorAttachment(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE)
         colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
@@ -304,9 +307,9 @@ open class DrawContext(val gl: Kgl) {
      * further. Lazily allocated and cached per cascade index.
      *
      * Cascades 0..n-1 (closest-to-farthest) reuse [createMomentsDepthAttachment] for the depth
-     * texture so size / format stays consistent with the sightline pipeline. RGBA32F requires
-     * `Kgl.supportsSizedTextureFormats`; on platforms without it the receiver path falls back
-     * to PCF and never reads from these moments attachments.
+     * texture so size / format stays consistent with the sightline pipeline. The colour format
+     * tracks [Kgl.maxRenderableFloatBits]: 32F where renderable, then 16F, then RGBA8 as the
+     * unusable-but-bootable fallback (PCF receivers never read these attachments anyway).
      */
     fun shadowCascadeFramebuffer(cascadeIndex: Int): Framebuffer {
         require(cascadeIndex in shadowCascadeFramebufferCache.indices) {
@@ -314,11 +317,7 @@ open class DrawContext(val gl: Kgl) {
         }
         return shadowCascadeFramebufferCache[cascadeIndex] ?: Framebuffer().apply {
             val size = SHADOW_CASCADE_MAP_SIZES[cascadeIndex]
-            val colorAttachment = if (gl.supportsSizedTextureFormats) {
-                Texture(size, size, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
-            } else {
-                Texture(size, size, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
-            }
+            val colorAttachment = createMomentsColorAttachment(size, size)
             colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             // Clamp-to-edge so receiver UVs that fall just outside the cascade footprint
@@ -340,11 +339,7 @@ open class DrawContext(val gl: Kgl) {
      */
     fun shadowBlurFramebuffer(size: Int): Framebuffer = shadowBlurFramebufferCache.getOrPut(size) {
         Framebuffer().apply {
-            val colorAttachment = if (gl.supportsSizedTextureFormats) {
-                Texture(size, size, GL_RGBA, GL_FLOAT, true, GL_RGBA32F)
-            } else {
-                Texture(size, size, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA)
-            }
+            val colorAttachment = createMomentsColorAttachment(size, size)
             colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
