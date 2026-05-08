@@ -9,12 +9,22 @@ import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
-import org.khronos.webgl.*
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
-class GeoTiffReader(arrayBuffer: ArrayBuffer) {
+/**
+ * Cross-platform TIFF / GeoTIFF reader. Operates on a [BinaryDataView] over the raw bytes
+ * so the same code compiles for JVM, Android, JS, and iOS targets — no platform-specific
+ * `DataView` / `ArrayBuffer` / `ByteBuffer` dependencies.
+ *
+ * Currently handles the slice of the spec needed for elevation pipelines: striped or
+ * tiled rasters with `BYTE`, `SHORT`, `LONG`, `FLOAT`, `DOUBLE` samples in `UNCOMPRESSED`
+ * or `PACK_BITS` compression. CCITT / Group3 / Group4 / LZW / JPEG strips log a warning
+ * and return empty pixel data — same coverage as the JS reader this is ported from.
+ */
+class GeoTiffReader(bytes: ByteArray) {
     private val imageFileDirectories = mutableListOf<TiffIFDEntry>()
-    private val geoTiffData = DataView(arrayBuffer)
+    private val geoTiffData = BinaryDataView(bytes)
     private val metadata = GeoTiffMetadata()
     private var isLittleEndian = false
 
@@ -23,23 +33,58 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
         require(isTiffFileType()) { logMessage(ERROR, "GeoTiffReader", "constructor","Invalid file type") }
         parseImageFileDirectory(GeoTiffUtil.getBytes(geoTiffData, 4, 4, isLittleEndian).toInt())
         getMetadataFromImageFileDirectory()
-        parseGeoKeys()
-        setBBox()
+        // GeoKey directory is optional — plain TIFFs (and many WCS GeoTIFFs that omit
+        // projection metadata) still parse fine without it. Only call setBBox() when
+        // GeoKeys are present so non-GeoTIFF inputs don't fail with "missingGeoKeyDirectoryTag".
+        if (isGeoTiff()) {
+            parseGeoKeys()
+            setBBox()
+        }
     }
 
     private fun getEndianness() {
-        isLittleEndian = when (GeoTiffUtil.getBytes(geoTiffData, 0, 2, isLittleEndian)) {
+        isLittleEndian = when (GeoTiffUtil.getBytes(geoTiffData, 0, 2, isLittleEndian).toInt()) {
             0x4949 -> true
             0x4D4D -> false
             else -> error(logMessage(ERROR, "GeoTiffReader", "getEndianness","Invalid Byte Order Value"))
         }
     }
 
-    private fun isTiffFileType() = GeoTiffUtil.getBytes(geoTiffData, 2, 2, isLittleEndian) == 42
+    private fun isTiffFileType() = GeoTiffUtil.getBytes(geoTiffData, 2, 2, isLittleEndian).toInt() == 42
 
     private fun isGeoTiff() = getIFDByTag(GeoTiffConstants.GEO_KEY_DIRECTORY) != null
 
-    fun createTypedElevationArray(): ArrayBufferView {
+    /**
+     * Decodes the raster into a [ShortArray] suitable for elevation consumption. INT8 / INT16
+     * / INT32 samples are converted by truncation; UINT samples are sign-extended; FLOAT32 /
+     * FLOAT64 samples are rounded to the nearest int16 (with `Float.MAX_VALUE` mapped to
+     * `Short.MIN_VALUE` to preserve the engine's null-data sentinel convention).
+     */
+    fun createElevationShortArray(): ShortArray {
+        val pixels = collectElevationPixels()
+        val out = ShortArray(pixels.size)
+        for (i in pixels.indices) {
+            val v = pixels[i]
+            out[i] = when (v) {
+                is Float -> if (v == Float.MAX_VALUE) Short.MIN_VALUE else v.roundToInt().toShort()
+                is Double -> if (v == Double.MAX_VALUE) Short.MIN_VALUE else v.roundToInt().toShort()
+                else -> v.toShort()
+            }
+        }
+        return out
+    }
+
+    /** Same data as [createElevationShortArray] but returned as `FloatArray` — for callers
+     *  that prefer to keep float-format precision (e.g. JS `decodeBuffer` for high-altitude
+     *  coverages where INT16 truncation loses the sub-metre fraction). */
+    fun createElevationFloatArray(): FloatArray {
+        val pixels = collectElevationPixels()
+        val out = FloatArray(pixels.size)
+        for (i in pixels.indices) out[i] = pixels[i].toFloat()
+        return out
+    }
+
+    private fun collectElevationPixels(): Array<Number> {
         val elevations = mutableListOf<Number>()
         if (metadata.stripOffsets.isNotEmpty()) {
             elevations.addAll(parseStrips(true).flatten())
@@ -57,25 +102,8 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
                 val pixelSamples = tiles[tileIndex][sampleIndex]
                 elevations.add(pixelSamples)
             }
-        } else error(logMessage(ERROR, "GeoTiffReader", "createTypedElevationArray","Invalid metadata"))
-
-        return when(metadata.bitsPerSample[0]) {
-            8 -> when (metadata.sampleFormat) {
-                TiffConstants.SampleFormat.SIGNED -> Int8Array(elevations.toTypedArray().unsafeCast<Array<Byte>>())
-                else -> Uint8Array(elevations.toTypedArray().unsafeCast<Array<Byte>>())
-            }
-            16 -> when (metadata.sampleFormat) {
-                TiffConstants.SampleFormat.SIGNED -> Int16Array(elevations.toTypedArray().unsafeCast<Array<Short>>())
-                else -> Uint16Array(elevations.toTypedArray().unsafeCast<Array<Short>>())
-            }
-            32 -> when (metadata.sampleFormat) {
-                TiffConstants.SampleFormat.SIGNED -> Int32Array(elevations.toTypedArray().unsafeCast<Array<Int>>())
-                TiffConstants.SampleFormat.IEEE_FLOAT -> Float32Array(elevations.toTypedArray().unsafeCast<Array<Float>>())
-                else -> Uint32Array(elevations.toTypedArray().unsafeCast<Array<Int>>())
-            }
-            64 -> Float64Array(elevations.toTypedArray().unsafeCast<Array<Double>>())
-            else -> error(logMessage(ERROR, "GeoTiffReader", "createTypedElevationArray","Invalid bits per sample"))
-        }
+        } else error(logMessage(ERROR, "GeoTiffReader", "collectElevationPixels","Invalid metadata"))
+        return elevations.toTypedArray()
     }
 
     private fun parseStrips(returnElevation: Boolean): Array<Array<Number>> {
@@ -96,29 +124,107 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
             parseUncompressedBlock(blockByteCount, bitsPerSample, blockOffset, sampleFormat, returnElevation, bytesPerPixel)
         TiffConstants.Compression.PACK_BITS ->
             parsePackBitsCompressedBlocks(bytesPerPixel, blockByteCount, blockOffset, bitsPerSample, sampleFormat, returnElevation)
+        TiffConstants.Compression.LZW ->
+            parseLzwCompressedBlock(bytesPerPixel, blockByteCount, blockOffset, bitsPerSample, sampleFormat, returnElevation)
         TiffConstants.Compression.CCITT_1D -> {
-            log(WARN, "Compression type not yet implemented: CCITT_1D")
-            emptyArray()
+            log(WARN, "Compression type not yet implemented: CCITT_1D"); emptyArray()
         }
         TiffConstants.Compression.GROUP_3_FAX -> {
-            log(WARN, "Compression type not yet implemented: GROUP_3_FAX")
-            emptyArray()
+            log(WARN, "Compression type not yet implemented: GROUP_3_FAX"); emptyArray()
         }
         TiffConstants.Compression.GROUP_4_FAX -> {
-            log(WARN, "Compression type not yet implemented: GROUP_4_FAX")
-            emptyArray()
-        }
-        TiffConstants.Compression.LZW -> {
-            log(WARN, "Compression type not yet implemented: LZW")
-            emptyArray()
+            log(WARN, "Compression type not yet implemented: GROUP_4_FAX"); emptyArray()
         }
         TiffConstants.Compression.JPEG -> {
-            log(WARN, "Compression type not yet implemented: JPEG")
-            emptyArray()
+            log(WARN, "Compression type not yet implemented: JPEG"); emptyArray()
         }
         else -> {
-            log(WARN, "Unsupported compression type $compression")
-            emptyArray()
+            log(WARN, "Unsupported compression type $compression"); emptyArray()
+        }
+    }
+
+    /** LZW-compressed strip / tile. After LZW decompression, optionally undo the
+     *  horizontal-differencing predictor (TIFF tag 317 = 2) - GDAL emits elevation
+     *  tiles with predictor 2 to nearly halve the LZW-compressed file size by storing
+     *  inter-pixel deltas (samples become reconstructable as the running sum of bytes
+     *  along each row). Then walk the uncompressed bytes the same way the strip /
+     *  PackBits paths do, emitting one [Number] per sample. */
+    private fun parseLzwCompressedBlock(
+        bytesPerPixel: Int, blockByteCount: Int, blockOffset: Int, bitsPerSample: List<Int>, sampleFormat: Int,
+        returnElevation: Boolean
+    ): Array<Number> {
+        val rowsInBlock = if (metadata.tileWidth != 0 && metadata.tileLength != 0) metadata.tileLength
+                          else metadata.rowsPerStrip
+        val widthInBlock = if (metadata.tileWidth != 0 && metadata.tileLength != 0) metadata.tileWidth
+                           else metadata.imageWidth
+        val uncompressedSize = rowsInBlock * widthInBlock * bytesPerPixel
+        val uncompressedBytes = LzwDecoder.decode(geoTiffData, blockOffset, blockByteCount, uncompressedSize)
+        if (metadata.predictor == 2) {
+            applyHorizontalPredictor(uncompressedBytes, widthInBlock, rowsInBlock, bytesPerPixel, bitsPerSample[0])
+        }
+        val view = BinaryDataView(uncompressedBytes)
+        val out = mutableListOf<Number>()
+        var off = 0
+        val limit = uncompressedBytes.size
+        while (off + bytesPerPixel <= limit) {
+            val pixel = mutableListOf<Number>()
+            for ((i, sample) in bitsPerSample.withIndex()) {
+                val bytesPerSample = sample / 8
+                val sampleOffset = i * bytesPerSample
+                pixel.add(GeoTiffUtil.getSampleBytes(view, off + sampleOffset, bytesPerSample, sampleFormat, isLittleEndian))
+            }
+            if (returnElevation) out.add(pixel[0]) else out.addAll(pixel)
+            off += bytesPerPixel
+        }
+        return out.toTypedArray()
+    }
+
+    /** Reverse the horizontal-differencing predictor: each sample becomes `prev + raw`
+     *  where `prev` is the previous sample in the same row. Operates per-byte for byte-
+     *  width samples (8-bit), per-sample for 16/32-bit. The deltas were written by the
+     *  encoder PRIOR to LZW compression; reversing here restores absolute sample values. */
+    private fun applyHorizontalPredictor(
+        bytes: ByteArray, width: Int, rows: Int, bytesPerPixel: Int, bitsPerSample: Int
+    ) {
+        val sampleSize = bitsPerSample / 8
+        if (sampleSize == 1) {
+            // 8-bit: predictor runs on raw bytes channel-by-channel within a row.
+            for (row in 0 until rows) {
+                val rowStart = row * width * bytesPerPixel
+                for (col in 1 until width) {
+                    val pixelOff = rowStart + col * bytesPerPixel
+                    for (ch in 0 until bytesPerPixel) {
+                        bytes[pixelOff + ch] = (bytes[pixelOff + ch].toInt() + bytes[pixelOff - bytesPerPixel + ch].toInt()).toByte()
+                    }
+                }
+            }
+        } else {
+            // 16/32-bit samples: predictor runs on whole-sample values, not bytes.
+            // Reconstruct each sample as little/big-endian then write back the running sum.
+            val view = BinaryDataView(bytes)
+            for (row in 0 until rows) {
+                val rowStart = row * width * bytesPerPixel
+                for (col in 1 until width) {
+                    val pixelOff = rowStart + col * bytesPerPixel
+                    val prevOff = pixelOff - bytesPerPixel
+                    for (ch in 0 until bytesPerPixel / sampleSize) {
+                        val curOff = pixelOff + ch * sampleSize
+                        val prevSampleOff = prevOff + ch * sampleSize
+                        when (sampleSize) {
+                            2 -> {
+                                val sum = (view.getUint16(curOff, isLittleEndian) +
+                                    view.getUint16(prevSampleOff, isLittleEndian)) and 0xFFFF
+                                view.setUint16(curOff, sum, isLittleEndian)
+                            }
+                            4 -> {
+                                val sum = view.getInt32(curOff, isLittleEndian) +
+                                    view.getInt32(prevSampleOff, isLittleEndian)
+                                view.setUint32(curOff, sum, isLittleEndian)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -127,48 +233,56 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
         returnElevation: Boolean
     ): Array<Number> {
         val block = mutableListOf<Number>()
-        val arrayBuffer = if (metadata.tileWidth != 0 && metadata.tileLength != 0) {
-            Int8Array(metadata.tileWidth * metadata.tileLength * bytesPerPixel)
+        val uncompressedSize = if (metadata.tileWidth != 0 && metadata.tileLength != 0) {
+            metadata.tileWidth * metadata.tileLength * bytesPerPixel
         } else {
-            Int8Array(metadata.rowsPerStrip * metadata.imageWidth * bytesPerPixel)
+            metadata.rowsPerStrip * metadata.imageWidth * bytesPerPixel
         }
-        val uncompressedDataView = DataView(arrayBuffer.buffer)
+        val uncompressedBytes = ByteArray(uncompressedSize)
+        val uncompressedDataView = BinaryDataView(uncompressedBytes)
         var newBlock = true
         var blockLength = 0
         var numOfIterations = 0
         var uncompressedOffset = 0
 
-        for (byteOffset in 0 until blockByteCount) {
+        var byteOffset = 0
+        while (byteOffset < blockByteCount) {
             if (newBlock) {
                 blockLength = 1
                 numOfIterations = 1
                 newBlock = false
-                when (val nextSourceByte = geoTiffData.getInt8(blockOffset + byteOffset)) {
-                    in 0..127 -> blockLength = nextSourceByte + 1
-                    in -127..-1 -> numOfIterations = -nextSourceByte + 1
+                val nextSourceByte = geoTiffData.getInt8(blockOffset + byteOffset).toInt()
+                when {
+                    nextSourceByte in 0..127 -> blockLength = nextSourceByte + 1
+                    nextSourceByte in -127..-1 -> numOfIterations = -nextSourceByte + 1
                     else -> newBlock = true
                 }
             } else {
-                val currentByte = GeoTiffUtil.getBytes(geoTiffData, blockOffset + byteOffset, 1, isLittleEndian)
+                val currentByte = GeoTiffUtil.getBytes(geoTiffData, blockOffset + byteOffset, 1, isLittleEndian).toInt()
                 for (currentIteration in 0 until numOfIterations) {
-                    uncompressedDataView.setInt8(uncompressedOffset, currentByte.toByte())
-                    uncompressedOffset++
+                    if (uncompressedOffset < uncompressedSize) {
+                        uncompressedDataView.setInt8(uncompressedOffset, currentByte.toByte())
+                        uncompressedOffset++
+                    }
                 }
                 blockLength--
                 if (blockLength == 0) newBlock = true
             }
+            byteOffset++
         }
 
-        for (byteOffset in 0 until arrayBuffer.length step bytesPerPixel) {
+        var off = 0
+        while (off < uncompressedSize) {
             val pixel = mutableListOf<Number>()
             for ((i, sample) in bitsPerSample.withIndex()) {
                 val bytesPerSample = sample / 8
                 val sampleOffset = i * bytesPerSample
                 pixel.add(GeoTiffUtil.getSampleBytes(
-                    uncompressedDataView, byteOffset + sampleOffset, bytesPerSample, sampleFormat, isLittleEndian
+                    uncompressedDataView, off + sampleOffset, bytesPerSample, sampleFormat, isLittleEndian
                 ))
             }
             if (returnElevation) block.add(pixel[0]) else block.addAll(pixel)
+            off += bytesPerPixel
         }
         return block.toTypedArray()
     }
@@ -208,7 +322,7 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
     }
 
     private fun geoTiffImageToPCS(xValue: Double, yValue: Double) = when {
-        metadata.modelTiePoint.size > 6 && metadata.modelPixelScale.isEmpty() -> TODO()
+        metadata.modelTiePoint.size > 6 && metadata.modelPixelScale.isEmpty() -> Location(Angle.fromDegrees(yValue), Angle.fromDegrees(xValue))
         metadata.modelTransformation.size == 16 -> Location(
             Angle.fromDegrees(yValue * metadata.modelTransformation[4] + yValue * metadata.modelTransformation[5]
                     + metadata.modelTransformation[7]),
@@ -229,9 +343,10 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
         metadata.bbox = Sector(lowerLeft.latitude, upperLeft.latitude, upperLeft.longitude, upperRight.longitude)
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun getMetadataFromImageFileDirectory() {
         for (ifd in imageFileDirectories) when (ifd.tag) {
-            TiffConstants.IFDTag.BITS_PER_SAMPLE -> metadata.bitsPerSample = ifd.getIFDEntryValue().unsafeCast<List<Int>>()
+            TiffConstants.IFDTag.BITS_PER_SAMPLE -> metadata.bitsPerSample = ifd.getIFDEntryValue().map { it.toInt() }
             TiffConstants.IFDTag.COLOR_MAP -> metadata.colorMap = ifd.getIFDEntryValue().toTypedArray()
             TiffConstants.IFDTag.COMPRESSION -> metadata.compression = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.EXTRA_SAMPLES -> metadata.extraSamples = ifd.getIFDEntryValue().toTypedArray()
@@ -243,24 +358,25 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
             TiffConstants.IFDTag.ORIENTATION -> metadata.orientation = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.PHOTOMETRIC_INTERPRETATION -> metadata.photometricInterpretation = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.PLANAR_CONFIGURATION -> metadata.planarConfiguration = ifd.getIFDEntryValue()[0].toInt()
+            TiffConstants.IFDTag.PREDICTOR -> metadata.predictor = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.ROWS_PER_STRIP -> metadata.rowsPerStrip = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.RESOLUTION_UNIT -> metadata.resolutionUnit = ifd.getIFDEntryValue()[0]
             TiffConstants.IFDTag.SAMPLES_PER_PIXEL -> metadata.samplesPerPixel = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.SAMPLE_FORMAT -> metadata.sampleFormat = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.SOFTWARE -> metadata.software = ifd.getIFDEntryValue().toTypedArray()
-            TiffConstants.IFDTag.STRIP_BYTE_COUNTS -> metadata.stripByteCounts = ifd.getIFDEntryValue().unsafeCast<List<Int>>()
-            TiffConstants.IFDTag.STRIP_OFFSETS -> metadata.stripOffsets = ifd.getIFDEntryValue().unsafeCast<List<Int>>()
-            TiffConstants.IFDTag.TILE_BYTE_COUNTS -> metadata.tileByteCounts = ifd.getIFDEntryValue().unsafeCast<List<Int>>()
-            TiffConstants.IFDTag.TILE_OFFSETS -> metadata.tileOffsets = ifd.getIFDEntryValue().unsafeCast<List<Int>>()
+            TiffConstants.IFDTag.STRIP_BYTE_COUNTS -> metadata.stripByteCounts = ifd.getIFDEntryValue().map { it.toInt() }
+            TiffConstants.IFDTag.STRIP_OFFSETS -> metadata.stripOffsets = ifd.getIFDEntryValue().map { it.toInt() }
+            TiffConstants.IFDTag.TILE_BYTE_COUNTS -> metadata.tileByteCounts = ifd.getIFDEntryValue().map { it.toInt() }
+            TiffConstants.IFDTag.TILE_OFFSETS -> metadata.tileOffsets = ifd.getIFDEntryValue().map { it.toInt() }
             TiffConstants.IFDTag.TILE_LENGTH -> metadata.tileLength = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.TILE_WIDTH -> metadata.tileWidth = ifd.getIFDEntryValue()[0].toInt()
             TiffConstants.IFDTag.X_RESOLUTION -> metadata.xResolution = ifd.getIFDEntryValue()[0]
             TiffConstants.IFDTag.Y_RESOLUTION -> metadata.yResolution = ifd.getIFDEntryValue()[0]
             GeoTiffConstants.GEO_ASCII_PARAMS -> metadata.geoAsciiParams = ifd.getIFDEntryAsciiValue()
-            GeoTiffConstants.GEO_DOUBLE_PARAMS -> metadata.geoDoubleParams = ifd.getIFDEntryValue().unsafeCast<List<Double>>()
-            GeoTiffConstants.GEO_KEY_DIRECTORY -> metadata.geoKeyDirectory = ifd.getIFDEntryValue().unsafeCast<List<Int>>()
-            GeoTiffConstants.MODEL_PIXEL_SCALE ->  metadata.modelPixelScale = ifd.getIFDEntryValue().unsafeCast<List<Double>>()
-            GeoTiffConstants.MODEL_TIEPOINT -> metadata.modelTiePoint = ifd.getIFDEntryValue().unsafeCast<List<Double>>()
+            GeoTiffConstants.GEO_DOUBLE_PARAMS -> metadata.geoDoubleParams = ifd.getIFDEntryValue().map { it.toDouble() }
+            GeoTiffConstants.GEO_KEY_DIRECTORY -> metadata.geoKeyDirectory = ifd.getIFDEntryValue().map { it.toInt() }
+            GeoTiffConstants.MODEL_PIXEL_SCALE ->  metadata.modelPixelScale = ifd.getIFDEntryValue().map { it.toDouble() }
+            GeoTiffConstants.MODEL_TIEPOINT -> metadata.modelTiePoint = ifd.getIFDEntryValue().map { it.toDouble() }
             GeoTiffConstants.GDAL_METADATA -> metadata.metaData = ifd.getIFDEntryAsciiValue()
             GeoTiffConstants.GDAL_NODATA -> metadata.noData = ifd.getIFDEntryValue()[0]
             else -> log(WARN, "Ignored GeoTiff tag: ${ifd.tag}")
@@ -272,13 +388,11 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
         val geoKeyDirectory = metadata.geoKeyDirectory
         if (geoKeyDirectory.isNotEmpty()) {
             val numberOfKeys = geoKeyDirectory[3]
-
             for (i in 0 until numberOfKeys) {
                 val keyId = geoKeyDirectory[4 + i * 4]
                 val tiffTagLocation = geoKeyDirectory[5 + i * 4]
                 val count = geoKeyDirectory[6 + i * 4]
                 val valueOffset = geoKeyDirectory[7 + i * 4]
-
                 when (keyId) {
                     GeoTiffConstants.GT_MODEL_TYPE_GEO_KEY ->
                         metadata.gtModelTypeGeoKey = GeoTiffKeyEntry(keyId, tiffTagLocation, count,valueOffset)
@@ -336,6 +450,5 @@ class GeoTiffReader(arrayBuffer: ArrayBuffer) {
         if (nextIfdOffset != 0) parseImageFileDirectory(nextIfdOffset)
     }
 
-    // Get image file directory by tag value.
     private fun getIFDByTag(tag: Int) = imageFileDirectories.find { it.tag == tag }
 }

@@ -2,12 +2,11 @@ package earth.worldwind.formats.geotiff
 
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import org.khronos.webgl.DataView
 
 object GeoTiffUtil {
 
     fun getBytes(
-        geoTiffData: DataView, byteOffset: Int, numOfBytes: Int, isLittleEndian: Boolean, isSigned: Boolean = false
+        geoTiffData: BinaryDataView, byteOffset: Int, numOfBytes: Int, isLittleEndian: Boolean, isSigned: Boolean = false
     ): Number = when {
         numOfBytes <= 0 -> error(logMessage(ERROR, "GeoTiffUtil", "getBytes", "No bytes requested"))
         numOfBytes <= 1 -> if (isSigned) geoTiffData.getInt8(byteOffset) else geoTiffData.getUint8(byteOffset)
@@ -19,7 +18,7 @@ object GeoTiffUtil {
     }
 
     fun getSampleBytes(
-        geoTiffData: DataView, byteOffset: Int, numOfBytes: Int, sampleFormat: Int, isLittleEndian: Boolean
+        geoTiffData: BinaryDataView, byteOffset: Int, numOfBytes: Int, sampleFormat: Int, isLittleEndian: Boolean
     ): Number = when (sampleFormat) {
         TiffConstants.SampleFormat.UNSIGNED -> getBytes(geoTiffData, byteOffset, numOfBytes, isLittleEndian, false)
         TiffConstants.SampleFormat.SIGNED -> getBytes(geoTiffData, byteOffset, numOfBytes, isLittleEndian, true)

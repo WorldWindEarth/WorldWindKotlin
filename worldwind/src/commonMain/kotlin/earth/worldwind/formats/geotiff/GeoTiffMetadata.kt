@@ -15,6 +15,10 @@ class GeoTiffMetadata {
     var orientation: Int = 0
     var photometricInterpretation: Int = -1
     var planarConfiguration: Int = -1
+    /** TIFF tag 317. `1` = no predictor (default), `2` = horizontal differencing.
+     *  GDAL emits LZW-compressed elevation tiles with predictor 2 to nearly halve file
+     *  size; the receiver-side undo runs after decompression. */
+    var predictor: Int = 1
     var resolutionUnit: Number? = null
     var rowsPerStrip: Int = 0
     var samplesPerPixel: Int = 0

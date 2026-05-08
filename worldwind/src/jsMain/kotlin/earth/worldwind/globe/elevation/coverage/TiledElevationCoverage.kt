@@ -12,10 +12,12 @@ import io.ktor.client.fetch.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.await
 import kotlinx.coroutines.withContext
-import org.khronos.webgl.*
 import org.khronos.webgl.ArrayBuffer
-import org.khronos.webgl.ArrayBufferView
+import org.khronos.webgl.Float32Array
+import org.khronos.webgl.Int16Array
+import org.khronos.webgl.Int8Array
 import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.get
 import kotlin.math.roundToInt
 
 actual open class TiledElevationCoverage actual constructor(
@@ -40,12 +42,12 @@ actual open class TiledElevationCoverage actual constructor(
                     val arrayBuffer = response.arrayBuffer().await()
                     val contentType = response.headers.get("Content-Type")
                     var message: String? = null
-                    val buffer = when {
+                    val pixels = when {
                         contentType.equals("image/bil", true) ||
                         contentType.equals("application/bil", true) ||
-                        contentType.equals("application/bil16", true) -> Int16Array(arrayBuffer)
-                        contentType.equals("application/bil32", true) -> Float32Array(arrayBuffer)
-                        contentType.equals("image/tiff", true) -> decodeTiffImage(arrayBuffer)
+                        contentType.equals("application/bil16", true) -> Int16ArrayToShortArray(Int16Array(arrayBuffer))
+                        contentType.equals("application/bil32", true) -> Float32ArrayToShortArray(Float32Array(arrayBuffer))
+                        contentType.equals("image/tiff", true) -> decodeTiff(arrayBuffer)
                         contentType.equals("text/xml", true) -> {
                             message = "Elevations retrieval failed (${response.statusText}): $url.\n"
                             +String.asDynamic().fromCharCode.apply(null, Uint8Array(arrayBuffer))
@@ -55,10 +57,12 @@ actual open class TiledElevationCoverage actual constructor(
                             message = "Elevations retrieval failed (Unexpected content type $contentType): $url"
                             null
                         }
-                    }?.let { elevationSource.postprocessor?.process(it) ?: it } // Apply buffer transformations
-                    decodeBuffer(buffer)?.let {
-                        retrievalSucceeded(key, it, "Elevation retrieval succeeded: $url")
-                    } ?: retrievalFailed(key, message ?: "Elevations retrieval failed: $url")
+                    }
+                    if (pixels != null) {
+                        retrievalSucceeded(key, pixels, "Elevation retrieval succeeded: $url")
+                    } else {
+                        retrievalFailed(key, message ?: "Elevations retrieval failed: $url")
+                    }
                 } else {
                     retrievalFailed(key, "Elevations retrieval failed (${response.statusText}): $url")
                 }
@@ -68,18 +72,21 @@ actual open class TiledElevationCoverage actual constructor(
         } else retrievalFailed(key, "Unsupported elevation source type")
     }
 
-    private suspend fun decodeTiffImage(arrayBuffer: ArrayBuffer) = withContext(Dispatchers.Default) {
-        GeoTiffReader(arrayBuffer).createTypedElevationArray()
+    /** Decode a TIFF/GeoTIFF buffer into a `ShortArray` via the cross-platform reader.
+     *  Same code path JVM and iOS use; replaces the prior typed-array detour. */
+    private suspend fun decodeTiff(arrayBuffer: ArrayBuffer): ShortArray = withContext(Dispatchers.Default) {
+        val bytes = ByteArray(arrayBuffer.byteLength)
+        val view = Int8Array(arrayBuffer)
+        for (i in 0 until view.length) bytes[i] = view[i]
+        GeoTiffReader(bytes).createElevationShortArray()
     }
 
-    protected open fun decodeBuffer(buffer: ArrayBufferView?) = when (buffer) {
-        is Int16Array -> ShortArray(buffer.length) { buffer[it] }
-        is Float32Array -> ShortArray(buffer.length) {
-            val value = buffer[it]
-            // Consider converting null value from float to short
-            if (value == Float.MAX_VALUE) Short.MIN_VALUE else value.roundToInt().toShort()
-        }
-        else -> null
+    private fun Int16ArrayToShortArray(buffer: Int16Array): ShortArray =
+        ShortArray(buffer.length) { buffer[it] }
+
+    private fun Float32ArrayToShortArray(buffer: Float32Array): ShortArray = ShortArray(buffer.length) {
+        val value = buffer[it]
+        if (value == Float.MAX_VALUE) Short.MIN_VALUE else value.roundToInt().toShort()
     }
 
     protected open fun retrievalSucceeded(key: Long, value: ShortArray, message: String) {

@@ -4,6 +4,8 @@ import ar.com.hjg.pngj.ImageInfo
 import ar.com.hjg.pngj.ImageLineInt
 import ar.com.hjg.pngj.PngReaderInt
 import ar.com.hjg.pngj.PngWriter
+import earth.worldwind.formats.geotiff.GeoTiffReader
+import earth.worldwind.formats.geotiff.GeoTiffWriter
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
@@ -15,8 +17,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import mil.nga.tiff.*
-import mil.nga.tiff.util.TiffConstants.*
 import java.io.*
 import java.net.URL
 import java.nio.*
@@ -80,26 +80,12 @@ open class ElevationDecoder: Closeable {
         )
     }.let { postprocessor?.process(it) ?: it } // Process loaded elevation data if necessary
 
-    open fun decodeTiff(bytes: ByteArray): Buffer {
-        val directory = TiffReader.readTiff(bytes).fileDirectory
-        return when {
-            isInt16Tiff(directory) -> directory.readRasters().sampleValues[0].asShortBuffer()
-            isFloat32Tiff(directory) -> directory.readRasters().sampleValues[0].asFloatBuffer()
-            else -> error(
-                logMessage(
-                    ERROR, "ElevationDecoder", "decodeTiff", "Tiff file format is not supported"
-                )
-            )
-        }
-    }
-
-    protected open fun isInt16Tiff(directory: FileDirectory) = with(directory) {
-        sampleFormat[0] == SAMPLE_FORMAT_SIGNED_INT && bitsPerSample[0] == INT16_BITS_PER_SAMPLE && samplesPerPixel == SAMPLES_PER_PIXEL
-    }
-
-    protected open fun isFloat32Tiff(directory: FileDirectory) = with(directory) {
-        sampleFormat[0] == SAMPLE_FORMAT_FLOAT && bitsPerSample[0] == FLOAT_BITS_PER_SAMPLE && samplesPerPixel == SAMPLES_PER_PIXEL
-    }
+    /** Decode a TIFF/GeoTIFF blob into a [ShortBuffer]. Uses the cross-platform
+     *  [GeoTiffReader] (common code shared with JS / iOS); the prior `mil.nga.tiff`
+     *  decode path was JVM-only and forced every platform to maintain its own TIFF
+     *  parser. Encoding still goes through `mil.nga.tiff` via [encodeTiff] - moving
+     *  that to common is a follow-up. */
+    open fun decodeTiff(bytes: ByteArray): Buffer = ShortBuffer.wrap(GeoTiffReader(bytes).createElevationShortArray())
 
     fun decodePng(
         bytes: ByteArray, tileScale: Float = 1.0f, tileOffset: Float = 0.0f,
@@ -160,35 +146,14 @@ open class ElevationDecoder: Closeable {
         it.toByteArray()
     }
 
-    @Throws(IOException::class)
+    /** Serialise a `tileWidth × tileHeight` FLOAT32 elevation grid as a TIFF byte array.
+     *  Uses the cross-platform [GeoTiffWriter] (no `mil.nga.tiff` dependency); produces a
+     *  baseline single-strip uncompressed FLOAT32 grayscale TIFF that round-trips through
+     *  [GeoTiffReader] / any standard TIFF library. Used by `GpkgElevationDataFactory` to
+     *  store elevation tiles in the GeoPackage cache. */
     fun encodeTiff(pixels: FloatBuffer, tileWidth: Int, tileHeight: Int): ByteArray {
-        val directory = createDirectory(tileWidth, tileHeight)
-        for (y in 0 until tileHeight) for (x in 0 until tileWidth) {
-            directory.writeRasters.setFirstPixelSample(x, y, pixels[y * tileWidth + x])
-        }
-        pixels.clear()
-        val tiffImage = TIFFImage()
-        tiffImage.add(directory)
-        return TiffWriter.writeTiffToBytes(tiffImage)
-    }
-
-    protected open fun createDirectory(tileWidth: Int, tileHeight: Int) = FileDirectory().apply {
-        val rasters = Rasters(tileWidth, tileHeight, SAMPLES_PER_PIXEL, FLOAT_BITS_PER_SAMPLE, SAMPLE_FORMAT_FLOAT)
-        setImageWidth(tileWidth)
-        setImageHeight(tileHeight)
-        setSampleFormat(SAMPLE_FORMAT_FLOAT)
-        setBitsPerSample(FLOAT_BITS_PER_SAMPLE)
-        setRowsPerStrip(rasters.calculateRowsPerStrip(PLANAR_CONFIGURATION_CHUNKY))
-        samplesPerPixel = SAMPLES_PER_PIXEL
-        compression = COMPRESSION_NO
-        photometricInterpretation = PHOTOMETRIC_INTERPRETATION_BLACK_IS_ZERO
-        planarConfiguration = PLANAR_CONFIGURATION_CHUNKY
-        writeRasters = rasters
-    }
-
-    companion object {
-        private const val SAMPLES_PER_PIXEL = 1
-        private const val INT16_BITS_PER_SAMPLE = 16
-        private const val FLOAT_BITS_PER_SAMPLE = 32
+        val flat = FloatArray(tileWidth * tileHeight)
+        pixels.get(flat)
+        return GeoTiffWriter.writeFloatGrayscaleTiff(flat, tileWidth, tileHeight)
     }
 }

@@ -2,14 +2,13 @@ package earth.worldwind.formats.geotiff
 
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
-import org.khronos.webgl.DataView
 
 class TiffIFDEntry(
     val tag: Int,
     private val type: Int,
     private val count: Int,
     private val valueOffset: Int,
-    private val geoTiffData: DataView,
+    private val geoTiffData: BinaryDataView,
     private val isLittleEndian: Boolean
 ) {
     fun getIFDEntryValue(allowAscii: Boolean = false): List<Number> {

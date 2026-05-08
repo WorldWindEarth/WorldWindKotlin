@@ -66,7 +66,6 @@ kotlin {
                 implementation(libs.ktor.client.core)
                 implementation(libs.uri.kmp)
                 implementation(libs.pngj)
-                implementation(libs.tiff)
                 implementation(libs.geojson)
                 api(libs.moko.resources)
             }
