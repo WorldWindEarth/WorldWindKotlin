@@ -162,8 +162,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             // so `gl_Position.w == 1` and [viewDepth] / [worldPos] aren't meaningful for a
             // shadow lookup. Surface shapes pick up shadow attenuation in the composite pass
             // ([drawTextureToTerrain]) where the terrain's vertex position drives the
-            // receiver, not here.
-            program.loadShadowDisabled()
+            // receiver, not here. Route through the helper so its upload-stamp cache stays in
+            // sync with [applyShadowId]; calling [loadShadowDisabled] directly desyncs it.
+            dc.applyShadowReceiverUniforms(program, applyShadow = false)
 
             // Compute the tile common matrix that transforms geographic coordinates to texture fragments appropriate
             // for the terrain sector.
