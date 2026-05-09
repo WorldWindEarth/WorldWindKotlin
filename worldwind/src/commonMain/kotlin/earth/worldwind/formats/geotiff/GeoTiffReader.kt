@@ -4,6 +4,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger
+import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.WARN
@@ -379,7 +380,9 @@ class GeoTiffReader(bytes: ByteArray) {
             GeoTiffConstants.MODEL_TIEPOINT -> metadata.modelTiePoint = ifd.getIFDEntryValue().map { it.toDouble() }
             GeoTiffConstants.GDAL_METADATA -> metadata.metaData = ifd.getIFDEntryAsciiValue()
             GeoTiffConstants.GDAL_NODATA -> metadata.noData = ifd.getIFDEntryValue()[0]
-            else -> log(WARN, "Ignored GeoTiff tag: ${ifd.tag}")
+            // Same rationale as the GeoKey else-branch below: not every TIFF tag is one we
+            // care about, and tile readers re-trip this for every tile. Available at DEBUG.
+            else -> log(DEBUG, "Ignored GeoTiff tag: ${ifd.tag}")
         }
     }
 
@@ -427,7 +430,11 @@ class GeoTiffReader(bytes: ByteArray) {
                     GeoTiffConstants.PROJ_LINEAR_UNITS_GEO_KEY ->
                         metadata.projLinearUnits = GeoTiffKeyEntry(keyId, tiffTagLocation, count, valueOffset)
                             .getGeoKeyValue(metadata.geoDoubleParams)
-                    else -> log(WARN, "Ignored GeoTiff key: $keyId")
+                    // Standard datum / ellipsoid / citation metadata that doesn't affect
+                    // georeferencing for the keys we already parse. Keep at DEBUG so it's
+                    // available when actually debugging GeoTIFF, but doesn't spam the log
+                    // (every elevation tile re-trips this codepath, ~5 keys per tile).
+                    else -> log(DEBUG, "Ignored GeoTiff key: $keyId")
                 }
             }
         } else error(logMessage(INFO, "GeoTiffReader", "parseGeoKeys", "missingGeoKeyDirectoryTag"))
