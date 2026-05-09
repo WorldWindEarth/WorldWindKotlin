@@ -385,12 +385,15 @@ tasks.named("compileKotlinJs") { dependsOn(checkShaderSourcesAscii) }
 tasks.matching { it.name == "compileKotlinAndroid" }
     .configureEach { dependsOn(checkShaderSourcesAscii) }
 
-// Strip moko-resources' iOS PackAppleResourcesToKLibAction on Windows hosts only — the action
-// writes a directory whose name embeds the klib's Maven `unique_name` (`<group>:<artifact>`),
-// and `:` is illegal in NTFS. On macOS we let moko pack normally; otherwise iOS apps lose all
-// moko-resources lookups and crash with "FileResource retrieval failed".
-val isWindowsHost = System.getProperty("os.name").lowercase().contains("win")
+// Strip moko-resources' iOS PackAppleResourcesToKLibAction on non-macOS hosts. Two failure
+// modes converge here: (a) Windows can't write the action's output directory because its name
+// embeds the klib's Maven `unique_name` (`<group>:<artifact>`) and `:` is illegal in NTFS;
+// (b) Linux (CI) has no `xcrun`, which the action shells out to for asset compilation. macOS
+// is the only host where packing actually works — let it run there; iOS apps need it or
+// moko-resources lookups crash with "FileResource retrieval failed".
+val isMacHost = System.getProperty("os.name").lowercase().contains("mac")
 afterEvaluate {
+    if (isMacHost) return@afterEvaluate
     val unwrap: (Any) -> String = { wrapper ->
         var current: Any = wrapper
         var name = current.javaClass.name
@@ -408,7 +411,6 @@ afterEvaluate {
         }
         name
     }
-    if (!isWindowsHost) return@afterEvaluate
     tasks.matching { it.name.startsWith("compileKotlinIos") }.configureEach {
         val task = this
         val before = task.actions.size

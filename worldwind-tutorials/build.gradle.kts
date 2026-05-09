@@ -138,11 +138,12 @@ kotlin {
     }
 }
 
-// Mirror :worldwind's Windows-host workaround: moko-resources packs into a klib subdir
-// whose name is the klib unique_name (`<group>:<artifact>`); `:` is illegal in NTFS.
-val isWindowsHost = System.getProperty("os.name").lowercase().contains("win")
+// Mirror :worldwind's non-mac-host workaround: moko-resources packs into a klib subdir
+// whose name is the klib unique_name (`<group>:<artifact>`) — `:` is illegal in NTFS, and
+// Linux CI lacks `xcrun` (which the action shells out to). Strip on every non-macOS host.
+val isMacHost = System.getProperty("os.name").lowercase().contains("mac")
 afterEvaluate {
-    if (!isWindowsHost) return@afterEvaluate
+    if (isMacHost) return@afterEvaluate
     val unwrap: (Any) -> String = { wrapper ->
         var current: Any = wrapper
         var name = current.javaClass.name
