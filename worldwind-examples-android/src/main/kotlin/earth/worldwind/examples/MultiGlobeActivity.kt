@@ -16,7 +16,6 @@ import earth.worldwind.layer.BlueMarbleLandsatLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.render.RenderResourceCache
-import kotlin.time.Clock
 
 /**
  * This activity manifests two side-by-side globes with an adjustable splitter
@@ -87,7 +86,7 @@ open class MultiGlobeActivity: AbstractMainActivity() {
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(BlueMarbleLandsatLayer())
-            addLayer(AtmosphereLayer().apply { time = Clock.System.now() })
+            addLayer(AtmosphereLayer())
             addLayer(ShadowLayer())
         }
         worldWindows.add(wwd)

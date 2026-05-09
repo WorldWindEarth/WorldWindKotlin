@@ -16,7 +16,6 @@ import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.GpkgContentManager
 import kotlinx.coroutines.launch
 import java.io.File
-import kotlin.time.Clock
 
 /**
  * Creates a simple view of a globe with touch navigation and a few layers.
@@ -70,7 +69,7 @@ The globe uses the default navigation gestures:
                 lifecycleScope.launch { configureCache(contentManager, "GSat") }
             })
             addLayer(StarFieldLayer())
-            addLayer(AtmosphereLayer().apply { time = Clock.System.now() })
+            addLayer(AtmosphereLayer())
             addLayer(ShadowLayer())
         }
 
