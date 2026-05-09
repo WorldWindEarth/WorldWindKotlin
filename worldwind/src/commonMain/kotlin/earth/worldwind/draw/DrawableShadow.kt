@@ -86,6 +86,9 @@ open class DrawableShadow protected constructor() : Drawable {
         dc.activeTextureUnit(GL_TEXTURE0)
         dc.lastShadowTextureBindStamp = -1L
 
+        // Restore caller's binding (pick FBO in pick mode) instead of NONE. Defensive —
+        // ShadowLayer skips pick mode today, matches sibling drawables' contract.
+        val previousFramebuffer = dc.currentFramebuffer
         try {
             for (i in 0 until state.cascadeCount) {
                 val cascade = state.cascades[i]
@@ -97,7 +100,7 @@ open class DrawableShadow protected constructor() : Drawable {
             }
         } finally {
             // Restore default WorldWind state regardless of which cascade failed.
-            dc.bindFramebuffer(KglFramebuffer.NONE)
+            dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_BLEND)
             dc.gl.disable(GL_POLYGON_OFFSET_FILL)

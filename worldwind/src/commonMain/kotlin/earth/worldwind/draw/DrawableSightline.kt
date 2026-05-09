@@ -269,6 +269,9 @@ open class DrawableSightline protected constructor() : Drawable {
         // The cube map projection is constant per-frame across all faces. The view matrix
         // (sightlineView * tile-translate) is what changes per face / per tile.
         moments.loadProjection(cubeMapProjection)
+        // Restore caller's binding (pick FBO in pick mode) instead of NONE — pick mode keeps
+        // the pick FBO bound between drawables.
+        val previousFramebuffer = dc.currentFramebuffer
         try {
             val framebuffer = dc.momentsFramebuffer
             if (!framebuffer.bindFramebuffer(dc)) return false // framebuffer failed to bind
@@ -332,8 +335,7 @@ open class DrawableSightline protected constructor() : Drawable {
             // depth shader.
             drawShapesDepth(dc)
         } finally {
-            // Restore the default World Wind OpenGL state.
-            dc.bindFramebuffer(KglFramebuffer.NONE)
+            dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_BLEND)
             dc.gl.disable(GL_POLYGON_OFFSET_FILL)
@@ -370,6 +372,7 @@ open class DrawableSightline protected constructor() : Drawable {
         // instead of overwriting it - same write-failure mode as the depth pass).
         dc.gl.disable(GL_DEPTH_TEST)
         dc.gl.disable(GL_BLEND)
+        val previousFramebuffer = dc.currentFramebuffer
         try {
             // Pass 1: horizontal. moments -> tempFb.
             if (!tempFb.bindFramebuffer(dc)) return
@@ -386,10 +389,9 @@ open class DrawableSightline protected constructor() : Drawable {
             blur.loadBlurDirection(0f, momentsBlurTexelSpacing * texelStep)
             dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
         } finally {
-            // Restore the system framebuffer + camera viewport so the subsequent
-            // occlusion pass writes to the main framebuffer, not the moments FBO that
-            // pass 2 left bound.
-            dc.bindFramebuffer(KglFramebuffer.NONE)
+            // Restore caller's binding + camera viewport so the subsequent occlusion pass
+            // writes to the right target, not the moments FBO that pass 2 left bound.
+            dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_DEPTH_TEST)
             dc.gl.enable(GL_BLEND)
@@ -515,6 +517,7 @@ open class DrawableSightline protected constructor() : Drawable {
         val framebuffer = dc.momentsCubeMapFramebuffer
         val cubeTexture = dc.momentsCubeMapTexture
         val size = cubeTexture.width
+        val previousFramebuffer = dc.currentFramebuffer
         if (!framebuffer.bindFramebuffer(dc)) return false
 
         try {
@@ -554,7 +557,7 @@ open class DrawableSightline protected constructor() : Drawable {
                 drawShapesDepth(dc)
             }
         } finally {
-            dc.bindFramebuffer(KglFramebuffer.NONE)
+            dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.clearColor(0f, 0f, 0f, 0f)
             dc.gl.enable(GL_BLEND)
