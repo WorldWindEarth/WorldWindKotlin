@@ -96,6 +96,14 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         }
     }
 
+    override fun resetGlobeState(globeState: Globe.State?) {
+        super.resetGlobeState(globeState)
+        data[globeState]?.let {
+            it.refreshVertexArray = true
+            it.refreshNormalsArray = true
+        }
+    }
+
     override fun moveTo(globe: Globe, position: Position) {
         referencePosition.copy(position)
         reset()

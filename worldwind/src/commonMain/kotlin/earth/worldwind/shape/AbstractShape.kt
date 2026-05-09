@@ -500,10 +500,19 @@ abstract class AbstractShape(
     protected open fun computeVersion() = 31 * hashCode() + bufferDataVersion.hashCode()
 
     protected open fun checkTerrainState(rc: RenderContext) = with(currentBoundindData) {
+        // Surface shapes store geographic (lat/lon) geometry rendered into terrain textures, so
+        // neither vertical exaggeration nor the elevation timestamp affects their cached vertices.
+        if (isSurfaceShape) return@with
         val ve = rc.globe.verticalExaggeration
         val timestamp = rc.elevationModelTimestamp
+        // VE applies in Globe.geographicToCartesian to *every* altitude — including ABSOLUTE — so
+        // any 3D shape must retessellate on VE change, not just terrain-dependent ones. The
+        // elevation timestamp only moves the terrain surface, which absolute-altitude shapes
+        // ignore.
         val isTerrainDependent = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        if (isTerrainDependent && !isSurfaceShape && (ve != lastVE || timestamp != lastTimestamp)) {
+        val veChanged = ve != lastVE
+        val timestampChanged = isTerrainDependent && timestamp != lastTimestamp
+        if (veChanged || timestampChanged) {
             resetGlobeState(rc.globeState)
             lastVE = ve
             lastTimestamp = timestamp
