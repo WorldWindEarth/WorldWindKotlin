@@ -248,14 +248,18 @@ open class DrawableSightline protected constructor() : Drawable {
     }
 
     private fun renderFace(dc: DrawContext) {
-        // OVERLAY_ONLY skips depth+blur (its BACKGROUND twin already wrote the moments map);
-        // DEPTH_ONLY skips occlusion (the SURFACE overlay twin runs it after opaque receivers).
-        val depthOk = if (renderMode == RenderMode.OVERLAY_ONLY) true else {
-            if (!drawSceneDepth(dc)) return
-            blurMoments(dc)
-            true
-        }
-        if (depthOk && renderMode != RenderMode.DEPTH_ONLY) drawSceneOcclusion(dc)
+        // Directional renders multiple faces (forward + up to two close-range fills) into a
+        // SINGLE shared moments texture, so each face must complete its depth -> blur ->
+        // occlusion sequence atomically before the next face overwrites the moments. Splitting
+        // depth into BACKGROUND and occlusion into SURFACE leaves the forward and fill-1 faces
+        // sampling moments written by the last fill pass — the resulting tint is unrelated to
+        // the terrain in front of the sightline. So OVERLAY_ONLY redoes depth+blur per face
+        // here; the BACKGROUND DEPTH_ONLY twin still runs ahead of opaque receivers but only
+        // the last face survives in the shared moments map (the same limitation that
+        // [publishSightlineState] captures for embedded receivers).
+        if (!drawSceneDepth(dc)) return
+        blurMoments(dc)
+        if (renderMode != RenderMode.DEPTH_ONLY) drawSceneOcclusion(dc)
     }
 
     protected open fun drawSceneDepth(dc: DrawContext): Boolean {
