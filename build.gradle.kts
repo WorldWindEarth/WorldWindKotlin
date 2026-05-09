@@ -17,7 +17,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.13.4"
+    version = "1.14.0"
 
     repositories {
         google()
