@@ -317,17 +317,18 @@ open class Path @JvmOverloads constructor(
             false
         }
 
-        // Determine the total vertex count across all sub-paths. The splitter branch pre-densifies,
-        // so each sub-path contributes `sp.size + 2`. The non-splitter branch (3D, or surface
-        // bypassing the splitter) inline-densifies via [addIntermediateVertices] — uniform stepping
-        // capped at `maximumNumEdgeIntervals - 1` per edge.
+        // Per sub-path: 1 leading + sp.size waypoints + 2 trailing dummies. The line shader's
+        // pointC reads two logical slots ahead of the current index, so the last indexed
+        // waypoint needs two unindexed slots after it — WebGL's drawElements rejects the draw
+        // otherwise. Non-splitter branch adds `(sp.size - 1) * perEdgeMax` inline-densified
+        // intermediates (uniform stepping, capped at `maximumNumEdgeIntervals - 1`).
         val perEdgeMax = if (surfaceNeedsSplitter || maximumNumEdgeIntervals <= 0 || pathType == LINEAR) 0
         else maximumNumEdgeIntervals - 1
         val noIntermediate = surfaceNeedsSplitter || perEdgeMax <= 0
         var totalVertexCount = 0
         for (sp in subPaths) {
-            totalVertexCount += if (noIntermediate) sp.size + 2
-            else sp.size + 2 + (sp.size - 1) * perEdgeMax
+            totalVertexCount += if (noIntermediate) sp.size + 3
+            else sp.size + 3 + (sp.size - 1) * perEdgeMax
         }
 
         // Separate vertex array for interior polygon
@@ -376,7 +377,8 @@ open class Path @JvmOverloads constructor(
                 begin = end
             }
 
-            // End sub-path with a dummy vertex.
+            // Two trailing dummy vertices — pointC reads 2 logical slots past the last index.
+            addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
             addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
         }
 
