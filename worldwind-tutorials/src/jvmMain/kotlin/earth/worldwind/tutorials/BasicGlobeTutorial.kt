@@ -129,81 +129,82 @@ fun main() {
 
             var currentTutorial: String? = null
 
-            SwingUtilities.invokeLater {
-                fun selectTutorial(name: String) {
-                    currentTutorial?.let { tutorials[it]?.stop() }
-                    currentTutorial = name
-                    tutorials[name]?.let { tutorial ->
-                        tutorial.start()
-                        actionsPanel.removeAll()
-                        tutorial.actions?.forEach { actionName ->
-                            actionsPanel.add(JButton(actionName).apply {
-                                addActionListener { tutorial.runAction(actionName) }
-                            })
-                        }
-                        actionsPanel.isVisible = tutorial.actions?.isNotEmpty() == true
-                        actionsPanel.revalidate()
+            // The factory body itself runs on the AWT EDT (WorldWindow's GLEventListener.init
+            // routes through SwingUtilities.invokeAndWait), so the JComboBox / JButton wiring
+            // below doesn't need a separate invokeLater hop.
+            fun selectTutorial(name: String) {
+                currentTutorial?.let { tutorials[it]?.stop() }
+                currentTutorial = name
+                tutorials[name]?.let { tutorial ->
+                    tutorial.start()
+                    actionsPanel.removeAll()
+                    tutorial.actions?.forEach { actionName ->
+                        actionsPanel.add(JButton(actionName).apply {
+                            addActionListener { tutorial.runAction(actionName) }
+                        })
                     }
-                    val picker = (tutorials[name] as? PickIndicatorTutorial)?.picker
-                    clickHandler = when {
-                        picker != null -> { e ->
-                            // pickAsync resolves on the JOGL thread; await it via mainScope.
+                    actionsPanel.isVisible = tutorial.actions?.isNotEmpty() == true
+                    actionsPanel.revalidate()
+                }
+                val picker = (tutorials[name] as? PickIndicatorTutorial)?.picker
+                clickHandler = when {
+                    picker != null -> { e ->
+                        // pickAsync resolves on the JOGL thread; await it via mainScope.
+                        val p = wwd!!.viewportCoordinates(e.x, e.y)
+                        mainScope.launch {
+                            picker.showPick(engine, wwd!!.pickAsync(p.x, p.y).await().topPickedObject?.cartesianPoint)
+                            wwd?.requestRedraw()
+                        }
+                        Unit
+                    }
+                    name == "Geographic meshes" -> { e ->
+                        if (geoMeshTutorial.isStarted) {
+                            val ray = Line()
                             val p = wwd!!.viewportCoordinates(e.x, e.y)
-                            mainScope.launch {
-                                picker.showPick(engine, wwd!!.pickAsync(p.x, p.y).await().topPickedObject?.cartesianPoint)
+                            if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
+                                geoMeshTutorial.pickMesh(ray, engine.globe)
                                 wwd?.requestRedraw()
                             }
-                            Unit
                         }
-                        name == "Geographic meshes" -> { e ->
-                            if (geoMeshTutorial.isStarted) {
-                                val ray = Line()
-                                val p = wwd!!.viewportCoordinates(e.x, e.y)
-                                if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
-                                    geoMeshTutorial.pickMesh(ray, engine.globe)
-                                    wwd?.requestRedraw()
-                                }
-                            }
-                        }
-                        name == "Triangle meshes" -> { e ->
-                            if (triMeshTutorial.isStarted) {
-                                val ray = Line()
-                                val p = wwd!!.viewportCoordinates(e.x, e.y)
-                                if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
-                                    triMeshTutorial.pickMesh(ray, engine.globe)
-                                    wwd?.requestRedraw()
-                                }
-                            }
-                        }
-                        name == "COLLADA" -> { e ->
-                            if (colladaTutorial.isStarted) {
-                                val ray = Line()
-                                val p = wwd!!.viewportCoordinates(e.x, e.y)
-                                if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
-                                    colladaTutorial.pickScene(ray, engine.globe)
-                                    wwd?.requestRedraw()
-                                }
-                            }
-                        }
-                        else -> null
                     }
-                    wwd?.requestRedraw()
+                    name == "Triangle meshes" -> { e ->
+                        if (triMeshTutorial.isStarted) {
+                            val ray = Line()
+                            val p = wwd!!.viewportCoordinates(e.x, e.y)
+                            if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
+                                triMeshTutorial.pickMesh(ray, engine.globe)
+                                wwd?.requestRedraw()
+                            }
+                        }
+                    }
+                    name == "COLLADA" -> { e ->
+                        if (colladaTutorial.isStarted) {
+                            val ray = Line()
+                            val p = wwd!!.viewportCoordinates(e.x, e.y)
+                            if (engine.rayThroughScreenPoint(p.x, p.y, ray)) {
+                                colladaTutorial.pickScene(ray, engine.globe)
+                                wwd?.requestRedraw()
+                            }
+                        }
+                    }
+                    else -> null
                 }
-
-                fun selectProjection(name: String) {
-                    engine.globe.projection = projections[name]!!
-                    wwd?.requestRedraw()
-                }
-
-                tutorials.keys.forEach { tutorialCombo.addItem(it) }
-                projections.keys.forEach { projectionCombo.addItem(it) }
-
-                tutorialCombo.addActionListener { selectTutorial(tutorialCombo.selectedItem as String) }
-                projectionCombo.addActionListener { selectProjection(projectionCombo.selectedItem as String) }
-
-                selectTutorial(tutorials.keys.first())
-                selectProjection(projections.keys.first())
+                wwd?.requestRedraw()
             }
+
+            fun selectProjection(name: String) {
+                engine.globe.projection = projections[name]!!
+                wwd?.requestRedraw()
+            }
+
+            tutorials.keys.forEach { tutorialCombo.addItem(it) }
+            projections.keys.forEach { projectionCombo.addItem(it) }
+
+            tutorialCombo.addActionListener { selectTutorial(tutorialCombo.selectedItem as String) }
+            projectionCombo.addActionListener { selectProjection(projectionCombo.selectedItem as String) }
+
+            selectTutorial(tutorials.keys.first())
+            selectProjection(projections.keys.first())
         }
 
         wwd.selectDragDetector.callback = object : SelectDragCallback {

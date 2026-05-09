@@ -25,6 +25,9 @@ open class DrawableStarField protected constructor(): Drawable {
 
     companion object {
         var maxGlPointSize = 0f
+        // GL clamps oversized point sizes silently; log the warning once so it doesn't
+        // flood the console at frame rate (default sunSize is 128, macOS Core caps at 64).
+        private var warnedSunSizeExceeds = false
 
         val KEY = DrawableStarField::class
 
@@ -86,8 +89,9 @@ open class DrawableStarField protected constructor(): Drawable {
     ) {
         if (maxGlPointSize == 0f) maxGlPointSize = resolveMaxGlPointSize(dc)
 
-        if (sunSize > maxGlPointSize) {
-            Logger.log(Logger.WARN, "StarFieldLayer - sunSize is to big, max size allowed is: $maxGlPointSize")
+        if (sunSize > maxGlPointSize && !warnedSunSizeExceeds) {
+            warnedSunSizeExceeds = true
+            Logger.log(Logger.WARN, "StarFieldLayer - sunSize $sunSize exceeds GL max point size $maxGlPointSize; clamped by driver")
         }
 
         if (sunBuffer?.bindBuffer(dc) != true) return

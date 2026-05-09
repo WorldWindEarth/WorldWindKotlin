@@ -430,10 +430,11 @@ interface Kgl {
     val glslVersion: String get() = ""
     /**
      * `#version` directive for shaders that need GLES 3 / GL 3.3+ features (e.g. `texelFetch`,
-     * sized R32F sampling). Returns `"#version 300 es\n"` on Android / WebGL2, `"#version 330
-     * core\n"` on desktop GL. Empty when no version directive should be emitted.
+     * sized R32F sampling). Returns `"#version 300 es\n"` on Android / WebGL2 / iOS, where
+     * legacy [glslVersion] is empty. Falls back to [glslVersion] on platforms that already
+     * default to a modern directive (JOGL emits `#version 330 core\n`).
      */
-    val glslVersion3: String get() = ""
+    val glslVersion3: String get() = glslVersion
 
     fun createShader(type: Int): KglShader
     fun shaderSource(shader: KglShader, source: String)

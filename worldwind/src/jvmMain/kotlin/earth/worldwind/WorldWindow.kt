@@ -99,8 +99,17 @@ open class WorldWindow @JvmOverloads constructor(
             gl.glEnable(GL_PROGRAM_POINT_SIZE) // Allows gl_PointSize in vertex shader
             gl.glEnable(GL_POINT_SPRITE) // Populates gl_PointCoord in fragment shader
 
-            // Apply external initialization
-            factory(engine)
+            // Apply external initialization on the AWT EDT. JOGL invokes init() on the GL
+            // context thread (which on macOS is not the EDT), but the factory body typically
+            // wires up Swing-side state and may construct AWT-touching content
+            // (BufferedImage, Graphics2D, font glyph cache — see MilStd2525Tutorial). AWT
+            // internals are EDT-affine; off-EDT calls have been observed to corrupt the
+            // libmalloc heap on Apple Silicon JBR. invokeAndWait blocks GL init until the
+            // factory completes so the first frame already sees the registered layers.
+            // isEventDispatchThread() short-circuits when JOGL happens to call init on the
+            // EDT (avoids invokeAndWait's "called from EDT" exception).
+            if (SwingUtilities.isEventDispatchThread()) factory(engine)
+            else SwingUtilities.invokeAndWait { factory(engine) }
         }
 
         override fun dispose(drawable: GLAutoDrawable) {
@@ -117,7 +126,16 @@ open class WorldWindow @JvmOverloads constructor(
 
         override fun reshape(drawable: GLAutoDrawable, x: Int, y: Int, width: Int, height: Int) {
             if (!::engine.isInitialized || width <= 0 || height <= 0) return
-            engine.setupViewport(width, height, Toolkit.getDefaultToolkit().screenResolution / 96f)
+            // Density factor = (GL surface pixels) / (Swing component points). On macOS
+            // Retina the GLJPanel reports a 2× larger surface than its component bounds;
+            // on Windows/Linux the ratio is 1.0 (unless explicit HiDPI). Toolkit.screenResolution
+            // doesn't reflect the per-window scale on Apple displays, which left mouse picks
+            // reading at half the correct framebuffer position. Falls back to the toolkit
+            // value when the component has zero size (very early in init).
+            val componentWidth = glPanel.width
+            val density = if (componentWidth > 0) width.toFloat() / componentWidth
+                else Toolkit.getDefaultToolkit().screenResolution / 96f
+            engine.setupViewport(width, height, density)
             doRequestRedraw()
         }
 

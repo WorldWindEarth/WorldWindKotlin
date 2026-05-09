@@ -123,6 +123,22 @@ open class BasicFrameController: FrameController {
         setViewport(dc)
         clearFrame(dc)
         uploadBuffers(dc)
+        // Pre-bind the 1×1 default 2D texture to every unit any sampler2D in the codebase
+        // could resolve to. macOS Core profile prints a one-shot UNSUPPORTED warning on
+        // the first draw it sees with a sampler bound to an empty unit; the warning is
+        // emitted once *per unit*, so we have to cover them all up front. Units in use:
+        //   0       — diffuse textures (BasicShaderProgram et al.)
+        //   1..3    — ShadowReceiver cascade samplers
+        //   4       — SightlineReceiver 2D moments (cube on unit 5 needs its own dummy
+        //             and isn't covered here; the sightline path itself unbinds it when
+        //             disabled, so the warning hasn't been observed for unit 5 yet).
+        // Subsequent drawables that bind their own texture overwrite the default; units
+        // never sampled keep the default and silence the driver without further scatter.
+        for (unit in 0..4) {
+            dc.activeTextureUnit(GL_TEXTURE0 + unit)
+            dc.defaultTexture.bindTexture(dc)
+        }
+        dc.activeTextureUnit(GL_TEXTURE0)
         drawDrawables(dc)
         if (dc.isPickMode) {
             // Skip the depth-to-color blit when no shapes were drawn (most clicks on empty space).

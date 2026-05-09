@@ -14,8 +14,10 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     private val arrF = FloatArray(16)
 
     override val hasMaliOOMBug = false
-    override val glslVersion = "#version 120\n"
-    override val glslVersion3 = "#version 330 core\n"
+    // GL4ES3 forces a GL 4.0+ context on every JOGL host, so 330 core is always available.
+    // macOS additionally requires it (Core profile rejects #version 120 outright). Legacy
+    // GLSL 1.20 sources are translated at [shaderSource] time so they keep working under 330.
+    override val glslVersion = "#version 330 core\n"
 
     override fun getParameteri(pname: Int): Int {
         gl.glGetIntegerv(pname, arrI, 0)
@@ -40,8 +42,48 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun createShader(type: Int) = KglShader(gl.glCreateShader(type))
 
     override fun shaderSource(shader: KglShader, source: String) {
-        arrI[0] = source.length
-        gl.glShaderSource(shader.id, 1, arrayOf(source), IntBuffer.wrap(arrI))
+        val translated = translateLegacyGlsl(shader, source)
+        arrI[0] = translated.length
+        gl.glShaderSource(shader.id, 1, arrayOf(translated), IntBuffer.wrap(arrI))
+    }
+
+    // Rewrite GLSL 1.20 syntax in-place so it compiles under #version 330 core. Mapping:
+    //   attribute      -> in
+    //   varying        -> out (vertex) / in (fragment)
+    //   texture2D      -> texture
+    //   textureCube    -> texture
+    //   gl_FragColor   -> custom `out vec4` declared right after the #version line
+    // Each replacement uses a trailing-space/open-paren anchor so identifiers like
+    // `attributeFoo` aren't touched. Idempotent for shaders that already use modern
+    // syntax (replacements simply find no matches).
+    private fun translateLegacyGlsl(shader: KglShader, source: String): String {
+        gl.glGetShaderiv(shader.id, GL_SHADER_TYPE, arrI, 0)
+        val isVertex = arrI[0] == GL_VERTEX_SHADER
+        var s = source
+            .replace("attribute ", "in ")
+            // Order matters: `texture2DProj(` must rewrite before `texture2D(` so the longer
+            // legacy name routes to the modern projective overload, not to plain `texture(`.
+            .replace("texture2DProj(", "textureProj(")
+            .replace("textureCubeProj(", "textureProj(")
+            .replace("texture2D(", "texture(")
+            .replace("textureCube(", "texture(")
+        s = if (isVertex) s.replace("varying ", "out ") else s.replace("varying ", "in ")
+        if (!isVertex && "gl_FragColor" in s) {
+            // Skip the version line and any leading #extension / blank lines — Core 330
+            // requires #extension directives before any non-preprocessor token, so the
+            // `out` declaration must come after them.
+            var insertAt = s.indexOf('\n') + 1
+            while (insertAt < s.length) {
+                val lineEnd = s.indexOf('\n', insertAt).let { if (it < 0) s.length else it }
+                val line = s.substring(insertAt, lineEnd).trimStart()
+                if (line.isEmpty() || line.startsWith("#extension")) {
+                    insertAt = if (lineEnd < s.length) lineEnd + 1 else s.length
+                } else break
+            }
+            s = s.substring(0, insertAt) + "out vec4 _wwFragColor;\n" + s.substring(insertAt)
+            s = s.replace("gl_FragColor", "_wwFragColor")
+        }
+        return s
     }
 
     override fun compileShader(shader: KglShader) = gl.glCompileShader(shader.id)

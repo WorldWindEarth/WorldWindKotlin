@@ -11,7 +11,7 @@ class LwjglKgl : Kgl {
     private val arrF = FloatArray(16)
 
     override val hasMaliOOMBug = false
-    override val glslVersion3 = "#version 330 core\n"
+    override val glslVersion = "#version 330 core\n"
 
     override fun getParameteri(pname: Int): Int {
         GL33.glGetIntegerv(pname, arrI)
