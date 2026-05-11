@@ -49,12 +49,16 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     override val hasMaliOOMBug = false
     override val glslVersion3 = "#version 300 es\n"
 
-    // `as?` compiles to an `instanceof WebGL2RenderingContext` runtime check + cast. The
-    // cast through `Any` is needed because the static type of [gl] is the legacy
-    // `org.khronos.webgl.WebGLRenderingContext`, which Kotlin treats as unrelated to the
-    // kotlin-wrappers `web.gl.WebGL2RenderingContext`. Resolves to non-null whenever
-    // WorldWindow.createContext got a WebGL2 context back.
-    private val gl2: WebGL2RenderingContext? = (gl as Any) as? WebGL2RenderingContext
+    // Detect WebGL2 by constructor name rather than `instanceof`. `as?` compiles
+    // to `gl instanceof WebGL2RenderingContext` where the class symbol resolves
+    // to the main window's, but a popout-canvas context is an instance of the
+    // popout window's class (separate Realm). The cross-Realm check returns
+    // false for a valid WebGL2 context — [DrawContext] then asks for unsized
+    // formats and WebGL2 rejects them. Constructor-name compare is Realm-agnostic
+    // ([WorldWindow.createContext] already uses the same approach).
+    private val gl2: WebGL2RenderingContext? =
+        if (gl.asDynamic().constructor?.name == "WebGL2RenderingContext")
+            gl.unsafeCast<WebGL2RenderingContext>() else null
     private val isWebGL2: Boolean get() = gl2 != null
 
     override fun getParameteri(pname: Int): Int = gl.getParameter(pname) as Int
