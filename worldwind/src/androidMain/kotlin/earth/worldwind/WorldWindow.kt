@@ -1,6 +1,7 @@
 package earth.worldwind
 
 import android.content.ComponentCallbacks2
+import android.content.ComponentCallbacks2.*
 import android.content.Context
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
@@ -68,12 +69,18 @@ open class WorldWindow @JvmOverloads constructor(
     protected open val componentCallbacks = object : ComponentCallbacks2 {
         override fun onConfigurationChanged(newConfig: Configuration) {}
         @Deprecated("Deprecated in Java, but still required to be overwritten")
-        override fun onLowMemory() = Unit // engine.renderResourceCache.trimStale()
+        override fun onLowMemory() = engine.renderResourceCache.trimStale()
+        @Suppress("DEPRECATION")
         override fun onTrimMemory(level: Int) {
             engine.renderResourceCache.trimStale(when {
-                level >= 80 -> 300L   // TRIM_MEMORY_COMPLETE
-                level >= 60 -> 1000L  // TRIM_MEMORY_MODERATE
-                level >= 40 -> 3000L  // TRIM_MEMORY_BACKGROUND
+                // New approach
+                level >= TRIM_MEMORY_COMPLETE  -> 300L
+                level >= TRIM_MEMORY_MODERATE -> 1000L
+                level >= TRIM_MEMORY_BACKGROUND -> 3000L
+                // Old approach
+                level == TRIM_MEMORY_RUNNING_CRITICAL -> 300L
+                level == TRIM_MEMORY_RUNNING_LOW -> 1000L
+                level == TRIM_MEMORY_RUNNING_MODERATE -> 3000L
                 else -> return
             })
         }
