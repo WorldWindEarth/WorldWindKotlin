@@ -250,6 +250,7 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
 
     /** Homography (2D, planar-ground) path: surface-quad with per-fragment mat3 from corners. */
     private fun emitHomographyDrawable(rc: RenderContext) {
+        if (skipInterior(rc)) return
         val pool = rc.getDrawablePool(DrawableSurfaceQuad.KEY)
         val drawable = DrawableSurfaceQuad.obtain(pool)
         drawable.offset = rc.globe.offset
