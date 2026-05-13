@@ -28,7 +28,6 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
-    @Suppress("UnstableApiUsage")
     android {
         namespace = "earth.worldwind.compose"
         compileSdk = providers.gradleProperty("worldwind.targetSdk").get().toInt()
@@ -42,25 +41,25 @@ kotlin {
         commonMain {
             dependencies {
                 api(project(":worldwind"))
-                implementation(compose.runtime)
+                implementation(libs.compose.runtime)
             }
         }
         androidMain {
             dependencies {
-                implementation(compose.foundation)
-                implementation(compose.ui)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.ui)
                 implementation(libs.androidx.lifecycle.runtime.compose)
             }
         }
         jvmMain {
             dependencies {
-                implementation(compose.foundation)
-                implementation(compose.ui)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.ui)
             }
         }
         jsMain {
             dependencies {
-                implementation(compose.html.core)
+                implementation(libs.compose.html.core)
             }
         }
         val iosX64Main by getting
@@ -73,8 +72,8 @@ kotlin {
             iosSimulatorArm64Main.dependsOn(this)
             dependencies {
                 // Compose UI brings the iOS UIKitView interop API.
-                implementation(compose.foundation)
-                implementation(compose.ui)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.ui)
             }
         }
         all {
