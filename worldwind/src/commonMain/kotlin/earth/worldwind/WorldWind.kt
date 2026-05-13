@@ -382,6 +382,33 @@ open class WorldWind @JvmOverloads constructor(
         } else false
 
     /**
+     * Converts a screen point to geographic coordinates on a surface offset upward by [altitude]
+     * meters from the reference ellipsoid (terrain ignored). Symmetric with [geographicToScreenPoint]
+     * at the same altitude, so screen deltas and geographic deltas stay consistent under perspective
+     * — used by SelectDragDetector to drag ABSOLUTE-altitude shapes without the cursor racing ahead.
+     * [altitude] == 0 collapses to [screenPointToGroundPosition].
+     *
+     * @param x        the screen point's X coordinate
+     * @param y        the screen point's Y coordinate
+     * @param altitude meters above the reference ellipsoid for the surface to intersect
+     * @param result   pre-allocated Position that receives the geographic coordinates
+     *
+     * @return true if the screen point could be converted; false if the ray misses the offset surface
+     */
+    open fun screenPointToPositionAtAltitude(x: Double, y: Double, altitude: Double, result: Position): Boolean {
+        if (altitude == 0.0) return screenPointToGroundPosition(x, y, result)
+        if (!rayThroughScreenPoint(x, y, scratchRay)) return false
+        // Inflate the reference ellipsoid uniformly so the offset surface stays the locus of
+        // points at constant altitude above WGS84.
+        val a = globe.ellipsoid.semiMajorAxis + altitude
+        val b = globe.ellipsoid.semiMinorAxis + altitude
+        val invF = if (a > b) a / (a - b) else globe.ellipsoid.inverseFlattening
+        if (!globe.projection.intersect(Ellipsoid(a, invF), scratchRay, scratchPoint)) return false
+        globe.cartesianToGeographic(scratchPoint.x, scratchPoint.y, scratchPoint.z, result)
+        return true
+    }
+
+    /**
      * Computes a Cartesian coordinate ray that passes through a screen point.
      *
      * @param x      the screen point's X coordinate
