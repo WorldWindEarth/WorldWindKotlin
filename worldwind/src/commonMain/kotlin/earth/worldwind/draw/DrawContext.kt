@@ -149,7 +149,12 @@ open class DrawContext(val gl: Kgl) {
      */
     val currentTexture get() = currentTexture(textureUnit)
 
-    /** Pick-pass FBO: RGBA8 color (pick IDs) + DEPTH16. Allocate via [ensurePickFramebuffer]. */
+    /**
+     * Pick-pass FBO: RGBA8 color (pick IDs) + DEPTH24 (DEPTH16 on WebGL1 / GLES2 fallback).
+     * Allocate via [ensurePickFramebuffer]. The depth precision controls how far from the
+     * camera a non-terrain pick can land before depth-readback drift recovers the surface
+     * point on the far clipping plane (Earth-scale view: antipode / under-ground artefacts).
+     */
     val pickFramebuffer
         get() = pickFramebufferCache ?: error("Pick framebuffer not initialized")
 
@@ -671,12 +676,12 @@ open class DrawContext(val gl: Kgl) {
         return result
     }
 
-    /** Single-pixel depth from the RG-packed depth color attachment. See [DepthToColorProgram]. */
+    /** Single-pixel depth from the RGB-packed depth color attachment. See [DepthToColorProgram]. */
     fun readPixelDepth(x: Int, y: Int) = readPixelDepths(x, y, 1, 1)[0]
 
     /**
-     * Row-major 16-bit normalized depths over a screen rectangle, in `[0, 1]`. Reads from the
-     * RG-packed depth color attachment; see [DepthToColorProgram].
+     * Row-major 24-bit normalized depths over a screen rectangle, in `[0, 1]`. Reads from the
+     * RGB-packed depth color attachment; see [DepthToColorProgram].
      */
     fun readPixelDepths(x: Int, y: Int, width: Int, height: Int): FloatArray {
         val pixelCount = width * height
@@ -686,8 +691,11 @@ open class DrawContext(val gl: Kgl) {
             val idx = i * 4
             val r = pixelBuffer[idx + 0].toInt() and 0xFF
             val g = pixelBuffer[idx + 1].toInt() and 0xFF
-            // Depth lives in R (high byte) + G (low byte); see DepthToColorProgram.packD16.
-            result[i] = r / 255f + g / (255f * 255f)
+            val b = pixelBuffer[idx + 2].toInt() and 0xFF
+            // Depth lives in R (high byte) + G (middle byte) + B (low byte); see
+            // DepthToColorProgram.packD24. On WebGL1 / GLES2 the source depth is 16-bit so
+            // the low byte is zero, which the same formula handles without a special case.
+            result[i] = r / 255f + g / (255f * 255f) + b / (255f * 255f * 255f)
         }
         return result
     }
@@ -720,13 +728,20 @@ open class DrawContext(val gl: Kgl) {
         }
 
         // Sized internal formats on WebGL2 / GLES3+ (WebGL2 leaves the FBO incomplete otherwise);
-        // unsized on WebGL1 / GLES2.
-        val colorIF = if (gl.supportsSizedTextureFormats) GL_RGBA8 else GL_RGBA
-        val depthIF = if (gl.supportsSizedTextureFormats) GL_DEPTH_COMPONENT16 else GL_DEPTH_COMPONENT
+        // unsized on WebGL1 / GLES2. DEPTH24 gives ~256x the precision of DEPTH16 across the
+        // depth range; on Earth-scale scenes 16-bit collapses everything beyond ~10 km from the
+        // camera into the top quantization step, so the depth-readback unprojection lands on
+        // the far clipping plane (antipode / under-ground). DEPTH24 pushes that horizon well
+        // past typical fly-around distances. WebGL1 / GLES2 falls back to driver-default
+        // precision via the unsized GL_DEPTH_COMPONENT.
+        val sized = gl.supportsSizedTextureFormats
+        val colorIF = if (sized) GL_RGBA8 else GL_RGBA
+        val depthIF = if (sized) GL_DEPTH_COMPONENT24 else GL_DEPTH_COMPONENT
+        val depthType = if (sized) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
 
         pickFramebufferCache = Framebuffer().apply {
             val color = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, colorIF)
-            val depth = Texture(width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, true, depthIF)
+            val depth = Texture(width, height, GL_DEPTH_COMPONENT, depthType, true, depthIF)
             depth.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             depth.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             attachTexture(this@DrawContext, color, GL_COLOR_ATTACHMENT0)

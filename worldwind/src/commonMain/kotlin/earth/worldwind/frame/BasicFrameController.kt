@@ -235,8 +235,16 @@ open class BasicFrameController: FrameController {
                     invModelviewProjection.copy(dc.modelviewProjection).invert()
                     dc.pickDepthReadbackFramebuffer.bindFramebuffer(dc)
                     val depth = dc.readPixelDepth(px, py)
-                    topObject.cartesianPoint = Vec3().also {
-                        invModelviewProjection.unProject(pickPoint.x, pickPoint.y, depth.toDouble(), dc.viewport, it)
+                    // Skip depths at / next to the far clipping plane. Hyperbolic projection
+                    // squeezes any pixel beyond a few percent of the far plane into the top
+                    // depth-quantization step; unprojecting such a value lands the recovered
+                    // point on the far plane (Earth-scale: antipode / under-ground).
+                    // [SelectDragDetector] interprets a null cartesianPoint as "fall back to
+                    // the terrain pick's terrainPosition".
+                    if (depth < FAR_DEPTH_THRESHOLD) {
+                        topObject.cartesianPoint = Vec3().also {
+                            invModelviewProjection.unProject(pickPoint.x, pickPoint.y, depth.toDouble(), dc.viewport, it)
+                        }
                     }
                 }
             }
@@ -274,11 +282,27 @@ open class BasicFrameController: FrameController {
             }
             val px = pickViewport.x + (i % pickViewport.width)
             val py = pickViewport.y + (i / pickViewport.width)
+            // Same far-plane guard as the pickPoint path above — reject pixels whose recovered
+            // depth has fallen off the precision cliff.
+            if (pickDepths[i] >= FAR_DEPTH_THRESHOLD) continue
             topObject.cartesianPoint = Vec3().also {
                 invModelviewProjection.unProject(
                     px.toDouble(), py.toDouble(), pickDepths[i].toDouble(), dc.viewport, it
                 )
             }
         }
+    }
+
+    companion object {
+        /**
+         * Depth-readback values at or above this threshold are treated as "fell off the precision
+         * cliff" and discarded. Hyperbolic perspective collapses everything past a few percent of
+         * the far clipping plane into the top quantization step; unprojecting such a depth lands
+         * on the far plane, which on Earth-scale views maps to the antipode or under terrain.
+         * 0.9999 is conservative for DEPTH24 (the configured pick FBO attachment) and still trusts
+         * the vast majority of meaningful depths. Trade-off: very-distant shape picks fall back
+         * to the terrain pick instead of producing a (probably wrong) shape-surface point.
+         */
+        private const val FAR_DEPTH_THRESHOLD = 0.9999f
     }
 }
