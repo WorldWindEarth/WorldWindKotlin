@@ -277,10 +277,6 @@ object GeoJsonLayerFactory {
             maximumNumEdgeIntervals = 0 // Disable intermediate points for better performance
 
             isPickInterior = false // Allow picking outline only
-
-            // Disable depths write for translucent shapes to avoid conflict with always on top Placemarks
-            if (interiorColor.alpha < 1.0f) isDepthWrite = false
-
             isDrawVerticals = true
         }
     }

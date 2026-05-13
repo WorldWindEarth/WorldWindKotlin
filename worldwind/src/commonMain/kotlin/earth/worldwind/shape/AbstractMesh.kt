@@ -110,7 +110,9 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
     }
 
     override fun makeDrawable(rc: RenderContext) {
-        if (!activeAttributes.isDrawInterior && !activeAttributes.isDrawOutline) return
+        val drawInterior = activeAttributes.isDrawInterior && (!rc.isPickMode || activeAttributes.isPickInterior)
+        val drawOutline = activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)
+        if (!drawInterior && !drawOutline) return
         if (!prepareGeometry(rc)) return
 
         // Obtain a drawable form the render context pool.
@@ -145,7 +147,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         }
 
         // Draw the mesh if the interior requested.
-        if (activeAttributes.isDrawInterior) {
+        if (drawInterior) {
             // Apply lighting.
             if (!rc.isPickMode && activeAttributes.isLightingEnabled) {
                 drawable.normalsBuffer = rc.getBufferObject(currentData.normalsBufferKey) {
@@ -170,7 +172,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         }
 
         // Draw the outline.
-        if (activeAttributes.isDrawOutline) drawOutline(rc, drawState)
+        if (drawOutline) drawOutline(rc, drawState)
 
         // Configure the drawable according to the shape's attributes.
         drawState.vertexOrigin.copy(currentData.vertexOrigin)
@@ -179,8 +181,14 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = false
         drawState.enableDepthTest = activeAttributes.isDepthTest
-        drawState.enableDepthWrite = activeAttributes.isDepthWrite &&
-            drawState.color.alpha * drawState.opacity >= 1f
+        // Single drawable shared by interior + outline, so depth-write picks one operand for the
+        // whole pass. Drive it from the interior color when the interior is drawn — a translucent
+        // interior leaves depth-write off for the whole drawable, matching what Ellipse / Polygon
+        // / Path get for free from their two-drawable structure. Pick mode always writes depth so
+        // the depth-readback can recover the picked surface point.
+        val depthAlpha = if (drawInterior) activeAttributes.interiorColor.alpha
+            else activeAttributes.outlineColor.alpha
+        drawState.enableDepthWrite = rc.isPickMode || depthAlpha * rc.currentLayer.opacity >= 1f
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly

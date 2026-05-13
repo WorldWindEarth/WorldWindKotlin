@@ -494,8 +494,7 @@ open class Ellipse @JvmOverloads constructor(
         drawState.vertexStride = VERTEX_STRIDE * 4 // stride in bytes
         drawState.enableCullFace = isExtrude
         drawState.enableDepthTest = activeAttributes.isDepthTest
-        drawState.enableDepthWrite = activeAttributes.isDepthWrite &&
-            drawState.color.alpha * drawState.opacity >= 1f
+        drawState.enableDepthWrite = rc.isPickMode || drawState.color.alpha * drawState.opacity >= 1f
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
@@ -504,8 +503,7 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.vertexOrigin.copy(currentData.vertexOrigin)
         drawStateLines.enableCullFace = false
         drawStateLines.enableDepthTest = activeAttributes.isDepthTest
-        drawStateLines.enableDepthWrite = activeAttributes.isDepthWrite &&
-            drawStateLines.color.alpha * drawStateLines.opacity >= 1f
+        drawStateLines.enableDepthWrite = rc.isPickMode || drawStateLines.color.alpha * drawStateLines.opacity >= 1f
         drawStateLines.enableLighting = activeAttributes.isLightingEnabled
         drawStateLines.shadowMode = activeAttributes.shadowMode
         drawStateLines.isOccluderOnly = isOccluderOnly

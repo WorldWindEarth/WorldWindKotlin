@@ -181,8 +181,7 @@ open class Path @JvmOverloads constructor(
         drawState.boundingRadius = currentBoundindData.boundingBox.radius
         drawState.enableCullFace = false
         drawState.enableDepthTest = activeAttributes.isDepthTest
-        drawState.enableDepthWrite = activeAttributes.isDepthWrite &&
-            drawState.color.alpha * drawState.opacity >= 1f
+        drawState.enableDepthWrite = rc.isPickMode || drawState.color.alpha * drawState.opacity >= 1f
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
@@ -280,7 +279,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
             drawStateExtrusion.enableCullFace = false
             drawStateExtrusion.enableDepthTest = activeAttributes.isDepthTest
-            drawStateExtrusion.enableDepthWrite = activeAttributes.isDepthWrite &&
+            drawStateExtrusion.enableDepthWrite = rc.isPickMode ||
                 drawStateExtrusion.color.alpha * drawStateExtrusion.opacity >= 1f
             drawStateExtrusion.enableLighting = activeAttributes.isLightingEnabled
             drawStateExtrusion.shadowMode = activeAttributes.shadowMode
