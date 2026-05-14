@@ -50,6 +50,10 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     //      then applies the rotation to get the new reference geographic position.
     private var grabRotation: SphericalRotation? = null
     private var grabAltitude = 0.0
+    // Picked Movable cached at drag-arm time. Lets onScroll run synchronously on the touch
+    // thread on every move after the first, skipping the coroutine dispatch hop and the
+    // pickRequest.await round-trip. Null while pick is in flight or if the pick missed.
+    private var draggedMovable: Movable? = null
 
     fun onTouchEvent(event: MotionEvent): Boolean {
         // Skip select and drag processing if the processor is disabled or callback is not assigned
@@ -92,55 +96,72 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     override fun onScroll(downEvent: MotionEvent?, moveEvent: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
         val callback = callback ?: return false
         // Capture cursor coords up-front: MotionEvent is recycled by the framework once this
-        // listener returns, so reading moveEvent.x/y inside the launch below would race with the
-        // recycle and pick up garbage screen coords.
+        // listener returns, so reading moveEvent.x/y from a deferred slow-path coroutine below
+        // would race with the recycle and pick up garbage screen coords.
         val cursorX = moveEvent.x.toDouble()
         val cursorY = moveEvent.y.toDouble()
         draggingJob?.cancel()
+
+        // Fast path — pick already resolved into a Movable: run the move synchronously on the
+        // touch thread. Reading referencePosition fresh each call picks up the prior moveTo,
+        // so this stays equivalent to awaitPickResult(true)'s referencePosition-first result.
+        val movable = draggedMovable
+        if (isDraggingArmed && movable is Renderable) {
+            doDragMove(movable, movable.referencePosition, cursorX, cursorY, callback)
+            return true
+        }
+
+        // Slow path — pick still in flight (first move after touch-down) or pick didn't yield a
+        // Movable. Defer to a coroutine and await the result.
         draggingJob = mainScope.launch {
             val (renderable, fromPosition) = awaitPickResult(true)
             if (isDraggingArmed && fromPosition != null && renderable is Renderable) {
-                // Signal that dragging is in progress
-                isDragging = true
-
-                val toPosition = Position()
-                val rotation = grabRotation
-                val moved = if (rotation == null) {
-                    // Approach A — ground-clamped point shape: snap to cursor on terrain.
-                    wwd.engine.pickTerrainPosition(cursorX, cursorY, toPosition)
-                } else {
-                    // Approach B — anchor tracking: raycast the cursor onto the surface the grab
-                    // anchor lives on, then rotate that point into the reference's frame.
-                    // ABSOLUTE shapes are pinned to a specific altitude regardless of terrain,
-                    // so they always use the altitude-aware unproject. Everything else classifies
-                    // as elevated when the grabbed surface sits meaningfully above the terrain at
-                    // the reference's lat/lon — catches RELATIVE_TO_GROUND with altitude > 0 and
-                    // the top face of extruded shapes. Ground-anchored picks fall back to
-                    // terrain so the drag adapts to varying terrain.
-                    val mode = (renderable as? Movable)?.altitudeMode
-                    val elevated = mode == AltitudeMode.ABSOLUTE ||
-                        grabAltitude > wwd.engine.globe.getElevation(
-                            fromPosition.latitude, fromPosition.longitude
-                        ) + ELEVATED_THRESHOLD
-                    val hit = if (elevated) {
-                        wwd.engine.screenPointToPositionAtAltitude(cursorX, cursorY, grabAltitude, toPosition)
-                    } else {
-                        wwd.engine.pickTerrainPosition(cursorX, cursorY, toPosition)
-                    }
-                    if (hit) { rotation.apply(toPosition); true } else false
-                }
-                if (moved) {
-                    toPosition.altitude = fromPosition.altitude
-                    callback.onRenderableMoved(renderable, fromPosition, toPosition)
-                    if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
-                    wwd.requestRedraw()
-                } else {
-                    // Probably clipped by near/far clipping plane or off the globe. The position was not updated. Stop the drag.
-                    isDraggingArmed = false
-                }
+                doDragMove(renderable, fromPosition, cursorX, cursorY, callback)
             }
         }
         return isDraggingArmed // We consumed this event, even if dragging has been stopped.
+    }
+
+    private fun doDragMove(
+        renderable: Renderable, fromPosition: Position, cursorX: Double, cursorY: Double, callback: SelectDragCallback
+    ) {
+        isDragging = true
+
+        val toPosition = Position()
+        val rotation = grabRotation
+        val moved = if (rotation == null) {
+            // Approach A — ground-clamped point shape: snap to cursor on terrain.
+            wwd.engine.pickTerrainPosition(cursorX, cursorY, toPosition)
+        } else {
+            // Approach B — anchor tracking: raycast the cursor onto the surface the grab
+            // anchor lives on, then rotate that point into the reference's frame.
+            // ABSOLUTE shapes are pinned to a specific altitude regardless of terrain,
+            // so they always use the altitude-aware unproject. Everything else classifies
+            // as elevated when the grabbed surface sits meaningfully above the terrain at
+            // the reference's lat/lon — catches RELATIVE_TO_GROUND with altitude > 0 and
+            // the top face of extruded shapes. Ground-anchored picks fall back to
+            // terrain so the drag adapts to varying terrain.
+            val mode = (renderable as? Movable)?.altitudeMode
+            val elevated = mode == AltitudeMode.ABSOLUTE ||
+                grabAltitude > wwd.engine.globe.getElevation(
+                    fromPosition.latitude, fromPosition.longitude
+                ) + ELEVATED_THRESHOLD
+            val hit = if (elevated) {
+                wwd.engine.screenPointToPositionAtAltitude(cursorX, cursorY, grabAltitude, toPosition)
+            } else {
+                wwd.engine.pickTerrainPosition(cursorX, cursorY, toPosition)
+            }
+            if (hit) { rotation.apply(toPosition); true } else false
+        }
+        if (moved) {
+            toPosition.altitude = fromPosition.altitude
+            callback.onRenderableMoved(renderable, fromPosition, toPosition)
+            if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
+            wwd.requestRedraw()
+        } else {
+            // Probably clipped by near/far clipping plane or off the globe. The position was not updated. Stop the drag.
+            isDraggingArmed = false
+        }
     }
 
     override fun onDoubleTap(event: MotionEvent): Boolean {
@@ -170,6 +191,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     fun cancelDragging() {
         isDragging = false
         isDraggingArmed = false
+        draggedMovable = null
         draggingJob?.cancel()
         draggingJob = null
         val callback = callback ?: return
@@ -199,6 +221,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
      * the next event is an onScroll event.
      */
     private fun pick(event: MotionEvent) {
+        // Clear stale cache eagerly so a fresh ACTION_DOWN can't reuse the prior drag's
+        // Movable while this pick is still in flight.
+        draggedMovable = null
         pickRequest = wwd.pickAsync(event.x - slop / 2f, event.y - slop / 2f, slop.toFloat(), slop.toFloat())
         mainScope.launch {
             val pickList = pickRequest.await()
@@ -207,6 +232,10 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
             val movable = userObject as? Movable
             val terrainPos = pickList.terrainPickedObject?.terrainPosition
             isDraggingArmed = userObject is Renderable && callback?.canMoveRenderable(userObject) == true
+            // Publish the picked Movable for onScroll's fast path. Only Movables qualify because
+            // the fast path reads fromPosition from referencePosition; non-Movable draggables
+            // still take the slow path and fall back to terrainPosition via awaitPickResult.
+            draggedMovable = if (isDraggingArmed) movable else null
             // Approach A applies only to ground-clamped point shapes (Placemark/Label/sightline
             // pinned to terrain); everything else takes Approach B with anchor tracking.
             val isGroundClampedPoint = movable != null
