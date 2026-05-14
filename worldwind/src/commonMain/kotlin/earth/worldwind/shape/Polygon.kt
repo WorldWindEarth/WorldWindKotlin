@@ -68,6 +68,8 @@ open class Polygon @JvmOverloads constructor(
     val boundaryCount get() = boundaries.size
     protected val boundaries = mutableListOf(positions)
     protected val data = mutableMapOf<Globe.State?, PolygonData>()
+    protected val interiorTexCoordCache = TexCoordCache()
+    protected val outlineTexCoordCache = TexCoordCache()
     protected val isPlain get() = altitudeMode == AltitudeMode.RELATIVE_TO_GROUND && isExtrude && !isFollowTerrain
     protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
         override fun combineData(
@@ -377,7 +379,7 @@ open class Polygon @JvmOverloads constructor(
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
             rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
                 drawState.texture = texture
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix, interiorTexCoordCache)
             }
         } ?: run { drawState.texture = null }
 
@@ -414,7 +416,7 @@ open class Polygon @JvmOverloads constructor(
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
                 drawState.texture = texture
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix, outlineTexCoordCache)
             }
         } ?: run { drawState.texture = null }
 

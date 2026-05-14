@@ -65,7 +65,7 @@ open class Path @JvmOverloads constructor(
             reset()
         }
     protected val data = mutableMapOf<Globe.State?, PathData>()
-    private val outlineTexCoordCache = TexCoordCache()
+    protected val outlineTexCoordCache = TexCoordCache()
 
     open class PathData {
         val vertexOrigin = Vec3()

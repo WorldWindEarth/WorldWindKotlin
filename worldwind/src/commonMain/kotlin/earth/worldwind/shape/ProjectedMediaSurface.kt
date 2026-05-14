@@ -122,6 +122,7 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
     }
     protected val locations = arrayOf(bottomLeft, bottomRight, topRight, topLeft)
     protected val data = mutableMapOf<Globe.State?, ProjectedMediaSurfaceData>()
+    protected val outlineTexCoordCache = TexCoordCache()
 
     open class ProjectedMediaSurfaceData {
         val vertexOrigin = Vec3()
@@ -391,7 +392,7 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
                 drawState.texture = texture
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix, outlineTexCoordCache)
             }
         } ?: run { drawState.texture = null }
 

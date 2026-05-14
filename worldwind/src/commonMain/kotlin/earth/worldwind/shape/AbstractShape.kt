@@ -474,20 +474,44 @@ abstract class AbstractShape(
         return minDistance2
     }
 
+    /**
+     * Single-slot cache for [computeRepeatingTexCoordTransform]. Hits when a non-dynamic surface
+     * shape's LoD bucket and texture identity match the previous call — typical for a static
+     * surface shape rendered frame after frame without large camera moves. Misses on first call,
+     * after a texture/LoD change, and on every call for 3D or dynamic shapes (the underlying
+     * metersPerPixel varies continuously with camera distance and isn't rounded).
+     */
+    protected class TexCoordCache {
+        var lastTexture: Texture? = null
+        var lastLod: Int = Int.MIN_VALUE
+        val cachedMatrix = Matrix3()
+    }
+
     protected open fun computeRepeatingTexCoordTransform(
-        rc: RenderContext, texture: Texture, cameraDistance: Double, result: Matrix3
+        rc: RenderContext, texture: Texture, cameraDistance: Double, result: Matrix3,
+        cache: TexCoordCache? = null
     ): Int {
         var lod = 0
         val equatorialRadius = rc.globe.equatorialRadius
         var metersPerPixel = rc.pixelSizeAtDistance(cameraDistance)
-        if (isSurfaceShape && !isDynamic && !rc.currentLayer.isDynamic) {
+        val useSurfaceLod = isSurfaceShape && !isDynamic && !rc.currentLayer.isDynamic
+        if (useSurfaceLod) {
             // Round scale to nearest terrain LoD
             lod = computeNearestLoD(equatorialRadius, metersPerPixel)
+            if (cache != null && cache.lastTexture === texture && cache.lastLod == lod) {
+                result.copy(cache.cachedMatrix)
+                return lod
+            }
             metersPerPixel = computeLoDScale(equatorialRadius, lod)
         }
         val texCoordMatrix = result.setToIdentity()
         texCoordMatrix.setScale(1.0 / (texture.width * metersPerPixel), 1.0 / (texture.height * metersPerPixel))
         texCoordMatrix.multiplyByMatrix(texture.coordTransform)
+        if (useSurfaceLod && cache != null) {
+            cache.lastTexture = texture
+            cache.lastLod = lod
+            cache.cachedMatrix.copy(result)
+        }
         return lod
     }
 

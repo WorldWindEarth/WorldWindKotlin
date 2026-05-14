@@ -185,8 +185,8 @@ open class Ellipse @JvmOverloads constructor(
      */
     protected var activeIntervals = 0
     protected val data = mutableMapOf<Pair<Globe.State?, Int>, EllipseData>()
-    private val interiorTexCoordCache = TexCoordCache()
-    private val outlineTexCoordCache = TexCoordCache()
+    protected val interiorTexCoordCache = TexCoordCache()
+    protected val outlineTexCoordCache = TexCoordCache()
 
     init {
         require(majorRadius >= 0 && minorRadius >= 0) {
