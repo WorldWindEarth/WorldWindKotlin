@@ -1227,9 +1227,9 @@ open class Matrix4 private constructor(
      * @return the result vector containing the X, Y, and Z scale components
      */
     fun extractScale(result: Vec3) : Vec3 {
-        result.x = Vec3(m[0], m[4], m[8]).magnitude
-        result.y = Vec3(m[1], m[5], m[9]).magnitude
-        result.z = Vec3(m[2], m[6], m[10]).magnitude
+        result.x = sqrt(m[0] * m[0] + m[4] * m[4] + m[8] * m[8])
+        result.y = sqrt(m[1] * m[1] + m[5] * m[5] + m[9] * m[9])
+        result.z = sqrt(m[2] * m[2] + m[6] * m[6] + m[10] * m[10])
 
         return result
     }

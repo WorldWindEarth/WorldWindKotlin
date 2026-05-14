@@ -22,6 +22,7 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
     private var pool: Pool<DrawableSurfaceQuad>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
+    private val filteredShapes = ArrayList<DrawableSurfaceQuad>()
 
     companion object {
         val KEY = DrawableSurfaceQuad::class
@@ -108,7 +109,8 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
         val terrainSector = terrain.sector
 
         // Filter shapes that intersect current terrain tile and globe offset
-        val scratchList = mutableListOf<DrawableSurfaceQuad>()
+        val scratchList = filteredShapes
+        scratchList.clear()
         for (idx in dc.scratchList.indices) {
             val shape = dc.scratchList[idx] as DrawableSurfaceQuad
             if (shape.offset == terrain.offset && shape.sector.intersectsOrNextTo(terrainSector)) scratchList.add(shape)

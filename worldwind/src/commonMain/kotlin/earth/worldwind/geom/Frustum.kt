@@ -13,6 +13,16 @@ open class Frustum {
     internal val viewport = Viewport(0, 0, 1, 1)
     internal val planes = arrayOf(near, far, left, right, top, bottom)
     private val scratchMatrix = Matrix4()
+    private val scratchBln = Vec3()
+    private val scratchBlf = Vec3()
+    private val scratchBrn = Vec3()
+    private val scratchBrf = Vec3()
+    private val scratchTln = Vec3()
+    private val scratchTlf = Vec3()
+    private val scratchTrn = Vec3()
+    private val scratchTrf = Vec3()
+    private val scratchVa = Vec3()
+    private val scratchVb = Vec3()
 
     /**
      * Constructs a new unit frustum with each of its planes 1 meter from the center and a viewport with width and
@@ -156,22 +166,22 @@ open class Frustum {
         val top = (subViewport.y + subViewport.height).toDouble()
 
         // Transform the sub-viewport's four edges from screen coordinates to Cartesian coordinates.
-        var bln: Vec3
-        var blf: Vec3
-        var brn: Vec3
-        var brf: Vec3
-        var tln: Vec3
-        var tlf: Vec3
-        var trn: Vec3
-        var trf: Vec3
+        val bln = scratchBln
+        val blf = scratchBlf
+        val brn = scratchBrn
+        val brf = scratchBrf
+        val tln = scratchTln
+        val tlf = scratchTlf
+        val trn = scratchTrn
+        val trf = scratchTrf
         val mvpInv = scratchMatrix.setToMultiply(projection, modelview).invert()
-        mvpInv.unProject(left, bottom, viewport, Vec3().also { bln = it }, Vec3().also { blf = it })
-        mvpInv.unProject(right, bottom, viewport, Vec3().also { brn = it }, Vec3().also { brf = it })
-        mvpInv.unProject(left, top, viewport, Vec3().also { tln = it }, Vec3().also { tlf = it })
-        mvpInv.unProject(right, top, viewport, Vec3().also { trn = it }, Vec3().also { trf = it })
+        mvpInv.unProject(left, bottom, viewport, bln, blf)
+        mvpInv.unProject(right, bottom, viewport, brn, brf)
+        mvpInv.unProject(left, top, viewport, tln, tlf)
+        mvpInv.unProject(right, top, viewport, trn, trf)
 
-        val va = Vec3(tlf.x - bln.x, tlf.y - bln.y, tlf.z - bln.z)
-        val vb = Vec3(tln.x - blf.x, tln.y - blf.y, tln.z - blf.z)
+        val va = scratchVa.set(tlf.x - bln.x, tlf.y - bln.y, tlf.z - bln.z)
+        val vb = scratchVb.set(tln.x - blf.x, tln.y - blf.y, tln.z - blf.z)
 
         val nl = va.cross(vb)
         this.left.set(nl.x, nl.y, nl.z, -nl.dot(bln))
