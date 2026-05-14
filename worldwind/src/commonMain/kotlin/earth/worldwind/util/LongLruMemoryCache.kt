@@ -7,7 +7,10 @@ import earth.worldwind.util.Logger.logMessage
  * LRU memory cache keyed by primitive Long, eliminating per-lookup boxing overhead
  * that occurs with [LruMemoryCache]<Long, V> backed by a generic HashMap.
  *
- * Uses open addressing with linear probing and tombstone compaction on eviction.
+ * Uses open addressing with linear probing and tombstone compaction on eviction, plus an
+ * intrusive doubly-linked list across [Entry] objects for O(1) LRU eviction (head = MRU,
+ * tail = LRU). The slot table only resolves keys; eviction order is independent of slot layout
+ * and survives rehashes without bookkeeping.
  */
 open class LongLruMemoryCache<V : Any>(
     val capacity: Long,
@@ -15,6 +18,8 @@ open class LongLruMemoryCache<V : Any>(
 ) {
     protected open class Entry<V>(val key: Long, val value: V, var size: Int) {
         var lastUsed = 0L
+        internal var prev: Entry<V>? = null
+        internal var next: Entry<V>? = null
     }
 
     private companion object {
@@ -38,6 +43,10 @@ open class LongLruMemoryCache<V : Any>(
     private var ageCounter = 0L
     protected open val age get() = ++ageCounter
 
+    // Intrusive LRU list across Entry objects; survives rehash without slot bookkeeping.
+    private var head: Entry<V>? = null
+    private var tail: Entry<V>? = null
+
     init {
         require(capacity >= 1) { logMessage(ERROR, "LongLruMemoryCache", "constructor", "invalidCapacity") }
         require(lowWater in 0 until capacity) {
@@ -60,6 +69,7 @@ open class LongLruMemoryCache<V : Any>(
             if (slotStatus[i] == FULL && slotKeys[i] == key) {
                 val e = slotEntries[i]!!
                 e.lastUsed = age
+                moveToHead(e)
                 return e.value
             }
             i = (i + 1) and mask
@@ -78,6 +88,8 @@ open class LongLruMemoryCache<V : Any>(
                 val newEntry = Entry(key, value, size).also { it.lastUsed = age }
                 slotEntries[i] = newEntry
                 usedCapacity += size - old.size
+                unlink(old)
+                linkAtHead(newEntry)
                 if (newEntry.value !== old.value) {
                     entryRemoved(old.key, old.value, newEntry.value, false)
                     return old.value
@@ -91,9 +103,11 @@ open class LongLruMemoryCache<V : Any>(
         if (slotStatus[slot] == DEAD) deadCount--
         slotStatus[slot] = FULL
         slotKeys[slot] = key
-        slotEntries[slot] = Entry(key, value, size).also { it.lastUsed = age }
+        val entry = Entry(key, value, size).also { it.lastUsed = age }
+        slotEntries[slot] = entry
         liveCount++
         usedCapacity += size
+        linkAtHead(entry)
         if ((liveCount + deadCount) * 4 > tableSize * 3) rehash(tableSize * 2)
         return null
     }
@@ -108,6 +122,7 @@ open class LongLruMemoryCache<V : Any>(
                 liveCount--
                 deadCount++
                 usedCapacity -= e.size
+                unlink(e)
                 entryRemoved(key, e.value, null, false)
                 return e.value
             }
@@ -131,13 +146,16 @@ open class LongLruMemoryCache<V : Any>(
         liveCount = 0
         deadCount = 0
         usedCapacity = 0L
+        head = null
+        tail = null
     }
 
     protected open fun makeSpace(spaceRequired: Int) {
-        val sorted = slotEntries.filterNotNull().sortedBy { it.lastUsed }
-        for (e in sorted) {
-            if (usedCapacity <= lowWater && capacity - usedCapacity >= spaceRequired) break
-            evict(e.key)
+        var entry = tail
+        while (entry != null && (usedCapacity > lowWater || capacity - usedCapacity < spaceRequired)) {
+            val prev = entry.prev
+            evict(entry.key)
+            entry = prev
         }
         if (deadCount > tableSize / 8) rehash(tableSize)
     }
@@ -155,11 +173,35 @@ open class LongLruMemoryCache<V : Any>(
                 liveCount--
                 deadCount++
                 usedCapacity -= e.size
+                unlink(e)
                 entryRemoved(key, e.value, null, true)
                 return
             }
             i = (i + 1) and mask
         }
+    }
+
+    private fun moveToHead(entry: Entry<V>) {
+        if (head === entry) return
+        unlink(entry)
+        linkAtHead(entry)
+    }
+
+    private fun linkAtHead(entry: Entry<V>) {
+        entry.prev = null
+        entry.next = head
+        head?.prev = entry
+        head = entry
+        if (tail == null) tail = entry
+    }
+
+    private fun unlink(entry: Entry<V>) {
+        val p = entry.prev
+        val n = entry.next
+        if (p != null) p.next = n else head = n
+        if (n != null) n.prev = p else tail = p
+        entry.prev = null
+        entry.next = null
     }
 
     private fun rehash(newTableSize: Int) {
@@ -183,5 +225,6 @@ open class LongLruMemoryCache<V : Any>(
                 liveCount++
             }
         }
+        // head/tail and Entry.prev/next are untouched — rehash only moves slots, not Entry objects.
     }
 }
