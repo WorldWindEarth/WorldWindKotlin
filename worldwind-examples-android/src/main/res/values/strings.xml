@@ -28,4 +28,6 @@
 
     <string name="spacer" />
 
+    <string name="toolbar_2d_projection_desc">Toggle flat-map projection</string>
+
 </resources>

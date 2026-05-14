@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    3D-projection indicator for the camera-frustum toggle. Checked = perspective
-    frustum (3D camera-frustum projection), unchecked = planar homography drape.
-    Used as the `android:button` of the is3d CheckBox.
--->
+<!-- Icon shows the projection tapping will switch *to* (not the current one). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_checked="true"  android:drawable="@drawable/ic_projection_perspective" />
-    <item                                 android:drawable="@drawable/ic_projection_planar" />
+    <item android:state_checked="true"  android:drawable="@drawable/ic_projection_planar" />
+    <item                                 android:drawable="@drawable/ic_projection_perspective" />
 </selector>
