@@ -15,6 +15,12 @@ class IntList(initialCapacity: Int = 16) {
     var size: Int = 0
         private set
 
+    /**
+     * Backing array, exposed for zero-copy GPU upload paths (see [NumericArray.IntsFromList]).
+     * May be larger than [size]; callers must respect [size] and treat the array as read-only.
+     */
+    internal val backingArray: IntArray get() = data
+
     operator fun get(index: Int): Int = data[index]
 
     fun add(value: Int) {

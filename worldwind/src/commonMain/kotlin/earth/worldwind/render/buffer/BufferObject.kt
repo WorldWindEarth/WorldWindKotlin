@@ -58,6 +58,7 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
             is NumericArray.Floats -> dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
             is NumericArray.Ints -> dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
             is NumericArray.Shorts -> dc.gl.bufferData(target, byteCount, array.array, GL_STATIC_DRAW)
+            is NumericArray.IntsFromList -> dc.gl.bufferData(target, byteCount, array.list.backingArray, GL_STATIC_DRAW)
         }
     }
 }

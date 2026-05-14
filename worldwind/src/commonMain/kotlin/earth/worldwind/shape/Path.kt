@@ -65,6 +65,7 @@ open class Path @JvmOverloads constructor(
             reset()
         }
     protected val data = mutableMapOf<Globe.State?, PathData>()
+    private val outlineTexCoordCache = TexCoordCache()
 
     open class PathData {
         val vertexOrigin = Vec3()
@@ -212,7 +213,7 @@ open class Path @JvmOverloads constructor(
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
                 drawState.texture = texture
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix, outlineTexCoordCache)
             }
         }
 
@@ -269,7 +270,7 @@ open class Path @JvmOverloads constructor(
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(currentData.extrudeElementBufferKey, bufferDataVersion) {
-                NumericArray.Ints(currentData.interiorElements.toIntArray())
+                NumericArray.IntsFromList(currentData.interiorElements)
             }
 
             // Configure the drawable according to the shape's attributes.

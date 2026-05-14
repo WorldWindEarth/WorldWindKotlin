@@ -185,6 +185,8 @@ open class Ellipse @JvmOverloads constructor(
      */
     protected var activeIntervals = 0
     protected val data = mutableMapOf<Pair<Globe.State?, Int>, EllipseData>()
+    private val interiorTexCoordCache = TexCoordCache()
+    private val outlineTexCoordCache = TexCoordCache()
 
     init {
         require(majorRadius >= 0 && minorRadius >= 0) {
@@ -452,7 +454,7 @@ open class Ellipse @JvmOverloads constructor(
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
             rc.offerGLBufferUpload(currentData.tessElementBufferKey, bufferDataVersion) {
-                NumericArray.Ints(currentData.topElements.toIntArray())
+                NumericArray.IntsFromList(currentData.topElements)
             }
         } else {
             val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
@@ -543,7 +545,7 @@ open class Ellipse @JvmOverloads constructor(
         activeAttributes.interiorImageSource?.let { interiorImageSource ->
             rc.getTexture(interiorImageSource, defaultInteriorImageOptions)?.let { texture ->
                 drawState.texture = texture
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix, interiorTexCoordCache)
             }
         } ?: run { drawState.texture = null }
 
@@ -591,7 +593,7 @@ open class Ellipse @JvmOverloads constructor(
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
             rc.getTexture(outlineImageSource, defaultOutlineImageOptions)?.let { texture ->
                 drawState.texture = texture
-                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix)
+                drawState.textureLod = computeRepeatingTexCoordTransform(rc, texture, cameraDistance, drawState.texCoordMatrix, outlineTexCoordCache)
             }
         } ?: run { drawState.texture = null }
 
