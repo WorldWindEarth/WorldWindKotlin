@@ -78,9 +78,13 @@ abstract class AbstractWorldWindowController {
         requestRedraw()
     }
 
-    /** Snapshots the camera at the start of a gesture and aborts any in-progress fling. */
+    /** Snapshots the camera at gesture start and aborts any in-progress fling or goTo. */
     protected open fun gestureDidBegin() {
-        fling.cancel() // a new gesture interrupts any in-progress fling
+        fling.cancel()
+        // Without this, an in-progress goTo (e.g. WorldMapLayer minimap tap) keeps writing
+        // the camera between our CHANGED events and the two writers fight, producing
+        // forward/backward jitter for the duration of the animation.
+        engine.goToAnimator.cancel()
         if (activeGestures++ == 0) {
             engine.cameraAsLookAt(beginLookAt)
             lookAt.copy(beginLookAt)
