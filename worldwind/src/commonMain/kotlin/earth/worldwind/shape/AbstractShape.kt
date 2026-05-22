@@ -181,6 +181,13 @@ abstract class AbstractShape(
         // imply. Used by Polygon / Path / Ellipse densifiers for ArrayList pre-sizing and
         // surface-splitter short-circuit checks.
         const val POLE_PROXIMITY_DEG = 75.0
+        /**
+         * Depth offset pulling non-surface CLAMP_TO_GROUND vector geometry slightly toward the
+         * camera, so it wins the depth test against the terrain it's draped on (tessellated
+         * independently, so it disagrees by a few vertices along the line) without punching
+         * through nearer terrain.
+         */
+        const val CLAMP_TO_GROUND_DEPTH_OFFSET = -0.001
         private const val ZERO_LEVEL_PX = 1024
         @JvmStatic
         protected val defaultInteriorImageOptions = ImageOptions().apply { wrapMode = WrapMode.REPEAT }
@@ -572,4 +579,13 @@ abstract class AbstractShape(
     protected open fun shouldMakeDrawable(rc: RenderContext) = true
 
     protected abstract fun makeDrawable(rc: RenderContext)
+
+    /**
+     * [CLAMP_TO_GROUND_DEPTH_OFFSET] for non-surface clamp-to-ground vector geometry, else 0.0.
+     * Disabled in pick mode so depth-readback position reconstruction ([PickedObject.cartesianPoint])
+     * isn't skewed toward the camera.
+     */
+    protected fun clampToGroundDepthOffset(rc: RenderContext) =
+        if (!isSurfaceShape && altitudeMode == AltitudeMode.CLAMP_TO_GROUND && !rc.isPickMode)
+            CLAMP_TO_GROUND_DEPTH_OFFSET else 0.0
 }

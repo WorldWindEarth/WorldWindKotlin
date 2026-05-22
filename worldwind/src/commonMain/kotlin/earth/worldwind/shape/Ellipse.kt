@@ -499,6 +499,7 @@ open class Ellipse @JvmOverloads constructor(
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
+        drawState.depthOffset = clampToGroundDepthOffset(rc)
 
         // Configure the drawable according to the shape's attributes.
         drawStateLines.vertexOrigin.copy(currentData.vertexOrigin)
@@ -508,6 +509,7 @@ open class Ellipse @JvmOverloads constructor(
         drawStateLines.enableLighting = activeAttributes.isLightingEnabled
         drawStateLines.shadowMode = activeAttributes.shadowMode
         drawStateLines.isOccluderOnly = isOccluderOnly
+        drawStateLines.depthOffset = clampToGroundDepthOffset(rc)
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape) {

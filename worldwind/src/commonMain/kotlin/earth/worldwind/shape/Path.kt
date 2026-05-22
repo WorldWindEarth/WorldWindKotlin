@@ -185,6 +185,7 @@ open class Path @JvmOverloads constructor(
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
+        drawState.depthOffset = clampToGroundDepthOffset(rc)
 
         // Enqueue the drawable for processing on the OpenGL thread.
         if (isSurfaceShape) {
