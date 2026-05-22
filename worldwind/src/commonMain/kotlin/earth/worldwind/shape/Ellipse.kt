@@ -394,10 +394,9 @@ open class Ellipse @JvmOverloads constructor(
         reset()
     }
 
-    override fun makeDrawable(rc: RenderContext) {
-        if (majorRadius == 0.0 && minorRadius == 0.0) return  // nothing to draw
-        if (!prepareGeometry(rc)) return
+    override fun shouldMakeDrawable(rc: RenderContext) = majorRadius != 0.0 || minorRadius != 0.0
 
+    override fun makeDrawable(rc: RenderContext) {
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
         val drawState: DrawShapeState

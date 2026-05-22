@@ -226,10 +226,9 @@ open class Polygon @JvmOverloads constructor(
         reset()
     }
 
-    override fun makeDrawable(rc: RenderContext) {
-        if (boundaries.isEmpty()) return  // nothing to draw
-        if (!prepareGeometry(rc)) return
+    override fun shouldMakeDrawable(rc: RenderContext) = boundaries.isNotEmpty()
 
+    override fun makeDrawable(rc: RenderContext) {
         // Obtain a drawable form the render context pool.
         val drawable: Drawable
         val drawState: DrawShapeState

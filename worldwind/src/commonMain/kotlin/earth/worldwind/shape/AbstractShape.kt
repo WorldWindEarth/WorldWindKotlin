@@ -357,7 +357,7 @@ abstract class AbstractShape(
         // drawables so the sightline's depth pass still picks them up via SightlineOccluder.
         val cameraVisible = intersectsFrustum(rc)
         val sightlineCaster = !cameraVisible && intersectsAnySightlineBound(rc)
-        if (!cameraVisible && !sightlineCaster) return
+        if (!cameraVisible && !sightlineCaster && !mustAssembleGeometry(rc)) return
         isOccluderOnly = sightlineCaster
 
         // Adjust to terrain changes
@@ -378,7 +378,7 @@ abstract class AbstractShape(
         isSurfaceShape = rc.globe.is2D || altitudeMode == AltitudeMode.CLAMP_TO_GROUND && isFollowTerrain
 
         // Enqueue drawables for processing on the OpenGL thread.
-        makeDrawable(rc)
+        if (shouldMakeDrawable(rc) && prepareGeometry(rc)) makeDrawable(rc)
 
         // Enqueue a picked object that associates the shape's drawables with its picked object ID.
         if (rc.isPickMode && rc.drawableCount != drawableCount) {
@@ -562,6 +562,14 @@ abstract class AbstractShape(
             else rc.geographicToCartesian(latitude, longitude, baseAltitude, baseAltitudeMode, vertPoint, useEM = true)
         }
     }
+
+    /**
+     * Whether [makeDrawable] should run at all, independent of geometry assembly — i.e. the shape
+     * has something to draw (e.g. a [Path] needs at least two positions). Evaluated in [doRender]
+     * before [prepareGeometry], so a degenerate shape skips assembly entirely. Default true;
+     * subclasses override with their guard.
+     */
+    protected open fun shouldMakeDrawable(rc: RenderContext) = true
 
     protected abstract fun makeDrawable(rc: RenderContext)
 }

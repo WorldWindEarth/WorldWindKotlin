@@ -227,9 +227,9 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         reset()
     }
 
+    override fun shouldMakeDrawable(rc: RenderContext) = locations.isNotEmpty()
+
     override fun makeDrawable(rc: RenderContext) {
-        if (locations.isEmpty()) return  // nothing to draw
-        if (!prepareGeometry(rc)) return
         if (!isSurfaceShape) error("ProjectedMediaSurface must be surface shape")
 
         if (imageProjection != null) emit3DProjectionDrawable(rc) else emitHomographyDrawable(rc)

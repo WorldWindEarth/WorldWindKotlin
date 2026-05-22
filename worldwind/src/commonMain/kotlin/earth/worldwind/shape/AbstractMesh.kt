@@ -109,11 +109,15 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         reset()
     }
 
+    override fun shouldMakeDrawable(rc: RenderContext): Boolean {
+        val drawInterior = activeAttributes.isDrawInterior && (!rc.isPickMode || activeAttributes.isPickInterior)
+        val drawOutline = activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)
+        return drawInterior || drawOutline
+    }
+
     override fun makeDrawable(rc: RenderContext) {
         val drawInterior = activeAttributes.isDrawInterior && (!rc.isPickMode || activeAttributes.isPickInterior)
         val drawOutline = activeAttributes.isDrawOutline && (!rc.isPickMode || activeAttributes.isPickOutline)
-        if (!drawInterior && !drawOutline) return
-        if (!prepareGeometry(rc)) return
 
         // Obtain a drawable form the render context pool.
         val pool = rc.getDrawablePool(DrawableMesh.KEY)

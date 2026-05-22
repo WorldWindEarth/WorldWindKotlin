@@ -120,10 +120,9 @@ open class Path @JvmOverloads constructor(
         reset()
     }
 
-    override fun makeDrawable(rc: RenderContext) {
-        if (positions.size < 2) return // nothing to draw
-        if (!prepareGeometry(rc)) return
+    override fun shouldMakeDrawable(rc: RenderContext) = positions.size >= 2 // need at least two points
 
+    override fun makeDrawable(rc: RenderContext) {
         // Obtain a drawable form the render context pool, and compute distance to the render camera.
         val drawable: Drawable
         val drawState: DrawShapeState
