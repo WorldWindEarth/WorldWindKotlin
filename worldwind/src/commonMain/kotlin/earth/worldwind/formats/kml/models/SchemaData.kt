@@ -12,7 +12,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * The ExtendedData element is a child of the [Feature] that contains the custom data.
  */
 @Serializable
-internal data class SchemaData(
+data class SchemaData(
     /**
      * The [schemaUrl] can be a full URL, a reference to a Schema ID defined in an external KML file,
      * or a reference to a Schema ID defined in the same KML file.

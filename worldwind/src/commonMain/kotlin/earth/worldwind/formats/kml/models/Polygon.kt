@@ -20,7 +20,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * are specified in the proper order. Otherwise, the polygon will be gray.
  */
 @Serializable
-internal data class Polygon(
+data class Polygon(
     override val id: String? = null,
 
     /**

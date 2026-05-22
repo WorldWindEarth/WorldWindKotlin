@@ -11,7 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * See diagram below for a visual representation of these parameters.
  */
 @Serializable
-internal data class Lod(
+data class Lod(
     /**
      * Defines a square in screen space, with sides of the specified value in pixels. For example, 128 defines a square of 128 x 128 pixels. The region's bounding box must be larger than this square (and smaller than the maxLodPixels square) in order for the Region to be active.
      *

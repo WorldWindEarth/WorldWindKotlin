@@ -14,7 +14,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * the value can be expressed as a date only.
  */
 @Serializable
-internal data class TimeSpan(
+data class TimeSpan(
     override val id: String? = null,
 
     /**

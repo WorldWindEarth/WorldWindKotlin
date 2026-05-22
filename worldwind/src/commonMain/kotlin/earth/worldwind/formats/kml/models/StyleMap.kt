@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * highlighted styles for a placemark, so that the highlighted version appears when the user mouses over the icon in Google Earth.
  */
 @Serializable
-internal data class StyleMap(
+data class StyleMap(
     override val id: String? = null,
 
     @XmlElement

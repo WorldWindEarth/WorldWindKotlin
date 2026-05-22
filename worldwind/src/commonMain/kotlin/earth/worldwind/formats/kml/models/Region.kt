@@ -13,7 +13,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * hierarchy, this calculation uses the Region that is the closest ancestor in the hierarchy.
  */
 @Serializable
-internal data class Region(
+data class Region(
     override val id: String? = null,
 
     /**

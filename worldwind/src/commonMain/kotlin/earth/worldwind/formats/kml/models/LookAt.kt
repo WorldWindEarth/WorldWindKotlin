@@ -11,7 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * or double-clicks an icon in the 3D viewer.
  */
 @Serializable
-internal data class LookAt(
+data class LookAt(
     /**
      * Longitude of the point the camera is looking at. Angular distance in degrees, relative to the Prime Meridian.
      * Values west of the Meridian range from −180 to 0 degrees. Values east of the Meridian range from 0 to 180 degrees.

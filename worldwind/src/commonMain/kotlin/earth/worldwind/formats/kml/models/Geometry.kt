@@ -7,4 +7,4 @@ import kotlinx.serialization.Serializable
  * It provides a placeholder object for all derived Geometry objects.
  */
 @Serializable
-internal abstract class Geometry : Object()
+abstract class Geometry : Object()

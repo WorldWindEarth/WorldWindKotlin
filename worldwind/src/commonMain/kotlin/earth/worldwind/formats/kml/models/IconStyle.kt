@@ -10,7 +10,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * The color specified in the [color] element of [IconStyle] is blended with the color of the [Icon].
  */
 @Serializable
-internal data class IconStyle(
+data class IconStyle(
     override val id: String? = null,
 
     @XmlElement

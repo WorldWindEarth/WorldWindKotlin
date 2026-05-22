@@ -7,7 +7,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * Specifies where the top, bottom, right, and left sides of a bounding box for the ground overlay are aligned.
  */
 @Serializable
-internal data class LatLonBox(
+data class LatLonBox(
     /**
      * Specifies the latitude of the north edge of the bounding box, in decimal degrees from 0 to ±90.
      */

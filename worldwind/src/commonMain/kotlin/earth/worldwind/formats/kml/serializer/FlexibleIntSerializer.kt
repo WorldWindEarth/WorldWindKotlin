@@ -8,7 +8,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.math.roundToInt
 
-internal object FlexibleIntSerializer : KSerializer<Int> {
+object FlexibleIntSerializer : KSerializer<Int> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("FlexibleInt", PrimitiveKind.STRING)
     override fun deserialize(decoder: Decoder) = decoder.decodeString().trim().lowercase().run {
         toIntOrNull() ?: toDoubleOrNull()?.roundToInt() ?: 0

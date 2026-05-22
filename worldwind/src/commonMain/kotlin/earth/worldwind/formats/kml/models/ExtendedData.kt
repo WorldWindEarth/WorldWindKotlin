@@ -16,7 +16,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * For more information, see Adding Custom Data in "Topics in KML."
  */
 @Serializable
-internal data class ExtendedData(
+data class ExtendedData(
     @XmlElement
     val data: List<Data> = emptyList(),
 

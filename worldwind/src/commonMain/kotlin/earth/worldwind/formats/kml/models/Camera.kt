@@ -20,7 +20,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * the Time and Animation chapter of the Developer's Guide.
  */
 @Serializable
-internal data class Camera(
+data class Camera(
     /**
      * Longitude of the virtual camera (eye point). Angular distance in degrees, relative to the Prime Meridian.
      * Values west of the Meridian range from −180 to 0 degrees. Values east of the Meridian range from 0 to 180 degrees.

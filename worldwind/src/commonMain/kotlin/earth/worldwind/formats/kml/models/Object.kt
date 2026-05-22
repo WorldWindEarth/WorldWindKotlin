@@ -3,6 +3,6 @@ package earth.worldwind.formats.kml.models
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal abstract class Object {
+abstract class Object {
     abstract val id: String?
 }

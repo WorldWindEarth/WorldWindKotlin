@@ -12,7 +12,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  */
 @Serializable
 @XmlSerialName("hotSpot")
-internal data class HotSpot(
+data class HotSpot(
     /**
      * Either the number of pixels, a fractional component of the icon, or a pixel inset indicating the x component of a point on the icon.
      */

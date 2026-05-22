@@ -10,7 +10,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * by the dateTime value in the `when` element.
  */
 @Serializable
-internal data class TimeStamp(
+data class TimeStamp(
     override val id: String? = null,
 
     /**

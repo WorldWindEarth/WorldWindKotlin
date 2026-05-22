@@ -16,7 +16,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerializationPolicy
 import kotlin.random.Random
 
 @OptIn(XmlUtilInternal::class)
-internal class KML {
+class KML {
 
     private val module = SerializersModule {
         polymorphic(Feature::class) {

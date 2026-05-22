@@ -12,7 +12,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * the attribute value is replaced with <value>. By default, the Placemark's balloon displays the name/value pairs associated with it.
  */
 @Serializable
-internal data class Data(
+data class Data(
     /**
      * The name attribute is used to identify the data pair within the KML file.
      */

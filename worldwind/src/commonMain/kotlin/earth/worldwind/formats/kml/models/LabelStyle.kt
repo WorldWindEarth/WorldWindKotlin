@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * A custom color, color mode, and scale for the label (name) can be specified.
  */
 @Serializable
-internal data class LabelStyle(
+data class LabelStyle(
     override val id: String? = null,
 
     @XmlElement

@@ -7,4 +7,4 @@ import kotlinx.serialization.Serializable
  * A [Feature] is visible only if it and all its ancestors are visible.
  */
 @Serializable
-internal data class Folder(override val id: String? = null) : Container()
+data class Folder(override val id: String? = null) : Container()

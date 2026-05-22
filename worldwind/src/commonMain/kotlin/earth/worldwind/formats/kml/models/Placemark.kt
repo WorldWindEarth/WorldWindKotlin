@@ -12,7 +12,7 @@ import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
  * you would need to create a MultiGeometry object that contains both a Point and the other Geometry object.)
  */
 @Serializable
-internal data class Placemark(
+data class Placemark(
     override val id: String? = null,
 
     /**

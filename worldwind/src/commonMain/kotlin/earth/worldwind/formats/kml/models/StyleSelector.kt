@@ -8,4 +8,4 @@ import kotlinx.serialization.Serializable
  * An element derived from StyleSelector is uniquely identified by its id and its url.
  */
 @Serializable
-internal abstract class StyleSelector : Object()
+abstract class StyleSelector : Object()

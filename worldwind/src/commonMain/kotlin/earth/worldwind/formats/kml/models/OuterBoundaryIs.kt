@@ -8,4 +8,4 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 @SerialName("outerBoundaryIs")
-internal data class OuterBoundaryIs(val value: LinearRing)
+data class OuterBoundaryIs(val value: LinearRing)

@@ -11,7 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * an image that contains multiple icons (often referred to as an icon palette).
  */
 @Serializable
-internal data class Icon(
+data class Icon(
     override val id: String? = null,
 
     /**

@@ -10,7 +10,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * or contains no <href>, a rectangle is drawn using the color and LatLonBox bounds defined by the ground overlay.
  */
 @Serializable
-internal data class GroundOverlay(
+data class GroundOverlay(
     override val id: String? = null,
 
     /**

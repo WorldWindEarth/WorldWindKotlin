@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
  * A container for zero or more geometry primitives associated with the same feature.
  */
 @Serializable
-internal data class MultiGeometry(
+data class MultiGeometry(
     override val id: String? = null,
 
     /**

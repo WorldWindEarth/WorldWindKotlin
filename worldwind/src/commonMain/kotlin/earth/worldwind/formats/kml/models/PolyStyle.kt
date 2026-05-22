@@ -9,7 +9,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * and line extrusions (which look like solid fences).
  */
 @Serializable
-internal data class PolyStyle(
+data class PolyStyle(
     override val id: String? = null,
 
     @XmlElement

@@ -11,7 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * (if extrusion is enabled).
  */
 @Serializable
-internal data class LineStyle(
+data class LineStyle(
     override val id: String? = null,
 
     @XmlElement

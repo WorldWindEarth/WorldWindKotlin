@@ -8,4 +8,4 @@ import nl.adaptivity.xmlutil.serialization.XmlValue
  * The type and name of this custom data field are declared in the [Schema] element.
  */
 @Serializable
-internal data class SimpleData(val name: String, @XmlValue val value: String)
+data class SimpleData(val name: String, @XmlValue val value: String)

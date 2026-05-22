@@ -9,7 +9,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * punctuation used for display in Google Earth) for this custom field.
  */
 @Serializable
-internal data class SimpleField(
+data class SimpleField(
     /**
      * Type of custom field
      */

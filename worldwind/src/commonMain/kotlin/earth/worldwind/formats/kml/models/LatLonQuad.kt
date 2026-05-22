@@ -19,7 +19,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  */
 @Serializable
 @XmlSerialName("LatLonQuad", GX_NAMESPACE, GX_PREFIX)
-internal data class LatLonQuad(
+data class LatLonQuad(
     /**
      * Four or more tuples, each consisting of floating point values for longitude, latitude, and altitude.
      * The altitude component is optional. Do not include spaces within a tuple.

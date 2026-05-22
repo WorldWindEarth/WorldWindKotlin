@@ -9,7 +9,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * [Schema] is always a child of [Document].
  */
 @Serializable
-internal data class Schema(
+data class Schema(
     /**
      * Unique [Schema] ID
      */

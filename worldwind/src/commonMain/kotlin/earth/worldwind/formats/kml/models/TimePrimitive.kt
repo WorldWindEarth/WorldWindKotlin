@@ -7,4 +7,4 @@ import kotlinx.serialization.Serializable
  * This element is extended by the [TimeSpan] and [TimeStamp] elements.
  */
 @Serializable
-internal abstract class TimePrimitive : Object()
+abstract class TimePrimitive : Object()

@@ -9,7 +9,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  */
 @Serializable
 @XmlSerialName("Pair")
-internal data class StylePair(
+data class StylePair(
     /**
      * Identifies the key
      */

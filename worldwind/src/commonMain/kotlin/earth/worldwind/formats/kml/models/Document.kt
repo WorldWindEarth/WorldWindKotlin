@@ -28,7 +28,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * Do not put shared styles within a [Folder].
  */
 @Serializable
-internal data class Document(
+data class Document(
     override val id: String? = null,
 
     /**

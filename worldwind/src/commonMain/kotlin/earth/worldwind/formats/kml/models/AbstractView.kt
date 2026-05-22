@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * This element is extended by the [Camera] and [LookAt] elements.
  */
 @Serializable
-internal abstract class AbstractView(
+abstract class AbstractView(
     /**
      * Defines the horizontal field of view of the AbstractView during a tour.
      * This element has no effect on AbstractViews outside of a tour. [horizFov] is inserted automatically by

@@ -10,7 +10,7 @@ import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
  * The following diagram shows how some of a [Feature]'s elements appear in Google Earth.
  */
 @Serializable
-internal abstract class Feature(
+abstract class Feature(
     /**
      * User-defined text displayed in the 3D viewer as the label for the object
      * (for example, for a [Placemark], [Folder], or [NetworkLink]).

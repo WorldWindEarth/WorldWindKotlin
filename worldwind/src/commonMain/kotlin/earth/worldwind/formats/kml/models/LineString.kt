@@ -12,7 +12,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * uses the current [PolyStyle]. See the KML Tutorial for examples of [LineString]s (or paths).
  */
 @Serializable
-internal data class LineString(
+data class LineString(
     override val id: String? = null,
 
     /**

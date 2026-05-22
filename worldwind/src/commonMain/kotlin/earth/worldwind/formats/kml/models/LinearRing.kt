@@ -11,7 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * [LinearRing] elements used as inner boundaries.
  */
 @Serializable
-internal data class LinearRing(
+data class LinearRing(
     override val id: String? = null,
 
     /**

@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
  * A [Container] element holds one or more [Feature]s and allows the creation of nested hierarchies.
  */
 @Serializable
-internal abstract class Container(
+abstract class Container(
     /**
      * List of [Feature]s included in the [Container].
      */

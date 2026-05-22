@@ -11,7 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * it is connected to the ground with a line. This "tether" uses the current [LineStyle].
  */
 @Serializable
-internal data class Point(
+data class Point(
     override val id: String? = null,
 
     /**

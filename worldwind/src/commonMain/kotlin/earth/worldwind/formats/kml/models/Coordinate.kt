@@ -14,7 +14,7 @@ import nl.adaptivity.xmlutil.serialization.XmlValue
  */
 @Serializable
 @XmlSerialName("coordinates")
-internal data class Coordinate(@XmlValue(true) val value: String) {
+data class Coordinate(@XmlValue(true) val value: String) {
     override fun toString() = value
 
     companion object {

@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
  * A bounding box that describes an area of interest defined by geographic coordinates and altitudes.
  */
 @Serializable
-internal data class LatLonAltBox(
+data class LatLonAltBox(
     /**
      * Possible values for [altitudeMode] are [AltitudeMode.clampToGround], [AltitudeMode.relativeToGround],
      * and [AltitudeMode.absolute], also [AltitudeMode.clampToSeaFloor] and [AltitudeMode.relativeToSeaFloor].

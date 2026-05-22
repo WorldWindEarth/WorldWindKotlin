@@ -9,4 +9,4 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 @SerialName("innerBoundaryIs")
-internal data class InnerBoundaryIs(val value: List<LinearRing> = emptyList())
+data class InnerBoundaryIs(val value: List<LinearRing> = emptyList())

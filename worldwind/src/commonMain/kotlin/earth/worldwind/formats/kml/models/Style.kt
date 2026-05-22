@@ -13,7 +13,7 @@ import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
  * Use an id to refer to the style from a <styleUrl>.
  */
 @Serializable
-internal data class Style(
+data class Style(
     override val id: String? = null,
 
     @XmlPolyChildren(

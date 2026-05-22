@@ -10,7 +10,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * multiple overlays and for adding color and transparency values to the base image.
  */
 @Serializable
-internal abstract class Overlay(
+abstract class Overlay(
     /**
      * Color values are expressed in hexadecimal notation, including opacity (alpha) values. The order of expression
      * is alpha, blue, green, red (aabbggrr). The range of values for any one color is 0 to 255 (00 to ff).
