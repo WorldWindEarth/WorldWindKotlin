@@ -13,6 +13,7 @@ import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
+import earth.worldwind.layer.WebFeatureLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.Renderable
@@ -72,6 +73,26 @@ expect fun createCoverageData(
     contentsSrsId: Long, tileBoundingBox: BoundingBox?, tileSrsId: Long, isFloat: Boolean
 ): CoverageData<*>
 expect fun getFeatureList(geoPackage: GeoPackageCore, tableName: String): List<Pair<Geometry, FeatureStyle?>>
+/**
+ * Read cached features written by the WFS cache pipeline — each row carries a geometry
+ * plus a JSON string of the feature's original properties so callers can re-apply their
+ * styling logic on replay. Wraps the per-platform cursor-vs-iterable difference.
+ */
+expect fun readCachedFeaturesWithProperties(
+    geoPackage: GeoPackageCore, tableName: String,
+): List<Pair<Geometry, String?>>
+/**
+ * Insert pre-built `(geometry, propertiesJson)` pairs into the WFS cache features table.
+ * Caller must hold an open transaction or accept per-row commits.
+ */
+expect fun insertCachedFeatures(
+    geoPackage: GeoPackageCore, tableName: String, rows: List<Pair<Geometry, String?>>,
+)
+/**
+ * Wipe the WFS cache features table (delete all rows, keep schema). Implemented per
+ * platform because Android uses a different DAO truncation path.
+ */
+expect fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String)
 expect fun buildImageSource(iconRow: IconRow): ImageSource
 
 open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
@@ -497,6 +518,89 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /**
+     * Persist the WFS / OGC API - Features service association for a FEATURES content row
+     * so the next time the GeoPackage is opened the layer can be rebuilt as a web-backed
+     * [WebFeatureLayer] and refreshed from the server.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun setupWebFeatureLayer(layer: WebFeatureLayer, content: GpkgContent): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) error("WebService ${content.tableName} cannot be updated. GeoPackage is read-only!")
+        createWebServiceTable()
+        webServiceDao.createOrUpdate(
+            GpkgWebService().also {
+                it.tableName = content.tableName
+                it.type = layer.serviceType
+                it.address = layer.serviceAddress
+                it.metadata = layer.serviceMetadata
+                it.layerName = layer.layerName
+                it.outputFormat = layer.outputFormat
+            }
+        )
+    }
+
+    /**
+     * Create the GPKG features table backing a [WebFeatureLayer] cache and (optionally)
+     * record the service association. Uses a small generic schema — one primary-key
+     * column, one [mil.nga.sf.GeometryType.GEOMETRY] column, and one TEXT column holding
+     * the feature's original GeoJSON `properties` object as JSON — so we don't have to
+     * derive a per-feature-type attribute schema. Mirrors [setupTilesContent] /
+     * [setupGriddedCoverageContent] for parallelism with image / coverage layers.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun setupFeaturesContent(
+        layer: WebFeatureLayer, tableName: String, setupWebLayer: Boolean,
+    ): GpkgContent = withContext(writeDispatcher) {
+        if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
+        TransactionManager.callInTransaction(connectionSource) {
+            val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
+            val box = mil.nga.geopackage.BoundingBox(-180.0, -90.0, 180.0, 90.0)
+            val geometryColumns = GeometryColumns().also {
+                it.tableName = tableName
+                it.columnName = FEATURE_GEOM_COLUMN
+                it.geometryType = mil.nga.sf.GeometryType.GEOMETRY
+                it.srs = srs
+                it.z = 0
+                it.m = 0
+            }
+            val columns = listOf(
+                mil.nga.geopackage.features.user.FeatureColumn.createPrimaryKeyColumn(FEATURE_ID_COLUMN),
+                mil.nga.geopackage.features.user.FeatureColumn.createGeometryColumn(FEATURE_GEOM_COLUMN, mil.nga.sf.GeometryType.GEOMETRY),
+                mil.nga.geopackage.features.user.FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.TEXT),
+            )
+            val metadata = mil.nga.geopackage.features.user.FeatureTableMetadata.create(geometryColumns, columns, box)
+            metadata.identifier = layer.displayName ?: tableName
+            geoPackage.createFeatureTable(metadata)
+            contentDao.queryForId(tableName) ?: error("Features content $tableName missing after createFeatureTable")
+        }.also { content ->
+            if (setupWebLayer) setupWebFeatureLayer(layer, content)
+        }
+    }
+
+    /**
+     * Replace all rows in the cache features table with the given (geometry, properties)
+     * pairs in a single transaction. Updates the content's `last_change` timestamp so
+     * staleness checks pick the new cache up.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun replaceCachedFeatures(
+        content: GpkgContent, rows: List<Pair<Geometry, String?>>,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly) error("Cached features ${content.tableName} cannot be updated. GeoPackage is read-only!")
+        TransactionManager.callInTransaction(connectionSource) {
+            truncateFeatureTable(geoPackage, content.tableName)
+            if (rows.isNotEmpty()) insertCachedFeatures(geoPackage, content.tableName, rows)
+        }
+        content.lastChange = Date()
+        contentDao.update(content)
+    }
+
+    /** Read back features previously cached via [replaceCachedFeatures]. */
+    suspend fun readCachedFeatures(content: GpkgContent): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
+        readCachedFeaturesWithProperties(geoPackage, content.tableName)
+    }
+
+
+    /**
      * Clear specified content table and keep its related metadata
      *
      * @throws IllegalStateException In case of read-only database.
@@ -602,7 +706,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         sector.maxLongitude.inDegrees, sector.maxLatitude.inDegrees
     )
 
-    protected open fun geometryToRenderables(
+    /** Convert a [Geometry] into [Renderable]s using the given (optional) feature style.
+     *  Public so the WFS cache replay path can call it directly; subclasses can still
+     *  override to specialise rendering. */
+    open fun geometryToRenderables(
         geometry: Geometry, style: FeatureStyle?, srsId: Long
     ): List<Renderable> = when(geometry) {
         is Point -> listOf(
@@ -699,5 +806,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         var defaultOutlineWidth = 1f
         var defaultOutlineColor = earth.worldwind.render.Color(0f, 0f, 0f, 1f)
         var defaultInteriorColor = earth.worldwind.render.Color(0f, 0f, 0f, 0f)
+
+        /** Column names for the WFS cache features schema. Public so cross-platform
+         *  actuals (cursor-based reads on Android, ORM-based on JVM) reference the same
+         *  column identifiers as the writer. */
+        const val FEATURE_ID_COLUMN = "id"
+        const val FEATURE_GEOM_COLUMN = "geom"
+        const val FEATURE_PROPERTIES_COLUMN = "properties"
     }
 }

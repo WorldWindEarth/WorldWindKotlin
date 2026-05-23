@@ -45,6 +45,29 @@ actual fun getFeatureList(geoPackage: GeoPackageCore, tableName: String): List<P
     }
 }
 
+actual fun readCachedFeaturesWithProperties(
+    geoPackage: GeoPackageCore, tableName: String,
+): List<Pair<Geometry, String?>> = (geoPackage as GeoPackage).getFeatureDao(tableName).queryForAll().mapNotNull { row ->
+    val geom = row.getGeometry()?.geometry?.takeIf { !it.isEmpty } ?: return@mapNotNull null
+    geom to (row.getValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN) as? String)
+}
+
+actual fun insertCachedFeatures(
+    geoPackage: GeoPackageCore, tableName: String, rows: List<Pair<Geometry, String?>>,
+) {
+    val featureDao = (geoPackage as GeoPackage).getFeatureDao(tableName)
+    for ((geometry, propertiesJson) in rows) {
+        val row = featureDao.newRow()
+        row.geometry = mil.nga.geopackage.geom.GeoPackageGeometryData.create(featureDao.geometryColumns.srsId, geometry)
+        propertiesJson?.let { row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN, it) }
+        featureDao.insert(row)
+    }
+}
+
+actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
+    (geoPackage as GeoPackage).getFeatureDao(tableName).deleteAll()
+}
+
 actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromImage(iconRow.dataImage.let { image ->
     val width = iconRow.width?.roundToInt() ?: image.width
     val height = iconRow.height?.roundToInt() ?: image.height

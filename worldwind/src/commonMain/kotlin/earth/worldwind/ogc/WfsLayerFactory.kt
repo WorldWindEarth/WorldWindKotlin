@@ -119,6 +119,9 @@ object WfsLayerFactory {
      * @param clientConfig Optional [HttpClientConfig] customizer applied to every Ktor client
      *   created here — use it to install basic auth, a bearer token, custom headers, or other
      *   request-shaping behaviour required by private endpoints.
+     * @param onResponseBody Optional hook invoked once per fetched page with the raw response
+     *   body (post-OWS-exception check). Cache implementations use this to persist features
+     *   into the backing store without re-parsing.
      */
     suspend fun createLayer(
         serviceAddress: String,
@@ -131,6 +134,7 @@ object WfsLayerFactory {
         customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
         pageSize: Int? = null,
         clientConfig: HttpClientConfig<*>.() -> Unit = {},
+        onResponseBody: (suspend (String, Boolean) -> Unit)? = null,
     ): RenderableLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingServiceAddress")
@@ -146,7 +150,9 @@ object WfsLayerFactory {
         if (!paginating) {
             val (body, contentType) = fetchGetFeature(resolved.getFeatureUrl, baseParams, clientConfig)
             checkForOwsException(body)
-            return decodePage(body, decideIsGml(resolved.isGml, contentType), finalName, customLogicToApplyProperties)
+            val effectiveIsGml = decideIsGml(resolved.isGml, contentType)
+            onResponseBody?.invoke(body, effectiveIsGml)
+            return decodePage(body, effectiveIsGml, finalName, customLogicToApplyProperties)
         }
 
         // Paginated path: loop STARTINDEX until the server returns fewer than the requested
@@ -168,6 +174,7 @@ object WfsLayerFactory {
             val (body, contentType) = fetchGetFeature(resolved.getFeatureUrl, pageParams, clientConfig)
             checkForOwsException(body)
             val effectiveIsGml = decideIsGml(resolved.isGml, contentType)
+            onResponseBody?.invoke(body, effectiveIsGml)
             val featureCount = countFeaturesInResponse(body, effectiveIsGml)
             val pageLayer = decodePage(body, effectiveIsGml, finalName, customLogicToApplyProperties)
             if (result == null) result = pageLayer else result.addAllRenderables(pageLayer.toList())

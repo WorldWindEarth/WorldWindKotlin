@@ -2,7 +2,9 @@ package earth.worldwind.util
 
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
+import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.CacheableImageLayer
+import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.TiledImageLayer
 import kotlin.time.Instant
 
@@ -64,6 +66,32 @@ interface ContentManager {
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun setupElevationCoverageCache(
         coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean = true, isFloat: Boolean = false
+    )
+
+    /**
+     * Number of vector / feature layers in content manager
+     */
+    suspend fun getFeatureLayersCount(): Int
+
+    /**
+     * Get vector / feature layers available in this content manager. Layers backed by a
+     * registered web feature service (e.g. WFS) are rebuilt as service-aware layers; the
+     * rest come back as plain [RenderableLayer]s populated from cached features.
+     *
+     * @param contentKeys Optional list of layer cache content keys, if empty, then all layers will be returned
+     */
+    suspend fun getFeatureLayers(contentKeys: List<String>? = null): List<RenderableLayer>
+
+    /**
+     * Setup feature layer to store cache in this content manager
+     *
+     * @param layer Feature layer to set up cache
+     * @param contentKey Unique key of this layer in cache content
+     * @param setupWebLayer Add online source metadata into the cache config so the layer can refresh from the service
+     */
+    @Throws(IllegalArgumentException::class, IllegalStateException::class)
+    suspend fun setupFeatureLayerCache(
+        layer: CacheableFeatureLayer, contentKey: String, setupWebLayer: Boolean = true,
     )
 
     /**

@@ -4,10 +4,14 @@ import earth.worldwind.geom.Location
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
+import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.TiledImageLayer
+import earth.worldwind.layer.WebFeatureLayer
 import earth.worldwind.layer.WebImageLayer
+import earth.worldwind.ogc.wfs.CachedWfsFeatureLayer
+import earth.worldwind.ogc.wfs.WfsFeatureLayer
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
 import earth.worldwind.layer.mercator.WebMercatorImageLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
@@ -261,14 +265,35 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
 
     override suspend fun deleteContent(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.deleteContent(contentKey) }
 
-    suspend fun getFeatureLayersCount() = withContext(Dispatchers.IO) { geoPackage.countContent(FEATURES).toInt() }
+    override suspend fun getFeatureLayersCount() = withContext(Dispatchers.IO) { geoPackage.countContent(FEATURES).toInt() }
 
-    suspend fun getFeatureLayers(contentKeys: List<String>? = null) = withContext(Dispatchers.IO) {
+    override suspend fun getFeatureLayers(contentKeys: List<String>?): List<RenderableLayer> = withContext(Dispatchers.IO) {
         geoPackage.getContent(FEATURES, contentKeys).mapNotNull { content ->
+            // Check if there's an associated web feature service. If yes, rebuild a
+            // service-backed layer. Otherwise return a plain RenderableLayer with the
+            // GPKG-cached features. Mirrors the pattern in getImageLayers().
+            val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
             runCatching {
-                RenderableLayer(geoPackage.getRenderables(content)).apply {
-                    displayName = content.identifier
-                    isPickEnabled = false
+                when (service?.type) {
+                    WfsFeatureLayer.SERVICE_TYPE -> CachedWfsFeatureLayer(
+                        serviceAddress = service.address,
+                        layerName = service.layerName ?: error("Layer name not specified"),
+                        serviceMetadata = service.metadata,
+                        outputFormat = service.outputFormat,
+                        displayName = content.identifier,
+                    ).apply {
+                        // Bind cache + replay any features already in the GPKG features
+                        // table so the layer is populated even when offline.
+                        cacheSourceFactory = GpkgFeatureCacheFactory(geoPackage, content)
+                        runCatching { loadFromCache() }.onFailure {
+                            logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message ?: "loadFromCache failed")
+                        }
+                    }
+                    else -> RenderableLayer(geoPackage.getRenderables(content)).apply {
+                        displayName = content.identifier
+                        isPickEnabled = false
+                    }
+                }.apply {
                     putUserProperty(FEATURE_CONTENT_KEY, content.tableName)
                     content.lastChange?.let { putUserProperty(FEATURE_LAST_CHANGE_KEY, Instant.fromEpochMilliseconds(it.time)) }
                     geoPackage.getBoundingSector(content)?.let { putUserProperty(FEATURE_BOUNDING_SECTOR_KEY, it) }
@@ -277,6 +302,32 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message!!)
             }.getOrNull()
         }
+    }
+
+    override suspend fun setupFeatureLayerCache(
+        layer: CacheableFeatureLayer, contentKey: String, setupWebLayer: Boolean,
+    ) = withContext(Dispatchers.IO) {
+        // Find or create the GPKG features table backing this layer's cache. If the
+        // content already exists it must already be a features table (with our
+        // (id, geom, properties) schema) — re-binding without recreating preserves
+        // existing cached rows. If it doesn't, the layer must be a WebFeatureLayer so
+        // we know what service metadata to persist while creating the table.
+        val existing = geoPackage.getContent(contentKey)
+        val content = if (existing != null) {
+            require(existing.dataTypeName.equals(FEATURES, ignoreCase = true)) {
+                "Content '$contentKey' exists but is not a features table"
+            }
+            if (setupWebLayer && layer is WebFeatureLayer && !geoPackage.isReadOnly) {
+                geoPackage.setupWebFeatureLayer(layer, existing)
+            }
+            existing
+        } else {
+            require(layer is WebFeatureLayer) {
+                "Cannot create cache content '$contentKey' from a non-WebFeatureLayer source"
+            }
+            geoPackage.setupFeaturesContent(layer, contentKey, setupWebLayer)
+        }
+        layer.cacheSourceFactory = GpkgFeatureCacheFactory(geoPackage, content)
     }
 
     suspend fun getFeatureLayerSize(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.readFeaturesDataSize(contentKey) }
