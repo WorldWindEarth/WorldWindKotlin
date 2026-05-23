@@ -55,6 +55,13 @@ open class OsmBuildingsLayer(
     val tileRadius: Int = 4,
     val maxLoadedTiles: Int = 256,
     maxConcurrentFetches: Int = 2,
+    /**
+     * When true, [toPolygon] consults [OsmColors] on each [OsmBuilding] and overrides the
+     * polygon's [interiorColor][ShapeAttributes.interiorColor] with the colour derived from
+     * `building:colour` / `colour` / `building:material` tags. Buildings without any of those
+     * tags keep [attributes] unchanged. Off by default for Cesium-style uniform-gray output.
+     */
+    val useOsmColors: Boolean = false,
     displayName: String? = "OSM Buildings",
 ) : AbstractLayer(displayName) {
 
@@ -132,14 +139,23 @@ open class OsmBuildingsLayer(
      * Wrap one [OsmBuilding] in an extruded [Polygon]. Override to customize per-building
      * style (height-based color, name labels, lighting, …).
      */
-    protected open fun toPolygon(building: OsmBuilding): Polygon =
-        Polygon(building.outerRing, attributes).apply {
+    protected open fun toPolygon(building: OsmBuilding): Polygon {
+        val effectiveAttributes = if (useOsmColors) {
+            OsmColors.resolve(building.tags)?.let { color ->
+                // Per-polygon copy so the layer-wide [attributes] is not mutated. Allocation
+                // is acceptable - one ShapeAttributes per coloured building, only on the
+                // background fetch path.
+                ShapeAttributes(attributes).apply { interiorColor = color }
+            } ?: attributes
+        } else attributes
+        return Polygon(building.outerRing, effectiveAttributes).apply {
             isExtrude = true
             altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
             baseAltitude = building.minHeight
             building.name?.let { displayName = it }
             for (hole in building.innerRings) addBoundary(hole)
         }
+    }
 
     private fun drainResults() {
         while (true) {
