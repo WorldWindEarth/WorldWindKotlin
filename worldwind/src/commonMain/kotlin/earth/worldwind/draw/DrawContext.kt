@@ -204,7 +204,8 @@ open class DrawContext(val gl: Kgl) {
      *    [Kgl.supportsSizedTextureFormats] is true.
      *  - depth `GL_DEPTH_COMPONENT24` for terrain triangle ordering during the depth pass;
      *    the occlusion pass never reads it. See [createMomentsDepthAttachment] for why 24-bit.
-     * Linear filtering is set on the colour attachment so a single hardware tap averages 2x2
+     * The colour attachment is `GL_LINEAR`-filtered where the GL supports linear-filterable
+     * RGBA32F (see [createMomentsColorAttachment]) so a single hardware tap averages 2x2
      * neighbouring `(d, d^2, d^3, d^4)` values; the separable Gaussian in
      * [SightlineMomentsBlurProgram] widens the support further. Same per-side resolution as
      * [scratchFramebuffer]; lazily allocated and cached.
@@ -214,9 +215,8 @@ open class DrawContext(val gl: Kgl) {
         // RGBA8 on platforms without them, which has the precision issues described above.
         // Use the highest-precision float colour buffer the GL implementation can render to
         // (RGBA32F preferred, RGBA16F second, RGBA8 last - see Kgl.maxRenderableFloatBits).
+        // Filter mode is baked in by [createMomentsColorAttachment].
         val colorAttachment = createMomentsColorAttachment(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE)
-        colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
         attachTexture(this@DrawContext, createMomentsDepthAttachment(), GL_DEPTH_ATTACHMENT)
     }.also { momentsFramebufferCache = it }
@@ -247,18 +247,33 @@ open class DrawContext(val gl: Kgl) {
      * (e.g. iOS Simulator's Metal-backed GLES3), or RGBA8 as the unusable-but-bootable
      * fallback. Centralised so all moments / shadow / cube-moments paths pick the same
      * tier without duplicating the [Kgl.maxRenderableFloatBits] branch.
+     *
+     * Filter mode is baked in here: `GL_LINEAR` when the chosen tier supports it (RGBA16F
+     * and RGBA8 always; RGBA32F only when [Kgl.supportsFloatTextureLinear]), otherwise
+     * `GL_NEAREST`. Without the gate, RGBA32F + `GL_LINEAR` on hardware that lacks
+     * `OES_texture_float_linear` (Adreno 540 / Samsung S9) makes the texture incomplete and
+     * sampling returns `(0,0,0,1)`, which paints a uniform dark cast across every shadow
+     * receiver. Callers that need a different wrap mode (e.g. `GL_CLAMP_TO_EDGE` for the
+     * cascade attachments) set it separately after this call returns.
      */
-    private fun createMomentsColorAttachment(width: Int, height: Int, target: Int = GL_TEXTURE_2D): Texture =
-        when (gl.maxRenderableFloatBits) {
+    private fun createMomentsColorAttachment(width: Int, height: Int, target: Int = GL_TEXTURE_2D): Texture {
+        val bits = gl.maxRenderableFloatBits
+        val texture = when (bits) {
             32 -> Texture(width, height, GL_RGBA, GL_FLOAT, true, GL_RGBA32F, target = target)
             16 -> Texture(width, height, GL_RGBA, GL_HALF_FLOAT, true, GL_RGBA16F, target = target)
             else -> Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA, target = target)
         }
+        val filter = if (bits == 32 && !gl.supportsFloatTextureLinear) GL_NEAREST else GL_LINEAR
+        texture.setTexParameter(GL_TEXTURE_MIN_FILTER, filter)
+        texture.setTexParameter(GL_TEXTURE_MAG_FILTER, filter)
+        return texture
+    }
 
     /**
      * Cube-map RGBA32F moments texture used by the omnidirectional sightline's cube-map
-     * receiver path. All six faces are allocated with linear filtering; only five are written
-     * by the depth pass (POS_X, NEG_X, POS_Y, NEG_Y, NEG_Z) - the omitted POS_Z face is left
+     * receiver path. Filter mode follows [createMomentsColorAttachment] (linear where the
+     * GL allows it on RGBA32F, otherwise nearest). Only five faces are written by the depth
+     * pass (POS_X, NEG_X, POS_Y, NEG_Y, NEG_Z) - the omitted POS_Z face is left
      * cleared (sentinel d=1) so any upward-pointing fragment direction reads as "visible".
      * The receiver does a single pass with `samplerCube`, which uses hardware seamless
      * filtering across face boundaries - the per-face 2D blur seam mismatch that paints a
@@ -268,10 +283,7 @@ open class DrawContext(val gl: Kgl) {
     val momentsCubeMapTexture get() = momentsCubeMapTextureCache
         ?: createMomentsColorAttachment(
             SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, target = GL_TEXTURE_CUBE_MAP
-        ).apply {
-            setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        }.also { momentsCubeMapTextureCache = it }
+        ).also { momentsCubeMapTextureCache = it }
 
     /**
      * Framebuffer paired with [momentsCubeMapTexture] for cube-map depth-pass writes. The
@@ -292,8 +304,6 @@ open class DrawContext(val gl: Kgl) {
      */
     val momentsBlurFramebuffer get() = momentsBlurFramebufferCache ?: Framebuffer().apply {
         val colorAttachment = createMomentsColorAttachment(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE)
-        colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
     }.also { momentsBlurFramebufferCache = it }
 
@@ -307,9 +317,11 @@ open class DrawContext(val gl: Kgl) {
      *    quantisation noise below the perceptual threshold).
      *  - depth `GL_DEPTH_COMPONENT24` for triangle ordering during the depth pass.
      *
-     * Linear filtering on the colour attachment lets a single hardware tap pre-blend
-     * neighbouring `(d, d^k)` values, which the receiver-side dFdx/dFdy blur kernel widens
-     * further. Lazily allocated and cached per cascade index.
+     * Filter mode follows [createMomentsColorAttachment] — `GL_LINEAR` where the GL allows
+     * linear-filterable RGBA32F, otherwise `GL_NEAREST` (Adreno 540 / Samsung S9 lacks the
+     * extension; sampling would otherwise read back the texture-incomplete sentinel and
+     * paint a uniform dark cast over the viewport). PCF taps individual texels and works
+     * with either filter. Lazily allocated and cached per cascade index.
      *
      * Cascades 0..n-1 (closest-to-farthest) reuse [createMomentsDepthAttachment] for the depth
      * texture so size / format stays consistent with the sightline pipeline. The colour format
@@ -323,8 +335,6 @@ open class DrawContext(val gl: Kgl) {
         return shadowCascadeFramebufferCache[cascadeIndex] ?: Framebuffer().apply {
             val size = SHADOW_CASCADE_MAP_SIZES[cascadeIndex]
             val colorAttachment = createMomentsColorAttachment(size, size)
-            colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             // Clamp-to-edge so receiver UVs that fall just outside the cascade footprint
             // don't sample wrap-arounds from the opposite side of the shadow map.
             colorAttachment.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -345,8 +355,6 @@ open class DrawContext(val gl: Kgl) {
     fun shadowBlurFramebuffer(size: Int): Framebuffer = shadowBlurFramebufferCache.getOrPut(size) {
         Framebuffer().apply {
             val colorAttachment = createMomentsColorAttachment(size, size)
-            colorAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            colorAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
         }
     }

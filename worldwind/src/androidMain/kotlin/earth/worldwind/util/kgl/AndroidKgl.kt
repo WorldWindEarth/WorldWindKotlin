@@ -27,6 +27,13 @@ class AndroidKgl : Kgl {
     override val supportsMultisampleFBO get() = isGles3OrLater
     override val supportsSizedTextureFormats get() = isGles3OrLater
 
+    // Adreno 540 (S9) renders RGBA32F but lacks the linear-filter extension; Adreno 7xx (S23)
+    // advertises it. See [Kgl.supportsFloatTextureLinear].
+    override val supportsFloatTextureLinear: Boolean by lazy {
+        val exts = GLES20.glGetString(GL_EXTENSIONS) ?: return@lazy false
+        "GL_OES_texture_float_linear" in exts || "GL_EXT_texture_float_linear" in exts
+    }
+
     override fun getParameteri(pname: Int): Int {
         GLES20.glGetIntegerv(pname, arrI, 0)
         return arrI[0]

@@ -133,6 +133,14 @@ class IosKgl : Kgl {
     override val supportsMultisampleFBO: Boolean = true
     override val supportsSizedTextureFormats: Boolean = true
 
+    // Every real-iOS GPU back to A7 advertises OES_texture_float_linear; probed lazily in
+    // case a future runtime drops it. See [Kgl.supportsFloatTextureLinear].
+    override val supportsFloatTextureLinear: Boolean by lazy {
+        // glGetString returns CPointer<GLubyteVar>; reinterpret to ByteVar for toKString.
+        val exts = glGetString(GL_EXTENSIONS.toUInt())?.reinterpret<ByteVar>()?.toKString().orEmpty()
+        "GL_OES_texture_float_linear" in exts || "GL_EXT_texture_float_linear" in exts
+    }
+
     /**
      * Probed lazily on first access: builds a tiny RGBA32F FBO, then a tiny RGBA16F FBO,
      * and checks `glCheckFramebufferStatus`. iOS GLES3 on real devices typically supports

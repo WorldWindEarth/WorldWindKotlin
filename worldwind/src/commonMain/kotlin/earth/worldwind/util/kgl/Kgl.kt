@@ -626,6 +626,16 @@ interface Kgl {
      * boot rather than producing all-black sightlines.
      */
     val maxRenderableFloatBits: Int get() = if (supportsSizedTextureFormats) 32 else 0
+    /**
+     * `true` when `GL_LINEAR` filtering is valid on a 32-bit-float colour texture. RGBA32F +
+     * `GL_LINEAR` is texture-complete only with `OES_texture_float_linear` /
+     * `EXT_texture_float_linear`; without it the sampler returns the incomplete-texture default
+     * `(0,0,0,1)`, silently turning every shadow / sightline tap into a fully-occluded result
+     * (Adreno 540 / Samsung S9 hits this). Callers that allocate `RGBA32F` must fall back to
+     * `GL_NEAREST` when this is `false` — `DrawContext.createMomentsColorAttachment` does so.
+     * Always `true` on desktop GL3+; Android / iOS / WebGL query the extension at runtime.
+     */
+    val supportsFloatTextureLinear: Boolean get() = true
     fun createRenderbuffer(): KglRenderbuffer
     fun deleteRenderbuffer(renderbuffer: KglRenderbuffer)
     fun bindRenderbuffer(target: Int, renderbuffer: KglRenderbuffer)

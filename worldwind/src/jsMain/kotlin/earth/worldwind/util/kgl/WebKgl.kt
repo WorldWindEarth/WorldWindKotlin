@@ -385,6 +385,12 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     override val supportsMultisampleFBO get() = isWebGL2
     override val supportsSizedTextureFormats get() = isWebGL2
 
+    // [WorldWindow.create] activates the extension at context creation; this query just
+    // reports whether the browser has it. See [Kgl.supportsFloatTextureLinear].
+    override val supportsFloatTextureLinear: Boolean by lazy {
+        gl.getExtension("OES_texture_float_linear") != null
+    }
+
     // Renderbuffer + multisample ops below route through `gl2`; on WebGL1 `requireGl2()`
     // throws. Call sites must guard with `supportsMultisampleFBO` first. Int args are
     // `unsafeCast` to `web.gl.GLenum` / `GLbitfield` (sealed external interfaces wrapping
