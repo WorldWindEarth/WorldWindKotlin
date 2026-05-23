@@ -5,6 +5,7 @@ import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.FeatureCacheSourceFactory
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.geoJsonGeometryToSf
+import earth.worldwind.ogc.gpkg.gmlFeatureRecordsToSf
 import earth.worldwind.render.Renderable
 import io.ktor.client.HttpClientConfig
 import kotlinx.serialization.json.Json
@@ -52,9 +53,15 @@ class CachedWfsFeatureLayer(
         }
         val accumulator = mutableListOf<Pair<Geometry, String?>>()
         super.refresh(sector, maxFeatures) { body, isGml ->
-            // Only GeoJSON bodies feed the cache today — GML decode for cache writes
-            // would need a parallel geometry path; skip those silently for now.
-            if (!isGml) extractGeoJsonFeatures(body, accumulator)
+            // Both decode paths feed the cache. GeoJSON: walk the FeatureCollection's
+            // features array (cheap — we already have the JSON tree). GML: re-run the
+            // GML pull-parser to recover (geometry, properties) pairs and convert each
+            // geometry to mil.nga.sf form for the GPKG blob encoder.
+            if (isGml) {
+                accumulator += gmlFeatureRecordsToSf(WfsGmlReader.parseFeatureRecords(body))
+            } else {
+                extractGeoJsonFeatures(body, accumulator)
+            }
             onResponseBody?.invoke(body, isGml)
         }
         cache.geoPackage.replaceCachedFeatures(cache.content, accumulator)
