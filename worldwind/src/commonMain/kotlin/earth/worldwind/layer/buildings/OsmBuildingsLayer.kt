@@ -5,6 +5,7 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.AbstractLayer
+import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.PathType
@@ -31,9 +32,19 @@ import kotlin.math.tan
 
 /**
  * Renders OpenStreetMap-derived schematic 3D buildings. Footprints + height tags are fetched
- * on demand for the visible region via an [OsmBuildingsSource] (defaults to [OverpassBuildingsSource]),
- * locally extruded into [Polygon]s with [AltitudeMode.RELATIVE_TO_GROUND], and cached per
+ * on demand via an [OsmBuildingsSource] (defaults to [OverpassBuildingsSource]) and cached per
  * slippy-map tile.
+ *
+ * Each cached tile is either:
+ *   - a single [OsmBuildingsTile] (default, [useBatchedRendering] = true) — one VBO + one EBO
+ *     for every building in the tile. Required at dense urban density: per-building polygons
+ *     OOM the Adreno KGSL shared-memory pool by *buffer count*, not byte volume.
+ *   - a `List<Polygon>`, one extruded [Polygon] per [OsmBuilding] — the legacy path. Needed by
+ *     subclasses overriding [toPolygon] / [toPolygons] for per-building customisation the
+ *     batched mesh doesn't carry; pass [useBatchedRendering] = false.
+ *
+ * [useOsmColors] works in both modes — the batched path groups triangles by colour within the
+ * tile's element array and issues one sub-draw per colour.
  *
  * ```
  * val buildings = OsmBuildingsLayer()
@@ -42,14 +53,13 @@ import kotlin.math.tan
  * buildings.close()
  * ```
  *
- * Tile selection uses a center-radius window: at each frame, the (2×[tileRadius]+1)² tiles
- * around the camera's lookAt point (falling back to the camera lat/lon) are scheduled for
- * fetch. At zoom 15 a radius of 4 covers ~10 km square, which fills the visible area for any
- * reasonable camera tilt at building-scale altitudes. Fetching is gated by [maxActiveAltitude]
- * (30 km by default), above which the layer is a no-op.
+ * Tile selection uses a centre-radius window: at each frame the (2×[tileRadius]+1)² tiles around
+ * the camera's lookAt point (falling back to the camera lat/lon) are scheduled for fetch. At zoom
+ * 15 a radius of 4 covers ~10 km square. Fetching is gated by [maxActiveAltitude] (30 km by
+ * default), above which the layer is a no-op.
  *
- * Style every building uniformly via [attributes]; for per-building styling, subclass and
- * override [toPolygon]. Always call [close] to cancel in-flight fetches.
+ * Style every building uniformly via [attributes], or enable [useOsmColors] for per-tag
+ * wall/roof colouring. Always call [close] to cancel in-flight fetches.
  */
 open class OsmBuildingsLayer(
     val source: OsmBuildingsSource = OverpassBuildingsSource(),
@@ -58,22 +68,53 @@ open class OsmBuildingsLayer(
     val maxLoadedTiles: Int = 256,
     maxConcurrentFetches: Int = 2,
     /**
-     * When true, [toPolygon] consults [OsmColors] on each [OsmBuilding] and overrides the
-     * polygon's [interiorColor][ShapeAttributes.interiorColor] with the colour derived from
-     * `building:colour` / `colour` / `building:material` tags. Buildings without any of those
-     * tags keep [attributes] unchanged. Off by default for uniform-gray output.
+     * When true, walls are coloured via [OsmColors.resolve] on each [OsmBuilding]'s tags (falling
+     * back to [attributes]'s interior colour); top caps use `roof:colour` (falling back to the
+     * wall colour). Off by default for uniform-gray output. Works in both rendering modes.
      */
     val useOsmColors: Boolean = false,
+    /**
+     * When true (default), every building in a tile is packed into one [OsmBuildingsTile] mesh
+     * (~500× fewer GL buffers per tile). Set false to keep the legacy "one Polygon per building"
+     * path — required when overriding [toPolygon] / [toPolygons] for per-building customisation
+     * the batched path doesn't carry (e.g. per-building geometry variation).
+     */
+    val useBatchedRendering: Boolean = true,
     displayName: String? = "OSM Buildings",
 ) : AbstractLayer(displayName) {
 
     /** Shape attributes applied to every building polygon. Mutating between frames is safe. */
     var attributes: ShapeAttributes = defaultBuildingAttributes()
 
+    /**
+     * Layer-wide shadow participation. Default [ShadowMode.ENABLED] makes every building both
+     * cast shadows onto the terrain and receive cascade shadows. Applies in both batched and
+     * legacy rendering paths; in the legacy path it overrides any per-Polygon
+     * [ShapeAttributes.shadowMode] so layer-level intent wins.
+     */
+    var shadowMode: ShadowMode = ShadowMode.ENABLED
+
     private val semaphore = Semaphore(maxConcurrentFetches.coerceAtLeast(1))
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val results = Channel<TileResult>(capacity = Channel.UNLIMITED)
-    private val tiles = LruMemoryCache<TileKey, List<Polygon>>(maxLoadedTiles.toLong())
+    // [latestRc] is the RC seen on the most recent doRender, used by the LRU eviction callback to
+    // route to [OsmBuildingsTile.releaseRenderResources] without needing rc passed through the
+    // cache plumbing. doRender + LRU put + eviction all run on the render thread, so this is safe.
+    private var latestRc: RenderContext? = null
+    // Parallel set tracking every value currently in [tiles]. [LruMemoryCache.clear] doesn't fire
+    // [LruMemoryCache.entryRemoved] (see its impl), so to release batched tile GPU buffers on
+    // [close] we need our own enumerable handle.
+    private val cachedValues = HashSet<Any>()
+    private val tiles = object : LruMemoryCache<TileKey, Any>(maxLoadedTiles.toLong()) {
+        override fun entryRemoved(key: TileKey, oldValue: Any, newValue: Any?, evicted: Boolean) {
+            cachedValues.remove(oldValue)
+            val rc = latestRc
+            if (rc != null && oldValue is OsmBuildingsTile) oldValue.releaseRenderResources(rc)
+            // Legacy per-Polygon tiles rely on the RenderResourceCache LRU pressure (now
+            // page-aligned) to evict their VBOs/EBOs; eager release would need a public
+            // releaseRenderResources on Polygon, deferred until/unless legacy mode bottlenecks.
+        }
+    }
     private val pending = HashSet<TileKey>()
     private var isClosed = false
 
@@ -86,6 +127,7 @@ open class OsmBuildingsLayer(
     }
 
     override fun doRender(rc: RenderContext) {
+        latestRc = rc
         drainResults()
 
         // Center on lookAt when available (true look-at point on the globe), else fall back to
@@ -122,15 +164,16 @@ open class OsmBuildingsLayer(
     }.sortedBy { (dx, dy) -> maxOf(kotlin.math.abs(dx), kotlin.math.abs(dy)) }
 
     private fun processTile(rc: RenderContext, key: TileKey) {
-        val polygons = tiles[key]
-        if (polygons != null) {
-            for (i in polygons.indices) {
-                try {
-                    polygons[i].render(rc)
-                } catch (e: Exception) {
-                    logMessage(ERROR, "OsmBuildingsLayer", "doRender",
-                        "Exception while rendering building polygon", e)
+        val tile = tiles[key]
+        if (tile != null) {
+            try {
+                when (tile) {
+                    is OsmBuildingsTile -> tile.render(rc)
+                    is List<*> -> for (p in tile) if (p is Polygon) p.render(rc)
                 }
+            } catch (e: Exception) {
+                logMessage(ERROR, "OsmBuildingsLayer", "doRender",
+                    "Exception while rendering building tile $key", e)
             }
         } else if (!isClosed && pending.add(key)) {
             scope.launch { fetch(key) }
@@ -146,14 +189,29 @@ open class OsmBuildingsLayer(
         isClosed = true
         scope.cancel()
         results.close()
+        // Best-effort GPU release for in-flight batched tiles. Legacy tiles fall through to
+        // RenderResourceCache LRU pressure as usual. [close] is normally called from the render
+        // thread (or right before the GL context tears down), so [latestRc] is the rc from the
+        // most recent frame and routing through it is safe — removing buffer keys from the cache
+        // just enqueues for [releaseEvictedResources], which the next render frame consumes.
+        val rc = latestRc
+        if (rc != null) {
+            for (entry in cachedValues) {
+                if (entry is OsmBuildingsTile) {
+                    try { entry.releaseRenderResources(rc) } catch (_: Exception) {}
+                }
+            }
+        }
+        cachedValues.clear()
         tiles.clear()
         pending.clear()
     }
 
     /**
-     * Produce the list of [Polygon]s that draw one building. Default is `[toPolygon]` plus an
-     * optional roof cap when `roof:colour` is tagged. Subclasses that want a different polygon
-     * layout (extra spires, mast antennas, …) override this.
+     * Produce the list of [Polygon]s that draw one building. Used only on the legacy per-Polygon
+     * rendering path ([useBatchedRendering] = false). Default is [toPolygon] plus an optional roof
+     * cap when `roof:colour` is tagged. Subclasses that want a different polygon layout (extra
+     * spires, mast antennas, …) override this.
      */
     protected open fun toPolygons(building: OsmBuilding): List<Polygon> {
         val wall = toPolygon(building)
@@ -162,9 +220,10 @@ open class OsmBuildingsLayer(
     }
 
     /**
-     * Wrap one [OsmBuilding] in an extruded wall [Polygon]. Override to customize per-building
-     * shape config (lighting, attributes, displayName, …). To add or replace polygons,
-     * override [toPolygons] instead.
+     * Wrap one [OsmBuilding] in an extruded wall [Polygon]. Used only on the legacy per-Polygon
+     * rendering path ([useBatchedRendering] = false). Override to customise per-building shape
+     * config (lighting, attributes, displayName, …). To add or replace polygons, override
+     * [toPolygons] instead.
      */
     protected open fun toPolygon(building: OsmBuilding): Polygon {
         val effectiveAttributes = if (useOsmColors) {
@@ -172,9 +231,12 @@ open class OsmBuildingsLayer(
                 // Per-polygon copy so the layer-wide [attributes] is not mutated. Allocation
                 // is acceptable - one ShapeAttributes per coloured building, only on the
                 // background fetch path.
-                ShapeAttributes(attributes).apply { interiorColor = color }
-            } ?: attributes
-        } else attributes
+                ShapeAttributes(attributes).apply {
+                    interiorColor = color
+                    shadowMode = this@OsmBuildingsLayer.shadowMode
+                }
+            } ?: ShapeAttributes(attributes).apply { shadowMode = this@OsmBuildingsLayer.shadowMode }
+        } else ShapeAttributes(attributes).apply { shadowMode = this@OsmBuildingsLayer.shadowMode }
         return Polygon(building.outerRing, effectiveAttributes).apply {
             isExtrude = true
             altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
@@ -200,7 +262,10 @@ open class OsmBuildingsLayer(
         val roofColor = OsmColors.parseColor(building.tags["roof:colour"]) ?: return null
         val capAltitude = building.height + ROOF_CAP_LIFT_METERS
         val capRing = building.outerRing.map { Position(it.latitude, it.longitude, capAltitude) }
-        val capAttrs = ShapeAttributes(attributes).apply { interiorColor = roofColor }
+        val capAttrs = ShapeAttributes(attributes).apply {
+            interiorColor = roofColor
+            shadowMode = this@OsmBuildingsLayer.shadowMode
+        }
         return Polygon(capRing, capAttrs).apply {
             altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
             isPlanar = true
@@ -211,22 +276,33 @@ open class OsmBuildingsLayer(
         }
     }
 
+    /**
+     * Build the batched mesh shape for a tile of buildings. Override to customise the tile-level
+     * shape config (e.g. swap [attributes] per tile, attach metadata to [OsmBuildingsTile]).
+     * Used only on the batched rendering path ([useBatchedRendering] = true).
+     */
+    protected open fun toTile(key: TileKey, buildings: List<OsmBuilding>): OsmBuildingsTile =
+        OsmBuildingsTile(buildings, attributes, useOsmColors = useOsmColors, shadowMode = shadowMode)
+
     private fun drainResults() {
         while (true) {
             val result = results.tryReceive().getOrNull() ?: return
             pending.remove(result.key)
-            val polygons = result.polygons ?: continue
-            // Weight = 1 per tile so [maxLoadedTiles] really is a tile count. Earlier this used
-            // `polygons.size`, which trashed the cache: a dense Manhattan tile (500+ buildings)
-            // would exceed the 256-unit capacity and evict every other tile in one put, and the
-            // next tile's put would evict it in turn — visible as random tile flicker.
-            tiles.put(result.key, polygons, 1)
+            val value = result.value ?: continue
+            // Weight = 1 per tile so [maxLoadedTiles] really is a tile count. Per-Polygon mode
+            // earlier tried `polygons.size` and trashed the cache — see git history.
+            cachedValues.add(value)
+            tiles.put(result.key, value, 1)
         }
     }
 
     private suspend fun fetch(key: TileKey) {
-        val polygons = try {
-            semaphore.withPermit { source.fetchBuildings(key.sector).flatMap(::toPolygons) }
+        val value = try {
+            semaphore.withPermit {
+                val buildings = source.fetchBuildings(key.sector)
+                if (useBatchedRendering) toTile(key, buildings) as Any
+                else buildings.flatMap(::toPolygons) as Any
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -238,25 +314,26 @@ open class OsmBuildingsLayer(
                 "Failed to fetch tile $key: ${e::class.simpleName}: ${e.message}")
             null
         }
-        results.trySend(TileResult(key, polygons))
+        results.trySend(TileResult(key, value))
         // Wake the render thread so the just-finished tile renders without waiting for a pan.
         // Also fires on failures so doRender drops the key from `pending` and can retry.
         WorldWind.requestRedraw()
     }
 
-    private data class TileKey(val z: Int, val x: Int, val y: Int) {
+    /** Slippy-map tile coordinate triple used as the [tiles] LRU key. */
+    data class TileKey(val z: Int, val x: Int, val y: Int) {
         val sector: Sector get() = tileToSector(z, x, y)
     }
 
-    private data class TileResult(val key: TileKey, val polygons: List<Polygon>?)
+    private data class TileResult(val key: TileKey, val value: Any?)
 
-    private companion object {
+    companion object {
         // Latitude at which Web Mercator y reaches ±π. Standard slippy-tile clamp.
-        const val MAX_MERCATOR_LAT = 85.0511287798066
+        const val MAX_MERCATOR_LAT: Double = 85.0511287798066
 
         // Roof-cap lift above the wall top. 1 cm is invisible at building scale yet wins
         // the depth test against the wall top cleanly without polygon-offset machinery.
-        const val ROOF_CAP_LIFT_METERS = 0.01
+        const val ROOF_CAP_LIFT_METERS: Double = 0.01
 
         fun defaultBuildingAttributes(): ShapeAttributes = ShapeAttributes().apply {
             interiorColor = Color(red = 0.80f, green = 0.80f, blue = 0.78f, alpha = 1f)
