@@ -135,7 +135,8 @@ class Shapefile(
         val x = view.getFloat64(start, littleEndian = true)
         val y = view.getFloat64(start + DOUBLE_SIZE, littleEndian = true)
         val part = doubleArrayOf(x, y)
-        val bbox = doubleArrayOf(y, y, x, x)
+        normalizeLocations(part)
+        val bbox = doubleArrayOf(part[1], part[1], part[0], part[0])
 
         var pos = start + 2 * DOUBLE_SIZE
         var zRange: DoubleArray? = null
@@ -251,13 +252,26 @@ class Shapefile(
         return ZAndM(zRange, zValues, mRange, mValues)
     }
 
-    /** Reads a bbox stored as `minX, minY, maxX, maxY` and returns `[minY, maxY, minX, maxX]`. */
     private fun readBoundingRectangleAt(view: BinaryDataView, offset: Int): DoubleArray {
         val minX = view.getFloat64(offset, littleEndian = true)
         val minY = view.getFloat64(offset + DOUBLE_SIZE, littleEndian = true)
         val maxX = view.getFloat64(offset + 2 * DOUBLE_SIZE, littleEndian = true)
         val maxY = view.getFloat64(offset + 3 * DOUBLE_SIZE, littleEndian = true)
-        return doubleArrayOf(minY, maxY, minX, maxX)
+        val proj = projection?.projection ?: PrjFile.Projection.Geographic
+        if (proj is PrjFile.Projection.Geographic || proj is PrjFile.Projection.Unknown) {
+            return doubleArrayOf(minY, maxY, minX, maxX)
+        }
+        val corners = arrayOf(
+            proj.toGeographic(minX, minY), proj.toGeographic(minX, maxY),
+            proj.toGeographic(maxX, minY), proj.toGeographic(maxX, maxY),
+        )
+        var minLon = Double.POSITIVE_INFINITY; var maxLon = Double.NEGATIVE_INFINITY
+        var minLat = Double.POSITIVE_INFINITY; var maxLat = Double.NEGATIVE_INFINITY
+        for (c in corners) {
+            if (c[0] < minLon) minLon = c[0]; if (c[0] > maxLon) maxLon = c[0]
+            if (c[1] < minLat) minLat = c[1]; if (c[1] > maxLat) maxLat = c[1]
+        }
+        return doubleArrayOf(minLat, maxLat, minLon, maxLon)
     }
 
     private fun readDoubleArray(view: BinaryDataView, offset: Int, count: Int): DoubleArray {
@@ -266,17 +280,26 @@ class Shapefile(
         return out
     }
 
-    /**
-     * Wrap longitudes/latitudes back into `[-180, 180]` / `[-90, 90]`. Shapefile coords
-     * are stored as longitude, latitude; this matches WebWorldWind's
-     * `ShapefileRecord.normalizeLocations`.
-     */
     private fun normalizeLocations(interleavedXY: DoubleArray) {
-        var i = 0
-        while (i + 1 < interleavedXY.size) {
-            interleavedXY[i] = Angle.normalizeLongitude(interleavedXY[i])
-            interleavedXY[i + 1] = Angle.normalizeLatitude(interleavedXY[i + 1])
-            i += 2
+        val proj = projection?.projection ?: PrjFile.Projection.Geographic
+        when (proj) {
+            is PrjFile.Projection.Geographic, is PrjFile.Projection.Unknown -> {
+                var i = 0
+                while (i + 1 < interleavedXY.size) {
+                    interleavedXY[i] = Angle.normalizeLongitude(interleavedXY[i])
+                    interleavedXY[i + 1] = Angle.normalizeLatitude(interleavedXY[i + 1])
+                    i += 2
+                }
+            }
+            is PrjFile.Projection.Utm -> {
+                var i = 0
+                while (i + 1 < interleavedXY.size) {
+                    val lonlat = proj.toGeographic(interleavedXY[i], interleavedXY[i + 1])
+                    interleavedXY[i] = lonlat[0]
+                    interleavedXY[i + 1] = lonlat[1]
+                    i += 2
+                }
+            }
         }
     }
 

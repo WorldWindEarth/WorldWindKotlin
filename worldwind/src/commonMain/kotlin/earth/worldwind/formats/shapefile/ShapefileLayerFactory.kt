@@ -110,8 +110,8 @@ object ShapefileLayerFactory {
         val (shapefile, layer) = withContext(Dispatchers.Default) {
             val prj = prjBytes?.let { runCatching { PrjFile(decodeUtf8OrLatin1(it)) }.getOrNull() }
             val dbf = dbfBytes?.let { runCatching { DBaseFile(it) }.getOrNull() }
-            if (prj != null && prj.isProjectedCoordinateSystem) {
-                Logger.log(WARN, "Shapefile uses a projected coordinate system; treating coordinates as geographic")
+            if (prj != null && prj.isProjectedCoordinateSystem && prj.projection !is PrjFile.Projection.Utm) {
+                Logger.log(WARN, "Shapefile uses an unsupported projected coordinate system; coords passed through unchanged")
             }
             val shapefile = Shapefile(shpBytes, projection = prj, attributes = dbf)
             shapefile to buildLayer(shapefile, displayName, shapeConfiguration)
