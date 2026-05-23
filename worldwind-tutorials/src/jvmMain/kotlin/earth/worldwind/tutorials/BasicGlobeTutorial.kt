@@ -108,6 +108,7 @@ fun main() {
                 "Gauss-Kruger Graticule" to GKGraticuleTutorial(engine),
                 "WMS Layer" to WmsLayerTutorial(engine, mainScope),
                 "WMTS Layer" to WmtsLayerTutorial(engine, mainScope),
+                "WFS Layer" to WfsLayerTutorial(engine, mainScope),
                 "WCS Elevation" to WcsElevationTutorial(engine),
                 "Elevation Heatmap" to ElevationHeatmapTutorial(engine),
             )

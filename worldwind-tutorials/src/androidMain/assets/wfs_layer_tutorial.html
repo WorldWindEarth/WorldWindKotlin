@@ -1,0 +1,85 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WFS Layer Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>WFS Layer Tutorial</h1>
+<p>
+    Demonstrates how to display an OGC Web Feature Service (WFS) layer.</p>
+<p>
+    WfsLayerFactory negotiates a GeoJSON-compatible output format with the WFS endpoint,
+    fetches features via GetFeature, and decodes them with GeoJsonLayerFactory to produce
+    a RenderableLayer.</p>
+
+<h2>Example</h2>
+<h3>WfsLayerFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class WfsLayerFragment : BasicGlobeFragment() {
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with a WFS Layer
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also { WfsLayerTutorial(it.engine, lifecycleScope).start() }
+}
+
+class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
+
+    private var wfsLayer: RenderableLayer? = null
+    private var job: Job? = null
+
+    override fun start() {
+        super.start()
+        job = scope.launch {
+            try {
+                WfsLayerFactory.createLayer(
+                    serviceAddress = "https://ahocevar.com/geoserver/wfs",
+                    typeName = "ne:ne_10m_admin_0_countries",
+                    displayName = "Country Boundaries (WFS)",
+                ).also {
+                    if (isActive) {
+                        wfsLayer = it
+                        engine.layers.addLayer(it)
+                        WorldWind.requestRedraw()
+                    }
+                }
+                Logger.log(Logger.INFO, "WFS layer creation succeeded")
+            } catch (e: Throwable) {
+                Logger.log(Logger.ERROR, "WFS layer creation failed", e)
+            }
+        }
+        engine.camera.apply {
+            position.altitude = engine.distanceToViewGlobeExtents * 1.1
+            heading = Angle.ZERO
+            tilt = Angle.ZERO
+            roll = Angle.ZERO
+        }
+    }
+
+    override fun stop() {
+        super.stop()
+        job?.cancel()
+        wfsLayer?.let { engine.layers.removeLayer(it) }.also { wfsLayer = null }
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

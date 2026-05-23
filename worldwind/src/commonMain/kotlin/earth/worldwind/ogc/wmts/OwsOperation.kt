@@ -7,5 +7,7 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @XmlSerialName("Operation", OWS11_NAMESPACE, OWS11_PREFIX)
 data class OwsOperation(
     val name: String,
-    val dcps: List<OwsDcp> = emptyList()
+    val dcps: List<OwsDcp> = emptyList(),
+    val parameters: List<OwsParameter> = emptyList(),
+    val constraints: List<OwsConstraint> = emptyList(),
 )

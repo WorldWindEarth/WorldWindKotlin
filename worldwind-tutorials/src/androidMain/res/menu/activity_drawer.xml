@@ -14,6 +14,10 @@
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_wmts_layer"/>
         <item
+            android:id="@+id/nav_wfs_layer_activity"
+            android:icon="@android:drawable/ic_menu_mapmode"
+            android:title="@string/title_wfs_layer"/>
+        <item
             android:id="@+id/nav_wcs_elevation_activity"
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_wcs_elevation_coverage"/>

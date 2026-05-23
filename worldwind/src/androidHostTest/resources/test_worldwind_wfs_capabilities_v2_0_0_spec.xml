@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic WFS 2.0.0 GetCapabilities response used in unit tests. -->
+<wfs:WFS_Capabilities version="2.0.0"
+                      xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                      xmlns:ows="http://www.opengis.net/ows/1.1"
+                      xmlns:fes="http://www.opengis.net/fes/2.0"
+                      xmlns:xlink="http://www.w3.org/1999/xlink"
+                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+    <ows:ServiceIdentification>
+        <ows:Title>World example Web Feature Service</ows:Title>
+        <ows:Abstract>Example service exposing world coastlines and country
+            boundaries via WFS 2.0.0
+        </ows:Abstract>
+        <ows:Keywords>
+            <ows:Keyword>World</ows:Keyword>
+            <ows:Keyword>Coastlines</ows:Keyword>
+            <ows:Keyword>Boundaries</ows:Keyword>
+        </ows:Keywords>
+        <ows:ServiceType>WFS</ows:ServiceType>
+        <ows:ServiceTypeVersion>2.0.0</ows:ServiceTypeVersion>
+        <ows:Fees>none</ows:Fees>
+        <ows:AccessConstraints>none</ows:AccessConstraints>
+    </ows:ServiceIdentification>
+    <ows:ServiceProvider>
+        <ows:ProviderName>Example Provider</ows:ProviderName>
+        <ows:ProviderSite xlink:href="http://example.org/wfs"/>
+        <ows:ServiceContact>
+            <ows:IndividualName>Jane Doe</ows:IndividualName>
+            <ows:PositionName>WFS Administrator</ows:PositionName>
+            <ows:ContactInfo>
+                <ows:Phone>
+                    <ows:Voice>+1 555 0100</ows:Voice>
+                </ows:Phone>
+                <ows:Address>
+                    <ows:DeliveryPoint>1 Main St</ows:DeliveryPoint>
+                    <ows:City>Springfield</ows:City>
+                    <ows:Country>USA</ows:Country>
+                    <ows:ElectronicMailAddress>jane@example.org</ows:ElectronicMailAddress>
+                </ows:Address>
+            </ows:ContactInfo>
+        </ows:ServiceContact>
+    </ows:ServiceProvider>
+    <ows:OperationsMetadata>
+        <ows:Operation name="GetCapabilities">
+            <ows:DCP>
+                <ows:HTTP>
+                    <ows:Get xlink:href="http://example.org/wfs?"/>
+                </ows:HTTP>
+            </ows:DCP>
+        </ows:Operation>
+        <ows:Operation name="DescribeFeatureType">
+            <ows:DCP>
+                <ows:HTTP>
+                    <ows:Get xlink:href="http://example.org/wfs?"/>
+                </ows:HTTP>
+            </ows:DCP>
+        </ows:Operation>
+        <ows:Operation name="GetFeature">
+            <ows:DCP>
+                <ows:HTTP>
+                    <ows:Get xlink:href="http://example.org/wfs?"/>
+                </ows:HTTP>
+            </ows:DCP>
+            <ows:Parameter name="outputFormat">
+                <ows:AllowedValues>
+                    <ows:Value>application/gml+xml; version=3.2</ows:Value>
+                    <ows:Value>application/json</ows:Value>
+                </ows:AllowedValues>
+            </ows:Parameter>
+        </ows:Operation>
+    </ows:OperationsMetadata>
+    <wfs:FeatureTypeList>
+        <wfs:FeatureType>
+            <wfs:Name>topp:coastlines</wfs:Name>
+            <wfs:Title>World Coastlines</wfs:Title>
+            <wfs:Abstract>World coastlines at 1:10M scale</wfs:Abstract>
+            <ows:Keywords>
+                <ows:Keyword>coast</ows:Keyword>
+                <ows:Keyword>shoreline</ows:Keyword>
+            </ows:Keywords>
+            <wfs:DefaultCRS>urn:ogc:def:crs:EPSG::4326</wfs:DefaultCRS>
+            <wfs:OtherCRS>urn:ogc:def:crs:EPSG::3857</wfs:OtherCRS>
+            <ows:WGS84BoundingBox>
+                <ows:LowerCorner>-180 -90</ows:LowerCorner>
+                <ows:UpperCorner>180 90</ows:UpperCorner>
+            </ows:WGS84BoundingBox>
+            <wfs:OutputFormats>
+                <wfs:Format>application/gml+xml; version=3.2</wfs:Format>
+                <wfs:Format>application/json</wfs:Format>
+            </wfs:OutputFormats>
+            <wfs:MetadataURL xlink:href="http://example.org/metadata/coastlines.xml"/>
+        </wfs:FeatureType>
+        <wfs:FeatureType>
+            <wfs:Name>topp:countries</wfs:Name>
+            <wfs:Title>Country Boundaries</wfs:Title>
+            <wfs:Abstract>Administrative country boundaries</wfs:Abstract>
+            <wfs:DefaultCRS>urn:ogc:def:crs:EPSG::4326</wfs:DefaultCRS>
+            <ows:WGS84BoundingBox>
+                <ows:LowerCorner>-180 -85</ows:LowerCorner>
+                <ows:UpperCorner>180 84</ows:UpperCorner>
+            </ows:WGS84BoundingBox>
+            <wfs:OutputFormats>
+                <wfs:Format>application/gml+xml; version=3.2</wfs:Format>
+            </wfs:OutputFormats>
+        </wfs:FeatureType>
+    </wfs:FeatureTypeList>
+</wfs:WFS_Capabilities>

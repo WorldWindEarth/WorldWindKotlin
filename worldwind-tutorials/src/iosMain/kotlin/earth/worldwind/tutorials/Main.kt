@@ -145,6 +145,7 @@ object Tutorials {
         // WMS/WMTS take the engine's mainScope as a second parameter.
         TutorialFactory("wmsLayer", "WMS Layer") { e -> WmsLayerTutorial(e, e.renderResourceCache.mainScope) },
         TutorialFactory("wmtsLayer", "WMTS Layer") { e -> WmtsLayerTutorial(e, e.renderResourceCache.mainScope) },
+        TutorialFactory("wfsLayer", "WFS Layer") { e -> WfsLayerTutorial(e, e.renderResourceCache.mainScope) },
         TutorialFactory("wcsElevation", "WCS Elevation", ::WcsElevationTutorial),
         TutorialFactory("elevationHeatmap", "Elevation Heatmap", ::ElevationHeatmapTutorial),
     )

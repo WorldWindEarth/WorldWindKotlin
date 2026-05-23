@@ -366,6 +366,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/wmts_layer_tutorial.html",
                 R.string.title_wmts_layer
             )
+            R.id.nav_wfs_layer_activity -> loadTutorial(
+                WfsLayerFragment::class.java,
+                "file:///android_asset/wfs_layer_tutorial.html",
+                R.string.title_wfs_layer
+            )
             R.id.nav_wcs_elevation_activity -> loadTutorial(
                 WcsElevationFragment::class.java,
                 "file:///android_asset/wcs_elevation_tutorial.html",
