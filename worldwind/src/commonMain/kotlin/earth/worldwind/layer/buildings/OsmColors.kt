@@ -3,22 +3,26 @@ package earth.worldwind.layer.buildings
 import earth.worldwind.render.Color
 
 /**
- * Maps OSM colour/material tags to a wall [Color]. Tries, in order:
+ * Maps OSM tags to a wall [Color]. Tries, in order:
  * 1. `building:colour` or `colour` parsed as `#RRGGBB`/`#RGB`/CSS-name.
  * 2. `building:material` mapped via a small lookup table.
+ * 3. A category tint inferred from `historic` / `tourism` / `amenity` / certain `building=*`
+ *    values (so e.g. museums, churches, and town halls read differently from generic
+ *    residential at-a-glance).
  *
- * Returns `null` when nothing parses, leaving the caller free to use a default. The lookup
- * tables stay small on purpose - they cover what's frequently tagged in OSM. Unknown values
+ * Returns `null` when nothing matches, leaving the caller free to use a default. The lookup
+ * tables stay small on purpose — they cover what's frequently tagged in OSM. Unknown values
  * are treated as "no opinion" rather than guessed at.
  */
 object OsmColors {
     fun resolve(tags: Map<String, String>): Color? {
         parseColor(tags["building:colour"] ?: tags["colour"])?.let { return it }
-        return materialColor(tags["building:material"])
+        materialColor(tags["building:material"])?.let { return it }
+        return categoryColor(tags)
     }
 
     /** Accepts `#RRGGBB`, `#RGB`, `#RRGGBBAA`, or a CSS-style name from [NAMED]. */
-    internal fun parseColor(raw: String?): Color? {
+    fun parseColor(raw: String?): Color? {
         if (raw.isNullOrBlank()) return null
         val s = raw.trim()
         if (s.startsWith("#")) {
@@ -32,6 +36,20 @@ object OsmColors {
     private fun materialColor(raw: String?): Color? {
         if (raw.isNullOrBlank()) return null
         return MATERIALS[raw.trim().lowercase()]
+    }
+
+    /**
+     * Semantic category tint when neither colour nor material is tagged. Checks the most
+     * specific keys first (`historic`, then `tourism`, then `amenity`, then refined
+     * `building=*` values). Tones are muted/architectural; landmarks should stand out from
+     * the gray residential mass without becoming garish.
+     */
+    private fun categoryColor(tags: Map<String, String>): Color? {
+        HISTORIC[tags["historic"]?.lowercase()]?.let { return it }
+        TOURISM[tags["tourism"]?.lowercase()]?.let { return it }
+        AMENITY[tags["amenity"]?.lowercase()]?.let { return it }
+        BUILDING_CATEGORY[tags["building"]?.lowercase()]?.let { return it }
+        return null
     }
 
     /** CSS-ish names commonly seen in OSM `building:colour` / `colour` values. Tones are tuned
@@ -76,5 +94,68 @@ object OsmColors {
         "steel"          to Color(red = 140, green = 140, blue = 150),
         "plaster"        to Color(red = 230, green = 220, blue = 200),
         "cement_block"   to Color(red = 175, green = 175, blue = 165),
+    )
+
+    // Shared palette for the category tints below. Hand-tuned so adjacent categories stay
+    // visually distinct without going garish.
+    private val SANDSTONE   = Color(red = 200, green = 175, blue = 135)
+    private val IVORY       = Color(red = 230, green = 220, blue = 195)
+    private val OFFWHITE    = Color(red = 235, green = 230, blue = 225)
+    private val MUTED_BRICK = Color(red = 165, green = 100, blue =  80)
+    private val MUTED_GOLD  = Color(red = 200, green = 175, blue = 110)
+    private val SLATE_BLUE  = Color(red = 130, green = 150, blue = 175)
+
+    /** `historic=*` → aged-stone tones. */
+    private val HISTORIC: Map<String, Color> = mapOf(
+        "monument"            to SANDSTONE,
+        "memorial"            to SANDSTONE,
+        "castle"              to SANDSTONE,
+        "fort"                to SANDSTONE,
+        "ruins"               to SANDSTONE,
+        "tower"               to SANDSTONE,
+        "archaeological_site" to SANDSTONE,
+        "city_gate"           to SANDSTONE,
+    )
+
+    /** `tourism=*` → subtle slate blue for museums / galleries. */
+    private val TOURISM: Map<String, Color> = mapOf(
+        "museum"     to SLATE_BLUE,
+        "gallery"    to SLATE_BLUE,
+        "artwork"    to SLATE_BLUE,
+        "attraction" to SLATE_BLUE,
+    )
+
+    /** `amenity=*` → distinct tones for worship / civic / medical / education. */
+    private val AMENITY: Map<String, Color> = mapOf(
+        "place_of_worship" to IVORY,
+        "hospital"         to OFFWHITE,
+        "clinic"           to OFFWHITE,
+        "doctors"          to OFFWHITE,
+        "school"           to MUTED_BRICK,
+        "university"       to MUTED_BRICK,
+        "college"          to MUTED_BRICK,
+        "kindergarten"     to MUTED_BRICK,
+        "townhall"         to MUTED_GOLD,
+        "courthouse"       to MUTED_GOLD,
+        "library"          to MUTED_GOLD,
+        "police"           to MUTED_GOLD,
+        "fire_station"     to MUTED_GOLD,
+    )
+
+    /** Refined `building=*` values that imply a category beyond the default-height heuristic. */
+    private val BUILDING_CATEGORY: Map<String, Color> = mapOf(
+        "church"        to IVORY,
+        "cathedral"     to IVORY,
+        "chapel"        to IVORY,
+        "mosque"        to IVORY,
+        "temple"        to IVORY,
+        "synagogue"     to IVORY,
+        "monastery"     to IVORY,
+        "shrine"        to IVORY,
+        "presbytery"    to IVORY,
+        "train_station" to SLATE_BLUE,
+        "stadium"       to OFFWHITE,
+        "museum"        to SLATE_BLUE,
+        "hospital"      to OFFWHITE,
     )
 }

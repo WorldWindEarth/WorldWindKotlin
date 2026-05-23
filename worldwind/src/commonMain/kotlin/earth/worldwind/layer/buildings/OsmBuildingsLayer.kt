@@ -2,6 +2,7 @@ package earth.worldwind.layer.buildings
 
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.Color
@@ -136,8 +137,20 @@ open class OsmBuildingsLayer(
     }
 
     /**
-     * Wrap one [OsmBuilding] in an extruded [Polygon]. Override to customize per-building
-     * style (height-based color, name labels, lighting, …).
+     * Produce the list of [Polygon]s that draw one building. Default is `[toPolygon]` plus an
+     * optional roof cap when `roof:colour` is tagged. Subclasses that want a different polygon
+     * layout (extra spires, mast antennas, …) override this.
+     */
+    protected open fun toPolygons(building: OsmBuilding): List<Polygon> {
+        val wall = toPolygon(building)
+        val cap = roofCap(building) ?: return listOf(wall)
+        return listOf(wall, cap)
+    }
+
+    /**
+     * Wrap one [OsmBuilding] in an extruded wall [Polygon]. Override to customize per-building
+     * shape config (lighting, attributes, displayName, …). To add or replace polygons,
+     * override [toPolygons] instead.
      */
     protected open fun toPolygon(building: OsmBuilding): Polygon {
         val effectiveAttributes = if (useOsmColors) {
@@ -157,6 +170,26 @@ open class OsmBuildingsLayer(
         }
     }
 
+    /**
+     * Optional top-cap polygon painted with `roof:colour`. Returns null when [useOsmColors] is
+     * off or when no parseable `roof:colour` is present. The cap sits 1 cm above the building's
+     * top so it wins the depth test against the extruded wall's top face cleanly without
+     * needing polygon-offset machinery; at building scale 1 cm is invisible.
+     */
+    protected open fun roofCap(building: OsmBuilding): Polygon? {
+        if (!useOsmColors) return null
+        val roofColor = OsmColors.parseColor(building.tags["roof:colour"]) ?: return null
+        val capAltitude = building.height + ROOF_CAP_LIFT_METERS
+        val capRing = building.outerRing.map { Position(it.latitude, it.longitude, capAltitude) }
+        val capAttrs = ShapeAttributes(attributes).apply { interiorColor = roofColor }
+        return Polygon(capRing, capAttrs).apply {
+            altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
+            for (hole in building.innerRings) {
+                addBoundary(hole.map { Position(it.latitude, it.longitude, capAltitude) })
+            }
+        }
+    }
+
     private fun drainResults() {
         while (true) {
             val result = results.tryReceive().getOrNull() ?: return
@@ -172,7 +205,7 @@ open class OsmBuildingsLayer(
 
     private suspend fun fetch(key: TileKey) {
         val polygons = try {
-            semaphore.withPermit { source.fetchBuildings(key.sector).map(::toPolygon) }
+            semaphore.withPermit { source.fetchBuildings(key.sector).flatMap(::toPolygons) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -199,6 +232,10 @@ open class OsmBuildingsLayer(
     private companion object {
         // Latitude at which Web Mercator y reaches ±π. Standard slippy-tile clamp.
         const val MAX_MERCATOR_LAT = 85.0511287798066
+
+        // Roof cap altitude bump above the extruded wall top. 1 cm is invisible at building
+        // scale yet large enough to dominate the depth test on any reasonable depth-buffer.
+        const val ROOF_CAP_LIFT_METERS = 0.01
 
         fun defaultBuildingAttributes(): ShapeAttributes = ShapeAttributes().apply {
             interiorColor = Color(red = 0.80f, green = 0.80f, blue = 0.78f, alpha = 1f)

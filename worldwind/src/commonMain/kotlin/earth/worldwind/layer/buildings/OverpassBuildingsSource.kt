@@ -15,9 +15,14 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Fetches OSM building footprints from a public [Overpass API](https://overpass-api.de/) endpoint.
  *
- * One request per [Sector] is issued, returning all `way`s tagged `building=*` whose geometry is
- * inside the bbox. Relations (multipolygon buildings) are intentionally not assembled here — they
- * are rare for buildings and would require a second round-trip; callers needing them can layer a
+ * One request per [Sector] is issued, returning all `way`s tagged either `building=*` or
+ * `building:part=*` whose geometry is inside the bbox. Parts are emitted alongside their
+ * parent shell (Overpass unions de-dupe by id, so a way tagged both ways still appears once);
+ * each part has its own height/`min_height`, so a tower-on-podium reads as two stacked volumes
+ * without any extra assembly logic.
+ *
+ * Multipolygon (relation-based) buildings are intentionally not assembled here — they are rare
+ * for buildings and would require a second round-trip; callers needing them can layer a
  * relation-aware source on top of this one.
  *
  * Heights are derived via [OsmHeight.resolve]; coordinates are emitted as
@@ -40,7 +45,8 @@ class OverpassBuildingsSource(
         val east = sector.maxLongitude.inDegrees
         val query = """
             [out:json][timeout:$timeout];
-            (way["building"]($south,$west,$north,$east););
+            (way["building"]($south,$west,$north,$east);
+             way["building:part"]($south,$west,$north,$east););
             out tags geom;
         """.trimIndent()
 
@@ -60,6 +66,10 @@ class OverpassBuildingsSource(
         // Only handle ways with inline geometry. Skip nodes (they're isolated points) and
         // relations (would need member assembly, deferred).
         if (element.type != "way" || element.geometry.size < 4) return null
+        // `building=no` and `building:part=no` are OSM conventions for "explicitly not a
+        // building" — Overpass returns them because the tag is present, but we don't want
+        // them rendering as boxes.
+        if (element.tags["building"] == "no" || element.tags["building:part"] == "no") return null
         val (minHeight, height) = OsmHeight.resolve(element.tags)
 
         val ring = ArrayList<Position>(element.geometry.size)
