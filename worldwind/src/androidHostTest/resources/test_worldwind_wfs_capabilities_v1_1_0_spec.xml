@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic WFS 1.1.0 GetCapabilities response used in unit tests. -->
+<wfs:WFS_Capabilities version="1.1.0"
+                      xmlns:wfs="http://www.opengis.net/wfs"
+                      xmlns:ows="http://www.opengis.net/ows"
+                      xmlns:xlink="http://www.w3.org/1999/xlink">
+    <ows:OperationsMetadata>
+        <ows:Operation name="GetCapabilities">
+            <ows:DCP>
+                <ows:HTTP>
+                    <ows:Get xlink:href="http://example.org/wfs?"/>
+                </ows:HTTP>
+            </ows:DCP>
+        </ows:Operation>
+        <ows:Operation name="GetFeature">
+            <ows:DCP>
+                <ows:HTTP>
+                    <ows:Get xlink:href="http://example.org/wfs?"/>
+                </ows:HTTP>
+            </ows:DCP>
+            <ows:Parameter name="outputFormat">
+                <ows:Value>text/xml; subtype=gml/3.1.1</ows:Value>
+                <ows:Value>application/json</ows:Value>
+            </ows:Parameter>
+        </ows:Operation>
+    </ows:OperationsMetadata>
+    <wfs:FeatureTypeList>
+        <wfs:FeatureType>
+            <wfs:Name>topp:states</wfs:Name>
+            <wfs:Title>US States</wfs:Title>
+            <wfs:Abstract>State boundaries</wfs:Abstract>
+            <wfs:DefaultSRS>urn:ogc:def:crs:EPSG::4326</wfs:DefaultSRS>
+            <wfs:OtherSRS>urn:ogc:def:crs:EPSG::3857</wfs:OtherSRS>
+            <ows:WGS84BoundingBox>
+                <ows:LowerCorner>-180 -90</ows:LowerCorner>
+                <ows:UpperCorner>180 90</ows:UpperCorner>
+            </ows:WGS84BoundingBox>
+            <wfs:OutputFormats>
+                <wfs:Format>text/xml; subtype=gml/3.1.1</wfs:Format>
+                <wfs:Format>application/json</wfs:Format>
+            </wfs:OutputFormats>
+        </wfs:FeatureType>
+    </wfs:FeatureTypeList>
+</wfs:WFS_Capabilities>

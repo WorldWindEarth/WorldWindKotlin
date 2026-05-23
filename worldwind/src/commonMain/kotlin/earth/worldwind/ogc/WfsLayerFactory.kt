@@ -4,6 +4,8 @@ import com.eygraber.uri.Uri
 import earth.worldwind.formats.geojson.GeoJsonLayerFactory
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.ogc.wfs.Wfs11Capabilities
+import earth.worldwind.ogc.wfs.Wfs11FeatureType
 import earth.worldwind.ogc.wfs.WfsCapabilities
 import earth.worldwind.ogc.wfs.WfsFeatureType
 import earth.worldwind.ogc.wfs.WfsServiceException
@@ -33,7 +35,8 @@ import nl.adaptivity.xmlutil.serialization.XML
  */
 object WfsLayerFactory {
     private const val SERVICE = "WFS"
-    private const val VERSION = "2.0.0"
+    private const val VERSION_20 = "2.0.0"
+    private const val VERSION_11 = "1.1.0"
     /**
      * Per-request timeouts. WFS capability documents are commonly large (tens or
      * hundreds of feature types) and GetFeature responses can be even larger, so the
@@ -58,7 +61,8 @@ object WfsLayerFactory {
     private val exceptionReportRegex = Regex("<(?:\\w+:)?ExceptionReport\\b")
     private val exceptionCodeRegex = Regex("""exceptionCode\s*=\s*["']([^"']+)["']""")
     private val locatorRegex = Regex("""\blocator\s*=\s*["']([^"']+)["']""")
-    private val exceptionTextRegex = Regex("<(?:\\w+:)?ExceptionText[^>]*>(.*?)</(?:\\w+:)?ExceptionText>", RegexOption.DOT_MATCHES_ALL)
+    // (?s) makes . match newlines — equivalent to DOT_MATCHES_ALL but supported on every Kotlin target.
+    private val exceptionTextRegex = Regex("(?s)<(?:\\w+:)?ExceptionText[^>]*>(.*?)</(?:\\w+:)?ExceptionText>")
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     /** GeoJSON spec keys retained on Feature objects. GeoServer-style extensions such as
      *  `geometry_name` are dropped because [GeoJsonLayerFactory]'s underlying data2viz
@@ -100,23 +104,13 @@ object WfsLayerFactory {
         require(typeName.isNotEmpty()) {
             logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val capabilities = decodeWfsCapabilities(serviceMetadata ?: retrieveWfsCapabilities(serviceAddress))
-        val featureType = capabilities.getFeatureType(typeName) ?: error(
-            makeMessage("WfsLayerFactory", "createLayer", "Specified type name was not found")
-        )
-        val outputFormat = selectGeoJsonFormat(featureType) ?: error(
-            makeMessage(
-                "WfsLayerFactory", "createLayer",
-                "Feature type does not advertise a GeoJSON-compatible output format"
-            )
-        )
-        val getFeatureUrl = determineGetFeatureUrl(featureType, serviceAddress)
-        val featuresUri = Uri.parse(getFeatureUrl).buildUpon()
+        val resolved = resolveFeatureType(serviceAddress, typeName, serviceMetadata)
+        val featuresUri = Uri.parse(resolved.getFeatureUrl).buildUpon()
             .appendQueryParameter("SERVICE", SERVICE)
-            .appendQueryParameter("VERSION", VERSION)
+            .appendQueryParameter("VERSION", resolved.version)
             .appendQueryParameter("REQUEST", "GetFeature")
-            .appendQueryParameter("TYPENAMES", typeName)
-            .appendQueryParameter("OUTPUTFORMAT", outputFormat)
+            .appendQueryParameter(resolved.typeNameParam, typeName)
+            .appendQueryParameter("OUTPUTFORMAT", resolved.outputFormat)
             .apply {
                 if (sector != null) {
                     val bbox = "${sector.minLatitude.inDegrees},${sector.minLongitude.inDegrees}," +
@@ -124,7 +118,7 @@ object WfsLayerFactory {
                     appendQueryParameter("BBOX", bbox)
                     appendQueryParameter("SRSNAME", "urn:ogc:def:crs:EPSG::4326")
                 }
-                maxFeatures?.let { appendQueryParameter("COUNT", it.toString()) }
+                maxFeatures?.let { appendQueryParameter(resolved.countParam, it.toString()) }
                 cqlFilter?.takeIf { it.isNotBlank() }?.let { appendQueryParameter("CQL_FILTER", it) }
             }
             .build()
@@ -133,7 +127,58 @@ object WfsLayerFactory {
         }
         checkForOwsException(responseBody)
         val sanitized = withContext(Dispatchers.Default) { sanitizeGeoJson(responseBody) }
-        return GeoJsonLayerFactory.createLayer(sanitized, displayName ?: featureType.title ?: featureType.name)
+        return GeoJsonLayerFactory.createLayer(sanitized, displayName ?: resolved.displayName)
+    }
+
+    /** Per-version glue: the GetFeature URL, the version string, the chosen output format,
+     *  and the version-specific query parameter names (`TYPENAMES`/`TYPENAME`,
+     *  `COUNT`/`MAXFEATURES`). */
+    internal data class WfsResolved(
+        val version: String,
+        val displayName: String,
+        val getFeatureUrl: String,
+        val outputFormat: String,
+        val typeNameParam: String,
+        val countParam: String,
+    )
+
+    /** Try WFS 2.0 first, fall back to 1.1.0 if 2.0 parsing or feature-type lookup fails. */
+    private suspend fun resolveFeatureType(serviceAddress: String, typeName: String, serviceMetadata: String?): WfsResolved {
+        val caps20Text = serviceMetadata ?: runCatching { retrieveCapabilities(serviceAddress, VERSION_20) }.getOrNull()
+        if (caps20Text != null) {
+            val caps20 = runCatching { decodeWfs20Capabilities(caps20Text) }.getOrNull()
+            val featureType20 = caps20?.getFeatureType(typeName)
+            if (featureType20 != null) {
+                val outputFormat = selectGeoJsonFormat(featureType20) ?: error(
+                    makeMessage("WfsLayerFactory", "resolveFeatureType", "Feature type does not advertise a GeoJSON-compatible output format")
+                )
+                return WfsResolved(
+                    version = VERSION_20,
+                    displayName = featureType20.title ?: featureType20.name,
+                    getFeatureUrl = determineGetFeatureUrl(featureType20, serviceAddress),
+                    outputFormat = outputFormat,
+                    typeNameParam = "TYPENAMES",
+                    countParam = "COUNT",
+                )
+            }
+        }
+        val caps11Text = serviceMetadata ?: runCatching { retrieveCapabilities(serviceAddress, VERSION_11) }.getOrNull()
+            ?: error(makeMessage("WfsLayerFactory", "resolveFeatureType", "Could not retrieve WFS capabilities (tried 2.0.0 and 1.1.0)"))
+        val caps11 = decodeWfs11Capabilities(caps11Text)
+        val featureType11 = caps11.getFeatureType(typeName) ?: error(
+            makeMessage("WfsLayerFactory", "resolveFeatureType", "Specified type name was not found")
+        )
+        val outputFormat = selectGeoJsonFormat11(featureType11) ?: error(
+            makeMessage("WfsLayerFactory", "resolveFeatureType", "Feature type does not advertise a GeoJSON-compatible output format")
+        )
+        return WfsResolved(
+            version = VERSION_11,
+            displayName = featureType11.title ?: featureType11.name,
+            getFeatureUrl = determineGetFeatureUrl11(featureType11, serviceAddress),
+            outputFormat = outputFormat,
+            typeNameParam = "TYPENAME",
+            countParam = "MAXFEATURES",
+        )
     }
 
     /**
@@ -179,11 +224,11 @@ object WfsLayerFactory {
      * @param serviceAddress the WFS service address
      * @return WFS 2.0.0 service capabilities
      */
-    suspend fun getCapabilities(serviceAddress: String) = decodeWfsCapabilities(retrieveWfsCapabilities(serviceAddress))
+    suspend fun getCapabilities(serviceAddress: String) = decodeWfs20Capabilities(retrieveCapabilities(serviceAddress, VERSION_20))
 
-    private suspend fun retrieveWfsCapabilities(serviceAddress: String) = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
+    private suspend fun retrieveCapabilities(serviceAddress: String, version: String) = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
-            .appendQueryParameter("VERSION", VERSION)
+            .appendQueryParameter("VERSION", version)
             .appendQueryParameter("SERVICE", SERVICE)
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
@@ -199,14 +244,18 @@ object WfsLayerFactory {
      */
     internal fun checkForOwsException(body: String) {
         if (!exceptionReportRegex.containsMatchIn(body)) return
-        val code = exceptionCodeRegex.find(body)?.groupValues?.get(1)
-        val locator = locatorRegex.find(body)?.groupValues?.get(1)
-        val text = exceptionTextRegex.find(body)?.groupValues?.get(1)?.trim()
+        val code = exceptionCodeRegex.find(body)?.groups?.get(1)?.value
+        val locator = locatorRegex.find(body)?.groups?.get(1)?.value
+        val text = exceptionTextRegex.find(body)?.groups?.get(1)?.value?.trim()
         throw WfsServiceException(code, text, locator)
     }
 
-    private suspend fun decodeWfsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {
+    private suspend fun decodeWfs20Capabilities(xmlText: String) = withContext(Dispatchers.Default) {
         xml.decodeFromString<WfsCapabilities>(xmlText)
+    }
+
+    private suspend fun decodeWfs11Capabilities(xmlText: String) = withContext(Dispatchers.Default) {
+        xml.decodeFromString<Wfs11Capabilities>(xmlText)
     }
 
     /**
@@ -232,6 +281,24 @@ object WfsLayerFactory {
         val operations = featureType.capabilities.operationsMetadata?.operations.orEmpty()
         val getFeature = operations.firstOrNull { it.name == "GetFeature" }
         val getMethodUrl = getFeature?.dcps?.firstOrNull()?.getMethods?.firstOrNull()?.url
+        return getMethodUrl?.takeIf { it.isNotBlank() } ?: fallback
+    }
+
+    /** WFS 1.1.0 counterpart to [selectGeoJsonFormat]. */
+    internal fun selectGeoJsonFormat11(featureType: Wfs11FeatureType): String? {
+        val advertised = mutableListOf<String>()
+        advertised += featureType.outputFormats
+        featureType.capabilities.operationsMetadata?.operations
+            ?.firstOrNull { it.name == "GetFeature" }
+            ?.parameters?.firstOrNull { it.name == "outputFormat" }
+            ?.allowedValues?.let { advertised += it }
+        return geoJsonOutputFormats.firstOrNull { f -> advertised.any { it.equals(f, ignoreCase = true) } }
+    }
+
+    private fun determineGetFeatureUrl11(featureType: Wfs11FeatureType, fallback: String): String {
+        val operations = featureType.capabilities.operationsMetadata?.operations.orEmpty()
+        val getFeature = operations.firstOrNull { it.name == "GetFeature" }
+        val getMethodUrl = getFeature?.dcps?.firstOrNull()?.http?.getMethods?.firstOrNull()?.url
         return getMethodUrl?.takeIf { it.isNotBlank() } ?: fallback
     }
 }
