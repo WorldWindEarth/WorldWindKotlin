@@ -7,6 +7,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
+import earth.worldwind.shape.PathType
 import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.util.LruMemoryCache
@@ -32,7 +33,7 @@ import kotlin.math.tan
  * Renders OpenStreetMap-derived schematic 3D buildings. Footprints + height tags are fetched
  * on demand for the visible region via an [OsmBuildingsSource] (defaults to [OverpassBuildingsSource]),
  * locally extruded into [Polygon]s with [AltitudeMode.RELATIVE_TO_GROUND], and cached per
- * slippy-map tile. Visual approximation of Cesium OSM Buildings — fully open, no API key.
+ * slippy-map tile.
  *
  * ```
  * val buildings = OsmBuildingsLayer()
@@ -60,7 +61,7 @@ open class OsmBuildingsLayer(
      * When true, [toPolygon] consults [OsmColors] on each [OsmBuilding] and overrides the
      * polygon's [interiorColor][ShapeAttributes.interiorColor] with the colour derived from
      * `building:colour` / `colour` / `building:material` tags. Buildings without any of those
-     * tags keep [attributes] unchanged. Off by default for Cesium-style uniform-gray output.
+     * tags keep [attributes] unchanged. Off by default for uniform-gray output.
      */
     val useOsmColors: Boolean = false,
     displayName: String? = "OSM Buildings",
@@ -96,16 +97,29 @@ open class OsmBuildingsLayer(
         val cx = centerXY.first
         val cy = centerXY.second
 
-        for (dy in -tileRadius..tileRadius) {
+        // Center-first spiral: the centre tile, then each Chebyshev ring outward. Tiles near
+        // the camera focus enter the fetch queue ahead of corner tiles, which dramatically
+        // shortens the time before *something* visible appears around the user's view target
+        // when the Overpass mirror is slow.
+        for ((dx, dy) in spiralOffsets) {
             val y = cy + dy
             if (y !in 0 until n) continue
-            for (dx in -tileRadius..tileRadius) {
-                // Wrap longitudinally so a tile-radius window straddling the antimeridian still works.
-                val x = ((cx + dx) % n + n) % n
-                processTile(rc, TileKey(tileZoom, x, y))
-            }
+            // Wrap longitudinally so a tile-radius window straddling the antimeridian still works.
+            val x = ((cx + dx) % n + n) % n
+            processTile(rc, TileKey(tileZoom, x, y))
         }
     }
+
+    /**
+     * Cached (dx, dy) offsets ordered by Chebyshev distance from (0, 0). Precomputed once at
+     * layer construction so [doRender] doesn't allocate per frame (and tiebreaks are stable
+     * regardless of JVM/JS sort behaviour).
+     */
+    private val spiralOffsets: List<Pair<Int, Int>> = buildList {
+        for (dy in -tileRadius..tileRadius) {
+            for (dx in -tileRadius..tileRadius) add(dx to dy)
+        }
+    }.sortedBy { (dx, dy) -> maxOf(kotlin.math.abs(dx), kotlin.math.abs(dy)) }
 
     private fun processTile(rc: RenderContext, key: TileKey) {
         val polygons = tiles[key]
@@ -165,16 +179,21 @@ open class OsmBuildingsLayer(
             isExtrude = true
             altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
             baseAltitude = building.minHeight
+            // Floating parts (tower on a podium) need a flat bottom; ground-floor walls
+            // (minHeight == 0) keep the default draping skirt so they sit flush on slopes.
+            isPlanar = building.minHeight > 0.0
+            // LINEAR skips great-circle's 63-slot per-edge pre-allocation — at building
+            // scale no intermediates are emitted anyway and the spare slots OOM on Android.
+            pathType = PathType.LINEAR
             building.name?.let { displayName = it }
             for (hole in building.innerRings) addBoundary(hole)
         }
     }
 
     /**
-     * Optional top-cap polygon painted with `roof:colour`. Returns null when [useOsmColors] is
-     * off or when no parseable `roof:colour` is present. The cap sits 1 cm above the building's
-     * top so it wins the depth test against the extruded wall's top face cleanly without
-     * needing polygon-offset machinery; at building scale 1 cm is invisible.
+     * Optional top-cap polygon painted with `roof:colour`. Null when [useOsmColors] is off
+     * or no parseable `roof:colour` is present. [Polygon.isPlanar] keeps the cap flush with
+     * the wall top on sloped ground.
      */
     protected open fun roofCap(building: OsmBuilding): Polygon? {
         if (!useOsmColors) return null
@@ -184,6 +203,8 @@ open class OsmBuildingsLayer(
         val capAttrs = ShapeAttributes(attributes).apply { interiorColor = roofColor }
         return Polygon(capRing, capAttrs).apply {
             altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
+            isPlanar = true
+            pathType = PathType.LINEAR
             for (hole in building.innerRings) {
                 addBoundary(hole.map { Position(it.latitude, it.longitude, capAltitude) })
             }
@@ -233,8 +254,8 @@ open class OsmBuildingsLayer(
         // Latitude at which Web Mercator y reaches ±π. Standard slippy-tile clamp.
         const val MAX_MERCATOR_LAT = 85.0511287798066
 
-        // Roof cap altitude bump above the extruded wall top. 1 cm is invisible at building
-        // scale yet large enough to dominate the depth test on any reasonable depth-buffer.
+        // Roof-cap lift above the wall top. 1 cm is invisible at building scale yet wins
+        // the depth test against the wall top cleanly without polygon-offset machinery.
         const val ROOF_CAP_LIFT_METERS = 0.01
 
         fun defaultBuildingAttributes(): ShapeAttributes = ShapeAttributes().apply {

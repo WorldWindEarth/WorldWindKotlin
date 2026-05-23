@@ -6,6 +6,7 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.layer.buildings.OverpassBuildingsSource
 
 /**
  * Schematic 3D buildings from OpenStreetMap. Demonstrates [OsmBuildingsLayer] hitting the
@@ -28,7 +29,19 @@ class OsmBuildingsTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun start() {
         super.start()
-        val layer = OsmBuildingsLayer(useOsmColors = true).also { buildings = it }
+        // overpass-api.de saturates its TCP connection queue frequently (ERR_CONNECTION_REFUSED
+        // at the socket layer, not an HTTP 429/403 — so not a ban, just operator capacity).
+        // kumi.systems is an independent community mirror with the same API. The library default
+        // still points at the canonical endpoint; production users should run their own Overpass
+        // instance anyway, per the source's KDoc.
+        val layer = OsmBuildingsLayer(
+            source = OverpassBuildingsSource(endpoint = "https://overpass.kumi.systems/api/interpreter"),
+            // Library default is 2 (conservative for the canonical overpass-api.de instance);
+            // bump for the demo so 81 tiles finish in reasonable time. Stays within fair-use
+            // guidance for public mirrors (Overpass etiquette suggests <= 6 in flight per IP).
+            maxConcurrentFetches = 4,
+            useOsmColors = true,
+        ).also { buildings = it }
         engine.layers.addLayer(layer)
         engine.cameraFromLookAt(
             LookAt(

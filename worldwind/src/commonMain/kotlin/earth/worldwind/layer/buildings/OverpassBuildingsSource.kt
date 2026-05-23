@@ -79,6 +79,9 @@ class OverpassBuildingsSource(
         // some platforms.
         if (ring.size >= 2 && ring.first() == ring.last()) ring.removeAt(ring.lastIndex)
         if (ring.size < 3) return null
+        // OSM ring winding isn't enforced; CW outer rings flip the roof normal DOWN
+        // (culled from above) and walls INWARD. Normalise to CCW for Polygon's tessellator.
+        if (isClockwise(ring)) ring.reverse()
 
         return OsmBuilding(
             id = "way/${element.id}",
@@ -106,5 +109,17 @@ class OverpassBuildingsSource(
 
     private companion object {
         val JSON = Json { ignoreUnknownKeys = true; isLenient = true }
+
+        /** Shoelace signed-area sign in lon/lat space (positive = CCW). Only the sign matters. */
+        fun isClockwise(ring: List<Position>): Boolean {
+            var sum = 0.0
+            for (i in ring.indices) {
+                val a = ring[i]
+                val b = ring[(i + 1) % ring.size]
+                sum += a.longitude.inDegrees * b.latitude.inDegrees -
+                       b.longitude.inDegrees * a.latitude.inDegrees
+            }
+            return sum < 0
+        }
     }
 }

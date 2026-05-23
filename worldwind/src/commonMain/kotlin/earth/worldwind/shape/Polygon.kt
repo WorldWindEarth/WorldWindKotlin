@@ -70,7 +70,41 @@ open class Polygon @JvmOverloads constructor(
     protected val data = mutableMapOf<Globe.State?, PolygonData>()
     protected val interiorTexCoordCache = TexCoordCache()
     protected val outlineTexCoordCache = TexCoordCache()
-    protected val isPlain get() = altitudeMode == AltitudeMode.RELATIVE_TO_GROUND && isExtrude && !isFollowTerrain
+    /**
+     * Opt in to flat geometry under [AltitudeMode.RELATIVE_TO_GROUND]: vertex altitudes anchor
+     * to a single terrain sample at the polygon's reference position. Default `false` keeps
+     * per-vertex draping (KML 2.x semantics). Set `true` for a fixed-AGL surface or a floating
+     * extruded slab (non-zero [baseAltitude] without a ground-anchored foundation); on
+     * extruded shapes it flattens the skirt too.
+     */
+    var isPlanar = false
+        set(value) { field = value; reset() }
+
+    // Derived gate for the "single terrain sample" assembly path; reached via [isExtrude]
+    // (extruded top needs a planar reference) or the explicit [isPlanar]. [isFollowTerrain]
+    // dominates - the way to force per-vertex draping back on.
+    protected val isPlainAssembly get() =
+        altitudeMode == AltitudeMode.RELATIVE_TO_GROUND && (isExtrude || isPlanar) && !isFollowTerrain
+
+    /** Anchors the extruded skirt to the same single terrain sample as the top when
+     *  [isPlanar] is set so a floating slab stays planar; otherwise the skirt drapes. */
+    override fun calcPoint(
+        rc: RenderContext, latitude: Angle, longitude: Angle, altitude: Double,
+        isAbsolute: Boolean, isExtrudedSkirt: Boolean,
+    ) {
+        val topAltitudeMode = if (isAbsolute || isSurfaceShape) AltitudeMode.ABSOLUTE else altitudeMode
+        rc.geographicToCartesian(latitude, longitude, altitude, topAltitudeMode, point, useEM = true)
+        if (isExtrudedSkirt && !isSurfaceShape) {
+            if (isPlanar && isPlainAssembly) {
+                val skirtAlt = baseAltitude + currentData.savedRefAlt
+                rc.geographicToCartesian(latitude, longitude, skirtAlt, AltitudeMode.ABSOLUTE, vertPoint, useEM = true)
+            } else if (altitude == baseAltitude) {
+                vertPoint.copy(point)
+            } else {
+                rc.geographicToCartesian(latitude, longitude, baseAltitude, altitudeMode, vertPoint, useEM = true)
+            }
+        }
+    }
     protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
         override fun combineData(
             coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any?
@@ -548,7 +582,7 @@ open class Polygon @JvmOverloads constructor(
         currentData.verticalElements.clear()
 
         // Get reference point altitude
-        currentData.savedRefAlt = if (isPlain) {
+        currentData.savedRefAlt = if (isPlainAssembly) {
             val refPos = referencePosition
             rc.globe.getElevation(refPos.latitude, refPos.longitude)
         } else 0.0
@@ -585,7 +619,7 @@ open class Polygon @JvmOverloads constructor(
                     for ((k, loc) in polygon.withIndex()) {
                         val alt = (if (loc is Position) loc.altitude else 0.0) + savedRefAlt
                         val splitterInserted = iMap[k] != null
-                        calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
+                        calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlainAssembly)
                         addVertex(
                             rc, loc.latitude, loc.longitude, alt,
                             type = if (splitterInserted) VERTEX_INTERMEDIATE else VERTEX_ORIGINAL
@@ -610,7 +644,7 @@ open class Polygon @JvmOverloads constructor(
                 val pos0 = positions[0]
                 var begin = pos0
                 var beginAltitude = begin.altitude + currentData.savedRefAlt
-                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain)
+                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlainAssembly)
                 addVertex(rc, begin.latitude, begin.longitude, beginAltitude, type = VERTEX_ORIGINAL)
                 currentData.outlineChainStarts.add(currentData.outlineElements.size)
                 addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = true)
@@ -621,7 +655,7 @@ open class Polygon @JvmOverloads constructor(
                     val addIndices = idx != positions.size - 1 || end != pos0
                     addIntermediateVertices(rc, begin, end)
                     val endAltitude = end.altitude + currentData.savedRefAlt
-                    calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlain)
+                    calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlainAssembly)
                     addVertex(rc, end.latitude, end.longitude, endAltitude, type = VERTEX_ORIGINAL)
                     addLineVertex(rc, end.latitude, end.longitude, endAltitude, isIntermediate = false, addIndices)
                     begin = end
@@ -631,11 +665,11 @@ open class Polygon @JvmOverloads constructor(
                 if (begin != pos0) {
                     addIntermediateVertices(rc, begin, pos0)
                     val pos0Altitude = pos0.altitude + currentData.savedRefAlt
-                    calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlainAssembly, isExtrudedSkirt = false)
                     addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
                     addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
                 } else {
-                    calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlainAssembly, isExtrudedSkirt = false)
                     addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
                 }
                 currentData.outlineElements.removeLast(6)
@@ -708,7 +742,7 @@ open class Polygon @JvmOverloads constructor(
                     if (pCount % 2 == 1) {
                         // End the current chain at this pole point, then close it.
                         val alt = altOf(loc)
-                        calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain, isExtrudedSkirt = false)
+                        calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlainAssembly, isExtrudedSkirt = false)
                         if (chainStarted) {
                             addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = true)
                             addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = false)
@@ -723,7 +757,7 @@ open class Polygon @JvmOverloads constructor(
                 if (pCount % 2 == 0) {
                     val alt = altOf(loc)
                     val isOrig = isOriginalAt(k)
-                    calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
+                    calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlainAssembly)
                     if (!chainStarted) {
                         // Start a new chain with a duplicate "before-first" dummy.
                         currentData.outlineChainStarts.add(currentData.outlineElements.size)
@@ -739,7 +773,7 @@ open class Polygon @JvmOverloads constructor(
                 // Close the last chain.
                 val last = polygon.last()
                 val alt = altOf(last)
-                calcPoint(rc, last.latitude, last.longitude, alt, isAbsolute = isPlain, isExtrudedSkirt = false)
+                calcPoint(rc, last.latitude, last.longitude, alt, isAbsolute = isPlainAssembly, isExtrudedSkirt = false)
                 addLineVertex(rc, last.latitude, last.longitude, alt, isIntermediate = true, addIndices = false)
                 currentData.outlineElements.removeLast(6)
             }
@@ -750,7 +784,7 @@ open class Polygon @JvmOverloads constructor(
             val first = polygon[0]
             val firstAlt = altOf(first)
             val firstIsOrig = isOriginalAt(0)
-            calcPoint(rc, first.latitude, first.longitude, firstAlt, isAbsolute = isPlain)
+            calcPoint(rc, first.latitude, first.longitude, firstAlt, isAbsolute = isPlainAssembly)
             currentData.outlineChainStarts.add(currentData.outlineElements.size)
             addLineVertex(rc, first.latitude, first.longitude, firstAlt, isIntermediate = true, addIndices = true)
             addLineVertex(rc, first.latitude, first.longitude, firstAlt, isIntermediate = !firstIsOrig, addIndices = true)
@@ -759,13 +793,13 @@ open class Polygon @JvmOverloads constructor(
                 val loc = polygon[k]
                 val alt = altOf(loc)
                 val isOrig = isOriginalAt(k)
-                calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlain)
+                calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlainAssembly)
                 addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = !isOrig, addIndices = true)
             }
 
             val last = polygon.last()
             val lastAlt = altOf(last)
-            calcPoint(rc, last.latitude, last.longitude, lastAlt, isAbsolute = isPlain, isExtrudedSkirt = false)
+            calcPoint(rc, last.latitude, last.longitude, lastAlt, isAbsolute = isPlainAssembly, isExtrudedSkirt = false)
             addLineVertex(rc, last.latitude, last.longitude, lastAlt, isIntermediate = true, addIndices = false)
             currentData.outlineElements.removeLast(6)
         }
@@ -773,7 +807,7 @@ open class Polygon @JvmOverloads constructor(
 
     protected open fun assembleGeometryPositions(rc: RenderContext) = with(currentData) {
         // Update terrain-dependent altitude baseline for RELATIVE_TO_GROUND extruded shapes
-        val newRefAlt = if (isPlain) {
+        val newRefAlt = if (isPlainAssembly) {
             val refPos = referencePosition
             rc.globe.getElevation(refPos.latitude, refPos.longitude)
         } else 0.0
@@ -792,7 +826,7 @@ open class Polygon @JvmOverloads constructor(
             val lon = geographicVertexArray[geoIdx].toDouble().degrees
             val lat = geographicVertexArray[geoIdx + 1].toDouble().degrees
             val alt = geographicVertexArray[geoIdx + 2].toDouble()
-            calcPoint(rc, lat, lon, alt, isAbsolute = isPlain)
+            calcPoint(rc, lat, lon, alt, isAbsolute = isPlainAssembly)
             if (i == 0) vertexOrigin.copy(point)
             val texCoord2d = texCoord2d.copy(point).multiplyByMatrix(modelToTexCoord)
             val arrayIdx = i * vertexStride
@@ -819,14 +853,14 @@ open class Polygon @JvmOverloads constructor(
                 val pos0 = positions[0]
                 var begin = pos0
                 var beginAltitude = begin.altitude + savedRefAlt
-                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain)
+                calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlainAssembly)
                 addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
                 addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = false, addIndices = false)
                 for (idx in 1 until positions.size) {
                     val end = positions[idx]
                     addIntermediateLineVertices(rc, begin, end)
                     val endAltitude = end.altitude + savedRefAlt
-                    calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlain)
+                    calcPoint(rc, end.latitude, end.longitude, endAltitude, isAbsolute = isPlainAssembly)
                     addLineVertex(rc, end.latitude, end.longitude, endAltitude, isIntermediate = false, addIndices = false)
                     begin = end
                     beginAltitude = endAltitude
@@ -834,11 +868,11 @@ open class Polygon @JvmOverloads constructor(
                 if (begin != pos0) {
                     addIntermediateLineVertices(rc, begin, pos0)
                     val pos0Altitude = pos0.altitude + savedRefAlt
-                    calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    calcPoint(rc, pos0.latitude, pos0.longitude, pos0Altitude, isAbsolute = isPlainAssembly, isExtrudedSkirt = false)
                     addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
                     addLineVertex(rc, pos0.latitude, pos0.longitude, pos0Altitude, isIntermediate = true, addIndices = false)
                 } else {
-                    calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlain, isExtrudedSkirt = false)
+                    calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlainAssembly, isExtrudedSkirt = false)
                     addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = false)
                 }
             }
@@ -978,7 +1012,7 @@ open class Polygon @JvmOverloads constructor(
         while (t < 1.0) {
             begin.interpolateAlongPath(end, pathType, t, pos)
             val alt = pos.altitude + currentData.savedRefAlt
-            calcPoint(rc, pos.latitude, pos.longitude, alt, isAbsolute = isPlain)
+            calcPoint(rc, pos.latitude, pos.longitude, alt, isAbsolute = isPlainAssembly)
             addVertex(rc, pos.latitude, pos.longitude, alt, type = VERTEX_INTERMEDIATE)
             addLineVertex(rc, pos.latitude, pos.longitude, alt, isIntermediate = true, addIndices = true)
             t += dt
@@ -1002,7 +1036,7 @@ open class Polygon @JvmOverloads constructor(
         while (t < 1.0) {
             begin.interpolateAlongPath(end, pathType, t, pos)
             val alt = pos.altitude + currentData.savedRefAlt
-            calcPoint(rc, pos.latitude, pos.longitude, alt, isAbsolute = isPlain)
+            calcPoint(rc, pos.latitude, pos.longitude, alt, isAbsolute = isPlainAssembly)
             addLineVertex(rc, pos.latitude, pos.longitude, alt, isIntermediate = true, addIndices = false)
             t += dt
         }
@@ -1217,7 +1251,7 @@ open class Polygon @JvmOverloads constructor(
             latitude = coords[1].degrees
             altitude = coords[2]
         }
-        calcPoint(rc, latitude, longitude, altitude, isAbsolute = isPlain)
+        calcPoint(rc, latitude, longitude, altitude, isAbsolute = isPlainAssembly)
         val combinedIdx = addVertex(rc, latitude, longitude, altitude, type = VERTEX_COMBINED)
         outData[0] = combinedIdx
     }

@@ -3,7 +3,7 @@ package earth.worldwind.layer.buildings
 /**
  * Resolves an OSM tag bag to a (minHeight, height) pair in meters.
  *
- * Order of preference, matching Cesium / OSM2World convention:
+ * Order of preference:
  * 1. Explicit `height` or `building:height` tag (with optional unit suffix `m` / `ft`).
  * 2. `building:levels` (× [METERS_PER_LEVEL]) plus optional `roof:height`.
  * 3. [defaultHeight] fallback (chosen by `building=*` value, see [defaultHeightForBuilding]).
