@@ -21,10 +21,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlin.math.PI
+import kotlin.time.Clock
 import kotlin.math.asinh
 import kotlin.math.atan
 import kotlin.math.sinh
@@ -116,6 +118,11 @@ open class OsmBuildingsLayer(
         }
     }
     private val pending = HashSet<TileKey>()
+    // Exponential backoff per failed tile key: each entry's [BackoffEntry.nextRetryEpochMs]
+    // bars [processTile] from re-launching a fetch until the deadline passes. Cleared on the
+    // first successful fetch for that key. Without this, a flapping Overpass mirror (429 / 503
+    // under load) would get hammered every render frame.
+    private val backoff = HashMap<TileKey, BackoffEntry>()
     private var isClosed = false
 
     init {
@@ -175,9 +182,19 @@ open class OsmBuildingsLayer(
                 logMessage(ERROR, "OsmBuildingsLayer", "doRender",
                     "Exception while rendering building tile $key", e)
             }
-        } else if (!isClosed && pending.add(key)) {
+        } else if (!isClosed && !isInBackoff(key) && pending.add(key)) {
             scope.launch { fetch(key) }
         }
+    }
+
+    /**
+     * True when [key] is in its backoff window after a recent fetch failure. Reading the entry
+     * without removing it lets repeated failures keep bumping [BackoffEntry.failCount]; the entry
+     * is cleared only on a successful fetch (see [drainResults]).
+     */
+    private fun isInBackoff(key: TileKey): Boolean {
+        val entry = backoff[key] ?: return false
+        return Clock.System.now().toEpochMilliseconds() < entry.nextRetryEpochMs
     }
 
     /**
@@ -205,6 +222,7 @@ open class OsmBuildingsLayer(
         cachedValues.clear()
         tiles.clear()
         pending.clear()
+        backoff.clear()
     }
 
     /**
@@ -288,11 +306,34 @@ open class OsmBuildingsLayer(
         while (true) {
             val result = results.tryReceive().getOrNull() ?: return
             pending.remove(result.key)
-            val value = result.value ?: continue
+            val value = result.value
+            if (value == null) {
+                // Fetch failed. Bump per-key backoff and schedule a redraw for when it expires
+                // so an idle scene still picks the retry up without further user input.
+                val entry = backoff.getOrPut(result.key) { BackoffEntry() }
+                entry.failCount++
+                val delayMs = backoffDelayMs(entry.failCount)
+                entry.nextRetryEpochMs = Clock.System.now().toEpochMilliseconds() + delayMs
+                scheduleBackoffRedraw(delayMs)
+                continue
+            }
+            // Success: clear any prior backoff and cache.
+            backoff.remove(result.key)
             // Weight = 1 per tile so [maxLoadedTiles] really is a tile count. Per-Polygon mode
             // earlier tried `polygons.size` and trashed the cache — see git history.
             cachedValues.add(value)
             tiles.put(result.key, value, 1)
+        }
+    }
+
+    /**
+     * Schedule a wake-up redraw after [delayMs] so a failed tile retries even when the user has
+     * stopped interacting. The coroutine lives on [scope] so [close] cancels it cleanly.
+     */
+    private fun scheduleBackoffRedraw(delayMs: Long) {
+        scope.launch {
+            delay(delayMs)
+            WorldWind.requestRedraw()
         }
     }
 
@@ -327,9 +368,30 @@ open class OsmBuildingsLayer(
 
     private data class TileResult(val key: TileKey, val value: Any?)
 
+    /**
+     * Mutable per-key fetch-failure state. [failCount] is the streak length (cleared on success);
+     * [nextRetryEpochMs] is the earliest Unix-ms timestamp at which [processTile] may re-launch.
+     */
+    private class BackoffEntry {
+        var failCount: Int = 0
+        var nextRetryEpochMs: Long = 0L
+    }
+
     companion object {
         // Latitude at which Web Mercator y reaches ±π. Standard slippy-tile clamp.
         const val MAX_MERCATOR_LAT: Double = 85.0511287798066
+
+        /**
+         * Exponential backoff schedule (in ms) for failed tile fetches: 2 s, 5 s, 15 s, then
+         * capped at 60 s. Conservative enough that a recovering Overpass mirror sees normal
+         * traffic, aggressive enough that transient failures retry quickly.
+         */
+        private fun backoffDelayMs(failCount: Int): Long = when (failCount) {
+            1 -> 2_000
+            2 -> 5_000
+            3 -> 15_000
+            else -> 60_000
+        }
 
         // Roof-cap lift above the wall top. 1 cm is invisible at building scale yet wins
         // the depth test against the wall top cleanly without polygon-offset machinery.
