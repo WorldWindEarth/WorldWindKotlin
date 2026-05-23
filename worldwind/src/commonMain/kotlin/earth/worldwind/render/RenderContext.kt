@@ -45,6 +45,24 @@ open class RenderContext {
          * to disable.
          */
         var maxAssemblyTimeMillis = 8L
+        /**
+         * Page-aligned size used to charge a [BufferObject] against [RenderResourceCache]. GPU
+         * drivers (Adreno KGSL, recent Mali, desktop Mesa) back every buffer with at least one
+         * mmap'd page even when the data is a few hundred bytes, so the kernel's GPU shared-memory
+         * pool runs out by *buffer count* long before raw byte volume becomes a concern. Charging
+         * the cache by `ceil(bytes / pageSize) * pageSize` makes its LRU eviction react to the
+         * real GPU footprint rather than the data-bytes lower bound. 4 KB matches the common ARM
+         * and x86_64 page size; some recent Pixel/Galaxy phones run a 16 KB page-size kernel but
+         * the buffer is still aligned at 4 KB inside that — undercount remains safe, the bound
+         * just isn't perfectly tight there.
+         */
+        @PublishedApi internal const val BUFFER_GPU_FOOTPRINT_PAGE_SIZE = 4096
+
+        // @PublishedApi (instead of `private`) so the [offerGLBufferUpload] inline call site can
+        // resolve this from external compilation units. Logically internal to RenderContext.
+        @PublishedApi internal fun bufferGpuFootprint(bytes: Int): Int =
+            if (bytes <= 0) 0
+            else ((bytes + BUFFER_GPU_FOOTPRINT_PAGE_SIZE - 1) / BUFFER_GPU_FOOTPRINT_PAGE_SIZE) * BUFFER_GPU_FOOTPRINT_PAGE_SIZE
     }
 
     lateinit var globe: Globe
@@ -422,7 +440,7 @@ open class RenderContext {
     fun getTexture(imageSource: ImageSource, imageOptions: ImageOptions? = null, retrieve: Boolean = true) =
         renderResourceCache.run { get(imageSource) ?: if (retrieve) retrieveTexture(imageSource, imageOptions) else null } as Texture?
 
-    fun getBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, it.byteCount) } } as BufferObject
+    fun getBufferObject(key: Any, builder: () -> BufferObject) = renderResourceCache.run { get(key) ?: builder().also { put(key, it, bufferGpuFootprint(it.byteCount)) } } as BufferObject
 
     fun getText(text: String?, attributes: TextAttributes, render: Boolean = true) = renderResourceCache.run {
         scratchTextCacheKey.text = text
@@ -439,7 +457,7 @@ open class RenderContext {
             if (buffer.version < newVersion) {
                 val array = arrayBuilder()
                 uploadQueue?.queueBufferUpload(buffer, array, newVersion)
-                renderResourceCache.updateSize(key, array.byteCount)
+                renderResourceCache.updateSize(key, bufferGpuFootprint(array.byteCount))
             }
         }
     }
