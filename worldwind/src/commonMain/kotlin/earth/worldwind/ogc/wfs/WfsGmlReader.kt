@@ -1,3 +1,5 @@
+@file:OptIn(nl.adaptivity.xmlutil.XmlUtilInternal::class)
+
 package earth.worldwind.ogc.wfs
 
 import earth.worldwind.geom.AltitudeMode
