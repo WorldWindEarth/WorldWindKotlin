@@ -8,6 +8,7 @@ import earth.worldwind.ogc.wfs.Wfs11Capabilities
 import earth.worldwind.ogc.wfs.Wfs11FeatureType
 import earth.worldwind.ogc.wfs.WfsCapabilities
 import earth.worldwind.ogc.wfs.WfsFeatureType
+import earth.worldwind.ogc.wfs.WfsGmlReader
 import earth.worldwind.ogc.wfs.WfsServiceException
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -56,6 +57,15 @@ object WfsLayerFactory {
         "json",
         "GEOJSON",
         "geojson",
+    )
+    /** GML output formats accepted as a fallback when no GeoJSON variant is advertised.
+     *  Decoded by [WfsGmlReader]. Listed in preference order — GML 3.2 first. */
+    private val gmlOutputFormats = listOf(
+        "application/gml+xml; version=3.2",
+        "text/xml; subtype=gml/3.2",
+        "text/xml; subtype=gml/3.1.1",
+        "GML3",
+        "GML2",
     )
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
     private val exceptionReportRegex = Regex("<(?:\\w+:)?ExceptionReport\\b")
@@ -126,18 +136,25 @@ object WfsLayerFactory {
             httpClient.get(featuresUri.toString()) { expectSuccess = true }.bodyAsText()
         }
         checkForOwsException(responseBody)
-        val sanitized = withContext(Dispatchers.Default) { sanitizeGeoJson(responseBody) }
-        return GeoJsonLayerFactory.createLayer(sanitized, displayName ?: resolved.displayName)
+        val finalName = displayName ?: resolved.displayName
+        return if (resolved.isGml) {
+            val renderables = withContext(Dispatchers.Default) { WfsGmlReader.parseFeatures(responseBody) }
+            RenderableLayer(finalName).apply { addAllRenderables(renderables) }
+        } else {
+            val sanitized = withContext(Dispatchers.Default) { sanitizeGeoJson(responseBody) }
+            GeoJsonLayerFactory.createLayer(sanitized, finalName)
+        }
     }
 
-    /** Per-version glue: the GetFeature URL, the version string, the chosen output format,
-     *  and the version-specific query parameter names (`TYPENAMES`/`TYPENAME`,
-     *  `COUNT`/`MAXFEATURES`). */
+    /** Per-version glue: the GetFeature URL, the version string, the chosen output format
+     *  (and whether it's GML rather than GeoJSON), and the version-specific query
+     *  parameter names (`TYPENAMES`/`TYPENAME`, `COUNT`/`MAXFEATURES`). */
     internal data class WfsResolved(
         val version: String,
         val displayName: String,
         val getFeatureUrl: String,
         val outputFormat: String,
+        val isGml: Boolean,
         val typeNameParam: String,
         val countParam: String,
     )
@@ -149,14 +166,15 @@ object WfsLayerFactory {
             val caps20 = runCatching { decodeWfs20Capabilities(caps20Text) }.getOrNull()
             val featureType20 = caps20?.getFeatureType(typeName)
             if (featureType20 != null) {
-                val outputFormat = selectGeoJsonFormat(featureType20) ?: error(
-                    makeMessage("WfsLayerFactory", "resolveFeatureType", "Feature type does not advertise a GeoJSON-compatible output format")
+                val (format, isGml) = selectOutputFormat(featureType20) ?: error(
+                    makeMessage("WfsLayerFactory", "resolveFeatureType", "Feature type does not advertise a supported output format (GeoJSON or GML)")
                 )
                 return WfsResolved(
                     version = VERSION_20,
                     displayName = featureType20.title ?: featureType20.name,
                     getFeatureUrl = determineGetFeatureUrl(featureType20, serviceAddress),
-                    outputFormat = outputFormat,
+                    outputFormat = format,
+                    isGml = isGml,
                     typeNameParam = "TYPENAMES",
                     countParam = "COUNT",
                 )
@@ -168,14 +186,15 @@ object WfsLayerFactory {
         val featureType11 = caps11.getFeatureType(typeName) ?: error(
             makeMessage("WfsLayerFactory", "resolveFeatureType", "Specified type name was not found")
         )
-        val outputFormat = selectGeoJsonFormat11(featureType11) ?: error(
-            makeMessage("WfsLayerFactory", "resolveFeatureType", "Feature type does not advertise a GeoJSON-compatible output format")
+        val (format, isGml) = selectOutputFormat11(featureType11) ?: error(
+            makeMessage("WfsLayerFactory", "resolveFeatureType", "Feature type does not advertise a supported output format (GeoJSON or GML)")
         )
         return WfsResolved(
             version = VERSION_11,
             displayName = featureType11.title ?: featureType11.name,
             getFeatureUrl = determineGetFeatureUrl11(featureType11, serviceAddress),
-            outputFormat = outputFormat,
+            outputFormat = format,
+            isGml = isGml,
             typeNameParam = "TYPENAME",
             countParam = "MAXFEATURES",
         )
@@ -259,13 +278,24 @@ object WfsLayerFactory {
     }
 
     /**
-     * Pick the first GeoJSON-compatible output format advertised by the feature type
-     * itself or by the GetFeature operation. WFS 2.0 / OWS 1.1 servers vary in how they
-     * publish supported output formats: most use `<ows:Parameter name="outputFormat">`,
+     * Pick a compatible output format advertised by the feature type or by the GetFeature
+     * operation, preferring GeoJSON variants over GML. WFS 2.0 / OWS 1.1 servers vary in
+     * how they publish supported output formats: most use `<ows:Parameter name="outputFormat">`,
      * but the spec also permits `<ows:Constraint name="outputFormat">` on the operation.
-     * Both are consulted so unusual server flavours still negotiate correctly.
+     * Both are consulted so unusual server flavours still negotiate correctly. Returns a
+     * (format, isGml) pair so the caller can pick the right decoder, or null when no
+     * supported format is advertised.
      */
-    internal fun selectGeoJsonFormat(featureType: WfsFeatureType): String? {
+    internal fun selectOutputFormat(featureType: WfsFeatureType): Pair<String, Boolean>? {
+        val advertised = collectAdvertisedFormats(featureType)
+        return pickFormat(advertised)
+    }
+
+    /** Backwards-compatible accessor returning only the GeoJSON match (or null). */
+    internal fun selectGeoJsonFormat(featureType: WfsFeatureType): String? =
+        selectOutputFormat(featureType)?.takeUnless { it.second }?.first
+
+    private fun collectAdvertisedFormats(featureType: WfsFeatureType): List<String> {
         val advertised = mutableListOf<String>()
         advertised += featureType.outputFormats
         featureType.capabilities.operationsMetadata?.operations
@@ -274,7 +304,13 @@ object WfsLayerFactory {
                 op.parameters.firstOrNull { it.name == "outputFormat" }?.let { advertised += it.allowedValues }
                 op.constraints.firstOrNull { it.name == "outputFormat" }?.let { advertised += it.allowedValues }
             }
-        return geoJsonOutputFormats.firstOrNull { f -> advertised.any { it.equals(f, ignoreCase = true) } }
+        return advertised
+    }
+
+    private fun pickFormat(advertised: List<String>): Pair<String, Boolean>? {
+        geoJsonOutputFormats.firstOrNull { f -> advertised.any { it.equals(f, ignoreCase = true) } }?.let { return it to false }
+        gmlOutputFormats.firstOrNull { f -> advertised.any { it.equals(f, ignoreCase = true) } }?.let { return it to true }
+        return null
     }
 
     private fun determineGetFeatureUrl(featureType: WfsFeatureType, fallback: String): String {
@@ -284,16 +320,19 @@ object WfsLayerFactory {
         return getMethodUrl?.takeIf { it.isNotBlank() } ?: fallback
     }
 
-    /** WFS 1.1.0 counterpart to [selectGeoJsonFormat]. */
-    internal fun selectGeoJsonFormat11(featureType: Wfs11FeatureType): String? {
+    /** WFS 1.1.0 counterpart to [selectOutputFormat]. */
+    internal fun selectOutputFormat11(featureType: Wfs11FeatureType): Pair<String, Boolean>? {
         val advertised = mutableListOf<String>()
         advertised += featureType.outputFormats
         featureType.capabilities.operationsMetadata?.operations
             ?.firstOrNull { it.name == "GetFeature" }
             ?.parameters?.firstOrNull { it.name == "outputFormat" }
             ?.allowedValues?.let { advertised += it }
-        return geoJsonOutputFormats.firstOrNull { f -> advertised.any { it.equals(f, ignoreCase = true) } }
+        return pickFormat(advertised)
     }
+
+    internal fun selectGeoJsonFormat11(featureType: Wfs11FeatureType): String? =
+        selectOutputFormat11(featureType)?.takeUnless { it.second }?.first
 
     private fun determineGetFeatureUrl11(featureType: Wfs11FeatureType, fallback: String): String {
         val operations = featureType.capabilities.operationsMetadata?.operations.orEmpty()
