@@ -122,6 +122,35 @@ class ShapefileTest {
     }
 
     @Test
+    fun recordsSequenceMatchesEagerRecords() {
+        val points = listOf(
+            doubleArrayOf(0.0, 0.0),
+            doubleArrayOf(1.0, 1.0),
+            doubleArrayOf(2.0, 2.0),
+            doubleArrayOf(3.0, 3.0),
+        )
+        val shapefile = Shapefile(buildShapefile(SHP_POINT, pointRecords = points))
+
+        val eager = shapefile.records
+        val lazy = shapefile.recordsSequence.toList()
+        assertEquals(eager.size, lazy.size)
+        for (i in eager.indices) {
+            assertEquals(eager[i].recordNumber, lazy[i].recordNumber)
+            assertContentEquals(eager[i].parts[0], lazy[i].parts[0])
+        }
+    }
+
+    @Test
+    fun recordsSequenceCanShortCircuit() {
+        val points = List(100) { doubleArrayOf(it.toDouble(), it.toDouble()) }
+        val shapefile = Shapefile(buildShapefile(SHP_POINT, pointRecords = points))
+        val first3 = shapefile.recordsSequence.take(3).toList()
+        assertEquals(3, first3.size)
+        assertEquals(1, first3[0].recordNumber)
+        assertEquals(3, first3[2].recordNumber)
+    }
+
+    @Test
     fun unknownFileCodeRejected() {
         val bad = ByteArray(100)
         // file code stays 0 — not the magic 0x270A.

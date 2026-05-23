@@ -29,10 +29,12 @@ class Shapefile(
     val fileLength: Int
     /** File bounding rectangle as `[minY, maxY, minX, maxX]` (latitude, longitude for geographic shapefiles). */
     val boundingRectangle: DoubleArray
-    val records: List<ShapefileRecord>
+
+    private val view: BinaryDataView = BinaryDataView(shpBytes)
+    /** Resolved end of records — file-length field or buffer end, whichever is smaller. */
+    private val recordsEnd: Int
 
     init {
-        val view = BinaryDataView(shpBytes)
         if (view.byteLength < HEADER_LENGTH) {
             error("Shapefile header is truncated (need $HEADER_LENGTH bytes, have ${view.byteLength})")
         }
@@ -53,52 +55,52 @@ class Shapefile(
             ?: error("Shapefile type is unsupported: $typeCode")
 
         // Bounding rectangle order on disk: minX, minY, maxX, maxY (offsets 36..67).
-        val rect = readBoundingRectangleAt(view, 36)
-        boundingRectangle = rect
+        boundingRectangle = readBoundingRectangleAt(view, 36)
 
         // Offsets 68..83 are Z range, 84..99 are M range (both ignored at file level).
 
-        // ---- Records ----------------------------------------------------------------
-        val parsed = mutableListOf<ShapefileRecord>()
-        var offset = HEADER_LENGTH
-        val limit = view.byteLength
         // `fileLength` reflects what the writer thought; trust whichever ends sooner.
-        val end = if (fileLength in HEADER_LENGTH..limit) fileLength else limit
+        recordsEnd = if (fileLength in HEADER_LENGTH..view.byteLength) fileLength else view.byteLength
+    }
 
-        while (offset <= end - RECORD_HEADER_LENGTH) {
-            // Record header: big-endian. recordNumber + contentLength (in 16-bit words).
-            val recordNumber = view.getInt32(offset, littleEndian = false)
-            val contentLengthWords = view.getInt32(offset + 4, littleEndian = false)
-            val contentLengthBytes = contentLengthWords * 2
+    /**
+     * Lazy iteration over the records in this shapefile. Each call walks the bytes from
+     * the start; iterators are independent so callers can `take`, `filter`, etc. without
+     * affecting other consumers. NULL records are silently skipped. DBF attributes (if
+     * [attributes] was supplied at construction) are joined by record-number index.
+     */
+    val recordsSequence: Sequence<ShapefileRecord>
+        get() = sequence {
+            var offset = HEADER_LENGTH
+            while (offset <= recordsEnd - RECORD_HEADER_LENGTH) {
+                val recordNumber = view.getInt32(offset, littleEndian = false)
+                val contentLengthWords = view.getInt32(offset + 4, littleEndian = false)
+                val contentLengthBytes = contentLengthWords * 2
 
-            val contentStart = offset + RECORD_HEADER_LENGTH
-            val contentEnd = contentStart + contentLengthBytes
-            if (contentEnd > end) {
-                // Truncated record — stop here rather than reading past the end.
-                Logger.log(WARN, "Shapefile record $recordNumber extends past file end; truncating")
-                break
-            }
+                val contentStart = offset + RECORD_HEADER_LENGTH
+                val contentEnd = contentStart + contentLengthBytes
+                if (contentEnd > recordsEnd) {
+                    Logger.log(WARN, "Shapefile record $recordNumber extends past file end; truncating")
+                    return@sequence
+                }
 
-            val record = readRecord(view, contentStart, contentEnd, recordNumber)
-            if (record != null && !record.isNullRecord) {
-                parsed.add(record)
-            }
-            offset = contentEnd
-        }
-
-        // ---- DBF attribute join -----------------------------------------------------
-        if (attributes != null) {
-            val rows = attributes.records
-            for (record in parsed) {
-                val idx = record.recordNumber - 1
-                if (idx in rows.indices) {
-                    record.attributes = rows[idx].values
+                val record = readRecord(view, contentStart, contentEnd, recordNumber)
+                offset = contentEnd
+                if (record != null && !record.isNullRecord) {
+                    attributes?.records?.getOrNull(record.recordNumber - 1)?.let {
+                        record.attributes = it.values
+                    }
+                    yield(record)
                 }
             }
         }
 
-        records = parsed
-    }
+    /**
+     * Eager list of records. Materialized on first access via [recordsSequence] and
+     * cached. Preferred for small/medium shapefiles; use [recordsSequence] directly for
+     * huge files where the full list would dwarf heap.
+     */
+    val records: List<ShapefileRecord> by lazy { recordsSequence.toList() }
 
     private fun readRecord(view: BinaryDataView, start: Int, end: Int, recordNumber: Int): ShapefileRecord? {
         // Per-record shape type lives in the contents, little-endian.
