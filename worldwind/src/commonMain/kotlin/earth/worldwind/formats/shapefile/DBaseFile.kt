@@ -15,7 +15,19 @@ import earth.worldwind.util.Logger.WARN
  * number), `L` (logical), `D` (date string `YYYYMMDD`). Unknown type bytes cause the
  * parser to drop the field (with a warning) rather than fail.
  */
-class DBaseFile(bytes: ByteArray) {
+class DBaseFile(
+    bytes: ByteArray,
+    /**
+     * Explicit character encoding for DBF text columns. When `null`, the encoding is
+     * resolved from (in order): the [cpgText] argument, then DBF header byte 29 (the
+     * "language driver" code page byte), then [DBaseCharset.Latin1] as a final
+     * fallback. Pass an explicit value to override that resolution.
+     */
+    charset: DBaseCharset? = null,
+    /** Contents of the optional `.cpg` sidecar (one-line codepage name). Used when
+     *  [charset] is not given. */
+    cpgText: String? = null,
+) {
     /**
      * Date stored in the dBASE header. Months are 1-based here (the on-disk byte is also
      * 1-based; we keep that interpretation).
@@ -27,8 +39,13 @@ class DBaseFile(bytes: ByteArray) {
     val numberOfRecords: Int
     val headerLength: Int
     val recordLength: Int
+    /** Decoded codepage byte (DBF header offset 29). 0 = unspecified. */
+    val languageDriver: Int
+    val charset: DBaseCharset
     val fields: List<DBaseField>
     val records: List<DBaseRecord>
+
+    private val rawBytes: ByteArray = bytes
 
     init {
         val view = BinaryDataView(bytes)
@@ -49,6 +66,12 @@ class DBaseFile(bytes: ByteArray) {
         numberOfRecords = view.getInt32(4, littleEndian = true)
         headerLength = view.getUint16(8, littleEndian = true)
         recordLength = view.getUint16(10, littleEndian = true)
+        languageDriver = view.getUint8(29)
+
+        this.charset = charset
+            ?: DBaseCharset.fromCpgText(cpgText)
+            ?: DBaseCharset.fromLanguageDriver(languageDriver)
+            ?: DBaseCharset.Latin1
 
         // ---- Field descriptors -----------------------------------------------------
         // headerLength includes the fixed 32-byte header + N×32-byte field descriptors +
@@ -58,7 +81,7 @@ class DBaseFile(bytes: ByteArray) {
         var pos = FIXED_HEADER_LENGTH
         for (i in 0 until numFields) {
             if (pos + FIELD_DESCRIPTOR_LENGTH > view.byteLength) break
-            val name = readNullTerminatedString(view, pos, FIELD_NAME_LENGTH).trim()
+            val name = readAsciiField(view, pos, FIELD_NAME_LENGTH).trim()
             val typeByte = view.getUint8(pos + 11)
             val typeChar = Char(typeByte)
             // bytes 12..15 are a deprecated field data address — ignored.
@@ -93,7 +116,7 @@ class DBaseFile(bytes: ByteArray) {
             val values = LinkedHashMap<String, Any?>(parsedFields.size)
             var fieldOffset = recordOffset + 1
             for (field in parsedFields) {
-                val raw = readNullTerminatedString(view, fieldOffset, field.length).trim()
+                val raw = readField(fieldOffset, field.length).trim()
                 values[field.name] = decodeFieldValue(field, raw)
                 fieldOffset += field.length
             }
@@ -123,11 +146,25 @@ class DBaseFile(bytes: ByteArray) {
     }
 
     /**
-     * Reads up to [maxLength] bytes starting at [offset], stopping at NUL. Bytes are
-     * mapped Latin-1 / ISO-8859-1 style (the same charset semantics WebWorldWind's
-     * `String.fromCharCode(byte)` produces).
+     * Reads up to [maxLength] bytes starting at [offset], stopping at NUL, and decodes
+     * them through [charset]. Field names (read before [charset] is fully wired) take
+     * the Latin-1 fast path via [readAsciiField]; data values go through this method.
      */
-    private fun readNullTerminatedString(view: BinaryDataView, offset: Int, maxLength: Int): String {
+    private fun readField(offset: Int, maxLength: Int): String {
+        if (maxLength <= 0) return ""
+        // Find the first NUL (or end of run).
+        var end = offset
+        val stop = offset + maxLength
+        while (end < stop && rawBytes[end].toInt() != 0) end++
+        val length = end - offset
+        if (length == 0) return ""
+        val s = charset.decode(rawBytes, offset, length)
+        return if (isLogicallyEmpty(s)) "" else s
+    }
+
+    /** Latin-1 reader for field names — they're always ASCII per the dBASE spec and we
+     *  need them before [charset] is fully resolved for the field-descriptor pass. */
+    private fun readAsciiField(view: BinaryDataView, offset: Int, maxLength: Int): String {
         if (maxLength <= 0) return ""
         val sb = StringBuilder(maxLength)
         for (i in 0 until maxLength) {
@@ -136,7 +173,6 @@ class DBaseFile(bytes: ByteArray) {
             sb.append(Char(b))
         }
         val s = sb.toString()
-        // Treat space-fill ('  …  ') and asterisk-fill ('***') as logically empty.
         return if (isLogicallyEmpty(s)) "" else s
     }
 

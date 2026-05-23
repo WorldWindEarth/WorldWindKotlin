@@ -85,41 +85,47 @@ object ShapefileLayerFactory {
     ): RenderableLayer {
         require(shpUrl.isNotEmpty()) { "shpUrl must not be empty" }
         val baseUrl = stripShpExtension(shpUrl)
-        val (shp, dbf, prj) = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
+        val sidecars = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
             val shpBytes = httpClient.get(shpUrl) { expectSuccess = true }.readRawBytes()
             val dbfBytes = fetchOptional(httpClient, "$baseUrl.dbf")
                 ?: fetchOptional(httpClient, "$baseUrl.DBF")
             val prjBytes = fetchOptional(httpClient, "$baseUrl.prj")
                 ?: fetchOptional(httpClient, "$baseUrl.PRJ")
-            Triple(shpBytes, dbfBytes, prjBytes)
+            val cpgBytes = fetchOptional(httpClient, "$baseUrl.cpg")
+                ?: fetchOptional(httpClient, "$baseUrl.CPG")
+            ShapefileSidecars(shpBytes, dbfBytes, prjBytes, cpgBytes)
         }
-        return createLayer(shp, dbf, prj, displayName, shapeConfiguration)
+        return createLayer(sidecars.shp, sidecars.dbf, sidecars.prj, sidecars.cpg, displayName, shapeConfiguration)
     }
 
+    private data class ShapefileSidecars(
+        val shp: ByteArray,
+        val dbf: ByteArray?,
+        val prj: ByteArray?,
+        val cpg: ByteArray?,
+    )
+
     /**
-     * Build a layer from already-loaded buffers. The DBF and PRJ buffers are optional;
-     * if absent, attributes default to empty maps and the shapefile is assumed to be
-     * geographic (the only case actually supported).
+     * Build a layer from already-loaded buffers. The DBF, PRJ, and CPG buffers are all
+     * optional; if absent, attributes default to empty maps, the shapefile is assumed
+     * to be geographic, and DBF text decoding falls back to Latin-1.
      */
     suspend fun createLayer(
         shpBytes: ByteArray,
         dbfBytes: ByteArray? = null,
         prjBytes: ByteArray? = null,
+        cpgBytes: ByteArray? = null,
         displayName: String? = null,
         shapeConfiguration: (ShapefileRecord) -> ShapefileShapeConfiguration? = { ShapefileShapeConfiguration() },
-    ): RenderableLayer {
-        val (shapefile, layer) = withContext(Dispatchers.Default) {
-            val prj = prjBytes?.let { runCatching { PrjFile(decodeUtf8OrLatin1(it)) }.getOrNull() }
-            val dbf = dbfBytes?.let { runCatching { DBaseFile(it) }.getOrNull() }
-            if (prj != null && prj.isProjectedCoordinateSystem && prj.projection !is PrjFile.Projection.Utm) {
-                Logger.log(WARN, "Shapefile uses an unsupported projected coordinate system; coords passed through unchanged")
-            }
-            val shapefile = Shapefile(shpBytes, projection = prj, attributes = dbf)
-            shapefile to buildLayer(shapefile, displayName, shapeConfiguration)
+    ): RenderableLayer = withContext(Dispatchers.Default) {
+        val prj = prjBytes?.let { runCatching { PrjFile(decodeUtf8OrLatin1(it)) }.getOrNull() }
+        val cpgText = cpgBytes?.let { decodeUtf8OrLatin1(it) }
+        val dbf = dbfBytes?.let { runCatching { DBaseFile(it, cpgText = cpgText) }.getOrNull() }
+        if (prj != null && prj.isProjectedCoordinateSystem && prj.projection !is PrjFile.Projection.Utm) {
+            Logger.log(WARN, "Shapefile uses an unsupported projected coordinate system; coords passed through unchanged")
         }
-        // `shapefile` exposed only for future use; suppression keeps the unused-var warning quiet.
-        @Suppress("UNUSED_VARIABLE") val unused = shapefile
-        return layer
+        val shapefile = Shapefile(shpBytes, projection = prj, attributes = dbf)
+        buildLayer(shapefile, displayName, shapeConfiguration)
     }
 
     private fun buildLayer(

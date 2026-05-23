@@ -67,11 +67,88 @@ class DBaseFileTest {
     // are linked). The lenient behavior (keep field, treat as raw string, advance bytes
     // correctly) is exercised at the integration level when real shapefiles with newer
     // dBASE field types are loaded.
+
+    @Test
+    fun decodesUtf8FromCpg() {
+        // "København" includes the U+00F8 "ø" — UTF-8 bytes C3 B8.
+        val bytes = buildDbfRaw(
+            fieldName = "CITY", fieldLen = 12,
+            values = listOf("København".toByteArray(Charsets.UTF_8)),
+        )
+        val dbf = DBaseFile(bytes, cpgText = "UTF-8")
+        assertEquals(DBaseCharset.Utf8, dbf.charset)
+        assertEquals("København", dbf.records[0].values["CITY"])
+    }
+
+    @Test
+    fun decodesWindows1252DefaultFallback() {
+        // Smart-quote U+2019 is 0x92 in CP1252. The DBF header byte 29 set to 0x03 (Windows ANSI)
+        // selects Windows-1252 automatically.
+        val raw = byteArrayOf(0x4F.toByte(), 0x92.toByte(), 0x4E.toByte(), 0x65.toByte(), 0x69.toByte(), 0x6C.toByte()) // O'Neil
+        val bytes = buildDbfRaw(
+            fieldName = "NAME", fieldLen = 6,
+            values = listOf(raw),
+            languageDriver = 0x03,
+        )
+        val dbf = DBaseFile(bytes)
+        assertEquals("O’Neil", dbf.records[0].values["NAME"])
+    }
+
+    @Test
+    fun decodesWindows1251Cyrillic() {
+        // "Москва" in CP1251 — bytes from the Unicode Consortium mapping.
+        val raw = byteArrayOf(0xCC.toByte(), 0xEE.toByte(), 0xF1.toByte(), 0xEA.toByte(), 0xE2.toByte(), 0xE0.toByte())
+        val bytes = buildDbfRaw(
+            fieldName = "CITY", fieldLen = 6,
+            values = listOf(raw),
+            languageDriver = 0xC9,
+        )
+        val dbf = DBaseFile(bytes)
+        assertEquals("Москва", dbf.records[0].values["CITY"])
+    }
 }
 
 // ---- Builder ---------------------------------------------------------------------
 
 private data class FieldSpec(val name: String, val typeCode: Char, val length: Int)
+
+/**
+ * Builds a single-column character DBF with one record per supplied [ByteArray]. Allows
+ * exact control over the on-wire bytes (needed for non-Latin-1 encoding tests). Optionally
+ * sets the header's language-driver byte (offset 29) so DBaseFile picks a codepage from it.
+ */
+private fun buildDbfRaw(
+    fieldName: String,
+    fieldLen: Int,
+    values: List<ByteArray>,
+    languageDriver: Int = 0,
+): ByteArray {
+    val headerLength = 32 + 32 + 1
+    val recordLength = 1 + fieldLen
+    val totalSize = headerLength + values.size * recordLength + 1
+    val out = ByteArray(totalSize)
+    val buf = java.nio.ByteBuffer.wrap(out).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+    buf.put(0, 0x03.toByte())
+    buf.putInt(4, values.size)
+    buf.putShort(8, headerLength.toShort())
+    buf.putShort(10, recordLength.toShort())
+    buf.put(29, languageDriver.toByte())
+    val nameBytes = fieldName.toByteArray(Charsets.ISO_8859_1)
+    System.arraycopy(nameBytes, 0, out, 32, nameBytes.size.coerceAtMost(11))
+    out[32 + 11] = 'C'.code.toByte()
+    out[32 + 16] = fieldLen.toByte()
+    out[64] = 0x0D.toByte()
+    var pos = headerLength
+    for (raw in values) {
+        out[pos] = 0x20
+        val width = minOf(raw.size, fieldLen)
+        System.arraycopy(raw, 0, out, pos + 1, width)
+        for (i in pos + 1 + width until pos + 1 + fieldLen) out[i] = 0x20
+        pos += recordLength
+    }
+    out[totalSize - 1] = 0x1A
+    return out
+}
 
 private fun buildDbf(
     fields: List<FieldSpec>,
