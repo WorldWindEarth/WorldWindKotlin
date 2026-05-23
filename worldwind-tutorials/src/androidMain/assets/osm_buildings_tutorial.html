@@ -1,0 +1,89 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>OSM Buildings Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>OSM Buildings Tutorial</h1>
+<p>
+    Demonstrates <code>OsmBuildingsLayer</code> — schematic 3D buildings rendered live from
+    OpenStreetMap. Footprints and height tags are fetched from the public Overpass API for the
+    visible region (slippy-tile pyramid, on-demand), then extruded client-side into gray
+    polygons. Visually similar to Cesium OSM Buildings, but fully open and key-less.
+</p>
+<p>
+    The camera is parked over midtown Manhattan, which is densely and well-tagged. The first
+    frame is empty: tiles arrive asynchronously and the layer redraws as each one completes.
+    Public Overpass mirrors rate-limit aggressively — for production traffic, point the layer
+    at a self-hosted endpoint via <code>OverpassBuildingsSource(endpoint = …)</code>.
+</p>
+<h2>Example</h2>
+<h3>OsmBuildingsFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class OsmBuildingsFragment : BasicGlobeFragment() {
+    private var tutorial: OsmBuildingsTutorial? = null
+
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+        OsmBuildingsTutorial(wwd.engine).also {
+            tutorial = it
+            it.start()
+        }
+        return wwd
+    }
+
+    override fun onDestroyView() {
+        tutorial?.stop()
+        tutorial = null
+        super.onDestroyView()
+    }
+}
+
+class OsmBuildingsTutorial(engine: WorldWind) : AbstractTutorial(engine) {
+    private var buildings: OsmBuildingsLayer? = null
+
+    override fun start() {
+        super.start()
+        val layer = OsmBuildingsLayer().also { buildings = it }
+        engine.layers.addLayer(layer)
+        engine.cameraFromLookAt(
+            LookAt(
+                position = Position(40.7484.degrees, (-73.9857).degrees, 0.0),
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND,
+                range = 3500.0,
+                heading = 0.0.degrees,
+                tilt = 65.0.degrees,
+                roll = 0.0.degrees,
+            )
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        buildings?.let {
+            engine.layers.removeLayer(it)
+            it.close()
+        }
+        buildings = null
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

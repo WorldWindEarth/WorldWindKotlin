@@ -131,6 +131,7 @@ object Tutorials {
         TutorialFactory("triangleMeshes", "Triangle meshes", ::TriangleMeshesTutorial),
         TutorialFactory("collada", "COLLADA", ::ColladaTutorial),
         TutorialFactory("gltf", "GLTF", ::GltfTutorial),
+        TutorialFactory("osmBuildings", "OSM Buildings", ::OsmBuildingsTutorial),
         TutorialFactory("dashAndFill", "Dash and fill", ::ShapesDashAndFillTutorial),
         TutorialFactory("labels", "Labels", ::LabelsTutorial),
         TutorialFactory("sightline", "Real-time sightline", ::SightlineTutorial),

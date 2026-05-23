@@ -336,6 +336,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/gltf_tutorial.html",
                 R.string.title_gltf
             )
+            R.id.nav_osm_buildings_activity -> loadTutorial(
+                OsmBuildingsFragment::class.java,
+                "file:///android_asset/osm_buildings_tutorial.html",
+                R.string.title_osm_buildings
+            )
             R.id.nav_surface_image_activity -> loadTutorial(
                 SurfaceImageFragment::class.java,
                 "file:///android_asset/surface_image_tutorial.html",

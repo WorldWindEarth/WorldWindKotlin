@@ -98,6 +98,7 @@ fun main() {
                     wwd.requestRedraw()
                 }
             },
+            "OSM Buildings" to OsmBuildingsTutorial(wwd.engine),
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
             "Labels" to LabelsTutorial(wwd.engine),
             "Real-time sightline" to SightlineTutorial(wwd.engine),

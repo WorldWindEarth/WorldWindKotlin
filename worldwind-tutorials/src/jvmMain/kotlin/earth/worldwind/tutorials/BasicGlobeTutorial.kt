@@ -91,6 +91,7 @@ fun main() {
                 "Triangle meshes" to triMeshTutorial,
                 "COLLADA" to colladaTutorial,
                 "GLTF" to gltfTutorial,
+                "OSM Buildings" to OsmBuildingsTutorial(engine),
                 "Dash and fill" to ShapesDashAndFillTutorial(engine),
                 "Labels" to LabelsTutorial(engine),
                 "Real-time sightline" to SightlineTutorial(engine),
