@@ -381,6 +381,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/wcs_elevation_tutorial.html",
                 R.string.title_wcs_elevation_coverage
             )
+            R.id.nav_dted_elevation_activity -> loadTutorial(
+                DtedElevationFragment::class.java,
+                "file:///android_asset/dted_elevation_tutorial.html",
+                R.string.title_dted_elevation
+            )
         }
         val drawer = findViewById<DrawerLayout>(R.id.drawer_layout)
         drawer.closeDrawer(GravityCompat.START)

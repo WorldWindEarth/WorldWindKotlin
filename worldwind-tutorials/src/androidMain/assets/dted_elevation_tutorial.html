@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>DTED Elevation Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>DTED Elevation Coverage Tutorial</h1>
+<p>
+    Demonstrates how to mount a local directory of DTED (Digital Terrain Elevation Data,
+    MIL-PRF-89020B) tiles as an elevation coverage using <code>DtedElevationCoverage</code>.</p>
+<p>
+    By default, the tutorial synthesises a small 3×3 grid of DTED-0 tiles (121×121 posts
+    each, ~30 KB per file) into a temp directory at startup — a sharp summit over a broad
+    massif with faint ridges — so the elevation pipeline is exercised end-to-end without
+    needing a real DTED CD. Set the <code>DTED_DIR</code> system property to point at a
+    real local DTED library instead; the directory is scanned recursively and tiles named
+    per the NIMA <code>n45/e034.dt1</code> or <code>n45e034.dt1</code> convention are
+    indexed without opening any UHL headers.</p>
+
+<h2>Example</h2>
+<h3>DtedElevationFragment.kt</h3>
+<p>
+    The fragment extends <code>BasicGlobeFragment</code> and starts the shared
+    <code>DtedElevationTutorial</code> against the engine. The tutorial itself lives in
+    the JVM/Android-shared <code>jvmCommonMain</code> source set so the JVM desktop host
+    and Android host run the same code.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class DtedElevationFragment : BasicGlobeFragment() {
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        DtedElevationTutorial(it.engine).start()
+    }
+}
+
+class DtedElevationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
+    private var dtedCoverage: DtedElevationCoverage? = null
+    private var syntheticDir: File? = null
+
+    override fun start() {
+        super.start()
+        val customRoot = System.getenv("DTED_DIR") ?: System.getProperty("DTED_DIR")
+        val rootDir = if (customRoot != null) File(customRoot)
+            else createSyntheticLibrary().also { syntheticDir = it }
+
+        val coverage = DtedElevationCoverage(rootDir).also { dtedCoverage = it }
+        engine.globe.elevationModel.apply {
+            forEach { if (it.isEnabled) it.isEnabled = false }
+            addCoverage(coverage)
+        }
+        positionCamera(rootDir, coverage)
+    }
+
+    override fun stop() {
+        super.stop()
+        dtedCoverage?.let { engine.globe.elevationModel.removeCoverage(it) }
+        syntheticDir?.deleteRecursively()
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

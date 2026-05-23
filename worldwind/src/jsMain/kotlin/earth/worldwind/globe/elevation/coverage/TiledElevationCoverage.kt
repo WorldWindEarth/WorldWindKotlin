@@ -1,5 +1,6 @@
 package earth.worldwind.globe.elevation.coverage
 
+import earth.worldwind.formats.dted.DTED
 import earth.worldwind.formats.geotiff.GeoTiffReader
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
@@ -48,6 +49,10 @@ actual open class TiledElevationCoverage actual constructor(
                         contentType.equals("application/bil16", true) -> Int16ArrayToShortArray(Int16Array(arrayBuffer))
                         contentType.equals("application/bil32", true) -> Float32ArrayToShortArray(Float32Array(arrayBuffer))
                         contentType.equals("image/tiff", true) -> decodeTiff(arrayBuffer)
+                        contentType.equals("application/dted", true) ||
+                        contentType.equals("application/dted0", true) ||
+                        contentType.equals("application/dted1", true) ||
+                        contentType.equals("application/dted2", true) -> decodeDted(arrayBuffer)
                         contentType.equals("text/xml", true) -> {
                             message = "Elevations retrieval failed (${response.statusText}): $url.\n"
                             +String.asDynamic().fromCharCode.apply(null, Uint8Array(arrayBuffer))
@@ -75,10 +80,19 @@ actual open class TiledElevationCoverage actual constructor(
     /** Decode a TIFF/GeoTIFF buffer into a `ShortArray` via the cross-platform reader.
      *  Same code path JVM and iOS use; replaces the prior typed-array detour. */
     private suspend fun decodeTiff(arrayBuffer: ArrayBuffer): ShortArray = withContext(Dispatchers.Default) {
+        GeoTiffReader(arrayBufferToBytes(arrayBuffer)).createElevationShortArray()
+    }
+
+    /** Decode a DTED (MIL-PRF-89020B) buffer into a `ShortArray`. */
+    private suspend fun decodeDted(arrayBuffer: ArrayBuffer): ShortArray = withContext(Dispatchers.Default) {
+        DTED(arrayBufferToBytes(arrayBuffer)).elevations
+    }
+
+    private fun arrayBufferToBytes(arrayBuffer: ArrayBuffer): ByteArray {
         val bytes = ByteArray(arrayBuffer.byteLength)
         val view = Int8Array(arrayBuffer)
         for (i in 0 until view.length) bytes[i] = view[i]
-        GeoTiffReader(bytes).createElevationShortArray()
+        return bytes
     }
 
     private fun Int16ArrayToShortArray(buffer: Int16Array): ShortArray =

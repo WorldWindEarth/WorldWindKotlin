@@ -2,6 +2,7 @@
 
 package earth.worldwind.globe.elevation.coverage
 
+import earth.worldwind.formats.dted.DTED
 import earth.worldwind.formats.geotiff.GeoTiffReader
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
@@ -62,6 +63,10 @@ actual open class TiledElevationCoverage actual constructor(
                     contentType.equals("application/bil16", true) -> bilToShortArray(bytes)
                     contentType.equals("application/bil32", true) -> bil32ToShortArray(bytes)
                     contentType.equals("image/tiff", true) -> GeoTiffReader(bytes).createElevationShortArray()
+                    contentType.equals("application/dted", true) ||
+                    contentType.equals("application/dted0", true) ||
+                    contentType.equals("application/dted1", true) ||
+                    contentType.equals("application/dted2", true) -> DTED(bytes).elevations
                     else -> {
                         log(WARN, "Unsupported elevation content type '$contentType' for $url")
                         null

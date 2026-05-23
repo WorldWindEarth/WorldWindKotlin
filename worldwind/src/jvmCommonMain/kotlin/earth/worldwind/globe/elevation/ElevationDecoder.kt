@@ -4,6 +4,8 @@ import ar.com.hjg.pngj.ImageInfo
 import ar.com.hjg.pngj.ImageLineInt
 import ar.com.hjg.pngj.PngReaderInt
 import ar.com.hjg.pngj.PngWriter
+import earth.worldwind.formats.dted.DTED
+import earth.worldwind.formats.dted.read
 import earth.worldwind.formats.geotiff.GeoTiffReader
 import earth.worldwind.formats.geotiff.GeoTiffWriter
 import earth.worldwind.util.Logger.ERROR
@@ -46,16 +48,23 @@ open class ElevationDecoder: Closeable {
         else -> null
     }
 
-    protected open suspend fun decodeFile(file: File, postprocessor: ResourcePostprocessor?) =
-        when(file.name.substring(file.name.lastIndexOf('.') + 1).lowercase()) {
+    protected open suspend fun decodeFile(file: File, postprocessor: ResourcePostprocessor?): Buffer? {
+        val ext = file.name.substring(file.name.lastIndexOf('.') + 1).lowercase()
+        // DTED files can be ~26 MB on .dt2 — stream the column records via RandomAccessFile
+        // instead of slurping the whole file. Other formats stay on the byte-array path.
+        if (ext == "dt0" || ext == "dt1" || ext == "dt2") {
+            val buffer = ShortBuffer.wrap(DTED.read(file).elevations)
+            return postprocessor?.process(buffer) ?: buffer
+        }
+        val contentType = when (ext) {
             "png" -> "image/png"
             "tiff" -> "image/tiff"
             "bil16" -> "application/bil16"
             "bil32" -> "application/bil32"
-            else -> null
-        }?.let { decodeBytes(FileInputStream(file).readBytes(), it, postprocessor) } ?: error(
-            logMessage(ERROR, "ElevationDecoder", "decodeFile", "Unknown mime-type")
-        )
+            else -> error(logMessage(ERROR, "ElevationDecoder", "decodeFile", "Unknown mime-type"))
+        }
+        return decodeBytes(FileInputStream(file).readBytes(), contentType, postprocessor)
+    }
 
     protected open suspend fun decodeUrl(url: URL, postprocessor: ResourcePostprocessor?) = httpClient.get(url).let {
         if (it.status == HttpStatusCode.OK) {
@@ -75,6 +84,10 @@ open class ElevationDecoder: Closeable {
         contentType.equals("application/bil32", true) -> wrapBytes(bytes).asFloatBuffer()
         contentType.equals("image/tiff", true) -> decodeTiff(bytes)
         contentType.equals("image/png", true) -> decodePng(bytes)
+        contentType.equals("application/dted", true) ||
+        contentType.equals("application/dted0", true) ||
+        contentType.equals("application/dted1", true) ||
+        contentType.equals("application/dted2", true) -> ShortBuffer.wrap(DTED(bytes).elevations)
         else -> throw RuntimeException(
             logMessage(ERROR, "ElevationDecoder", "decodeBytes", "Format not supported: $contentType")
         )

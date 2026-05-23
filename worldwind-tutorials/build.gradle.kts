@@ -70,8 +70,14 @@ kotlin {
         val nonIosMain by creating {
             dependsOn(commonMain.get())
         }
-        androidMain {
+        // Shared between JVM desktop and Android — tutorials that use JVM-only APIs
+        // (java.io.File, RandomAccessFile via DTED.read(file), …) but should still be
+        // accessible from Android fragments. Mirrors `:worldwind`'s `jvmCommonMain`.
+        val jvmCommonMain by creating {
             dependsOn(nonIosMain)
+        }
+        androidMain {
+            dependsOn(jvmCommonMain)
             dependencies {
                 implementation(libs.androidx.appcompat)
                 implementation(libs.kotlinx.coroutines.android)
@@ -79,7 +85,7 @@ kotlin {
             }
         }
         jvmMain {
-            dependsOn(nonIosMain)
+            dependsOn(jvmCommonMain)
             dependencies {
                 // Make Ktor's OkHttp engine + OkHttpClient types visible to the tutorial-only
                 // permissive-SSL hook (`installPermissiveSslForTutorials`). The engine module
