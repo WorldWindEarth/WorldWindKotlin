@@ -1,5 +1,6 @@
 package earth.worldwind.ogc.wfs
 
+import earth.worldwind.geom.Sector
 import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.ogc.wmts.OwsConstraint
 import earth.worldwind.ogc.wmts.OwsOperation
@@ -122,6 +123,70 @@ class WfsCapabilitiesTest {
             WfsLayerFactory.selectGeoJsonFormat(ft),
             "Falls back to GetFeature outputFormat parameter",
         )
+    }
+
+    @Test
+    fun testDecideIsGml_RespectsContentTypeWhenItDisagrees() {
+        // Advertised GeoJSON, server actually returned GML
+        assertTrue(WfsLayerFactory.decideIsGml(advertisedIsGml = false, contentType = "application/gml+xml; version=3.2"))
+        // Advertised GML, server actually returned JSON
+        assertFalse(WfsLayerFactory.decideIsGml(advertisedIsGml = true, contentType = "application/json; charset=utf-8"))
+    }
+
+    @Test
+    fun testDecideIsGml_FallsBackToAdvertisedWhenHeaderIsAmbiguous() {
+        assertTrue(WfsLayerFactory.decideIsGml(advertisedIsGml = true, contentType = null))
+        assertFalse(WfsLayerFactory.decideIsGml(advertisedIsGml = false, contentType = null))
+        assertTrue(WfsLayerFactory.decideIsGml(advertisedIsGml = true, contentType = "text/plain"))
+    }
+
+    @Test
+    fun testBuildGetFeatureParams_Wfs20() {
+        val resolved = WfsLayerFactory.WfsResolved(
+            version = "2.0.0",
+            displayName = "X",
+            getFeatureUrl = "http://example.org/wfs",
+            outputFormat = "application/json",
+            isGml = false,
+            typeNameParam = "TYPENAMES",
+            countParam = "COUNT",
+        )
+        val params = WfsLayerFactory.buildGetFeatureParams(
+            resolved = resolved,
+            typeName = "topp:states",
+            sector = Sector.fromDegrees(-10.0, 20.0, 30.0, 50.0),
+            maxFeatures = 500,
+            cqlFilter = "POP > 1000",
+        )
+        assertEquals("WFS", params["SERVICE"])
+        assertEquals("2.0.0", params["VERSION"])
+        assertEquals("GetFeature", params["REQUEST"])
+        assertEquals("topp:states", params["TYPENAMES"])
+        assertEquals("application/json", params["OUTPUTFORMAT"])
+        assertEquals("500", params["COUNT"])
+        assertEquals("POP > 1000", params["CQL_FILTER"])
+        assertEquals("-10.0,20.0,20.0,70.0,urn:ogc:def:crs:EPSG::4326", params["BBOX"])
+        assertEquals("urn:ogc:def:crs:EPSG::4326", params["SRSNAME"])
+    }
+
+    @Test
+    fun testBuildGetFeatureParams_Wfs11UsesTypeNameAndMaxFeatures() {
+        val resolved = WfsLayerFactory.WfsResolved(
+            version = "1.1.0",
+            displayName = "X",
+            getFeatureUrl = "http://example.org/wfs",
+            outputFormat = "application/json",
+            isGml = false,
+            typeNameParam = "TYPENAME",
+            countParam = "MAXFEATURES",
+        )
+        val params = WfsLayerFactory.buildGetFeatureParams(
+            resolved, "topp:states", sector = null, maxFeatures = 100, cqlFilter = null,
+        )
+        assertEquals("topp:states", params["TYPENAME"], "WFS 1.1 uses TYPENAME (singular)")
+        assertEquals("100", params["MAXFEATURES"], "WFS 1.1 uses MAXFEATURES")
+        assertFalse(params.containsKey("BBOX"), "BBOX omitted when sector is null")
+        assertFalse(params.containsKey("CQL_FILTER"), "CQL_FILTER omitted when null")
     }
 
     @Test

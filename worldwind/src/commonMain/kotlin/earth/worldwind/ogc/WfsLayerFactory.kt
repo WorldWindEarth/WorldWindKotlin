@@ -15,9 +15,12 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.Logger.makeMessage
 import earth.worldwind.util.http.DefaultHttpClient
+import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
@@ -46,6 +49,10 @@ object WfsLayerFactory {
      */
     private const val CONNECT_TIMEOUT_MS = 10_000L
     private const val REQUEST_TIMEOUT_MS = 120_000L
+    /** When a GetFeature URL grows past this length the factory switches from GET to a
+     *  form-encoded POST. 2000 chars is conservative — many servers (and proxies) cap
+     *  GET URLs around 2048. CQL filters and long type-name lists are common offenders. */
+    private const val MAX_GET_URL_LENGTH = 2000
     /**
      * Output formats accepted by [createLayer], in preference order. All produce GeoJSON
      * (or a JSON variant) when fetched. Format strings match those commonly advertised by
@@ -103,6 +110,13 @@ object WfsLayerFactory {
      *   created renderable as `this` and the feature's properties as the argument — use it to
      *   style placemarks/paths/polygons from server-side attributes. Works uniformly for the
      *   GeoJSON and GML decode paths.
+     * @param pageSize Optional WFS 2.0 page size. When set the factory issues repeated GetFeature
+     *   requests with STARTINDEX, accumulating into a single layer, until the server returns a
+     *   short page or [maxFeatures] is reached. Ignored for WFS 1.1.0 endpoints (the spec lacks
+     *   STARTINDEX before 2.0); pass [maxFeatures] alone for those.
+     * @param clientConfig Optional [HttpClientConfig] customizer applied to every Ktor client
+     *   created here — use it to install basic auth, a bearer token, custom headers, or other
+     *   request-shaping behaviour required by private endpoints.
      */
     suspend fun createLayer(
         serviceAddress: String,
@@ -113,6 +127,8 @@ object WfsLayerFactory {
         maxFeatures: Int? = null,
         cqlFilter: String? = null,
         customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
+        pageSize: Int? = null,
+        clientConfig: HttpClientConfig<*>.() -> Unit = {},
     ): RenderableLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingServiceAddress")
@@ -120,36 +136,123 @@ object WfsLayerFactory {
         require(typeName.isNotEmpty()) {
             logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val resolved = resolveFeatureType(serviceAddress, typeName, serviceMetadata)
-        val featuresUri = Uri.parse(resolved.getFeatureUrl).buildUpon()
-            .appendQueryParameter("SERVICE", SERVICE)
-            .appendQueryParameter("VERSION", resolved.version)
-            .appendQueryParameter("REQUEST", "GetFeature")
-            .appendQueryParameter(resolved.typeNameParam, typeName)
-            .appendQueryParameter("OUTPUTFORMAT", resolved.outputFormat)
-            .apply {
-                if (sector != null) {
-                    val bbox = "${sector.minLatitude.inDegrees},${sector.minLongitude.inDegrees}," +
-                            "${sector.maxLatitude.inDegrees},${sector.maxLongitude.inDegrees},urn:ogc:def:crs:EPSG::4326"
-                    appendQueryParameter("BBOX", bbox)
-                    appendQueryParameter("SRSNAME", "urn:ogc:def:crs:EPSG::4326")
-                }
-                maxFeatures?.let { appendQueryParameter(resolved.countParam, it.toString()) }
-                cqlFilter?.takeIf { it.isNotBlank() }?.let { appendQueryParameter("CQL_FILTER", it) }
-            }
-            .build()
-        val responseBody = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
-            httpClient.get(featuresUri.toString()) { expectSuccess = true }.bodyAsText()
-        }
-        checkForOwsException(responseBody)
+        val resolved = resolveFeatureType(serviceAddress, typeName, serviceMetadata, clientConfig)
+        val baseParams = buildGetFeatureParams(resolved, typeName, sector, maxFeatures, cqlFilter)
         val finalName = displayName ?: resolved.displayName
-        return if (resolved.isGml) {
-            val records = withContext(Dispatchers.Default) { WfsGmlReader.parseFeatureRecords(responseBody) }
-            val renderables = WfsGmlReader.toRenderables(records, customLogicToApplyProperties)
-            RenderableLayer(finalName).apply { addAllRenderables(renderables) }
-        } else {
-            val sanitized = withContext(Dispatchers.Default) { sanitizeGeoJson(responseBody) }
-            GeoJsonLayerFactory.createLayer(sanitized, finalName, customLogicToApplyProperties = customLogicToApplyProperties)
+        val paginating = pageSize != null && resolved.version == VERSION_20
+
+        if (!paginating) {
+            val (body, contentType) = fetchGetFeature(resolved.getFeatureUrl, baseParams, clientConfig)
+            checkForOwsException(body)
+            return decodePage(body, decideIsGml(resolved.isGml, contentType), finalName, customLogicToApplyProperties)
+        }
+
+        // Paginated path: loop STARTINDEX until the server returns fewer than the requested
+        // page size or we reach maxFeatures. First page seeds the result layer so any
+        // userProperties (id, sector) set by GeoJsonLayerFactory survive into the merged layer.
+        val cap = maxFeatures ?: Int.MAX_VALUE
+        var result: RenderableLayer? = null
+        var fetched = 0
+        var startIndex = 0
+        while (fetched < cap) {
+            val thisPageSize = minOf(pageSize!!, cap - fetched)
+            val pageParams = LinkedHashMap(baseParams).apply {
+                put("STARTINDEX", startIndex.toString())
+                put(resolved.countParam, thisPageSize.toString())
+            }
+            val (body, contentType) = fetchGetFeature(resolved.getFeatureUrl, pageParams, clientConfig)
+            checkForOwsException(body)
+            val pageLayer = decodePage(body, decideIsGml(resolved.isGml, contentType), finalName, customLogicToApplyProperties)
+            val pageCount = pageLayer.count
+            if (result == null) {
+                result = pageLayer
+            } else {
+                result.addAllRenderables(pageLayer.toList())
+            }
+            fetched += pageCount
+            if (pageCount < thisPageSize) break // server returned a short page → no more data
+            startIndex += pageCount
+        }
+        return result ?: RenderableLayer(finalName)
+    }
+
+    /** Override the negotiated [advertisedIsGml] with what the server actually returned,
+     *  inferred from the response Content-Type. Some servers ignore the requested
+     *  outputFormat and return whatever they please; reading the header keeps decoding
+     *  honest. Returns [advertisedIsGml] unchanged when the header is missing or unclear. */
+    internal fun decideIsGml(advertisedIsGml: Boolean, contentType: String?): Boolean {
+        if (contentType == null) return advertisedIsGml
+        val lc = contentType.lowercase()
+        return when {
+            "json" in lc -> false
+            "xml" in lc || "gml" in lc -> true
+            else -> advertisedIsGml
+        }
+    }
+
+    /** Decode one GetFeature response (already vetted for OWS exceptions) into a [RenderableLayer]. */
+    private suspend fun decodePage(
+        responseBody: String,
+        isGml: Boolean,
+        finalName: String,
+        customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit,
+    ): RenderableLayer = if (isGml) {
+        val records = withContext(Dispatchers.Default) { WfsGmlReader.parseFeatureRecords(responseBody) }
+        val renderables = WfsGmlReader.toRenderables(records, customLogicToApplyProperties)
+        RenderableLayer(finalName).apply { addAllRenderables(renderables) }
+    } else {
+        val sanitized = withContext(Dispatchers.Default) { sanitizeGeoJson(responseBody) }
+        GeoJsonLayerFactory.createLayer(sanitized, finalName, customLogicToApplyProperties = customLogicToApplyProperties)
+    }
+
+    /** Build the GetFeature key/value parameter map. Order is preserved (LinkedHashMap)
+     *  so the resulting URL is deterministic and replay-friendly. */
+    internal fun buildGetFeatureParams(
+        resolved: WfsResolved,
+        typeName: String,
+        sector: Sector?,
+        maxFeatures: Int?,
+        cqlFilter: String?,
+    ): LinkedHashMap<String, String> {
+        val params = LinkedHashMap<String, String>()
+        params["SERVICE"] = SERVICE
+        params["VERSION"] = resolved.version
+        params["REQUEST"] = "GetFeature"
+        params[resolved.typeNameParam] = typeName
+        params["OUTPUTFORMAT"] = resolved.outputFormat
+        if (sector != null) {
+            params["BBOX"] = "${sector.minLatitude.inDegrees},${sector.minLongitude.inDegrees}," +
+                    "${sector.maxLatitude.inDegrees},${sector.maxLongitude.inDegrees},urn:ogc:def:crs:EPSG::4326"
+            params["SRSNAME"] = "urn:ogc:def:crs:EPSG::4326"
+        }
+        maxFeatures?.let { params[resolved.countParam] = it.toString() }
+        cqlFilter?.takeIf { it.isNotBlank() }?.let { params["CQL_FILTER"] = it }
+        return params
+    }
+
+    /** Issue the GetFeature call. Tries a GET first; if the resulting URL would exceed
+     *  [MAX_GET_URL_LENGTH] the request falls back to a form-encoded POST against the
+     *  same endpoint, which is the spec-mandated alternative for long parameter sets.
+     *  Returns the response body together with the server's Content-Type so the caller
+     *  can sanity-check the negotiated output format. */
+    private suspend fun fetchGetFeature(
+        endpoint: String,
+        params: Map<String, String>,
+        clientConfig: HttpClientConfig<*>.() -> Unit,
+    ): Pair<String, String?> {
+        val uriBuilder = Uri.parse(endpoint).buildUpon()
+        params.forEach { (k, v) -> uriBuilder.appendQueryParameter(k, v) }
+        val getUrl = uriBuilder.build().toString()
+        return DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS, clientConfig).use { httpClient ->
+            val response = if (getUrl.length <= MAX_GET_URL_LENGTH) {
+                httpClient.get(getUrl) { expectSuccess = true }
+            } else {
+                httpClient.submitForm(
+                    url = endpoint,
+                    formParameters = Parameters.build { params.forEach { (k, v) -> append(k, v) } },
+                ) { expectSuccess = true }
+            }
+            response.bodyAsText() to response.contentType()?.toString()
         }
     }
 
@@ -167,8 +270,13 @@ object WfsLayerFactory {
     )
 
     /** Try WFS 2.0 first, fall back to 1.1.0 if 2.0 parsing or feature-type lookup fails. */
-    private suspend fun resolveFeatureType(serviceAddress: String, typeName: String, serviceMetadata: String?): WfsResolved {
-        val caps20Text = serviceMetadata ?: runCatching { retrieveCapabilities(serviceAddress, VERSION_20) }.getOrNull()
+    private suspend fun resolveFeatureType(
+        serviceAddress: String,
+        typeName: String,
+        serviceMetadata: String?,
+        clientConfig: HttpClientConfig<*>.() -> Unit = {},
+    ): WfsResolved {
+        val caps20Text = serviceMetadata ?: runCatching { retrieveCapabilities(serviceAddress, VERSION_20, clientConfig) }.getOrNull()
         if (caps20Text != null) {
             val caps20 = runCatching { decodeWfs20Capabilities(caps20Text) }.getOrNull()
             val featureType20 = caps20?.getFeatureType(typeName)
@@ -187,7 +295,7 @@ object WfsLayerFactory {
                 )
             }
         }
-        val caps11Text = serviceMetadata ?: runCatching { retrieveCapabilities(serviceAddress, VERSION_11) }.getOrNull()
+        val caps11Text = serviceMetadata ?: runCatching { retrieveCapabilities(serviceAddress, VERSION_11, clientConfig) }.getOrNull()
             ?: error(makeMessage("WfsLayerFactory", "resolveFeatureType", "Could not retrieve WFS capabilities (tried 2.0.0 and 1.1.0)"))
         val caps11 = decodeWfs11Capabilities(caps11Text)
         val featureType11 = caps11.getFeatureType(typeName) ?: error(
@@ -250,9 +358,14 @@ object WfsLayerFactory {
      * @param serviceAddress the WFS service address
      * @return WFS 2.0.0 service capabilities
      */
-    suspend fun getCapabilities(serviceAddress: String) = decodeWfs20Capabilities(retrieveCapabilities(serviceAddress, VERSION_20))
+    suspend fun getCapabilities(serviceAddress: String, clientConfig: HttpClientConfig<*>.() -> Unit = {}) =
+        decodeWfs20Capabilities(retrieveCapabilities(serviceAddress, VERSION_20, clientConfig))
 
-    private suspend fun retrieveCapabilities(serviceAddress: String, version: String) = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
+    private suspend fun retrieveCapabilities(
+        serviceAddress: String,
+        version: String,
+        clientConfig: HttpClientConfig<*>.() -> Unit = {},
+    ) = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS, clientConfig).use { httpClient ->
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
             .appendQueryParameter("VERSION", version)
             .appendQueryParameter("SERVICE", SERVICE)

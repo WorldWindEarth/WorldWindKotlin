@@ -4,6 +4,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.render.Renderable
+import io.ktor.client.HttpClientConfig
 
 /**
  * A [RenderableLayer] whose contents are sourced from an OGC WFS endpoint and can be
@@ -23,6 +24,8 @@ class WfsLayer(
     displayName: String? = null,
     private val cqlFilter: String? = null,
     private val customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
+    private val pageSize: Int? = null,
+    private val clientConfig: HttpClientConfig<*>.() -> Unit = {},
 ) : RenderableLayer(displayName ?: typeName) {
 
     /**
@@ -38,6 +41,8 @@ class WfsLayer(
             maxFeatures = maxFeatures,
             cqlFilter = cqlFilter,
             customLogicToApplyProperties = customLogicToApplyProperties,
+            pageSize = pageSize,
+            clientConfig = clientConfig,
         )
         val newRenderables = fresh.toList()
         clearRenderables()
