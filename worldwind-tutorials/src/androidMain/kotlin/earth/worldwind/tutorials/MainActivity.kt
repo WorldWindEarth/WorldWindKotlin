@@ -371,6 +371,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/wfs_layer_tutorial.html",
                 R.string.title_wfs_layer
             )
+            R.id.nav_shapefile_layer_activity -> loadTutorial(
+                ShapefileLayerFragment::class.java,
+                "file:///android_asset/shapefile_layer_tutorial.html",
+                R.string.title_shapefile_layer
+            )
             R.id.nav_wcs_elevation_activity -> loadTutorial(
                 WcsElevationFragment::class.java,
                 "file:///android_asset/wcs_elevation_tutorial.html",

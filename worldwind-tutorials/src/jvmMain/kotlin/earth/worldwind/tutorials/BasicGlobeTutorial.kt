@@ -109,6 +109,7 @@ fun main() {
                 "WMS Layer" to WmsLayerTutorial(engine, mainScope),
                 "WMTS Layer" to WmtsLayerTutorial(engine, mainScope),
                 "WFS Layer" to WfsLayerTutorial(engine, mainScope),
+                "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope),
                 "WCS Elevation" to WcsElevationTutorial(engine),
                 "Elevation Heatmap" to ElevationHeatmapTutorial(engine),
             )

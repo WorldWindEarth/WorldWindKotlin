@@ -146,6 +146,7 @@ object Tutorials {
         TutorialFactory("wmsLayer", "WMS Layer") { e -> WmsLayerTutorial(e, e.renderResourceCache.mainScope) },
         TutorialFactory("wmtsLayer", "WMTS Layer") { e -> WmtsLayerTutorial(e, e.renderResourceCache.mainScope) },
         TutorialFactory("wfsLayer", "WFS Layer") { e -> WfsLayerTutorial(e, e.renderResourceCache.mainScope) },
+        TutorialFactory("shapefileLayer", "Shapefile Layer") { e -> ShapefileLayerTutorial(e, e.renderResourceCache.mainScope) },
         TutorialFactory("wcsElevation", "WCS Elevation", ::WcsElevationTutorial),
         TutorialFactory("elevationHeatmap", "Elevation Heatmap", ::ElevationHeatmapTutorial),
     )

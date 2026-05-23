@@ -1,5 +1,7 @@
 package earth.worldwind.formats.geotiff
 
+import earth.worldwind.formats.BinaryDataView
+
 /**
  * TIFF Adobe-style LZW decoder. Implements the variant the TIFF 6 spec describes (a
  * straight LZW with code widths 9 → 12 bits, big-endian-packed bitstream, MSB-first

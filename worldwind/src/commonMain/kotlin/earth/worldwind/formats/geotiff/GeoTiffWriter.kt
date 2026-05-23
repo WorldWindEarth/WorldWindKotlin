@@ -1,5 +1,7 @@
 package earth.worldwind.formats.geotiff
 
+import earth.worldwind.formats.BinaryDataView
+
 /**
  * Cross-platform TIFF writer for the engine's elevation cache. Produces a minimal but
  * spec-compliant baseline TIFF: little-endian header, single strip, uncompressed,

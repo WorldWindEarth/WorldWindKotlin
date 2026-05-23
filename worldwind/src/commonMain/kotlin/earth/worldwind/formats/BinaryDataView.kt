@@ -1,4 +1,4 @@
-package earth.worldwind.formats.geotiff
+package earth.worldwind.formats
 
 import kotlin.experimental.and
 

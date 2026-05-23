@@ -1,5 +1,6 @@
 package earth.worldwind.formats.geotiff
 
+import earth.worldwind.formats.BinaryDataView
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector

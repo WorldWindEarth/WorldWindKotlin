@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Shapefile Layer Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Shapefile Layer Tutorial</h1>
+<p>
+    Demonstrates how to load an ESRI Shapefile (.shp + .dbf + .prj) and display its
+    features as a RenderableLayer.</p>
+<p>
+    ShapefileLayerFactory fetches the .shp file at the supplied URL plus the .dbf and
+    .prj sidecars (auto-derived by extension), parses them, and creates Path / Polygon /
+    Placemark renderables. A per-record shapeConfiguration callback customizes
+    attributes, labels, altitude, or extrusion.</p>
+
+<h2>Example</h2>
+<h3>ShapefileLayerFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class ShapefileLayerFragment : BasicGlobeFragment() {
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        ShapefileLayerTutorial(it.engine, lifecycleScope).start()
+    }
+}
+
+class ShapefileLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
+
+    private var shapefileLayer: RenderableLayer? = null
+    private var job: Job? = null
+
+    override fun start() {
+        super.start()
+        job = scope.launch {
+            try {
+                val polygonStyle = ShapeAttributes().apply {
+                    interiorColor = Color(0.4f, 0.6f, 0.9f, 0.35f)
+                    outlineColor = Color(1f, 1f, 1f, 0.9f)
+                    outlineWidth = 1f
+                }
+                val layer = ShapefileLayerFactory.createLayer(
+                    shpUrl = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/110m_cultural/ne_110m_admin_0_countries.shp",
+                    displayName = "Country Boundaries (Shapefile)",
+                ) { record ->
+                    ShapefileShapeConfiguration(attributes = polygonStyle)
+                }
+                if (isActive) {
+                    shapefileLayer = layer
+                    engine.layers.addLayer(layer)
+                    WorldWind.requestRedraw()
+                }
+            } catch (e: Throwable) {
+                Logger.log(Logger.ERROR, "Shapefile layer creation failed", e)
+            }
+        }
+    }
+
+    override fun stop() {
+        super.stop()
+        job?.cancel()
+        shapefileLayer?.let { engine.layers.removeLayer(it) }.also { shapefileLayer = null }
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

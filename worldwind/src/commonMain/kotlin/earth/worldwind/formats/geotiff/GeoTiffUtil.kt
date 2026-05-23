@@ -1,5 +1,6 @@
 package earth.worldwind.formats.geotiff
 
+import earth.worldwind.formats.BinaryDataView
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 
