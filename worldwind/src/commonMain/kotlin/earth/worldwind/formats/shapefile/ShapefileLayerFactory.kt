@@ -126,7 +126,7 @@ object ShapefileLayerFactory {
         displayName: String?,
         shapeConfiguration: (ShapefileRecord) -> ShapefileShapeConfiguration?,
     ): RenderableLayer {
-        val layer = RenderableLayer(displayName)
+        val layer = RenderableLayer(displayName).apply { isPickEnabled = false }
         for (record in shapefile.records) {
             val config = shapeConfiguration(record) ?: continue
             when {
@@ -164,7 +164,12 @@ object ShapefileLayerFactory {
             val positions = pointsToPositions(record, partIndex, part, config)
             if (positions.isEmpty()) continue
             val path = Path(positions, attributes).apply {
-                altitudeMode = if (config.altitude == 0.0) AltitudeMode.CLAMP_TO_GROUND else config.altitudeMode
+                if (config.altitude == 0.0) {
+                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    isFollowTerrain = true
+                } else {
+                    altitudeMode = config.altitudeMode
+                }
                 config.highlightAttributes?.let { highlightAttributes = it }
                 config.name?.let { displayName = it }
             }
@@ -193,7 +198,10 @@ object ShapefileLayerFactory {
                 pendingHoles?.forEach { addBoundary(it) }
                 when {
                     config.height != 0.0 -> { isExtrude = true; altitudeMode = config.altitudeMode }
-                    config.altitude == 0.0 -> altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                    config.altitude == 0.0 -> {
+                        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                        isFollowTerrain = true
+                    }
                     else -> altitudeMode = config.altitudeMode
                 }
                 config.highlightAttributes?.let { highlightAttributes = it }
