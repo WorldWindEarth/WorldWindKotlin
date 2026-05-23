@@ -23,6 +23,8 @@ import earth.worldwind.shape.PathType
 import earth.worldwind.shape.Placemark
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
+import earth.worldwind.util.Logger.WARN
+import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mil.nga.color.Color
@@ -30,7 +32,9 @@ import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackageCore
 import mil.nga.geopackage.contents.Contents
 import mil.nga.geopackage.contents.ContentsDataType
+import mil.nga.geopackage.db.DateConverter
 import mil.nga.geopackage.extension.WebPExtension
+import mil.nga.geopackage.persister.DatePersister
 import mil.nga.geopackage.extension.coverage.*
 import mil.nga.geopackage.features.columns.GeometryColumns
 import mil.nga.geopackage.tiles.user.TileTable
@@ -813,5 +817,25 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         const val FEATURE_ID_COLUMN = "id"
         const val FEATURE_GEOM_COLUMN = "geom"
         const val FEATURE_PROPERTIES_COLUMN = "properties"
+
+        init { installLenientDatePatterns() }
+
+        // gpkg_contents.last_change is required by spec to be ISO 8601 with the T separator,
+        // but tools like QGIS, older GDAL/ogr2ogr, and any script using SQLite's datetime('now')
+        // emit the space-separated form ("2026-03-24 18:52:34"). mil.nga.geopackage's strict
+        // parser then throws SQLException and the whole content list fails to load. Reach into
+        // DatePersister's singleton DateConverter and append the space-separated patterns so
+        // those files are readable — strict ISO is still tried first, so legitimate data is
+        // unaffected. Read-only OK: this only mutates an in-memory formatter list.
+        private fun installLenientDatePatterns() = runCatching {
+            val field = DatePersister::class.java.getDeclaredField("dateConverter").apply { isAccessible = true }
+            val converter = field.get(null) as DateConverter
+            converter.addFormat("yyyy-MM-dd HH:mm:ss.SSS")
+            converter.addFormat("yyyy-MM-dd HH:mm:ss")
+            converter.addFormat("yyyy-MM-dd HH:mm")
+        }.onFailure {
+            logMessage(WARN, "GeoPackage", "installLenientDatePatterns",
+                "Unable to install lenient last_change date patterns: ${it.message}")
+        }
     }
 }
