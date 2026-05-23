@@ -126,9 +126,14 @@ open class TriangleShaderProgram(
                 }
             }
         """.trimIndent(),
-        // #extension must precede any non-#extension token, including the #define emitted by
-        // defines(). Strict GLSL compilers (eg. Apple) error otherwise.
-        "#extension GL_OES_standard_derivatives : enable\n" + defines() + """
+        // `#extension GL_OES_standard_derivatives` lives in [Kgl.glslDerivativesPrefix] now
+        // (platform-aware: WebGL1 emits the directive, WebGL2 emits only the [WW_HAS_DERIVATIVES]
+        // `#define` since the WebGL2 compiler rejects the directive even though derivatives are
+        // core). It's prepended by [glslVersion] below — extension directives must appear before
+        // any non-extension token, ahead of [defines]. The `#ifdef WW_HAS_DERIVATIVES` guard in
+        // the fragment shader gates the `dFdx` call so a platform that doesn't opt in (currently
+        // none) would still compile - lighting silently no-ops there.
+        defines() + """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             #elif defined(GL_ES)
@@ -166,13 +171,14 @@ open class TriangleShaderProgram(
                 }
                 /* Flat per-face Lambertian. Face normal comes from dFdx/dFdy of localPos,
                    so adjacent triangles within a flat face share a normal and the shading
-                   "naturally" jumps at edges - the right look for schematic buildings. The
-                   extension is core on desktop GL and WebGL2/GLES3; on the rare WebGL1
-                   platform that refuses it, the #if falls through and lighting no-ops.
-                   modelMatrix is translation-only, so the local-space normal is also the
-                   world-space normal and we can dot directly with lightDirection. */
+                   "naturally" jumps at edges - the right look for schematic buildings.
+                   [WW_HAS_DERIVATIVES] is defined by [Kgl.glslDerivativesPrefix] (every
+                   supported platform sets it - the guard is just so a future platform that
+                   can't opt in compiles cleanly with lighting silently disabled, instead of
+                   failing the shader). modelMatrix is translation-only, so the local-space
+                   normal is also the world-space normal - dot directly with lightDirection. */
                 if (enableLighting && !enablePickMode) {
-                    #if defined(GL_OES_standard_derivatives) || !defined(GL_ES)
+                    #ifdef WW_HAS_DERIVATIVES
                     vec3 n = normalize(cross(dFdx(localPos), dFdy(localPos)));
                     if (!gl_FrontFacing) n = -n;
                     float lambert = max(dot(n, lightDirection), 0.0);
@@ -194,6 +200,12 @@ open class TriangleShaderProgram(
         """.trimIndent()
     )
     override val attribBindings = arrayOf("pointA", "pointB", "pointC", "vertexTexCoord")
+
+    // Prepend [Kgl.glslDerivativesPrefix] (directive + macro on most platforms, macro-only on
+    // JS WebGL2 where the compiler rejects the directive) ahead of [defines]. Harmless in the
+    // vertex shader - the rules let `#extension` and a custom `#define` appear in either shader
+    // stage so we keep the API symmetric instead of plumbing per-stage prefixes.
+    override fun glslVersion(dc: DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
 
     private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
 

@@ -61,6 +61,22 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
             gl.unsafeCast<WebGL2RenderingContext>() else null
     private val isWebGL2: Boolean get() = gl2 != null
 
+    // Declared AFTER [gl2] so the initializers capture the post-construction value of
+    // [isWebGL2] (Kotlin property initialization runs top-down).
+    //
+    // WebGL2: force GLSL ES 3.00 on every shader. dFdx/dFdy are core in ES 3.00 and legacy
+    //   ES 1.00 shaders compile via the [translateLegacyGlsl] pass in [shaderSource] -
+    //   identical strategy to [JoglKgl] (`#version 330 core` + the same legacy translation).
+    //   Observed WebGL2 GLSL ES 1.00 compilers refuse the `OES_standard_derivatives` directive
+    //   AND don't expose `dFdx` to legacy shaders either; ES 3.00 sidesteps both quirks.
+    // WebGL1: leave the version empty (legacy ES 1.00) and emit the extension directive plus
+    //   the [WW_HAS_DERIVATIVES] macro. WorldWindow also `getExtension`s OES_standard_derivatives
+    //   for context-level enablement.
+    override val glslVersion: String = if (isWebGL2) "#version 300 es\n" else ""
+    override val glslDerivativesPrefix: String =
+        if (isWebGL2) "#define WW_HAS_DERIVATIVES 1\n"
+        else "#extension GL_OES_standard_derivatives : enable\n#define WW_HAS_DERIVATIVES 1\n"
+
     override fun getParameteri(pname: Int): Int = gl.getParameter(pname) as Int
 
     override fun getParameterf(pname: Int): Float = gl.getParameter(pname) as Float
@@ -71,7 +87,56 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
 
     override fun createShader(type: Int) = KglShader(gl.createShader(type))
 
-    override fun shaderSource(shader: KglShader, source: String) = gl.shaderSource(shader.obj, source)
+    override fun shaderSource(shader: KglShader, source: String) =
+        gl.shaderSource(shader.obj, if (isWebGL2) translateLegacyGlsl(shader, source) else source)
+
+    // Rewrite GLSL ES 1.00 syntax in-place so it compiles under `#version 300 es`. Same
+    // mapping as [JoglKgl.translateLegacyGlsl] — keep them in sync. Idempotent: shaders
+    // that already use modern syntax have no patterns to match and pass through unchanged
+    // (e.g. [ViewshedKernelShaderProgram] which is native ES 3.00).
+    //
+    // Fragment shaders also get a `precision mediump float / int` default injected. ES 1.00
+    // gives fragments an implicit default; ES 3.00 doesn't, and shaders that don't carry
+    // their own `precision` block (e.g. [SightlineMomentsProgram], [DepthToColorProgram])
+    // would otherwise fail with "No precision specified for (float)". Shaders that DO carry
+    // their own block keep working - the later declaration overrides this default.
+    private fun translateLegacyGlsl(shader: KglShader, source: String): String {
+        val isVertex = gl.getShaderParameter(shader.obj, GL_SHADER_TYPE) == GL_VERTEX_SHADER
+        var s = source
+            .replace("attribute ", "in ")
+            // Order matters: `texture2DProj(` must rewrite before `texture2D(` so the longer
+            // legacy name routes to the modern projective overload, not to plain `texture(`.
+            .replace("texture2DProj(", "textureProj(")
+            .replace("textureCubeProj(", "textureProj(")
+            .replace("texture2D(", "texture(")
+            .replace("textureCube(", "texture(")
+            // Strip `#extension` directives for features that were promoted to core in ES 3.00.
+            // The directive on a core-promoted extension produces an "extension is not supported"
+            // warning on WebGL2 even though the underlying feature works. Each entry is matched
+            // as a whole line — partial matches inside comments / strings stay untouched.
+            // (`\R` is Java-only; use explicit `\r?\n` so the regex also works on Kotlin/JS.)
+            .replace(Regex("^\\s*#extension\\s+GL_OES_standard_derivatives.*(?:\\r?\\n)?", RegexOption.MULTILINE), "")
+            .replace(Regex("^\\s*#extension\\s+GL_EXT_frag_depth.*(?:\\r?\\n)?", RegexOption.MULTILINE), "")
+        s = if (isVertex) s.replace("varying ", "out ") else s.replace("varying ", "in ")
+        if (!isVertex) {
+            // Skip the version line and any leading #extension / blank lines — preamble must
+            // sit after them (ES 3.00 requires extensions before any non-extension token).
+            var insertAt = s.indexOf('\n') + 1
+            while (insertAt < s.length) {
+                val lineEnd = s.indexOf('\n', insertAt).let { if (it < 0) s.length else it }
+                val line = s.substring(insertAt, lineEnd).trimStart()
+                if (line.isEmpty() || line.startsWith("#extension")) {
+                    insertAt = if (lineEnd < s.length) lineEnd + 1 else s.length
+                } else break
+            }
+            val needsFragOut = "gl_FragColor" in s
+            val preamble = "precision mediump float;\nprecision mediump int;\n" +
+                if (needsFragOut) "out vec4 _wwFragColor;\n" else ""
+            s = s.substring(0, insertAt) + preamble + s.substring(insertAt)
+            if (needsFragOut) s = s.replace("gl_FragColor", "_wwFragColor")
+        }
+        return s
+    }
 
     override fun compileShader(shader: KglShader) = gl.compileShader(shader.obj)
 

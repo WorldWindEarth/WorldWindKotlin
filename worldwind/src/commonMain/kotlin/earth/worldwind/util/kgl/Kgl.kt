@@ -435,6 +435,19 @@ interface Kgl {
      * default to a modern directive (JOGL emits `#version 330 core\n`).
      */
     val glslVersion3: String get() = glslVersion
+    /**
+     * Preprocessor prefix that opts a shader into `dFdx` / `dFdy`. Defines our private
+     * `WW_HAS_DERIVATIVES` macro plus, where needed, emits the GLES extension directive.
+     * Shaders gate the derivative call site with `#ifdef WW_HAS_DERIVATIVES` rather than the
+     * reserved `GL_OES_standard_derivatives` (GLSL forbids user `#define` of `GL_*` names).
+     *
+     * Default value is appropriate for desktop GL (JOGL) and any GLES platform whose driver
+     * supports OES_standard_derivatives (the historical Android / iOS path). JS overrides for
+     * WebGL2 because that compiler refuses the `#extension` directive ("extension is not
+     * supported") even though derivatives are core there.
+     */
+    val glslDerivativesPrefix: String
+        get() = "#extension GL_OES_standard_derivatives : enable\n#define WW_HAS_DERIVATIVES 1\n"
 
     fun createShader(type: Int): KglShader
     fun shaderSource(shader: KglShader, source: String)

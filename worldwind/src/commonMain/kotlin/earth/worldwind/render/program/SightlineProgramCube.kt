@@ -38,7 +38,6 @@ class SightlineProgramCube : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
-            #extension GL_OES_standard_derivatives : enable
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             uniform highp samplerCube depthSampler;
@@ -79,14 +78,14 @@ class SightlineProgramCube : AbstractShaderProgram() {
                 vec3 absLocal = abs(sightlineLocalPos);
                 float upMask = 1.0 - step(max(absLocal.x, absLocal.y), sightlineLocalPos.z);
 
-                /* 5-tap blur (centre + 4 diagonal corners). On platforms with derivatives
-                   (the macro is defined when `#extension : enable` succeeds, or always on
-                   desktop GLSL where they're core) the offset is screen-pixel-adaptive via
-                   dFdx/dFdy. Some WebGL2 implementations refuse the directive even though
-                   derivatives are core in WebGL2; those fall through to a fixed-angular basis
-                   perpendicular to `sightlineLocalPos`, scaled so the angular blur is constant
-                   (~0.09 degrees ~= 1 cube texel at 1024 per face). */
-                #if defined(GL_OES_standard_derivatives) || !defined(GL_ES)
+                /* 5-tap blur (centre + 4 diagonal corners). [WW_HAS_DERIVATIVES] is defined
+                   by [Kgl.glslDerivativesPrefix] on every supported platform, so in practice
+                   the dFdx/dFdy path is taken: the offset is screen-pixel-adaptive. The
+                   `#else` arm is kept as a safety net for any future platform that can't
+                   opt in - falls back to a fixed-angular basis perpendicular to
+                   `sightlineLocalPos`, scaled so the angular blur is constant (~0.09 degrees
+                   ~= 1 cube texel at 1024 per face). */
+                #ifdef WW_HAS_DERIVATIVES
                 vec3 ddx = dFdx(sightlineLocalPos) * BLUR_RADIUS;
                 vec3 ddy = dFdy(sightlineLocalPos) * BLUR_RADIUS;
                 #else
@@ -142,6 +141,11 @@ class SightlineProgramCube : AbstractShaderProgram() {
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint")
+
+    // Prepend [Kgl.glslDerivativesPrefix] so `#ifdef WW_HAS_DERIVATIVES` picks the
+    // dFdx/dFdy-based per-pixel-adaptive blur. Without the prefix the shader falls through
+    // to a fixed-angular fallback that's lower quality at typical viewpoints.
+    override fun glslVersion(dc: DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
 
     private var mvpMatrixId = KglUniformLocation.NONE
     private var sightlineLocalMatrixId = KglUniformLocation.NONE
