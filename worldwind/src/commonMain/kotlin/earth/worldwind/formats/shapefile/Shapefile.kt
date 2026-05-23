@@ -130,7 +130,54 @@ class Shapefile(
             ShapefileShapeType.POLYLINE, ShapefileShapeType.POLYLINE_Z, ShapefileShapeType.POLYLINE_M,
             ShapefileShapeType.POLYGON, ShapefileShapeType.POLYGON_Z, ShapefileShapeType.POLYGON_M ->
                 readPolyRecord(view, contentStart, end, recordNumber)
+
+            ShapefileShapeType.MULTI_PATCH ->
+                readMultiPatchRecord(view, contentStart, end, recordNumber)
         }
+    }
+
+    /**
+     * MultiPatch record: Polygon-like layout with an extra per-part type array (strip /
+     * fan / outer ring / inner ring / first ring / ring) that says how to triangulate
+     * each part.
+     */
+    private fun readMultiPatchRecord(view: BinaryDataView, start: Int, end: Int, recordNumber: Int): ShapefileRecord {
+        val bbox = readBoundingRectangleAt(view, start)
+        var pos = start + 4 * DOUBLE_SIZE
+
+        val numParts = view.getInt32(pos, littleEndian = true); pos += INT32_SIZE
+        val numPoints = view.getInt32(pos, littleEndian = true); pos += INT32_SIZE
+
+        val partOffsets = IntArray(numParts)
+        for (i in 0 until numParts) { partOffsets[i] = view.getInt32(pos, littleEndian = true); pos += INT32_SIZE }
+
+        val partTypes = ArrayList<MultiPatchPartType>(numParts)
+        for (i in 0 until numParts) {
+            val typeCode = view.getInt32(pos, littleEndian = true); pos += INT32_SIZE
+            partTypes.add(MultiPatchPartType.fromCode(typeCode) ?: MultiPatchPartType.OUTER_RING)
+        }
+
+        val parts = ArrayList<DoubleArray>(numParts)
+        for (i in 0 until numParts) {
+            val start0 = partOffsets[i]
+            val end0 = if (i == numParts - 1) numPoints else partOffsets[i + 1]
+            val count = end0 - start0
+            val xy = readDoubleArray(view, pos, count * 2)
+            normalizeLocations(xy)
+            parts.add(xy)
+            pos += count * 2 * DOUBLE_SIZE
+        }
+
+        val (zRange, zValues, mRange, mValues) = readOptionalZAndM(view, pos, end, numPoints, isPoint = false)
+
+        return ShapefileRecord(
+            shapeType = ShapefileShapeType.MULTI_PATCH,
+            recordNumber = recordNumber,
+            parts = parts,
+            boundingRectangle = bbox,
+            zRange = zRange, zValues = zValues, mRange = mRange, mValues = mValues,
+            partTypes = partTypes,
+        )
     }
 
     private fun readPointRecord(view: BinaryDataView, start: Int, end: Int, recordNumber: Int): ShapefileRecord {

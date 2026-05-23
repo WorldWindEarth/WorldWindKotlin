@@ -20,19 +20,42 @@ enum class ShapefileShapeType(val code: Int) {
     POINT_M(21),
     POLYLINE_M(23),
     POLYGON_M(25),
-    MULTI_POINT_M(28);
+    MULTI_POINT_M(28),
+    /** MultiPatch: a 3D mesh made of triangle strips, triangle fans, and/or rings.
+     *  Always carries Z; M is optional. */
+    MULTI_PATCH(31);
 
     val isPoint: Boolean get() = this == POINT || this == POINT_Z || this == POINT_M
     val isMultiPoint: Boolean get() = this == MULTI_POINT || this == MULTI_POINT_Z || this == MULTI_POINT_M
     val isPolyline: Boolean get() = this == POLYLINE || this == POLYLINE_Z || this == POLYLINE_M
     val isPolygon: Boolean get() = this == POLYGON || this == POLYGON_Z || this == POLYGON_M
-    val isZ: Boolean get() = this == POINT_Z || this == MULTI_POINT_Z || this == POLYLINE_Z || this == POLYGON_Z
+    val isMultiPatch: Boolean get() = this == MULTI_PATCH
+    val isZ: Boolean get() = this == POINT_Z || this == MULTI_POINT_Z || this == POLYLINE_Z ||
+            this == POLYGON_Z || this == MULTI_PATCH
     /** Z types implicitly carry optional measures; pure M types always do. */
     val isMeasure: Boolean get() = isZ ||
             this == POINT_M || this == MULTI_POINT_M || this == POLYLINE_M || this == POLYGON_M
 
     companion object {
         fun fromCode(code: Int): ShapefileShapeType? = entries.firstOrNull { it.code == code }
+    }
+}
+
+/**
+ * Per-part type codes for MultiPatch records. Each part in a [ShapefileShapeType.MULTI_PATCH]
+ * record carries one of these to indicate how the vertices in that part assemble into
+ * triangles. The numeric values match the ESRI Shapefile Technical Description.
+ */
+enum class MultiPatchPartType(val code: Int) {
+    TRIANGLE_STRIP(0),
+    TRIANGLE_FAN(1),
+    OUTER_RING(2),
+    INNER_RING(3),
+    FIRST_RING(4),
+    RING(5);
+
+    companion object {
+        fun fromCode(code: Int): MultiPatchPartType? = entries.firstOrNull { it.code == code }
     }
 }
 
@@ -62,6 +85,8 @@ class ShapefileRecord internal constructor(
     val zValues: DoubleArray? = null,
     val mRange: DoubleArray? = null,
     val mValues: DoubleArray? = null,
+    /** Per-part type codes for MultiPatch records. `null` for every other shape type. */
+    val partTypes: List<MultiPatchPartType>? = null,
 ) {
     val numberOfParts: Int get() = parts.size
     val numberOfPoints: Int get() = parts.sumOf { it.size / 2 }
@@ -76,6 +101,7 @@ class ShapefileRecord internal constructor(
     val isMultiPointType: Boolean get() = shapeType.isMultiPoint
     val isPolylineType: Boolean get() = shapeType.isPolyline
     val isPolygonType: Boolean get() = shapeType.isPolygon
+    val isMultiPatchType: Boolean get() = shapeType.isMultiPatch
 
     /**
      * Returns the points of the requested part as an interleaved `[x0, y0, x1, y1, …]`

@@ -6,7 +6,6 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -122,6 +121,30 @@ class ShapefileTest {
     }
 
     @Test
+    fun parsesMultiPatchTriangleStrip() {
+        val xy = doubleArrayOf(
+            0.0, 0.0,
+            1.0, 0.0,
+            0.0, 1.0,
+            1.0, 1.0,
+        )
+        val z = doubleArrayOf(0.0, 0.0, 0.0, 0.0)
+        val bytes = buildMultiPatchShapefile(
+            parts = listOf(xy),
+            partTypeCodes = intArrayOf(0),
+            zValues = z,
+        )
+        val shapefile = Shapefile(bytes)
+        assertEquals(ShapefileShapeType.MULTI_PATCH, shapefile.shapeType)
+        val record = shapefile.records.single()
+        assertTrue(record.isMultiPatchType)
+        assertNotNull(record.partTypes)
+        assertEquals(MultiPatchPartType.TRIANGLE_STRIP, record.partTypes.single())
+        assertEquals(4, record.numberOfPoints)
+        assertContentEquals(z, record.zValues)
+    }
+
+    @Test
     fun recordsSequenceMatchesEagerRecords() {
         val points = listOf(
             doubleArrayOf(0.0, 0.0),
@@ -167,6 +190,7 @@ private const val SHP_POINT = 1
 private const val SHP_POLYLINE = 3
 private const val SHP_POLYGON = 5
 private const val SHP_POINT_Z = 11
+private const val SHP_MULTI_PATCH = 31
 
 /** Lightweight in-memory shapefile builder for tests. Supports a subset of record types. */
 private fun buildShapefile(
@@ -323,3 +347,72 @@ private fun buildSimpleDbf(names: List<String>): ByteArray {
 }
 
 private data class QuadDouble(val a: Double, val b: Double, val c: Double, val d: Double)
+
+private fun buildMultiPatchShapefile(
+    parts: List<DoubleArray>,
+    partTypeCodes: IntArray,
+    zValues: DoubleArray,
+): ByteArray {
+    require(parts.size == partTypeCodes.size) { "parts/partTypeCodes length mismatch" }
+    val numParts = parts.size
+    val numPoints = parts.sumOf { it.size / 2 }
+    require(zValues.size == numPoints) { "zValues length must match total point count" }
+
+    val contentBytes =
+        4 +
+        4 * 8 +
+        4 + 4 +
+        4 * numParts +
+        4 * numParts +
+        16 * numPoints +
+        2 * 8 +
+        8 * numPoints
+
+    var minX = Double.POSITIVE_INFINITY
+    var maxX = Double.NEGATIVE_INFINITY
+    var minY = Double.POSITIVE_INFINITY
+    var maxY = Double.NEGATIVE_INFINITY
+    for (part in parts) {
+        var i = 0
+        while (i + 1 < part.size) {
+            if (part[i] < minX) minX = part[i]; if (part[i] > maxX) maxX = part[i]
+            if (part[i + 1] < minY) minY = part[i + 1]; if (part[i + 1] > maxY) maxY = part[i + 1]
+            i += 2
+        }
+    }
+    val zMin = zValues.min(); val zMax = zValues.max()
+
+    val totalBytes = 100 + 8 + contentBytes
+    val buf = ByteBuffer.allocate(totalBytes).order(ByteOrder.BIG_ENDIAN)
+    buf.putInt(0, 0x0000270A)
+    buf.putInt(24, totalBytes / 2)
+    buf.order(ByteOrder.LITTLE_ENDIAN)
+    buf.putInt(28, 1000)
+    buf.putInt(32, SHP_MULTI_PATCH)
+
+    val recOff = 100
+    buf.order(ByteOrder.BIG_ENDIAN)
+    buf.putInt(recOff, 1)
+    buf.putInt(recOff + 4, contentBytes / 2)
+
+    buf.order(ByteOrder.LITTLE_ENDIAN)
+    var pos = recOff + 8
+    buf.putInt(pos, SHP_MULTI_PATCH); pos += 4
+    buf.putDouble(pos, minX); pos += 8
+    buf.putDouble(pos, minY); pos += 8
+    buf.putDouble(pos, maxX); pos += 8
+    buf.putDouble(pos, maxY); pos += 8
+    buf.putInt(pos, numParts); pos += 4
+    buf.putInt(pos, numPoints); pos += 4
+    var off = 0
+    for (part in parts) {
+        buf.putInt(pos, off); pos += 4
+        off += part.size / 2
+    }
+    for (code in partTypeCodes) { buf.putInt(pos, code); pos += 4 }
+    for (part in parts) for (d in part) { buf.putDouble(pos, d); pos += 8 }
+    buf.putDouble(pos, zMin); pos += 8
+    buf.putDouble(pos, zMax); pos += 8
+    for (z in zValues) { buf.putDouble(pos, z); pos += 8 }
+    return buf.array()
+}

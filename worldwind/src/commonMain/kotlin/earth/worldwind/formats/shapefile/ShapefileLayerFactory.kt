@@ -8,6 +8,7 @@ import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.PlacemarkAttributes
 import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.ShapeAttributes
+import earth.worldwind.shape.TriangleMesh
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.http.DefaultHttpClient
@@ -134,6 +135,7 @@ object ShapefileLayerFactory {
                 record.isMultiPointType -> addPlacemarks(layer, record, config)
                 record.isPolylineType -> addPolyline(layer, record, config)
                 record.isPolygonType -> addPolygon(layer, record, config)
+                record.isMultiPatchType -> addMultiPatch(layer, record, config)
             }
         }
         return layer
@@ -242,6 +244,75 @@ object ShapefileLayerFactory {
      * coordinates a clockwise ring integrates to a positive value; the shapefile spec
      * uses CW for outer rings and CCW for holes.
      */
+    private fun addMultiPatch(layer: RenderableLayer, record: ShapefileRecord, config: ShapefileShapeConfiguration) {
+        val partTypes = record.partTypes ?: return
+        val zValues = record.zValues
+        val attributes = config.attributes ?: ShapeAttributes()
+
+        val positions = ArrayList<Position>()
+        val indices = ArrayList<Int>()
+        var partBase = 0
+        var pointIndex = 0
+        for ((partIndex, part) in record.parts.withIndex()) {
+            val partLength = part.size / 2
+            for (i in 0 until partLength) {
+                val lon = part[i * 2]
+                val lat = part[i * 2 + 1]
+                val z = zValues?.getOrNull(pointIndex + i) ?: 0.0
+                val altitude = when {
+                    config.height != 0.0 -> config.height
+                    config.altitude != 0.0 -> config.altitude
+                    else -> z
+                }
+                positions.add(Position.fromDegrees(lat, lon, altitude))
+            }
+            when (partTypes[partIndex]) {
+                MultiPatchPartType.TRIANGLE_STRIP -> {
+                    for (i in 0 until partLength - 2) {
+                        if (i % 2 == 0) {
+                            indices.add(partBase + i)
+                            indices.add(partBase + i + 1)
+                            indices.add(partBase + i + 2)
+                        } else {
+                            indices.add(partBase + i + 1)
+                            indices.add(partBase + i)
+                            indices.add(partBase + i + 2)
+                        }
+                    }
+                }
+                MultiPatchPartType.TRIANGLE_FAN -> {
+                    for (i in 1 until partLength - 1) {
+                        indices.add(partBase)
+                        indices.add(partBase + i)
+                        indices.add(partBase + i + 1)
+                    }
+                }
+                MultiPatchPartType.OUTER_RING, MultiPatchPartType.INNER_RING,
+                MultiPatchPartType.FIRST_RING, MultiPatchPartType.RING -> {
+                    for (i in 1 until partLength - 1) {
+                        indices.add(partBase)
+                        indices.add(partBase + i)
+                        indices.add(partBase + i + 1)
+                    }
+                }
+            }
+            partBase += partLength
+            pointIndex += partLength
+        }
+
+        if (positions.isEmpty() || indices.size < 3) return
+        if (positions.size > 65_536) {
+            Logger.log(WARN, "MultiPatch record ${record.recordNumber} has ${positions.size} positions; exceeds TriangleMesh cap, skipped")
+            return
+        }
+        val mesh = TriangleMesh(positions.toTypedArray(), indices.toIntArray(), attributes).apply {
+            altitudeMode = config.altitudeMode
+            config.highlightAttributes?.let { highlightAttributes = it }
+            config.name?.let { displayName = it }
+        }
+        layer.addRenderable(mesh)
+    }
+
     private fun isClockwise(positions: List<Position>): Boolean {
         var sum = 0.0
         for (i in positions.indices) {
