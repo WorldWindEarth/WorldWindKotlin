@@ -188,7 +188,9 @@ open class OsmBuildingsLayer(
             interiorColor = Color(red = 0.80f, green = 0.80f, blue = 0.78f, alpha = 1f)
             outlineColor = Color(red = 0.45f, green = 0.45f, blue = 0.43f, alpha = 1f)
             outlineWidth = 1f
-            isLightingEnabled = false
+            // Flat per-face Lambertian shading distinguishes the wall faces of a building box
+            // (otherwise all four sides paint the same gray and read as one flat shape).
+            isLightingEnabled = true
         }
 
         fun lonLatToTile(lonDegrees: Double, latDegrees: Double, zoom: Int): Pair<Int, Int> {

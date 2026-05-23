@@ -60,11 +60,17 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder, S
         mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
         program.loadModelviewProjection(mvpMatrix)
 
-        // Model -> world transform for the shadow-receiver pass; skipped on no-shadow frames.
-        if (dc.shadowState != null) {
-            modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
-            program.loadModelMatrix(modelMatrix)
-        }
+        // Model -> world transform. Needed by the shadow receiver AND by lighting (the vertex
+        // shader now feeds worldPos to the fragment shader's flat-normal derivation). Cheap
+        // (translation only) - upload unconditionally so the worldPos varying is always valid.
+        modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+        program.loadModelMatrix(modelMatrix)
+
+        // Lighting: enable only for filled triangles (lines have no meaningful face normal),
+        // outside pick mode (shader gates it too, but skipping the uniform upload saves work).
+        val lightingActive = drawState.enableLighting && !drawState.isLine && !dc.isPickMode
+        program.enableLighting(lightingActive)
+        if (lightingActive) program.loadLightDirection(dc.lightDirection)
 
         // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass,
         // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.

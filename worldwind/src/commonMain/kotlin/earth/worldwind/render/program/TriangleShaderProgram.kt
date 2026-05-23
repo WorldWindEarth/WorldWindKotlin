@@ -3,6 +3,7 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.render.Color
@@ -22,9 +23,7 @@ open class TriangleShaderProgram(
     override var programSources = arrayOf(
         defines() + """
             uniform mat4 mvpMatrix;
-            #ifdef SHADOWS_ENABLED
             uniform mat4 modelMatrix;
-            #endif
             uniform float lineWidth;
             uniform vec2 miterLengthCutoff;
             uniform vec4 screen;
@@ -39,8 +38,13 @@ open class TriangleShaderProgram(
             attribute vec2 vertexTexCoord;
 
             varying vec2 texCoord;
+            /* Shape-local position (small magnitudes around the vertex origin). The fragment
+               shader uses this for dFdx/dFdy-derived face normals AND reconstructs world-space
+               position by adding modelMatrix[3].xyz for shadow sampling. Doing derivatives on
+               world-space ECEF coordinates directly produces speckled shading: at ~6.4 Mm
+               magnitudes, float cancellation drowns the sub-metre per-pixel position delta. */
+            varying vec3 localPos;
             #ifdef SHADOWS_ENABLED
-            varying vec3 worldPos;
             varying float viewDepth;
             #endif
 
@@ -48,9 +52,7 @@ open class TriangleShaderProgram(
                 if (enableOneVertexMode) {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     gl_Position = mvpMatrix * vec4(pointA.xyz, 1.0);
-                    #ifdef SHADOWS_ENABLED
-                    worldPos = (modelMatrix * vec4(pointA.xyz, 1.0)).xyz;
-                    #endif
+                    localPos = pointA.xyz;
                 } else {
                     /* Transform the vertex position by the modelview-projection matrix. */
                     vec4 pointAScreen = mvpMatrix * vec4(pointA.xyz, 1);
@@ -109,12 +111,10 @@ open class TriangleShaderProgram(
                         gl_Position.xy = pointBScreen.w * (pointBScreen.xy + (cornerY * miter * lineWidth * miterLength) * screen.zw);
                     }
                     gl_Position.zw = pointBScreen.zw;
-                    #ifdef SHADOWS_ENABLED
                     /* Line mode: use pointB (the middle of the 3-vertex line stencil) as the
-                       fragment's world-space position for shadow sampling. Coarse but visually
-                       acceptable since lines are typically narrow on-screen. */
-                    worldPos = (modelMatrix * vec4(pointB.xyz, 1.0)).xyz;
-                    #endif
+                       fragment's local-space position. Coarse but visually acceptable since
+                       lines are typically narrow on-screen and lighting is not enabled for them. */
+                    localPos = pointB.xyz;
                 }
                 #ifdef SHADOWS_ENABLED
                 viewDepth = gl_Position.w;
@@ -126,7 +126,9 @@ open class TriangleShaderProgram(
                 }
             }
         """.trimIndent(),
-        defines() + """
+        // #extension must precede any non-#extension token, including the #define emitted by
+        // defines(). Strict GLSL compilers (eg. Apple) error otherwise.
+        "#extension GL_OES_standard_derivatives : enable\n" + defines() + """
             #ifdef GL_FRAGMENT_PRECISION_HIGH
             precision highp float;
             #elif defined(GL_ES)
@@ -135,13 +137,16 @@ open class TriangleShaderProgram(
 
             uniform bool enablePickMode;
             uniform bool enableTexture;
+            uniform bool enableLighting;
             uniform vec4 color;
             uniform float opacity;
+            uniform vec3 lightDirection;
             uniform sampler2D texSampler;
 
             varying vec2 texCoord;
+            varying vec3 localPos;
             #ifdef SHADOWS_ENABLED
-            varying vec3 worldPos;
+            uniform mat4 modelMatrix;
             varying float viewDepth;
 
             ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
@@ -159,9 +164,29 @@ open class TriangleShaderProgram(
                     /* Return the RGBA color as-is. */
                     gl_FragColor = color * opacity;
                 }
+                /* Flat per-face Lambertian. Face normal comes from dFdx/dFdy of localPos,
+                   so adjacent triangles within a flat face share a normal and the shading
+                   "naturally" jumps at edges - the right look for schematic buildings. The
+                   extension is core on desktop GL and WebGL2/GLES3; on the rare WebGL1
+                   platform that refuses it, the #if falls through and lighting no-ops.
+                   modelMatrix is translation-only, so the local-space normal is also the
+                   world-space normal and we can dot directly with lightDirection. */
+                if (enableLighting && !enablePickMode) {
+                    #if defined(GL_OES_standard_derivatives) || !defined(GL_ES)
+                    vec3 n = normalize(cross(dFdx(localPos), dFdy(localPos)));
+                    if (!gl_FrontFacing) n = -n;
+                    float lambert = max(dot(n, lightDirection), 0.0);
+                    /* Ambient 0.35 keeps unlit walls legible; diffuse 0.65 sweeps to 1.0 for
+                       a face turned to the sun. Linear (not "ambient + lambert" clamped) so
+                       adjacent wall faces stay distinguishable from each other. */
+                    gl_FragColor.rgb *= 0.35 + 0.65 * lambert;
+                    #endif
+                }
                 #ifdef SHADOWS_ENABLED
-                /* Skip shadow attenuation in pick mode so pick IDs aren't darkened. */
                 if (!enablePickMode) {
+                    /* Reconstruct world-space position for shadow-map sampling. modelMatrix is
+                       translation-only here, so its 4th column carries the vertexOrigin offset. */
+                    vec3 worldPos = localPos + modelMatrix[3].xyz;
                     gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
                 }
                 #endif
@@ -174,7 +199,9 @@ open class TriangleShaderProgram(
 
     private var enablePickMode = false
     private var enableTexture = false
+    private var enableLighting = false
     private var enableOneVertexMode = false
+    private val lightDirection = Vec3(0.0, 0.0, 1.0)
     private val mvpMatrix = Matrix4()
     /** Cached value of the last uploaded `modelMatrix`; defaults to identity. Used by
      *  [loadModelMatrix] to skip redundant uploads. */
@@ -197,7 +224,9 @@ open class TriangleShaderProgram(
     private var screenId = KglUniformLocation.NONE
     private var enablePickModeId = KglUniformLocation.NONE
     private var enableTextureId = KglUniformLocation.NONE
+    private var enableLightingId = KglUniformLocation.NONE
     private var enableOneVertexModeId = KglUniformLocation.NONE
+    private var lightDirectionId = KglUniformLocation.NONE
     private var texCoordMatrixId = KglUniformLocation.NONE
     private var texSamplerId = KglUniformLocation.NONE
     private var clipDistanceId = KglUniformLocation.NONE
@@ -234,8 +263,12 @@ open class TriangleShaderProgram(
         gl.uniform1i(enablePickModeId, if (enablePickMode) 1 else 0)
         enableTextureId = gl.getUniformLocation(program, "enableTexture")
         gl.uniform1i(enableTextureId, if (enableTexture) 1 else 0)
+        enableLightingId = gl.getUniformLocation(program, "enableLighting")
+        gl.uniform1i(enableLightingId, if (enableLighting) 1 else 0)
         enableOneVertexModeId = gl.getUniformLocation(program, "enableOneVertexMode")
         gl.uniform1i(enableOneVertexModeId, if (enableOneVertexMode) 1 else 0)
+        lightDirectionId = gl.getUniformLocation(program, "lightDirection")
+        gl.uniform3f(lightDirectionId, lightDirection.x.toFloat(), lightDirection.y.toFloat(), lightDirection.z.toFloat())
 
         texCoordMatrixId = gl.getUniformLocation(program, "texCoordMatrix")
         texCoordMatrix.transposeToArray(array, 0) // 3 x 3 identity matrix
@@ -243,8 +276,10 @@ open class TriangleShaderProgram(
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
 
-        // Shadow receiver uniforms - see SurfaceTextureProgram.initProgram for the no-shadow
-        // GL-no-op rationale.
+        // modelMatrix is the model -> world (vertexOrigin translation) transform. Uploaded
+        // every draw now (the fragment shader reconstructs world position from localPos plus
+        // this matrix's 4th column for shadow sampling). For the no-shadow variant the uniform
+        // is unused at the GL level - see SurfaceTextureProgram.initProgram for that rationale.
         modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
         modelMatrix.transposeToArray(array, 0) // 4 x 4 identity matrix
         gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
@@ -275,6 +310,20 @@ open class TriangleShaderProgram(
             gl.uniform1i(enableTextureId, if (enable) 1 else 0)
         }
     }
+    fun enableLighting(enable: Boolean) {
+        if (enableLighting != enable) {
+            enableLighting = enable
+            gl.uniform1i(enableLightingId, if (enable) 1 else 0)
+        }
+    }
+    /** Upload a unit-length world-space sun direction. Dirty-checked so identical directions
+     *  across many draws (the typical case for one frame) skip the GL call. */
+    fun loadLightDirection(direction: Vec3) {
+        if (lightDirection != direction) {
+            lightDirection.copy(direction)
+            gl.uniform3f(lightDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
+        }
+    }
     fun enableOneVertexMode(enable: Boolean) {
         if (enableOneVertexMode != enable) {
             enableOneVertexMode = enable
@@ -297,11 +346,9 @@ open class TriangleShaderProgram(
     }
 
     /**
-     * Loads the model -> world transform for the shadow receiver. Dirty-checked: shapes that
-     * share the same world transform across multiple draws (line + fill, multi-segment paths)
-     * see the same matrix repeatedly. Drawables only call this when
-     * [earth.worldwind.draw.DrawContext.shadowState] is non-null, so it doesn't run on
-     * no-shadow frames at all.
+     * Loads the model -> world transform. Used by the shadow receiver to reconstruct world
+     * position for shadow-map sampling. Dirty-checked, since shapes commonly issue several
+     * draws against the same world transform (line + fill, multi-segment paths).
      */
     fun loadModelMatrix(matrix: Matrix4) {
         if (modelMatrix != matrix) {
