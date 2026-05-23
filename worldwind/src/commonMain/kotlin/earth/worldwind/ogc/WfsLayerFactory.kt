@@ -158,7 +158,7 @@ object WfsLayerFactory {
         var fetched = 0
         var startIndex = 0
         while (fetched < cap) {
-            val thisPageSize = minOf(pageSize!!, cap - fetched)
+            val thisPageSize = minOf(pageSize, cap - fetched)
             val pageParams = LinkedHashMap(baseParams).apply {
                 put("STARTINDEX", startIndex.toString())
                 put(resolved.countParam, thisPageSize.toString())
