@@ -6,6 +6,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.ogc.wfs.WfsCapabilities
 import earth.worldwind.ogc.wfs.WfsFeatureType
+import earth.worldwind.ogc.wfs.WfsServiceException
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.Logger.makeMessage
@@ -54,6 +55,10 @@ object WfsLayerFactory {
         "geojson",
     )
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
+    private val exceptionReportRegex = Regex("<(?:\\w+:)?ExceptionReport\\b")
+    private val exceptionCodeRegex = Regex("""exceptionCode\s*=\s*["']([^"']+)["']""")
+    private val locatorRegex = Regex("""\blocator\s*=\s*["']([^"']+)["']""")
+    private val exceptionTextRegex = Regex("<(?:\\w+:)?ExceptionText[^>]*>(.*?)</(?:\\w+:)?ExceptionText>", RegexOption.DOT_MATCHES_ALL)
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     /** GeoJSON spec keys retained on Feature objects. GeoServer-style extensions such as
      *  `geometry_name` are dropped because [GeoJsonLayerFactory]'s underlying data2viz
@@ -78,6 +83,7 @@ object WfsLayerFactory {
      * @param displayName Optional layer display name
      * @param sector Optional bounding box filter (BBOX); defaults to the feature type's WGS84BoundingBox
      * @param maxFeatures Optional limit on the number of features fetched (translated to the WFS 2.0 `count` parameter)
+     * @param cqlFilter Optional CQL_FILTER expression evaluated server-side (GeoServer / MapServer / QGIS Server extension)
      */
     suspend fun createLayer(
         serviceAddress: String,
@@ -86,6 +92,7 @@ object WfsLayerFactory {
         displayName: String? = null,
         sector: Sector? = null,
         maxFeatures: Int? = null,
+        cqlFilter: String? = null,
     ): RenderableLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingServiceAddress")
@@ -118,11 +125,13 @@ object WfsLayerFactory {
                     appendQueryParameter("SRSNAME", "urn:ogc:def:crs:EPSG::4326")
                 }
                 maxFeatures?.let { appendQueryParameter("COUNT", it.toString()) }
+                cqlFilter?.takeIf { it.isNotBlank() }?.let { appendQueryParameter("CQL_FILTER", it) }
             }
             .build()
         val responseBody = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
             httpClient.get(featuresUri.toString()) { expectSuccess = true }.bodyAsText()
         }
+        checkForOwsException(responseBody)
         val sanitized = withContext(Dispatchers.Default) { sanitizeGeoJson(responseBody) }
         return GeoJsonLayerFactory.createLayer(sanitized, displayName ?: featureType.title ?: featureType.name)
     }
@@ -178,7 +187,22 @@ object WfsLayerFactory {
             .appendQueryParameter("SERVICE", SERVICE)
             .appendQueryParameter("REQUEST", "GetCapabilities")
             .build()
-        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText()
+        httpClient.get(serviceUri.toString()) { expectSuccess = true }.bodyAsText().also { checkForOwsException(it) }
+    }
+
+    /**
+     * Detects whether a WFS response is in fact an OGC ExceptionReport and, if so, throws
+     * [WfsServiceException] with the server-supplied code and text. WFS 2.0 servers use
+     * OWS 1.1, WFS 1.1 uses OWS 1.0, and some servers omit the namespace prefix entirely;
+     * we deliberately match against any of those forms via lenient regexes rather than
+     * adding parallel @Serializable classes per OWS version.
+     */
+    internal fun checkForOwsException(body: String) {
+        if (!exceptionReportRegex.containsMatchIn(body)) return
+        val code = exceptionCodeRegex.find(body)?.groupValues?.get(1)
+        val locator = locatorRegex.find(body)?.groupValues?.get(1)
+        val text = exceptionTextRegex.find(body)?.groupValues?.get(1)?.trim()
+        throw WfsServiceException(code, text, locator)
     }
 
     private suspend fun decodeWfsCapabilities(xmlText: String) = withContext(Dispatchers.Default) {

@@ -160,6 +160,38 @@ class WfsCapabilitiesTest {
     }
 
     @Test
+    fun testCheckForOwsException_ParsesOws11ExceptionReport() {
+        val body = """<?xml version="1.0" encoding="UTF-8"?>
+            <ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows/1.1" version="2.0.0">
+              <ows:Exception exceptionCode="InvalidParameterValue" locator="typeNames">
+                <ows:ExceptionText>Feature type 'bogus' is not available</ows:ExceptionText>
+              </ows:Exception>
+            </ows:ExceptionReport>"""
+        val ex = assertFailsWith<WfsServiceException> { WfsLayerFactory.checkForOwsException(body) }
+        assertEquals("InvalidParameterValue", ex.exceptionCode)
+        assertEquals("typeNames", ex.locator)
+        assertEquals("Feature type 'bogus' is not available", ex.exceptionText)
+    }
+
+    @Test
+    fun testCheckForOwsException_ParsesUnprefixedExceptionReport() {
+        val body = """<ExceptionReport xmlns="http://www.opengis.net/ows" version="1.0.0">
+              <Exception exceptionCode="NoApplicableCode">
+                <ExceptionText>something blew up</ExceptionText>
+              </Exception>
+            </ExceptionReport>"""
+        val ex = assertFailsWith<WfsServiceException> { WfsLayerFactory.checkForOwsException(body) }
+        assertEquals("NoApplicableCode", ex.exceptionCode)
+        assertEquals("something blew up", ex.exceptionText)
+    }
+
+    @Test
+    fun testCheckForOwsException_IgnoresNonExceptionBody() {
+        WfsLayerFactory.checkForOwsException("""{"type":"FeatureCollection","features":[]}""")
+        WfsLayerFactory.checkForOwsException("""<wfs:WFS_Capabilities version="2.0.0"/>""")
+    }
+
+    @Test
     fun testSanitizeGeoJson_StripsGeoServerExtensions() {
         val raw = """{"type":"FeatureCollection","totalFeatures":12,"numberMatched":12,""" +
                 """"numberReturned":1,"timeStamp":"2025-01-01T00:00:00Z","crs":null,""" +
