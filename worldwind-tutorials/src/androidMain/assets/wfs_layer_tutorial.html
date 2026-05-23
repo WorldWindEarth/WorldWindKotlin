@@ -39,14 +39,11 @@ class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
     private var wfsLayer: RenderableLayer? = null
     private var job: Job? = null
 
-    private val continentColors = mapOf(
-        "Africa" to Color.fromHexString("#F4A261"),
-        "Asia" to Color.fromHexString("#E76F51"),
-        "Europe" to Color.fromHexString("#2A9D8F"),
-        "North America" to Color.fromHexString("#264653"),
-        "South America" to Color.fromHexString("#E9C46A"),
-        "Oceania" to Color.fromHexString("#8338EC"),
-        "Antarctica" to Color.fromHexString("#CAD2C5"),
+    private val populationTiers = listOf(
+        5_000_000.0 to Color.fromHexString("#E63946"), // megacity (5M+) — red
+        2_000_000.0 to Color.fromHexString("#F4A261"), // major (2–5M)   — orange
+        1_000_000.0 to Color.fromHexString("#E9C46A"), // large (1–2M)   — yellow
+        0.0         to Color.fromHexString("#2A9D8F"), // rest (<1M)     — teal
     )
 
     override fun start() {
@@ -54,14 +51,20 @@ class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
         job = scope.launch {
             try {
                 WfsLayerFactory.createLayer(
-                    serviceAddress = "https://ahocevar.com/geoserver/wfs",
-                    typeName = "ne:ne_10m_admin_0_countries",
-                    displayName = "Countries by Continent (WFS)",
+                    serviceAddress = "https://demo.mapserver.org/cgi-bin/wfs",
+                    typeName = "ms:cities",
+                    displayName = "Major Cities (WFS)",
+                    maxFeatures = 500,
                     pageSize = 100,
                     customLogicToApplyProperties = { properties ->
-                        val continent = properties["continent"] as? String ?: return@createLayer
-                        val color = continentColors[continent] ?: return@createLayer
-                        if (this is Polygon) attributes.interiorColor = color
+                        val population = (properties["POPULATION"] as? Number)?.toDouble() ?: return@createLayer
+                        val color = populationTiers.first { (threshold, _) -> population >= threshold }.second
+                        // GeoJsonLayerFactory emits a Label when a feature has `name` but
+                        // no `icon`, and a Placemark otherwise — colour whichever we got.
+                        when (this) {
+                            is Placemark -> attributes.imageColor = color
+                            is Label -> attributes.textColor = color
+                        }
                     },
                 ).also {
                     if (isActive) {

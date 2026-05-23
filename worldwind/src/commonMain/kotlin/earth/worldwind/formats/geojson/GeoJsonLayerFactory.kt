@@ -74,9 +74,7 @@ object GeoJsonLayerFactory {
             val features = featureCollection.features
 
             val geometriesWithProperties = features.associate { feature ->
-                @Suppress("UNCHECKED_CAST")
-                val properties =
-                    feature.properties as? LinkedHashMap<String, Any?> ?: LinkedHashMap()
+                val properties = extractGeoJsonProperties(feature.properties)
                 Pair(feature.geometry, Properties(properties))
             }
 

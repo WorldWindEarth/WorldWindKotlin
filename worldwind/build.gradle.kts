@@ -66,7 +66,7 @@ kotlin {
                 api(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.serialization.xml)
-                implementation(libs.ktor.client.core)
+                api(libs.ktor.client.core)
                 implementation(libs.uri.kmp)
                 implementation(libs.pngj)
                 implementation(libs.geojson)

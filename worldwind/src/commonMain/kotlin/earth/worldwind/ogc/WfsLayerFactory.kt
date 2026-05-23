@@ -34,9 +34,10 @@ import nl.adaptivity.xmlutil.serialization.XML
 
 /**
  * Factory that creates a [RenderableLayer] populated with features retrieved from an OGC
- * Web Feature Service (WFS 2.0.0). The factory negotiates an output format with the
- * server, preferring GeoJSON so the response can be parsed by [GeoJsonLayerFactory]. If
- * the server does not advertise a GeoJSON-compatible format, layer creation fails.
+ * Web Feature Service. The factory negotiates an output format with the server (preferring
+ * GeoJSON via [GeoJsonLayerFactory], falling back to GML 3.1 / 3.2 via [WfsGmlReader]), and
+ * tries WFS 2.0.0 first then 1.1.0. Returns an unstyled [RenderableLayer]; pass a
+ * `customLogicToApplyProperties` callback to colour or label features per server attribute.
  */
 object WfsLayerFactory {
     private const val SERVICE = "WFS"
@@ -79,8 +80,9 @@ object WfsLayerFactory {
     private val exceptionReportRegex = Regex("<(?:\\w+:)?ExceptionReport\\b")
     private val exceptionCodeRegex = Regex("""exceptionCode\s*=\s*["']([^"']+)["']""")
     private val locatorRegex = Regex("""\blocator\s*=\s*["']([^"']+)["']""")
-    // (?s) makes . match newlines — equivalent to DOT_MATCHES_ALL but supported on every Kotlin target.
-    private val exceptionTextRegex = Regex("(?s)<(?:\\w+:)?ExceptionText[^>]*>(.*?)</(?:\\w+:)?ExceptionText>")
+    // [\s\S] matches any character including newlines on every Kotlin target — JS rejects
+    // the (?s) inline flag at regex-compile time and RegexOption.DOT_MATCHES_ALL is JVM-only.
+    private val exceptionTextRegex = Regex("<(?:\\w+:)?ExceptionText[^>]*>([\\s\\S]*?)</(?:\\w+:)?ExceptionText>")
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     /** GeoJSON spec keys retained on Feature objects. GeoServer-style extensions such as
      *  `geometry_name` are dropped because [GeoJsonLayerFactory]'s underlying data2viz
@@ -95,9 +97,9 @@ object WfsLayerFactory {
     private val nameAliases = listOf("name", "NAME", "Name", "NAMEASCII", "name_en", "NAME_EN")
 
     /**
-     * Create renderable layer based on WFS feature type metadata retrieved from server
-     * capabilities or decoded from parameter. Features are fetched using GetFeature and
-     * decoded with [GeoJsonLayerFactory].
+     * Create a renderable layer for one WFS feature type. Capabilities are fetched from
+     * the server (or supplied via [serviceMetadata]), an output format is negotiated, and
+     * the GetFeature response is decoded into [Renderable]s.
      *
      * @param serviceAddress WFS service address
      * @param typeName WFS feature type name to be requested

@@ -5,7 +5,8 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.render.Color
-import earth.worldwind.shape.Polygon
+import earth.worldwind.shape.Label
+import earth.worldwind.shape.Placemark
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -17,38 +18,45 @@ class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
     private var wfsLayer: RenderableLayer? = null
     private var job: Job? = null
 
-    /** Natural Earth tags each country with a `continent` attribute — colour each polygon
-     *  by that so the grouping is visible at a glance. */
-    private val continentColors = mapOf(
-        "Africa" to Color.fromHexString("#F4A261"),
-        "Asia" to Color.fromHexString("#E76F51"),
-        "Europe" to Color.fromHexString("#2A9D8F"),
-        "North America" to Color.fromHexString("#264653"),
-        "South America" to Color.fromHexString("#E9C46A"),
-        "Oceania" to Color.fromHexString("#8338EC"),
-        "Antarctica" to Color.fromHexString("#CAD2C5"),
-        "Seven seas (open ocean)" to Color.fromHexString("#A8DADC"),
+    /** Population thresholds (in people) and the placemark colour for each tier. The
+     *  MapServer demo's `ms:cities` layer ships the world's biggest cities first, with
+     *  `POPULATION` as a numeric attribute we can read in [customLogicToApplyProperties]. */
+    private val populationTiers = listOf(
+        5_000_000.0 to Color.fromHexString("#E63946"), // megacity (5M+) — red
+        2_000_000.0 to Color.fromHexString("#F4A261"), // major (2–5M)   — orange
+        1_000_000.0 to Color.fromHexString("#E9C46A"), // large (1–2M)   — yellow
+        0.0         to Color.fromHexString("#2A9D8F"), // rest (<1M)     — teal
     )
 
     override fun start() {
         super.start()
         job = scope.launch {
             try {
-                // Demonstrates two factory features:
-                //   * pageSize triggers WFS 2.0 STARTINDEX pagination — countries (~255)
-                //     come back in 100-feature chunks instead of one big request.
+                // Demonstrates two WfsLayerFactory hooks:
+                //   * pageSize triggers WFS 2.0 STARTINDEX pagination — the requested 500
+                //     cities come back in five 100-feature pages instead of one big
+                //     request.
                 //   * customLogicToApplyProperties fires once per parsed feature, letting
-                //     us recolour each polygon based on the `continent` attribute the
-                //     server returns alongside its geometry.
+                //     us tint each placemark by its POPULATION attribute.
+                // The MapServer demo (demo.mapserver.org/cgi-bin/wfs) is used instead of
+                // a GeoServer demo because its CORS preflight is correctly configured —
+                // some popular GeoServer demos (e.g. ahocevar.com) 403 the OPTIONS
+                // request so the browser blocks the actual GET.
                 WfsLayerFactory.createLayer(
-                    serviceAddress = "https://ahocevar.com/geoserver/wfs",
-                    typeName = "ne:ne_10m_admin_0_countries",
-                    displayName = "Countries by Continent (WFS)",
+                    serviceAddress = "https://demo.mapserver.org/cgi-bin/wfs",
+                    typeName = "ms:cities",
+                    displayName = "Major Cities (WFS)",
+                    maxFeatures = 500,
                     pageSize = 100,
                     customLogicToApplyProperties = { properties ->
-                        val continent = properties["continent"] as? String ?: return@createLayer
-                        val color = continentColors[continent] ?: return@createLayer
-                        if (this is Polygon) attributes.interiorColor = color
+                        val population = (properties["POPULATION"] as? Number)?.toDouble() ?: return@createLayer
+                        val color = populationTiers.first { (threshold, _) -> population >= threshold }.second
+                        // GeoJsonLayerFactory emits a Label when a feature has `name` but
+                        // no `icon`, and a Placemark otherwise — colour whichever we got.
+                        when (this) {
+                            is Placemark -> attributes.imageColor = color
+                            is Label -> attributes.textColor = color
+                        }
                     },
                 ).also {
                     if (isActive) {

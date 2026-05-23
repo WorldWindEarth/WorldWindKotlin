@@ -14,7 +14,7 @@ actual object Logger {
      */
     var loggingLevel = ERROR
 
-    actual fun isLoggable(priority: Int) = priority in ERROR until loggingLevel
+    actual fun isLoggable(priority: Int) = priority in ERROR..loggingLevel
 
     actual fun log(priority: Int, message: String, tr: Throwable?) {
         if (isLoggable(priority)) {
