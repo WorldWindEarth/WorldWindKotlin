@@ -112,6 +112,7 @@ fun main() {
                 "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope),
                 "WCS Elevation" to WcsElevationTutorial(engine),
                 "DTED Elevation (local)" to DtedElevationTutorial(engine),
+                "NITF Imagery" to NitfImageryTutorial(engine),
                 "Elevation Heatmap" to ElevationHeatmapTutorial(engine),
             )
 

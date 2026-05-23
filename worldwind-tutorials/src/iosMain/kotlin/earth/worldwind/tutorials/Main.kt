@@ -148,6 +148,7 @@ object Tutorials {
         TutorialFactory("wfsLayer", "WFS Layer") { e -> WfsLayerTutorial(e, e.renderResourceCache.mainScope) },
         TutorialFactory("shapefileLayer", "Shapefile Layer") { e -> ShapefileLayerTutorial(e, e.renderResourceCache.mainScope) },
         TutorialFactory("wcsElevation", "WCS Elevation", ::WcsElevationTutorial),
+        TutorialFactory("nitfImagery", "NITF Imagery", ::NitfImageryTutorial),
         TutorialFactory("elevationHeatmap", "Elevation Heatmap", ::ElevationHeatmapTutorial),
     )
 

@@ -115,6 +115,7 @@ fun main() {
             "WFS Layer" to WfsLayerTutorial(wwd.engine, mainScope),
             "Shapefile Layer" to ShapefileLayerTutorial(wwd.engine, mainScope),
             "WCS Elevation" to WcsElevationTutorial(wwd.engine),
+            "NITF Imagery" to NitfImageryTutorial(wwd.engine),
             "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),
         )
         val projections = mapOf(

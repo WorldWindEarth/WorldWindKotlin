@@ -37,6 +37,7 @@
     <string name="title_shapefile_layer">Shapefile Layer</string>
     <string name="title_wcs_elevation_coverage">WCS Elevation Coverage</string>
     <string name="title_dted_elevation">DTED Elevation (local)</string>
+    <string name="title_nitf_imagery">NITF Imagery</string>
     <string name="title_elevation_heatmap">Elevation Heatmap</string>
     <string name="title_collada">COLLADA Model</string>
     <string name="title_gltf">GLTF Model</string>

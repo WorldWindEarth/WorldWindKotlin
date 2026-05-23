@@ -386,6 +386,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/dted_elevation_tutorial.html",
                 R.string.title_dted_elevation
             )
+            R.id.nav_nitf_imagery_activity -> loadTutorial(
+                NitfImageryFragment::class.java,
+                "file:///android_asset/nitf_imagery_tutorial.html",
+                R.string.title_nitf_imagery
+            )
         }
         val drawer = findViewById<DrawerLayout>(R.id.drawer_layout)
         drawer.closeDrawer(GravityCompat.START)
