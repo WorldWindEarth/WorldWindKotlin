@@ -47,7 +47,13 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_17)
         }
 
-        withHostTestBuilder { }.configure { }
+        withHostTestBuilder { }.configure {
+            // android.jar shipped with unit tests is a stub: every method throws
+            // by default. Returning defaults instead (false / 0 / null) lets
+            // commonTest code that touches android.util.Log (via Logger) run
+            // without each test pre-mocking the framework.
+            isReturnDefaultValues = true
+        }
         withDeviceTestBuilder {
             sourceSetTreeName = "test"
         }.configure {
