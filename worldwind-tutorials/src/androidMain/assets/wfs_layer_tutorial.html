@@ -14,9 +14,12 @@
 <p>
     Demonstrates how to display an OGC Web Feature Service (WFS) layer.</p>
 <p>
-    WfsLayerFactory negotiates a GeoJSON-compatible output format with the WFS endpoint,
-    fetches features via GetFeature, and decodes them with GeoJsonLayerFactory to produce
-    a RenderableLayer.</p>
+    WfsLayerFactory negotiates a compatible output format with the WFS endpoint
+    (preferring GeoJSON, falling back to GML 3.2 / 3.1), fetches features via GetFeature,
+    and produces a RenderableLayer. This tutorial also shows two of the factory's hooks:
+    <code>pageSize</code> triggers WFS 2.0 STARTINDEX pagination so large datasets come
+    back in chunks, and <code>customLogicToApplyProperties</code> runs once per parsed
+    feature so callers can style placemarks/paths/polygons from the server's attributes.</p>
 
 <h2>Example</h2>
 <h3>WfsLayerFragment.kt</h3>
@@ -36,6 +39,16 @@ class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
     private var wfsLayer: RenderableLayer? = null
     private var job: Job? = null
 
+    private val continentColors = mapOf(
+        "Africa" to Color.fromHexString("#F4A261"),
+        "Asia" to Color.fromHexString("#E76F51"),
+        "Europe" to Color.fromHexString("#2A9D8F"),
+        "North America" to Color.fromHexString("#264653"),
+        "South America" to Color.fromHexString("#E9C46A"),
+        "Oceania" to Color.fromHexString("#8338EC"),
+        "Antarctica" to Color.fromHexString("#CAD2C5"),
+    )
+
     override fun start() {
         super.start()
         job = scope.launch {
@@ -43,7 +56,13 @@ class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
                 WfsLayerFactory.createLayer(
                     serviceAddress = "https://ahocevar.com/geoserver/wfs",
                     typeName = "ne:ne_10m_admin_0_countries",
-                    displayName = "Country Boundaries (WFS)",
+                    displayName = "Countries by Continent (WFS)",
+                    pageSize = 100,
+                    customLogicToApplyProperties = { properties ->
+                        val continent = properties["continent"] as? String ?: return@createLayer
+                        val color = continentColors[continent] ?: return@createLayer
+                        if (this is Polygon) attributes.interiorColor = color
+                    },
                 ).also {
                     if (isActive) {
                         wfsLayer = it

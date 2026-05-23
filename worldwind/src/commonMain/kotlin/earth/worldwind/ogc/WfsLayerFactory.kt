@@ -150,6 +150,9 @@ object WfsLayerFactory {
         // Paginated path: loop STARTINDEX until the server returns fewer than the requested
         // page size or we reach maxFeatures. First page seeds the result layer so any
         // userProperties (id, sector) set by GeoJsonLayerFactory survive into the merged layer.
+        // STARTINDEX advances by the *feature* count the server returned — not the renderable
+        // count, which can be inflated by multi-geometry features (a country with mainland +
+        // islands expands into multiple Polygons but is still one row server-side).
         val cap = maxFeatures ?: Int.MAX_VALUE
         var result: RenderableLayer? = null
         var fetched = 0
@@ -162,18 +165,31 @@ object WfsLayerFactory {
             }
             val (body, contentType) = fetchGetFeature(resolved.getFeatureUrl, pageParams, clientConfig)
             checkForOwsException(body)
-            val pageLayer = decodePage(body, decideIsGml(resolved.isGml, contentType), finalName, customLogicToApplyProperties)
-            val pageCount = pageLayer.count
-            if (result == null) {
-                result = pageLayer
-            } else {
-                result.addAllRenderables(pageLayer.toList())
-            }
-            fetched += pageCount
-            if (pageCount < thisPageSize) break // server returned a short page → no more data
-            startIndex += pageCount
+            val effectiveIsGml = decideIsGml(resolved.isGml, contentType)
+            val featureCount = countFeaturesInResponse(body, effectiveIsGml)
+            val pageLayer = decodePage(body, effectiveIsGml, finalName, customLogicToApplyProperties)
+            if (result == null) result = pageLayer else result.addAllRenderables(pageLayer.toList())
+            if (featureCount == 0) break
+            fetched += featureCount
+            if (featureCount < thisPageSize) break // server returned a short page → no more data
+            startIndex += featureCount
         }
         return result ?: RenderableLayer(finalName)
+    }
+
+    /** Count server-side features in a GetFeature response. GeoJSON: length of the
+     *  `features` array. GML: number of `<wfs:member>` / `<gml:featureMember>` (or
+     *  unprefixed) wrappers. Used for pagination so STARTINDEX advances by the count
+     *  the server actually returned rather than the (potentially inflated) renderable count. */
+    internal fun countFeaturesInResponse(body: String, isGml: Boolean): Int = try {
+        if (isGml) {
+            Regex("<(?:\\w+:)?(?:member|featureMember)\\b").findAll(body).count()
+        } else {
+            val root = json.parseToJsonElement(body) as? JsonObject ?: return 0
+            (root["features"] as? JsonArray)?.size ?: 0
+        }
+    } catch (_: Throwable) {
+        0
     }
 
     /** Override the negotiated [advertisedIsGml] with what the server actually returned,

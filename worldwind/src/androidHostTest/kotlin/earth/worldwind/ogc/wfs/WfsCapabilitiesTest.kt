@@ -126,6 +126,52 @@ class WfsCapabilitiesTest {
     }
 
     @Test
+    fun testCountFeaturesInResponse_GeoJson() {
+        val body = """{"type":"FeatureCollection","features":[
+            {"type":"Feature","geometry":{"type":"Point","coordinates":[0,0]},"properties":{}},
+            {"type":"Feature","geometry":{"type":"Point","coordinates":[1,1]},"properties":{}},
+            {"type":"Feature","geometry":{"type":"Point","coordinates":[2,2]},"properties":{}}
+        ]}"""
+        assertEquals(3, WfsLayerFactory.countFeaturesInResponse(body, isGml = false))
+    }
+
+    @Test
+    fun testCountFeaturesInResponse_GeoJsonEmpty() {
+        assertEquals(0, WfsLayerFactory.countFeaturesInResponse("""{"type":"FeatureCollection","features":[]}""", isGml = false))
+    }
+
+    @Test
+    fun testCountFeaturesInResponse_Gml32CountsMembers() {
+        val body = """<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0">
+              <wfs:member><Feature/></wfs:member>
+              <wfs:member><Feature/></wfs:member>
+              <wfs:member><Feature/></wfs:member>
+            </wfs:FeatureCollection>"""
+        assertEquals(3, WfsLayerFactory.countFeaturesInResponse(body, isGml = true))
+    }
+
+    @Test
+    fun testCountFeaturesInResponse_Gml31CountsFeatureMembers() {
+        val body = """<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs" xmlns:gml="http://www.opengis.net/gml">
+              <gml:featureMember><Feature/></gml:featureMember>
+              <gml:featureMember><Feature/></gml:featureMember>
+            </wfs:FeatureCollection>"""
+        assertEquals(2, WfsLayerFactory.countFeaturesInResponse(body, isGml = true))
+    }
+
+    @Test
+    fun testCountFeaturesInResponse_GmlIgnoresNumberMatchedAttribute() {
+        // GeoServer wraps responses with numberMatched/numberReturned attrs — those must
+        // not be miscounted as feature members.
+        val body = """<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0"
+              numberMatched="2" numberReturned="2">
+              <wfs:member><Feature/></wfs:member>
+              <wfs:member><Feature/></wfs:member>
+            </wfs:FeatureCollection>"""
+        assertEquals(2, WfsLayerFactory.countFeaturesInResponse(body, isGml = true))
+    }
+
+    @Test
     fun testDecideIsGml_RespectsContentTypeWhenItDisagrees() {
         // Advertised GeoJSON, server actually returned GML
         assertTrue(WfsLayerFactory.decideIsGml(advertisedIsGml = false, contentType = "application/gml+xml; version=3.2"))
