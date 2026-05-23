@@ -14,57 +14,139 @@ import nl.adaptivity.xmlutil.xmlStreaming
 
 /**
  * Pull-parses an OGC WFS GetFeature response encoded as GML (3.1 or 3.2) and emits the
- * geometries inside it as WorldWind [Renderable]s. Used when the server doesn't advertise
- * a GeoJSON-compatible output format.
+ * geometries + feature properties inside it. Used when the server doesn't advertise a
+ * GeoJSON-compatible output format.
  *
- * Feature attribute schemas vary per WFS endpoint, so this reader doesn't try to map them
- * to placemark labels — it focuses purely on geometry extraction: Point → [Placemark],
- * LineString → [Path], Polygon → [Polygon] (exterior ring only), and the GML Multi*
- * containers expand to lists of the corresponding shape.
+ * The reader walks `<wfs:member>` / `<gml:featureMember>` boundaries to associate each
+ * geometry with the surrounding feature's attribute leaves (captured as a flat
+ * `Map<String,String>` keyed by element local name). GML Multi* geometries fan out
+ * into one [FeatureRecord] per inner geometry, all sharing the same properties.
+ *
+ * Polygon interior rings (holes) are passed through as additional boundaries on the
+ * resulting [Polygon] shape.
  */
 internal object WfsGmlReader {
     // GML 3.1 (WFS 1.1.0) uses the older namespace; accept both.
     private const val GML31_NAMESPACE = "http://www.opengis.net/gml"
 
-    /** Geometry extracted from a GML response. Each variant is one shape; Multi*
-     *  containers are flattened into one element per inner geometry. */
+    /** One geometry + the feature attributes that surrounded it. */
+    internal data class FeatureRecord(val geometry: GmlGeometry, val properties: Map<String, String>)
+
+    /** Geometry extracted from a GML response. Multi* containers expand into one record
+     *  per inner geometry, each sharing the parent feature's properties. */
     internal sealed interface GmlGeometry {
         data class PointGeom(val position: Position) : GmlGeometry
         data class LineGeom(val positions: List<Position>) : GmlGeometry
-        data class PolygonGeom(val exterior: List<Position>) : GmlGeometry
+        /** [interiors] is the list of hole boundaries (GML `<gml:interior>` rings). */
+        data class PolygonGeom(val exterior: List<Position>, val interiors: List<List<Position>> = emptyList()) : GmlGeometry
     }
 
     /** Decode the GML payload into [Renderable]s suitable for adding to a [RenderableLayer]. */
-    fun parseFeatures(xmlText: String): List<Renderable> = parseGeometries(xmlText).map { geom ->
-        when (geom) {
-            is GmlGeometry.PointGeom -> Placemark(geom.position)
-            is GmlGeometry.LineGeom -> Path(geom.positions).asTerrain()
-            is GmlGeometry.PolygonGeom -> Polygon(geom.exterior).asTerrain()
+    fun parseFeatures(xmlText: String): List<Renderable> = toRenderables(parseFeatureRecords(xmlText))
+
+    /** Convert pre-parsed [FeatureRecord]s to renderables, invoking [customLogicToApplyProperties]
+     *  once per record with the created renderable as `this` and the feature's properties
+     *  copied into a [LinkedHashMap] as the argument. */
+    fun toRenderables(
+        records: List<FeatureRecord>,
+        customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
+    ): List<Renderable> = records.map { record ->
+        val renderable: Renderable = when (val g = record.geometry) {
+            is GmlGeometry.PointGeom -> Placemark(g.position)
+            is GmlGeometry.LineGeom -> Path(g.positions).asTerrain()
+            is GmlGeometry.PolygonGeom -> Polygon(g.exterior).apply {
+                g.interiors.forEach { addBoundary(it) }
+                asTerrain()
+            }
         }
+        renderable.customLogicToApplyProperties(LinkedHashMap<String, Any?>(record.properties))
+        renderable
     }
 
-    /** Decode the GML payload into raw geometries — split from [parseFeatures] so the
+    /** Decode the GML payload into raw feature records. Split from [parseFeatures] so the
      *  parsing logic can be unit-tested without instantiating Android-coupled shape
      *  classes like [Placemark]. */
-    internal fun parseGeometries(xmlText: String): List<GmlGeometry> {
+    internal fun parseFeatureRecords(xmlText: String): List<FeatureRecord> {
         val reader = xmlStreaming.newGenericReader(StringReader(xmlText))
-        val out = mutableListOf<GmlGeometry>()
+        val out = mutableListOf<FeatureRecord>()
         while (reader.hasNext()) {
-            if (reader.next() == EventType.START_ELEMENT && reader.isGml()) {
-                when (reader.localName) {
-                    "Point" -> parsePoint(reader)?.let { out += GmlGeometry.PointGeom(it) }
-                    "LineString" -> parseLineString(reader)?.let { out += GmlGeometry.LineGeom(it) }
-                    "Polygon" -> parsePolygon(reader)?.let { out += GmlGeometry.PolygonGeom(it) }
-                    "MultiPoint" -> parseMulti(reader, "Point", ::parsePoint)
-                        .forEach { out += GmlGeometry.PointGeom(it) }
-                    "MultiCurve", "MultiLineString" -> parseMulti(reader, "LineString", ::parseLineString)
-                        .forEach { out += GmlGeometry.LineGeom(it) }
-                    "MultiSurface", "MultiPolygon" -> parseMulti(reader, "Polygon", ::parsePolygon)
-                        .forEach { out += GmlGeometry.PolygonGeom(it) }
-                }
+            if (reader.next() == EventType.START_ELEMENT && reader.isMemberWrapper()) {
+                out += parseFeatureMember(reader)
             }
         }
         return out
+    }
+
+    private fun XmlReader.isMemberWrapper(): Boolean =
+        localName == "member" || localName == "featureMember"
+
+    /** Reader sits on `<wfs:member>` / `<gml:featureMember>`. Inside is a single application
+     *  feature element (or, for older servers, the geometry / property directly). */
+    private fun parseFeatureMember(reader: XmlReader): List<FeatureRecord> {
+        val out = mutableListOf<FeatureRecord>()
+        forEachChildElement(reader) {
+            // Direct child of the wrapper is the application feature element.
+            val (geometries, properties) = extractFeature(reader)
+            geometries.forEach { out += FeatureRecord(it, properties) }
+        }
+        return out
+    }
+
+    /** Walk the children of an application feature element. Each non-GML element is
+     *  either a leaf text property or wraps a GML geometry; GML elements at this depth
+     *  are bare geometry properties. */
+    private fun extractFeature(reader: XmlReader): Pair<List<GmlGeometry>, Map<String, String>> {
+        val geometries = mutableListOf<GmlGeometry>()
+        val properties = mutableMapOf<String, String>()
+        forEachChildElement(reader) {
+            if (reader.isGml()) {
+                geometries += parseGmlGeometry(reader)
+            } else {
+                val propertyName = reader.localName
+                val (text, nested) = readPropertyContent(reader)
+                geometries += nested
+                if (text != null) properties[propertyName] = text
+            }
+        }
+        return geometries to properties
+    }
+
+    /** Reader sits on a non-GML property element. Walk to its END_ELEMENT, collecting
+     *  text content and any GML geometries found nested inside. */
+    private fun readPropertyContent(reader: XmlReader): Pair<String?, List<GmlGeometry>> {
+        val text = StringBuilder()
+        val geoms = mutableListOf<GmlGeometry>()
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                EventType.START_ELEMENT -> {
+                    if (reader.isGml()) {
+                        geoms += parseGmlGeometry(reader)
+                    } else {
+                        // Nested non-GML element — recurse so we still pick up geometries
+                        // wrapped by complex property paths.
+                        val (_, nestedGeoms) = readPropertyContent(reader)
+                        geoms += nestedGeoms
+                    }
+                }
+                EventType.TEXT, EventType.CDSECT -> text.append(reader.text)
+                EventType.END_ELEMENT -> return (text.toString().trim().ifEmpty { null }) to geoms
+                else -> Unit
+            }
+        }
+        return (text.toString().trim().ifEmpty { null }) to geoms
+    }
+
+    /** Reader sits on a GML geometry element. Returns a list because Multi* containers
+     *  fan out into multiple inner geometries. */
+    private fun parseGmlGeometry(reader: XmlReader): List<GmlGeometry> = when (reader.localName) {
+        "Point" -> parsePoint(reader)?.let { listOf(GmlGeometry.PointGeom(it)) } ?: emptyList()
+        "LineString" -> parseLineString(reader)?.let { listOf(GmlGeometry.LineGeom(it)) } ?: emptyList()
+        "Polygon" -> parsePolygon(reader)?.let { listOf(it) } ?: emptyList()
+        "MultiPoint" -> parseMulti(reader, "Point", ::parsePoint).map { GmlGeometry.PointGeom(it) }
+        "MultiCurve", "MultiLineString" -> parseMulti(reader, "LineString", ::parseLineString)
+            .map { GmlGeometry.LineGeom(it) }
+        "MultiSurface", "MultiPolygon" -> parseMulti(reader, "Polygon", ::parsePolygon)
+        else -> { skipElement(reader); emptyList() }
     }
 
     /** Parse `<gml:Point>` — reader positioned on its START_ELEMENT, exits on END_ELEMENT. */
@@ -102,18 +184,21 @@ internal object WfsGmlReader {
     }
 
     /** Parse `<gml:Polygon>` — reader positioned on its START_ELEMENT. Returns the
-     *  exterior ring; interior rings (holes) are skipped because [Polygon] doesn't
-     *  currently expose multi-ring construction here. */
-    private fun parsePolygon(reader: XmlReader): List<Position>? {
+     *  exterior ring and any interior (hole) rings. */
+    private fun parsePolygon(reader: XmlReader): GmlGeometry.PolygonGeom? {
         val srs = reader.attr("srsName")
         val outerDim = reader.attr("srsDimension")?.toIntOrNull() ?: 2
         var exterior: List<Position>? = null
+        val interiors = mutableListOf<List<Position>>()
         forEachChildElement(reader) {
-            if (reader.isGml() && reader.localName == "exterior") {
-                exterior = parseLinearRing(reader, srs, outerDim)
-            } else skipElement(reader)
+            if (!reader.isGml()) { skipElement(reader); return@forEachChildElement }
+            when (reader.localName) {
+                "exterior" -> exterior = parseLinearRing(reader, srs, outerDim)
+                "interior" -> parseLinearRing(reader, srs, outerDim)?.let(interiors::add)
+                else -> skipElement(reader)
+            }
         }
-        return exterior?.takeIf { it.size >= 3 }
+        return exterior?.takeIf { it.size >= 3 }?.let { GmlGeometry.PolygonGeom(it, interiors) }
     }
 
     /** Reader on `<gml:exterior>` / `<gml:interior>` start; descends into the inner LinearRing. */
@@ -133,13 +218,11 @@ internal object WfsGmlReader {
     }
 
     /** Parse a GML Multi* element. Each member element wraps one inner geometry of
-     *  [memberLocalName] (Point/LineString/Polygon); we descend through the wrapper to
-     *  the inner geometry and invoke [parser]. */
+     *  [memberLocalName]; we descend through the wrapper to invoke [parser]. */
     private fun <T : Any> parseMulti(reader: XmlReader, memberLocalName: String, parser: (XmlReader) -> T?): List<T> {
         val out = mutableListOf<T>()
         forEachChildElement(reader) {
             if (!reader.isGml()) { skipElement(reader); return@forEachChildElement }
-            // wrapper is <surfaceMember>/<curveMember>/<pointMember>
             forEachChildElement(reader) {
                 if (reader.isGml() && reader.localName == memberLocalName) {
                     parser(reader)?.let { out += it }
@@ -151,9 +234,7 @@ internal object WfsGmlReader {
 
     // ---- coord parsing ----
 
-    /** True if [srs] denotes a CRS that publishes coordinates as longitude-then-latitude.
-     *  The URN form `urn:ogc:def:crs:EPSG::4326` is latitude-first per OGC convention;
-     *  `CRS84` / `CRS:84` and the legacy bare `EPSG:4326` are longitude-first. */
+    /** True if [srs] denotes a CRS that publishes coordinates as longitude-then-latitude. */
     private fun isLonLat(srs: String?): Boolean = srs != null && (
         srs.contains("CRS84", ignoreCase = true) ||
         srs.contains("CRS:84", ignoreCase = true) ||
@@ -187,8 +268,7 @@ internal object WfsGmlReader {
 
     /** Reader sits on a parent START_ELEMENT. Pull events until the matching END_ELEMENT,
      *  invoking [onChild] each time we encounter a direct-child START. The callback
-     *  *must* consume that child fully (e.g. via [skipElement] or another descent); on
-     *  return the reader must be positioned just past the child's END_ELEMENT. */
+     *  *must* consume that child fully (e.g. via [skipElement] or another descent). */
     private inline fun forEachChildElement(reader: XmlReader, onChild: () -> Unit) {
         while (reader.hasNext()) {
             when (reader.next()) {

@@ -5,6 +5,7 @@ import earth.worldwind.formats.geojson.GeoJsonLayerFactory
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.ogc.wfs.Wfs11Capabilities
+import earth.worldwind.render.Renderable
 import earth.worldwind.ogc.wfs.Wfs11FeatureType
 import earth.worldwind.ogc.wfs.WfsCapabilities
 import earth.worldwind.ogc.wfs.WfsFeatureType
@@ -98,6 +99,10 @@ object WfsLayerFactory {
      * @param sector Optional bounding box filter (BBOX); defaults to the feature type's WGS84BoundingBox
      * @param maxFeatures Optional limit on the number of features fetched (translated to the WFS 2.0 `count` parameter)
      * @param cqlFilter Optional CQL_FILTER expression evaluated server-side (GeoServer / MapServer / QGIS Server extension)
+     * @param customLogicToApplyProperties Optional callback invoked once per feature with the
+     *   created renderable as `this` and the feature's properties as the argument — use it to
+     *   style placemarks/paths/polygons from server-side attributes. Works uniformly for the
+     *   GeoJSON and GML decode paths.
      */
     suspend fun createLayer(
         serviceAddress: String,
@@ -107,6 +112,7 @@ object WfsLayerFactory {
         sector: Sector? = null,
         maxFeatures: Int? = null,
         cqlFilter: String? = null,
+        customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
     ): RenderableLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingServiceAddress")
@@ -138,11 +144,12 @@ object WfsLayerFactory {
         checkForOwsException(responseBody)
         val finalName = displayName ?: resolved.displayName
         return if (resolved.isGml) {
-            val renderables = withContext(Dispatchers.Default) { WfsGmlReader.parseFeatures(responseBody) }
+            val records = withContext(Dispatchers.Default) { WfsGmlReader.parseFeatureRecords(responseBody) }
+            val renderables = WfsGmlReader.toRenderables(records, customLogicToApplyProperties)
             RenderableLayer(finalName).apply { addAllRenderables(renderables) }
         } else {
             val sanitized = withContext(Dispatchers.Default) { sanitizeGeoJson(responseBody) }
-            GeoJsonLayerFactory.createLayer(sanitized, finalName)
+            GeoJsonLayerFactory.createLayer(sanitized, finalName, customLogicToApplyProperties = customLogicToApplyProperties)
         }
     }
 

@@ -3,6 +3,7 @@ package earth.worldwind.ogc.wfs
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.ogc.WfsLayerFactory
+import earth.worldwind.render.Renderable
 
 /**
  * A [RenderableLayer] whose contents are sourced from an OGC WFS endpoint and can be
@@ -21,6 +22,7 @@ class WfsLayer(
     private val typeName: String,
     displayName: String? = null,
     private val cqlFilter: String? = null,
+    private val customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
 ) : RenderableLayer(displayName ?: typeName) {
 
     /**
@@ -35,6 +37,7 @@ class WfsLayer(
             sector = sector,
             maxFeatures = maxFeatures,
             cqlFilter = cqlFilter,
+            customLogicToApplyProperties = customLogicToApplyProperties,
         )
         val newRenderables = fresh.toList()
         clearRenderables()
