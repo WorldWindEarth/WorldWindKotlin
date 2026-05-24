@@ -1,6 +1,7 @@
 package earth.worldwind.ogc
 
 import earth.worldwind.geom.Sector
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.mercator.MercatorImageTile
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.ogc.gpkg.GeoPackage
@@ -23,6 +24,14 @@ open class GpkgTileFactory(
     override suspend fun lastModifiedDate() = content.lastChange?.let { Instant.fromEpochMilliseconds(it.time) }
 
     override suspend fun contentSize() = geoPackage.readTilesDataSize(content.tableName)
+
+    override var evictionPolicy: CacheEvictionPolicy =
+        CacheEvictionPolicy.UNBOUNDED
+
+    override suspend fun evict() {
+        if (evictionPolicy.isUnbounded || geoPackage.isReadOnly) return
+        geoPackage.evictTiles(content, evictionPolicy)
+    }
 
     @Throws(IllegalStateException::class)
     override suspend fun clearContent(deleteMetadata: Boolean) = if (deleteMetadata) {

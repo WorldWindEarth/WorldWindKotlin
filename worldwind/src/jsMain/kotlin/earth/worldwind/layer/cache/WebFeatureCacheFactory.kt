@@ -18,6 +18,13 @@ class WebFeatureCacheFactory internal constructor(
 
     override suspend fun contentSize(): Long = store.contentSize(contentKey)
 
+    override var evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED
+
+    override suspend fun evict() {
+        if (evictionPolicy.isUnbounded) return
+        store.evictByPolicy(contentKey, evictionPolicy)
+    }
+
     override suspend fun clearContent(deleteMetadata: Boolean) {
         store.deleteByContent(contentKey)
     }

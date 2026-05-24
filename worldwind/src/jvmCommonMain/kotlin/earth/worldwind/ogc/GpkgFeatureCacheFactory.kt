@@ -1,6 +1,7 @@
 package earth.worldwind.ogc
 
 import earth.worldwind.layer.FeatureCacheSourceFactory
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.cache.CachedFeatureRow
 import earth.worldwind.layer.cache.CachedGeometry
 import earth.worldwind.ogc.gpkg.GeoPackage
@@ -28,6 +29,13 @@ class GpkgFeatureCacheFactory(
         content.lastChange?.let { Instant.fromEpochMilliseconds(it.time) }
 
     override suspend fun contentSize(): Long = geoPackage.readFeaturesDataSize(content.tableName)
+
+    override var evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED
+
+    override suspend fun evict() {
+        if (evictionPolicy.isUnbounded || geoPackage.isReadOnly) return
+        geoPackage.evictFeatures(content, evictionPolicy)
+    }
 
     override suspend fun clearContent(deleteMetadata: Boolean) {
         if (deleteMetadata) geoPackage.deleteContent(content.tableName)

@@ -3,6 +3,7 @@ package earth.worldwind.ogc
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.globe.elevation.CacheSourceFactory
 import earth.worldwind.globe.elevation.ElevationSource
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GpkgContent
 import kotlin.time.Instant
@@ -18,6 +19,14 @@ open class GpkgElevationSourceFactory(
     override val lastUpdateDate get() = content.lastChange?.let { Instant.fromEpochMilliseconds(it.time) }
 
     override suspend fun contentSize() = geoPackage.readTilesDataSize(content.tableName)
+
+    override var evictionPolicy: CacheEvictionPolicy =
+        CacheEvictionPolicy.UNBOUNDED
+
+    override suspend fun evict() {
+        if (evictionPolicy.isUnbounded || geoPackage.isReadOnly) return
+        geoPackage.evictTiles(content, evictionPolicy)
+    }
 
     @Throws(IllegalStateException::class)
     override suspend fun clearContent(deleteMetadata: Boolean) = if (deleteMetadata) {

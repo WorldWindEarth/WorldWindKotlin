@@ -5,6 +5,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import org.w3c.dom.events.Event
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration
+
 /**
  * Suspend-aware wrapper around the browser `IndexedDB` API. One database, one object store
  * (`features`); rows discriminate by [IdbFeatureRecord.contentKey] and are indexed on the
@@ -63,6 +65,50 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
         var max = 0.0
         for (r in rows) if (r.lastModified > max) max = r.lastModified
         return max
+    }
+
+    /**
+     * Apply a [CacheEvictionPolicy] to rows under [contentKey]. Walks the by-content index in
+     * one cursor pass, computes which records to drop (TTL-expired + over-cap by count and bytes),
+     * and deletes them in a single readwrite transaction.
+     */
+    suspend fun evictByPolicy(contentKey: String, policy: CacheEvictionPolicy) {
+        if (policy.isUnbounded) return
+        val rows = readByContent(contentKey)
+        if (rows.isEmpty()) return
+
+        val now = js("Date.now()").unsafeCast<Double>()
+        val maxAgeMs = if (policy.maxAge == Duration.INFINITE) Double.POSITIVE_INFINITY
+        else policy.maxAge.inWholeMilliseconds.toDouble()
+        val cutoff = now - maxAgeMs
+
+        // Sort newest-first so the keep-set is easy to slice off the front.
+        val sorted = rows.sortedByDescending { it.lastModified }
+        val idsToDelete = mutableListOf<Int>()
+        var kept = 0L
+        var keptBytes = 0L
+        for (r in sorted) {
+            val id = r.id ?: continue
+            val tooOld = r.lastModified < cutoff
+            val overCount = kept >= policy.maxEntries
+            val sz = (r.geometry?.length ?: 0) + (r.properties?.length ?: 0)
+            val overBytes = keptBytes + sz > policy.maxBytes
+            if (tooOld || overCount || overBytes) {
+                idsToDelete += id
+            } else {
+                kept++
+                keptBytes += sz
+            }
+        }
+        if (idsToDelete.isEmpty()) return
+        deleteByIds(idsToDelete)
+    }
+
+    private suspend fun deleteByIds(ids: List<Int>) {
+        val tx = db.transaction(STORE_NAME, "readwrite")
+        val store = tx.objectStore(STORE_NAME)
+        for (id in ids) store.delete(id)
+        awaitTransaction(tx)
     }
 
     companion object {

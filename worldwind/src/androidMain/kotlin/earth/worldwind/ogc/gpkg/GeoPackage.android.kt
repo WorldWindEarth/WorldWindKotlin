@@ -73,10 +73,12 @@ actual fun insertCachedFeatures(
     geoPackage: GeoPackageCore, tableName: String, rows: List<Pair<Geometry, String?>>,
 ) {
     val featureDao = (geoPackage as GeoPackage).getFeatureDao(tableName)
+    val now = System.currentTimeMillis()
     for ((geometry, propertiesJson) in rows) {
         val row = featureDao.newRow()
         row.geometry = mil.nga.geopackage.geom.GeoPackageGeometryData.create(featureDao.geometryColumns.srsId, geometry)
         propertiesJson?.let { row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN, it) }
+        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.LAST_MODIFIED_COLUMN, now)
         featureDao.insert(row)
     }
 }
@@ -119,6 +121,7 @@ actual fun replaceFeatureTileRows(
     )
     if (rows.isEmpty()) return
     val srsId = featureDao.geometryColumns.srsId
+    val now = System.currentTimeMillis()
     for ((geometry, propertiesJson) in rows) {
         val row = featureDao.newRow()
         if (geometry != null) {
@@ -128,6 +131,7 @@ actual fun replaceFeatureTileRows(
         row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_X_COLUMN, x)
         row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_Y_COLUMN, y)
         propertiesJson?.let { row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN, it) }
+        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.LAST_MODIFIED_COLUMN, now)
         featureDao.insert(row)
     }
 }

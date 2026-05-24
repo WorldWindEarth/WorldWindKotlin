@@ -1,5 +1,6 @@
 package earth.worldwind.layer
 
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.cache.CachedFeatureRow
 import kotlin.time.Instant
 
@@ -38,6 +39,12 @@ interface FeatureCacheSourceFactory {
     val contentPath: String
     suspend fun lastModifiedDate(): Instant?
     suspend fun contentSize(): Long
+
+    /** Caps applied by [evict]. Default unbounded; set via the ContentManager setup methods. */
+    var evictionPolicy: CacheEvictionPolicy
+
+    /** Sweep entries that violate [evictionPolicy]. No-op on read-only / unbounded caches. */
+    suspend fun evict()
 
     @Throws(IllegalStateException::class)
     suspend fun clearContent(deleteMetadata: Boolean)

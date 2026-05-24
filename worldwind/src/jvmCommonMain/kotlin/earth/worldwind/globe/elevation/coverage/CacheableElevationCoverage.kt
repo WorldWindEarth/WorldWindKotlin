@@ -2,6 +2,7 @@ package earth.worldwind.globe.elevation.coverage
 
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.CacheSourceFactory
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.util.ContentManager
 
 interface CacheableElevationCoverage : ElevationCoverage {
@@ -55,9 +56,10 @@ interface CacheableElevationCoverage : ElevationCoverage {
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun configureCache(
-        contentManager: ContentManager, contentKey: String, setupWebCoverage: Boolean = true, isFloat: Boolean = false
+        contentManager: ContentManager, contentKey: String, setupWebCoverage: Boolean = true, isFloat: Boolean = false,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
     ) {
-        contentManager.setupElevationCoverageCache(this, contentKey, setupWebCoverage, isFloat)
+        contentManager.setupElevationCoverageCache(this, contentKey, setupWebCoverage, isFloat, evictionPolicy)
     }
 
     /**

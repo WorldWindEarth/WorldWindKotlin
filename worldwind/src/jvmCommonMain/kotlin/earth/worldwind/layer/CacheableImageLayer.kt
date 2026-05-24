@@ -1,5 +1,6 @@
 package earth.worldwind.layer
 
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.ContentManager
 
@@ -48,9 +49,10 @@ interface CacheableImageLayer : Layer {
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun configureCache(
-        contentManager: ContentManager, contentKey: String, setupWebLayer: Boolean = true
+        contentManager: ContentManager, contentKey: String, setupWebLayer: Boolean = true,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
     ) {
-        contentManager.setupImageLayerCache(this, contentKey, setupWebLayer)
+        contentManager.setupImageLayerCache(this, contentKey, setupWebLayer, evictionPolicy)
     }
 
     /**

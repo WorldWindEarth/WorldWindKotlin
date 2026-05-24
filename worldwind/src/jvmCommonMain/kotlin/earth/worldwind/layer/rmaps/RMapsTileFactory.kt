@@ -3,11 +3,14 @@ package earth.worldwind.layer.rmaps
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
 import earth.worldwind.geom.Sector
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.mercator.MercatorImageTile
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.Level
+import earth.worldwind.util.Logger.WARN
+import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.ormlite.initConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,6 +41,19 @@ open class RMapsTileFactory(
     }
 
     override suspend fun contentSize() = withContext(Dispatchers.IO) { contentFile.length() } // One file should contain one map
+
+    /** RMaps schema lacks per-tile timestamps — eviction not supported. Setting a non-unbounded
+     *  policy logs once so the caller knows the cap won't apply. */
+    override var evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED
+        set(value) {
+            if (!value.isUnbounded && field.isUnbounded) {
+                logMessage(WARN, "RMapsTileFactory", "evictionPolicy",
+                    "RMaps schema has no per-tile timestamps; eviction policy ignored for $contentPath")
+            }
+            field = value
+        }
+
+    override suspend fun evict() {}
 
     override suspend fun clearContent(deleteMetadata: Boolean) {
         withContext(Dispatchers.IO) {

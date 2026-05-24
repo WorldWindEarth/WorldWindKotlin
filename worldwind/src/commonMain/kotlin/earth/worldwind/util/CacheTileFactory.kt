@@ -1,5 +1,6 @@
 package earth.worldwind.util
 
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import kotlin.time.Instant
 
 /**
@@ -24,6 +25,12 @@ interface CacheTileFactory : TileFactory {
      * Estimated cache content size in bytes
      */
     suspend fun contentSize(): Long
+
+    /** Caps applied by [evict]. Default unbounded; set via the ContentManager setup methods. */
+    var evictionPolicy: CacheEvictionPolicy
+
+    /** Sweep tiles that violate [evictionPolicy]. No-op on read-only / unbounded caches. */
+    suspend fun evict()
 
     /**
      * Deletes all tiles from current cache content.

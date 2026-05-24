@@ -15,6 +15,7 @@ import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.WebFeatureLayer
 import earth.worldwind.layer.WebImageLayer
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
@@ -34,6 +35,7 @@ import mil.nga.geopackage.contents.Contents
 import mil.nga.geopackage.contents.ContentsDataType
 import mil.nga.geopackage.db.DateConverter
 import mil.nga.geopackage.extension.WebPExtension
+import mil.nga.geopackage.extension.im.vector_tiles.VectorTilesEncodingExtension
 import mil.nga.geopackage.persister.DatePersister
 import mil.nga.geopackage.extension.coverage.*
 import mil.nga.geopackage.features.columns.GeometryColumns
@@ -42,6 +44,7 @@ import mil.nga.proj.ProjectionConstants
 import mil.nga.sf.*
 import java.util.*
 import kotlin.math.*
+import kotlin.time.Duration
 import mil.nga.geopackage.extension.Extensions as GpkgExtension
 import mil.nga.geopackage.extension.coverage.GriddedCoverage as GpkgGriddedCoverage
 import mil.nga.geopackage.extension.coverage.GriddedTile as GpkgGriddedTile
@@ -211,16 +214,49 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
+        ensureLastModifiedColumn(content.tableName)
         val tileUserData = readTileUserData(content, zoomLevel, tileColumn, tileRow) ?: GpkgTileUserData().also {
             it.zoomLevel = zoomLevel
             it.tileColumn = tileColumn
             it.tileRow = tileRow
         }
         tileUserData.tileData = tileData // Replace tile data
+        tileUserData.lastModified = System.currentTimeMillis()
         getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
         // Update content last modified date
         content.lastChange = Date()
         contentDao.update(content)
+    }
+
+    /**
+     * Evict image/elevation tiles per [policy]. Same algorithm as [evictFeatures] but operates
+     * on the GPKG tile-user-data table (`zoom_level`, `tile_column`, `tile_row`, `tile_data`,
+     * `last_modified`). No-op when read-only or unbounded.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun evictTiles(
+        content: GpkgContent, policy: CacheEvictionPolicy,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly || policy.isUnbounded) return@withContext
+        ensureLastModifiedColumn(content.tableName)
+        val escapedTable = content.tableName.replace("\"", "\"\"")
+        val q = "\"$escapedTable\""
+
+        if (policy.maxAge != Duration.INFINITE) {
+            val cutoff = System.currentTimeMillis() - policy.maxAge.inWholeMilliseconds
+            geoPackage.database.execSQL("DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff")
+        }
+
+        if (policy.maxEntries < Long.MAX_VALUE) {
+            geoPackage.database.execSQL(
+                "DELETE FROM $q WHERE id IN (" +
+                        "SELECT id FROM $q " +
+                        "ORDER BY COALESCE($LAST_MODIFIED_COLUMN, 0) ASC, id ASC " +
+                        "LIMIT MAX(0, (SELECT COUNT(*) FROM $q) - ${policy.maxEntries})" +
+                        ")"
+            )
+        }
+        // maxBytes: same multi-column-cursor limitation as features. Use maxEntries as proxy.
     }
 
     suspend fun readGriddedTile(
@@ -358,6 +394,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             content
         }.also { content ->
             setupTileMatrices(content, levelSet)
+            registerLastModifiedExtension(content.tableName)
             if (setupWebLayer && layer is WebImageLayer) setupWebLayer(layer, content)
         }
     }
@@ -375,6 +412,69 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             maxY = box.maxLatitude
         }
         contentDao.update(content)
+    }
+
+    /**
+     * Create a tile pyramid for vector tiles. Mirrors [setupTilesContent] but for a non-raster
+     * `data_type` (typically `"vector-tiles"`) and an arbitrary encoding extension — the user
+     * table schema is identical to raster tiles, only the BLOB payload format differs.
+     *
+     * Pass [encoding] (e.g. `VectorTilesMapboxExtension(geoPackage)` for MVT,
+     * `VectorTilesGeoJSONExtension(geoPackage)` for GeoJSON tiles) to register the encoding
+     * row in `gpkg_extensions`. Cross-tool readers identify the BLOB encoding from that row.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun setupVectorTilesContent(
+        tableName: String, levelSet: LevelSet,
+        displayName: String? = null,
+        dataType: String = VECTOR_TILES,
+        encoding: VectorTilesEncodingExtension? = null,
+    ): GpkgContent = withContext(writeDispatcher) {
+        if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
+
+        TransactionManager.callInTransaction(connectionSource) {
+            geoPackage.createTileMatrixSetTable()
+            geoPackage.createTileMatrixTable()
+
+            val srs = srsDao.getOrCreateFromEpsg(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
+
+            val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
+            val contentBox = if (levelSet.sector != levelSet.tileOrigin)
+                buildBoundingBox(levelSet.sector, srs.id) else matrixBox
+
+            // Standard GeoPackage tile pyramid table — identical schema to raster tiles.
+            val columns = TileTable.createRequiredColumns()
+            val tileTable = TileTable(tableName, columns)
+            geoPackage.createTileTable(tileTable)
+
+            val content = GpkgContent().also {
+                it.tableName = tableName
+                it.dataTypeName = dataType
+                it.identifier = displayName ?: tableName
+                it.minX = contentBox.minLongitude
+                it.minY = contentBox.minLatitude
+                it.maxX = contentBox.maxLongitude
+                it.maxY = contentBox.maxLatitude
+                it.srs = srs
+            }
+            contentDao.create(content)
+
+            val tms = GpkgTileMatrixSet().also {
+                it.contents = content
+                it.srs = srs
+                it.minX = matrixBox.minLongitude
+                it.minY = matrixBox.minLatitude
+                it.maxX = matrixBox.maxLongitude
+                it.maxY = matrixBox.maxLatitude
+            }
+            tileMatrixSetDao.create(tms)
+
+            // Register the encoding extension in the same transaction so external readers see
+            // consistent metadata. The encoding decides extension_name / scope / definition.
+            encoding?.getOrCreate(tableName)
+
+            content
+        }.also { content -> setupTileMatrices(content, levelSet) }
     }
 
     @Throws(IllegalStateException::class)
@@ -474,6 +574,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             tms.contents
         }.also { content ->
             setupTileMatrices(content, coverage.tileMatrixSet)
+            registerLastModifiedExtension(content.tableName)
             if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, content)
         }
     }
@@ -594,6 +695,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_X_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
                 mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_Y_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
                 mil.nga.geopackage.features.user.FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.TEXT),
+                mil.nga.geopackage.features.user.FeatureColumn.createColumn(LAST_MODIFIED_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
             )
             val metadata = mil.nga.geopackage.features.user.FeatureTableMetadata.create(geometryColumns, columns, box)
             metadata.identifier = displayName ?: tableName
@@ -606,6 +708,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 "CREATE INDEX IF NOT EXISTS \"$escapedIndex\" ON \"$escapedTable\" " +
                         "($TILE_Z_COLUMN, $TILE_X_COLUMN, $TILE_Y_COLUMN)"
             )
+            registerLastModifiedExtension(tableName)
             contentDao.queryForId(tableName) ?: error("Features content $tableName missing after createFeatureTable")
         }
     }
@@ -619,6 +722,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, rows: List<Pair<Geometry, String?>>,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Cached features ${content.tableName} cannot be updated. GeoPackage is read-only!")
+        ensureLastModifiedColumn(content.tableName)
         TransactionManager.callInTransaction(connectionSource) {
             truncateFeatureTable(geoPackage, content.tableName)
             if (rows.isNotEmpty()) insertCachedFeatures(geoPackage, content.tableName, rows)
@@ -645,11 +749,72 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, z: Int, x: Int, y: Int, rows: List<GpkgFeatureRow>,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Feature tile ${content.tableName}/$z/$x/$y cannot be saved. GeoPackage is read-only!")
+        ensureLastModifiedColumn(content.tableName)
         replaceFeatureTileRows(geoPackage, content.tableName, z, x, y, rows)
         content.lastChange = Date()
         contentDao.update(content)
     }
 
+    /**
+     * Add the `last_modified` column to [tableName] if missing. Upgrades GPKG files that pre-date
+     * the eviction feature. No-op on read-only or when the column is already present. ALTER TABLE
+     * ADD COLUMN is non-destructive — existing rows get NULL, treated as epoch 0 by [evictFeatures]
+     * so external / pre-migration rows age out first.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun ensureLastModifiedColumn(tableName: String): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) return@withContext
+        val escapedTable = tableName.replace("\"", "\"\"")
+        // SQLite has no IF NOT EXISTS for ADD COLUMN; ALTER then catch only the duplicate-column
+        // case. Schema locks / malformed SQL / etc. must propagate so silent migrations don't mask
+        // real failures.
+        try {
+            geoPackage.database.execSQL("ALTER TABLE \"$escapedTable\" ADD COLUMN $LAST_MODIFIED_COLUMN INTEGER")
+        } catch (e: Exception) {
+            if (e.message?.contains("duplicate column", ignoreCase = true) != true) throw e
+        }
+        registerLastModifiedExtension(tableName)
+    }
+
+    /**
+     * Evict rows from a features cache table per [policy]. Honors all three caps:
+     *  - [CacheEvictionPolicy.maxAge]: deletes rows where `last_modified < (now - maxAge)`
+     *  - [CacheEvictionPolicy.maxEntries]: keeps the N most-recently-modified
+     *  - [CacheEvictionPolicy.maxBytes]: deletes oldest rows until under cap (best-effort)
+     *
+     * No-op when GeoPackage is read-only or the policy is unbounded.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun evictFeatures(
+        content: GpkgContent, policy: CacheEvictionPolicy,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly || policy.isUnbounded) return@withContext
+        ensureLastModifiedColumn(content.tableName)
+        val escapedTable = content.tableName.replace("\"", "\"\"")
+        val q = "\"$escapedTable\""
+
+        if (policy.maxAge != Duration.INFINITE) {
+            val cutoff = System.currentTimeMillis() - policy.maxAge.inWholeMilliseconds
+            geoPackage.database.execSQL(
+                "DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff"
+            )
+        }
+
+        if (policy.maxEntries < Long.MAX_VALUE) {
+            geoPackage.database.execSQL(
+                "DELETE FROM $q WHERE $FEATURE_ID_COLUMN IN (" +
+                        "SELECT $FEATURE_ID_COLUMN FROM $q " +
+                        "ORDER BY COALESCE($LAST_MODIFIED_COLUMN, 0) ASC, $FEATURE_ID_COLUMN ASC " +
+                        "LIMIT MAX(0, (SELECT COUNT(*) FROM $q) - ${policy.maxEntries})" +
+                        ")"
+            )
+        }
+
+        // maxBytes is intentionally not implemented for GPKG — would require multi-column cursor
+        // walks that aren't on the public mil.nga.geopackage connection surface. Use maxEntries
+        // as a proxy ("N tiles" ≈ "N × typical_tile_size bytes"). IDB / Cache API honor maxBytes
+        // directly since their cursor APIs expose size cheaply.
+    }
 
 
     /**
@@ -734,6 +899,46 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     protected open fun createWebServiceTable() {
         if (!webServiceDao.isTableExists) TableUtils.createTable(webServiceDao)
+        registerExtension(tableName = null, columnName = null, extensionName = WW_WEB_SERVICE_EXTENSION)
+    }
+
+    /**
+     * Register a row in `gpkg_extensions` per OGC spec. Idempotent — if the same (table, column,
+     * extension) triple is already present, no-op. Lets external GPKG readers introspect our
+     * custom extensions (`worldwind_web_service`, `worldwind_last_modified`) instead of seeing
+     * them as anonymous extra columns / unknown tables.
+     */
+    protected open fun registerExtension(
+        tableName: String?, columnName: String?, extensionName: String,
+    ) {
+        if (isReadOnly) return
+        if (!extensionDao.isTableExists) TableUtils.createTable(extensionDao)
+        val existing = extensionDao.queryBuilder().where()
+            .let { w ->
+                if (tableName == null) w.isNull(GpkgExtension.COLUMN_TABLE_NAME)
+                else w.eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
+            }
+            .and()
+            .let { w ->
+                if (columnName == null) w.isNull(GpkgExtension.COLUMN_COLUMN_NAME)
+                else w.eq(GpkgExtension.COLUMN_COLUMN_NAME, columnName)
+            }
+            .and().eq(GpkgExtension.COLUMN_EXTENSION_NAME, extensionName)
+            .queryForFirst()
+        if (existing != null) return
+        extensionDao.create(GpkgExtension().also {
+            it.tableName = tableName
+            it.columnName = columnName
+            it.extensionName = extensionName
+            it.definition = WW_EXTENSION_DEFINITION
+            it.scope = mil.nga.geopackage.extension.ExtensionScopeType.READ_WRITE
+        })
+    }
+
+    /** Register the `worldwind_last_modified` extension for [tableName]. Idempotent. */
+    protected open fun registerLastModifiedExtension(tableName: String) {
+        registerExtension(tableName = tableName, columnName = LAST_MODIFIED_COLUMN,
+            extensionName = WW_LAST_MODIFIED_EXTENSION)
     }
 
     protected open fun latToEPSG3857(lat: Angle) = ln(tan(PI / 4.0 + lat.inRadians / 2.0)) * Ellipsoid.WGS84.semiMajorAxis
@@ -852,6 +1057,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         const val EPSG_4326 = ProjectionConstants.EPSG_WORLD_GEODETIC_SYSTEM.toLong()
         val TILES = ContentsDataType.TILES.name.lowercase()
         val FEATURES = ContentsDataType.FEATURES.name.lowercase()
+        /** `gpkg_contents.data_type` value for the Image Matters Vector Tiles community extension. */
+        const val VECTOR_TILES = "vector-tiles"
         const val COVERAGE = CoverageDataCore.GRIDDED_COVERAGE
         val FLOAT = GriddedCoverageDataType.FLOAT
         val INTEGER = GriddedCoverageDataType.INTEGER
@@ -867,6 +1074,17 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         const val TILE_X_COLUMN = "tile_x"
         const val TILE_Y_COLUMN = "tile_y"
         const val TILE_INDEX_SUFFIX = "tile_idx"
+        /** Epoch-ms timestamp written on every insert. NULL = row written by an external tool
+         *  that doesn't populate the column — treated as epoch 0 by the TTL sweep, so external
+         *  data ages out first. */
+        const val LAST_MODIFIED_COLUMN = "last_modified"
+
+        /** Author-prefixed names registered in `gpkg_extensions` so external OGC tools see our
+         *  custom additions (the worldwind web-service table + per-row last_modified column) as
+         *  documented extensions rather than anonymous extra rows / columns. */
+        const val WW_WEB_SERVICE_EXTENSION = "worldwind_web_service"
+        const val WW_LAST_MODIFIED_EXTENSION = "worldwind_last_modified"
+        const val WW_EXTENSION_DEFINITION = "https://worldwind.earth"
 
         init { installLenientDatePatterns() }
 

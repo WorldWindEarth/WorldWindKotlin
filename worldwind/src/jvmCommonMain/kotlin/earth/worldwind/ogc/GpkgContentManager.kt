@@ -6,6 +6,7 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.CacheableImageLayer
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebFeatureLayer
@@ -141,7 +142,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
     }
 
     override suspend fun setupImageLayerCache(
-        layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean
+        layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean,
+        evictionPolicy: CacheEvictionPolicy,
     ) = withContext(Dispatchers.IO) {
         val tiledSurfaceImage = layer.tiledSurfaceImage ?: error("Surface image not defined")
         val levelSet = tiledSurfaceImage.levelSet
@@ -175,7 +177,10 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             geoPackage.updateTilesContent(layer, contentKey, levelSet, content)
         } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, setupWebLayer)
 
-        layer.tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(geoPackage, content, imageFormat)
+        val factory = GpkgTileFactory(geoPackage, content, imageFormat)
+        factory.evictionPolicy = evictionPolicy
+        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
+        layer.tiledSurfaceImage?.cacheTileFactory = factory
     }
 
     override suspend fun getElevationCoveragesCount() = withContext(Dispatchers.IO) { geoPackage.countContent(COVERAGE).toInt() }
@@ -238,7 +243,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
     }
 
     override suspend fun setupElevationCoverageCache(
-        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean, isFloat: Boolean
+        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean, isFloat: Boolean,
+        evictionPolicy: CacheEvictionPolicy,
     ) = withContext(Dispatchers.IO) {
         val content = geoPackage.getContent(contentKey)?.also { content ->
             // Check if the current layer fits cache content
@@ -260,7 +266,10 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             geoPackage.updateGriddedCoverageContent(coverage, contentKey, content)
         } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, setupWebCoverage, isFloat)
 
-        coverage.cacheSourceFactory = GpkgElevationSourceFactory(geoPackage, content, isFloat)
+        val factory = GpkgElevationSourceFactory(geoPackage, content, isFloat)
+        factory.evictionPolicy = evictionPolicy
+        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
+        coverage.cacheSourceFactory = factory
     }
 
     override suspend fun deleteContent(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.deleteContent(contentKey) }
@@ -306,13 +315,17 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
 
     override suspend fun setupFeatureLayerCache(
         layer: CacheableFeatureLayer, contentKey: String, setupWebLayer: Boolean,
+        evictionPolicy: CacheEvictionPolicy,
     ) = withContext(Dispatchers.IO) {
         // One schema for every source — WFS leaves tile columns NULL; OSM/MVT populate them.
         val content = geoPackage.setupFeaturesContent(contentKey, layer.displayName)
         if (setupWebLayer && layer is WebFeatureLayer && !geoPackage.isReadOnly) {
             geoPackage.setupWebFeatureLayer(layer, content)
         }
-        layer.cacheSourceFactory = GpkgFeatureCacheFactory(geoPackage, content)
+        val factory = GpkgFeatureCacheFactory(geoPackage, content)
+        factory.evictionPolicy = evictionPolicy
+        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
+        layer.cacheSourceFactory = factory
     }
 
     suspend fun getFeatureLayerSize(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.readFeaturesDataSize(contentKey) }

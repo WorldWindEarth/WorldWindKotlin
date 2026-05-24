@@ -6,6 +6,7 @@ import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.CacheableImageLayer
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.TiledImageLayer
+import earth.worldwind.layer.cache.CacheEvictionPolicy
 import kotlin.time.Instant
 
 interface ContentManager {
@@ -40,7 +41,10 @@ interface ContentManager {
      * @param setupWebLayer Add online source metadata into the cache config to be able to download additional tiles
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
-    suspend fun setupImageLayerCache(layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean = true)
+    suspend fun setupImageLayerCache(
+        layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean = true,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    )
 
     /**
      * Number of elevation coverages in content manager
@@ -65,7 +69,9 @@ interface ContentManager {
      */
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun setupElevationCoverageCache(
-        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean = true, isFloat: Boolean = false
+        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean = true,
+        isFloat: Boolean = false,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
     )
 
     /**
@@ -92,6 +98,7 @@ interface ContentManager {
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun setupFeatureLayerCache(
         layer: CacheableFeatureLayer, contentKey: String, setupWebLayer: Boolean = true,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
     )
 
     /**
