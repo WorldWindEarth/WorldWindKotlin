@@ -843,10 +843,15 @@ open class Polygon @JvmOverloads constructor(
         }
         vertexIndex = geographicVertexCount * vertexStride
 
-        // Rebuild extruded line vertex positions by re-traversing boundaries
-        if (isExtrude && !isSurfaceShape) {
+        // Rebuild outline vertex positions whenever altitudes are terrain-dependent — the
+        // outline's Cartesian Z must follow terrain LOD updates the same way the interior
+        // (recomputed above) does, otherwise the outline freezes at first-frame elevations
+        // while the interior drapes against the latest tile data. Surface shapes are exempt:
+        // their outline rasterizes in lat/lon space via the surface shader and carries no
+        // Cartesian outline mesh.
+        if (!isSurfaceShape && altitudeMode != AltitudeMode.ABSOLUTE) {
             lineVertexIndex = 0
-            verticalVertexIndex = verticalVertexArrayOffset
+            if (isExtrude) verticalVertexIndex = verticalVertexArrayOffset
             for (i in boundaries.indices) {
                 val positions = boundaries[i]
                 if (positions.isEmpty()) continue
