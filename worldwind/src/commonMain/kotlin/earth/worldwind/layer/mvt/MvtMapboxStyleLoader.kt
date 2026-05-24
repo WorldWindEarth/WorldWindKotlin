@@ -112,6 +112,7 @@ object MvtMapboxStyleLoader {
             "fill" -> parseFillPaint(paint)
             "line" -> parseLinePaint(paint)
             "symbol" -> parseSymbolPaint(paint, layout)
+            "fill-extrusion" -> parseFillExtrusionPaint(paint)
             else -> return null  // raster, hillshade, heatmap, background, … — skipped
         } ?: return null
 
@@ -173,6 +174,21 @@ object MvtMapboxStyleLoader {
         )
     }
 
+    private fun parseFillExtrusionPaint(paint: JsonObject?): MvtStyleRule.PaintSpec? {
+        if (paint == null) return null
+        val height = paint["fill-extrusion-height"]?.let(::parseFloatInterp) ?: return null
+        val base = paint["fill-extrusion-base"]?.let(::parseFloatInterp)
+        val color = paint["fill-extrusion-color"]?.let(::parseColorInterp)
+        val opacity = paint["fill-extrusion-opacity"]?.let(::parseFloatInterp)
+        return MvtStyleRule.PaintSpec(
+            fillColor = color,
+            fillOpacity = opacity,
+            fillExtrusionHeight = height,
+            fillExtrusionBase = base,
+            shadowMode = ShadowMode.DISABLED,
+        )
+    }
+
     private fun parseLinePaint(paint: JsonObject?): MvtStyleRule.PaintSpec? {
         if (paint == null) return null
         val lineColor = paint["line-color"]?.let(::parseColorInterp)
@@ -213,7 +229,10 @@ object MvtMapboxStyleLoader {
         val iconOffset = layout?.get("icon-offset")?.let(::parseFloatOffsetX)
         val iconAnchor = layout?.get("icon-anchor")?.let(::parseStringInterp)
             ?: layout?.get("text-anchor")?.let(::parseStringInterp)
+        // Mapbox spec default for text-max-width is 10 em when the property is absent. Apply
+        // only to symbol layers that actually carry text — pure-icon symbols don't wrap.
         val maxWidth = layout?.get("text-max-width")?.let(::parseFloatInterp)
+            ?: if (textField != null) MvtExpression.Literal(10f) else null
         return MvtStyleRule.PaintSpec(
             textField = textField,
             textColor = textColor,
