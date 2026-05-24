@@ -888,8 +888,12 @@ open class MvtVectorLayer(
                             matchedRule.paint.buildIcon(key.z, props) else null
                         if (labelSpec == null && iconSpec == null) continue
                         val points = MvtGeometry.decodePoints(feature, key.z, key.x, key.y, layer.extent)
+                        // Shield path: when a rule has BOTH icon and text, render them as
+                        // ONE composite Placemark (Mapbox's symbol-with-text-on-icon =
+                        // highway shield). Otherwise emit a Label and/or Placemark separately.
+                        val isShield = iconSpec != null && labelSpec != null
                         for (pt in points) {
-                            if (labelSpec != null) {
+                            if (labelSpec != null && !isShield) {
                                 val label = Label(pt, labelSpec.text, labelSpec.attributes).apply {
                                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                     this.zOrder = zOrder.toDouble()
@@ -910,10 +914,15 @@ open class MvtVectorLayer(
                                     // @2x atlas variants render at the same on-screen size.
                                     val pr = factory.entry.pixelRatio
                                     imageScale = iconSpec.size.toDouble() / pr
+                                    if (isShield && labelSpec != null) {
+                                        // Use the rule's text attributes for the on-shield label.
+                                        labelAttributes.copy(labelSpec.attributes)
+                                    }
                                     imageOffset = anchorToOffset(iconSpec.anchor)
                                 }
                                 val placemark = Placemark(pt, attrs).apply {
                                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                                    if (isShield && labelSpec != null) label = labelSpec.text
                                 }
                                 out += placemark
                             }
