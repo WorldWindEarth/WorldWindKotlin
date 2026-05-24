@@ -89,6 +89,18 @@ class MvtStyleRule(
         val lineColor: MvtExpression<Color>? = null,
         val lineWidth: MvtExpression<Float>? = null,
         val lineOpacity: MvtExpression<Float>? = null,
+        /**
+         * Optional **casing** stroke — Mapbox's "road shoulder" effect. When set, the layer
+         * emits a SECOND line stroke for the same feature at a wider [lineCasingWidth] in
+         * [lineCasingColor], painted under the main line. Used for road outlines (white road
+         * over dark grey casing), railway double-stripes, etc.
+         */
+        val lineCasingColor: MvtExpression<Color>? = null,
+        /**
+         * Casing width in pixels. Should be > [lineWidth]; the visible casing thickness on
+         * either side of the fill line is `(lineCasingWidth - lineWidth) / 2`.
+         */
+        val lineCasingWidth: MvtExpression<Float>? = null,
         val shadowMode: ShadowMode = ShadowMode.DISABLED,
         // ----- Text paint -----
         val textField: String? = null,
@@ -141,6 +153,9 @@ class MvtStyleRule(
 
         /** True when this rule has an icon spec. */
         val hasIcon: Boolean get() = iconImage != null
+
+        /** True when this rule has a line casing — emits a second stroke under the line. */
+        val hasCasing: Boolean get() = lineCasingColor != null && lineCasingWidth != null
 
         fun build(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes {
             val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
@@ -200,6 +215,28 @@ class MvtStyleRule(
                 }
             }
             return LabelSpec(text, attrs, sizePx)
+        }
+
+        /**
+         * Resolve the casing-stroke [ShapeAttributes] for one feature. Returns null if this
+         * rule has no casing paint. The result is meant to be emitted as a SEPARATE line
+         * shape at a slightly lower z-order than [build]'s result, so the wider casing paints
+         * underneath the narrower fill.
+         */
+        fun buildCasing(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes? {
+            if (!hasCasing) return null
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            val color = lineCasingColor!!.evaluate(ctx) ?: return null
+            val width = lineCasingWidth!!.evaluate(ctx) ?: return null
+            if (width <= 0f) return null
+            return ShapeAttributes().apply {
+                isDrawInterior = false
+                isDrawOutline = true
+                shadowMode = this@PaintSpec.shadowMode
+                val alpha = lineOpacity?.evaluate(ctx) ?: color.alpha
+                outlineColor = Color(color.red, color.green, color.blue, alpha)
+                outlineWidth = width
+            }
         }
 
         /**

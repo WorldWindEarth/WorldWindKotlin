@@ -105,6 +105,20 @@ class MvtPaintBuilder {
         lineWidth = MvtZoomInterp.constant(width)
     }
 
+    // Casing — declared next to line(), populated via `casing(...)`. Threaded through build().
+    private var lineCasingColor: MvtExpression<Color>? = null
+    private var lineCasingWidth: MvtExpression<Float>? = null
+
+    /**
+     * Constant line-casing shorthand. The casing draws as a wider stroke under [line] /
+     * [lineWidth], giving the Mapbox-style road-shoulder effect. [width] is the total casing
+     * stroke width; visible thickness on each side of the fill = `(width - lineWidth) / 2`.
+     */
+    fun casing(color: Color, width: Float) {
+        lineCasingColor = MvtZoomInterp.constant(color)
+        lineCasingWidth = MvtZoomInterp.constant(width)
+    }
+
     /**
      * Declare a text label for matching features. [field] names the feature property to read
      * for the label string (typically `"name"`). Configure color / size / halo / placement
@@ -172,6 +186,8 @@ class MvtPaintBuilder {
         lineColor = lineColor,
         lineWidth = lineWidth,
         lineOpacity = lineOpacity,
+        lineCasingColor = lineCasingColor,
+        lineCasingWidth = lineCasingWidth,
         shadowMode = shadowMode,
         textField = textField,
         textColor = textColor,

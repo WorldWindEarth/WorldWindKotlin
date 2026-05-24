@@ -789,9 +789,18 @@ open class MvtVectorLayer(
                         val lines = MvtGeometry.decodeLines(feature, key.z, key.x, key.y, layer.extent)
                         // Stroke geometry (when the rule has fill/line paint).
                         if (shapeAttrs != null) {
+                            // Resolve casing once per feature; emit a wider stroke at zOrder-1
+                            // so it paints under the main line.
+                            val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props)
                             for (line in lines) {
                                 if (line.size < 2) continue
                                 if (lineBatch != null) {
+                                    if (casingAttrs != null) {
+                                        lineBatch += MvtBatchedLineTile.BatchLineFeature(
+                                            positions = line, attributes = casingAttrs,
+                                            zOrder = zOrder - 1, pickPayload = pickPayload,
+                                        )
+                                    }
                                     lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                         positions = line, attributes = shapeAttrs, zOrder = zOrder,
                                         pickPayload = pickPayload,
