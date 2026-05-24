@@ -51,7 +51,7 @@ class OsmBuildingsTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun start() {
         super.start()
-        val layer = OsmBuildingsLayer().also { buildings = it }
+        val layer = OsmBuildingsLayer(useOsmColors = true).also { buildings = it }
         engine.layers.addLayer(layer)
         engine.cameraFromLookAt(
             LookAt(

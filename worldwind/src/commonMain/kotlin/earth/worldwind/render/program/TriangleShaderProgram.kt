@@ -176,12 +176,19 @@ open class TriangleShaderProgram(
                    supported platform sets it - the guard is just so a future platform that
                    can't opt in compiles cleanly with lighting silently disabled, instead of
                    failing the shader). modelMatrix is translation-only, so the local-space
-                   normal is also the world-space normal - dot directly with lightDirection. */
+                   normal is also the world-space normal - dot directly with lightDirection.
+                   [lambert] is hoisted out of the lighting block so the shadow path below
+                   can reuse it. */
+                float lambert;
+                #ifdef WW_HAS_DERIVATIVES
+                vec3 n = normalize(cross(dFdx(localPos), dFdy(localPos)));
+                if (!gl_FrontFacing) n = -n;
+                lambert = max(dot(n, lightDirection), 0.0);
+                #else
+                lambert = 1.0;
+                #endif
                 if (enableLighting && !enablePickMode) {
                     #ifdef WW_HAS_DERIVATIVES
-                    vec3 n = normalize(cross(dFdx(localPos), dFdy(localPos)));
-                    if (!gl_FrontFacing) n = -n;
-                    float lambert = max(dot(n, lightDirection), 0.0);
                     /* Ambient 0.35 keeps unlit walls legible; diffuse 0.65 sweeps to 1.0 for
                        a face turned to the sun. Linear (not "ambient + lambert" clamped) so
                        adjacent wall faces stay distinguishable from each other. */
@@ -193,7 +200,15 @@ open class TriangleShaderProgram(
                     /* Reconstruct world-space position for shadow-map sampling. modelMatrix is
                        translation-only here, so its 4th column carries the vertexOrigin offset. */
                     vec3 worldPos = localPos + modelMatrix[3].xyz;
-                    gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
+                    float shadowVis = computeShadowVisibility(worldPos, viewDepth);
+                    if (enableLighting) {
+                        /* Lambert-modulated shadow: self-shadowed faces (lambert ~= 0) skip
+                           the cascade shadow to avoid double-dimming back-facing walls. */
+                        float shadowInfluence = smoothstep(0.0, 0.3, lambert);
+                        gl_FragColor.rgb *= mix(1.0, shadowVis, shadowInfluence);
+                    } else {
+                        gl_FragColor.rgb *= shadowVis;
+                    }
                 }
                 #endif
             }

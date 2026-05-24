@@ -24,8 +24,8 @@ import kotlin.math.sqrt
  * Implementation is **Cascaded Shadow Maps** (CSM, [cascadeCount] cascades by default 3) with
  * **Hamburger 4-moment Moment Shadow Mapping** (Peters & Klein 2015) for soft edges. Cascade
  * splits use a parallel-split (PSSM) scheme blended between uniform and logarithmic by
- * [splitBlend]; the largest cascade's far cap is `max(maxCascadeDistance, cameraAltitude*2)`
- * so it auto-scales from city-scale at low altitude to horizon-scale at globe view.
+ * [splitBlend]; the largest cascade's far cap is `max(maxCascadeDistance, viewingDistance*2)`
+ * so it auto-scales from city-scale at close zoom to focal-point scale at tilted/far views.
  *
  * Receivers (terrain, shapes, COLLADA / glTF models) sample the cascade moments textures in
  * their own fragment shaders and modulate their output colour by the resulting occlusion
@@ -63,10 +63,8 @@ open class ShadowLayer : AbstractLayer("Shadow") {
 
     /**
      * Floor for the largest cascade's far cap, in metres. The actual cap each frame is
-     * `max(maxCascadeDistance, cameraAltitude * 2.0)` so high-altitude views automatically
-     * push the last cascade out to the horizon without per-app tuning. The user-settable
-     * value here only matters at low camera altitudes - at globe-scale views the altitude
-     * term dominates.
+     * `max(maxCascadeDistance, viewingDistance * 2.0)` so tilted / far-focused views push the
+     * cascade out toward the focal point without per-app tuning. Only matters at close zoom.
      */
     var maxCascadeDistance: Double = ShadowState.DEFAULT_MAX_CASCADE_DISTANCE
 
@@ -80,10 +78,8 @@ open class ShadowLayer : AbstractLayer("Shadow") {
 
     /**
      * Floor for the per-cascade light-space near-plane pullback, in metres. The actual
-     * pullback each frame is `max(casterPullback, cameraAltitude * 0.1)` so high-altitude
-     * views automatically capture orbital-altitude casters without per-app tuning. The
-     * user-settable value only matters at low camera altitudes (e.g. a city view with a
-     * satellite shape would set this manually).
+     * pullback each frame is `max(casterPullback, viewingDistance * 0.1)` so far-focused
+     * views automatically capture orbital-altitude casters without per-app tuning.
      *
      * Larger values capture taller casters at the cost of MSM precision: the depth-range
      * window widens, so each `1.0/range` quantum shrinks. Globe-scale views with high-
@@ -131,7 +127,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     private val upRefVec = Vec3()
     private val splits = DoubleArray(ShadowState.DEFAULT_CASCADE_COUNT + 1)
 
-    // Effective per-frame values, derived in doRender() from the user knobs and camera altitude.
+    // Effective per-frame values, derived in doRender() from the user knobs and lookAt range.
     // Stored as fields so computeCascade() reads the same value used for the cascade splits.
     private var effectiveMaxCascadeDistance: Double = 0.0
     private var effectiveCasterPullback: Double = 0.0
@@ -156,12 +152,14 @@ open class ShadowLayer : AbstractLayer("Shadow") {
             if (sinElevation < -0.05) return
         }
 
-        // Auto-scale cascade extents with camera altitude. The user-set [maxCascadeDistance]
-        // and [casterPullback] act as floors; at planetary-scale views the altitude-derived
-        // terms take over, so apps don't need per-tutorial overrides for globe cameras.
-        val cameraAltitude = max(0.0, rc.camera.position.altitude)
-        effectiveMaxCascadeDistance = max(maxCascadeDistance, cameraAltitude * 2.0)
-        effectiveCasterPullback = max(casterPullback, cameraAltitude * 0.1)
+        // Auto-scale cascade extents with the lookAt range (camera-to-focal-point distance).
+        // [rc.viewingDistance] is populated by BasicFrameController as the forward-ray
+        // terrain hit, or [rc.horizonDistance] when the centre ray misses terrain. Tilted
+        // close-range views push the cascade out toward the focal point instead of being
+        // clipped by a low altitude. User knobs act as floors at very close zoom.
+        val lookAtRange = max(0.0, rc.viewingDistance)
+        effectiveMaxCascadeDistance = max(maxCascadeDistance, lookAtRange * 2.0)
+        effectiveCasterPullback = max(casterPullback, lookAtRange * 0.1)
 
         // Sync state knobs to ShadowState so receivers see the current configuration.
         // [algorithm] is finalised at draw time by DrawableShadow (it may set null when the

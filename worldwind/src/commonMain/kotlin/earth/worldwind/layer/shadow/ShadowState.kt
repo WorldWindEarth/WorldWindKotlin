@@ -162,11 +162,11 @@ class ShadowState(
         const val DEFAULT_CASCADE_COUNT: Int = 3
         const val DEFAULT_AMBIENT_SHADOW: Float = 0.4f
         /**
-         * Default floor for the largest cascade's far cap. PSSM splits divide [near, this cap];
-         * a smaller cap concentrates texel density near the camera. 100 km is a good close-range
-         * default (city / building scale shadows). [ShadowLayer] auto-scales the actual cap with
-         * camera altitude so globe-scale views reach their casters without per-app tuning.
+         * Default floor for the largest cascade's far cap. 10 km sizes cascade 0 to ~700 m
+         * with ~0.7 m texels at 1024^2 - sharp enough for building silhouettes while keeping
+         * distant terrain shadows visible. [ShadowLayer] raises this floor with the lookAt
+         * range each frame for tilted / far-focused views.
          */
-        const val DEFAULT_MAX_CASCADE_DISTANCE: Double = 100_000.0
+        const val DEFAULT_MAX_CASCADE_DISTANCE: Double = 10_000.0
     }
 }
