@@ -6,7 +6,6 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.buildings.OsmBuildingsLayer
-import earth.worldwind.layer.buildings.OverpassBuildingsSource
 
 /**
  * Schematic 3D buildings from OpenStreetMap. Demonstrates [OsmBuildingsLayer] hitting the

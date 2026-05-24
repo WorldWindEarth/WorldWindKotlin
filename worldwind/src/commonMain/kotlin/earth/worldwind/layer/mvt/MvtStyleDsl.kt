@@ -134,8 +134,35 @@ class MvtPaintBuilder {
         fontWeight = b.fontWeight
         textPlacement = b.placement
     }
+
+    /**
+     * Declare a sprite-atlas icon for matching POINT features. [image] is the atlas entry
+     * name (Mapbox-style `{property}` placeholders are expanded against the feature's
+     * properties at resolve time).
+     *
+     * ```
+     * paint {
+     *     icon("mountain-peak") { size = 1.2f }
+     *     // or with a per-feature template:
+     *     icon("poi-{kind}")
+     * }
+     * ```
+     */
+    fun icon(image: String, block: MvtIconBuilder.() -> Unit = {}) {
+        val b = MvtIconBuilder().apply(block)
+        iconImage = MvtExpression.Literal(image)
+        iconSize = b.size
+        iconOffset = b.offset
+        iconAnchor = b.anchor
+    }
+
     // Threaded through to PaintSpec via build(); declared here so build() can read.
     private var textPlacement: MvtStyleRule.LabelPlacement = MvtStyleRule.LabelPlacement.POINT
+    // Icon paint
+    private var iconImage: MvtExpression<String>? = null
+    private var iconSize: MvtExpression<Float>? = null
+    private var iconOffset: MvtExpression<Float>? = null
+    private var iconAnchor: MvtExpression<String>? = null
 
     internal fun build(): MvtStyleRule.PaintSpec = MvtStyleRule.PaintSpec(
         fillColor = fillColor,
@@ -152,7 +179,21 @@ class MvtPaintBuilder {
         fontFamily = fontFamily,
         fontWeight = fontWeight,
         textPlacement = textPlacement,
+        iconImage = iconImage,
+        iconSize = iconSize,
+        iconOffset = iconOffset,
+        iconAnchor = iconAnchor,
     )
+}
+
+@MvtStyleDsl
+class MvtIconBuilder {
+    /** Multiplier on the icon's native pixel size. */
+    var size: MvtExpression<Float>? = null
+    /** Horizontal offset in icon-pixel units (applied to anchor). */
+    var offset: MvtExpression<Float>? = null
+    /** Anchor: `"center" | "top" | "bottom" | "left" | "right"`. */
+    var anchor: MvtExpression<String>? = null
 }
 
 @MvtStyleDsl

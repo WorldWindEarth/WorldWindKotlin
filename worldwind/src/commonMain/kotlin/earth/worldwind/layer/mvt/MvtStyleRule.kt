@@ -105,6 +105,26 @@ class MvtStyleRule(
          * tangent. Set via the DSL's `text(field) { placement = ... }` block.
          */
         val textPlacement: LabelPlacement = LabelPlacement.POINT,
+        // ----- Icon paint -----
+        /**
+         * Mapbox-style `icon-image` — name of the icon to look up in the layer's sprite
+         * atlas. Strings can include `{property}` placeholders for per-feature substitution
+         * (e.g. `"poi-{kind}"`), matching Mapbox GL's `icon-image` template form.
+         */
+        val iconImage: MvtExpression<String>? = null,
+        /** Multiplier applied to the icon's pixel size; defaults to 1.0. */
+        val iconSize: MvtExpression<Float>? = null,
+        /**
+         * Offset in icon-pixel space, applied to the icon's anchor point. Mapbox's
+         * `icon-offset` is a 2D vector; we accept the X component here for the common case
+         * of horizontal text-anchored icons.
+         */
+        val iconOffset: MvtExpression<Float>? = null,
+        /**
+         * One of `"center" | "top" | "bottom" | "left" | "right"` controlling where on the
+         * icon the geographic anchor sits. Defaults to `center`.
+         */
+        val iconAnchor: MvtExpression<String>? = null,
     ) {
 
         /** True when this rule has at least one shape paint property set. */
@@ -112,6 +132,9 @@ class MvtStyleRule(
 
         /** True when this rule has a label text spec. */
         val hasText: Boolean get() = textField != null
+
+        /** True when this rule has an icon spec. */
+        val hasIcon: Boolean get() = iconImage != null
 
         fun build(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes {
             val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
@@ -168,11 +191,59 @@ class MvtStyleRule(
             return LabelSpec(text, attrs, sizePx)
         }
 
+        /**
+         * Resolve this rule's icon paint for one feature. Returns null when [iconImage] is
+         * unset, or when the resolved icon name (after `{property}` substitution) is empty.
+         * Caller is responsible for looking up the name in an [MvtSpriteAtlas].
+         */
+        fun buildIcon(zoom: Int, properties: Map<String, Any?>): IconSpec? {
+            val expr = iconImage ?: return null
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            val rawName = expr.evaluate(ctx) ?: return null
+            val name = substituteTemplate(rawName, properties).takeIf { it.isNotEmpty() } ?: return null
+            val size = iconSize?.evaluate(ctx) ?: 1f
+            val offset = iconOffset?.evaluate(ctx) ?: 0f
+            val anchor = iconAnchor?.evaluate(ctx) ?: "center"
+            return IconSpec(name, size, offset, anchor)
+        }
+
         companion object {
             private const val DEFAULT_TEXT_SIZE = 14
             private const val DEFAULT_FONT_FAMILY = "sans-serif"
+
+            /**
+             * Expand Mapbox-style `{property}` placeholders in [template] against [properties].
+             * Missing keys expand to the empty string (matching Mapbox semantics).
+             */
+            internal fun substituteTemplate(template: String, properties: Map<String, Any?>): String {
+                if ('{' !in template) return template
+                val sb = StringBuilder(template.length)
+                var i = 0
+                while (i < template.length) {
+                    val c = template[i]
+                    if (c == '{') {
+                        val end = template.indexOf('}', i + 1)
+                        if (end > 0) {
+                            val key = template.substring(i + 1, end)
+                            sb.append(properties[key]?.toString() ?: "")
+                            i = end + 1
+                            continue
+                        }
+                    }
+                    sb.append(c)
+                    i++
+                }
+                return sb.toString()
+            }
         }
     }
+
+    /**
+     * Resolved icon payload. The [name] is the atlas entry to look up; [size] is a multiplier
+     * on the atlas entry's native pixel size; [offset] is a horizontal offset in icon-pixel
+     * units; [anchor] picks where on the icon the geographic point sits.
+     */
+    class IconSpec(val name: String, val size: Float, val offset: Float, val anchor: String)
 
     /**
      * Resolved label payload. [pixelSize] is read by [MvtLabelGroup]'s collision pass to

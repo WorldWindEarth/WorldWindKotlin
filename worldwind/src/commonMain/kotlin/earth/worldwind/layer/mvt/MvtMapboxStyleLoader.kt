@@ -189,16 +189,25 @@ object MvtMapboxStyleLoader {
 
     private fun parseSymbolPaint(paint: JsonObject?, layout: JsonObject?): MvtStyleRule.PaintSpec? {
         // text-field lives under layout; everything else under paint. Both may be null.
-        val rawTextField = layout?.get("text-field")?.jsonPrimitive?.contentOrNull ?: return null
-        val textField = extractFieldName(rawTextField) ?: return null
-        val textSize = layout["text-size"]?.let(::parseFloatInterp)
+        // Symbol layers may carry either or both of text-field and icon-image. We accept the
+        // layer if either is present.
+        val rawTextField = layout?.get("text-field")?.jsonPrimitive?.contentOrNull
+        val textField = rawTextField?.let { extractFieldName(it) }
+        val iconImageExpr = layout?.get("icon-image")?.let(::parseStringInterp)
+        if (textField == null && iconImageExpr == null) return null
+
+        val textSize = layout?.get("text-size")?.let(::parseFloatInterp)
             ?: MvtExpression.Literal(16f)
         val textColor = paint?.get("text-color")?.let(::parseColorInterp)
             ?: MvtExpression.Literal(Color(0f, 0f, 0f))
         val haloColor = paint?.get("text-halo-color")?.let(::parseColorInterp)
         val haloWidth = paint?.get("text-halo-width")?.let(::parseFloatInterp)
-        val font = layout["text-font"]
+        val font = layout?.get("text-font")
         val (family, weight) = extractFontInfo(font)
+        val iconSize = layout?.get("icon-size")?.let(::parseFloatInterp)
+        val iconOffset = layout?.get("icon-offset")?.let(::parseFloatOffsetX)
+        val iconAnchor = layout?.get("icon-anchor")?.let(::parseStringInterp)
+            ?: layout?.get("text-anchor")?.let(::parseStringInterp)
         return MvtStyleRule.PaintSpec(
             textField = textField,
             textColor = textColor,
@@ -207,7 +216,28 @@ object MvtMapboxStyleLoader {
             textHaloWidth = haloWidth,
             fontFamily = family,
             fontWeight = weight,
+            iconImage = iconImageExpr,
+            iconSize = iconSize,
+            iconOffset = iconOffset,
+            iconAnchor = iconAnchor,
         )
+    }
+
+    /** String-valued property. Constants accepted as bare JSON strings; expressions deferred. */
+    private fun parseStringInterp(el: JsonElement): MvtExpression<String>? = when (el) {
+        is JsonPrimitive -> el.contentOrNull?.let { MvtExpression.Literal(it) }
+        else -> null
+    }
+
+    /**
+     * Mapbox `icon-offset` is `[dx, dy]`. We only support a single horizontal offset right
+     * now (the most common case for label-anchored icons); the Y component is ignored.
+     */
+    private fun parseFloatOffsetX(el: JsonElement): MvtExpression<Float>? = when (el) {
+        is JsonArray -> (el.getOrNull(0) as? JsonPrimitive)?.floatOrNull
+            ?.let { MvtExpression.Literal(it) }
+        is JsonPrimitive -> el.floatOrNull?.let { MvtExpression.Literal(it) }
+        else -> null
     }
 
     /**

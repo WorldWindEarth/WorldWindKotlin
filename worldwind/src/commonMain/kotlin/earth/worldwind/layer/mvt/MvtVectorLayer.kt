@@ -5,13 +5,18 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Sector
+import earth.worldwind.geom.Offset
+import earth.worldwind.geom.OffsetMode
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
+import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.PathType
+import earth.worldwind.shape.Placemark
+import earth.worldwind.shape.PlacemarkAttributes
 import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.util.LruMemoryCache
@@ -88,6 +93,13 @@ open class MvtVectorLayer(
      * mutations the batched path doesn't carry.
      */
     val useBatchedRendering: Boolean = true,
+    /**
+     * Optional sprite atlas used to resolve `icon-image` paint to a per-icon image source.
+     * When null, rules with icon paint are silently skipped — useful when you want the
+     * label-only render path without the per-icon image fetches. Load via
+     * [MvtSpriteAtlasLoader.load] or construct directly from bundled assets.
+     */
+    var spriteAtlas: MvtSpriteAtlas? = null,
     displayName: String? = "Vector Tiles",
 ) : AbstractLayer(displayName) {
 
@@ -804,19 +816,42 @@ open class MvtVectorLayer(
                         }
                     }
                     MvtGeometryType.POINT -> {
-                        // Labels only emerge from rule-based styles with a text {} block —
-                        // hand-coded MvtStyle implementations don't carry label data.
-                        if (matchedRule == null || !matchedRule.paint.hasText) continue
-                        val labelSpec = matchedRule.paint.buildText(key.z, props) ?: continue
+                        if (matchedRule == null) continue
+                        val labelSpec = if (matchedRule.paint.hasText)
+                            matchedRule.paint.buildText(key.z, props) else null
+                        val iconSpec = if (matchedRule.paint.hasIcon)
+                            matchedRule.paint.buildIcon(key.z, props) else null
+                        if (labelSpec == null && iconSpec == null) continue
                         val points = MvtGeometry.decodePoints(feature, key.z, key.x, key.y, layer.extent)
                         for (pt in points) {
-                            val label = Label(pt, labelSpec.text, labelSpec.attributes).apply {
-                                altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                                this.zOrder = zOrder.toDouble()
+                            if (labelSpec != null) {
+                                val label = Label(pt, labelSpec.text, labelSpec.attributes).apply {
+                                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                                    this.zOrder = zOrder.toDouble()
+                                }
+                                tileLabels += label
+                                tileLabelPriorities += zOrder
+                                tileLabelSizes += labelSpec.pixelSize
                             }
-                            tileLabels += label
-                            tileLabelPriorities += zOrder
-                            tileLabelSizes += labelSpec.pixelSize
+                            if (iconSpec != null) {
+                                val atlas = spriteAtlas ?: continue
+                                val factory = atlas.iconFactory(iconSpec.name) ?: continue
+                                val attrs = PlacemarkAttributes.createWithImage(
+                                    ImageSource.fromImageFactory(factory)
+                                ).apply {
+                                    // Icon native pixel size is set in the atlas manifest; the
+                                    // factory crops to (entry.width × entry.height). Scale by
+                                    // iconSpec.size and divide by the entry's pixelRatio so
+                                    // @2x atlas variants render at the same on-screen size.
+                                    val pr = factory.entry.pixelRatio
+                                    imageScale = iconSpec.size.toDouble() / pr
+                                    imageOffset = anchorToOffset(iconSpec.anchor)
+                                }
+                                val placemark = Placemark(pt, attrs).apply {
+                                    altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                                }
+                                out += placemark
+                            }
                         }
                     }
                     MvtGeometryType.UNKNOWN -> Unit
@@ -947,6 +982,18 @@ open class MvtVectorLayer(
             val north = atan(sinh(PI * (1 - 2 * y.toDouble() / n))) * 180.0 / PI
             val south = atan(sinh(PI * (1 - 2 * (y + 1).toDouble() / n))) * 180.0 / PI
             return Sector.fromDegrees(south, west, north - south, east - west)
+        }
+
+        internal fun anchorToOffset(anchor: String): Offset = when (anchor) {
+            "top" -> Offset.topCenter()
+            "bottom" -> Offset.bottomCenter()
+            "left" -> Offset(OffsetMode.FRACTION, 0.0, OffsetMode.FRACTION, 0.5)
+            "right" -> Offset(OffsetMode.FRACTION, 1.0, OffsetMode.FRACTION, 0.5)
+            "top-left" -> Offset.topLeft()
+            "top-right" -> Offset.topRight()
+            "bottom-left" -> Offset.bottomLeft()
+            "bottom-right" -> Offset.bottomRight()
+            else -> Offset.center()
         }
     }
 }
