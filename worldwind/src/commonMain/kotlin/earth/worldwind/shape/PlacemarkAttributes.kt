@@ -33,7 +33,16 @@ open class PlacemarkAttributes(
      * the placemark's geographic position. A scale of 0 causes the placemark to disappear; however, the placemark's
      * label, if any, is still drawn.
      */
-    var imageScale: Double,
+    /**
+     * Horizontal multiplier applied to the placemark's image. Together with [imageScaleY]
+     * defines the on-screen extent of the image quad in pixels. Set both to the same value
+     * for uniform scaling — the convenience [imageScale] property does that in one step.
+     * Use a different X than Y when you need to stretch horizontally (highway shields,
+     * pill-shaped badges fitting variable-length text — `icon-text-fit: width`).
+     */
+    var imageScaleX: Double,
+    /** Vertical multiplier applied to the placemark's image. See [imageScaleX]. */
+    var imageScaleY: Double,
     /**
      * Returns the minimum amount to scale the placemark's image. When a [Placemark.isEyeDistanceScaling] is true,
      * this value controls the minimum size of the rendered placemark. A value of 0 allows the placemark to disappear.
@@ -103,7 +112,8 @@ open class PlacemarkAttributes(
         imageSource = null,
         imageColor = Color(1f, 1f, 1f, 1f), // white
         imageOffset = Offset.center(),
-        imageScale = 1.0,
+        imageScaleX = 1.0,
+        imageScaleY = 1.0,
         minimumImageScale = 0.0,
         isDrawLabel = true,
         isDrawLeader = false,
@@ -111,6 +121,18 @@ open class PlacemarkAttributes(
         labelAttributes = TextAttributes(),
         leaderAttributes = ShapeAttributes()
     )
+
+    /**
+     * Convenience uniform-scale accessor. Getting reads [imageScaleY] (the historic
+     * "imageScale" semantics); setting writes BOTH [imageScaleX] and [imageScaleY] so
+     * existing call sites that treat scale as uniform keep working unchanged.
+     */
+    var imageScale: Double
+        get() = imageScaleY
+        set(value) {
+            imageScaleX = value
+            imageScaleY = value
+        }
 
     /**
      * Constructs a placemark attribute bundle from the specified attributes. Performs a deep copy of the color, offset,
@@ -122,7 +144,8 @@ open class PlacemarkAttributes(
         attributes.imageSource,
         Color(attributes.imageColor),
         Offset(attributes.imageOffset),
-        attributes.imageScale,
+        attributes.imageScaleX,
+        attributes.imageScaleY,
         attributes.minimumImageScale,
         attributes.isDrawLabel,
         attributes.isDrawLeader,
@@ -135,7 +158,8 @@ open class PlacemarkAttributes(
         imageSource = attributes.imageSource
         imageColor.copy(attributes.imageColor)
         imageOffset.copy(attributes.imageOffset)
-        imageScale = attributes.imageScale
+        imageScaleX = attributes.imageScaleX
+        imageScaleY = attributes.imageScaleY
         minimumImageScale = attributes.minimumImageScale
         isDrawLabel = attributes.isDrawLabel
         isDrawLeader = attributes.isDrawLeader
@@ -150,7 +174,8 @@ open class PlacemarkAttributes(
         if (imageSource != other.imageSource) return false
         if (imageColor != other.imageColor) return false
         if (imageOffset != other.imageOffset) return false
-        if (imageScale != other.imageScale) return false
+        if (imageScaleX != other.imageScaleX) return false
+        if (imageScaleY != other.imageScaleY) return false
         if (minimumImageScale != other.minimumImageScale) return false
         if (isDrawLabel != other.isDrawLabel) return false
         if (isDrawLeader != other.isDrawLeader) return false
@@ -165,7 +190,8 @@ open class PlacemarkAttributes(
         var result = imageSource?.hashCode() ?: 0
         result = 31 * result + imageColor.hashCode()
         result = 31 * result + imageOffset.hashCode()
-        result = 31 * result + imageScale.hashCode()
+        result = 31 * result + imageScaleX.hashCode()
+        result = 31 * result + imageScaleY.hashCode()
         result = 31 * result + minimumImageScale.hashCode()
         result = 31 * result + isDrawLabel.hashCode()
         result = 31 * result + isDrawLeader.hashCode()

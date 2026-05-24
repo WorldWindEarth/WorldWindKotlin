@@ -827,16 +827,10 @@ open class MvtVectorLayer(
                             // Resolve casing once per feature; emit a wider stroke at zOrder-1
                             // so it paints under the main line.
                             val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props)
-                            // Dashed features fall back to per-Path — the batched line path
-                            // doesn't carry per-prim outline textures. Casing still routes
-                            // through the batched path (it isn't dashed) so the cased effect
-                            // is preserved.
-                            val forceUnbatched = shapeAttrs.outlineImageSource != null
                             for (line in lines) {
                                 if (line.size < 2) continue
                                 // Casing always emits to the batched path (or as its own Path
-                                // when batching is off), regardless of whether the main
-                                // stroke is dashed.
+                                // when batching is off).
                                 if (casingAttrs != null) {
                                     if (lineBatch != null) {
                                         lineBatch += MvtBatchedLineTile.BatchLineFeature(
@@ -854,15 +848,12 @@ open class MvtVectorLayer(
                                             ?: run { out += casingPath }
                                     }
                                 }
-                                if (lineBatch != null && !forceUnbatched) {
+                                if (lineBatch != null) {
                                     lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                         positions = line, attributes = shapeAttrs, zOrder = zOrder,
                                         pickPayload = pickPayload,
                                     )
                                 } else {
-                                    // Per-feature Path fallback — used either when the layer
-                                    // is configured non-batched, OR when batched rendering
-                                    // can't carry this feature's effects (e.g. dasharray).
                                     val path = Path(line, shapeAttrs).apply {
                                         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                         isFollowTerrain = true
@@ -943,6 +934,16 @@ open class MvtVectorLayer(
                                     if (isShield && labelSpec != null) {
                                         // Use the rule's text attributes for the on-shield label.
                                         labelAttributes.copy(labelSpec.attributes)
+                                        // icon-text-fit: width — stretch the shield only when
+                                        // the label is wider than the icon's reserved content
+                                        // area (70% of native width). The extra factor goes
+                                        // into imageScaleX so the shield gets WIDER but stays
+                                        // the same HEIGHT.
+                                        val textPx = labelSpec.attributes.font.measureText(labelSpec.text)
+                                        val iconContentPx = factory.entry.width * 0.7f
+                                        if (textPx > iconContentPx && iconContentPx > 0f) {
+                                            imageScaleX = imageScaleY * (textPx / iconContentPx).toDouble()
+                                        }
                                     }
                                     imageOffset = anchorToOffset(iconSpec.anchor)
                                 }

@@ -109,6 +109,15 @@ class MvtBatchedLineTile(
         val opacity: Float,
         val offset: Int,
         val count: Int,
+        /** Optional stipple texture source (Mapbox `line-dasharray`); null = solid line. */
+        val outlineImageSource: earth.worldwind.render.image.ImageSource? = null,
+    )
+
+    /** Hash + equality key for bucketing line features by visual state. */
+    private data class BucketKey(
+        val colorPacked: Int,
+        val widthBits: Int,
+        val outlineImageSource: earth.worldwind.render.image.ImageSource?,
     )
 
     /**
@@ -269,11 +278,21 @@ class MvtBatchedLineTile(
             // +0.5 px corrects the offscreen-texture pass that makes surface lines look
             // thinner when sampled back; matches Path's surface branch.
             drawState.lineWidth = range.lineWidth * widthScale + 0.5f
+            // Set the per-range outline texture (Mapbox `line-dasharray`) before each draw —
+            // DrawShapeState.drawElements captures drawState.texture into the prim, so the
+            // next range's null/non-null texture overrides it independently.
+            drawState.texture = range.outlineImageSource?.let {
+                rc.getTexture(it, defaultOutlineImageOptions)
+            }
+            drawState.textureLod = 0
             if (drawState.color.alpha * drawState.opacity >= 1f) anyOpaque = true
             drawState.drawElements(
                 GL_TRIANGLE_STRIP, range.count, GL_UNSIGNED_INT, range.offset * Int.SIZE_BYTES,
             )
         }
+        // Clear so the pooled drawable doesn't carry a stale stipple texture if its next
+        // recycle is non-dashed.
+        drawState.texture = null
         drawState.enableDepthWrite = anyOpaque
 
         rc.offerSurfaceDrawable(drawable, zOrder)
@@ -305,18 +324,21 @@ class MvtBatchedLineTile(
         if (features.size > 1) sortedIndices.sortBy { features[it].zOrder }
         val featureRanges = IntArray(features.size * 2)
 
-        // Bucket by `(colorPacked, lineWidth)`. `Float.toRawBits` gives exact equality on
-        // identical literals — style rules emit the same `outlineWidth` Float across all
-        // features of a class. LinkedHashMap keeps buckets in min-z-ascending order so
-        // cross-class layering is preserved on emit.
-        val groups = LinkedHashMap<Long, MutableList<Int>>()
+        // Bucket by `(colorPacked, lineWidth, outlineImageSource)`. Stippled (dashed) lines
+        // share a bucket with the same dash pattern; solid lines share the null-source
+        // bucket. `Float.toRawBits` gives exact equality on identical literals; ImageSource
+        // identity equality is the bucket discriminator for stipple.
+        val groups = LinkedHashMap<BucketKey, MutableList<Int>>()
         for (origIdx in sortedIndices) {
             val feature = features[origIdx]
             if (feature.positions.size < 2) continue
             val attrs = feature.attributes
             val colorPacked = packColor(attrs.outlineColor)
-            val key = (colorPacked.toLong() and 0xFFFFFFFFL) or
-                (attrs.outlineWidth.toRawBits().toLong() shl 32)
+            val key = BucketKey(
+                colorPacked = colorPacked,
+                widthBits = attrs.outlineWidth.toRawBits(),
+                outlineImageSource = attrs.outlineImageSource,
+            )
             groups.getOrPut(key) { ArrayList() } += origIdx
         }
 
@@ -325,7 +347,7 @@ class MvtBatchedLineTile(
         // without rasterising any fragments. Track each feature's own (offset, count) for
         // the pick path (excludes bridge indices, which "belong" to no feature).
         val elementsScratch = IntList()
-        for ((_, memberIndices) in groups) {
+        for ((key, memberIndices) in groups) {
             val first = features[memberIndices[0]].attributes
             val groupColorPacked = packColor(first.outlineColor)
             val groupLineWidth = first.outlineWidth
@@ -351,6 +373,7 @@ class MvtBatchedLineTile(
                 opacity = 1f,
                 offset = rangeStart,
                 count = count,
+                outlineImageSource = key.outlineImageSource,
             )
         }
 
@@ -462,6 +485,13 @@ class MvtBatchedLineTile(
         // Path's outline VBO uses 5 floats per GPU corner-vertex; 4 corners per logical
         // waypoint; the shader interprets the 4th float as the OUTLINE_CORNER_* tag.
         private const val VERTEX_STRIDE = 5
+
+        // Same options Path uses for its outline stipple texture: REPEAT + NEAREST so the
+        // dash pattern tiles cleanly without bilinear smear.
+        private val defaultOutlineImageOptions = earth.worldwind.render.image.ImageOptions().apply {
+            wrapMode = earth.worldwind.render.image.WrapMode.REPEAT
+            resamplingMode = earth.worldwind.render.image.ResamplingMode.NEAREST_NEIGHBOR
+        }
 
         private fun packColor(c: Color): Int {
             val r = (c.red * 255f).toInt().coerceIn(0, 255)

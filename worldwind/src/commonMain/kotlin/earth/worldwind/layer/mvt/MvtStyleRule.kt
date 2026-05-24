@@ -244,7 +244,7 @@ class MvtStyleRule(
             val text = if (textPlacement == LabelPlacement.POINT)
                 textMaxWidth?.evaluate(ctx)?.let { emWidth ->
                     if (emWidth <= 0f) rawText
-                    else wrapText(rawText, resolvedFont, emWidth * sizePx)
+                    else wrapText(rawText, resolvedFont, emWidth * sizePx, useApproximateMetrics)
                 } ?: rawText
             else rawText
             val attrs = TextAttributes().apply {
@@ -304,6 +304,14 @@ class MvtStyleRule(
             private const val DEFAULT_FONT_FAMILY = "sans-serif"
 
             /**
+             * When true, text-max-width word-wrap uses a fixed 0.55-em-per-glyph
+             * approximation instead of the platform Font's per-glyph measurement. Set true
+             * if you need identical wrap break points across Android / JVM / JS / iOS;
+             * leave false for tighter platform-native wraps.
+             */
+            var useApproximateMetrics: Boolean = false
+
+            /**
              * Convert a Mapbox `line-dasharray` (alternating dash + gap lengths in line-width
              * units) into the (factor, pattern) pair that
              * [earth.worldwind.render.image.ImageSource.fromLineStipple] consumes. The pattern
@@ -336,19 +344,32 @@ class MvtStyleRule(
 
             /**
              * Greedy word-wrap: split [text] on spaces and insert `\n` at the last word
-             * boundary that keeps each line ≤ [maxWidthPx] using [font]'s measured advance.
-             * Single words longer than the max width stay on their own line (don't split
-             * inside a word — Mapbox doesn't either).
+             * boundary that keeps each line ≤ [maxWidthPx]. Single words longer than the max
+             * width stay on their own line (don't split inside a word — Mapbox doesn't either).
+             *
+             * Default uses [font.measureText] for accurate per-platform widths. Set
+             * [useApproximateMetrics] to true to use a fixed 0.55 × font-size approximation
+             * (matches the label-collision heuristic) — break points then come out IDENTICAL
+             * across all four platforms, at the cost of slightly looser wrapping on glyphs
+             * narrower or wider than 0.55em (digits, M/W, i/l).
              */
-            internal fun wrapText(text: String, font: Font, maxWidthPx: Float): String {
+            internal fun wrapText(
+                text: String, font: Font, maxWidthPx: Float, useApproximateMetrics: Boolean = false,
+            ): String {
                 if (maxWidthPx <= 0f || ' ' !in text) return text
                 val words = text.split(' ').filter { it.isNotEmpty() }
                 if (words.isEmpty()) return text
+                val fontSize: Float = font.measureText("M").let { if (it > 0f) it else maxWidthPx * 0.1f }
+                val measureWord: (String) -> Float = if (useApproximateMetrics) {
+                    { w -> w.length * fontSize * 0.55f }
+                } else {
+                    { w -> font.measureText(w) }
+                }
+                val spaceWidth = if (useApproximateMetrics) fontSize * 0.3f else font.measureText(" ")
                 val sb = StringBuilder(text.length + 4)
                 var lineWidth = 0f
-                val spaceWidth = font.measureText(" ")
                 for ((i, w) in words.withIndex()) {
-                    val wWidth = font.measureText(w)
+                    val wWidth = measureWord(w)
                     val needsSpace = i > 0 && lineWidth > 0f
                     val projected = lineWidth + (if (needsSpace) spaceWidth else 0f) + wWidth
                     if (lineWidth > 0f && projected > maxWidthPx) {
