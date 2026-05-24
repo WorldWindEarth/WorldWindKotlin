@@ -6,6 +6,7 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.AbstractLayer
+import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Label
@@ -893,7 +894,6 @@ open class MvtVectorLayer(
     }
 
     companion object {
-        const val MAX_MERCATOR_LAT: Double = 85.0511287798066
         /** Standard slippy-tile pixel width — the input to camera-altitude → zoom matching. */
         const val TILE_PIXEL_SIZE: Int = 256
         // Collision bbox sizing ratios. Mirrored from [MvtLabelGroup]'s local pass — kept
@@ -930,7 +930,7 @@ open class MvtVectorLayer(
         fun lonLatToTile(lonDegrees: Double, latDegrees: Double, zoom: Int): Pair<Int, Int> {
             val n = 1 shl zoom
             val x = ((lonDegrees + 180.0) / 360.0 * n).toInt()
-            val latRad = latDegrees.coerceIn(-MAX_MERCATOR_LAT, MAX_MERCATOR_LAT) * PI / 180.0
+            val latRad = latDegrees.coerceIn(-MercatorSector.MAX_LATITUDE_DEG, MercatorSector.MAX_LATITUDE_DEG) * PI / 180.0
             val y = ((1.0 - asinh(tan(latRad)) / PI) / 2.0 * n).toInt()
             return x to y
         }

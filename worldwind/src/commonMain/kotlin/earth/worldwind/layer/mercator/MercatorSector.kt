@@ -4,6 +4,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.fromDegrees
 import earth.worldwind.geom.Angle.Companion.fromRadians
 import earth.worldwind.geom.Sector
+import kotlin.jvm.JvmField
 import kotlin.jvm.JvmStatic
 import kotlin.math.*
 
@@ -32,6 +33,14 @@ open class MercatorSector(
     private fun getTilesY(tileDelta: Angle) = deltaLatitude.inDegrees / tileDelta.inDegrees
 
     companion object {
+        /**
+         * Web Mercator's latitude limit — the latitude where the projection becomes square
+         * (`atan(sinh(π)) ≈ 85.0511°`). Web Mercator math diverges past this point;
+         * slippy-tile servers and clients clamp to ±[MAX_LATITUDE_DEG].
+         */
+        @JvmField
+        val MAX_LATITUDE_DEG: Double = gudermannian(1.0).inDegrees
+
         @JvmStatic
         fun fromDegrees(
             minLatPercent: Double, maxLatPercent: Double, minLonDegrees: Double, maxLonDegrees: Double

@@ -5,6 +5,7 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.AbstractLayer
+import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
@@ -379,9 +380,6 @@ open class OsmBuildingsLayer(
     }
 
     companion object {
-        // Latitude at which Web Mercator y reaches ±π. Standard slippy-tile clamp.
-        const val MAX_MERCATOR_LAT: Double = 85.0511287798066
-
         /**
          * Exponential backoff schedule (in ms) for failed tile fetches: 2 s, 5 s, 15 s, then
          * capped at 60 s. Conservative enough that a recovering Overpass mirror sees normal
@@ -410,7 +408,7 @@ open class OsmBuildingsLayer(
         fun lonLatToTile(lonDegrees: Double, latDegrees: Double, zoom: Int): Pair<Int, Int> {
             val n = 1 shl zoom
             val x = ((lonDegrees + 180.0) / 360.0 * n).toInt()
-            val latRad = latDegrees.coerceIn(-MAX_MERCATOR_LAT, MAX_MERCATOR_LAT) * PI / 180.0
+            val latRad = latDegrees.coerceIn(-MercatorSector.MAX_LATITUDE_DEG, MercatorSector.MAX_LATITUDE_DEG) * PI / 180.0
             val y = ((1.0 - asinh(tan(latRad)) / PI) / 2.0 * n).toInt()
             return x to y
         }
