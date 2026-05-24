@@ -307,25 +307,10 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
     override suspend fun setupFeatureLayerCache(
         layer: CacheableFeatureLayer, contentKey: String, setupWebLayer: Boolean,
     ) = withContext(Dispatchers.IO) {
-        // Find or create the GPKG features table backing this layer's cache. If the
-        // content already exists it must already be a features table (with our
-        // (id, geom, properties) schema) — re-binding without recreating preserves
-        // existing cached rows. If it doesn't, the layer must be a WebFeatureLayer so
-        // we know what service metadata to persist while creating the table.
-        val existing = geoPackage.getContent(contentKey)
-        val content = if (existing != null) {
-            require(existing.dataTypeName.equals(FEATURES, ignoreCase = true)) {
-                "Content '$contentKey' exists but is not a features table"
-            }
-            if (setupWebLayer && layer is WebFeatureLayer && !geoPackage.isReadOnly) {
-                geoPackage.setupWebFeatureLayer(layer, existing)
-            }
-            existing
-        } else {
-            require(layer is WebFeatureLayer) {
-                "Cannot create cache content '$contentKey' from a non-WebFeatureLayer source"
-            }
-            geoPackage.setupFeaturesContent(layer, contentKey, setupWebLayer)
+        // One schema for every source — WFS leaves tile columns NULL; OSM/MVT populate them.
+        val content = geoPackage.setupFeaturesContent(contentKey, layer.displayName)
+        if (setupWebLayer && layer is WebFeatureLayer && !geoPackage.isReadOnly) {
+            geoPackage.setupWebFeatureLayer(layer, content)
         }
         layer.cacheSourceFactory = GpkgFeatureCacheFactory(geoPackage, content)
     }

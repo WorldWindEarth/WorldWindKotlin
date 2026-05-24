@@ -6,12 +6,10 @@ import earth.worldwind.ogc.gpkg.GpkgContent
 import kotlin.time.Instant
 
 /**
- * Cache façade for a [CachedWfsFeatureLayer]. Mirrors [GpkgTileFactory] /
- * [GpkgElevationSourceFactory] for parallelism with image / coverage caches: it identifies
- * the cache content row and lets callers inspect / clear the cached payload, while the
- * heavy lifting (writes during refresh, reads on open) lives on the [GeoPackage] side.
+ * GPKG-backed [FeatureCacheSourceFactory] shared by every [earth.worldwind.layer.CacheableFeatureLayer]
+ * on JVM/Android — WFS, OSM buildings, MVT, shapefile, etc. Read/write logic lives on [GeoPackage].
  */
-internal class GpkgFeatureCacheFactory(
+class GpkgFeatureCacheFactory(
     val geoPackage: GeoPackage,
     val content: GpkgContent,
 ) : FeatureCacheSourceFactory {

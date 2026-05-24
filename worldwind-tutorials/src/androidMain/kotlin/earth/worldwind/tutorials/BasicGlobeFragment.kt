@@ -34,6 +34,10 @@ open class BasicGlobeFragment: Fragment() {
     lateinit var wwd: WorldWindow
         private set
 
+    /** Shared cache; subclass fragments wire their layers' caches into the same GeoPackage. */
+    protected lateinit var contentManager: GpkgContentManager
+        private set
+
     /**
      * Creates a new WorldWindow (GLSurfaceView) object.
      */
@@ -41,7 +45,7 @@ open class BasicGlobeFragment: Fragment() {
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
         wwd = WorldWindow(requireContext())
         // Define cache content manager
-        val contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache_content.gpkg").absolutePath)
+        contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache_content.gpkg").absolutePath)
         // Setting up the WorldWindow's layers.
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())

@@ -20,10 +20,14 @@ import earth.worldwind.layer.CompassLayer
 import earth.worldwind.layer.CoordinatesDisplayLayer
 import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
+import earth.worldwind.formats.shapefile.CachedShapefileLayer
+import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
+import earth.worldwind.layer.buildings.CachedOsmBuildingsLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
+import earth.worldwind.ogc.GpkgContentManager
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
 import kotlinx.coroutines.MainScope
@@ -31,6 +35,7 @@ import kotlinx.coroutines.launch
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.event.MouseEvent
+import java.io.File
 import javax.swing.*
 
 fun main() {
@@ -40,6 +45,10 @@ fun main() {
     installPermissiveSslForTutorials()
     SwingUtilities.invokeLater {
         val mainScope = MainScope()
+        // Shared GeoPackage cache; per-layer rows namespaced by content key.
+        val contentManager = GpkgContentManager(
+            File(System.getProperty("user.home"), ".cache/worldwind-tutorials/cache_content.gpkg").absolutePath
+        ).also { File(it.pathName).parentFile?.mkdirs() }
         val tutorialCombo = JComboBox<String>()
         val projectionCombo = JComboBox<String>()
         val actionsPanel = JPanel(FlowLayout(FlowLayout.LEFT))
@@ -91,7 +100,11 @@ fun main() {
                 "Triangle meshes" to triMeshTutorial,
                 "COLLADA" to colladaTutorial,
                 "GLTF" to gltfTutorial,
-                "OSM Buildings" to OsmBuildingsTutorial(engine),
+                "OSM Buildings" to OsmBuildingsTutorial(engine, layerFactory = {
+                    CachedOsmBuildingsLayer(useOsmColors = true).also { layer ->
+                        mainScope.launch { layer.configureCache(contentManager, "OsmBuildings") }
+                    }
+                }),
                 "Vector Tiles (MVT)" to MvtVectorTilesTutorial(engine),
                 "Dash and fill" to ShapesDashAndFillTutorial(engine),
                 "Labels" to LabelsTutorial(engine),
@@ -110,7 +123,17 @@ fun main() {
                 "WMS Layer" to WmsLayerTutorial(engine, mainScope),
                 "WMTS Layer" to WmtsLayerTutorial(engine, mainScope),
                 "WFS Layer" to WfsLayerTutorial(engine, mainScope),
-                "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope),
+                "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope, layerLoader = {
+                    val layer: RenderableLayer = CachedShapefileLayer(
+                        shpUrl = ShapefileLayerTutorial.SHP_URL,
+                        displayName = ShapefileLayerTutorial.DISPLAY_NAME,
+                        attributes = ShapefileLayerTutorial.defaultPolygonStyle(),
+                    ).also { cached ->
+                        cached.configureCache(contentManager, "Shapefile_Countries")
+                        cached.load()
+                    }
+                    layer
+                }),
                 "WCS Elevation" to WcsElevationTutorial(engine),
                 "DTED Elevation (local)" to DtedElevationTutorial(engine),
                 "NITF Imagery" to NitfImageryTutorial(engine),

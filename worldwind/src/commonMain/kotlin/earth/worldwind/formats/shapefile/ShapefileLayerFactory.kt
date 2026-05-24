@@ -134,20 +134,37 @@ object ShapefileLayerFactory {
         shapeConfiguration: (ShapefileRecord) -> ShapefileShapeConfiguration?,
     ): RenderableLayer {
         val layer = RenderableLayer(displayName).apply { isPickEnabled = false }
-        for (record in shapefile.records) {
-            val config = shapeConfiguration(record) ?: continue
-            when {
-                record.isPointType -> addPlacemarks(layer, record, config)
-                record.isMultiPointType -> addPlacemarks(layer, record, config)
-                record.isPolylineType -> addPolyline(layer, record, config)
-                record.isPolygonType -> addPolygon(layer, record, config)
-                record.isMultiPatchType -> addMultiPatch(layer, record, config)
-            }
+        emitRecordRenderables(shapefile, shapeConfiguration) { _, renderable ->
+            layer.addRenderable(renderable)
         }
         return layer
     }
 
-    private fun addPlacemarks(layer: RenderableLayer, record: ShapefileRecord, config: ShapefileShapeConfiguration) {
+    /**
+     * Iterate [shapefile] records, run [shapeConfiguration] per record, and pass each resulting
+     * [earth.worldwind.render.Renderable] back through [consumer] alongside the originating
+     * record. The base [createLayer] entry points use this internally; [CachedShapefileLayer]
+     * uses it directly so it can intercept each renderable + its DBF attributes for cache encoding
+     * without rebuilding the shape-construction logic.
+     */
+    fun emitRecordRenderables(
+        shapefile: Shapefile,
+        shapeConfiguration: (ShapefileRecord) -> ShapefileShapeConfiguration? = { ShapefileShapeConfiguration() },
+        consumer: (record: ShapefileRecord, renderable: earth.worldwind.render.Renderable) -> Unit,
+    ) {
+        for (record in shapefile.records) {
+            val config = shapeConfiguration(record) ?: continue
+            when {
+                record.isPointType -> addPlacemarks(record, config) { r -> consumer(record, r) }
+                record.isMultiPointType -> addPlacemarks(record, config) { r -> consumer(record, r) }
+                record.isPolylineType -> addPolyline(record, config) { r -> consumer(record, r) }
+                record.isPolygonType -> addPolygon(record, config) { r -> consumer(record, r) }
+                record.isMultiPatchType -> addMultiPatch(record, config) { r -> consumer(record, r) }
+            }
+        }
+    }
+
+    private fun addPlacemarks(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
         val placemarkAttributes = config.placemarkAttributes ?: PlacemarkAttributes()
         val label = config.name ?: deriveLabel(record)
         for (part in record.parts) {
@@ -160,13 +177,13 @@ object ShapefileLayerFactory {
                     altitudeMode = config.altitudeMode
                     config.highlightPlacemarkAttributes?.let { highlightAttributes = it }
                 }
-                layer.addRenderable(placemark)
+                consumer(placemark)
                 i += 2
             }
         }
     }
 
-    private fun addPolyline(layer: RenderableLayer, record: ShapefileRecord, config: ShapefileShapeConfiguration) {
+    private fun addPolyline(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
         val attributes = config.attributes ?: ShapeAttributes()
         for ((partIndex, part) in record.parts.withIndex()) {
             val positions = pointsToPositions(record, partIndex, part, config)
@@ -181,11 +198,11 @@ object ShapefileLayerFactory {
                 config.highlightAttributes?.let { highlightAttributes = it }
                 config.name?.let { displayName = it }
             }
-            layer.addRenderable(path)
+            consumer(path)
         }
     }
 
-    private fun addPolygon(layer: RenderableLayer, record: ShapefileRecord, config: ShapefileShapeConfiguration) {
+    private fun addPolygon(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
         val attributes = config.attributes ?: ShapeAttributes()
 
         // Shapefile polygon parts use ring-winding to mark outer vs inner rings:
@@ -215,7 +232,7 @@ object ShapefileLayerFactory {
                 config.highlightAttributes?.let { highlightAttributes = it }
                 config.name?.let { displayName = it }
             }
-            layer.addRenderable(polygon)
+            consumer(polygon)
             pendingOuter = null
             pendingHoles = null
         }
@@ -250,7 +267,7 @@ object ShapefileLayerFactory {
      * coordinates a clockwise ring integrates to a positive value; the shapefile spec
      * uses CW for outer rings and CCW for holes.
      */
-    private fun addMultiPatch(layer: RenderableLayer, record: ShapefileRecord, config: ShapefileShapeConfiguration) {
+    private fun addMultiPatch(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
         val partTypes = record.partTypes ?: return
         val zValues = record.zValues
         val attributes = config.attributes ?: ShapeAttributes()
@@ -316,7 +333,7 @@ object ShapefileLayerFactory {
             config.highlightAttributes?.let { highlightAttributes = it }
             config.name?.let { displayName = it }
         }
-        layer.addRenderable(mesh)
+        consumer(mesh)
     }
 
     private fun isClockwise(positions: List<Position>): Boolean {

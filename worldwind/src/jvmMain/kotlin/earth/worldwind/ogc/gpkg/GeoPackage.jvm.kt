@@ -68,6 +68,52 @@ actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
     (geoPackage as GeoPackage).getFeatureDao(tableName).deleteAll()
 }
 
+actual fun readFeatureTileRows(
+    geoPackage: GeoPackageCore, tableName: String, z: Int, x: Int, y: Int,
+): List<GpkgFeatureRow> {
+    val featureDao = (geoPackage as GeoPackage).getFeatureDao(tableName)
+    return featureDao.queryForFieldValues(
+        mapOf(
+            earth.worldwind.ogc.gpkg.GeoPackage.TILE_Z_COLUMN to z,
+            earth.worldwind.ogc.gpkg.GeoPackage.TILE_X_COLUMN to x,
+            earth.worldwind.ogc.gpkg.GeoPackage.TILE_Y_COLUMN to y,
+        )
+    ).map { row ->
+        val geometry = row.getGeometry()?.geometry?.takeIf { !it.isEmpty }
+        val properties = row.getValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN) as? String
+        GpkgFeatureRow(geometry, properties)
+    }
+}
+
+actual fun replaceFeatureTileRows(
+    geoPackage: GeoPackageCore, tableName: String, z: Int, x: Int, y: Int,
+    rows: List<GpkgFeatureRow>,
+) {
+    val gpkg = geoPackage as GeoPackage
+    val featureDao = gpkg.getFeatureDao(tableName)
+    // Coords are integers — inlining is injection-safe; the JVM connection has no parameterised execSQL.
+    val escapedTable = tableName.replace("\"", "\"\"")
+    gpkg.database.execSQL(
+        "DELETE FROM \"$escapedTable\" WHERE " +
+                "${earth.worldwind.ogc.gpkg.GeoPackage.TILE_Z_COLUMN} = $z AND " +
+                "${earth.worldwind.ogc.gpkg.GeoPackage.TILE_X_COLUMN} = $x AND " +
+                "${earth.worldwind.ogc.gpkg.GeoPackage.TILE_Y_COLUMN} = $y"
+    )
+    if (rows.isEmpty()) return
+    val srsId = featureDao.geometryColumns.srsId
+    for ((geometry, propertiesJson) in rows) {
+        val row = featureDao.newRow()
+        if (geometry != null) {
+            row.geometry = mil.nga.geopackage.geom.GeoPackageGeometryData.create(srsId, geometry)
+        }
+        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_Z_COLUMN, z)
+        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_X_COLUMN, x)
+        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_Y_COLUMN, y)
+        propertiesJson?.let { row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN, it) }
+        featureDao.insert(row)
+    }
+}
+
 actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromImage(iconRow.dataImage.let { image ->
     val width = iconRow.width?.roundToInt() ?: image.width
     val height = iconRow.height?.roundToInt() ?: image.height

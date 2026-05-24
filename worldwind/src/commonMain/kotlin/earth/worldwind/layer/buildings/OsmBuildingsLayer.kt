@@ -304,6 +304,10 @@ open class OsmBuildingsLayer(
     protected open fun toTile(key: TileKey, buildings: List<OsmBuilding>): OsmBuildingsTile =
         OsmBuildingsTile(buildings, attributes, useOsmColors = useOsmColors, shadowMode = shadowMode)
 
+    /** Resolve buildings for one tile. Subclasses override to consult a persistent cache. */
+    protected open suspend fun loadBuildings(key: TileKey): List<OsmBuilding> =
+        source.fetchBuildings(key.sector)
+
     private fun drainResults() {
         while (true) {
             val result = results.tryReceive().getOrNull() ?: return
@@ -342,7 +346,7 @@ open class OsmBuildingsLayer(
     private suspend fun fetch(key: TileKey) {
         val value = try {
             semaphore.withPermit {
-                val buildings = source.fetchBuildings(key.sector)
+                val buildings = loadBuildings(key)
                 if (useBatchedRendering) toTile(key, buildings) as Any
                 else buildings.flatMap(::toPolygons) as Any
             }

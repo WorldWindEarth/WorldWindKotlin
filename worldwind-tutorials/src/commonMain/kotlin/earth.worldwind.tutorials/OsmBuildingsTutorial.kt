@@ -21,14 +21,19 @@ import earth.worldwind.layer.buildings.OsmBuildingsLayer
  *
  * A fresh [OsmBuildingsLayer] is created on every [start] (and closed on [stop]) so re-entering
  * the tutorial after navigating away gets a clean coroutine scope and an empty tile cache.
+ *
+ * [layerFactory] lets JVM/Android inject a CachedOsmBuildingsLayer; the default is network-only.
  */
-class OsmBuildingsTutorial(engine: WorldWind) : AbstractTutorial(engine) {
+class OsmBuildingsTutorial(
+    engine: WorldWind,
+    private val layerFactory: () -> OsmBuildingsLayer = { OsmBuildingsLayer(useOsmColors = true) },
+) : AbstractTutorial(engine) {
 
     private var buildings: OsmBuildingsLayer? = null
 
     override fun start() {
         super.start()
-        val layer = OsmBuildingsLayer(useOsmColors = true).also { buildings = it }
+        val layer = layerFactory().also { buildings = it }
         engine.layers.addLayer(layer)
         engine.cameraFromLookAt(
             LookAt(

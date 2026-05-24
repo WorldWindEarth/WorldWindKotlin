@@ -99,6 +99,23 @@ expect fun insertCachedFeatures(
 expect fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String)
 expect fun buildImageSource(iconRow: IconRow): ImageSource
 
+/**
+ * One row in a features cache table. Null [geometry] is the sentinel that marks a tile as
+ * "fetched but empty"; [properties] is whatever JSON the caller chose to store.
+ */
+data class GpkgFeatureRow(val geometry: Geometry?, val properties: String?)
+
+/** Read all rows for tile `(z, x, y)`. Empty list = never fetched. */
+expect fun readFeatureTileRows(
+    geoPackage: GeoPackageCore, tableName: String, z: Int, x: Int, y: Int,
+): List<GpkgFeatureRow>
+
+/** Replace every row for tile `(z, x, y)` in one transaction; empty list writes a sentinel. */
+expect fun replaceFeatureTileRows(
+    geoPackage: GeoPackageCore, tableName: String, z: Int, x: Int, y: Int,
+    rows: List<GpkgFeatureRow>,
+)
+
 open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val geoPackage = openOrCreateGeoPackage(pathName, isReadOnly)
     private val connectionSource = geoPackage.database.connectionSource
@@ -543,17 +560,20 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /**
-     * Create the GPKG features table backing a [WebFeatureLayer] cache and (optionally)
-     * record the service association. Uses a small generic schema — one primary-key
-     * column, one [mil.nga.sf.GeometryType.GEOMETRY] column, and one TEXT column holding
-     * the feature's original GeoJSON `properties` object as JSON — so we don't have to
-     * derive a per-feature-type attribute schema. Mirrors [setupTilesContent] /
-     * [setupGriddedCoverageContent] for parallelism with image / coverage layers.
+     * Create a features cache table with universal schema `(id, geom, tile_*, properties)`.
+     * Tile columns are NULL for bulk-refresh sources, populated for tile-pyramid sources;
+     * the composite index keeps per-tile reads O(log n). Idempotent.
      */
     @Throws(IllegalStateException::class)
     suspend fun setupFeaturesContent(
-        layer: WebFeatureLayer, tableName: String, setupWebLayer: Boolean,
+        tableName: String, displayName: String? = null,
     ): GpkgContent = withContext(writeDispatcher) {
+        contentDao.queryForId(tableName)?.let { existing ->
+            check(existing.dataTypeName.equals(FEATURES, ignoreCase = true)) {
+                "Content '$tableName' exists but is not a features table"
+            }
+            return@withContext existing
+        }
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         TransactionManager.callInTransaction(connectionSource) {
             val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
@@ -561,6 +581,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             val geometryColumns = GeometryColumns().also {
                 it.tableName = tableName
                 it.columnName = FEATURE_GEOM_COLUMN
+                // GEOMETRY (not POLYGON) — MVT mixes points/lines/polygons in one payload.
                 it.geometryType = mil.nga.sf.GeometryType.GEOMETRY
                 it.srs = srs
                 it.z = 0
@@ -569,21 +590,29 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             val columns = listOf(
                 mil.nga.geopackage.features.user.FeatureColumn.createPrimaryKeyColumn(FEATURE_ID_COLUMN),
                 mil.nga.geopackage.features.user.FeatureColumn.createGeometryColumn(FEATURE_GEOM_COLUMN, mil.nga.sf.GeometryType.GEOMETRY),
+                mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_Z_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
+                mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_X_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
+                mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_Y_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
                 mil.nga.geopackage.features.user.FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.TEXT),
             )
             val metadata = mil.nga.geopackage.features.user.FeatureTableMetadata.create(geometryColumns, columns, box)
-            metadata.identifier = layer.displayName ?: tableName
+            metadata.identifier = displayName ?: tableName
             geoPackage.createFeatureTable(metadata)
+            val indexName = "${tableName}_$TILE_INDEX_SUFFIX"
+            val escapedTable = tableName.replace("\"", "\"\"")
+            val escapedIndex = indexName.replace("\"", "\"\"")
+            // Critical for tile-pyramid sources; harmless NULL entry for bulk-refresh sources.
+            geoPackage.database.execSQL(
+                "CREATE INDEX IF NOT EXISTS \"$escapedIndex\" ON \"$escapedTable\" " +
+                        "($TILE_Z_COLUMN, $TILE_X_COLUMN, $TILE_Y_COLUMN)"
+            )
             contentDao.queryForId(tableName) ?: error("Features content $tableName missing after createFeatureTable")
-        }.also { content ->
-            if (setupWebLayer) setupWebFeatureLayer(layer, content)
         }
     }
 
     /**
-     * Replace all rows in the cache features table with the given (geometry, properties)
-     * pairs in a single transaction. Updates the content's `last_change` timestamp so
-     * staleness checks pick the new cache up.
+     * Replace every row in one transaction. Used by full-refresh sources (WFS, Shapefile);
+     * tile-pyramid sources use [writeFeatureTile] instead.
      */
     @Throws(IllegalStateException::class)
     suspend fun replaceCachedFeatures(
@@ -602,6 +631,25 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     suspend fun readCachedFeatures(content: GpkgContent): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
         readCachedFeaturesWithProperties(geoPackage, content.tableName)
     }
+
+    /** Read rows for tile `(z, x, y)`. Empty = never fetched; one null-geom row = fetched-and-empty. */
+    suspend fun readFeatureTile(
+        content: GpkgContent, z: Int, x: Int, y: Int,
+    ): List<GpkgFeatureRow> = withContext(Dispatchers.IO) {
+        readFeatureTileRows(geoPackage, content.tableName, z, x, y)
+    }
+
+    /** Replace every row for one tile and bump `last_change`. */
+    @Throws(IllegalStateException::class)
+    suspend fun writeFeatureTile(
+        content: GpkgContent, z: Int, x: Int, y: Int, rows: List<GpkgFeatureRow>,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly) error("Feature tile ${content.tableName}/$z/$x/$y cannot be saved. GeoPackage is read-only!")
+        replaceFeatureTileRows(geoPackage, content.tableName, z, x, y, rows)
+        content.lastChange = Date()
+        contentDao.update(content)
+    }
+
 
 
     /**
@@ -811,12 +859,14 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         var defaultOutlineColor = earth.worldwind.render.Color(0f, 0f, 0f, 1f)
         var defaultInteriorColor = earth.worldwind.render.Color(0f, 0f, 0f, 0f)
 
-        /** Column names for the WFS cache features schema. Public so cross-platform
-         *  actuals (cursor-based reads on Android, ORM-based on JVM) reference the same
-         *  column identifiers as the writer. */
+        /** Column names for the features cache schema. Public so JVM/Android actuals match the writer. */
         const val FEATURE_ID_COLUMN = "id"
         const val FEATURE_GEOM_COLUMN = "geom"
         const val FEATURE_PROPERTIES_COLUMN = "properties"
+        const val TILE_Z_COLUMN = "tile_z"
+        const val TILE_X_COLUMN = "tile_x"
+        const val TILE_Y_COLUMN = "tile_y"
+        const val TILE_INDEX_SUFFIX = "tile_idx"
 
         init { installLenientDatePatterns() }
 

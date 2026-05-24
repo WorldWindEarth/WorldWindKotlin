@@ -21,8 +21,14 @@ import kotlinx.coroutines.launch
  *
  * Source files are hosted on the `nvkelso/natural-earth-vector` GitHub raw URLs, which
  * is the canonical Natural Earth vector mirror.
+ *
+ * [layerLoader] lets JVM/Android inject a CachedShapefileLayer; the default is network-only.
  */
-class ShapefileLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
+class ShapefileLayerTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val layerLoader: (suspend () -> RenderableLayer)? = null,
+) : AbstractTutorial(engine) {
 
     private var shapefileLayer: RenderableLayer? = null
     private var job: Job? = null
@@ -31,19 +37,7 @@ class ShapefileLayerTutorial(engine: WorldWind, private val scope: CoroutineScop
         super.start()
         job = scope.launch {
             try {
-                val polygonStyle = ShapeAttributes().apply {
-                    interiorColor = Color(0.4f, 0.6f, 0.9f, 0.35f)
-                    outlineColor = Color(1f, 1f, 1f, 0.9f)
-                    outlineWidth = 1f
-                }
-                val layer = ShapefileLayerFactory.createLayer(
-                    shpUrl = SHP_URL,
-                    displayName = "Country Boundaries (Shapefile)",
-                ) { record ->
-                    // Each polygon record gets the same shared attributes plus its DBF
-                    // `NAME` column as a label (auto-derived by the factory when name is null).
-                    ShapefileShapeConfiguration(attributes = polygonStyle)
-                }
+                val layer = layerLoader?.invoke() ?: defaultLayerLoader()
                 if (isActive) {
                     shapefileLayer = layer
                     engine.layers.addLayer(layer)
@@ -62,6 +56,18 @@ class ShapefileLayerTutorial(engine: WorldWind, private val scope: CoroutineScop
         }
     }
 
+    private suspend fun defaultLayerLoader(): RenderableLayer {
+        val polygonStyle = ShapeAttributes().apply {
+            interiorColor = Color(0.4f, 0.6f, 0.9f, 0.35f)
+            outlineColor = Color(1f, 1f, 1f, 0.9f)
+            outlineWidth = 1f
+        }
+        return ShapefileLayerFactory.createLayer(
+            shpUrl = SHP_URL,
+            displayName = DISPLAY_NAME,
+        ) { ShapefileShapeConfiguration(attributes = polygonStyle) }
+    }
+
     override fun stop() {
         super.stop()
         job?.cancel()
@@ -69,9 +75,17 @@ class ShapefileLayerTutorial(engine: WorldWind, private val scope: CoroutineScop
     }
 
     companion object {
-        // Natural Earth 110m countries (~250 KB total). Sidecars `.dbf` and `.prj` are
-        // discovered automatically by ShapefileLayerFactory.
-        private const val SHP_URL =
+        // Natural Earth 110m countries (~250 KB). Sidecars `.dbf`/`.prj` auto-discovered.
+        const val SHP_URL =
             "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/110m_cultural/ne_110m_admin_0_countries.shp"
+
+        const val DISPLAY_NAME = "Country Boundaries (Shapefile)"
+
+        /** Polygon style shared between the network-only and cached paths. */
+        fun defaultPolygonStyle() = ShapeAttributes().apply {
+            interiorColor = Color(0.4f, 0.6f, 0.9f, 0.35f)
+            outlineColor = Color(1f, 1f, 1f, 0.9f)
+            outlineWidth = 1f
+        }
     }
 }
