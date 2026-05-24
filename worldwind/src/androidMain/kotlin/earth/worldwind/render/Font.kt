@@ -6,11 +6,9 @@ import android.util.TypedValue.COMPLEX_UNIT_SP
 import android.util.TypedValue.applyDimension
 
 actual open class Font(var size: Float, var typeface: Typeface? = null) {
-    actual constructor() : this(
-        applyDimension(COMPLEX_UNIT_SP, DEFAULT_FONT_SIZE.toFloat(), Resources.getSystem().displayMetrics)
-    )
+    actual constructor() : this(spToPx(DEFAULT_FONT_SIZE.toFloat()))
     actual constructor(family: String, weight: FontWeight, size: Int) : this(
-        applyDimension(COMPLEX_UNIT_SP, size.toFloat(), Resources.getSystem().displayMetrics),
+        spToPx(size.toFloat()),
         Typeface.create(family, when(weight) {
             FontWeight.NORMAL -> Typeface.NORMAL
             FontWeight.BOLD -> Typeface.BOLD
@@ -40,5 +38,15 @@ actual open class Font(var size: Float, var typeface: Typeface? = null) {
 
     override fun toString(): String {
         return "Font(size=$size, typeface=$typeface)"
+    }
+
+    private companion object {
+        // Resources.getSystem() returns null under the android.jar stub used by host
+        // unit tests (build.gradle.kts: isReturnDefaultValues = true). Fall back to the
+        // sp value unscaled so host-side commonTest code can construct a Font.
+        fun spToPx(sizeSp: Float): Float =
+            Resources.getSystem()?.displayMetrics
+                ?.let { applyDimension(COMPLEX_UNIT_SP, sizeSp, it) }
+                ?: sizeSp
     }
 }

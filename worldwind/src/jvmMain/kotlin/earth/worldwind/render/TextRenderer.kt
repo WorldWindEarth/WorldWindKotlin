@@ -20,6 +20,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         if (text?.isNotEmpty() == true) ImageTexture(drawText(text, attributes)) else null
 
     private fun drawText(text: String, attributes: TextAttributes): BufferedImage {
+        val density = rc.densityFactor.coerceAtLeast(1f)
         val lines = text.split("\n")
         val probe = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
         val probeG = probe.createGraphics()
@@ -31,11 +32,14 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         probeG.dispose()
 
         val outlinePadding = if (attributes.isOutlineEnabled) ceil(attributes.outlineWidth).toInt() else 0
-        val width = max(1, maxLineWidth + outlinePadding * 2 + 2)
-        val height = max(1, textHeight + outlinePadding * 2 + 2)
+        val logicalW = max(1, maxLineWidth + outlinePadding * 2 + 2)
+        val logicalH = max(1, textHeight + outlinePadding * 2 + 2)
+        val width = ceil(logicalW * density).toInt()
+        val height = ceil(logicalH * density).toInt()
 
         val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         val g = image.createGraphics()
+        g.scale(density.toDouble(), density.toDouble())
         g.font = attributes.font.font
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
