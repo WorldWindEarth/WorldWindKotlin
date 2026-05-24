@@ -42,6 +42,7 @@
     <string name="title_collada">COLLADA Model</string>
     <string name="title_gltf">GLTF Model</string>
     <string name="title_osm_buildings">OSM Buildings</string>
+    <string name="title_mvt_vector_tiles">Vector Tiles (MVT)</string>
 
     <string name="spacer" />
 

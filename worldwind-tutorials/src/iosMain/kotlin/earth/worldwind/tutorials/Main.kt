@@ -132,6 +132,7 @@ object Tutorials {
         TutorialFactory("collada", "COLLADA", ::ColladaTutorial),
         TutorialFactory("gltf", "GLTF", ::GltfTutorial),
         TutorialFactory("osmBuildings", "OSM Buildings", ::OsmBuildingsTutorial),
+        TutorialFactory("mvtVectorTiles", "Vector Tiles (MVT)", ::MvtVectorTilesTutorial),
         TutorialFactory("dashAndFill", "Dash and fill", ::ShapesDashAndFillTutorial),
         TutorialFactory("labels", "Labels", ::LabelsTutorial),
         TutorialFactory("sightline", "Real-time sightline", ::SightlineTutorial),

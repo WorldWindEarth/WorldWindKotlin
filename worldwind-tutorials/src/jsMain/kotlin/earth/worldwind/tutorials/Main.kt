@@ -99,6 +99,7 @@ fun main() {
                 }
             },
             "OSM Buildings" to OsmBuildingsTutorial(wwd.engine),
+            "Vector Tiles (MVT)" to MvtVectorTilesTutorial(wwd.engine),
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
             "Labels" to LabelsTutorial(wwd.engine),
             "Real-time sightline" to SightlineTutorial(wwd.engine),

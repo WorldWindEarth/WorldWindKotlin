@@ -341,6 +341,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/osm_buildings_tutorial.html",
                 R.string.title_osm_buildings
             )
+            R.id.nav_mvt_vector_tiles_activity -> loadTutorial(
+                MvtVectorTilesFragment::class.java,
+                "file:///android_asset/mvt_vector_tiles_tutorial.html",
+                R.string.title_mvt_vector_tiles
+            )
             R.id.nav_surface_image_activity -> loadTutorial(
                 SurfaceImageFragment::class.java,
                 "file:///android_asset/surface_image_tutorial.html",

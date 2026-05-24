@@ -4,3 +4,7 @@ build/
 */karma.config.d/
 */webpack.config.d/
 moko-resources-generated.js
+
+# Profiler captures
+*.trace
+*.perfetto-trace

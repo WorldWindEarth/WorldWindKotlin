@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Vector Tiles (MVT) Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Vector Tiles (MVT) Tutorial</h1>
+<p>
+    Demonstrates <code>MvtVectorLayer</code> — Mapbox Vector Tile (MVT) data fetched from
+    Versatiles' public CDN (OpenMapTiles v3 schema, no API key) and styled client-side with
+    <code>OpenTopoMapRules</code> to approximate an OpenTopoMap look. Tiles are decoded
+    locally: protobuf payload → command-stream geometry → Web-Mercator unprojection → batched
+    polygons (one VBO+EBO per tile) and batched lines.
+</p>
+<p>
+    Tile zoom auto-tracks camera altitude (<code>selectTileZoom</code>) and z-order between
+    features is honoured via <code>MvtStyle.zOrderFor</code> — water under landuse under
+    buildings under roads, etc. Drop in your own <code>MvtStyle</code> to customise colours
+    and z-order.
+</p>
+<h2>Example</h2>
+<h3>MvtVectorTilesFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class MvtVectorTilesFragment : BasicGlobeFragment() {
+    private var tutorial: MvtVectorTilesTutorial? = null
+
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+        MvtVectorTilesTutorial(wwd.engine).also {
+            tutorial = it
+            it.start()
+        }
+        return wwd
+    }
+
+    override fun onDestroyView() {
+        tutorial?.stop()
+        tutorial = null
+        super.onDestroyView()
+    }
+}
+
+class MvtVectorTilesTutorial(engine: WorldWind) : AbstractTutorial(engine) {
+    private var mvt: MvtVectorLayer? = null
+
+    override fun start() {
+        super.start()
+        val layer = MvtVectorLayer(
+            source = UrlTemplateMvtTileSource(
+                urlTemplate = "https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}",
+                headers = mapOf("User-Agent" to "WorldWindKotlin-Tutorials"),
+            ),
+            minZoom = 2,
+            maxZoom = 14,
+            tileRadius = 3,
+            style = OpenTopoMapRules,
+        ).also { mvt = it }
+        engine.layers.addLayer(layer)
+        engine.cameraFromLookAt(
+            LookAt(
+                position = Position(47.2692.degrees, 11.4041.degrees, 0.0),
+                altitudeMode = AltitudeMode.CLAMP_TO_GROUND,
+                range = 25_000.0,
+                heading = 0.0.degrees,
+                tilt = 0.0.degrees,
+                roll = 0.0.degrees,
+            ),
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        mvt?.let {
+            engine.layers.removeLayer(it)
+            it.close()
+        }
+        mvt = null
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

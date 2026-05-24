@@ -92,6 +92,7 @@ fun main() {
                 "COLLADA" to colladaTutorial,
                 "GLTF" to gltfTutorial,
                 "OSM Buildings" to OsmBuildingsTutorial(engine),
+                "Vector Tiles (MVT)" to MvtVectorTilesTutorial(engine),
                 "Dash and fill" to ShapesDashAndFillTutorial(engine),
                 "Labels" to LabelsTutorial(engine),
                 "Real-time sightline" to SightlineTutorial(engine),
