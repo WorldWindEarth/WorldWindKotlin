@@ -1,6 +1,7 @@
 package earth.worldwind.layer.cache
 
 import earth.worldwind.layer.CacheableFeatureLayer
+import earth.worldwind.layer.CacheableVectorTileLayer
 
 /**
  * IndexedDB-backed counterpart to GpkgContentManager. Open once at app start; per-layer rows
@@ -19,6 +20,30 @@ class WebContentManager private constructor(private val store: IdbFeatureStore) 
         factory.evictionPolicy = evictionPolicy
         if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
         layer.cacheSourceFactory = factory
+    }
+
+    /**
+     * Bind a vector-tile (MVT) layer to its IndexedDB blob cache under [contentKey]. Tiles
+     * persist as raw protobuf `Uint8Array`s in the `vector-tiles` store; HTTP `ETag` and
+     * `Last-Modified` headers ride alongside for conditional refresh.
+     */
+    suspend fun setupVectorTileLayerCache(
+        layer: CacheableVectorTileLayer, contentKey: String,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    ) {
+        val factory = WebVectorTileCacheFactory(store, contentKey)
+        factory.evictionPolicy = evictionPolicy
+        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
+        layer.cacheTileFactory = factory
+    }
+
+    /**
+     * Bind a [WebVectorTileCacheFactory] to [layer] for [contentKey] without writing —
+     * useful when reconstructing a layer to read pre-existing cached tiles. The caller
+     * supplies the layer (and thus the tile source / zoom range); we only attach storage.
+     */
+    fun bindVectorTileLayerCache(layer: CacheableVectorTileLayer, contentKey: String) {
+        layer.cacheTileFactory = WebVectorTileCacheFactory(store, contentKey)
     }
 
     /**
@@ -71,4 +96,11 @@ suspend fun CacheableFeatureLayer.configureCache(
     evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
 ) {
     contentManager.setupFeatureLayerCache(this, contentKey, evictionPolicy)
+}
+
+suspend fun CacheableVectorTileLayer.configureCache(
+    contentManager: WebContentManager, contentKey: String,
+    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+) {
+    contentManager.setupVectorTileLayerCache(this, contentKey, evictionPolicy)
 }

@@ -104,7 +104,16 @@ open class MvtVectorLayer(
      */
     var spriteAtlas: MvtSpriteAtlas? = null,
     displayName: String? = "Vector Tiles",
-) : AbstractLayer(displayName) {
+) : AbstractLayer(displayName), earth.worldwind.layer.CacheableVectorTileLayer {
+
+    /**
+     * Optional persistent cache (GeoPackage on JVM/Android, IndexedDB on JS). Bind via
+     * `GpkgContentManager.setupVectorTileLayerCache(...)` / `WebContentManager.setupVectorTileLayerCache(...)`.
+     * When non-null, [fetch] consults this before hitting the network and writes successful
+     * fetches back. Raw MVT bytes are persisted as-is (industry-standard
+     * `data_type='vector-tiles'` + `im_vector_tiles_mapbox` extension on the GPKG side).
+     */
+    override var cacheTileFactory: earth.worldwind.layer.VectorTileCacheSourceFactory? = null
 
     private val semaphore = Semaphore(maxConcurrentFetches.coerceAtLeast(1))
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -650,10 +659,53 @@ open class MvtVectorLayer(
         }
     }
 
+    /**
+     * Tile-acquisition pipeline. With no [cacheTileFactory], degenerates to a direct
+     * [MvtTileSource.fetchTile] (current behavior). With a cache:
+     *
+     * 1. Read the cache. Hit → decode the stored bytes (empty bytes = sentinel for
+     *    "fetched-empty" 404s). No network.
+     * 2. Miss → call [MvtTileSource.fetchTileBytes]. On `Hit`, persist bytes + ETag /
+     *    Last-Modified and decode; on `Empty`, persist the empty sentinel and treat as
+     *    empty tile; on `NotModified` (only relevant for explicit revalidation), treat as
+     *    a cache hit; if the source returned `null` it doesn't support byte fetching, so
+     *    we fall back to [MvtTileSource.fetchTile] without caching.
+     *
+     * Returns `null` to signal "empty tile" (the existing [fetch] code substitutes an
+     * empty [MvtTile] in that case).
+     */
+    private suspend fun loadTileViaCache(key: TileKey): MvtTile? {
+        val cache = cacheTileFactory
+        if (cache == null) return source.fetchTile(key.z, key.x, key.y)
+
+        val cached = cache.readTileBlob(key.z, key.x, key.y)
+        if (cached != null) {
+            return if (cached.isEmpty) null else MvtDecoder.decode(cached.bytes)
+        }
+
+        val result = source.fetchTileBytes(key.z, key.x, key.y)
+            ?: return source.fetchTile(key.z, key.x, key.y)  // source has no byte channel
+        return when (result) {
+            is MvtFetchResult.Hit -> {
+                try { cache.writeTileBlob(key.z, key.x, key.y, result.bytes, result.etag, result.lastModified) }
+                catch (e: IllegalStateException) {
+                    logMessage(WARN, "MvtVectorLayer", "fetch", "Cache write failed for $key: ${e.message}")
+                }
+                if (result.bytes.isEmpty()) null else MvtDecoder.decode(result.bytes)
+            }
+            MvtFetchResult.Empty -> {
+                try { cache.writeTileBlob(key.z, key.x, key.y, ByteArray(0), null, null) }
+                catch (_: IllegalStateException) {}
+                null
+            }
+            MvtFetchResult.NotModified -> null  // no stored copy + 304 = empty (server is confused)
+        }
+    }
+
     private suspend fun fetch(key: TileKey) {
         val value = try {
             semaphore.withPermit {
-                val tile = source.fetchTile(key.z, key.x, key.y) ?: MvtTile(emptyList())
+                val tile = loadTileViaCache(key) ?: MvtTile(emptyList())
                 val renderables = toRenderables(key, tile)
                 // One-time INFO with the tile's layer/feature breakdown so a style/schema
                 // mismatch (e.g. OpenMapTiles style against a Shortbread server) is visible
@@ -1232,6 +1284,13 @@ open class MvtVectorLayer(
     }
 
     companion object {
+        /**
+         * Service-type tag persisted in `gpkg_web_service.service_type` when caching an
+         * MVT layer with a service association. Read by `GpkgContentManager` to decide how
+         * to rebuild the source at content-getter time.
+         */
+        const val SERVICE_TYPE = "MVT"
+
         /** Standard slippy-tile pixel width — the input to camera-altitude → zoom matching. */
         const val TILE_PIXEL_SIZE: Int = 256
         // Collision bbox sizing ratios. Mirrored from [MvtLabelGroup]'s local pass — kept

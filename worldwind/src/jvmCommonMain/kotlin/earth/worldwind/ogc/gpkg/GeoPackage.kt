@@ -121,10 +121,18 @@ expect fun replaceFeatureTileRows(
 
 open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val geoPackage = openOrCreateGeoPackage(pathName, isReadOnly)
+    /**
+     * Underlying NGA `GeoPackageCore` instance. Exposed for extension plumbing (e.g.
+     * constructing a `VectorTilesMapboxExtension` against this database) — prefer the
+     * higher-level helpers on this class for everyday CRUD.
+     */
+    val core: GeoPackageCore get() = geoPackage
     private val connectionSource = geoPackage.database.connectionSource
     private val srsDao = geoPackage.spatialReferenceSystemDao
     private val contentDao = geoPackage.contentsDao
     private val webServiceDao: Dao<GpkgWebService, String> = DaoManager.createDao(connectionSource, GpkgWebService::class.java)
+    private val tileRevalidationDao: Dao<GpkgTileRevalidation, String> =
+        DaoManager.createDao(connectionSource, GpkgTileRevalidation::class.java)
     private val tileMatrixSetDao = geoPackage.tileMatrixSetDao
     private val tileMatrixDao = geoPackage.tileMatrixDao
     private val extensionDao = geoPackage.extensionsDao
@@ -259,6 +267,53 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         // maxBytes: same multi-column-cursor limitation as features. Use maxEntries as proxy.
     }
 
+    /**
+     * HTTP revalidation metadata (`ETag`, `Last-Modified`) for the tile at `(z, x, y)` in
+     * [content]. Returns null when no revalidation has been stored for this tile.
+     *
+     * Lives in a worldwind-private side table; the OGC tile-user-data table stays clean for
+     * external readers. Any HTTP-fetched tile cache (image, vector, elevation) can use this.
+     */
+    suspend fun readTileRevalidation(
+        content: GpkgContent, z: Int, x: Int, y: Int,
+    ): GpkgTileRevalidation? = withContext(Dispatchers.IO) {
+        if (!tileRevalidationDao.isTableExists) return@withContext null
+        tileRevalidationDao.queryForId(GpkgTileRevalidation.keyOf(content.tableName, z, x, y))
+    }
+
+    /** Upsert revalidation headers for the tile at `(z, x, y)`. Creates the side table on first use. */
+    @Throws(IllegalStateException::class)
+    suspend fun writeTileRevalidation(
+        content: GpkgContent, z: Int, x: Int, y: Int,
+        etag: String?, httpLastModified: String?,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly) error("Tile revalidation cannot be saved. GeoPackage is read-only!")
+        if (etag == null && httpLastModified == null) return@withContext
+        if (!tileRevalidationDao.isTableExists) {
+            TableUtils.createTableIfNotExists(connectionSource, GpkgTileRevalidation::class.java)
+        }
+        val row = GpkgTileRevalidation().apply {
+            id = GpkgTileRevalidation.keyOf(content.tableName, z, x, y)
+            tableName = content.tableName
+            zoomLevel = z
+            tileColumn = x
+            tileRow = y
+            this.etag = etag
+            this.httpLastModified = httpLastModified
+        }
+        tileRevalidationDao.createOrUpdate(row)
+    }
+
+    /** Drop every revalidation row tied to [content]. Called when the content table is cleared. */
+    @Throws(IllegalStateException::class)
+    suspend fun clearTileRevalidation(content: GpkgContent): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) error("Tile revalidation cannot be cleared. GeoPackage is read-only!")
+        if (!tileRevalidationDao.isTableExists) return@withContext
+        tileRevalidationDao.deleteBuilder().apply {
+            where().eq(GpkgTileRevalidation.COLUMN_TABLE_NAME, content.tableName)
+        }.delete()
+    }
+
     suspend fun readGriddedTile(
         content: GpkgContent, tileUserData: GpkgTileUserData
     ): GpkgGriddedTile? = withContext(Dispatchers.IO) {
@@ -305,7 +360,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     @Throws(IllegalArgumentException::class)
     suspend fun buildLevelSetConfig(content: GpkgContent) = withContext(Dispatchers.IO) {
-        require(content.dataTypeName.equals(TILES, ignoreCase = true)) {
+        // Vector tiles use the same tile pyramid plumbing as raster tiles; only the BLOB
+        // encoding differs. Accept both `data_type` values when materialising a LevelSet.
+        require(
+            content.dataTypeName.equals(TILES, ignoreCase = true) ||
+                content.dataTypeName.equals(VECTOR_TILES, ignoreCase = true)
+        ) {
             "Unsupported GeoPackage content data_type: ${content.dataTypeName}"
         }
         val srs = content.srs?.also { srsDao.refresh(it) }
@@ -635,6 +695,30 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 it.metadata = coverage.serviceMetadata
                 it.layerName = coverage.coverageName
                 it.outputFormat = coverage.outputFormat
+            }
+        )
+    }
+
+    /**
+     * Persist a vector-tile service association for a `vector-tiles` content row so the
+     * layer can be rebuilt as a network-backed [earth.worldwind.layer.mvt.MvtVectorLayer]
+     * on next open. Mirrors [setupWebFeatureLayer] but for raw-blob tile pyramids.
+     *
+     * Uses the GpkgWebService table generically — only `tableName`, `type`, `address` are
+     * required; the rest stay null for MVT.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun setupWebVectorTileLayer(
+        content: GpkgContent, serviceType: String, urlTemplate: String,
+    ): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) error("WebService ${content.tableName} cannot be updated. GeoPackage is read-only!")
+        createWebServiceTable()
+        webServiceDao.createOrUpdate(
+            GpkgWebService().also {
+                it.tableName = content.tableName
+                it.type = serviceType
+                it.address = urlTemplate
+                it.outputFormat = "application/vnd.mapbox-vector-tile"
             }
         )
     }

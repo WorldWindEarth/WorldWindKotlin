@@ -6,7 +6,12 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.CacheableImageLayer
+import earth.worldwind.layer.CacheableVectorTileLayer
 import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.mvt.CacheOnlyMvtTileSource
+import earth.worldwind.layer.mvt.GpkgVectorTileCacheFactory
+import earth.worldwind.layer.mvt.MvtVectorLayer
+import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.WebFeatureLayer
@@ -23,6 +28,7 @@ import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FEATURES
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FLOAT
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.INTEGER
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.VECTOR_TILES
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.ContentManager
@@ -311,6 +317,67 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
                 logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message!!)
             }.getOrNull()
         }
+    }
+
+    override suspend fun getVectorTileLayersCount() = withContext(Dispatchers.IO) {
+        geoPackage.countContent(VECTOR_TILES).toInt()
+    }
+
+    override suspend fun getVectorTileLayers(contentKeys: List<String>?): List<MvtVectorLayer> = withContext(Dispatchers.IO) {
+        geoPackage.getContent(VECTOR_TILES, contentKeys).mapNotNull { content ->
+            runCatching {
+                val config = geoPackage.buildLevelSetConfig(content)
+                val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
+                val source = when {
+                    service?.type == MvtVectorLayer.SERVICE_TYPE -> UrlTemplateMvtTileSource(service.address)
+                    else -> CacheOnlyMvtTileSource
+                }
+                val minZ = config.firstLevelNumber
+                val maxZ = config.firstLevelNumber + config.numLevels - 1
+                MvtVectorLayer(
+                    source = source,
+                    minZoom = minZ,
+                    maxZoom = maxZ,
+                    displayName = content.identifier ?: content.tableName,
+                ).apply {
+                    cacheTileFactory = GpkgVectorTileCacheFactory(geoPackage, content)
+                }
+            }.onFailure {
+                logMessage(WARN, "GpkgContentManager", "getVectorTileLayers", it.message ?: "rebuild failed")
+            }.getOrNull()
+        }
+    }
+
+    override suspend fun setupVectorTileLayerCache(
+        layer: CacheableVectorTileLayer, contentKey: String, setupWebLayer: Boolean,
+        evictionPolicy: CacheEvictionPolicy,
+    ): Unit = withContext(Dispatchers.IO) {
+        // Build a slippy / Web-Mercator level set spanning the layer's zoom range. MVT pyramids
+        // are always 256 × 256, EPSG:3857, single root tile.
+        val (minZ, maxZ) = (layer as? MvtVectorLayer)?.let { it.minZoom to it.maxZoom } ?: (0 to 22)
+        val levelSet = buildMvtLevelSet(minZ, maxZ)
+        val content = geoPackage.getContent(contentKey) ?: geoPackage.setupVectorTilesContent(
+            tableName = contentKey,
+            levelSet = levelSet,
+            displayName = layer.displayName,
+            encoding = mil.nga.geopackage.extension.im.vector_tiles.VectorTilesMapboxExtension(geoPackage.core),
+        )
+        // Persist URL template so the layer can be rebuilt later via getVectorTileLayers().
+        val source = (layer as? MvtVectorLayer)?.source
+        if (setupWebLayer && source is UrlTemplateMvtTileSource && !geoPackage.isReadOnly) {
+            geoPackage.setupWebVectorTileLayer(content, MvtVectorLayer.SERVICE_TYPE, source.urlTemplate)
+        }
+        val factory = GpkgVectorTileCacheFactory(geoPackage, content)
+        factory.evictionPolicy = evictionPolicy
+        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
+        layer.cacheTileFactory = factory
+    }
+
+    private fun buildMvtLevelSet(minZoom: Int, maxZoom: Int): LevelSet {
+        val sector = earth.worldwind.layer.mercator.MercatorSector()
+        val tileOrigin = earth.worldwind.layer.mercator.MercatorSector()
+        val firstLevelDelta = Location(tileOrigin.deltaLatitude, tileOrigin.deltaLongitude)
+        return LevelSet(sector, tileOrigin, firstLevelDelta, maxZoom + 1, 256, 256, minZoom)
     }
 
     override suspend fun setupFeatureLayerCache(

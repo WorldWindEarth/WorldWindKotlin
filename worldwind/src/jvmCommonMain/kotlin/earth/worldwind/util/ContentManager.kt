@@ -4,6 +4,7 @@ import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.CacheableImageLayer
+import earth.worldwind.layer.CacheableVectorTileLayer
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.cache.CacheEvictionPolicy
@@ -98,6 +99,38 @@ interface ContentManager {
     @Throws(IllegalArgumentException::class, IllegalStateException::class)
     suspend fun setupFeatureLayerCache(
         layer: CacheableFeatureLayer, contentKey: String, setupWebLayer: Boolean = true,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    )
+
+    /**
+     * Number of vector-tile layers in content manager.
+     */
+    suspend fun getVectorTileLayersCount(): Int
+
+    /**
+     * Get vector-tile layers available in this content manager. Layers with an associated
+     * service entry (e.g. an MVT tile-server URL) are rebuilt as network-backed
+     * [earth.worldwind.layer.mvt.MvtVectorLayer]s with the cache bound; the rest come back
+     * as cache-only layers that serve whatever is already in cache.
+     */
+    suspend fun getVectorTileLayers(contentKeys: List<String>? = null): List<earth.worldwind.layer.mvt.MvtVectorLayer>
+
+    /**
+     * Setup vector-tile (MVT) layer to store raw protobuf tiles in this content manager.
+     * Backed by the standard `data_type='vector-tiles'` GeoPackage tile pyramid + the
+     * `im_vector_tiles_mapbox` extension on JVM/Android, so the cache is readable by
+     * external MVT-aware tooling (QGIS, ogr2ogr).
+     *
+     * @param layer Vector-tile layer to set up cache
+     * @param contentKey Unique key of this layer in cache content
+     * @param setupWebLayer When true, also persist the source's URL template into the
+     *   `gpkg_web_service` registry so [getVectorTileLayers] can later rebuild the layer
+     *   in network-backed mode. Has no effect on cache-only sources.
+     */
+    @Throws(IllegalArgumentException::class, IllegalStateException::class)
+    suspend fun setupVectorTileLayerCache(
+        layer: CacheableVectorTileLayer, contentKey: String,
+        setupWebLayer: Boolean = true,
         evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
     )
 

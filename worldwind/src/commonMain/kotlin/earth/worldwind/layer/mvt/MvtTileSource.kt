@@ -27,8 +27,60 @@ interface MvtTileSource {
      */
     suspend fun fetchTile(z: Int, x: Int, y: Int): MvtTile?
 
+    /**
+     * Fetch the raw protobuf bytes for one tile, optionally honoring HTTP conditional
+     * headers. Lets a caching layer revalidate against a stored ETag / Last-Modified
+     * without re-downloading the body on 304.
+     *
+     * - [MvtFetchResult.Hit]         — fresh bytes; cache them.
+     * - [MvtFetchResult.NotModified] — server confirmed the cached copy is current.
+     * - [MvtFetchResult.Empty]       — explicit "no tile here" (typically HTTP 404).
+     * - returns `null`               — source doesn't expose raw bytes; caller should
+     *                                  fall back to [fetchTile] (and skip caching).
+     *
+     * Sources backed by HTTP should override this. Non-HTTP sources (fixtures, decoded
+     * .mbtiles) can leave the default null.
+     */
+    suspend fun fetchTileBytes(
+        z: Int, x: Int, y: Int,
+        ifNoneMatch: String? = null,
+        ifModifiedSince: String? = null,
+    ): MvtFetchResult? = null
+
     /** Release any per-instance resources. Default = no-op for stateless sources. */
     fun close() {}
+}
+
+/**
+ * [MvtTileSource] that never fetches over the network. Used when reconstructing an
+ * [MvtVectorLayer] from a GeoPackage / IndexedDB cache without an associated service URL —
+ * every fetch returns [MvtFetchResult.Empty], so the layer serves whatever is already
+ * cached and skips rendering for tiles that aren't.
+ */
+object CacheOnlyMvtTileSource : MvtTileSource {
+    override suspend fun fetchTile(z: Int, x: Int, y: Int): MvtTile? = null
+    override suspend fun fetchTileBytes(
+        z: Int, x: Int, y: Int, ifNoneMatch: String?, ifModifiedSince: String?,
+    ): MvtFetchResult = MvtFetchResult.Empty
+}
+
+/** Outcome of [MvtTileSource.fetchTileBytes]. */
+sealed class MvtFetchResult {
+    /** Server delivered fresh bytes; persist them and decode. */
+    data class Hit(val bytes: ByteArray, val etag: String?, val lastModified: String?) : MvtFetchResult() {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Hit) return false
+            return bytes.contentEquals(other.bytes) && etag == other.etag && lastModified == other.lastModified
+        }
+        override fun hashCode(): Int {
+            var r = bytes.contentHashCode(); r = 31 * r + (etag?.hashCode() ?: 0); r = 31 * r + (lastModified?.hashCode() ?: 0); return r
+        }
+    }
+    /** Conditional request returned 304 — cached copy is still current. */
+    data object NotModified : MvtFetchResult()
+    /** Server reported no tile (HTTP 404, zero-byte body, or non-HTTP equivalent). */
+    data object Empty : MvtFetchResult()
 }
 
 /**
@@ -94,7 +146,17 @@ class UrlTemplateMvtTileSource(
         )
     }
 
-    override suspend fun fetchTile(z: Int, x: Int, y: Int): MvtTile? {
+    override suspend fun fetchTile(z: Int, x: Int, y: Int): MvtTile? =
+        when (val res = fetchTileBytes(z, x, y)) {
+            is MvtFetchResult.Hit -> if (res.bytes.isEmpty()) null else MvtDecoder.decode(res.bytes)
+            MvtFetchResult.Empty -> null
+            MvtFetchResult.NotModified -> null  // no cache path → 304 shouldn't happen, treat as empty
+        }
+
+    override suspend fun fetchTileBytes(
+        z: Int, x: Int, y: Int,
+        ifNoneMatch: String?, ifModifiedSince: String?,
+    ): MvtFetchResult {
         val url = urlTemplate
             .replace("{z}", z.toString())
             .replace("{x}", x.toString())
@@ -106,13 +168,17 @@ class UrlTemplateMvtTileSource(
             // Don't enable Ktor's expectSuccess here — we want to inspect the status to
             // distinguish "empty tile" (404) from "transport failed" (5xx, timeouts, etc.).
             for ((k, v) in extraHeaders) header(k, v)
+            if (ifNoneMatch != null) header("If-None-Match", ifNoneMatch)
+            if (ifModifiedSince != null) header("If-Modified-Since", ifModifiedSince)
         }
         val status = response.status.value
-        if (status == 404) return null
+        if (status == 404) return MvtFetchResult.Empty
+        if (status == 304) return MvtFetchResult.NotModified
         if (status !in 200..299) error("MVT fetch failed: HTTP $status for $url")
         val bytes = response.readRawBytes()
-        if (bytes.isEmpty()) return null
-        return MvtDecoder.decode(bytes)
+        val etag = response.headers["ETag"]
+        val lastModified = response.headers["Last-Modified"]
+        return MvtFetchResult.Hit(bytes, etag, lastModified)
     }
 
     override fun close() { client.close() }

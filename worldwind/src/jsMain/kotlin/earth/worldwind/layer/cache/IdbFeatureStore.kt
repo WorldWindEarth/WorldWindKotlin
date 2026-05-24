@@ -111,12 +111,96 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
         awaitTransaction(tx)
     }
 
+    /** Read the raw vector-tile blob (MVT protobuf) plus optional revalidation metadata. */
+    suspend fun readVectorTileBlob(
+        contentKey: String, z: Int, x: Int, y: Int,
+    ): IdbVectorTileRecord? {
+        val tx = db.transaction(VT_STORE_NAME, "readonly")
+        val store = tx.objectStore(VT_STORE_NAME)
+        val request = store.get(arrayOf<Any>(contentKey, z, x, y))
+        val res = awaitRequest(request) ?: return null
+        return res.unsafeCast<IdbVectorTileRecord?>()
+    }
+
+    /** Upsert a vector-tile blob row (composite key [contentKey, z, x, y]). */
+    suspend fun writeVectorTileBlob(record: IdbVectorTileRecord) {
+        val tx = db.transaction(VT_STORE_NAME, "readwrite")
+        tx.objectStore(VT_STORE_NAME).put(record)
+        awaitTransaction(tx)
+    }
+
+    /** Drop every vector-tile blob row for [contentKey]. Used on cache clear. */
+    suspend fun deleteVectorTilesByContent(contentKey: String) {
+        val tx = db.transaction(VT_STORE_NAME, "readwrite")
+        val index = tx.objectStore(VT_STORE_NAME).index(VT_INDEX_BY_CONTENT)
+        awaitCursorDelete(index.openCursor(contentKey))
+        awaitTransaction(tx)
+    }
+
+    /** Total byte budget of all blob payloads under [contentKey]. Excludes overhead. */
+    suspend fun vectorTileContentSize(contentKey: String): Long {
+        val rows = readAllVectorTiles(contentKey)
+        return rows.sumOf { it.bytes.length.toLong() }
+    }
+
+    /** Max fetchedAt epoch-ms across all rows under [contentKey], or null if none. */
+    suspend fun vectorTileLastModified(contentKey: String): Double? {
+        val rows = readAllVectorTiles(contentKey)
+        if (rows.isEmpty()) return null
+        var max = 0.0
+        for (r in rows) if (r.fetchedAt > max) max = r.fetchedAt
+        return max
+    }
+
+    /** Apply [CacheEvictionPolicy] to the vector-tile store under [contentKey]. */
+    suspend fun evictVectorTilesByPolicy(contentKey: String, policy: CacheEvictionPolicy) {
+        if (policy.isUnbounded) return
+        val rows = readAllVectorTiles(contentKey)
+        if (rows.isEmpty()) return
+
+        val now = js("Date.now()").unsafeCast<Double>()
+        val maxAgeMs = if (policy.maxAge == Duration.INFINITE) Double.POSITIVE_INFINITY
+        else policy.maxAge.inWholeMilliseconds.toDouble()
+        val cutoff = now - maxAgeMs
+
+        val sorted = rows.sortedByDescending { it.fetchedAt }
+        val toDelete = mutableListOf<Array<Any>>()
+        var kept = 0L
+        var keptBytes = 0L
+        for (r in sorted) {
+            val tooOld = r.fetchedAt < cutoff
+            val overCount = kept >= policy.maxEntries
+            val sz = r.bytes.length.toLong()
+            val overBytes = keptBytes + sz > policy.maxBytes
+            if (tooOld || overCount || overBytes) {
+                toDelete += arrayOf<Any>(r.contentKey, r.z, r.x, r.y)
+            } else {
+                kept++
+                keptBytes += sz
+            }
+        }
+        if (toDelete.isEmpty()) return
+        val tx = db.transaction(VT_STORE_NAME, "readwrite")
+        val store = tx.objectStore(VT_STORE_NAME)
+        for (key in toDelete) store.delete(key)
+        awaitTransaction(tx)
+    }
+
+    private suspend fun readAllVectorTiles(contentKey: String): List<IdbVectorTileRecord> {
+        val tx = db.transaction(VT_STORE_NAME, "readonly")
+        val index = tx.objectStore(VT_STORE_NAME).index(VT_INDEX_BY_CONTENT)
+        val request = index.getAll(contentKey)
+        return awaitRequest(request).unsafeCast<Array<IdbVectorTileRecord>>().toList()
+    }
+
     companion object {
         private const val DB_NAME = "worldwind-cache"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
         internal const val STORE_NAME = "features"
         private const val INDEX_BY_TILE = "byTile"
         private const val INDEX_BY_CONTENT = "byContent"
+        internal const val VT_STORE_NAME = "vector-tiles"
+        private const val VT_INDEX_BY_CONTENT = "byContent"
 
         suspend fun open(): IdbFeatureStore = suspendCancellableCoroutine { cont ->
             val request = window.indexedDB.open(DB_NAME, DB_VERSION)
@@ -128,6 +212,13 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
                     val tileKeyPath = arrayOf("contentKey", "z", "x", "y")
                     store.createIndex(INDEX_BY_TILE, tileKeyPath, js("({unique: false})"))
                     store.createIndex(INDEX_BY_CONTENT, "contentKey", js("({unique: false})"))
+                }
+                if (!db.objectStoreNames.contains(VT_STORE_NAME)) {
+                    // Composite-key store: keyPath itself is [contentKey, z, x, y] so reads /
+                    // upserts are O(1) without a synthetic id column.
+                    val params = js("({keyPath: ['contentKey', 'z', 'x', 'y']})")
+                    val store = db.createObjectStore(VT_STORE_NAME, params)
+                    store.createIndex(VT_INDEX_BY_CONTENT, "contentKey", js("({unique: false})"))
                 }
             }
             request.onsuccess = { _: Event ->
@@ -198,6 +289,48 @@ internal fun newIdbFeatureRecord(
     return r
 }
 
+/**
+ * One cached vector tile (MVT protobuf). [bytes] is a `Uint8Array` — IndexedDB stores it
+ * natively without JSON round-tripping. Composite primary key `[contentKey, z, x, y]`.
+ * [etag] / [lastModified] echo the server's HTTP revalidation headers when known.
+ */
+internal external interface IdbVectorTileRecord {
+    var contentKey: String
+    var z: Int
+    var x: Int
+    var y: Int
+    var bytes: org.khronos.webgl.Uint8Array
+    var etag: String?
+    var lastModified: String?
+    var fetchedAt: Double
+}
+
+internal fun newIdbVectorTileRecord(
+    contentKey: String, z: Int, x: Int, y: Int,
+    bytes: ByteArray, etag: String?, lastModified: String?, fetchedAt: Double,
+): IdbVectorTileRecord {
+    val r = js("({})").unsafeCast<IdbVectorTileRecord>()
+    r.contentKey = contentKey
+    r.z = z; r.x = x; r.y = y
+    r.bytes = bytes.toUint8Array()
+    r.etag = etag
+    r.lastModified = lastModified
+    r.fetchedAt = fetchedAt
+    return r
+}
+
+private fun ByteArray.toUint8Array(): org.khronos.webgl.Uint8Array {
+    val arr = org.khronos.webgl.Uint8Array(size)
+    for (i in indices) arr.asDynamic()[i] = this[i]
+    return arr
+}
+
+internal fun org.khronos.webgl.Uint8Array.toByteArray(): ByteArray {
+    val out = ByteArray(length)
+    for (i in 0 until length) out[i] = this.asDynamic()[i].unsafeCast<Byte>()
+    return out
+}
+
 // ---- Minimal external declarations for the IDB API surface this file uses. ----
 
 internal external interface IDBFactory {
@@ -237,6 +370,7 @@ internal external interface IDBTransaction {
 internal external interface IDBObjectStore {
     fun add(value: Any?): IDBRequest
     fun put(value: Any?): IDBRequest
+    fun get(key: Any?): IDBRequest
     fun delete(key: Any?): IDBRequest
     fun clear(): IDBRequest
     fun createIndex(name: String, keyPath: Any, options: dynamic = definedExternally): IDBIndex
