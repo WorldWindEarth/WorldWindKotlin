@@ -792,9 +792,12 @@ open class MvtVectorLayer(
                             // Resolve casing once per feature; emit a wider stroke at zOrder-1
                             // so it paints under the main line.
                             val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props)
+                            // Dashed features fall back to per-Path — the batched line path
+                            // doesn't carry per-prim outline textures.
+                            val forceUnbatched = shapeAttrs.outlineImageSource != null
                             for (line in lines) {
                                 if (line.size < 2) continue
-                                if (lineBatch != null) {
+                                if (lineBatch != null && !forceUnbatched) {
                                     if (casingAttrs != null) {
                                         lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                             positions = line, attributes = casingAttrs,
@@ -806,11 +809,19 @@ open class MvtVectorLayer(
                                         pickPayload = pickPayload,
                                     )
                                 } else {
-                                    lineRenderables!! += zOrder to Path(line, shapeAttrs).apply {
+                                    // Per-feature Path fallback — used either when the layer
+                                    // is configured non-batched, OR when batched rendering
+                                    // can't carry this feature's effects (e.g. dasharray).
+                                    val path = Path(line, shapeAttrs).apply {
                                         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                         isFollowTerrain = true
                                         pathType = PathType.LINEAR
                                         this.zOrder = zOrder.toDouble()
+                                    }
+                                    if (lineRenderables != null) {
+                                        lineRenderables += zOrder to path
+                                    } else {
+                                        out += path
                                     }
                                 }
                             }

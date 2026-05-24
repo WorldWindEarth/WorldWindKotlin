@@ -108,6 +108,16 @@ class MvtPaintBuilder {
     // Casing — declared next to line(), populated via `casing(...)`. Threaded through build().
     private var lineCasingColor: MvtExpression<Color>? = null
     private var lineCasingWidth: MvtExpression<Float>? = null
+    private var lineDashArray: FloatArray? = null
+
+    /**
+     * Mapbox `line-dasharray` shorthand. Alternating dash + gap lengths (e.g.
+     * `dasharray(2f, 2f)` = even dashes/gaps; `dasharray(3f, 1f, 1f, 1f)` = long-short-short).
+     * Dashed features bypass [MvtBatchedLineTile] and render as per-feature [Path]s.
+     */
+    fun dasharray(vararg dashes: Float) {
+        lineDashArray = if (dashes.isEmpty()) null else dashes
+    }
 
     /**
      * Constant line-casing shorthand. The casing draws as a wider stroke under [line] /
@@ -188,6 +198,7 @@ class MvtPaintBuilder {
         lineOpacity = lineOpacity,
         lineCasingColor = lineCasingColor,
         lineCasingWidth = lineCasingWidth,
+        lineDashArray = lineDashArray,
         shadowMode = shadowMode,
         textField = textField,
         textColor = textColor,

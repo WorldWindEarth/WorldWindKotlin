@@ -101,6 +101,16 @@ class MvtStyleRule(
          * either side of the fill line is `(lineCasingWidth - lineWidth) / 2`.
          */
         val lineCasingWidth: MvtExpression<Float>? = null,
+        /**
+         * Mapbox `line-dasharray` — alternating dash + gap lengths in line-width multiples.
+         * `[2, 2]` = 2 units on, 2 off, repeating. `[3, 1, 1, 1]` = long-short-short pattern.
+         *
+         * Features with a dasharray fall back to per-feature [earth.worldwind.shape.Path]
+         * rendering (bypassing [MvtBatchedLineTile]) — the batched path doesn't carry per-
+         * prim textures yet. Use sparingly for sparse features (borders, ferries, hiking
+         * trails); dense dashed roads will pay the per-Path perf cost.
+         */
+        val lineDashArray: FloatArray? = null,
         val shadowMode: ShadowMode = ShadowMode.DISABLED,
         // ----- Text paint -----
         val textField: String? = null,
@@ -172,6 +182,11 @@ class MvtStyleRule(
                     outlineColor = Color(c.red, c.green, c.blue, alpha)
                 }
                 lineWidth?.evaluate(ctx)?.let { outlineWidth = it }
+                if (lineDashArray != null && lineDashArray.isNotEmpty()) {
+                    val (factor, pattern) = dashArrayToStipple(lineDashArray)
+                    outlineImageSource =
+                        earth.worldwind.render.image.ImageSource.fromLineStipple(factor, pattern)
+                }
             }
         }
 
@@ -258,6 +273,37 @@ class MvtStyleRule(
         companion object {
             private const val DEFAULT_TEXT_SIZE = 14
             private const val DEFAULT_FONT_FAMILY = "sans-serif"
+
+            /**
+             * Convert a Mapbox `line-dasharray` (alternating dash + gap lengths in line-width
+             * units) into the (factor, pattern) pair that
+             * [earth.worldwind.render.image.ImageSource.fromLineStipple] consumes. The pattern
+             * is a 16-bit mask: each bit = `factor` consecutive pixels of either on (1) or off
+             * (0). Maximum cycle length supported in the bit pattern is 16 units of total
+             * length; longer cycles get sampled into the 16-bit window.
+             */
+            internal fun dashArrayToStipple(dashes: FloatArray): Pair<Int, Short> {
+                val total = dashes.sum()
+                if (total <= 0f) return 1 to 0xFFFF.toShort()
+                var pattern = 0
+                for (bit in 0 until 16) {
+                    val pos = bit * total / 16f
+                    var acc = 0f
+                    var seg = 0
+                    for (d in dashes) {
+                        if (pos < acc + d) break
+                        acc += d
+                        seg++
+                    }
+                    // Even segment index = dash (lit); odd = gap (dark). Mapbox always
+                    // starts with a dash at index 0.
+                    if (seg < dashes.size && seg % 2 == 0) pattern = pattern or (1 shl bit)
+                }
+                // Scale factor: stretch the 16-bit pattern so each repeat covers roughly
+                // (total × 4) pixels — gives readable dash sizes at 2-4 px line widths.
+                val factor = (total * 0.5f).toInt().coerceAtLeast(1)
+                return factor to pattern.toShort()
+            }
 
             /**
              * Greedy word-wrap: split [text] on spaces and insert `\n` at the last word

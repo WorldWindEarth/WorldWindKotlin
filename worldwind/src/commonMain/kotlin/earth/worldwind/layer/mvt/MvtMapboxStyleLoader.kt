@@ -178,11 +178,16 @@ object MvtMapboxStyleLoader {
         val lineColor = paint["line-color"]?.let(::parseColorInterp)
         val lineWidth = paint["line-width"]?.let(::parseFloatInterp)
         val lineOpacity = paint["line-opacity"]?.let(::parseFloatInterp)
+        val dashArray = (paint["line-dasharray"] as? JsonArray)?.let { arr ->
+            arr.mapNotNull { (it as? JsonPrimitive)?.floatOrNull }.toFloatArray()
+                .takeIf { it.isNotEmpty() }
+        }
         if (lineColor == null || lineWidth == null) return null
         return MvtStyleRule.PaintSpec(
             lineColor = lineColor,
             lineWidth = lineWidth,
             lineOpacity = lineOpacity,
+            lineDashArray = dashArray,
             shadowMode = ShadowMode.DISABLED,
         )
     }
