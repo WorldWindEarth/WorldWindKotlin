@@ -650,10 +650,11 @@ open class MvtVectorLayer(
                 // even when the fetch succeeds with zero visible renderables.
                 if (!firstFetchLogged) {
                     firstFetchLogged = true
+                    detectedSchema = MvtSchemaDetector.detect(tile)
                     val layerSummary = tile.layers.joinToString { "${it.name}=${it.features.size}" }
                     logMessage(
                         INFO, "MvtVectorLayer", "fetch",
-                        "First tile $key decoded: layers=[$layerSummary], renderables=${renderables.size}",
+                        "First tile $key decoded: schema=$detectedSchema, layers=[$layerSummary], renderables=${renderables.size}",
                     )
                 }
                 renderables
@@ -672,6 +673,14 @@ open class MvtVectorLayer(
     }
 
     private var firstFetchLogged: Boolean = false
+
+    /**
+     * Schema reported by [MvtSchemaDetector] for the first successfully decoded tile.
+     * `null` until the first fetch resolves. Useful for surfacing a "loaded
+     * <schema>-flavoured tiles" status in UI, or for selecting a matching style at runtime.
+     */
+    var detectedSchema: MvtSchemaDetector.Schema? = null
+        private set
 
     /**
      * Convert one decoded tile into the list of [Renderable]s the render loop iterates over.
