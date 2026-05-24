@@ -674,6 +674,13 @@ open class MvtVectorLayer(
 
     private var firstFetchLogged: Boolean = false
 
+    /** Count of tiles currently in the LRU cache (visible + fringe). */
+    val loadedTileCount: Int get() = tiles.entryCount
+    /** Count of tiles whose fetch coroutine is in flight. */
+    val pendingTileCount: Int get() = pending.size
+    /** Count of tile keys currently in exponential-backoff (recently failed). */
+    val backoffTileCount: Int get() = backoff.size
+
     /**
      * Schema reported by [MvtSchemaDetector] for the first successfully decoded tile.
      * `null` until the first fetch resolves. Useful for surfacing a "loaded
