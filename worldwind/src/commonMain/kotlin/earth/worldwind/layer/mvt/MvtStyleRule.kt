@@ -105,6 +105,12 @@ class MvtStyleRule(
          * tangent. Set via the DSL's `text(field) { placement = ... }` block.
          */
         val textPlacement: LabelPlacement = LabelPlacement.POINT,
+        /**
+         * Mapbox `text-max-width` — maximum label width in **em** units (multiples of font
+         * size). When set, [buildText] inserts `\n` at the last word boundary before each
+         * overflow, producing a multi-line label. Default unset = no wrapping.
+         */
+        val textMaxWidth: MvtExpression<Float>? = null,
         // ----- Icon paint -----
         /**
          * Mapbox-style `icon-image` — name of the icon to look up in the layer's sprite
@@ -166,8 +172,8 @@ class MvtStyleRule(
         fun buildText(zoom: Int, properties: Map<String, Any?>): LabelSpec? {
             if (textField == null) return null
             val raw = properties[textField] ?: return null
-            val text = raw.toString().trim()
-            if (text.isEmpty()) return null
+            val rawText = raw.toString().trim()
+            if (rawText.isEmpty()) return null
             val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
             // Resolve all PaintSpec fields up front — references inside `apply { }` would
             // shadow against TextAttributes' properties of the same names (e.g. `textColor`
@@ -177,6 +183,11 @@ class MvtStyleRule(
             val resolvedFont = Font(fontFamily ?: DEFAULT_FONT_FAMILY, fontWeight, sizePx)
             val resolvedHaloColor = textHaloColor?.evaluate(ctx)
             val resolvedHaloWidth = textHaloWidth?.evaluate(ctx)
+            // Word-wrap if textMaxWidth is set. Maxwidth is in em units (× font size).
+            val text = textMaxWidth?.evaluate(ctx)?.let { emWidth ->
+                if (emWidth <= 0f) rawText
+                else wrapText(rawText, resolvedFont, emWidth * sizePx)
+            } ?: rawText
             val attrs = TextAttributes().apply {
                 resolvedTextColor?.let { textColor.copy(it) }
                 font.copy(resolvedFont)
@@ -210,6 +221,36 @@ class MvtStyleRule(
         companion object {
             private const val DEFAULT_TEXT_SIZE = 14
             private const val DEFAULT_FONT_FAMILY = "sans-serif"
+
+            /**
+             * Greedy word-wrap: split [text] on spaces and insert `\n` at the last word
+             * boundary that keeps each line ≤ [maxWidthPx] using [font]'s measured advance.
+             * Single words longer than the max width stay on their own line (don't split
+             * inside a word — Mapbox doesn't either).
+             */
+            internal fun wrapText(text: String, font: Font, maxWidthPx: Float): String {
+                if (maxWidthPx <= 0f || ' ' !in text) return text
+                val words = text.split(' ').filter { it.isNotEmpty() }
+                if (words.isEmpty()) return text
+                val sb = StringBuilder(text.length + 4)
+                var lineWidth = 0f
+                val spaceWidth = font.measureText(" ")
+                for ((i, w) in words.withIndex()) {
+                    val wWidth = font.measureText(w)
+                    val needsSpace = i > 0 && lineWidth > 0f
+                    val projected = lineWidth + (if (needsSpace) spaceWidth else 0f) + wWidth
+                    if (lineWidth > 0f && projected > maxWidthPx) {
+                        sb.append('\n')
+                        sb.append(w)
+                        lineWidth = wWidth
+                    } else {
+                        if (needsSpace) { sb.append(' '); lineWidth += spaceWidth }
+                        sb.append(w)
+                        lineWidth += wWidth
+                    }
+                }
+                return sb.toString()
+            }
 
             /**
              * Expand Mapbox-style `{property}` placeholders in [template] against [properties].

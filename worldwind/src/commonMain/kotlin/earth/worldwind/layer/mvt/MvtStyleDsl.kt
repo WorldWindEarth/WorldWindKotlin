@@ -133,6 +133,7 @@ class MvtPaintBuilder {
         fontFamily = b.fontFamily
         fontWeight = b.fontWeight
         textPlacement = b.placement
+        textMaxWidth = b.maxWidth
     }
 
     /**
@@ -158,6 +159,7 @@ class MvtPaintBuilder {
 
     // Threaded through to PaintSpec via build(); declared here so build() can read.
     private var textPlacement: MvtStyleRule.LabelPlacement = MvtStyleRule.LabelPlacement.POINT
+    private var textMaxWidth: MvtExpression<Float>? = null
     // Icon paint
     private var iconImage: MvtExpression<String>? = null
     private var iconSize: MvtExpression<Float>? = null
@@ -179,6 +181,7 @@ class MvtPaintBuilder {
         fontFamily = fontFamily,
         fontWeight = fontWeight,
         textPlacement = textPlacement,
+        textMaxWidth = textMaxWidth,
         iconImage = iconImage,
         iconSize = iconSize,
         iconOffset = iconOffset,
@@ -212,6 +215,8 @@ class MvtTextBuilder {
      * label at the midpoint of a LINESTRING, rotated along the local tangent).
      */
     var placement: MvtStyleRule.LabelPlacement = MvtStyleRule.LabelPlacement.POINT
+    /** Mapbox `text-max-width` (em units). Unset = no word-wrap. */
+    var maxWidth: MvtExpression<Float>? = null
 
     /** Constant-color shorthand for [color]. */
     fun color(c: Color) { color = MvtZoomInterp.constant(c) }

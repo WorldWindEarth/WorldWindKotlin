@@ -208,6 +208,7 @@ object MvtMapboxStyleLoader {
         val iconOffset = layout?.get("icon-offset")?.let(::parseFloatOffsetX)
         val iconAnchor = layout?.get("icon-anchor")?.let(::parseStringInterp)
             ?: layout?.get("text-anchor")?.let(::parseStringInterp)
+        val maxWidth = layout?.get("text-max-width")?.let(::parseFloatInterp)
         return MvtStyleRule.PaintSpec(
             textField = textField,
             textColor = textColor,
@@ -220,6 +221,7 @@ object MvtMapboxStyleLoader {
             iconSize = iconSize,
             iconOffset = iconOffset,
             iconAnchor = iconAnchor,
+            textMaxWidth = maxWidth,
         )
     }
 
