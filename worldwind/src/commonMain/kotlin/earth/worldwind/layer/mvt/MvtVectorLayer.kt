@@ -1055,7 +1055,9 @@ open class MvtVectorLayer(
                                     // @2x atlas variants render at the same on-screen size.
                                     val pr = factory.entry.pixelRatio
                                     imageScale = iconSpec.size.toDouble() / pr
-                                    if (isShield && labelSpec != null) {
+                                    // isShield is defined as `iconSpec != null && labelSpec != null`,
+                                    // so the compiler smart-casts labelSpec to non-null in this branch.
+                                    if (isShield) {
                                         // Use the rule's text attributes for the on-shield label.
                                         labelAttributes.copy(labelSpec.attributes)
                                         // icon-text-fit: width — stretch the shield only when
@@ -1073,7 +1075,7 @@ open class MvtVectorLayer(
                                 }
                                 val placemark = Placemark(pt, attrs).apply {
                                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                                    if (isShield && labelSpec != null) label = labelSpec.text
+                                    if (isShield) label = labelSpec.text
                                 }
                                 placemark.zOrder = zOrder.toDouble()
                                 out += placemark

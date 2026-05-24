@@ -243,21 +243,23 @@ object MvtMapboxStyleLoader {
         val iconImageExpr = layout?.get("icon-image")?.let(::parseStringInterp)
         if (textField == null && iconImageExpr == null) return null
 
-        val textSize = layout?.get("text-size")?.let(::parseFloatInterp)
+        // textField / iconImageExpr being non-null implies layout was non-null; smart-cast
+        // promotes layout from JsonObject? to JsonObject here, so safe calls aren't needed.
+        val textSize = layout["text-size"]?.let(::parseFloatInterp)
             ?: MvtExpression.Literal(16f)
         val textColor = paint?.get("text-color")?.let(::parseColorInterp)
             ?: MvtExpression.Literal(Color(0f, 0f, 0f))
         val haloColor = paint?.get("text-halo-color")?.let(::parseColorInterp)
         val haloWidth = paint?.get("text-halo-width")?.let(::parseFloatInterp)
-        val font = layout?.get("text-font")
+        val font = layout["text-font"]
         val (family, weight) = extractFontInfo(font)
-        val iconSize = layout?.get("icon-size")?.let(::parseFloatInterp)
-        val iconOffset = layout?.get("icon-offset")?.let(::parseFloatOffsetX)
-        val iconAnchor = layout?.get("icon-anchor")?.let(::parseStringInterp)
-            ?: layout?.get("text-anchor")?.let(::parseStringInterp)
+        val iconSize = layout["icon-size"]?.let(::parseFloatInterp)
+        val iconOffset = layout["icon-offset"]?.let(::parseFloatOffsetX)
+        val iconAnchor = layout["icon-anchor"]?.let(::parseStringInterp)
+            ?: layout["text-anchor"]?.let(::parseStringInterp)
         // Mapbox spec default for text-max-width is 10 em when the property is absent. Apply
         // only to symbol layers that actually carry text — pure-icon symbols don't wrap.
-        val maxWidth = layout?.get("text-max-width")?.let(::parseFloatInterp)
+        val maxWidth = layout["text-max-width"]?.let(::parseFloatInterp)
             ?: if (textField != null) MvtExpression.Literal(10f) else null
         return MvtStyleRule.PaintSpec(
             textField = textField,
