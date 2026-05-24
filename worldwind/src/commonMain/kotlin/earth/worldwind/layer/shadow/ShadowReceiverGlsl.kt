@@ -144,7 +144,7 @@ object ShadowReceiverGlsl {
             float cascadeNear;
             float cascadeFar;
             if (viewDepth < cascadeFarDepth0) {
-                cascade = 0; cascadeNear = 0.0;             cascadeFar = cascadeFarDepth0;
+                cascade = 0; cascadeNear = 0.0;              cascadeFar = cascadeFarDepth0;
             } else if (viewDepth < cascadeFarDepth1) {
                 cascade = 1; cascadeNear = cascadeFarDepth0; cascadeFar = cascadeFarDepth1;
             } else if (viewDepth < cascadeFarDepth2) {
@@ -155,14 +155,12 @@ object ShadowReceiverGlsl {
             float visibility = sampleCascade(cascade, worldPos);
             /* In the deepest [cascadeBlendFraction] of each cascade lerp toward the next
                cascade's visibility to hide the seam. The last cascade has no successor;
-               its far edge stays as a hard cutoff returning 1.0 (handled above). */
-            if (cascade < 2) {
-                float blendStart = cascadeFar - cascadeBlendFraction * (cascadeFar - cascadeNear);
-                float t = smoothstep(blendStart, cascadeFar, viewDepth);
-                if (t > 0.0) {
-                    float visibilityNext = sampleCascade(cascade + 1, worldPos);
-                    visibility = mix(visibility, visibilityNext, t);
-                }
+               it lerps toward 1.0 instead so the far edge softens out to unshadowed. */
+            float blendStart = cascadeFar - cascadeBlendFraction * (cascadeFar - cascadeNear);
+            float t = smoothstep(blendStart, cascadeFar, viewDepth);
+            if (t > 0.0) {
+                float visibilityNext = (cascade < 2) ? sampleCascade(cascade + 1, worldPos) : 1.0;
+                visibility = mix(visibility, visibilityNext, t);
             }
             return mix(ambientShadow, 1.0, visibility);
         }
