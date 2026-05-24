@@ -16,32 +16,36 @@ package earth.worldwind.layer.mvt
  */
 sealed class MvtFilter {
 
-    /** Evaluate this filter against a feature's inflated property map. */
-    abstract fun matches(properties: Map<String, Any?>): Boolean
+    /**
+     * Evaluate this filter against a feature's inflated property map. [geomType] surfaces
+     * the feature's geometry kind so [GeometryTypeEq] can compare against it; other filters
+     * ignore it.
+     */
+    abstract fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType? = null): Boolean
 
     /** True when `properties[key] == value`. Type-equality follows Kotlin's `==`. */
     class Eq(val key: String, val value: Any?) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean = properties[key] == value
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = properties[key] == value
     }
 
     /** True when `properties[key]` is in [values]. */
     class In(val key: String, val values: Set<Any?>) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean = properties[key] in values
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = properties[key] in values
     }
 
     /** Negation of [Eq]. */
     class NotEq(val key: String, val value: Any?) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean = properties[key] != value
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = properties[key] != value
     }
 
     /** True when [key] is present in the map (regardless of value, including null). */
     class Has(val key: String) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean = key in properties
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = key in properties
     }
 
     /** True when `properties[key].toDouble()` ≤ [threshold]. Non-numeric / null = false. */
     class NumericLte(val key: String, val threshold: Double) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean {
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean {
             val v = (properties[key] as? Number)?.toDouble() ?: return false
             return v <= threshold
         }
@@ -49,7 +53,7 @@ sealed class MvtFilter {
 
     /** True when `properties[key].toDouble()` ≥ [threshold]. Non-numeric / null = false. */
     class NumericGte(val key: String, val threshold: Double) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean {
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean {
             val v = (properties[key] as? Number)?.toDouble() ?: return false
             return v >= threshold
         }
@@ -57,7 +61,7 @@ sealed class MvtFilter {
 
     /** True when `properties[key].toDouble()` < [threshold]. Non-numeric / null = false. */
     class NumericLt(val key: String, val threshold: Double) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean {
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean {
             val v = (properties[key] as? Number)?.toDouble() ?: return false
             return v < threshold
         }
@@ -65,7 +69,7 @@ sealed class MvtFilter {
 
     /** True when `properties[key].toDouble()` > [threshold]. Non-numeric / null = false. */
     class NumericGt(val key: String, val threshold: Double) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean {
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean {
             val v = (properties[key] as? Number)?.toDouble() ?: return false
             return v > threshold
         }
@@ -73,8 +77,8 @@ sealed class MvtFilter {
 
     /** Short-circuit conjunction. Empty children = always true. */
     class AllOf(val children: List<MvtFilter>) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean =
-            children.all { it.matches(properties) }
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean =
+            children.all { it.matches(properties, geomType) }
     }
 
     /**
@@ -83,18 +87,24 @@ sealed class MvtFilter {
      * mirrors the naming.
      */
     class AnyOf(val children: List<MvtFilter>) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean =
-            children.any { it.matches(properties) }
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean =
+            children.any { it.matches(properties, geomType) }
     }
 
     /** Negation. */
     class Not(val child: MvtFilter) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean = !child.matches(properties)
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = !child.matches(properties, geomType)
     }
 
     /** Always-true filter. Useful as a placeholder when a rule needs no filter. */
     object Always : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>): Boolean = true
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = true
+    }
+
+    /** True when the feature's geometry type equals [expected]. */
+    class GeometryTypeEq(val expected: MvtGeometryType) : MvtFilter() {
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean =
+            geomType == expected
     }
 
     companion object {

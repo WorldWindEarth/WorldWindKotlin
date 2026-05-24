@@ -12,8 +12,8 @@ import kotlin.jvm.JvmStatic
  */
 open class PlacemarkAttributes(
     /**
-     * Returns the source of the placemark's image. If null, the placemark is drawn as a square whose width and height
-     * are the value of this attribute object's [imageScale] property.
+     * Returns the source of the placemark's image. If null, the placemark is drawn as a square whose side is the
+     * larger of this attribute object's [imageScaleX] and [imageScaleY] values.
      */
     var imageSource: ImageSource?,
     /**
@@ -27,12 +27,6 @@ open class PlacemarkAttributes(
      * value centers the image at the geographic position.
      */
     imageOffset: Offset,
-    /**
-     * Returns the amount to scale the placemark's image. When this attribute bundle has a valid image path the scale is
-     * applied to the image's dimensions. Otherwise, the scale indicates the dimensions in pixels of a square drawn at
-     * the placemark's geographic position. A scale of 0 causes the placemark to disappear; however, the placemark's
-     * label, if any, is still drawn.
-     */
     /**
      * Horizontal multiplier applied to the placemark's image. Together with [imageScaleY]
      * defines the on-screen extent of the image quad in pixels. Set both to the same value

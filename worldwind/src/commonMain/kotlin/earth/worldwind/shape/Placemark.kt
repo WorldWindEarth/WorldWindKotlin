@@ -71,7 +71,8 @@ open class Placemark @JvmOverloads constructor(
      * Enables or disables the eye distance scaling feature for this placemark. When enabled, the placemark's size is
      * reduced at higher eye distances. If true, this placemark's size is scaled inversely proportional to the eye
      * distance if the eye distance is greater than the value of the [Placemark.eyeDistanceScalingThreshold]
-     * property. When the eye distance is below the threshold, this placemark is scaled only according to the [PlacemarkAttributes.imageScale].
+     * property. When the eye distance is below the threshold, this placemark is scaled only according to the
+     * [PlacemarkAttributes.imageScaleX] / [PlacemarkAttributes.imageScaleY].
      */
     var isEyeDistanceScaling = false
     /**

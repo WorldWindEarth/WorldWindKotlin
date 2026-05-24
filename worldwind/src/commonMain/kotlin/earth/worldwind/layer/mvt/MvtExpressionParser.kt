@@ -120,7 +120,9 @@ object MvtExpressionParser {
                 val a = args.getOrNull(3)?.let { parseAny(it, parseColor) } ?: return null
                 MvtExpression.Rgba(r, g, b, a)
             }
-            "to-color" -> args.firstOrNull()?.let { parseAny(it, parseColor) }
+            "to-color" -> args.firstOrNull()?.let {
+                parseAny(it, parseColor)?.let { e -> MvtExpression.ToColor(e, parseColor) }
+            }
             "concat" -> MvtExpression.Concat(args.mapNotNull { parseAny(it, parseColor) })
             "downcase" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.Downcase(e) } }
             "upcase" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.Upcase(e) } }

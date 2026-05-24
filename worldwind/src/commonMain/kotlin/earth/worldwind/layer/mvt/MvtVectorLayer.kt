@@ -112,6 +112,12 @@ open class MvtVectorLayer(
     private val tiles = object : LruMemoryCache<TileKey, List<Renderable>>(maxLoadedTiles.toLong()) {
         override fun entryRemoved(key: TileKey, oldValue: List<Renderable>, newValue: List<Renderable>?, evicted: Boolean) {
             cachedValues.remove(oldValue)
+            // Drop any feature-state held for features sourced from this tile — the
+            // MvtPickedFeature key embeds the tile, so we can prune by matching the tile
+            // coord triple. Done in the LRU callback so memory stays bounded under churn.
+            if (featureStates.isNotEmpty()) {
+                featureStates.entries.removeAll { it.key.tile == key }
+            }
             // Batched tiles own their GL buffers directly; the legacy per-feature path drops
             // to RenderResourceCache LRU pressure normally. Release proactively to keep the
             // KGSL shared-memory pool from filling with stale buffers.
@@ -604,6 +610,7 @@ open class MvtVectorLayer(
         tiles.clear()
         pending.clear()
         backoff.clear()
+        featureStates.clear()
         // Release the source's per-instance resources (e.g. UrlTemplateMvtTileSource's shared
         // HttpClient + OkHttp pool). Sources that need no cleanup default to a no-op.
         try { source.close() } catch (_: Exception) {}
@@ -798,7 +805,7 @@ open class MvtVectorLayer(
                     if (shapeRule == null && textRule == null) continue
                     val ruleForZ = shapeRule ?: textRule!!
                     zOrder = ruleForZ.zOrder
-                    shapeAttrs = shapeRule?.resolve(key.z, props, featureState)
+                    shapeAttrs = shapeRule?.resolve(key.z, props, featureState, feature.type)
                 } else {
                     shapeRule = null
                     textRule = null
@@ -815,7 +822,7 @@ open class MvtVectorLayer(
                         val rings = MvtGeometry.decodePolygons(feature, key.z, key.x, key.y, layer.extent)
                         // 3D extrusion path — collect buildings into per-attribute buckets that
                         // emit as OsmBuildingsTile renderables below.
-                        val extrusion = shapeRule?.paint?.buildExtrusion(key.z, props, featureState)
+                        val extrusion = shapeRule?.paint?.buildExtrusion(key.z, props, featureState, feature.type)
                         if (extrusion != null) {
                             val (height, base) = extrusion
                             val bucket = extrusionBuckets.getOrPut(attrs.interiorColor) {
@@ -859,7 +866,10 @@ open class MvtVectorLayer(
                         if (shapeAttrs != null) {
                             // Resolve casing once per feature; emit a wider stroke at zOrder-1
                             // so it paints under the main line.
-                            val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props, featureState)
+                            val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props, featureState, feature.type)
+                            // Loop-invariant: gradient-rule detection happens once per feature,
+                            // not per polyline-within-feature.
+                            val gradientRule = shapeRule?.takeIf { it.paint.hasLineGradient }
                             for (line in lines) {
                                 if (line.size < 2) continue
                                 // Casing always emits to the batched path (or as its own Path
@@ -884,10 +894,8 @@ open class MvtVectorLayer(
                                 // Line-gradient path: subdivide the polyline into
                                 // GRADIENT_SUBDIVISIONS arc-length segments, sample the
                                 // gradient at each segment's midpoint, emit each as its own
-                                // batched feature with its sampled color. Bypasses casing's
-                                // single-color render; falls through to the default solid-
-                                // color path when no gradient.
-                                val gradientRule = shapeRule?.takeIf { it.paint.hasLineGradient }
+                                // batched feature with its sampled color. Falls through to
+                                // the default solid-color path when no gradient.
                                 if (gradientRule != null) {
                                     emitGradientSegments(
                                         line = line,
@@ -897,6 +905,7 @@ open class MvtVectorLayer(
                                         zOrder = zOrder,
                                         properties = props,
                                         featureState = featureState,
+                                        geometryType = feature.type,
                                         pickPayload = pickPayload,
                                         lineBatch = lineBatch,
                                         lineRenderables = lineRenderables,
@@ -904,7 +913,14 @@ open class MvtVectorLayer(
                                     )
                                     continue
                                 }
-                                if (lineBatch != null) {
+                                // Dashed features render through per-feature [Path]: the
+                                // batched line tile's vertex layout sets texCoord1d = 0 on
+                                // every corner, so even with the right stipple texture bound
+                                // every fragment would sample the same texel and the line
+                                // would appear solid. Path computes proper per-vertex
+                                // texCoord + texCoordMatrix via computeRepeatingTexCoordTransform.
+                                val forceUnbatched = shapeAttrs.outlineImageSource != null
+                                if (lineBatch != null && !forceUnbatched) {
                                     lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                         positions = line, attributes = shapeAttrs, zOrder = zOrder,
                                         pickPayload = pickPayload,
@@ -931,7 +947,7 @@ open class MvtVectorLayer(
                         if (matchedRule != null
                             && matchedRule.paint.hasText
                             && matchedRule.paint.textPlacement == MvtStyleRule.LabelPlacement.LINE) {
-                            val labelSpec = matchedRule.paint.buildText(key.z, props, featureState)
+                            val labelSpec = matchedRule.paint.buildText(key.z, props, featureState, feature.type)
                             if (labelSpec != null) {
                                 // Use the source font's per-character advance widths so each
                                 // glyph is positioned by its actual on-screen extent (kerning
@@ -956,9 +972,9 @@ open class MvtVectorLayer(
                     MvtGeometryType.POINT -> {
                         if (matchedRule == null) continue
                         val labelSpec = if (matchedRule.paint.hasText)
-                            matchedRule.paint.buildText(key.z, props, featureState) else null
+                            matchedRule.paint.buildText(key.z, props, featureState, feature.type) else null
                         val iconSpec = if (matchedRule.paint.hasIcon)
-                            matchedRule.paint.buildIcon(key.z, props, featureState) else null
+                            matchedRule.paint.buildIcon(key.z, props, featureState, feature.type) else null
                         if (labelSpec == null && iconSpec == null) continue
                         val points = MvtGeometry.decodePoints(feature, key.z, key.x, key.y, layer.extent)
                         // Shield path: when a rule has BOTH icon and text, render them as
@@ -1106,6 +1122,7 @@ open class MvtVectorLayer(
         zOrder: Int,
         properties: Map<String, Any?>,
         featureState: Map<String, Any?>?,
+        geometryType: MvtGeometryType,
         pickPayload: MvtPickedFeature?,
         lineBatch: ArrayList<MvtBatchedLineTile.BatchLineFeature>?,
         lineRenderables: ArrayList<Pair<Int, Path>>?,
@@ -1145,7 +1162,9 @@ open class MvtVectorLayer(
             sub += endPosition
             if (sub.size >= 2) {
                 val midProgress = (startT + endT) * 0.5
-                val color = rule.paint.buildGradientColor(zoom, midProgress, properties, featureState)
+                val color = rule.paint.buildGradientColor(
+                    zoom, midProgress, properties, featureState, geometryType,
+                )
                 if (color != null) {
                     val segAttrs = ShapeAttributes(baseAttrs).apply {
                         outlineColor = color
@@ -1168,9 +1187,11 @@ open class MvtVectorLayer(
                 }
             }
             // Carry the end position over so adjacent segments share their join vertex
-            // exactly — no visible seam between segments.
+            // exactly — no visible seam between segments. When the boundary aligned with
+            // an existing waypoint (cum[j] == endArc), advance startIdx past it so the
+            // next iteration's walk doesn't re-include that waypoint as a duplicate.
             prevPosition = endPosition
-            startIdx = j - 1
+            startIdx = if (j < n && cum[j] == endArc) j else j - 1
         }
     }
 

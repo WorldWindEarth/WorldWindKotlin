@@ -9,7 +9,7 @@ package earth.worldwind.layer.mvt
  * Created at tile fetch time when [MvtVectorLayer.isPickEnabled] is true and the layer is
  * using the batched render path; null elsewhere.
  */
-class MvtPickedFeature(
+data class MvtPickedFeature(
     /** Source layer name from the MVT (`"streets"`, `"water_polygons"`, `"buildings"`, …). */
     val layerName: String,
     val geometryType: MvtGeometryType,
@@ -17,6 +17,4 @@ class MvtPickedFeature(
     val properties: Map<String, Any?>,
     /** Slippy-tile coordinates of the source tile (z, x, y), for users that need provenance. */
     val tile: MvtVectorLayer.TileKey,
-) {
-    override fun toString(): String = "MvtPickedFeature(layer=$layerName, type=$geometryType, tile=$tile)"
-}
+)

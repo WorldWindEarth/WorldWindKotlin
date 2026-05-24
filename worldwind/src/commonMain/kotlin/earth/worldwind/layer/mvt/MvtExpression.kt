@@ -391,6 +391,22 @@ sealed class MvtExpression<out T> {
         }
     }
 
+    /**
+     * `["to-color", value]` — pass-through if [child] already evaluates to a Color;
+     * otherwise yields null. Mapbox also accepts a `parseColor` hex/css coercion of String
+     * inputs; pass [parseColor] to enable that path.
+     */
+    class ToColor(
+        val child: MvtExpression<*>,
+        val parseColor: ((String) -> Color?)? = null,
+    ) : MvtExpression<Color>() {
+        override fun evaluate(ctx: EvalContext): Color? = when (val v = child.evaluate(ctx)) {
+            is Color -> v
+            is String -> parseColor?.invoke(v)
+            else -> null
+        }
+    }
+
     class ToBoolean(val child: MvtExpression<*>) : MvtExpression<Boolean>() {
         override fun evaluate(ctx: EvalContext): Boolean? = when (val v = child.evaluate(ctx)) {
             null -> false

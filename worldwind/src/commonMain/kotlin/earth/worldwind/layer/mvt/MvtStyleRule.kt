@@ -49,7 +49,8 @@ class MvtStyleRule(
         zoom: Int,
         properties: Map<String, Any?> = emptyMap(),
         featureState: Map<String, Any?>? = null,
-    ): ShapeAttributes = paint.build(zoom, properties, featureState)
+        geometryType: MvtGeometryType? = null,
+    ): ShapeAttributes = paint.build(zoom, properties, featureState, geometryType)
 
     fun matches(
         layerName: String,
@@ -60,7 +61,7 @@ class MvtStyleRule(
         if (layerName != sourceLayer) return false
         if (geometryType != null && geometryType != geomType) return false
         if (zoom < minZoom || zoom > maxZoom) return false
-        return filter.matches(properties)
+        return filter.matches(properties, geomType)
     }
 
     /**
@@ -205,11 +206,13 @@ class MvtStyleRule(
             progress: Double,
             properties: Map<String, Any?> = emptyMap(),
             featureState: Map<String, Any?>? = null,
+            geometryType: MvtGeometryType? = null,
         ): Color? {
             val expr = lineGradient ?: return null
             val ctx = MvtExpression.EvalContext(
                 zoom = zoom.toDouble(), properties = properties,
-                featureState = featureState, lineProgress = progress,
+                featureState = featureState, geometryType = geometryType,
+                lineProgress = progress,
             )
             return expr.evaluate(ctx)
         }
@@ -222,9 +225,10 @@ class MvtStyleRule(
             zoom: Int,
             properties: Map<String, Any?> = emptyMap(),
             featureState: Map<String, Any?>? = null,
+            geometryType: MvtGeometryType? = null,
         ): Pair<Double, Double>? {
             val expr = fillExtrusionHeight ?: return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState, geometryType)
             val height = expr.evaluate(ctx)?.toDouble() ?: return null
             if (height <= 0.0) return null
             val base = fillExtrusionBase?.evaluate(ctx)?.toDouble() ?: 0.0
@@ -235,8 +239,9 @@ class MvtStyleRule(
             zoom: Int,
             properties: Map<String, Any?> = emptyMap(),
             featureState: Map<String, Any?>? = null,
+            geometryType: MvtGeometryType? = null,
         ): ShapeAttributes {
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState, geometryType)
             return ShapeAttributes().apply {
                 isDrawInterior = fillColor != null
                 isDrawOutline = lineColor != null && lineWidth != null
@@ -271,12 +276,13 @@ class MvtStyleRule(
             zoom: Int,
             properties: Map<String, Any?>,
             featureState: Map<String, Any?>? = null,
+            geometryType: MvtGeometryType? = null,
         ): LabelSpec? {
             if (textField == null) return null
             val raw = properties[textField] ?: return null
             val rawText = raw.toString().trim()
             if (rawText.isEmpty()) return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState, geometryType)
             // Resolve all PaintSpec fields up front — references inside `apply { }` would
             // shadow against TextAttributes' properties of the same names (e.g. `textColor`
             // becomes `this.textColor: Color`, not `this@PaintSpec.textColor: MvtExpression`).
@@ -290,7 +296,7 @@ class MvtStyleRule(
             val text = if (textPlacement == LabelPlacement.POINT)
                 textMaxWidth?.evaluate(ctx)?.let { emWidth ->
                     if (emWidth <= 0f) rawText
-                    else wrapText(rawText, resolvedFont, emWidth * sizePx, useApproximateMetrics)
+                    else wrapText(rawText, resolvedFont, emWidth * sizePx, sizePx.toFloat(), useApproximateMetrics)
                 } ?: rawText
             else rawText
             val attrs = TextAttributes().apply {
@@ -317,9 +323,10 @@ class MvtStyleRule(
             zoom: Int,
             properties: Map<String, Any?> = emptyMap(),
             featureState: Map<String, Any?>? = null,
+            geometryType: MvtGeometryType? = null,
         ): ShapeAttributes? {
             if (!hasCasing) return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState, geometryType)
             val color = lineCasingColor!!.evaluate(ctx) ?: return null
             val width = lineCasingWidth!!.evaluate(ctx) ?: return null
             if (width <= 0f) return null
@@ -342,9 +349,10 @@ class MvtStyleRule(
             zoom: Int,
             properties: Map<String, Any?>,
             featureState: Map<String, Any?>? = null,
+            geometryType: MvtGeometryType? = null,
         ): IconSpec? {
             val expr = iconImage ?: return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState, geometryType)
             val rawName = expr.evaluate(ctx) ?: return null
             val name = substituteTemplate(rawName, properties).takeIf { it.isNotEmpty() } ?: return null
             val size = iconSize?.evaluate(ctx) ?: 1f
@@ -416,18 +424,19 @@ class MvtStyleRule(
              * narrower or wider than 0.55em (digits, M/W, i/l).
              */
             internal fun wrapText(
-                text: String, font: Font, maxWidthPx: Float, useApproximateMetrics: Boolean = false,
+                text: String, font: Font, maxWidthPx: Float, sizePx: Float = 0f, useApproximateMetrics: Boolean = false,
             ): String {
                 if (maxWidthPx <= 0f || ' ' !in text) return text
                 val words = text.split(' ').filter { it.isNotEmpty() }
                 if (words.isEmpty()) return text
-                val fontSize: Float = font.measureText("M").let { if (it > 0f) it else maxWidthPx * 0.1f }
+                // Approximate-metrics path only: 0.55em per glyph against the requested pixel
+                // size, no platform measureText() calls.
                 val measureWord: (String) -> Float = if (useApproximateMetrics) {
-                    { w -> w.length * fontSize * 0.55f }
+                    { w -> w.length * sizePx * 0.55f }
                 } else {
                     { w -> font.measureText(w) }
                 }
-                val spaceWidth = if (useApproximateMetrics) fontSize * 0.3f else font.measureText(" ")
+                val spaceWidth = if (useApproximateMetrics) sizePx * 0.3f else font.measureText(" ")
                 val sb = StringBuilder(text.length + 4)
                 var lineWidth = 0f
                 for ((i, w) in words.withIndex()) {

@@ -139,8 +139,9 @@ object MvtMapboxStyleLoader {
         if (arr.isEmpty()) return MvtFilter.Always
         val op = (arr[0] as? JsonPrimitive)?.contentOrNull ?: return MvtFilter.Always
         return when (op) {
-            "==" -> MvtFilter.Eq(arr.literal(1), arr.value(2))
-            "!=" -> MvtFilter.NotEq(arr.literal(1), arr.value(2))
+            "==" -> parseGeometryTypeEq(arr) ?: MvtFilter.Eq(arr.literal(1), arr.value(2))
+            "!=" -> parseGeometryTypeEq(arr)?.let { MvtFilter.Not(it) }
+                ?: MvtFilter.NotEq(arr.literal(1), arr.value(2))
             "in" -> MvtFilter.In(arr.literal(1), arr.drop(2).map(::valueOf).toSet())
             "!in" -> MvtFilter.Not(MvtFilter.In(arr.literal(1), arr.drop(2).map(::valueOf).toSet()))
             "has" -> MvtFilter.Has(arr.literal(1))
@@ -157,6 +158,29 @@ object MvtMapboxStyleLoader {
             }
             else -> MvtFilter.Always  // Unknown operator — pass-through
         }
+    }
+
+    /**
+     * Detect Mapbox's `["==", ["geometry-type"], "Polygon"]` / `["==", "$type", "Polygon"]`
+     * forms and emit an [MvtFilter.GeometryTypeEq]. Returns null when the arr isn't a
+     * geometry-type predicate so the caller falls back to the regular Eq path.
+     */
+    private fun parseGeometryTypeEq(arr: JsonArray): MvtFilter? {
+        val arg1 = arr.getOrNull(1) ?: return null
+        val isGeomTypeRef = when (arg1) {
+            is JsonArray -> arg1.size == 1 && (arg1[0] as? JsonPrimitive)?.contentOrNull == "geometry-type"
+            is JsonPrimitive -> arg1.contentOrNull == "\$type"
+            else -> false
+        }
+        if (!isGeomTypeRef) return null
+        val typeName = (arr.getOrNull(2) as? JsonPrimitive)?.contentOrNull ?: return null
+        val type = when (typeName) {
+            "Point" -> MvtGeometryType.POINT
+            "LineString" -> MvtGeometryType.LINESTRING
+            "Polygon" -> MvtGeometryType.POLYGON
+            else -> return null
+        }
+        return MvtFilter.GeometryTypeEq(type)
     }
 
     // ---- Paint parsing -----------------------------------------------------------------
