@@ -77,6 +77,7 @@ object MvtExpressionParser {
         return when (op) {
             "literal" -> parseLiteral(args, target, parseColor)
             "zoom" -> MvtExpression.Zoom
+            "geometry-type" -> MvtExpression.GeometryType
             "get" -> parseGet(args)
             "has" -> parseHas(args)
             "==" -> parseBinaryComparison(args, parseColor) { a, b -> MvtExpression.Eq(a, b) }

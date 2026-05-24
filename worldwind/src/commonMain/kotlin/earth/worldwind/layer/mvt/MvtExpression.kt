@@ -38,6 +38,7 @@ sealed class MvtExpression<out T> {
         val zoom: Double,
         val properties: Map<String, Any?>,
         val featureState: Map<String, Any?>? = null,
+        val geometryType: MvtGeometryType? = null,
     ) {
         companion object {
             /** Zoom = 0, no properties — for constant-only expressions in test code. */
@@ -63,6 +64,20 @@ sealed class MvtExpression<out T> {
 
     class Has(val key: String) : MvtExpression<Boolean>() {
         override fun evaluate(ctx: EvalContext): Boolean = ctx.properties.containsKey(key)
+    }
+
+    /**
+     * `["geometry-type"]` — returns the feature's geometry type as one of `"Point"`,
+     * `"LineString"`, `"Polygon"`, or `"Unknown"` (Mapbox spelling). Useful for filter
+     * expressions like `["==", ["geometry-type"], "Polygon"]`.
+     */
+    object GeometryType : MvtExpression<String>() {
+        override fun evaluate(ctx: EvalContext): String = when (ctx.geometryType) {
+            MvtGeometryType.POINT -> "Point"
+            MvtGeometryType.LINESTRING -> "LineString"
+            MvtGeometryType.POLYGON -> "Polygon"
+            else -> "Unknown"
+        }
     }
 
     // ---- Comparisons -----------------------------------------------------------
