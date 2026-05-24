@@ -4,6 +4,7 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.http.DefaultHttpClient
+import io.ktor.client.HttpClient
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -38,6 +39,17 @@ class OverpassBuildingsSource(
     val timeout: Int = 25,
 ) : OsmBuildingsSource {
 
+    // One shared client per source. Constructing a fresh DefaultHttpClient per fetch defeats
+    // OkHttp's connection pool + DNS cache, allocating a full dispatcher/pool/plugin chain per
+    // tile — profiling showed >250k client constructions and ~2M IOException allocations during
+    // a Manhattan zoom session. Reuse keeps the pool warm between tile fetches.
+    private val client: HttpClient by lazy {
+        DefaultHttpClient(
+            connectTimeout = 5.seconds.inWholeMilliseconds,
+            requestTimeout = (timeout + 5).seconds.inWholeMilliseconds,
+        )
+    }
+
     override suspend fun fetchBuildings(sector: Sector): List<OsmBuilding> {
         val south = sector.minLatitude.inDegrees
         val west = sector.minLongitude.inDegrees
@@ -51,16 +63,13 @@ class OverpassBuildingsSource(
         """.trimIndent()
 
         val url = "$endpoint?data=${query.encodeURLParameter()}"
-        val body = DefaultHttpClient(
-            connectTimeout = 5.seconds.inWholeMilliseconds,
-            requestTimeout = (timeout + 5).seconds.inWholeMilliseconds,
-        ).use { client ->
-            client.get(url) { expectSuccess = true }.bodyAsText()
-        }
+        val body = client.get(url) { expectSuccess = true }.bodyAsText()
 
         val response = JSON.decodeFromString<OverpassResponse>(body)
         return response.elements.mapNotNull(::toBuilding)
     }
+
+    override fun close() { client.close() }
 
     private fun toBuilding(element: OverpassElement): OsmBuilding? {
         // Only handle ways with inline geometry. Skip nodes (they're isolated points) and

@@ -206,6 +206,7 @@ open class OsmBuildingsLayer(
         isClosed = true
         scope.cancel()
         results.close()
+        try { source.close() } catch (_: Exception) {}
         // Best-effort GPU release for in-flight batched tiles. Legacy tiles fall through to
         // RenderResourceCache LRU pressure as usual. [close] is normally called from the render
         // thread (or right before the GL context tears down), so [latestRc] is the rc from the
