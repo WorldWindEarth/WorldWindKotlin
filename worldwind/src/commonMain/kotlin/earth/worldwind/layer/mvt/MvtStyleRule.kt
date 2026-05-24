@@ -429,14 +429,22 @@ class MvtStyleRule(
                 if (maxWidthPx <= 0f || ' ' !in text) return text
                 val words = text.split(' ').filter { it.isNotEmpty() }
                 if (words.isEmpty()) return text
-                // Approximate-metrics path only: 0.55em per glyph against the requested pixel
-                // size, no platform measureText() calls.
+                // Fallback em estimate when font.measureText returns 0 — happens on test
+                // host stubs where the underlying text-shaper is not available (Android unit
+                // tests with isReturnDefaultValues, headless JVM with no AWT graphics env).
+                // Prefer the explicit sizePx; if absent, scale to maxWidthPx so wrapping
+                // still produces sensible break points instead of degenerating to one line.
+                val fallbackEm: Float = if (sizePx > 0f) sizePx else maxWidthPx * 0.1f
                 val measureWord: (String) -> Float = if (useApproximateMetrics) {
                     { w -> w.length * sizePx * 0.55f }
                 } else {
-                    { w -> font.measureText(w) }
+                    { w ->
+                        val m = font.measureText(w)
+                        if (m > 0f) m else w.length * fallbackEm * 0.55f
+                    }
                 }
-                val spaceWidth = if (useApproximateMetrics) sizePx * 0.3f else font.measureText(" ")
+                val spaceWidth = if (useApproximateMetrics) sizePx * 0.3f
+                else font.measureText(" ").let { if (it > 0f) it else fallbackEm * 0.3f }
                 val sb = StringBuilder(text.length + 4)
                 var lineWidth = 0f
                 for ((i, w) in words.withIndex()) {
