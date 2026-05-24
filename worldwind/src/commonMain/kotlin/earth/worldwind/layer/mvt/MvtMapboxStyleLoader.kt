@@ -192,9 +192,9 @@ object MvtMapboxStyleLoader {
         val rawTextField = layout?.get("text-field")?.jsonPrimitive?.contentOrNull ?: return null
         val textField = extractFieldName(rawTextField) ?: return null
         val textSize = layout["text-size"]?.let(::parseFloatInterp)
-            ?: MvtZoomInterp.constant(16f)
+            ?: MvtExpression.Literal(16f)
         val textColor = paint?.get("text-color")?.let(::parseColorInterp)
-            ?: MvtZoomInterp.constant(Color(0f, 0f, 0f))
+            ?: MvtExpression.Literal(Color(0f, 0f, 0f))
         val haloColor = paint?.get("text-halo-color")?.let(::parseColorInterp)
         val haloWidth = paint?.get("text-halo-width")?.let(::parseFloatInterp)
         val font = layout["text-font"]
@@ -251,47 +251,55 @@ object MvtMapboxStyleLoader {
 
     // ---- Value parsing (color / float) ---------------------------------------------------
 
-    private fun parseColorInterp(el: JsonElement): MvtZoomInterp<Color>? = when (el) {
-        is JsonPrimitive -> el.contentOrNull?.let(::parseColor)?.let(MvtZoomInterp.Companion::constant)
-        is JsonObject -> {
-            val stops = el["stops"] as? JsonArray
-            if (stops == null) {
-                unsupported("color expression without 'stops'", el)
-            } else {
-                val parsed = stops.mapNotNull { stop ->
-                    val pair = stop as? JsonArray ?: return@mapNotNull null
-                    val zoom = pair.getOrNull(0)?.jsonPrimitive?.intOrNull
-                        ?: pair.getOrNull(0)?.jsonPrimitive?.doubleOrNull?.toInt()
-                        ?: return@mapNotNull null
-                    val color = parseColor(pair.getOrNull(1)?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null)
-                        ?: return@mapNotNull null
-                    MvtZoomInterp.Stop(zoom, color)
-                }
-                if (parsed.isEmpty()) null else MvtZoomInterp.Colors(parsed)
-            }
-        }
-        is JsonArray -> unsupported("color expression as array (modern interpolate?)", el)
+    private fun parseColorInterp(el: JsonElement): MvtExpression<Color>? = when (el) {
+        is JsonPrimitive -> el.contentOrNull?.let(::parseColor)?.let { MvtExpression.Literal(it) }
+        is JsonObject -> parseLegacyColorStops(el)
+        is JsonArray -> MvtExpressionParser.parseColor(el, ::parseColor) ?: unsupported("color expression", el)
     }
 
-    private fun parseFloatInterp(el: JsonElement): MvtZoomInterp<Float>? = when (el) {
-        is JsonPrimitive -> el.floatOrNull?.let(MvtZoomInterp.Companion::constant)
-        is JsonObject -> {
-            val stops = el["stops"] as? JsonArray
-            if (stops == null) {
-                unsupported("float expression without 'stops'", el)
-            } else {
-                val parsed = stops.mapNotNull { stop ->
-                    val pair = stop as? JsonArray ?: return@mapNotNull null
-                    val zoom = pair.getOrNull(0)?.jsonPrimitive?.intOrNull
-                        ?: pair.getOrNull(0)?.jsonPrimitive?.doubleOrNull?.toInt()
-                        ?: return@mapNotNull null
-                    val v = pair.getOrNull(1)?.jsonPrimitive?.floatOrNull ?: return@mapNotNull null
-                    MvtZoomInterp.Stop(zoom, v)
-                }
-                if (parsed.isEmpty()) null else MvtZoomInterp.Floats(parsed)
-            }
+    private fun parseFloatInterp(el: JsonElement): MvtExpression<Float>? = when (el) {
+        is JsonPrimitive -> el.floatOrNull?.let { MvtExpression.Literal(it) }
+        is JsonObject -> parseLegacyFloatStops(el)
+        is JsonArray -> MvtExpressionParser.parseFloat(el) ?: unsupported("float expression", el)
+    }
+
+    private fun parseLegacyColorStops(obj: JsonObject): MvtExpression<Color>? {
+        val stops = obj["stops"] as? JsonArray ?: return unsupported("color expression without 'stops'", obj)
+        val parsed = stops.mapNotNull { stop ->
+            val pair = stop as? JsonArray ?: return@mapNotNull null
+            val zoom = pair.getOrNull(0)?.jsonPrimitive?.intOrNull
+                ?: pair.getOrNull(0)?.jsonPrimitive?.doubleOrNull?.toInt()
+                ?: return@mapNotNull null
+            val color = parseColor(pair.getOrNull(1)?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null)
+                ?: return@mapNotNull null
+            zoom.toDouble() to MvtExpression.Literal(color) as MvtExpression<Color>
         }
-        is JsonArray -> unsupported("float expression as array (modern interpolate?)", el)
+        if (parsed.isEmpty()) return null
+        return MvtExpression.Interpolate(
+            interpolation = MvtExpression.Interpolation.Linear,
+            input = MvtExpression.Zoom,
+            stops = parsed,
+            lerp = MvtExpression.Interpolators.COLOR,
+        )
+    }
+
+    private fun parseLegacyFloatStops(obj: JsonObject): MvtExpression<Float>? {
+        val stops = obj["stops"] as? JsonArray ?: return unsupported("float expression without 'stops'", obj)
+        val parsed = stops.mapNotNull { stop ->
+            val pair = stop as? JsonArray ?: return@mapNotNull null
+            val zoom = pair.getOrNull(0)?.jsonPrimitive?.intOrNull
+                ?: pair.getOrNull(0)?.jsonPrimitive?.doubleOrNull?.toInt()
+                ?: return@mapNotNull null
+            val v = pair.getOrNull(1)?.jsonPrimitive?.floatOrNull ?: return@mapNotNull null
+            zoom.toDouble() to MvtExpression.Literal(v) as MvtExpression<Float>
+        }
+        if (parsed.isEmpty()) return null
+        return MvtExpression.Interpolate(
+            interpolation = MvtExpression.Interpolation.Linear,
+            input = MvtExpression.Zoom,
+            stops = parsed,
+            lerp = MvtExpression.Interpolators.FLOAT,
+        )
     }
 
     /**

@@ -82,18 +82,18 @@ class MvtRuleBuilder(private val sourceLayer: String) {
 @MvtStyleDsl
 class MvtPaintBuilder {
     // Shape paint
-    var fillColor: MvtZoomInterp<Color>? = null
-    var fillOpacity: MvtZoomInterp<Float>? = null
-    var lineColor: MvtZoomInterp<Color>? = null
-    var lineWidth: MvtZoomInterp<Float>? = null
-    var lineOpacity: MvtZoomInterp<Float>? = null
+    var fillColor: MvtExpression<Color>? = null
+    var fillOpacity: MvtExpression<Float>? = null
+    var lineColor: MvtExpression<Color>? = null
+    var lineWidth: MvtExpression<Float>? = null
+    var lineOpacity: MvtExpression<Float>? = null
     var shadowMode: ShadowMode = ShadowMode.DISABLED
     // Text paint (label rendering)
     private var textField: String? = null
-    private var textColor: MvtZoomInterp<Color>? = null
-    private var textSize: MvtZoomInterp<Float>? = null
-    private var textHaloColor: MvtZoomInterp<Color>? = null
-    private var textHaloWidth: MvtZoomInterp<Float>? = null
+    private var textColor: MvtExpression<Color>? = null
+    private var textSize: MvtExpression<Float>? = null
+    private var textHaloColor: MvtExpression<Color>? = null
+    private var textHaloWidth: MvtExpression<Float>? = null
     private var fontFamily: String? = null
     private var fontWeight: FontWeight = FontWeight.NORMAL
 
@@ -158,12 +158,12 @@ class MvtPaintBuilder {
 @MvtStyleDsl
 class MvtTextBuilder {
     /** Constant or zoom-interpolated text color. Use [MvtZoomInterp.constant] for a fixed value. */
-    var color: MvtZoomInterp<Color>? = null
+    var color: MvtExpression<Color>? = null
     /** Constant or zoom-interpolated text size in pixels. */
-    var size: MvtZoomInterp<Float>? = null
+    var size: MvtExpression<Float>? = null
     /** Halo (outline) behind text. Use [halo] shorthand for the common case. */
-    var haloColor: MvtZoomInterp<Color>? = null
-    var haloWidth: MvtZoomInterp<Float>? = null
+    var haloColor: MvtExpression<Color>? = null
+    var haloWidth: MvtExpression<Float>? = null
     var fontFamily: String? = null
     var fontWeight: FontWeight = FontWeight.NORMAL
     /**

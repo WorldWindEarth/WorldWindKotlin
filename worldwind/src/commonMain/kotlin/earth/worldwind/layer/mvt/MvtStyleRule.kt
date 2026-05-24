@@ -39,11 +39,14 @@ class MvtStyleRule(
 ) {
 
     /**
-     * Resolve [paint] at the given tile zoom into a concrete [ShapeAttributes]. Called once
-     * per matching feature during tile assembly. Results are NOT cached — short-lived
-     * attribute instances flow into the batched tile and are consumed by color packing.
+     * Resolve [paint] for one feature into a concrete [ShapeAttributes]. Called once per
+     * matching feature during tile assembly. Results are NOT cached — short-lived attribute
+     * instances flow into the batched tile and are consumed by color packing.
+     *
+     * [properties] feeds `["get", key]` / `["case", …, ["get", "kind"], …]` expressions.
      */
-    fun resolve(zoom: Int): ShapeAttributes = paint.build(zoom)
+    fun resolve(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes =
+        paint.build(zoom, properties)
 
     fun matches(
         layerName: String,
@@ -81,18 +84,18 @@ class MvtStyleRule(
      */
     class PaintSpec(
         // ----- Shape paint -----
-        val fillColor: MvtZoomInterp<Color>? = null,
-        val fillOpacity: MvtZoomInterp<Float>? = null,
-        val lineColor: MvtZoomInterp<Color>? = null,
-        val lineWidth: MvtZoomInterp<Float>? = null,
-        val lineOpacity: MvtZoomInterp<Float>? = null,
+        val fillColor: MvtExpression<Color>? = null,
+        val fillOpacity: MvtExpression<Float>? = null,
+        val lineColor: MvtExpression<Color>? = null,
+        val lineWidth: MvtExpression<Float>? = null,
+        val lineOpacity: MvtExpression<Float>? = null,
         val shadowMode: ShadowMode = ShadowMode.DISABLED,
         // ----- Text paint -----
         val textField: String? = null,
-        val textColor: MvtZoomInterp<Color>? = null,
-        val textSize: MvtZoomInterp<Float>? = null,
-        val textHaloColor: MvtZoomInterp<Color>? = null,
-        val textHaloWidth: MvtZoomInterp<Float>? = null,
+        val textColor: MvtExpression<Color>? = null,
+        val textSize: MvtExpression<Float>? = null,
+        val textHaloColor: MvtExpression<Color>? = null,
+        val textHaloWidth: MvtExpression<Float>? = null,
         val fontFamily: String? = null,
         val fontWeight: FontWeight = FontWeight.NORMAL,
         /**
@@ -110,21 +113,22 @@ class MvtStyleRule(
         /** True when this rule has a label text spec. */
         val hasText: Boolean get() = textField != null
 
-        fun build(zoom: Int): ShapeAttributes = ShapeAttributes().apply {
-            isDrawInterior = fillColor != null
-            isDrawOutline = lineColor != null && lineWidth != null
-            shadowMode = this@PaintSpec.shadowMode
-            fillColor?.let {
-                val c = it.valueAt(zoom)
-                val alpha = fillOpacity?.valueAt(zoom) ?: c.alpha
-                interiorColor = Color(c.red, c.green, c.blue, alpha)
+        fun build(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes {
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            return ShapeAttributes().apply {
+                isDrawInterior = fillColor != null
+                isDrawOutline = lineColor != null && lineWidth != null
+                shadowMode = this@PaintSpec.shadowMode
+                fillColor?.evaluate(ctx)?.let { c ->
+                    val alpha = fillOpacity?.evaluate(ctx) ?: c.alpha
+                    interiorColor = Color(c.red, c.green, c.blue, alpha)
+                }
+                lineColor?.evaluate(ctx)?.let { c ->
+                    val alpha = lineOpacity?.evaluate(ctx) ?: c.alpha
+                    outlineColor = Color(c.red, c.green, c.blue, alpha)
+                }
+                lineWidth?.evaluate(ctx)?.let { outlineWidth = it }
             }
-            lineColor?.let {
-                val c = it.valueAt(zoom)
-                val alpha = lineOpacity?.valueAt(zoom) ?: c.alpha
-                outlineColor = Color(c.red, c.green, c.blue, alpha)
-            }
-            lineWidth?.let { outlineWidth = it.valueAt(zoom) }
         }
 
         /**
@@ -141,14 +145,15 @@ class MvtStyleRule(
             val raw = properties[textField] ?: return null
             val text = raw.toString().trim()
             if (text.isEmpty()) return null
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
             // Resolve all PaintSpec fields up front — references inside `apply { }` would
             // shadow against TextAttributes' properties of the same names (e.g. `textColor`
-            // becomes `this.textColor: Color`, not `this@PaintSpec.textColor: MvtZoomInterp`).
-            val resolvedTextColor = textColor?.valueAt(zoom)
-            val sizePx = textSize?.valueAt(zoom)?.toInt()?.coerceAtLeast(1) ?: DEFAULT_TEXT_SIZE
+            // becomes `this.textColor: Color`, not `this@PaintSpec.textColor: MvtExpression`).
+            val resolvedTextColor = textColor?.evaluate(ctx)
+            val sizePx = textSize?.evaluate(ctx)?.toInt()?.coerceAtLeast(1) ?: DEFAULT_TEXT_SIZE
             val resolvedFont = Font(fontFamily ?: DEFAULT_FONT_FAMILY, fontWeight, sizePx)
-            val resolvedHaloColor = textHaloColor?.valueAt(zoom)
-            val resolvedHaloWidth = textHaloWidth?.valueAt(zoom)
+            val resolvedHaloColor = textHaloColor?.evaluate(ctx)
+            val resolvedHaloWidth = textHaloWidth?.evaluate(ctx)
             val attrs = TextAttributes().apply {
                 resolvedTextColor?.let { textColor.copy(it) }
                 font.copy(resolvedFont)

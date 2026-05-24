@@ -181,25 +181,28 @@ class MvtMapboxStyleLoaderTest {
         assertEquals(0, style.rules.size)
     }
 
-    @Test fun throwsOnModernInterpolateExpression() {
-        // Modern style with `["interpolate", ["linear"], ["zoom"], 6, 1, 12, 3]` not supported.
-        assertFailsWith<MvtStyleParseException> {
-            MvtMapboxStyleLoader.parse(
-                """
-                {"version": 8, "layers": [
-                  {
-                    "id": "x",
-                    "type": "line",
-                    "source-layer": "x",
-                    "paint": {
-                      "line-color": "#000",
-                      "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1, 12, 3]
-                    }
-                  }
-                ]}
-                """.trimIndent()
-            )
-        }
+    @Test fun parsesModernInterpolateExpression() {
+        val style = MvtMapboxStyleLoader.parse(
+            """
+            {"version": 8, "layers": [
+              {
+                "id": "x",
+                "type": "line",
+                "source-layer": "x",
+                "paint": {
+                  "line-color": "#000000",
+                  "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1.0, 12, 3.0]
+                }
+              }
+            ]}
+            """.trimIndent()
+        )
+        val rule = style.rules.single()
+        val width = rule.paint.lineWidth!!
+        // z=6 → 1, z=12 → 3, linear midpoint z=9 → 2.
+        assertEquals(1f, width.evaluate(MvtExpression.EvalContext(6.0, emptyMap()))!!, absoluteTolerance = 1e-4f)
+        assertEquals(2f, width.evaluate(MvtExpression.EvalContext(9.0, emptyMap()))!!, absoluteTolerance = 1e-4f)
+        assertEquals(3f, width.evaluate(MvtExpression.EvalContext(12.0, emptyMap()))!!, absoluteTolerance = 1e-4f)
     }
 
     @Test fun parsesShortHexAndRgba() {
