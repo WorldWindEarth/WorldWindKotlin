@@ -34,8 +34,10 @@ actual class MvtAtlasIconFactory actual constructor(
         return canvas
     }
 
-    companion object {
+    actual companion object {
         private val decodeCache = HashMap<MvtSpriteAtlas, Promise<HTMLImageElement?>>()
+
+        actual fun releaseDecodedImage(atlas: MvtSpriteAtlas) { decodeCache.remove(atlas) }
 
         private fun decodedAtlasFor(atlas: MvtSpriteAtlas): Promise<HTMLImageElement?> {
             decodeCache[atlas]?.let { return it }

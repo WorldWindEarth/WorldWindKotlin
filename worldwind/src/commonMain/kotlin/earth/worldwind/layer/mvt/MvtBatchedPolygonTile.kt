@@ -511,6 +511,15 @@ class MvtBatchedPolygonTile(
         }
     }
 
+    /**
+     * Drop cached [TileData] for any globe state other than [keepState]. Callers that swap
+     * projections at runtime can keep the per-frame cache small without churning fully.
+     */
+    fun releaseGlobeStatesExcept(keepState: Globe.State?) {
+        val it = data.entries.iterator()
+        while (it.hasNext()) if (it.next().key != keepState) it.remove()
+    }
+
     companion object {
         // Three local-space floats per vertex (x, y, z). The TriangleShaderProgram still
         // expects a texCoord attribute pointer, but we set texCoordAttrib.size = 1 and let

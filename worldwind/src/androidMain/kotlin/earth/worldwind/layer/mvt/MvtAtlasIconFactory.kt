@@ -22,7 +22,7 @@ actual class MvtAtlasIconFactory actual constructor(
         return Bitmap.createBitmap(whole, x, y, w, h).copy(Bitmap.Config.ARGB_8888, false)
     }
 
-    companion object {
+    actual companion object {
         private val decodeCache = HashMap<MvtSpriteAtlas, Bitmap?>()
 
         @Synchronized
@@ -32,5 +32,8 @@ actual class MvtAtlasIconFactory actual constructor(
             decodeCache[atlas] = bitmap
             return bitmap
         }
+
+        @Synchronized
+        actual fun releaseDecodedImage(atlas: MvtSpriteAtlas) { decodeCache.remove(atlas) }
     }
 }

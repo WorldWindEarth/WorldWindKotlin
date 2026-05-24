@@ -15,4 +15,9 @@ import earth.worldwind.render.image.ImageSource
 expect class MvtAtlasIconFactory(atlas: MvtSpriteAtlas, entry: MvtSpriteEntry) : ImageSource.ImageFactory {
     val atlas: MvtSpriteAtlas
     val entry: MvtSpriteEntry
+
+    companion object {
+        /** Drop the platform-decoded image for [atlas] from the shared decode cache. */
+        fun releaseDecodedImage(atlas: MvtSpriteAtlas)
+    }
 }

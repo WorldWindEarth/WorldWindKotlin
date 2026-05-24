@@ -48,6 +48,13 @@ class MvtSpriteAtlas(
     fun entry(name: String): MvtSpriteEntry? = entries[name]
 
     /**
+     * Drop the platform-decoded copy of this atlas from the [MvtAtlasIconFactory]'s decode
+     * cache. Call when swapping atlases at runtime or under memory pressure; subsequent icon
+     * factories for this atlas will re-decode the PNG.
+     */
+    fun releaseDecodedImage() { MvtAtlasIconFactory.releaseDecodedImage(this) }
+
+    /**
      * Construct an [earth.worldwind.render.image.ImageSource.ImageFactory] that, when run by
      * the engine's image-decoder pipeline, yields just this icon's cropped sub-image. Returns
      * null if [name] isn't in the manifest.

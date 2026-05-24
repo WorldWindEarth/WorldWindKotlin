@@ -34,7 +34,7 @@ actual class MvtAtlasIconFactory actual constructor(
         }
     }
 
-    companion object {
+    actual companion object {
         // Single-decode-per-atlas cache. iOS doesn't guarantee single-threaded fetch but the
         // worst-case race is a duplicate decode that overwrites the cache with the same
         // image — the engine's RenderResourceCache de-dups GL texture uploads anyway.
@@ -50,5 +50,7 @@ actual class MvtAtlasIconFactory actual constructor(
             decodeCache[atlas] = image
             return image
         }
+
+        actual fun releaseDecodedImage(atlas: MvtSpriteAtlas) { decodeCache.remove(atlas) }
     }
 }

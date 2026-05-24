@@ -438,6 +438,12 @@ class MvtBatchedLineTile(
     }
 
     /** Drop this tile's GL buffer entries from the render-resource cache. */
+    /** See [MvtBatchedPolygonTile.releaseGlobeStatesExcept]. */
+    fun releaseGlobeStatesExcept(keepState: Globe.State?) {
+        val it = data.entries.iterator()
+        while (it.hasNext()) if (it.next().key != keepState) it.remove()
+    }
+
     fun releaseRenderResources(rc: RenderContext) {
         for (td in data.values) {
             rc.renderResourceCache.remove(td.vertexBufferKey)

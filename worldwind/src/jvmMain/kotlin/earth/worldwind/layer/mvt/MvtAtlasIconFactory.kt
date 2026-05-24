@@ -29,7 +29,7 @@ actual class MvtAtlasIconFactory actual constructor(
         return copy
     }
 
-    companion object {
+    actual companion object {
         // Cache the decoded atlas keyed by atlas-identity. Each MvtSpriteAtlas is constructed
         // once per sprite endpoint, so identity equality is correct and we don't need to hash
         // the (potentially large) byte array.
@@ -46,5 +46,8 @@ actual class MvtAtlasIconFactory actual constructor(
             decodeCache[atlas] = image
             return image
         }
+
+        @Synchronized
+        actual fun releaseDecodedImage(atlas: MvtSpriteAtlas) { decodeCache.remove(atlas) }
     }
 }
