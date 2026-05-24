@@ -4,7 +4,7 @@ plugins {
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("plugin.compose") version kotlinVersion apply false
     id("com.android.application") apply false
-    id("org.jetbrains.compose") version "1.10.3" apply false
+    id("org.jetbrains.compose") version "1.11.0" apply false
     id("org.jetbrains.dokka") version "2.2.0" apply false
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
@@ -17,7 +17,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "1.14.2"
+    version = "2.0.0"
 
     repositories {
         google()
