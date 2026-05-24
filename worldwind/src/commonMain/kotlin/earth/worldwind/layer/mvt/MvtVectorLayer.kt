@@ -799,18 +799,22 @@ open class MvtVectorLayer(
                             && matchedRule.paint.textPlacement == MvtStyleRule.LabelPlacement.LINE) {
                             val labelSpec = matchedRule.paint.buildText(key.z, props)
                             if (labelSpec != null) {
+                                // Use the source font's per-character advance widths so each
+                                // glyph is positioned by its actual on-screen extent (kerning
+                                // differs per platform — measureText/measureChars handles it).
+                                val font = labelSpec.attributes.font
+                                val charWidths = font.measureChars(labelSpec.text)
+                                val textWidth = font.measureText(labelSpec.text)
                                 for (line in lines) {
                                     if (line.size < 2) continue
-                                    val anchor = MvtGeometry.labelAnchorForLine(line) ?: continue
-                                    val label = Label(anchor.position, labelSpec.text, labelSpec.attributes).apply {
-                                        altitudeMode = AltitudeMode.CLAMP_TO_GROUND
-                                        this.zOrder = zOrder.toDouble()
-                                        rotation = anchor.bearingDeg.degrees
-                                        rotationMode = earth.worldwind.shape.OrientationMode.RELATIVE_TO_GLOBE
-                                    }
-                                    tileLabels += label
-                                    tileLabelPriorities += zOrder
-                                    tileLabelSizes += labelSpec.pixelSize
+                                    out += MvtCurvedLineLabel(
+                                        polyline = line,
+                                        text = labelSpec.text,
+                                        attributes = labelSpec.attributes,
+                                        charWidths = charWidths,
+                                        textWidth = textWidth,
+                                        pixelSize = labelSpec.pixelSize,
+                                    )
                                 }
                             }
                         }

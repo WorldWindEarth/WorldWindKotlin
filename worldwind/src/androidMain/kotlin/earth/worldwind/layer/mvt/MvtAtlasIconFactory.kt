@@ -9,7 +9,7 @@ actual class MvtAtlasIconFactory actual constructor(
     actual val entry: MvtSpriteEntry,
 ) : ImageSource.ImageFactory {
 
-    override suspend fun createImage(): Bitmap? {
+    override suspend fun createBitmap(): Bitmap? {
         val whole = decodedAtlasFor(atlas) ?: return null
         val x = entry.x.coerceIn(0, maxOf(0, whole.width - 1))
         val y = entry.y.coerceIn(0, maxOf(0, whole.height - 1))
