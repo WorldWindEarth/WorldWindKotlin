@@ -39,6 +39,8 @@ sealed class MvtExpression<out T> {
         val properties: Map<String, Any?>,
         val featureState: Map<String, Any?>? = null,
         val geometryType: MvtGeometryType? = null,
+        /** Arc-length parameter along the current line feature, in [0, 1]. Read by [LineProgress]. */
+        val lineProgress: Double = 0.0,
     ) {
         companion object {
             /** Zoom = 0, no properties — for constant-only expressions in test code. */
@@ -64,6 +66,15 @@ sealed class MvtExpression<out T> {
 
     class Has(val key: String) : MvtExpression<Boolean>() {
         override fun evaluate(ctx: EvalContext): Boolean = ctx.properties.containsKey(key)
+    }
+
+    /**
+     * `["line-progress"]` — arc-length parameter along the current line feature, in [0, 1].
+     * Read from [EvalContext.lineProgress] which the layer fills when sampling a line
+     * gradient at progress points along each line subdivision.
+     */
+    object LineProgress : MvtExpression<Double>() {
+        override fun evaluate(ctx: EvalContext): Double = ctx.lineProgress
     }
 
     /**

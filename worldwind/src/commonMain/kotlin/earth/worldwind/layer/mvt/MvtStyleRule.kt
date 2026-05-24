@@ -118,6 +118,16 @@ class MvtStyleRule(
          */
         val lineCasingWidth: MvtExpression<Float>? = null,
         /**
+         * Mapbox `line-gradient` — a color expression that varies along the line's
+         * arc-length parameter via `["line-progress"]`. The layer subdivides each polyline
+         * into [GRADIENT_SUBDIVISIONS] segments and samples the gradient at each segment's
+         * midpoint to produce a piecewise-constant approximation that flows through the
+         * existing batched line path (no shader changes). Visually close enough for
+         * standard "elevation-tinted route" use; near-instant transitions look slightly
+         * stepped at the segment boundaries.
+         */
+        val lineGradient: MvtExpression<Color>? = null,
+        /**
          * Mapbox `line-dasharray` — alternating dash + gap lengths in line-width multiples.
          * `[2, 2]` = 2 units on, 2 off, repeating. `[3, 1, 1, 1]` = long-short-short pattern.
          *
@@ -182,6 +192,27 @@ class MvtStyleRule(
 
         /** True when this rule has a line casing — emits a second stroke under the line. */
         val hasCasing: Boolean get() = lineCasingColor != null && lineCasingWidth != null
+
+        /** True when this rule paints a varying color along the line's arc-length parameter. */
+        val hasLineGradient: Boolean get() = lineGradient != null
+
+        /**
+         * Sample [lineGradient] at the given [progress] (arc-length parameter ∈ [0, 1]) for
+         * one feature. Returns null when the rule has no line-gradient.
+         */
+        fun buildGradientColor(
+            zoom: Int,
+            progress: Double,
+            properties: Map<String, Any?> = emptyMap(),
+            featureState: Map<String, Any?>? = null,
+        ): Color? {
+            val expr = lineGradient ?: return null
+            val ctx = MvtExpression.EvalContext(
+                zoom = zoom.toDouble(), properties = properties,
+                featureState = featureState, lineProgress = progress,
+            )
+            return expr.evaluate(ctx)
+        }
 
         /** True when this rule emits 3D extruded polygons (e.g. buildings). */
         val hasExtrusion: Boolean get() = fillExtrusionHeight != null
@@ -325,6 +356,14 @@ class MvtStyleRule(
         companion object {
             private const val DEFAULT_TEXT_SIZE = 14
             private const val DEFAULT_FONT_FAMILY = "sans-serif"
+
+            /**
+             * Number of constant-color sub-segments produced when sampling a [lineGradient]
+             * along a polyline. Higher = smoother gradient transitions; lower = fewer draw
+             * calls. Default 16 is a good balance: 16 colors along the line, visually close
+             * to a smooth gradient for typical elevation-tint / heading-color use.
+             */
+            var GRADIENT_SUBDIVISIONS: Int = 16
 
             /**
              * When true, text-max-width word-wrap uses a fixed 0.55-em-per-glyph

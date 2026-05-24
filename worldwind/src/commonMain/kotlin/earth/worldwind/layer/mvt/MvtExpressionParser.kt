@@ -78,6 +78,7 @@ object MvtExpressionParser {
             "literal" -> parseLiteral(args, target, parseColor)
             "zoom" -> MvtExpression.Zoom
             "geometry-type" -> MvtExpression.GeometryType
+            "line-progress" -> MvtExpression.LineProgress
             "get" -> parseGet(args)
             "has" -> parseHas(args)
             "==" -> parseBinaryComparison(args, parseColor) { a, b -> MvtExpression.Eq(a, b) }

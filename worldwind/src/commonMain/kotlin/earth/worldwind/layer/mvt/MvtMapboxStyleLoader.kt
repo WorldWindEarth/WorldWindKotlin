@@ -198,12 +198,14 @@ object MvtMapboxStyleLoader {
             arr.mapNotNull { (it as? JsonPrimitive)?.floatOrNull }.toFloatArray()
                 .takeIf { it.isNotEmpty() }
         }
+        val gradient = paint["line-gradient"]?.let(::parseColorInterp)
         if (lineColor == null || lineWidth == null) return null
         return MvtStyleRule.PaintSpec(
             lineColor = lineColor,
             lineWidth = lineWidth,
             lineOpacity = lineOpacity,
             lineDashArray = dashArray,
+            lineGradient = gradient,
             shadowMode = ShadowMode.DISABLED,
         )
     }

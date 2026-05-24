@@ -109,6 +109,16 @@ class MvtPaintBuilder {
     private var lineCasingColor: MvtExpression<Color>? = null
     private var lineCasingWidth: MvtExpression<Float>? = null
     private var lineDashArray: FloatArray? = null
+    private var lineGradient: MvtExpression<Color>? = null
+
+    /**
+     * Mapbox `line-gradient` — set a color expression that's evaluated along the line's
+     * arc-length parameter. Typical use: `["interpolate", ["linear"], ["line-progress"],
+     * 0, "green", 0.5, "yellow", 1, "red"]` for a route-elevation tint. The layer
+     * subdivides each polyline into [MvtStyleRule.PaintSpec.GRADIENT_SUBDIVISIONS]
+     * piecewise-constant segments for rendering.
+     */
+    fun gradient(expression: MvtExpression<Color>) { lineGradient = expression }
     private var fillExtrusionHeight: MvtExpression<Float>? = null
     private var fillExtrusionBase: MvtExpression<Float>? = null
 
@@ -214,6 +224,7 @@ class MvtPaintBuilder {
         lineCasingColor = lineCasingColor,
         lineCasingWidth = lineCasingWidth,
         lineDashArray = lineDashArray,
+        lineGradient = lineGradient,
         shadowMode = shadowMode,
         textField = textField,
         textColor = textColor,

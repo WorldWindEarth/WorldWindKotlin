@@ -4,6 +4,7 @@ import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.globe.Globe
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.OffsetMode
@@ -880,6 +881,29 @@ open class MvtVectorLayer(
                                             ?: run { out += casingPath }
                                     }
                                 }
+                                // Line-gradient path: subdivide the polyline into
+                                // GRADIENT_SUBDIVISIONS arc-length segments, sample the
+                                // gradient at each segment's midpoint, emit each as its own
+                                // batched feature with its sampled color. Bypasses casing's
+                                // single-color render; falls through to the default solid-
+                                // color path when no gradient.
+                                val gradientRule = shapeRule?.takeIf { it.paint.hasLineGradient }
+                                if (gradientRule != null) {
+                                    emitGradientSegments(
+                                        line = line,
+                                        baseAttrs = shapeAttrs,
+                                        rule = gradientRule,
+                                        zoom = key.z,
+                                        zOrder = zOrder,
+                                        properties = props,
+                                        featureState = featureState,
+                                        pickPayload = pickPayload,
+                                        lineBatch = lineBatch,
+                                        lineRenderables = lineRenderables,
+                                        out = out,
+                                    )
+                                    continue
+                                }
                                 if (lineBatch != null) {
                                     lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                         positions = line, attributes = shapeAttrs, zOrder = zOrder,
@@ -1065,6 +1089,109 @@ open class MvtVectorLayer(
             )
         }
         return out
+    }
+
+    /**
+     * Subdivide [line] into [MvtStyleRule.PaintSpec.GRADIENT_SUBDIVISIONS] arc-length
+     * segments, sample [rule]'s gradient at each segment's midpoint, and emit each segment
+     * as its own batched feature with the sampled color. Visually approximates a smooth
+     * gradient with piecewise-constant segments; render cost scales linearly with the
+     * subdivision count.
+     */
+    private fun emitGradientSegments(
+        line: List<Position>,
+        baseAttrs: ShapeAttributes,
+        rule: MvtStyleRule,
+        zoom: Int,
+        zOrder: Int,
+        properties: Map<String, Any?>,
+        featureState: Map<String, Any?>?,
+        pickPayload: MvtPickedFeature?,
+        lineBatch: ArrayList<MvtBatchedLineTile.BatchLineFeature>?,
+        lineRenderables: ArrayList<Pair<Int, Path>>?,
+        out: ArrayList<Renderable>,
+    ) {
+        val k = MvtStyleRule.PaintSpec.GRADIENT_SUBDIVISIONS.coerceAtLeast(2)
+        // Cumulative arc length using planar lat/lon distance — matches PathType.LINEAR
+        // semantics. For surface-clamped lines at MVT zoom (≤14) the difference from
+        // great-circle is sub-pixel.
+        val n = line.size
+        val cum = DoubleArray(n)
+        for (i in 1 until n) {
+            val dy = line[i].latitude.inDegrees - line[i - 1].latitude.inDegrees
+            val dx = line[i].longitude.inDegrees - line[i - 1].longitude.inDegrees
+            cum[i] = cum[i - 1] + kotlin.math.sqrt(dx * dx + dy * dy)
+        }
+        val total = cum.last()
+        if (total <= 0.0) return
+        // For each segment 0..k-1, gather the sub-polyline between progress fractions
+        // i/k and (i+1)/k by interpolating endpoints at exact arc-length boundaries and
+        // including any waypoints that fall within.
+        var startIdx = 0
+        var prevPosition = line[0]
+        for (i in 0 until k) {
+            val startT = i.toDouble() / k
+            val endT = (i + 1).toDouble() / k
+            val endArc = total * endT
+            // Build the sub-polyline.
+            val sub = ArrayList<Position>(8)
+            sub += prevPosition
+            // Walk forward through waypoints that fall before endArc.
+            var j = startIdx + 1
+            while (j < n && cum[j] < endArc) { sub += line[j]; j++ }
+            // Interpolate the segment's end position at exact endArc (if there's a next
+            // waypoint to interpolate against; otherwise use the last waypoint).
+            val endPosition = if (j < n) interpolatePositionAtArc(line, cum, endArc, j - 1) else line[n - 1]
+            sub += endPosition
+            if (sub.size >= 2) {
+                val midProgress = (startT + endT) * 0.5
+                val color = rule.paint.buildGradientColor(zoom, midProgress, properties, featureState)
+                if (color != null) {
+                    val segAttrs = ShapeAttributes(baseAttrs).apply {
+                        outlineColor = color
+                    }
+                    if (lineBatch != null) {
+                        lineBatch += MvtBatchedLineTile.BatchLineFeature(
+                            positions = sub, attributes = segAttrs, zOrder = zOrder,
+                            pickPayload = pickPayload,
+                        )
+                    } else {
+                        val path = Path(sub, segAttrs).apply {
+                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                            isFollowTerrain = true
+                            pathType = PathType.LINEAR
+                            this.zOrder = zOrder.toDouble()
+                        }
+                        if (lineRenderables != null) lineRenderables += zOrder to path
+                        else out += path
+                    }
+                }
+            }
+            // Carry the end position over so adjacent segments share their join vertex
+            // exactly — no visible seam between segments.
+            prevPosition = endPosition
+            startIdx = j - 1
+        }
+    }
+
+    /**
+     * Linearly interpolate a [Position] at arc-length [arc] within the segment
+     * `[segIdx, segIdx + 1]` of [line], using [cum] (cumulative arc lengths).
+     */
+    private fun interpolatePositionAtArc(
+        line: List<Position>, cum: DoubleArray, arc: Double, segIdx: Int,
+    ): Position {
+        val i = segIdx.coerceIn(0, line.size - 2)
+        val segStart = cum[i]
+        val segLen = cum[i + 1] - segStart
+        val u = if (segLen <= 0.0) 0.0 else ((arc - segStart) / segLen).coerceIn(0.0, 1.0)
+        val a = line[i]
+        val b = line[i + 1]
+        return Position(
+            (a.latitude.inDegrees + (b.latitude.inDegrees - a.latitude.inDegrees) * u).degrees,
+            (a.longitude.inDegrees + (b.longitude.inDegrees - a.longitude.inDegrees) * u).degrees,
+            a.altitude + (b.altitude - a.altitude) * u,
+        )
     }
 
     private class ExtrusionBucket(val attributes: ShapeAttributes) {
