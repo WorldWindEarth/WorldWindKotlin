@@ -28,7 +28,10 @@ kotlin {
             }
         }
     }
-    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+    // iosX64 (Intel-Mac simulator) intentionally dropped — Compose Multiplatform stopped
+    // publishing the iosX64 variant. Core :worldwind still targets iosX64 for non-Compose
+    // consumers; only the Compose binding requires Apple-Silicon simulators / devices.
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         target.binaries.framework {
             // Static framework: simpler embedding for SwiftUI/UIKit hosts (no need to add
             // a "Embed and Sign" copy phase; Xcode just links the .a). Compose Multiplatform
@@ -60,8 +63,8 @@ kotlin {
         }
         androidMain {
             dependencies {
-                implementation(compose.foundation)
-                implementation(compose.ui)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.ui)
                 implementation(libs.androidx.activity.compose)
             }
         }
@@ -72,23 +75,21 @@ kotlin {
         }
         jsMain {
             dependencies {
-                implementation(compose.runtime)
-                implementation(compose.html.core)
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.html.core)
             }
         }
-        val iosX64Main by getting
         val iosArm64Main by getting
         val iosSimulatorArm64Main by getting
         val iosMain by creating {
             dependsOn(commonMain.get())
-            iosX64Main.dependsOn(this)
             iosArm64Main.dependsOn(this)
             iosSimulatorArm64Main.dependsOn(this)
             dependencies {
                 // compose.foundation + compose.ui pull in the Compose-iOS runtime, including
                 // ComposeUIViewController which our MainViewController() helper wraps.
-                implementation(compose.foundation)
-                implementation(compose.ui)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.ui)
             }
         }
         all {
