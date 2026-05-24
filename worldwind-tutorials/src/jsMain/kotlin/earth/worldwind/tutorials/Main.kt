@@ -157,11 +157,20 @@ fun main() {
         var currentTutorial: String? = null
 
         // Add some image layers to the WorldWindow's globe.
+        // Cache Google Satellite + NASADEM elevation tiles via Cache API (HTTP blobs); IDB
+        // handles the parsed feature rows separately.
+        val gsatUrl = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}"
+        mainScope.launch {
+            webContentManager.await().apply {
+                setupImageLayerCache(gsatUrl, "GoogleSatellite")
+                setupElevationCoverageCache("https://wms.worldwind.earth/elev", "NASADEM")
+            }
+        }
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
             addLayer(
                 WebMercatorLayerFactory.createLayer(
-                    urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+                    urlTemplate = gsatUrl,
                     imageFormat = "image/jpeg",
                     name = "Google Satellite"
                 )
