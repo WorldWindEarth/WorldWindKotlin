@@ -23,8 +23,7 @@ class MvtDashArrayTest {
     @Test fun longerDashThanGapHasMoreLitBits() {
         // [3, 1]: 75% lit. 12 of 16 bits → 0x0FFF.
         val (_, pattern) = MvtStyleRule.PaintSpec.dashArrayToStipple(floatArrayOf(3f, 1f))
-        val bits = pattern.toInt() and 0xFFFF
-        val onCount = Integer.bitCount(bits)
+        val onCount = (pattern.toInt() and 0xFFFF).countOneBits()
         assertTrue(onCount >= 11, "expected ~12 lit bits for 3:1 dash, got $onCount")
     }
 

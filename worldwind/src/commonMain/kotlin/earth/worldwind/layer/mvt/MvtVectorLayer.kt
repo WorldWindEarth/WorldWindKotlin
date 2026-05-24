@@ -650,9 +650,14 @@ open class MvtVectorLayer(
                 // One-time INFO with the tile's layer/feature breakdown so a style/schema
                 // mismatch (e.g. OpenMapTiles style against a Shortbread server) is visible
                 // even when the fetch succeeds with zero visible renderables.
+                // Schema detection re-runs while the result is UNKNOWN — an empty first
+                // tile (404 / 5xx → MvtTile(emptyList())) would otherwise lock the schema
+                // to UNKNOWN for the layer's lifetime.
+                if (tile.layers.isNotEmpty() && detectedSchema.let { it == null || it == MvtSchemaDetector.Schema.UNKNOWN }) {
+                    detectedSchema = MvtSchemaDetector.detect(tile)
+                }
                 if (!firstFetchLogged) {
                     firstFetchLogged = true
-                    detectedSchema = MvtSchemaDetector.detect(tile)
                     val layerSummary = tile.layers.joinToString { "${it.name}=${it.features.size}" }
                     logMessage(
                         INFO, "MvtVectorLayer", "fetch",
@@ -674,9 +679,11 @@ open class MvtVectorLayer(
         WorldWind.requestRedraw()
     }
 
+    @kotlin.concurrent.Volatile
     private var firstFetchLogged: Boolean = false
 
-    /** Count of tiles currently in the LRU cache (visible + fringe). */
+    /** Count of tiles currently in the LRU cache (visible + fringe). Best-effort, may briefly
+     *  disagree with reality when the fetch coroutine is mid-update. */
     val loadedTileCount: Int get() = tiles.entryCount
     /** Count of tiles whose fetch coroutine is in flight. */
     val pendingTileCount: Int get() = pending.size
@@ -684,10 +691,12 @@ open class MvtVectorLayer(
     val backoffTileCount: Int get() = backoff.size
 
     /**
-     * Schema reported by [MvtSchemaDetector] for the first successfully decoded tile.
-     * `null` until the first fetch resolves. Useful for surfacing a "loaded
-     * <schema>-flavoured tiles" status in UI, or for selecting a matching style at runtime.
+     * Schema reported by [MvtSchemaDetector] for the first non-empty decoded tile. `null`
+     * until detection succeeds; re-runs as long as detection stays UNKNOWN to handle empty
+     * first-tile responses. Useful for surfacing a "loaded <schema>-flavoured tiles" status
+     * in UI, or for selecting a matching style at runtime.
      */
+    @kotlin.concurrent.Volatile
     var detectedSchema: MvtSchemaDetector.Schema? = null
         private set
 
@@ -712,8 +721,10 @@ open class MvtVectorLayer(
         val out = ArrayList<Renderable>()
         val polygonBatch = if (useBatchedRendering) ArrayList<MvtBatchedPolygonTile.BatchFeature>() else null
         val lineBatch = if (useBatchedRendering) ArrayList<MvtBatchedLineTile.BatchLineFeature>() else null
-        // Per-(color, attributes) extruded-building buckets — each becomes one OsmBuildingsTile.
-        val extrusionBuckets = HashMap<Int, ExtrusionBucket>()
+        // Per-color extruded-building buckets — each becomes one OsmBuildingsTile. Keyed by
+        // the actual Color value (which has structural equality) so distinct colors with
+        // colliding hashes don't accidentally merge.
+        val extrusionBuckets = HashMap<earth.worldwind.render.Color, ExtrusionBucket>()
 
         // Per-feature Path collection, only populated in non-batched mode; kept ordered so
         // we can stable-sort by z-order before adding to [out].
@@ -774,8 +785,7 @@ open class MvtVectorLayer(
                         val extrusion = shapeRule?.paint?.buildExtrusion(key.z, props)
                         if (extrusion != null) {
                             val (height, base) = extrusion
-                            val bucketKey = attrs.interiorColor.hashCode()
-                            val bucket = extrusionBuckets.getOrPut(bucketKey) {
+                            val bucket = extrusionBuckets.getOrPut(attrs.interiorColor) {
                                 ExtrusionBucket(ShapeAttributes(attrs))
                             }
                             for (poly in rings) {
@@ -818,17 +828,33 @@ open class MvtVectorLayer(
                             // so it paints under the main line.
                             val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props)
                             // Dashed features fall back to per-Path — the batched line path
-                            // doesn't carry per-prim outline textures.
+                            // doesn't carry per-prim outline textures. Casing still routes
+                            // through the batched path (it isn't dashed) so the cased effect
+                            // is preserved.
                             val forceUnbatched = shapeAttrs.outlineImageSource != null
                             for (line in lines) {
                                 if (line.size < 2) continue
-                                if (lineBatch != null && !forceUnbatched) {
-                                    if (casingAttrs != null) {
+                                // Casing always emits to the batched path (or as its own Path
+                                // when batching is off), regardless of whether the main
+                                // stroke is dashed.
+                                if (casingAttrs != null) {
+                                    if (lineBatch != null) {
                                         lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                             positions = line, attributes = casingAttrs,
                                             zOrder = zOrder - 1, pickPayload = pickPayload,
                                         )
+                                    } else {
+                                        val casingPath = Path(line, casingAttrs).apply {
+                                            altitudeMode = AltitudeMode.CLAMP_TO_GROUND
+                                            isFollowTerrain = true
+                                            pathType = PathType.LINEAR
+                                            this.zOrder = (zOrder - 1).toDouble()
+                                        }
+                                        lineRenderables?.let { it += (zOrder - 1) to casingPath }
+                                            ?: run { out += casingPath }
                                     }
+                                }
+                                if (lineBatch != null && !forceUnbatched) {
                                     lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                         positions = line, attributes = shapeAttrs, zOrder = zOrder,
                                         pickPayload = pickPayload,
@@ -924,6 +950,7 @@ open class MvtVectorLayer(
                                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                     if (isShield && labelSpec != null) label = labelSpec.text
                                 }
+                                placemark.zOrder = zOrder.toDouble()
                                 out += placemark
                             }
                         }

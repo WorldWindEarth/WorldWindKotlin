@@ -512,12 +512,21 @@ class MvtBatchedPolygonTile(
     }
 
     /**
-     * Drop cached [TileData] for any globe state other than [keepState]. Callers that swap
-     * projections at runtime can keep the per-frame cache small without churning fully.
+     * Drop cached [TileData] for any globe state other than [keepState], releasing the
+     * orphaned states' VBO/EBO entries from [rc]'s [RenderContext.renderResourceCache] in
+     * the same pass. Callers swapping projections at runtime use this to keep the per-frame
+     * cache small without leaking GPU buffers.
      */
-    fun releaseGlobeStatesExcept(keepState: Globe.State?) {
+    fun releaseGlobeStatesExcept(rc: RenderContext, keepState: Globe.State?) {
         val it = data.entries.iterator()
-        while (it.hasNext()) if (it.next().key != keepState) it.remove()
+        while (it.hasNext()) {
+            val entry = it.next()
+            if (entry.key != keepState) {
+                rc.renderResourceCache.remove(entry.value.vertexBufferKey)
+                rc.renderResourceCache.remove(entry.value.elementBufferKey)
+                it.remove()
+            }
+        }
     }
 
     companion object {

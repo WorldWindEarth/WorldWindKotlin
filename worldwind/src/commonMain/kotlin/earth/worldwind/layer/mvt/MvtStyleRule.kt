@@ -239,11 +239,14 @@ class MvtStyleRule(
             val resolvedFont = Font(fontFamily ?: DEFAULT_FONT_FAMILY, fontWeight, sizePx)
             val resolvedHaloColor = textHaloColor?.evaluate(ctx)
             val resolvedHaloWidth = textHaloWidth?.evaluate(ctx)
-            // Word-wrap if textMaxWidth is set. Maxwidth is in em units (× font size).
-            val text = textMaxWidth?.evaluate(ctx)?.let { emWidth ->
-                if (emWidth <= 0f) rawText
-                else wrapText(rawText, resolvedFont, emWidth * sizePx)
-            } ?: rawText
+            // Word-wrap if textMaxWidth is set and placement is POINT — LINE-placed labels
+            // feed MvtCurvedLineLabel's per-glyph layout which has no `\n` handling.
+            val text = if (textPlacement == LabelPlacement.POINT)
+                textMaxWidth?.evaluate(ctx)?.let { emWidth ->
+                    if (emWidth <= 0f) rawText
+                    else wrapText(rawText, resolvedFont, emWidth * sizePx)
+                } ?: rawText
+            else rawText
             val attrs = TextAttributes().apply {
                 resolvedTextColor?.let { textColor.copy(it) }
                 font.copy(resolvedFont)

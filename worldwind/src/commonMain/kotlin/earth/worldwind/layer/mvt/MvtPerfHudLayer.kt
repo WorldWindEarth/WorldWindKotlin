@@ -40,37 +40,33 @@ class MvtPerfHudLayer(
         outlineColor.set(0f, 0f, 0f, 1f)
     }
 
-    private var frameCount = 0L
+    // Reused across frames — render path mutates and re-uploads via the screen drawable, so
+    // a single instance is safe.
+    private val scratchTransform = Matrix4()
 
     override fun doRender(rc: RenderContext) {
-        frameCount++
         val d = rc.densityFactor.toDouble()
         val lineHeight = 16.0 * d
         var y = yOffsetDp * d
-
-        for (line in lines()) {
-            renderLine(rc, line, xOffsetDp * d, y)
-            y += lineHeight
-        }
+        // Text-cache keyed text content is rendered to a texture; keeping these strings
+        // STABLE across frames lets [rc.getText] hit the cache instead of allocating a fresh
+        // ImageTexture each render.
+        val line1 = "MVT: tiles loaded=${target.loadedTileCount} pending=${target.pendingTileCount} backoff=${target.backoffTileCount}"
+        val line2 = "schema=${target.detectedSchema ?: "?"}"
+        renderLine(rc, line1, xOffsetDp * d, y); y += lineHeight
+        renderLine(rc, line2, xOffsetDp * d, y)
     }
-
-    private fun lines(): List<String> = listOf(
-        "MVT: tiles loaded=${target.loadedTileCount} pending=${target.pendingTileCount} backoff=${target.backoffTileCount}",
-        "schema=${target.detectedSchema ?: "?"}  frame=$frameCount",
-    )
 
     private fun renderLine(rc: RenderContext, text: String, screenX: Double, screenY: Double) {
         val texture = rc.getText(text, textAttrs) ?: return
         val tw = texture.width.toDouble()
         val th = texture.height.toDouble()
-        val transform = Matrix4().apply {
-            setTranslation(screenX, screenY, 0.0)
-            setScale(tw, th, 1.0)
-        }
+        scratchTransform.setTranslation(screenX, screenY, 0.0)
+        scratchTransform.setScale(tw, th, 1.0)
         val pool = rc.getDrawablePool(DrawableScreenTexture.KEY)
         val drawable = DrawableScreenTexture.obtain(pool)
         drawable.program = rc.getShaderProgram { BasicShaderProgram() }
-        drawable.unitSquareTransform.copy(transform)
+        drawable.unitSquareTransform.copy(scratchTransform)
         drawable.color.set(1f, 1f, 1f, 1f)
         drawable.opacity = rc.currentLayer.opacity
         drawable.texture = texture
