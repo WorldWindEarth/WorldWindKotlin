@@ -22,6 +22,7 @@ import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.formats.shapefile.CachedShapefileLayer
 import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.layer.configureCache
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.buildings.CachedOsmBuildingsLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory

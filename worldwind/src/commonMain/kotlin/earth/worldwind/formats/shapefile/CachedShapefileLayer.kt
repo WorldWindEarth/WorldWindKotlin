@@ -5,7 +5,8 @@ import earth.worldwind.geom.Position
 import earth.worldwind.layer.CacheableFeatureLayer
 import earth.worldwind.layer.FeatureCacheSourceFactory
 import earth.worldwind.layer.RenderableLayer
-import earth.worldwind.ogc.GpkgFeatureCacheFactory
+import earth.worldwind.layer.cache.CachedFeatureRow
+import earth.worldwind.layer.cache.CachedGeometry
 import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.Placemark
@@ -23,16 +24,12 @@ import io.ktor.client.statement.readRawBytes
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import mil.nga.sf.Geometry
-import mil.nga.sf.LineString
-import mil.nga.sf.Point
 
 /**
- * JVM/Android [RenderableLayer] that loads an ESRI shapefile and persists its parsed records in
- * a GeoPackage via the standard [CacheableFeatureLayer] flow. Bulk-refresh model (same as WFS):
- * first [load] fetches `.shp/.dbf/.prj` over HTTP and writes one row per renderable; subsequent
- * runs rebuild straight from cache. MultiPatch records bypass the cache — sf.Geometry has no
- * triangle-index model.
+ * Bulk-refresh shapefile layer that persists parsed records via [CacheableFeatureLayer] —
+ * GPKG on JVM/Android, IndexedDB on JS. First [load] fetches `.shp/.dbf/.prj` over HTTP and
+ * writes one row per renderable; later runs rebuild straight from cache. MultiPatch records
+ * bypass the cache — [CachedGeometry] has no triangle-index model.
  */
 class CachedShapefileLayer(
     val shpUrl: String,
@@ -49,9 +46,9 @@ class CachedShapefileLayer(
 
     /** Build renderables — cache hit replays; miss fetches and writes back. Idempotent. */
     suspend fun load() {
-        val cache = cacheSourceFactory as? GpkgFeatureCacheFactory
+        val cache = cacheSourceFactory
         if (cache != null) {
-            val rows = cache.geoPackage.readCachedFeatures(cache.content)
+            val rows = cache.readAllFeatures()
             if (rows.isNotEmpty()) {
                 clearRenderables()
                 replayFromCache(rows)
@@ -60,21 +57,17 @@ class CachedShapefileLayer(
         }
         clearRenderables()
         val rows = fetchAndPopulate()
-        if (cache != null) {
-            cache.geoPackage.replaceCachedFeatures(cache.content, rows)
-        }
+        cache?.replaceAllFeatures(rows)
     }
 
     /** Force a re-fetch, replacing renderables and cached rows. */
     suspend fun refresh() {
         clearRenderables()
         val rows = fetchAndPopulate()
-        (cacheSourceFactory as? GpkgFeatureCacheFactory)?.let { cache ->
-            cache.geoPackage.replaceCachedFeatures(cache.content, rows)
-        }
+        cacheSourceFactory?.replaceAllFeatures(rows)
     }
 
-    private suspend fun fetchAndPopulate(): List<Pair<Geometry, String?>> {
+    private suspend fun fetchAndPopulate(): List<CachedFeatureRow> {
         val baseUrl = stripShpExtension(shpUrl)
         val sidecars = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
             val shpBytes = httpClient.get(shpUrl) { expectSuccess = true }.readRawBytes()
@@ -88,7 +81,7 @@ class CachedShapefileLayer(
         val dbf = sidecars.dbf?.let { runCatching { DBaseFile(it, cpgText = cpgText) }.getOrNull() }
         val shapefile = Shapefile(sidecars.shp, projection = prj, attributes = dbf)
 
-        val rows = mutableListOf<Pair<Geometry, String?>>()
+        val rows = mutableListOf<CachedFeatureRow>()
         ShapefileLayerFactory.emitRecordRenderables(shapefile, shapeConfiguration) { record, renderable ->
             val attrs = stringifyAttributes(record.attributes)
             renderable.customLogicToApplyProperties(attrs)
@@ -98,19 +91,19 @@ class CachedShapefileLayer(
         return rows
     }
 
-    private fun replayFromCache(rows: List<Pair<Geometry, String?>>) {
-        for ((geometry, propertiesJson) in rows) {
-            val props = propertiesJson?.let { runCatching { JSON.decodeFromString<RowMeta>(it) }.getOrNull() } ?: continue
-            val renderable = decodeRow(geometry, props) ?: continue
+    private fun replayFromCache(rows: List<CachedFeatureRow>) {
+        for (row in rows) {
+            val props = row.properties?.let { runCatching { JSON.decodeFromString<RowMeta>(it) }.getOrNull() } ?: continue
+            val renderable = decodeRow(row.geometry, props) ?: continue
             renderable.customLogicToApplyProperties(props.attrs)
             addRenderable(renderable)
         }
     }
 
-    private fun encodeRow(renderable: Renderable, attrs: Map<String, String>): Pair<Geometry, String?>? = when (renderable) {
+    private fun encodeRow(renderable: Renderable, attrs: Map<String, String>): CachedFeatureRow? = when (renderable) {
         is Placemark -> {
             val p = renderable.position
-            val sfPoint = Point(p.longitude.inDegrees, p.latitude.inDegrees, p.altitude)
+            val geom = CachedGeometry.Point(p.longitude.inDegrees, p.latitude.inDegrees, p.altitude)
             val meta = RowMeta(
                 kind = Kind.PLACEMARK,
                 altitudeMode = renderable.altitudeMode.name,
@@ -118,10 +111,10 @@ class CachedShapefileLayer(
                 attrs = attrs,
                 label = renderable.label,
             )
-            sfPoint to JSON.encodeToString(meta)
+            CachedFeatureRow(geom, JSON.encodeToString(meta))
         }
         is Path -> {
-            val ls = renderable.positions.toLineString()
+            val geom = CachedGeometry.LineString(renderable.positions.map { it.toCachedPoint() })
             val meta = RowMeta(
                 kind = Kind.PATH,
                 altitudeMode = renderable.altitudeMode.name,
@@ -129,12 +122,13 @@ class CachedShapefileLayer(
                 displayName = renderable.displayName,
                 attrs = attrs,
             )
-            ls to JSON.encodeToString(meta)
+            CachedFeatureRow(geom, JSON.encodeToString(meta))
         }
         is Polygon -> {
-            val poly = mil.nga.sf.Polygon(true, false).apply {
-                for (i in 0 until renderable.boundaryCount) addRing(renderable.getBoundary(i).toLineString())
+            val rings = (0 until renderable.boundaryCount).map { i ->
+                CachedGeometry.LineString(renderable.getBoundary(i).map { it.toCachedPoint() })
             }
+            val geom = CachedGeometry.Polygon(rings)
             val meta = RowMeta(
                 kind = Kind.POLYGON,
                 altitudeMode = renderable.altitudeMode.name,
@@ -143,21 +137,21 @@ class CachedShapefileLayer(
                 displayName = renderable.displayName,
                 attrs = attrs,
             )
-            poly to JSON.encodeToString(meta)
+            CachedFeatureRow(geom, JSON.encodeToString(meta))
         }
         is TriangleMesh -> {
-            // sf.Geometry has no triangle-index model — first-load shows the mesh, cache replay omits it.
+            // CachedGeometry has no triangle-index model — first-load shows the mesh, cache replay omits it.
             log(WARN, "CachedShapefileLayer: TriangleMesh from MultiPatch not cached for $shpUrl")
             null
         }
         else -> null
     }
 
-    private fun decodeRow(geometry: Geometry, meta: RowMeta): Renderable? {
+    private fun decodeRow(geometry: CachedGeometry?, meta: RowMeta): Renderable? {
         val mode = runCatching { AltitudeMode.valueOf(meta.altitudeMode) }.getOrNull() ?: AltitudeMode.RELATIVE_TO_GROUND
         return when (meta.kind) {
             Kind.PLACEMARK -> {
-                val p = geometry as? Point ?: return null
+                val p = geometry as? CachedGeometry.Point ?: return null
                 Placemark(Position.fromDegrees(p.y, p.x, p.z ?: 0.0), placemarkAttributes, meta.label).apply {
                     altitudeMode = mode
                     highlightPlacemarkAttributes?.let { this.highlightAttributes = it }
@@ -165,7 +159,7 @@ class CachedShapefileLayer(
                 }
             }
             Kind.PATH -> {
-                val ls = geometry as? LineString ?: return null
+                val ls = geometry as? CachedGeometry.LineString ?: return null
                 Path(ls.toPositions(), attributes).apply {
                     altitudeMode = mode
                     isFollowTerrain = meta.isFollowTerrain
@@ -174,11 +168,10 @@ class CachedShapefileLayer(
                 }
             }
             Kind.POLYGON -> {
-                val poly = geometry as? mil.nga.sf.Polygon ?: return null
-                val rings = poly.rings ?: return null
-                if (rings.isEmpty()) return null
-                Polygon(rings.first().toPositions(), attributes).apply {
-                    for (i in 1 until rings.size) addBoundary(rings[i].toPositions())
+                val poly = geometry as? CachedGeometry.Polygon ?: return null
+                if (poly.rings.isEmpty()) return null
+                Polygon(poly.rings.first().toPositions(), attributes).apply {
+                    for (i in 1 until poly.rings.size) addBoundary(poly.rings[i].toPositions())
                     altitudeMode = mode
                     isExtrude = meta.isExtrude
                     isFollowTerrain = meta.isFollowTerrain
@@ -189,16 +182,9 @@ class CachedShapefileLayer(
         }
     }
 
-    private fun List<Position>.toLineString(): LineString {
-        val ls = LineString(true, false)
-        for (p in this) ls.addPoint(Point(p.longitude.inDegrees, p.latitude.inDegrees, p.altitude))
-        return ls
-    }
-
-    private fun LineString.toPositions(): List<Position> {
-        val pts = points ?: return emptyList()
-        return pts.map { Position.fromDegrees(it.y, it.x, it.z ?: 0.0) }
-    }
+    private fun Position.toCachedPoint() = CachedGeometry.Point(longitude.inDegrees, latitude.inDegrees, altitude)
+    private fun CachedGeometry.LineString.toPositions(): List<Position> =
+        points.map { Position.fromDegrees(it.y, it.x, it.z ?: 0.0) }
 
     /** DBF values come as Any?; coerce to String for the JSON payload — consumers re-parse. */
     private fun stringifyAttributes(attrs: Map<String, Any?>): Map<String, String> {

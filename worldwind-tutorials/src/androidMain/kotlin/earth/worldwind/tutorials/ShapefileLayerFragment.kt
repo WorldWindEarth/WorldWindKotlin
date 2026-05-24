@@ -2,6 +2,7 @@ package earth.worldwind.tutorials
 
 import androidx.lifecycle.lifecycleScope
 import earth.worldwind.formats.shapefile.CachedShapefileLayer
+import earth.worldwind.layer.configureCache
 
 class ShapefileLayerFragment : BasicGlobeFragment() {
     override fun createWorldWindow() = super.createWorldWindow().also { wwd ->

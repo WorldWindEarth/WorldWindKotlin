@@ -21,8 +21,12 @@ import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.CompassLayer
 import earth.worldwind.layer.CoordinatesDisplayLayer
 import earth.worldwind.layer.ViewControlsLayer
+import earth.worldwind.formats.shapefile.CachedShapefileLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
+import earth.worldwind.layer.buildings.CachedOsmBuildingsLayer
+import earth.worldwind.layer.cache.WebContentManager
+import earth.worldwind.layer.cache.configureCache
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
@@ -31,6 +35,7 @@ import earth.worldwind.shape.Movable
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import org.w3c.dom.*
 import org.w3c.dom.events.EventListener
@@ -45,6 +50,8 @@ fun main() {
         val projectionSelect = document.getElementById("Projections") as HTMLSelectElement
         val actionsContainer = document.getElementById("Actions") as HTMLDivElement
         val mainScope = MainScope()
+        // Shared IndexedDB cache, opened lazily; per-layer rows namespaced by contentKey.
+        val webContentManager = mainScope.async { WebContentManager.open() }
         // Single global click listener per picker. `picker.isActive` gates the call so listeners
         // for non-current tutorials short-circuit and don't cross-talk. WorldWindow swallows
         // click events that came from a drag, so no tap-vs-drag check is needed here.
@@ -98,7 +105,11 @@ fun main() {
                     wwd.requestRedraw()
                 }
             },
-            "OSM Buildings" to OsmBuildingsTutorial(wwd.engine),
+            "OSM Buildings" to OsmBuildingsTutorial(wwd.engine, layerFactory = {
+                CachedOsmBuildingsLayer(useOsmColors = true).also { layer ->
+                    mainScope.launch { layer.configureCache(webContentManager.await(), "OsmBuildings") }
+                }
+            }),
             "Vector Tiles (MVT)" to MvtVectorTilesTutorial(wwd.engine),
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
             "Labels" to LabelsTutorial(wwd.engine),
@@ -114,7 +125,16 @@ fun main() {
             "WMS Layer" to WmsLayerTutorial(wwd.engine, mainScope),
             "WMTS Layer" to WmtsLayerTutorial(wwd.engine, mainScope),
             "WFS Layer" to WfsLayerTutorial(wwd.engine, mainScope),
-            "Shapefile Layer" to ShapefileLayerTutorial(wwd.engine, mainScope),
+            "Shapefile Layer" to ShapefileLayerTutorial(wwd.engine, mainScope, layerLoader = {
+                CachedShapefileLayer(
+                    shpUrl = ShapefileLayerTutorial.SHP_URL,
+                    displayName = ShapefileLayerTutorial.DISPLAY_NAME,
+                    attributes = ShapefileLayerTutorial.defaultPolygonStyle(),
+                ).also { layer ->
+                    layer.configureCache(webContentManager.await(), "Shapefile_Countries")
+                    layer.load()
+                }
+            }),
             "WCS Elevation" to WcsElevationTutorial(wwd.engine),
             "NITF Imagery" to NitfImageryTutorial(wwd.engine),
             "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),

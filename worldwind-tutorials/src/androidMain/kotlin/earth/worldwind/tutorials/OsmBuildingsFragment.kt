@@ -3,6 +3,7 @@ package earth.worldwind.tutorials
 import androidx.lifecycle.lifecycleScope
 import earth.worldwind.WorldWindow
 import earth.worldwind.layer.buildings.CachedOsmBuildingsLayer
+import earth.worldwind.layer.configureCache
 import kotlinx.coroutines.launch
 
 class OsmBuildingsFragment : BasicGlobeFragment() {
