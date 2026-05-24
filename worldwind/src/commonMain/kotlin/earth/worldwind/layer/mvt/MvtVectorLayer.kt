@@ -136,8 +136,6 @@ open class MvtVectorLayer(
         // background fetches from competing with imagery tile traffic when the user is
         // looking at hemispheres.
         maxActiveAltitude = 150_000.0
-        // Surface vector tiles aren't draggable shapes.
-        isPickEnabled = false
     }
 
     override fun doRender(rc: RenderContext) {
@@ -730,6 +728,11 @@ open class MvtVectorLayer(
                 // Used below: matchedRule for POINT label resolution stays the textRule when
                 // present (where the text payload lives).
                 val matchedRule = textRule ?: shapeRule
+                // Per-feature pick payload. Built only when the layer is pick-enabled so styles
+                // with picking disabled don't pay for the property-map retention.
+                val pickPayload = if (isPickEnabled)
+                    MvtPickedFeature(layer.name, feature.type, props, key)
+                else null
                 when (feature.type) {
                     MvtGeometryType.POLYGON -> {
                         val attrs = shapeAttrs ?: continue
@@ -740,6 +743,7 @@ open class MvtVectorLayer(
                                 polygonBatch += MvtBatchedPolygonTile.BatchFeature(
                                     outer = poly.outer, holes = poly.holes,
                                     attributes = attrs, zOrder = zOrder,
+                                    pickPayload = pickPayload,
                                 )
                             } else {
                                 val p = Polygon(poly.outer, attrs).apply {
@@ -762,6 +766,7 @@ open class MvtVectorLayer(
                                 if (lineBatch != null) {
                                     lineBatch += MvtBatchedLineTile.BatchLineFeature(
                                         positions = line, attributes = shapeAttrs, zOrder = zOrder,
+                                        pickPayload = pickPayload,
                                     )
                                 } else {
                                     lineRenderables!! += zOrder to Path(line, shapeAttrs).apply {

@@ -1,5 +1,6 @@
 package earth.worldwind.layer.mvt
 
+import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.BoundingBox
@@ -66,6 +67,11 @@ class MvtBatchedLineTile(
         val positions: List<Position>,
         val attributes: ShapeAttributes,
         val zOrder: Int = 0,
+        /**
+         * If non-null and the layer is pick-enabled, this feature draws separately with a
+         * unique pick color in pick mode and exposes [pickPayload] via [PickedObject.userObject].
+         */
+        val pickPayload: MvtPickedFeature? = null,
     )
 
     private val data = mutableMapOf<Globe.State?, TileData>()
@@ -75,17 +81,22 @@ class MvtBatchedLineTile(
     private val vertices = FloatList()
     private val ranges = ArrayList<LineRange>()
 
-    init { isPickEnabled = false }
-
     private class TileData {
         val vertexOrigin = Vec3()
         var vertexArray = FloatArray(0)
         var elementArray = IntArray(0)
         var lineRanges: List<LineRange> = emptyList()
+        /**
+         * Per-feature element ranges as `[offset0, count0, offset1, count1, …]` in [features]
+         * order. Used by the pick render path; left zero-filled when picking isn't enabled.
+         */
+        var featureElementRanges: IntArray = IntArray(0)
         val vertexBufferKey = Any()
         val elementBufferKey = Any()
         var refreshGeometry = true
     }
+
+    private val scratchPickColor = Color()
 
     /**
      * One polyline's slice of the shared EBO, with its style state captured at assembly time.
@@ -122,6 +133,11 @@ class MvtBatchedLineTile(
         }
         if (tileData.vertexArray.isEmpty() || tileData.lineRanges.isEmpty()) return
 
+        if (rc.isPickMode) {
+            emitPickDrawables(rc, tileData)
+            return
+        }
+
         val rangesList = tileData.lineRanges
         var chunkStart = 0
         while (chunkStart < rangesList.size) {
@@ -129,6 +145,79 @@ class MvtBatchedLineTile(
             emitDrawable(rc, tileData, rangesList, chunkStart, chunkEnd)
             chunkStart = chunkEnd
         }
+    }
+
+    private fun emitPickDrawables(rc: RenderContext, tileData: TileData) {
+        val featureRanges = tileData.featureElementRanges
+        if (featureRanges.isEmpty()) return
+        val n = features.size
+        var i = 0
+        while (i < n) {
+            val drawable = newPickDrawable(rc, tileData)
+            val drawState = drawable.drawState
+            var primCount = 0
+            while (i < n && primCount < DrawShapeState.MAX_DRAW_ELEMENTS) {
+                val feature = features[i]
+                val payload = feature.pickPayload
+                val offset = featureRanges[i * 2]
+                val count = featureRanges[i * 2 + 1]
+                if (payload != null && count > 0) {
+                    val pickedId = rc.nextPickedObjectId()
+                    PickedObject.identifierToUniqueColor(pickedId, scratchPickColor)
+                    rc.offerPickedObject(
+                        PickedObject.fromUserObject(pickedId, payload, rc.currentLayer, useTerrainPosition = true)
+                    )
+                    drawState.color.copy(scratchPickColor)
+                    drawState.opacity = 1f
+                    // Pick draws ignore widthScale — we want hit area = actual rendered area, so
+                    // applying the same width as the visible drawable would be ideal. But adding
+                    // a +0.5 fattening pixel here keeps tiny lines pickable without making the
+                    // visible result inconsistent.
+                    drawState.lineWidth = feature.attributes.outlineWidth * widthScale + 0.5f
+                    drawState.drawElements(
+                        GL_TRIANGLE_STRIP, count, GL_UNSIGNED_INT, offset * Int.SIZE_BYTES,
+                    )
+                    primCount++
+                }
+                i++
+            }
+            if (primCount == 0) continue
+            drawState.enableDepthWrite = true
+            rc.offerSurfaceDrawable(drawable, zOrder)
+        }
+    }
+
+    private fun newPickDrawable(rc: RenderContext, tileData: TileData): DrawableSurfaceShape {
+        val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
+        val drawable = DrawableSurfaceShape.obtain(pool)
+        val drawState = drawable.drawState
+        drawable.offset = rc.globe.offset
+        drawable.sector.copy(boundingSector)
+        drawable.version = 31 * hashCode() + bufferDataVersion
+        drawState.isLine = true
+        drawState.program = TriangleShaderProgram.get(rc)
+        drawState.vertexBuffer = rc.getBufferObject(tileData.vertexBufferKey) {
+            BufferObject(GL_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(tileData.vertexBufferKey, bufferDataVersion) {
+            NumericArray.Floats(tileData.vertexArray)
+        }
+        drawState.elementBuffer = rc.getBufferObject(tileData.elementBufferKey) {
+            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(tileData.elementBufferKey, bufferDataVersion) {
+            NumericArray.Ints(tileData.elementArray)
+        }
+        drawState.vertexOrigin.copy(tileData.vertexOrigin)
+        drawState.boundingCenter.copy(boundingBox.center)
+        drawState.boundingRadius = boundingBox.radius
+        drawState.vertexStride = VERTEX_STRIDE * Float.SIZE_BYTES
+        drawState.enableCullFace = false
+        drawState.enableDepthTest = true
+        drawState.enableLighting = false
+        drawState.texCoordAttrib.size = 2
+        drawState.texCoordAttrib.offset = 3 * Float.SIZE_BYTES
+        return drawable
     }
 
     private fun emitDrawable(
@@ -203,47 +292,55 @@ class MvtBatchedLineTile(
             tileData.vertexArray = FloatArray(0)
             tileData.elementArray = IntArray(0)
             tileData.lineRanges = emptyList()
+            tileData.featureElementRanges = IntArray(0)
             return
         }
         tileData.vertexOrigin.set(
             anchor.longitude.inDegrees, anchor.latitude.inDegrees, anchor.altitude,
         )
 
-        val sorted = if (features.size <= 1) features else features.sortedBy { it.zOrder }
+        // Sort indices by zOrder while remembering original positions — the pick render path
+        // indexes featureElementRanges by original feature index.
+        val sortedIndices = features.indices.toMutableList()
+        if (features.size > 1) sortedIndices.sortBy { features[it].zOrder }
+        val featureRanges = IntArray(features.size * 2)
 
         // Bucket by `(colorPacked, lineWidth)`. `Float.toRawBits` gives exact equality on
         // identical literals — style rules emit the same `outlineWidth` Float across all
-        // features of a class. LinkedHashMap keeps buckets in min-z-ascending order
-        // (insertion order = the first feature to touch each bucket from the z-sorted list)
-        // so cross-class layering is preserved on emit.
-        val groups = LinkedHashMap<Long, MutableList<BatchLineFeature>>()
-        for (feature in sorted) {
-            val positions = feature.positions
-            if (positions.size < 2) continue
+        // features of a class. LinkedHashMap keeps buckets in min-z-ascending order so
+        // cross-class layering is preserved on emit.
+        val groups = LinkedHashMap<Long, MutableList<Int>>()
+        for (origIdx in sortedIndices) {
+            val feature = features[origIdx]
+            if (feature.positions.size < 2) continue
             val attrs = feature.attributes
             val colorPacked = packColor(attrs.outlineColor)
             val key = (colorPacked.toLong() and 0xFFFFFFFFL) or
                 (attrs.outlineWidth.toRawBits().toLong() shl 32)
-            groups.getOrPut(key) { ArrayList() } += feature
+            groups.getOrPut(key) { ArrayList() } += origIdx
         }
 
         // Emit one contiguous element range per bucket. Between concatenated polylines we
         // insert `[lastIdx, firstNewIdx]` — four zero-area triangles that bridge two strips
-        // without rasterising any fragments.
+        // without rasterising any fragments. Track each feature's own (offset, count) for
+        // the pick path (excludes bridge indices, which "belong" to no feature).
         val elementsScratch = IntList()
-        for ((_, members) in groups) {
-            val first = members[0].attributes
+        for ((_, memberIndices) in groups) {
+            val first = features[memberIndices[0]].attributes
             val groupColorPacked = packColor(first.outlineColor)
             val groupLineWidth = first.outlineWidth
             val rangeStart = elementsScratch.size
             var lastIdx = -1
-            for (feature in members) {
+            for (origIdx in memberIndices) {
                 if (lastIdx >= 0) {
                     val firstNewIdx = vertices.size / VERTEX_STRIDE
                     elementsScratch.add(lastIdx)
                     elementsScratch.add(firstNewIdx)
                 }
-                emitPolyline(feature.positions, tileData.vertexOrigin, elementsScratch)
+                val featureStart = elementsScratch.size
+                emitPolyline(features[origIdx].positions, tileData.vertexOrigin, elementsScratch)
+                featureRanges[origIdx * 2] = featureStart
+                featureRanges[origIdx * 2 + 1] = elementsScratch.size - featureStart
                 lastIdx = elementsScratch[elementsScratch.size - 1]
             }
             val count = elementsScratch.size - rangeStart
@@ -261,6 +358,7 @@ class MvtBatchedLineTile(
             tileData.vertexArray = FloatArray(0)
             tileData.elementArray = IntArray(0)
             tileData.lineRanges = emptyList()
+            tileData.featureElementRanges = IntArray(0)
             vertices.shrink()
             return
         }
@@ -269,6 +367,7 @@ class MvtBatchedLineTile(
         tileData.elementArray = IntArray(elementsScratch.size)
         elementsScratch.copyTo(tileData.elementArray, 0)
         tileData.lineRanges = ranges.toList()
+        tileData.featureElementRanges = featureRanges
 
         // BoundingBox is set in unit-box mode for surface shapes — the compositor frustum-
         // tests against [boundingSector], not [boundingBox]. Match Path's surface branch.

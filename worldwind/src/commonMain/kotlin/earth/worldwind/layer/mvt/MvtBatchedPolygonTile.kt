@@ -10,6 +10,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
+import earth.worldwind.PickedObject
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
@@ -68,6 +69,11 @@ class MvtBatchedPolygonTile(
         val holes: List<List<Position>>,
         val attributes: ShapeAttributes,
         val zOrder: Int = 0,
+        /**
+         * If non-null and the layer is pick-enabled, this feature draws separately with a
+         * unique pick color in pick mode and exposes [pickPayload] via [PickedObject.userObject].
+         */
+        val pickPayload: MvtPickedFeature? = null,
     )
 
     private val data = mutableMapOf<Globe.State?, TileData>()
@@ -124,20 +130,27 @@ class MvtBatchedPolygonTile(
         override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?) { /* no-op */ }
     }
 
-    init { isPickEnabled = false }
-
     /** Per-globe-state geometry cache. */
     private class TileData {
         val vertexOrigin = Vec3()
         var vertexArray = FloatArray(0)
         var elementArray = IntArray(0)
         var colorRanges: List<ColorRange> = emptyList()
+        /**
+         * Flat `[offset0, count0, offset1, count1, …]` per feature in [features] order; empty
+         * (or zero counts) when picking isn't enabled. Each pair points into [elementArray].
+         */
+        var featureElementRanges: IntArray = IntArray(0)
         val vertexBufferKey = Any()
         val elementBufferKey = Any()
         var refreshGeometry = true
     }
 
     private class ColorRange(val colorPacked: Int, val offset: Int, val count: Int)
+    private class FeatureLocalRange(val featureIndex: Int, val bucketKey: Long, val localOffset: Int, val localCount: Int)
+    // Scratch list filled during assembleGeometry, drained on EBO concat.
+    private val featureLocalRanges = ArrayList<FeatureLocalRange>()
+    private val scratchPickColor = Color()
 
     /**
      * Pre-assemble this tile's geometry for the given [globe] / [globeState] off the render
@@ -165,6 +178,11 @@ class MvtBatchedPolygonTile(
         }
         if (tileData.vertexArray.isEmpty()) return
 
+        if (rc.isPickMode) {
+            emitPickDrawables(rc, tileData)
+            return
+        }
+
         val ranges = tileData.colorRanges
         if (ranges.isEmpty()) return
         var chunkStart = 0
@@ -173,6 +191,82 @@ class MvtBatchedPolygonTile(
             emitDrawable(rc, tileData, ranges, chunkStart, chunkEnd)
             chunkStart = chunkEnd
         }
+    }
+
+    /**
+     * In pick mode emit one [DrawableSurfaceShape] per chunk of features (up to
+     * [DrawShapeState.MAX_DRAW_ELEMENTS] features per drawable, each prim drawn with its
+     * own unique pick color). Each pickable feature registers a [PickedObject] before its
+     * drawable is enqueued so the resolve pass can recover [BatchFeature.pickPayload] from
+     * the readback pick color.
+     */
+    private fun emitPickDrawables(rc: RenderContext, tileData: TileData) {
+        val ranges = tileData.featureElementRanges
+        if (ranges.isEmpty()) return
+        val n = features.size
+        var i = 0
+        while (i < n) {
+            // Collect up to MAX_DRAW_ELEMENTS pickable features into one drawable.
+            val drawable = lazyPickDrawable(rc, tileData) ?: return
+            val drawState = drawable.drawState
+            var primCount = 0
+            while (i < n && primCount < DrawShapeState.MAX_DRAW_ELEMENTS) {
+                val payload = features[i].pickPayload
+                val offset = ranges[i * 2]
+                val count = ranges[i * 2 + 1]
+                if (payload != null && count > 0) {
+                    val pickedId = rc.nextPickedObjectId()
+                    PickedObject.identifierToUniqueColor(pickedId, scratchPickColor)
+                    rc.offerPickedObject(
+                        PickedObject.fromUserObject(pickedId, payload, rc.currentLayer, useTerrainPosition = true)
+                    )
+                    drawState.color.copy(scratchPickColor)
+                    drawState.opacity = 1f
+                    drawState.drawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, offset * Int.SIZE_BYTES)
+                    primCount++
+                }
+                i++
+            }
+            if (primCount == 0) {
+                // No pickable features in this chunk — skip enqueuing the drawable (avoid
+                // emitting an empty shape into the pick queue).
+                continue
+            }
+            drawState.enableDepthWrite = true
+            rc.offerSurfaceDrawable(drawable, zOrder = zOrder)
+        }
+    }
+
+    private fun lazyPickDrawable(rc: RenderContext, tileData: TileData): DrawableSurfaceShape? {
+        val pool = rc.getDrawablePool(DrawableSurfaceShape.KEY)
+        val drawable = DrawableSurfaceShape.obtain(pool)
+        val drawState = drawable.drawState
+        drawable.offset = rc.globe.offset
+        drawable.sector.copy(boundingSector)
+        drawable.version = 31 * hashCode() + bufferDataVersion
+        drawState.program = TriangleShaderProgram.get(rc)
+        drawState.vertexBuffer = rc.getBufferObject(tileData.vertexBufferKey) {
+            BufferObject(GL_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(tileData.vertexBufferKey, bufferDataVersion) {
+            NumericArray.Floats(tileData.vertexArray)
+        }
+        drawState.elementBuffer = rc.getBufferObject(tileData.elementBufferKey) {
+            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(tileData.elementBufferKey, bufferDataVersion) {
+            NumericArray.Ints(tileData.elementArray)
+        }
+        drawState.vertexOrigin.copy(tileData.vertexOrigin)
+        drawState.boundingCenter.copy(boundingBox.center)
+        drawState.boundingRadius = boundingBox.radius
+        drawState.vertexStride = VERTEX_STRIDE * Float.SIZE_BYTES
+        drawState.enableCullFace = false
+        drawState.enableDepthTest = true
+        drawState.enableLighting = false
+        drawState.texCoordAttrib.size = 1
+        drawState.texCoordAttrib.offset = 0
+        return drawable
     }
 
     private fun emitDrawable(
@@ -238,6 +332,7 @@ class MvtBatchedPolygonTile(
         ++bufferDataVersion
         vertices.clear()
         perZColorElements.clear()
+        featureLocalRanges.clear()
 
         // Anchor at the first feature's first outer vertex. Local-Cartesian floats stay
         // small (sub-tile range) relative to ECEF magnitudes, dodging single-precision loss.
@@ -246,33 +341,50 @@ class MvtBatchedPolygonTile(
             tileData.vertexArray = FloatArray(0)
             tileData.elementArray = IntArray(0)
             tileData.colorRanges = emptyList()
+            tileData.featureElementRanges = IntArray(0)
             return
         }
         globe.geographicToCartesian(anchor.latitude, anchor.longitude, 0.0, vertexOrigin)
         tileData.vertexOrigin.copy(vertexOrigin)
 
-        // Stable sort by zOrder ascending; ties keep the MVT server's intra-layer order.
-        val sorted = if (features.size <= 1) features else features.sortedBy { it.zOrder }
-        for (f in sorted) {
+        // Stable sort by zOrder ascending; ties keep the MVT server's intra-layer order. Build
+        // an index-back-map so we can record per-feature ranges against the ORIGINAL
+        // [features] list (the order the layer hands out pickPayloads in).
+        val originalIndices = features.indices.toMutableList()
+        if (features.size > 1) originalIndices.sortBy { features[it].zOrder }
+        for (idx in originalIndices) {
+            val f = features[idx]
             if (f.outer.size < 3) continue
-            assembleFeature(globe, f)
+            assembleFeature(globe, f, idx)
         }
 
         // Concat per-(z, color) buckets into the final EBO; LinkedHashMap iteration = z-asc.
         val totalElements = perZColorElements.values.sumOf { it.size }
         val finalElements = IntArray(totalElements)
         val ranges = ArrayList<ColorRange>(perZColorElements.size)
+        val bucketGlobalOffset = HashMap<Long, Int>()
         var offset = 0
         for ((key, list) in perZColorElements) {
             if (list.size == 0) continue
             val colorPacked = (key and 0xFFFFFFFFL).toInt()
+            bucketGlobalOffset[key] = offset
             list.copyTo(finalElements, offset)
             ranges.add(ColorRange(colorPacked, offset, list.size))
             offset += list.size
         }
+        // Resolve per-feature ranges against the final EBO. `featureElementRanges[2*i]` is the
+        // offset (in indices) and `[2*i+1]` is the count. Features with no triangles emit a
+        // (0, 0) range so the pick path can skip them by checking count==0.
+        val flat = IntArray(features.size * 2)
+        for (r in featureLocalRanges) {
+            val base = bucketGlobalOffset[r.bucketKey] ?: continue
+            flat[r.featureIndex * 2] = base + r.localOffset
+            flat[r.featureIndex * 2 + 1] = r.localCount
+        }
         tileData.vertexArray = vertices.toFloatArray()
         tileData.elementArray = finalElements
         tileData.colorRanges = ranges
+        tileData.featureElementRanges = flat
 
         boundingBox.setToPoints(tileData.vertexArray, tileData.vertexArray.size, VERTEX_STRIDE)
         boundingBox.translate(tileData.vertexOrigin.x, tileData.vertexOrigin.y, tileData.vertexOrigin.z)
@@ -280,11 +392,14 @@ class MvtBatchedPolygonTile(
         // Drop the working buffers — they pin ~the same memory as the final arrays.
         vertices.shrink()
         perZColorElements.clear()
+        featureLocalRanges.clear()
     }
 
-    private fun assembleFeature(globe: Globe, feature: BatchFeature) {
+    private fun assembleFeature(globe: Globe, feature: BatchFeature, featureIndex: Int) {
         val colorPacked = packColor(feature.attributes.interiorColor)
         selectBucket(feature.zOrder, colorPacked)
+        val bucketKey = currentBucketKey
+        val localOffset = currentElements.size
 
         // Push outer ring corners; remember the base for tess to resolve ordinals later.
         topIndexBase = vertices.size / VERTEX_STRIDE
@@ -305,13 +420,19 @@ class MvtBatchedPolygonTile(
             }
         }
         runTess(globe, outer, holes, holeBases)
+
+        val count = currentElements.size - localOffset
+        if (count > 0) featureLocalRanges += FeatureLocalRange(featureIndex, bucketKey, localOffset, count)
     }
+
+    private var currentBucketKey: Long = 0L
 
     private fun selectBucket(zOrder: Int, colorPacked: Int) {
         // High 32 bits: signed-int zOrder. Low 32 bits: colorPacked treated as unsigned. The
         // `& 0xFFFFFFFFL` keeps a negative-bit-pattern color from sign-extending into the
         // zOrder half and producing collisions.
         val key = (zOrder.toLong() shl 32) or (colorPacked.toLong() and 0xFFFFFFFFL)
+        currentBucketKey = key
         currentElements = perZColorElements.getOrPut(key) { IntList() }
     }
 

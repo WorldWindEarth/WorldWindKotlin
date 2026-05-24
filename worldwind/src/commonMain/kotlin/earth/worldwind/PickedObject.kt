@@ -51,6 +51,16 @@ open class PickedObject protected constructor(
             return PickedObject(identifier, positionCopy, terrainPosition = positionCopy)
         }
 
+        /**
+         * Wrap an arbitrary [userObject] (e.g. a batched-tile sub-feature payload that doesn't
+         * correspond to a single [Renderable]). [useTerrainPosition] should be true for picks
+         * rendered through the surface compositor so depth-readback unprojection is skipped.
+         */
+        @JvmStatic @JvmOverloads
+        fun fromUserObject(
+            identifier: Int, userObject: Any, layer: Layer? = null, useTerrainPosition: Boolean = false,
+        ) = PickedObject(identifier, userObject, layer, useTerrainPosition = useTerrainPosition)
+
         @JvmStatic
         fun identifierToUniqueColor(identifier: Int, result: Color): Color {
             val r8 = identifier shr 16 and 0xFF
