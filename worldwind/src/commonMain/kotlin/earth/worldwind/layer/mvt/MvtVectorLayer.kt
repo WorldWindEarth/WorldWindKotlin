@@ -700,6 +700,35 @@ open class MvtVectorLayer(
     var detectedSchema: MvtSchemaDetector.Schema? = null
         private set
 
+    // Per-feature dynamic state read by ["feature-state", key] expressions. Keyed by the
+    // MvtPickedFeature instance handed out at pick time; values are arbitrary so callers can
+    // store booleans (hover/select), animation phase, severity, etc.
+    private val featureStates = HashMap<MvtPickedFeature, MutableMap<String, Any?>>()
+
+    /**
+     * Set dynamic feature state read by `["feature-state", key]` expressions. After
+     * mutating state for already-styled features, call [invalidate] (or wait for natural
+     * tile churn) to force re-styling — feature-state isn't continuously re-evaluated on
+     * every frame, only at tile-resolve time.
+     */
+    fun setFeatureState(feature: MvtPickedFeature, key: String, value: Any?) {
+        val map = featureStates.getOrPut(feature) { HashMap() }
+        if (value == null) map.remove(key) else map[key] = value
+        if (map.isEmpty()) featureStates.remove(feature)
+    }
+
+    /** Read all state set for [feature]. Returns null when no state has been set. */
+    fun featureState(feature: MvtPickedFeature): Map<String, Any?>? = featureStates[feature]
+
+    /**
+     * Drop all cached tiles so [toRenderables] re-runs on the next render. Use after
+     * mutating [setFeatureState] in bulk.
+     */
+    fun invalidate() {
+        tiles.clear()
+        WorldWind.requestRedraw()
+    }
+
     /**
      * Convert one decoded tile into the list of [Renderable]s the render loop iterates over.
      *
@@ -750,6 +779,14 @@ open class MvtVectorLayer(
                 // GL works the same way (each `layer` in a style document evaluates against
                 // all features independently). For hand-coded MvtStyle implementations the
                 // text rule is always null (text payload isn't carried by that interface).
+                // Per-feature pick payload. Built only when the layer is pick-enabled so styles
+                // with picking disabled don't pay for the property-map retention. Doubles as
+                // the lookup key for [featureStates] — `["feature-state", ...]` expressions
+                // see this feature's dynamic state when resolving paint.
+                val pickPayload = if (isPickEnabled)
+                    MvtPickedFeature(layer.name, feature.type, props, key)
+                else null
+                val featureState = pickPayload?.let { featureStates[it] }
                 val shapeRule: MvtStyleRule?
                 val textRule: MvtStyleRule?
                 val zOrder: Int
@@ -760,7 +797,7 @@ open class MvtVectorLayer(
                     if (shapeRule == null && textRule == null) continue
                     val ruleForZ = shapeRule ?: textRule!!
                     zOrder = ruleForZ.zOrder
-                    shapeAttrs = shapeRule?.resolve(key.z)
+                    shapeAttrs = shapeRule?.resolve(key.z, props, featureState)
                 } else {
                     shapeRule = null
                     textRule = null
@@ -771,18 +808,13 @@ open class MvtVectorLayer(
                 // Used below: matchedRule for POINT label resolution stays the textRule when
                 // present (where the text payload lives).
                 val matchedRule = textRule ?: shapeRule
-                // Per-feature pick payload. Built only when the layer is pick-enabled so styles
-                // with picking disabled don't pay for the property-map retention.
-                val pickPayload = if (isPickEnabled)
-                    MvtPickedFeature(layer.name, feature.type, props, key)
-                else null
                 when (feature.type) {
                     MvtGeometryType.POLYGON -> {
                         val attrs = shapeAttrs ?: continue
                         val rings = MvtGeometry.decodePolygons(feature, key.z, key.x, key.y, layer.extent)
                         // 3D extrusion path — collect buildings into per-attribute buckets that
                         // emit as OsmBuildingsTile renderables below.
-                        val extrusion = shapeRule?.paint?.buildExtrusion(key.z, props)
+                        val extrusion = shapeRule?.paint?.buildExtrusion(key.z, props, featureState)
                         if (extrusion != null) {
                             val (height, base) = extrusion
                             val bucket = extrusionBuckets.getOrPut(attrs.interiorColor) {
@@ -826,7 +858,7 @@ open class MvtVectorLayer(
                         if (shapeAttrs != null) {
                             // Resolve casing once per feature; emit a wider stroke at zOrder-1
                             // so it paints under the main line.
-                            val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props)
+                            val casingAttrs = shapeRule?.paint?.buildCasing(key.z, props, featureState)
                             for (line in lines) {
                                 if (line.size < 2) continue
                                 // Casing always emits to the batched path (or as its own Path
@@ -875,7 +907,7 @@ open class MvtVectorLayer(
                         if (matchedRule != null
                             && matchedRule.paint.hasText
                             && matchedRule.paint.textPlacement == MvtStyleRule.LabelPlacement.LINE) {
-                            val labelSpec = matchedRule.paint.buildText(key.z, props)
+                            val labelSpec = matchedRule.paint.buildText(key.z, props, featureState)
                             if (labelSpec != null) {
                                 // Use the source font's per-character advance widths so each
                                 // glyph is positioned by its actual on-screen extent (kerning
@@ -900,9 +932,9 @@ open class MvtVectorLayer(
                     MvtGeometryType.POINT -> {
                         if (matchedRule == null) continue
                         val labelSpec = if (matchedRule.paint.hasText)
-                            matchedRule.paint.buildText(key.z, props) else null
+                            matchedRule.paint.buildText(key.z, props, featureState) else null
                         val iconSpec = if (matchedRule.paint.hasIcon)
-                            matchedRule.paint.buildIcon(key.z, props) else null
+                            matchedRule.paint.buildIcon(key.z, props, featureState) else null
                         if (labelSpec == null && iconSpec == null) continue
                         val points = MvtGeometry.decodePoints(feature, key.z, key.x, key.y, layer.extent)
                         // Shield path: when a rule has BOTH icon and text, render them as

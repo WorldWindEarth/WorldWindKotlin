@@ -105,6 +105,28 @@ object MvtExpressionParser {
             "to-number" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.ToNumber(e) } }
             "to-string" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.ToString(e) } }
             "to-boolean" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.ToBoolean(e) } }
+            "rgb" -> {
+                val r = args.getOrNull(0)?.let { parseAny(it, parseColor) } ?: return null
+                val g = args.getOrNull(1)?.let { parseAny(it, parseColor) } ?: return null
+                val b = args.getOrNull(2)?.let { parseAny(it, parseColor) } ?: return null
+                MvtExpression.Rgb(r, g, b)
+            }
+            "rgba" -> {
+                val r = args.getOrNull(0)?.let { parseAny(it, parseColor) } ?: return null
+                val g = args.getOrNull(1)?.let { parseAny(it, parseColor) } ?: return null
+                val b = args.getOrNull(2)?.let { parseAny(it, parseColor) } ?: return null
+                val a = args.getOrNull(3)?.let { parseAny(it, parseColor) } ?: return null
+                MvtExpression.Rgba(r, g, b, a)
+            }
+            "to-color" -> args.firstOrNull()?.let { parseAny(it, parseColor) }
+            "concat" -> MvtExpression.Concat(args.mapNotNull { parseAny(it, parseColor) })
+            "downcase" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.Downcase(e) } }
+            "upcase" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.Upcase(e) } }
+            "length" -> args.firstOrNull()?.let { parseAny(it, parseColor)?.let { e -> MvtExpression.Length(e) } }
+            "feature-state" -> {
+                val key = (args.firstOrNull() as? JsonPrimitive)?.contentOrNull ?: return null
+                MvtExpression.FeatureState(key)
+            }
             else -> null
         }
     }
@@ -236,7 +258,13 @@ object MvtExpressionParser {
                 val base = (el.getOrNull(1) as? JsonPrimitive)?.doubleOrNull ?: 1.0
                 MvtExpression.Interpolation.Exponential(base)
             }
-            // cubic-bezier not supported
+            "cubic-bezier" -> {
+                val x1 = (el.getOrNull(1) as? JsonPrimitive)?.doubleOrNull ?: return null
+                val y1 = (el.getOrNull(2) as? JsonPrimitive)?.doubleOrNull ?: return null
+                val x2 = (el.getOrNull(3) as? JsonPrimitive)?.doubleOrNull ?: return null
+                val y2 = (el.getOrNull(4) as? JsonPrimitive)?.doubleOrNull ?: return null
+                MvtExpression.Interpolation.CubicBezier(x1, y1, x2, y2)
+            }
             else -> null
         }
     }

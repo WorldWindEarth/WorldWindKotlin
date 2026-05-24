@@ -89,9 +89,9 @@ class MvtExpressionParserTest {
     }
 
     @Test fun unsupportedExpressionReturnsNull() {
-        // feature-state is in the not-supported set.
+        // Unknown operator → parser returns null.
         val expr = MvtExpressionParser.parseFloat(parse("""
-            ["feature-state", "highlight"]
+            ["totally-not-an-operator", 1, 2]
         """))
         assertNull(expr)
     }

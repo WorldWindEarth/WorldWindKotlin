@@ -45,8 +45,11 @@ class MvtStyleRule(
      *
      * [properties] feeds `["get", key]` / `["case", …, ["get", "kind"], …]` expressions.
      */
-    fun resolve(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes =
-        paint.build(zoom, properties)
+    fun resolve(
+        zoom: Int,
+        properties: Map<String, Any?> = emptyMap(),
+        featureState: Map<String, Any?>? = null,
+    ): ShapeAttributes = paint.build(zoom, properties, featureState)
 
     fun matches(
         layerName: String,
@@ -184,17 +187,25 @@ class MvtStyleRule(
         val hasExtrusion: Boolean get() = fillExtrusionHeight != null
 
         /** Resolve `(height, base)` in metres for one feature; null if extrusion isn't set. */
-        fun buildExtrusion(zoom: Int, properties: Map<String, Any?> = emptyMap()): Pair<Double, Double>? {
+        fun buildExtrusion(
+            zoom: Int,
+            properties: Map<String, Any?> = emptyMap(),
+            featureState: Map<String, Any?>? = null,
+        ): Pair<Double, Double>? {
             val expr = fillExtrusionHeight ?: return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
             val height = expr.evaluate(ctx)?.toDouble() ?: return null
             if (height <= 0.0) return null
             val base = fillExtrusionBase?.evaluate(ctx)?.toDouble() ?: 0.0
             return height to base
         }
 
-        fun build(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes {
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+        fun build(
+            zoom: Int,
+            properties: Map<String, Any?> = emptyMap(),
+            featureState: Map<String, Any?>? = null,
+        ): ShapeAttributes {
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
             return ShapeAttributes().apply {
                 isDrawInterior = fillColor != null
                 isDrawOutline = lineColor != null && lineWidth != null
@@ -225,12 +236,16 @@ class MvtStyleRule(
          * arrive as String / Long / Double / Boolean, all of which have sensible string
          * forms for label use.
          */
-        fun buildText(zoom: Int, properties: Map<String, Any?>): LabelSpec? {
+        fun buildText(
+            zoom: Int,
+            properties: Map<String, Any?>,
+            featureState: Map<String, Any?>? = null,
+        ): LabelSpec? {
             if (textField == null) return null
             val raw = properties[textField] ?: return null
             val rawText = raw.toString().trim()
             if (rawText.isEmpty()) return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
             // Resolve all PaintSpec fields up front — references inside `apply { }` would
             // shadow against TextAttributes' properties of the same names (e.g. `textColor`
             // becomes `this.textColor: Color`, not `this@PaintSpec.textColor: MvtExpression`).
@@ -267,9 +282,13 @@ class MvtStyleRule(
          * shape at a slightly lower z-order than [build]'s result, so the wider casing paints
          * underneath the narrower fill.
          */
-        fun buildCasing(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes? {
+        fun buildCasing(
+            zoom: Int,
+            properties: Map<String, Any?> = emptyMap(),
+            featureState: Map<String, Any?>? = null,
+        ): ShapeAttributes? {
             if (!hasCasing) return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
             val color = lineCasingColor!!.evaluate(ctx) ?: return null
             val width = lineCasingWidth!!.evaluate(ctx) ?: return null
             if (width <= 0f) return null
@@ -288,9 +307,13 @@ class MvtStyleRule(
          * unset, or when the resolved icon name (after `{property}` substitution) is empty.
          * Caller is responsible for looking up the name in an [MvtSpriteAtlas].
          */
-        fun buildIcon(zoom: Int, properties: Map<String, Any?>): IconSpec? {
+        fun buildIcon(
+            zoom: Int,
+            properties: Map<String, Any?>,
+            featureState: Map<String, Any?>? = null,
+        ): IconSpec? {
             val expr = iconImage ?: return null
-            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState)
             val rawName = expr.evaluate(ctx) ?: return null
             val name = substituteTemplate(rawName, properties).takeIf { it.isNotEmpty() } ?: return null
             val size = iconSize?.evaluate(ctx) ?: 1f

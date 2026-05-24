@@ -29,8 +29,16 @@ import kotlin.math.pow
  */
 sealed class MvtExpression<out T> {
 
-    /** Tile-zoom + feature properties. Construct once per feature-and-frame. */
-    class EvalContext(val zoom: Double, val properties: Map<String, Any?>) {
+    /**
+     * Tile-zoom + feature properties + optional feature state. Construct once per feature
+     * and frame. [featureState] surfaces dynamic per-feature data (hover/select highlight,
+     * pulse animation phase) — read by [FeatureState] expressions.
+     */
+    class EvalContext(
+        val zoom: Double,
+        val properties: Map<String, Any?>,
+        val featureState: Map<String, Any?>? = null,
+    ) {
         companion object {
             /** Zoom = 0, no properties — for constant-only expressions in test code. */
             val EMPTY = EvalContext(0.0, emptyMap())
@@ -215,6 +223,12 @@ sealed class MvtExpression<out T> {
     sealed class Interpolation {
         object Linear : Interpolation()
         class Exponential(val base: Double) : Interpolation()
+        /**
+         * Cubic Bezier control points (x1, y1, x2, y2) — same semantics as Mapbox's
+         * `["cubic-bezier", x1, y1, x2, y2]`. Implemented via Newton-Raphson over the X
+         * coordinate to find the curve parameter t at the requested input.
+         */
+        class CubicBezier(val x1: Double, val y1: Double, val x2: Double, val y2: Double) : Interpolation()
     }
 
     /**
@@ -244,6 +258,10 @@ sealed class MvtExpression<out T> {
                             if (b == 1.0) (x - loZ) / (hiZ - loZ)
                             else (b.pow(x - loZ) - 1.0) / (b.pow(hiZ - loZ) - 1.0)
                         }
+                        is Interpolation.CubicBezier -> {
+                            val linear = (x - loZ) / (hiZ - loZ)
+                            cubicBezierY(linear, mode.x1, mode.y1, mode.x2, mode.y2)
+                        }
                     }
                     val lo = loE.evaluate(ctx) ?: return null
                     val hi = hiE.evaluate(ctx) ?: return null
@@ -252,6 +270,85 @@ sealed class MvtExpression<out T> {
             }
             return stops.last().second.evaluate(ctx)
         }
+    }
+
+    // ---- Color constructors ----------------------------------------------------
+
+    /** `["rgb", r, g, b]` — RGB channels in 0..255; produces a Color with alpha = 1. */
+    class Rgb(
+        val r: MvtExpression<*>, val g: MvtExpression<*>, val b: MvtExpression<*>,
+    ) : MvtExpression<Color>() {
+        override fun evaluate(ctx: EvalContext): Color? {
+            val red = numberOrNull(r.evaluate(ctx)) ?: return null
+            val green = numberOrNull(g.evaluate(ctx)) ?: return null
+            val blue = numberOrNull(b.evaluate(ctx)) ?: return null
+            return Color(
+                (red / 255.0).toFloat().coerceIn(0f, 1f),
+                (green / 255.0).toFloat().coerceIn(0f, 1f),
+                (blue / 255.0).toFloat().coerceIn(0f, 1f),
+                1f,
+            )
+        }
+    }
+
+    /** `["rgba", r, g, b, a]` — channels in 0..255 for RGB and 0..1 for alpha. */
+    class Rgba(
+        val r: MvtExpression<*>, val g: MvtExpression<*>,
+        val b: MvtExpression<*>, val a: MvtExpression<*>,
+    ) : MvtExpression<Color>() {
+        override fun evaluate(ctx: EvalContext): Color? {
+            val red = numberOrNull(r.evaluate(ctx)) ?: return null
+            val green = numberOrNull(g.evaluate(ctx)) ?: return null
+            val blue = numberOrNull(b.evaluate(ctx)) ?: return null
+            val alpha = numberOrNull(a.evaluate(ctx)) ?: return null
+            return Color(
+                (red / 255.0).toFloat().coerceIn(0f, 1f),
+                (green / 255.0).toFloat().coerceIn(0f, 1f),
+                (blue / 255.0).toFloat().coerceIn(0f, 1f),
+                alpha.toFloat().coerceIn(0f, 1f),
+            )
+        }
+    }
+
+    // ---- String operations -----------------------------------------------------
+
+    /** `["concat", arg, arg, …]` — joins string-coerced operands. */
+    class Concat(val parts: List<MvtExpression<*>>) : MvtExpression<String>() {
+        override fun evaluate(ctx: EvalContext): String {
+            val sb = StringBuilder()
+            for (p in parts) p.evaluate(ctx)?.let { sb.append(it.toString()) }
+            return sb.toString()
+        }
+    }
+
+    class Downcase(val child: MvtExpression<*>) : MvtExpression<String>() {
+        override fun evaluate(ctx: EvalContext): String? = child.evaluate(ctx)?.toString()?.lowercase()
+    }
+
+    class Upcase(val child: MvtExpression<*>) : MvtExpression<String>() {
+        override fun evaluate(ctx: EvalContext): String? = child.evaluate(ctx)?.toString()?.uppercase()
+    }
+
+    /** Length in characters of a string or number of items in an array. */
+    class Length(val child: MvtExpression<*>) : MvtExpression<Double>() {
+        override fun evaluate(ctx: EvalContext): Double? = when (val v = child.evaluate(ctx)) {
+            null -> null
+            is String -> v.length.toDouble()
+            is List<*> -> v.size.toDouble()
+            else -> null
+        }
+    }
+
+    // ---- Feature state ---------------------------------------------------------
+
+    /**
+     * `["feature-state", key]` — reads dynamic per-feature state set on the layer at
+     * runtime (typically for hover / select highlight). Looks up [key] in
+     * [EvalContext.featureState] (set per-feature via [MvtVectorLayer.setFeatureState]).
+     * Returns null when no state is set for the current feature.
+     */
+    class FeatureState(val key: String) : MvtExpression<Any?>() {
+        override fun evaluate(ctx: EvalContext): Any? = ctx.featureState?.get(key)
     }
 
     // ---- Coercion --------------------------------------------------------------
@@ -318,6 +415,33 @@ sealed class MvtExpression<out T> {
         // Used by ToNumber's "use natural log for fractional bases" path; kept here so the
         // companion is the single home for shared math.
         @Suppress("unused") internal fun ln2(): Double = ln(2.0)
+
+        /**
+         * Solve `y(t)` for the cubic-bezier curve with endpoints (0,0)…(1,1) and control
+         * points (x1,y1) and (x2,y2) at input `x`. Uses Newton-Raphson on the X coordinate
+         * (≤ 8 iterations) to find the curve parameter t, then evaluates the Y polynomial.
+         * Output is clamped to [0, 1] — caller is responsible for re-mapping to value range.
+         */
+        internal fun cubicBezierY(x: Double, x1: Double, y1: Double, x2: Double, y2: Double): Double {
+            // Bezier as polynomial: P(t) = 3(1-t)²t·c1 + 3(1-t)t²·c2 + t³
+            // Coefficients pulled out for both axes.
+            val ax = 3.0 * x1 - 3.0 * x2 + 1.0
+            val bx = -6.0 * x1 + 3.0 * x2
+            val cx = 3.0 * x1
+            val ay = 3.0 * y1 - 3.0 * y2 + 1.0
+            val by = -6.0 * y1 + 3.0 * y2
+            val cy = 3.0 * y1
+            // Newton-Raphson on x → t.
+            var t = x.coerceIn(0.0, 1.0)
+            for (i in 0 until 8) {
+                val px = ((ax * t + bx) * t + cx) * t - x
+                if (kotlin.math.abs(px) < 1e-6) break
+                val dx = (3.0 * ax * t + 2.0 * bx) * t + cx
+                if (kotlin.math.abs(dx) < 1e-6) break
+                t -= px / dx
+            }
+            return (((ay * t + by) * t + cy) * t).coerceIn(0.0, 1.0)
+        }
     }
 }
 
