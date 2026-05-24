@@ -86,6 +86,19 @@ class MvtStyleRule(
         // ----- Shape paint -----
         val fillColor: MvtExpression<Color>? = null,
         val fillOpacity: MvtExpression<Float>? = null,
+        /**
+         * Mapbox `fill-extrusion-height` — when set, polygon features are extruded as 3D
+         * boxes from the ground up to this height (meters). Routed through
+         * [earth.worldwind.layer.buildings.OsmBuildingsTile]. Mutually exclusive with the
+         * flat-fill path: features matching a rule with extrusion bypass [MvtBatchedPolygonTile].
+         */
+        val fillExtrusionHeight: MvtExpression<Float>? = null,
+        /**
+         * Optional `fill-extrusion-base` — height of the building's base above terrain
+         * (meters). Defaults to 0 = ground-rooted. Use for upper-floor extrusions (tower on
+         * a podium).
+         */
+        val fillExtrusionBase: MvtExpression<Float>? = null,
         val lineColor: MvtExpression<Color>? = null,
         val lineWidth: MvtExpression<Float>? = null,
         val lineOpacity: MvtExpression<Float>? = null,
@@ -166,6 +179,19 @@ class MvtStyleRule(
 
         /** True when this rule has a line casing — emits a second stroke under the line. */
         val hasCasing: Boolean get() = lineCasingColor != null && lineCasingWidth != null
+
+        /** True when this rule emits 3D extruded polygons (e.g. buildings). */
+        val hasExtrusion: Boolean get() = fillExtrusionHeight != null
+
+        /** Resolve `(height, base)` in metres for one feature; null if extrusion isn't set. */
+        fun buildExtrusion(zoom: Int, properties: Map<String, Any?> = emptyMap()): Pair<Double, Double>? {
+            val expr = fillExtrusionHeight ?: return null
+            val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)
+            val height = expr.evaluate(ctx)?.toDouble() ?: return null
+            if (height <= 0.0) return null
+            val base = fillExtrusionBase?.evaluate(ctx)?.toDouble() ?: 0.0
+            return height to base
+        }
 
         fun build(zoom: Int, properties: Map<String, Any?> = emptyMap()): ShapeAttributes {
             val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties)

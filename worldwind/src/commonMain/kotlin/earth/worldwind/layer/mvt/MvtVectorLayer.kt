@@ -8,6 +8,8 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.layer.AbstractLayer
+import earth.worldwind.layer.buildings.OsmBuilding
+import earth.worldwind.layer.buildings.OsmBuildingsTile
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
@@ -710,6 +712,8 @@ open class MvtVectorLayer(
         val out = ArrayList<Renderable>()
         val polygonBatch = if (useBatchedRendering) ArrayList<MvtBatchedPolygonTile.BatchFeature>() else null
         val lineBatch = if (useBatchedRendering) ArrayList<MvtBatchedLineTile.BatchLineFeature>() else null
+        // Per-(color, attributes) extruded-building buckets — each becomes one OsmBuildingsTile.
+        val extrusionBuckets = HashMap<Int, ExtrusionBucket>()
 
         // Per-feature Path collection, only populated in non-batched mode; kept ordered so
         // we can stable-sort by z-order before adding to [out].
@@ -765,6 +769,27 @@ open class MvtVectorLayer(
                     MvtGeometryType.POLYGON -> {
                         val attrs = shapeAttrs ?: continue
                         val rings = MvtGeometry.decodePolygons(feature, key.z, key.x, key.y, layer.extent)
+                        // 3D extrusion path — collect buildings into per-attribute buckets that
+                        // emit as OsmBuildingsTile renderables below.
+                        val extrusion = shapeRule?.paint?.buildExtrusion(key.z, props)
+                        if (extrusion != null) {
+                            val (height, base) = extrusion
+                            val bucketKey = attrs.interiorColor.hashCode()
+                            val bucket = extrusionBuckets.getOrPut(bucketKey) {
+                                ExtrusionBucket(ShapeAttributes(attrs))
+                            }
+                            for (poly in rings) {
+                                if (poly.outer.size < 3) continue
+                                bucket.buildings += OsmBuilding(
+                                    id = "mvt-${key.z}-${key.x}-${key.y}-${bucket.buildings.size}",
+                                    outerRing = poly.outer,
+                                    innerRings = poly.holes,
+                                    height = height,
+                                    minHeight = base,
+                                )
+                            }
+                            continue
+                        }
                         for (poly in rings) {
                             if (poly.outer.size < 3) continue
                             if (polygonBatch != null) {
@@ -948,6 +973,18 @@ open class MvtVectorLayer(
             for ((_, path) in lineRenderables) out += path
         }
 
+        // 3D extruded buildings — one OsmBuildingsTile per (color) bucket, inserted BEFORE
+        // labels so labels paint on top.
+        for (bucket in extrusionBuckets.values) {
+            if (bucket.buildings.isEmpty()) continue
+            out += OsmBuildingsTile(
+                buildings = bucket.buildings,
+                attributes = bucket.attributes,
+                useOsmColors = false,
+                displayName = "mvt-buildings-${key.z}-${key.x}-${key.y}",
+            )
+        }
+
         // Labels go last in the [out] list so they paint on top of every shape in the tile,
         // and they go through [MvtLabelGroup] so the collision pass runs over the full set.
         if (tileLabels.isNotEmpty()) {
@@ -959,6 +996,10 @@ open class MvtVectorLayer(
             )
         }
         return out
+    }
+
+    private class ExtrusionBucket(val attributes: ShapeAttributes) {
+        val buildings = ArrayList<OsmBuilding>()
     }
 
     /** Slippy-map tile coordinate triple used as the [tiles] LRU key. */

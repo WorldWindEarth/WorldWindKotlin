@@ -109,6 +109,19 @@ class MvtPaintBuilder {
     private var lineCasingColor: MvtExpression<Color>? = null
     private var lineCasingWidth: MvtExpression<Float>? = null
     private var lineDashArray: FloatArray? = null
+    private var fillExtrusionHeight: MvtExpression<Float>? = null
+    private var fillExtrusionBase: MvtExpression<Float>? = null
+
+    /**
+     * Constant 3D-extrusion shorthand. Polygon features matching this rule extrude to
+     * [heightMeters] above terrain (optionally starting [baseMeters] above ground). Renders
+     * via OsmBuildingsTile — same path the OSM Buildings layer uses, so styling reads as
+     * `fill-extrusion-height` in Mapbox terms.
+     */
+    fun extrusion(heightMeters: Float, baseMeters: Float = 0f) {
+        fillExtrusionHeight = MvtZoomInterp.constant(heightMeters)
+        fillExtrusionBase = if (baseMeters > 0f) MvtZoomInterp.constant(baseMeters) else null
+    }
 
     /**
      * Mapbox `line-dasharray` shorthand. Alternating dash + gap lengths (e.g.
@@ -193,6 +206,8 @@ class MvtPaintBuilder {
     internal fun build(): MvtStyleRule.PaintSpec = MvtStyleRule.PaintSpec(
         fillColor = fillColor,
         fillOpacity = fillOpacity,
+        fillExtrusionHeight = fillExtrusionHeight,
+        fillExtrusionBase = fillExtrusionBase,
         lineColor = lineColor,
         lineWidth = lineWidth,
         lineOpacity = lineOpacity,
