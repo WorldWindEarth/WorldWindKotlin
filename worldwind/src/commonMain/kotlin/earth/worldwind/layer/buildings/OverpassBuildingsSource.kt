@@ -1,14 +1,17 @@
 package earth.worldwind.layer.buildings
 
-import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
+import earth.worldwind.layer.source.CachedFeatureRow
+import earth.worldwind.layer.source.TiledFeatureSource
 import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
@@ -37,7 +40,7 @@ import kotlin.time.Duration.Companion.seconds
 class OverpassBuildingsSource(
     val endpoint: String = "https://overpass-api.de/api/interpreter",
     val timeout: Int = 25,
-) : OsmBuildingsSource {
+) : TiledFeatureSource {
 
     // One shared client per source. Constructing a fresh DefaultHttpClient per fetch defeats
     // OkHttp's connection pool + DNS cache, allocating a full dispatcher/pool/plugin chain per
@@ -50,7 +53,12 @@ class OverpassBuildingsSource(
         )
     }
 
-    override suspend fun fetchBuildings(sector: Sector): List<OsmBuilding> {
+    override suspend fun fetchTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? {
+        val buildings = fetchBuildings(sector)
+        return buildings.mapNotNull(OsmBuildingCodec::encode).asFlow()
+    }
+
+    private suspend fun fetchBuildings(sector: Sector): List<OsmBuilding> {
         val south = sector.minLatitude.inDegrees
         val west = sector.minLongitude.inDegrees
         val north = sector.maxLatitude.inDegrees
@@ -116,11 +124,15 @@ class OverpassBuildingsSource(
     @Serializable
     private data class OverpassNode(val lat: Double, val lon: Double)
 
-    private companion object {
-        val JSON = Json { ignoreUnknownKeys = true; isLenient = true }
+    companion object {
+        /** Web-service type tag — written into `gpkg_web_service` when wiring a cache so
+         *  `ContentManager.openLayer<OsmBuildingsLayer>` can reconstruct the source on subsequent loads. */
+        const val SERVICE_TYPE = "OsmBuildings"
+
+        private val JSON = Json { ignoreUnknownKeys = true; isLenient = true }
 
         /** Shoelace signed-area sign in lon/lat space (positive = CCW). Only the sign matters. */
-        fun isClockwise(ring: List<Position>): Boolean {
+        internal fun isClockwise(ring: List<Position>): Boolean {
             var sum = 0.0
             for (i in ring.indices) {
                 val a = ring[i]

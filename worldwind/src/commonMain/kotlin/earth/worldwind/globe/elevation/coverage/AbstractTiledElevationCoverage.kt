@@ -5,6 +5,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
+import earth.worldwind.globe.elevation.CacheReadableElevationSourceFactory
 import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISSING_DATA
 import earth.worldwind.util.AbsentResourceList
@@ -17,6 +18,7 @@ import earth.worldwind.util.math.mod
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
 abstract class AbstractTiledElevationCoverage(
@@ -48,9 +50,24 @@ abstract class AbstractTiledElevationCoverage(
      */
     var retrievalQueueSize = 4
     /**
-     * The list of elevation retrievals in progress.
+     * The list of network elevation retrievals in progress.
      */
     protected val currentRetrievals = mutableSetOf<Long>()
+    /**
+     * Concurrent cache-only reads allowed. Generous vs [retrievalQueueSize]: cache reads are
+     * cheap local I/O and must get their own budget separate from the network-retrieval budget,
+     * so a slow network DEM fetch holding the network slots can't stall cached tiles behind it.
+     */
+    var cacheRetrievalQueueSize = 16
+    /**
+     * The list of cache-only reads in progress.
+     */
+    protected val cacheRetrievals = mutableSetOf<Long>()
+    /**
+     * Keys whose cache-only read already missed, so the next [fetchTileArray] routes them
+     * straight to the network path instead of re-reading the cache. Cleared on success / [clear].
+     */
+    protected val cacheCheckedKeys = mutableSetOf<Long>()
     protected var coverageCache = LongLruMemoryCache<ShortArray>(1024 * 1024 * 64)
     protected var isRetrievalEnabled = false
     protected val absentResourceList = AbsentResourceList<Long>(3, 5.seconds)
@@ -71,6 +88,8 @@ abstract class AbstractTiledElevationCoverage(
     override fun clear() {
         mainScope.coroutineContext.cancelChildren() // Cancel all async jobs but keep scope reusable
         currentRetrievals.clear()
+        cacheRetrievals.clear()
+        cacheCheckedKeys.clear()
         coverageCache.clear()
         absentResourceList.clear()
         updateTimestamp()
@@ -265,10 +284,43 @@ abstract class AbstractTiledElevationCoverage(
         val key = tileMatrix.tileKey(row, column)
         return coverageCache[key] ?: run {
             // Ignore retrieval of already requested or marked as absent tiles
-            if (isRetrievalEnabled && currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(key)
-                && !absentResourceList.isResourceAbsent(key)) {
-                currentRetrievals += key
-                mainScope.launch { retrieveTileArray(key, tileMatrix, row, column) }
+            if (isRetrievalEnabled && !absentResourceList.isResourceAbsent(key)
+                && !currentRetrievals.contains(key) && !cacheRetrievals.contains(key)) {
+                val cacheFactory = elevationSourceFactory as? CacheReadableElevationSourceFactory
+                if (cacheFactory != null && !cacheCheckedKeys.contains(key)) {
+                    // Phase 1: cache-only read on its own (generous) budget, so a slow network
+                    // DEM fetch holding the network slots can't stall cached tiles behind it.
+                    // A hit renders next frame (same latency as before); a miss is recorded so
+                    // the next frame falls through to the network path below.
+                    if (cacheRetrievals.size < cacheRetrievalQueueSize) {
+                        cacheRetrievals += key
+                        mainScope.launch {
+                            try {
+                                val cached = cacheFactory.readCachedTileArray(tileMatrix, row, column)
+                                if (cached != null) retrievalSucceeded(key, cached) else cacheMissed(key)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Throwable) {
+                                cacheMissed(key)
+                            } finally {
+                                cacheRetrievals -= key
+                            }
+                        }
+                    }
+                } else if (currentRetrievals.size < retrievalQueueSize) {
+                    // Phase 2: network retrieval — cache miss already confirmed, or the factory
+                    // isn't cache-backed. Throttled by [retrievalQueueSize].
+                    currentRetrievals += key
+                    mainScope.launch {
+                        try {
+                            retrieveTileArray(key, tileMatrix, row, column)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Throwable) {
+                            retrievalFailed(key)
+                        }
+                    }
+                }
             }
             null
         }
@@ -280,6 +332,7 @@ abstract class AbstractTiledElevationCoverage(
         coverageCache.put(key, value, value.size * 2)
         absentResourceList.unmarkResourceAbsent(key)
         currentRetrievals -= key
+        cacheCheckedKeys -= key // re-check the cache if this tile is fetched again after eviction
         updateTimestamp()
         WorldWind.requestRedraw()
     }
@@ -287,6 +340,17 @@ abstract class AbstractTiledElevationCoverage(
     protected fun retrievalFailed(key: Long) {
         absentResourceList.markResourceAbsent(key)
         currentRetrievals -= key
+    }
+
+    /** Records a cache-only read miss. The timestamp bump trips the tessellator's
+     *  heightTimestamp gate so [earth.worldwind.globe.terrain.TerrainTile.prepare]
+     *  actually re-runs `getElevationGrid` → [fetchTileArray] next frame and starts
+     *  Phase 2. Without the bump the redraw fires but the gate skips the grid query
+     *  and terrain stays flat until the camera moves. */
+    protected fun cacheMissed(key: Long) {
+        cacheCheckedKeys += key
+        updateTimestamp()
+        WorldWind.requestRedraw()
     }
 
     protected open fun readHeightGrid(

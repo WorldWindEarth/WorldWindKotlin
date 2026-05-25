@@ -70,6 +70,56 @@ object GeoTiffWriter {
         return view.asByteArray()
     }
 
+    /**
+     * Encode a `width × height` grid of 16-bit-unsigned elevation samples (row-major,
+     * top-row first) into a TIFF byte array. Codes are 0..65535. Used by the cross-platform
+     * elevation cache to store Int16-shaped tiles on JS / iOS, where PNG-16 isn't
+     * cross-platform available.
+     */
+    fun writeUint16GrayscaleTiff(pixels: IntArray, width: Int, height: Int): ByteArray {
+        require(pixels.size == width * height) {
+            "Expected ${width * height} samples for ${width}x$height, got ${pixels.size}"
+        }
+        val ifdEntryCount = 11
+        val ifdSize = 2 + ifdEntryCount * 12 + 4
+        val headerSize = 8
+        val ifdOffset = headerSize
+        val stripOffset = headerSize + ifdSize
+        val stripByteCount = width * height * 2
+        val totalSize = stripOffset + stripByteCount
+        val view = BinaryDataView(ByteArray(totalSize))
+        val le = true
+
+        // Header.
+        view.setUint16(0, 0x4949, le) /* II */
+        view.setUint16(2, 42, le)
+        view.setUint32(4, ifdOffset, le)
+
+        // IFD.
+        var off = ifdOffset
+        view.setUint16(off, ifdEntryCount, le); off += 2
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.IMAGE_WIDTH, width, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.IMAGE_LENGTH, height, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.BITS_PER_SAMPLE, 16, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.COMPRESSION, TiffConstants.Compression.UNCOMPRESSED, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.PHOTOMETRIC_INTERPRETATION, 1, le) /* BlackIsZero */
+        off = writeLongEntry(view, off, TiffConstants.IFDTag.STRIP_OFFSETS, stripOffset, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.SAMPLES_PER_PIXEL, 1, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.ROWS_PER_STRIP, height, le)
+        off = writeLongEntry(view, off, TiffConstants.IFDTag.STRIP_BYTE_COUNTS, stripByteCount, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.PLANAR_CONFIGURATION, 1, le)
+        off = writeShortEntry(view, off, TiffConstants.IFDTag.SAMPLE_FORMAT, TiffConstants.SampleFormat.UNSIGNED, le)
+        view.setUint32(off, 0, le)
+
+        // Strip data — low 16 bits of each int are written little-endian.
+        var p = stripOffset
+        for (i in pixels.indices) {
+            view.setUint16(p, pixels[i] and 0xFFFF, le)
+            p += 2
+        }
+        return view.asByteArray()
+    }
+
     private fun writeShortEntry(view: BinaryDataView, off: Int, tag: Int, value: Int, le: Boolean): Int {
         view.setUint16(off, tag, le)
         view.setUint16(off + 2, TiffConstants.Type.SHORT, le)

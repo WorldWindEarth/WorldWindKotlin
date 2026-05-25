@@ -30,6 +30,7 @@ import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.Image
 import org.w3c.dom.ImageBitmap
 import org.w3c.dom.url.URL
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
 actual open class RenderResourceCache(
@@ -99,9 +100,17 @@ actual open class RenderResourceCache(
                 imageSource.isImageFactory -> {
                     currentRetrievals += imageSource
                     mainScope.launch {
-                        imageSource.asImageFactory().createImage()?.let { retrievalSucceeded(imageSource, options, it) }
-                            ?: retrievalFailed(imageSource)
-                        currentRetrievals -= imageSource
+                        try {
+                            imageSource.asImageFactory().createImage()?.let { retrievalSucceeded(imageSource, options, it) }
+                                ?: retrievalFailed(imageSource)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Throwable) {
+                            log(WARN, "Image retrieval failed ($imageSource): ${e.message}")
+                            retrievalFailed(imageSource)
+                        } finally {
+                            currentRetrievals -= imageSource
+                        }
                     }
                 }
             }
@@ -148,7 +157,17 @@ actual open class RenderResourceCache(
             val postprocessor = imageSource.postprocessor
             if (postprocessor != null && !postprocessorExecuted) {
                 postprocessorExecuted = true // Prevent cyclic processing due to src modification inside postprocessing.
-                mainScope.launch { postprocessor.process(image) } // Apply image transformation.
+                mainScope.launch {
+                    try {
+                        postprocessor.process(image)
+                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        log(WARN, "Image postprocessor failed ($imageSource): ${e.message}")
+                        retrievalFailed(imageSource)
+                        currentRetrievals -= imageSource
+                    }
+                }
             } else {
                 retrievalSucceeded(imageSource, options, image) // Consume original or processed image as retrieved
                 currentRetrievals -= imageSource

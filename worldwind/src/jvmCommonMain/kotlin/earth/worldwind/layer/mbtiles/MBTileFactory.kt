@@ -5,12 +5,13 @@ import com.j256.ormlite.dao.DaoManager
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.ContentEntry
 import earth.worldwind.layer.mercator.MercatorImageTile
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
-import earth.worldwind.util.CacheTileFactory
 import earth.worldwind.util.Level
+import earth.worldwind.util.TileFactory
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.ormlite.initConnection
@@ -23,7 +24,7 @@ expect fun buildImageSource(
     tilesDao: Dao<MBTiles, *>, readOnly: Boolean, contentKey: String, zoom: Int, column: Int, row: Int, imageFormat: String?
 ): ImageSource
 
-open class MBTileFactory(final override val contentPath: String, val isReadOnly: Boolean) : CacheTileFactory {
+open class MBTileFactory(override val contentPath: String, val isReadOnly: Boolean) : TileFactory, ContentEntry {
     protected val connectionSource = initConnection(contentPath, isReadOnly)
     protected val tilesDao = DaoManager.createDao(connectionSource, MBTiles::class.java)
     protected val metadataDao: Dao<MBTilesMetadata, String> = DaoManager.createDao(connectionSource, MBTilesMetadata::class.java)
@@ -48,15 +49,13 @@ open class MBTileFactory(final override val contentPath: String, val isReadOnly:
 
     fun shutdown() = connectionSource.close()
 
-    override suspend fun lastModifiedDate() = withContext(Dispatchers.IO) {
+    override suspend fun lastModifiedDate(): Instant = withContext(Dispatchers.IO) {
         Instant.fromEpochMilliseconds(contentFile.lastModified())
     }
 
-    override suspend fun contentSize() = withContext(Dispatchers.IO) { contentFile.length() } // One file should contain one map
+    override suspend fun contentSize(): Long = withContext(Dispatchers.IO) { contentFile.length() } // One file should contain one map
 
-    /** MBTiles spec lacks per-tile timestamps — eviction not supported. Setting a non-unbounded
-     *  policy logs once so the caller knows the cap won't apply. */
-    override var evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED
+    var evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED
         set(value) {
             if (!value.isUnbounded && field.isUnbounded) {
                 logMessage(WARN, "MBTileFactory", "evictionPolicy",
@@ -65,9 +64,9 @@ open class MBTileFactory(final override val contentPath: String, val isReadOnly:
             field = value
         }
 
-    override suspend fun evict() {}
+    suspend fun evict() {}
 
-    override suspend fun clearContent(deleteMetadata: Boolean) {
+    override suspend fun clearEntry(deleteMetadata: Boolean) {
         withContext(Dispatchers.IO) {
             if (isReadOnly) error("Database is readonly!")
             if (deleteMetadata) {

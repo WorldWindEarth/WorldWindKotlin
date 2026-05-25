@@ -26,7 +26,6 @@ object MBTilesLayerFactory {
         )
         MercatorTiledImageLayer(tileFactory.contentKey, MercatorTiledSurfaceImage(tileFactory, levelSet).apply {
             if (tileFactory.type != "overlay") imageOptions = ImageOptions(ImageConfig.RGB_565)
-            cacheTileFactory = tileFactory
         })
     }
 }

@@ -12,8 +12,8 @@ import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
 /**
  * Generates elevations from OGC Web Map Service (WMS) version 1.3.0.
  */
-open class WmsElevationCoverage private constructor(
-    override val serviceAddress: String, override val coverageName: String, override  val outputFormat: String,
+open class WmsElevationCoverage(
+    override val serviceAddress: String, override val coverageName: String, override val outputFormat: String,
     tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
 ): TiledElevationCoverage(tileMatrixSet, elevationSourceFactory), WebElevationCoverage {
     override val serviceType = SERVICE_TYPE
@@ -48,7 +48,7 @@ open class WmsElevationCoverage private constructor(
          * @param sector bounding sector
          * @param resolution the target resolution in angular value of latitude per texel
          */
-        private fun buildTileMatrixSet(sector: Sector, resolution: Angle) = TileMatrixSet.fromTilePyramid(
+        internal fun buildTileMatrixSet(sector: Sector, resolution: Angle) = TileMatrixSet.fromTilePyramid(
             sector, 4, 2, 256, 256, resolution
         )
 

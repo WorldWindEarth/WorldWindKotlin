@@ -143,9 +143,10 @@ object ShapefileLayerFactory {
     /**
      * Iterate [shapefile] records, run [shapeConfiguration] per record, and pass each resulting
      * [earth.worldwind.render.Renderable] back through [consumer] alongside the originating
-     * record. The base [createLayer] entry points use this internally; [CachedShapefileLayer]
-     * uses it directly so it can intercept each renderable + its DBF attributes for cache encoding
-     * without rebuilding the shape-construction logic.
+     * record. The base [createLayer] entry points use this internally; bulk feature sources
+     * (e.g. [earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource]) call it directly to
+     * intercept each renderable + its DBF attributes for cache encoding without rebuilding the
+     * shape-construction logic.
      */
     fun emitRecordRenderables(
         shapefile: Shapefile,

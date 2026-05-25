@@ -244,6 +244,11 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
             tx.onabort = { _: Event ->
                 cont.resumeWithException(RuntimeException("IDB transaction aborted"))
             }
+            // Explicit commit while tx is still "active" — Chromium's IDB engine can otherwise
+            // sit on the tx indefinitely waiting for the implicit "no-pending-requests + control-
+            // returned" trigger, which never fires under concurrent IDB pressure. tx.commit()
+            // is IDB v3 (Chrome 76+); runCatching covers older browsers where it doesn't exist.
+            runCatching { tx.commit() }
         }
 
         /** Iterate every cursor entry and delete it. Used by tile/content range deletes. */
@@ -319,78 +324,22 @@ internal fun newIdbVectorTileRecord(
     return r
 }
 
-private fun ByteArray.toUint8Array(): org.khronos.webgl.Uint8Array {
-    val arr = org.khronos.webgl.Uint8Array(size)
-    for (i in indices) arr.asDynamic()[i] = this[i]
-    return arr
+internal fun ByteArray.toUint8Array(): org.khronos.webgl.Uint8Array {
+    // Kotlin/JS backs `ByteArray` with a native `Int8Array`. `Uint8Array` and `Int8Array`
+    // are bit-compatible so we hand IDB a view over the same buffer instead of copying
+    // byte-by-byte through `asDynamic()`. A 50 KB tile-decode loop is O(N) but each
+    // `asDynamic()` access is a JS dynamic dispatch — orders of magnitude slower than the
+    // view-construction here.
+    val int8 = this.unsafeCast<org.khronos.webgl.Int8Array>()
+    return org.khronos.webgl.Uint8Array(int8.buffer, int8.byteOffset, int8.length)
 }
 
 internal fun org.khronos.webgl.Uint8Array.toByteArray(): ByteArray {
-    val out = ByteArray(length)
-    for (i in 0 until length) out[i] = this.asDynamic()[i].unsafeCast<Byte>()
-    return out
+    // Same zero-copy trick in reverse — wrap the underlying buffer with an `Int8Array`
+    // view and cast to `ByteArray` (which IS an `Int8Array` on Kotlin/JS). Element-wise
+    // copying here previously dominated cache-hit latency: with a populated cache every
+    // visible tile (~100 per frame) went through `asDynamic()` element access in a tight
+    // loop, hanging the browser on page reload.
+    return org.khronos.webgl.Int8Array(this.buffer, this.byteOffset, this.length).unsafeCast<ByteArray>()
 }
 
-// ---- Minimal external declarations for the IDB API surface this file uses. ----
-
-internal external interface IDBFactory {
-    fun open(name: String, version: Int): IDBOpenDBRequest
-}
-
-internal external interface IDBOpenDBRequest : IDBRequest {
-    var onupgradeneeded: ((Event) -> Unit)?
-}
-
-internal external interface IDBRequest {
-    val result: Any?
-    val error: dynamic
-    var onsuccess: ((Event) -> Unit)?
-    var onerror: ((Event) -> Unit)?
-}
-
-internal external interface IDBDatabase {
-    val objectStoreNames: DOMStringList
-    fun createObjectStore(name: String, options: dynamic = definedExternally): IDBObjectStore
-    fun transaction(storeNames: String, mode: String = definedExternally): IDBTransaction
-}
-
-internal external interface DOMStringList {
-    val length: Int
-    fun contains(name: String): Boolean
-}
-
-internal external interface IDBTransaction {
-    val error: dynamic
-    var oncomplete: ((Event) -> Unit)?
-    var onerror: ((Event) -> Unit)?
-    var onabort: ((Event) -> Unit)?
-    fun objectStore(name: String): IDBObjectStore
-}
-
-internal external interface IDBObjectStore {
-    fun add(value: Any?): IDBRequest
-    fun put(value: Any?): IDBRequest
-    fun get(key: Any?): IDBRequest
-    fun delete(key: Any?): IDBRequest
-    fun clear(): IDBRequest
-    fun createIndex(name: String, keyPath: Any, options: dynamic = definedExternally): IDBIndex
-    fun index(name: String): IDBIndex
-}
-
-internal external interface IDBIndex {
-    fun getAll(query: Any? = definedExternally): IDBRequest
-    fun openCursor(query: Any? = definedExternally): IDBRequest
-}
-
-internal external interface IDBCursor {
-    val key: Any?
-    fun delete(): IDBRequest
-    fun `continue`()
-}
-
-private external interface WindowWithIdb {
-    val indexedDB: IDBFactory
-}
-
-internal val org.w3c.dom.Window.indexedDB: IDBFactory
-    get() = this.unsafeCast<WindowWithIdb>().indexedDB

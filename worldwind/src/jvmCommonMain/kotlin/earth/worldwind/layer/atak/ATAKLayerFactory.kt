@@ -32,6 +32,6 @@ object ATAKLayerFactory {
             MercatorTiledImageLayer(tileFactory.contentKey, MercatorTiledSurfaceImage(tileFactory, levelSet))
         } else {
             TiledImageLayer(tileFactory.contentKey, TiledSurfaceImage(tileFactory, levelSet))
-        }.apply { tiledSurfaceImage?.cacheTileFactory = tileFactory }
+        }
     }
 }

@@ -9,9 +9,12 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.layer.AbstractLayer
+import earth.worldwind.layer.VectorLayer
 import earth.worldwind.layer.buildings.OsmBuilding
 import earth.worldwind.layer.buildings.OsmBuildingsTile
+import earth.worldwind.layer.source.TileSource
 import earth.worldwind.layer.mercator.MercatorSector
+import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
@@ -66,7 +69,7 @@ import kotlin.time.Clock
  * ```
  */
 open class MvtVectorLayer(
-    val source: MvtTileSource,
+    var source: TileSource,
     /**
      * Minimum slippy-map zoom the layer will request. Below this altitude band the layer
      * stops fetching — features at lower zooms are visually unreadable at globe-spanning
@@ -104,16 +107,7 @@ open class MvtVectorLayer(
      */
     var spriteAtlas: MvtSpriteAtlas? = null,
     displayName: String? = "Vector Tiles",
-) : AbstractLayer(displayName), earth.worldwind.layer.CacheableVectorTileLayer {
-
-    /**
-     * Optional persistent cache (GeoPackage on JVM/Android, IndexedDB on JS). Bind via
-     * `GpkgContentManager.setupVectorTileLayerCache(...)` / `WebContentManager.setupVectorTileLayerCache(...)`.
-     * When non-null, [fetch] consults this before hitting the network and writes successful
-     * fetches back. Raw MVT bytes are persisted as-is (industry-standard
-     * `data_type='vector-tiles'` + `im_vector_tiles_mapbox` extension on the GPKG side).
-     */
-    override var cacheTileFactory: earth.worldwind.layer.VectorTileCacheSourceFactory? = null
+) : AbstractLayer(displayName), VectorLayer {
 
     private val semaphore = Semaphore(maxConcurrentFetches.coerceAtLeast(1))
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -214,9 +208,9 @@ open class MvtVectorLayer(
         if (activeLabelGroups.isNotEmpty()) {
             val totalLabels = activeLabelGroups.sumOf { it.labels.size }
             if (totalLabels > MAX_CROSS_TILE_LABELS) {
-                for (g in activeLabelGroups) g.enabledMask = null
+                labelCollider.disableAll(activeLabelGroups)
             } else {
-                runGlobalLabelCollision(rc)
+                labelCollider.run(rc, activeLabelGroups, totalLabels)
             }
             for (g in activeLabelGroups) {
                 try {
@@ -226,11 +220,7 @@ open class MvtVectorLayer(
                 }
             }
         }
-        // Swap the visibility sets — what we just decided becomes "last frame" next time.
-        val tmp = lastFrameVisible
-        lastFrameVisible = thisFrameVisible
-        thisFrameVisible = tmp
-        thisFrameVisible.clear()
+        labelCollider.endFrame()
     }
 
     // Per-frame scratch — see [doRender] / [processTile] for the rationale. Lives on the
@@ -241,53 +231,9 @@ open class MvtVectorLayer(
     // [processTile], drained by the global collision pass at the end of [doRender]. Kept
     // as a field to avoid per-frame allocation.
     private val activeLabelGroups = ArrayList<MvtLabelGroup>()
-    // Stickiness state for cross-frame label stability. Labels (by object identity) that were
-    // visible in the previous frame's collision get a small priority bonus this frame so
-    // borderline collisions don't toggle every camera nudge. Swapped between two sets to
-    // avoid per-frame allocation: [lastFrameVisible] is read, [thisFrameVisible] is built.
-    private var lastFrameVisible: HashSet<earth.worldwind.shape.Label> = HashSet()
-    private var thisFrameVisible: HashSet<earth.worldwind.shape.Label> = HashSet()
-    // Scratch Vec3s for the global collision pass.
-    private val collisionCartesian = earth.worldwind.geom.Vec3()
-    private val collisionScreen = earth.worldwind.geom.Vec3()
-    // Grow-only scratch buffers reused frame-to-frame so the collision pass allocates
-    // zero arrays. Resized via [ensureCollisionCapacity] when the candidate count grows
-    // past the current capacity.
-    private var collisionCapacity = 0
-    private var collisionGroupIdx = IntArray(0)
-    private var collisionLabelIdx = IntArray(0)
-    private var collisionEffPrio = IntArray(0)
-    private var collisionOrder = IntArray(0)
-    private var collisionBboxX1 = FloatArray(0)
-    private var collisionBboxY1 = FloatArray(0)
-    private var collisionBboxX2 = FloatArray(0)
-    private var collisionBboxY2 = FloatArray(0)
-    private var collisionVisible = BooleanArray(0)
-    private var collisionAccX1 = FloatArray(0)
-    private var collisionAccY1 = FloatArray(0)
-    private var collisionAccX2 = FloatArray(0)
-    private var collisionAccY2 = FloatArray(0)
-
-    private fun ensureCollisionCapacity(n: Int) {
-        if (n <= collisionCapacity) return
-        // Grow geometrically (2x) so collision sets that gradually expand don't repeatedly
-        // hit the resize path.
-        val cap = maxOf(n, collisionCapacity * 2, 16)
-        collisionCapacity = cap
-        collisionGroupIdx = IntArray(cap)
-        collisionLabelIdx = IntArray(cap)
-        collisionEffPrio = IntArray(cap)
-        collisionOrder = IntArray(cap)
-        collisionBboxX1 = FloatArray(cap)
-        collisionBboxY1 = FloatArray(cap)
-        collisionBboxX2 = FloatArray(cap)
-        collisionBboxY2 = FloatArray(cap)
-        collisionVisible = BooleanArray(cap)
-        collisionAccX1 = FloatArray(cap)
-        collisionAccY1 = FloatArray(cap)
-        collisionAccX2 = FloatArray(cap)
-        collisionAccY2 = FloatArray(cap)
-    }
+    // Owns all the cross-frame stickiness state + scratch buffers for the global collision
+    // pass. Reused frame-to-frame.
+    private val labelCollider = MvtLabelCollider()
 
     /**
      * Pick a slippy-map zoom level for the current camera. Override to change the
@@ -449,128 +395,6 @@ open class MvtVectorLayer(
     }
 
     /**
-     * Cross-tile label collision. Runs once per frame over every label in every visible
-     * [MvtLabelGroup]. Projects each label to screen, computes a screen-space bbox, then
-     * walks labels in priority-descending order (with a small **stickiness** bonus for
-     * labels visible last frame) and greedily accepts each whose bbox doesn't overlap any
-     * already-accepted label. Sets [MvtLabelGroup.enabledMask] per group so each group's
-     * subsequent render emits exactly the accepted set.
-     *
-     * Stickiness exists because at borderline overlaps a tiny camera move can flip which
-     * label "wins" the collision, making the loser blink between frames. Last-frame-visible
-     * labels get a +1 priority bonus so they keep winning ties.
-     *
-     * O(N²) where N = total labels across visible tiles. Capped at [MAX_CROSS_TILE_LABELS]
-     * by the caller — above the cap, each group runs its own per-tile collision instead.
-     */
-    private fun runGlobalLabelCollision(rc: RenderContext) {
-        var totalLabels = 0
-        for (g in activeLabelGroups) totalLabels += g.labels.size
-        if (totalLabels == 0) {
-            for (g in activeLabelGroups) g.enabledMask = null
-            return
-        }
-        ensureCollisionCapacity(totalLabels)
-
-        // Viewport bounds for the off-screen early-out. A label whose anchor sits more than
-        // VIEWPORT_LABEL_MARGIN pixels past any edge is dropped before bbox compute —
-        // perfectly invisible without wasting collision cycles on it.
-        val vp = rc.viewport
-        val vpMinX = vp.x - VIEWPORT_LABEL_MARGIN
-        val vpMinY = vp.y - VIEWPORT_LABEL_MARGIN
-        val vpMaxX = vp.x + vp.width + VIEWPORT_LABEL_MARGIN
-        val vpMaxY = vp.y + vp.height + VIEWPORT_LABEL_MARGIN
-
-        var ci = 0
-        for (gi in activeLabelGroups.indices) {
-            val group = activeLabelGroups[gi]
-            val existing = group.enabledMask
-            val mask = if (existing != null && existing.size == group.labels.size) existing
-            else BooleanArray(group.labels.size).also { group.enabledMask = it }
-            for (i in mask.indices) mask[i] = false
-
-            for (li in group.labels.indices) {
-                val label = group.labels[li]
-                val pos = label.position
-                rc.geographicToCartesian(
-                    pos.latitude, pos.longitude, 0.0,
-                    earth.worldwind.geom.AltitudeMode.ABSOLUTE, collisionCartesian, useEM = true,
-                )
-                collisionGroupIdx[ci] = gi
-                collisionLabelIdx[ci] = li
-                val stickyBonus = if (label in lastFrameVisible) STICKINESS_BONUS else 0
-                collisionEffPrio[ci] = group.priorities[li] + stickyBonus
-
-                if (!rc.project(collisionCartesian, collisionScreen)) {
-                    collisionVisible[ci] = false; ci++; continue
-                }
-                val sx = collisionScreen.x
-                val sy = collisionScreen.y
-                if (sx < vpMinX || sx > vpMaxX || sy < vpMinY || sy > vpMaxY) {
-                    // Anchor is off-viewport (plus margin). Skip bbox compute and exclude
-                    // from collision — the label couldn't have been visible anyway.
-                    collisionVisible[ci] = false; ci++; continue
-                }
-                val size = group.pixelSizes[li]
-                val textLen = label.text?.length ?: 0
-                if (textLen == 0) {
-                    collisionVisible[ci] = false; ci++; continue
-                }
-                val w = textLen * size * COLLISION_GLYPH_W
-                val h = size * COLLISION_LINE_H
-                val cx = sx.toFloat()
-                val cy = sy.toFloat() - h * 0.5f
-                collisionBboxX1[ci] = cx - w * 0.5f - COLLISION_PAD
-                collisionBboxY1[ci] = cy - h * 0.5f - COLLISION_PAD
-                collisionBboxX2[ci] = cx + w * 0.5f + COLLISION_PAD
-                collisionBboxY2[ci] = cy + h * 0.5f + COLLISION_PAD
-                collisionVisible[ci] = true
-                ci++
-            }
-        }
-
-        // Insertion sort over [collisionOrder] by [collisionEffPrio] descending; primitive-
-        // typed indices keep this allocation-free (sortedByDescending boxes Int to Integer).
-        for (i in 0 until totalLabels) collisionOrder[i] = i
-        for (i in 1 until totalLabels) {
-            val cur = collisionOrder[i]
-            val curPrio = collisionEffPrio[cur]
-            var j = i - 1
-            while (j >= 0 && collisionEffPrio[collisionOrder[j]] < curPrio) {
-                collisionOrder[j + 1] = collisionOrder[j]
-                j--
-            }
-            collisionOrder[j + 1] = cur
-        }
-
-        // Greedy accept-if-no-overlap.
-        var accCount = 0
-        for (k in 0 until totalLabels) {
-            val idx = collisionOrder[k]
-            if (!collisionVisible[idx]) continue
-            val x1 = collisionBboxX1[idx]
-            val y1 = collisionBboxY1[idx]
-            val x2 = collisionBboxX2[idx]
-            val y2 = collisionBboxY2[idx]
-            var collides = false
-            for (j in 0 until accCount) {
-                if (x1 < collisionAccX2[j] && x2 > collisionAccX1[j]
-                    && y1 < collisionAccY2[j] && y2 > collisionAccY1[j]) {
-                    collides = true; break
-                }
-            }
-            if (collides) continue
-            collisionAccX1[accCount] = x1; collisionAccY1[accCount] = y1
-            collisionAccX2[accCount] = x2; collisionAccY2[accCount] = y2
-            accCount++
-            val gi = collisionGroupIdx[idx]
-            val li = collisionLabelIdx[idx]
-            activeLabelGroups[gi].enabledMask!![li] = true
-            thisFrameVisible += activeLabelGroups[gi].labels[li]
-        }
-    }
-
-    /**
      * Walk up the slippy-tile pyramid from [key]'s parent, returning the closest cached
      * ancestor (or null if none exist). Used to paint a coarse tile in the gap while the
      * requested fine tile is fetching.
@@ -660,72 +484,45 @@ open class MvtVectorLayer(
     }
 
     /**
-     * Tile-acquisition pipeline. With no [cacheTileFactory], degenerates to a direct
-     * [MvtTileSource.fetchTile] (current behavior). With a cache:
-     *
-     * 1. Read the cache. Hit → decode the stored bytes (empty bytes = sentinel for
-     *    "fetched-empty" 404s). No network.
-     * 2. Miss → call [MvtTileSource.fetchTileBytes]. On `Hit`, persist bytes + ETag /
-     *    Last-Modified and decode; on `Empty`, persist the empty sentinel and treat as
-     *    empty tile; on `NotModified` (only relevant for explicit revalidation), treat as
-     *    a cache hit; if the source returned `null` it doesn't support byte fetching, so
-     *    we fall back to [MvtTileSource.fetchTile] without caching.
-     *
-     * Returns `null` to signal "empty tile" (the existing [fetch] code substitutes an
-     * empty [MvtTile] in that case).
+     * Tile acquisition. Cache-backed sources serve hits cheaply via [TileSource.tryReadCachedTile]
+     * (no [semaphore] permit so cached neighbours aren't stalled behind a slow network fetch);
+     * misses and plain network sources fall through to [TileSource.fetchTile]. Empty blob →
+     * `null` so [fetch] can substitute an empty [MvtTile].
      */
     private suspend fun loadTileViaCache(key: TileKey): MvtTile? {
-        val cache = cacheTileFactory
-        if (cache == null) return source.fetchTile(key.z, key.x, key.y)
-
-        val cached = cache.readTileBlob(key.z, key.x, key.y)
-        if (cached != null) {
-            return if (cached.isEmpty) null else MvtDecoder.decode(cached.bytes)
-        }
-
-        val result = source.fetchTileBytes(key.z, key.x, key.y)
-            ?: return source.fetchTile(key.z, key.x, key.y)  // source has no byte channel
-        return when (result) {
-            is MvtFetchResult.Hit -> {
-                try { cache.writeTileBlob(key.z, key.x, key.y, result.bytes, result.etag, result.lastModified) }
-                catch (e: IllegalStateException) {
-                    logMessage(WARN, "MvtVectorLayer", "fetch", "Cache write failed for $key: ${e.message}")
-                }
-                if (result.bytes.isEmpty()) null else MvtDecoder.decode(result.bytes)
-            }
-            MvtFetchResult.Empty -> {
-                try { cache.writeTileBlob(key.z, key.x, key.y, ByteArray(0), null, null) }
-                catch (_: IllegalStateException) {}
-                null
-            }
-            MvtFetchResult.NotModified -> null  // no stored copy + 304 = empty (server is confused)
-        }
+        val src = source
+        val blob = src.tryReadCachedTile(key.z, key.x, key.y)
+            ?: semaphore.withPermit { src.fetchTile(key.z, key.x, key.y) }
+            ?: return null
+        return if (blob.isEmpty) null else MvtDecoder.decode(blob.bytes)
     }
 
     private suspend fun fetch(key: TileKey) {
         val value = try {
-            semaphore.withPermit {
-                val tile = loadTileViaCache(key) ?: MvtTile(emptyList())
-                val renderables = toRenderables(key, tile)
-                // One-time INFO with the tile's layer/feature breakdown so a style/schema
-                // mismatch (e.g. OpenMapTiles style against a Shortbread server) is visible
-                // even when the fetch succeeds with zero visible renderables.
-                // Schema detection re-runs while the result is UNKNOWN — an empty first
-                // tile (404 / 5xx → MvtTile(emptyList())) would otherwise lock the schema
-                // to UNKNOWN for the layer's lifetime.
-                if (tile.layers.isNotEmpty() && detectedSchema.let { it == null || it == MvtSchemaDetector.Schema.UNKNOWN }) {
-                    detectedSchema = MvtSchemaDetector.detect(tile)
-                }
-                if (!firstFetchLogged) {
-                    firstFetchLogged = true
-                    val layerSummary = tile.layers.joinToString { "${it.name}=${it.features.size}" }
-                    logMessage(
-                        INFO, "MvtVectorLayer", "fetch",
-                        "First tile $key decoded: schema=$detectedSchema, layers=[$layerSummary], renderables=${renderables.size}",
-                    )
-                }
-                renderables
+            // Network concurrency is throttled inside [loadTileViaCache] (network path only) so
+            // cache hits aren't gated behind it. Decode + renderable building run unthrottled —
+            // CPU work already bounded by the Default dispatcher; gating it here would
+            // re-introduce the stall for cached tiles.
+            val tile = loadTileViaCache(key) ?: MvtTile(emptyList())
+            val renderables = toRenderables(key, tile)
+            // One-time INFO with the tile's layer/feature breakdown so a style/schema
+            // mismatch (e.g. OpenMapTiles style against a Shortbread server) is visible
+            // even when the fetch succeeds with zero visible renderables.
+            // Schema detection re-runs while the result is UNKNOWN — an empty first
+            // tile (404 / 5xx → MvtTile(emptyList())) would otherwise lock the schema
+            // to UNKNOWN for the layer's lifetime.
+            if (tile.layers.isNotEmpty() && detectedSchema.let { it == null || it == MvtSchemaDetector.Schema.UNKNOWN }) {
+                detectedSchema = MvtSchemaDetector.detect(tile)
             }
+            if (!firstFetchLogged) {
+                firstFetchLogged = true
+                val layerSummary = tile.layers.joinToString { "${it.name}=${it.features.size}" }
+                logMessage(
+                    INFO, "MvtVectorLayer", "fetch",
+                    "First tile $key decoded: schema=$detectedSchema, layers=[$layerSummary], renderables=${renderables.size}",
+                )
+            }
+            renderables
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -813,7 +610,7 @@ open class MvtVectorLayer(
         // Per-color extruded-building buckets — each becomes one OsmBuildingsTile. Keyed by
         // the actual Color value (which has structural equality) so distinct colors with
         // colliding hashes don't accidentally merge.
-        val extrusionBuckets = HashMap<earth.worldwind.render.Color, ExtrusionBucket>()
+        val extrusionBuckets = HashMap<Color, ExtrusionBucket>()
 
         // Per-feature Path collection, only populated in non-batched mode; kept ordered so
         // we can stable-sort by z-order before adding to [out].
@@ -1295,21 +1092,6 @@ open class MvtVectorLayer(
 
         /** Standard slippy-tile pixel width — the input to camera-altitude → zoom matching. */
         const val TILE_PIXEL_SIZE: Int = 256
-        // Collision bbox sizing ratios. Mirrored from [MvtLabelGroup]'s local pass — kept
-        // duplicated rather than shared because the global pass uses a larger padding
-        // (visible separation between tile-border labels matters more here).
-        private const val COLLISION_GLYPH_W = 0.55f
-        private const val COLLISION_LINE_H = 1.3f
-        // Padding around each accepted bbox; visible separation without over-suppression.
-        private const val COLLISION_PAD = 5f
-        // Priority bonus given to last-frame-visible labels during this frame's collision.
-        // 1 is enough to break ties between same-priority candidates without overriding the
-        // hierarchy across actual zOrder bands (band spacing is 10 in MvtStyle.Z_*).
-        private const val STICKINESS_BONUS = 1
-        // Pixels past each viewport edge that a label anchor must sit before we cull it
-        // from the collision pass. Generous margin so a label whose bbox straddles the
-        // edge still gets considered (could be partially visible).
-        private const val VIEWPORT_LABEL_MARGIN: Double = 80.0
 
         // Above this candidate count the global O(N²) cross-tile collision is replaced with
         // each group's own O(M²) per-tile pass — visually slightly worse at tile borders,

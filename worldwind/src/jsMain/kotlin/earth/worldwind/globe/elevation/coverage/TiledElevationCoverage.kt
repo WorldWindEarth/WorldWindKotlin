@@ -5,6 +5,8 @@ import earth.worldwind.formats.geotiff.GeoTiffReader
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSourceFactory
+import earth.worldwind.globe.elevation.TileSourceElevationRef
+import earth.worldwind.layer.cache.CachedElevationRef
 import earth.worldwind.layer.cache.WebTileCache
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
@@ -14,6 +16,7 @@ import io.ktor.client.fetch.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.await
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Float32Array
 import org.khronos.webgl.Int16Array
@@ -35,6 +38,53 @@ actual open class TiledElevationCoverage actual constructor(
 
     actual override suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         val elevationSource = elevationSourceFactory.createElevationSource(tileMatrix, row, column)
+        val raw = elevationSource.asUnrecognized()
+        if (raw is CachedElevationRef) {
+            try {
+                val shorts = raw.factory.fetchTile(raw.z, raw.x, raw.y)
+                val expected = tileMatrix.tileWidth * tileMatrix.tileHeight
+                when {
+                    shorts == null -> retrievalFailed(key, "CachedElevation produced no data")
+                    shorts.size != expected -> retrievalFailed(
+                        key, "CachedElevation size mismatch — got ${shorts.size} shorts, expected $expected"
+                    )
+                    else -> retrievalSucceeded(key, shorts)
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (e: Throwable) {
+                retrievalFailed(key, "CachedElevation retrieval failed (${e.message})")
+            }
+            return
+        }
+        if (raw is TileSourceElevationRef) {
+            try {
+                val blob = raw.source.fetchTile(raw.z, raw.x, raw.y)
+                if (blob == null || blob.isEmpty) {
+                    retrievalFailed(key, "Elevation tile-source returned no data")
+                    return
+                }
+                val u8 = byteArrayToUint8Array(blob.bytes)
+                // Prefer the server's actual Content-Type so a service-exception XML at
+                // HTTP 200 takes the unsupported-format branch. Cache hits fall back to
+                // the requested format (source-side validation guards against poisoning).
+                val format = blob.contentType ?: raw.outputFormat
+                val pixels = decodeBytesByFormat(u8.buffer, format)
+                val expected = tileMatrix.tileWidth * tileMatrix.tileHeight
+                when {
+                    pixels == null -> retrievalFailed(key, "Elevation tile decode produced no values")
+                    pixels.size != expected -> retrievalFailed(
+                        key, "Elevation tile-source size mismatch — got ${pixels.size} shorts, expected $expected"
+                    )
+                    else -> retrievalSucceeded(key, pixels)
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (e: Throwable) {
+                retrievalFailed(key, "Elevation tile-source retrieval failed (${e.message})")
+            }
+            return
+        }
         if (elevationSource.isUrl) {
             val url = elevationSource.asUrl()
             try {
@@ -52,7 +102,11 @@ actual open class TiledElevationCoverage actual constructor(
                         contentType.equals("application/bil", true) ||
                         contentType.equals("application/bil16", true) -> Int16ArrayToShortArray(Int16Array(arrayBuffer))
                         contentType.equals("application/bil32", true) -> Float32ArrayToShortArray(Float32Array(arrayBuffer))
-                        contentType.equals("image/tiff", true) -> decodeTiff(arrayBuffer)
+                        contentType.equals("image/tiff", true) ||
+                        contentType.equals("image/geotiff", true) ||
+                        contentType.equals("application/geotiff", true) ||
+                        contentType.equals("geotiff", true) ||
+                        contentType.equals("tiff", true) -> decodeTiff(arrayBuffer)
                         contentType.equals("application/dted", true) ||
                         contentType.equals("application/dted0", true) ||
                         contentType.equals("application/dted1", true) ||
@@ -80,10 +134,37 @@ actual open class TiledElevationCoverage actual constructor(
                 } else {
                     retrievalFailed(key, "Elevations retrieval failed (${response.statusText}): $url")
                 }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (e: Throwable) {
                 retrievalFailed(key, "Elevations retrieval failed (${e.message}): $url")
             }
         } else retrievalFailed(key, "Unsupported elevation source type")
+    }
+
+    /** Dispatch raw bytes to the per-format decoder. Synchronous because the tile-source
+     *  path already runs on a coroutine and the per-format calls are CPU-bound. */
+    private suspend fun decodeBytesByFormat(arrayBuffer: ArrayBuffer, contentType: String): ShortArray? = when {
+        contentType.equals("image/bil", true) ||
+            contentType.equals("application/bil", true) ||
+            contentType.equals("application/bil16", true) -> Int16ArrayToShortArray(Int16Array(arrayBuffer))
+        contentType.equals("application/bil32", true) -> Float32ArrayToShortArray(Float32Array(arrayBuffer))
+        contentType.equals("image/tiff", true) ||
+            contentType.equals("image/geotiff", true) ||
+            contentType.equals("application/geotiff", true) ||
+            contentType.equals("geotiff", true) ||
+            contentType.equals("tiff", true) -> decodeTiff(arrayBuffer)
+        contentType.equals("application/dted", true) ||
+            contentType.equals("application/dted0", true) ||
+            contentType.equals("application/dted1", true) ||
+            contentType.equals("application/dted2", true) -> decodeDted(arrayBuffer)
+        else -> null
+    }
+
+    private fun byteArrayToUint8Array(bytes: ByteArray): Uint8Array {
+        val u8 = Uint8Array(bytes.size)
+        for (i in bytes.indices) u8.asDynamic()[i] = bytes[i].toInt() and 0xFF
+        return u8
     }
 
     /** Decode a TIFF/GeoTIFF buffer into a `ShortArray` via the cross-platform reader.

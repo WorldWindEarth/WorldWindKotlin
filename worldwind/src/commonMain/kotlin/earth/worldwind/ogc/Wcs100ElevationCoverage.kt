@@ -26,7 +26,7 @@ import nl.adaptivity.xmlutil.serialization.XML
  * system. Wcs100ElevationCoverage does not perform version negotiation and assumes the service supports the format and
  * coordinate system parameters detailed here.
  */
-class Wcs100ElevationCoverage private constructor(
+class Wcs100ElevationCoverage(
     override val serviceAddress: String, override val coverageName: String, override val outputFormat: String,
     tileMatrixSet: TileMatrixSet, elevationSourceFactory: ElevationSourceFactory
 ): TiledElevationCoverage(tileMatrixSet, elevationSourceFactory), WebElevationCoverage {
@@ -48,6 +48,13 @@ class Wcs100ElevationCoverage private constructor(
         private const val SERVICE = "WCS"
         private const val VERSION = "1.0.0"
         const val SERVICE_TYPE = "$SERVICE $VERSION"
+
+        /**
+         * Build the canonical tile pyramid for a WCS 1.0 elevation coverage. Exposed so
+         * the cache-aware helper and the dispatcher derive identical matrix sets.
+         */
+        fun buildTileMatrixSet(sector: Sector, resolution: Angle): TileMatrixSet =
+            fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution)
 
         private val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
 

@@ -31,7 +31,6 @@ import io.data2viz.geojson.MultiPolygon
 import io.data2viz.geojson.Point
 import io.data2viz.geojson.Polygon
 import io.data2viz.geojson.Position
-import io.data2viz.geojson.toGeoJsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.random.Random
@@ -58,7 +57,7 @@ object GeoJsonLayerFactory {
         }
 
         val (renderables, id) = withContext(Dispatchers.Default) {
-            val geoJsonObject = text.toGeoJsonObject()
+            val geoJsonObject = parseGeoJsonObject(text) ?: return@withContext emptyList<Renderable>() to "0"
             val (featureCollection, id) = when (geoJsonObject) {
                 is FeatureCollection -> geoJsonObject to Random.nextLong().toString()
                 else -> {
@@ -90,8 +89,6 @@ object GeoJsonLayerFactory {
                 renderable.visibilityThreshold = labelVisibilityThreshold
             }
         }
-
-        layer.addAllRenderables(renderables)
 
         return layer.apply {
             addAllRenderables(renderables)
@@ -286,8 +283,11 @@ object GeoJsonLayerFactory {
     }
 
     data class Properties(val properties: LinkedHashMap<String, Any?> = LinkedHashMap()) {
+        // Match BulkFeatureLayer.NAME_ALIASES — WFS servers (e.g. MapServer) commonly emit
+        // uppercase "NAME". Without checking aliases the GeoJSON Point branch silently
+        // produces label-less Placemarks that render nothing.
         val name: String?
-            get() = properties["name"] as? String
+            get() = NAME_ALIASES.firstNotNullOfOrNull { properties[it] as? String }
         private val strokeOpacity: Double?
             get() = properties["stroke-opacity"].let { it as? Double ?: it as? Int }?.toDouble()
         private val stroke: String?
@@ -335,3 +335,9 @@ object GeoJsonLayerFactory {
         }
     }
 }
+
+/** Common feature-name property aliases. WFS servers (MapServer, GeoServer) and
+ *  GeoJSON fixtures use varying casing — checking these aliases prevents label-less
+ *  invisible Placemarks when the property happens to be uppercase. Shared between
+ *  [GeoJsonLayerFactory] and [earth.worldwind.layer.BulkFeatureLayer]. */
+internal val NAME_ALIASES = listOf("name", "NAME", "Name", "NAMEASCII", "name_en", "NAME_EN")

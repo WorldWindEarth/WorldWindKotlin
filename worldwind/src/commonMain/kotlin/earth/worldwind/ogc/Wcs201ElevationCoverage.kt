@@ -14,6 +14,8 @@ import earth.worldwind.ogc.gml.serializersModule
 import earth.worldwind.ogc.wcs.Wcs201CoverageDescription
 import earth.worldwind.ogc.wcs.Wcs201CoverageDescriptions
 import earth.worldwind.ogc.wcs.Wcs201Capabilities
+import earth.worldwind.util.Logger.WARN
+import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.Logger.makeMessage
 import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.plugins.*
@@ -100,28 +102,31 @@ open class Wcs201ElevationCoverage private constructor(
         }
 
         /**
-         * Attempts to construct a Web Coverage Service (WCS) elevation coverage with the provided service address and
-         * coverage id. This constructor initiates an asynchronous request for the DescribeCoverage document and then uses
-         * the information provided to determine a suitable Sector and level count. If the coverage id doesn't match the
-         * available coverages or there is another error, no data will be provided and the error will be logged.
+         * Construct a WCS 2.0.1 elevation coverage (cache-agnostic).
+         *
+         * WCS 2.0.1 needs the per-coverage `DescribeCoverage` XML to determine bounding box
+         * / axis labels / level count before the coverage object can exist. [serviceMetadata]
+         * (caller-supplied XML) is used verbatim when non-null; otherwise the factory issues
+         * a `DescribeCoverage` request.
+         *
+         * See the canonical `Wcs201ElevationCoverage.createCoverage(...) + ContentManager.attachCache(coverage, key)` pattern for the
+         * cache-first variant that reads persisted coverage-description XML before falling
+         * back to the network.
          *
          * @param serviceAddress   the WCS service address
          * @param coverageName     the WCS coverage name
          * @param outputFormat     the WCS source data format
-         * @param serviceMetadata  optional WCS coverage description XML string to avoid online coverages request
+         * @param serviceMetadata  optional pre-fetched coverage description XML
+         * @param displayName      optional layer display name
          * @return WCS 2.0.1 elevation coverage
          */
         suspend fun createCoverage(
-            serviceAddress: String, coverageName: String, outputFormat: String, serviceMetadata: String? = null
+            serviceAddress: String, coverageName: String, outputFormat: String,
+            serviceMetadata: String? = null,
+            displayName: String? = null,
         ): Wcs201ElevationCoverage {
-            // Fetch the DescribeCoverage document and determine the bounding box and number of levels
-            val coverageDescription = if (serviceMetadata != null) decodeCoverageDescription(serviceMetadata)
-            else describeCoverage(serviceAddress, coverageName).getCoverageDescription(coverageName) ?: error(
-                makeMessage(
-                    "Wcs201ElevationCoverage", "createCoverage",
-                    "WCS coverage is undefined: $coverageName"
-                )
-            )
+            val (resolvedMetadata, coverageDescription) =
+                resolveCoverageDescription(serviceAddress, coverageName, serviceMetadata)
             val axisLabels = coverageDescription.boundedBy.envelope.axisLabelsList
             require(axisLabels.size >= 2) {
                 makeMessage(
@@ -129,15 +134,17 @@ open class Wcs201ElevationCoverage private constructor(
                     "WCS coverage axis labels are undefined: $coverageName"
                 )
             }
-            val factory = Wcs201ElevationSourceFactory(serviceAddress, coverageName, outputFormat, axisLabels)
+            val networkFactory = Wcs201ElevationSourceFactory(serviceAddress, coverageName, outputFormat, axisLabels)
             val tileMatrixSet = tileMatrixSetFromCoverageDescription(coverageDescription)
             return Wcs201ElevationCoverage(
-                serviceAddress, coverageName, outputFormat, tileMatrixSet, factory,
-                serviceMetadata ?: xml.encodeToString(coverageDescription)
-            )
+                serviceAddress, coverageName, outputFormat, tileMatrixSet, networkFactory,
+                resolvedMetadata,
+            ).apply {
+                if (!displayName.isNullOrBlank()) this.displayName = displayName
+            }
         }
 
-        private fun tileMatrixSetFromCoverageDescription(coverageDescription: Wcs201CoverageDescription): TileMatrixSet {
+        internal fun tileMatrixSetFromCoverageDescription(coverageDescription: Wcs201CoverageDescription): TileMatrixSet {
             val srsName = coverageDescription.boundedBy.envelope.srsName
             require(srsName != null && srsName.contains("4326")) {
                 makeMessage(
@@ -202,6 +209,34 @@ open class Wcs201ElevationCoverage private constructor(
 
         private suspend fun decodeCoverageDescription(xmlText: String) = withContext(Dispatchers.Default) {
             xml.decodeFromString<Wcs201CoverageDescription>(xmlText)
+        }
+
+        /**
+         * Resolve the coverage description offline-first. Use [serviceMetadata] when it is
+         * present and deserializes cleanly; otherwise — missing, blank, or undecodable —
+         * issue an online `DescribeCoverage` request. Returns the XML actually used together
+         * with its parsed form so the caller persists the exact metadata it built from.
+         */
+        @Throws(OwsException::class, CancellationException::class)
+        private suspend fun resolveCoverageDescription(
+            serviceAddress: String, coverageName: String, serviceMetadata: String?,
+        ): Pair<String, Wcs201CoverageDescription> {
+            serviceMetadata?.takeIf { it.isNotBlank() }?.let { stored ->
+                runCatching { stored to decodeCoverageDescription(stored) }.onFailure {
+                    logMessage(
+                        WARN, "Wcs201ElevationCoverage", "resolveCoverageDescription",
+                        "Stored WCS coverage description failed to deserialize (${it.message}); fetching online"
+                    )
+                }.getOrNull()?.let { return it }
+            }
+            val description = describeCoverage(serviceAddress, coverageName)
+                .getCoverageDescription(coverageName) ?: error(
+                    makeMessage(
+                        "Wcs201ElevationCoverage", "resolveCoverageDescription",
+                        "WCS coverage is undefined: $coverageName"
+                    )
+                )
+            return xml.encodeToString(description) to description
         }
     }
 }

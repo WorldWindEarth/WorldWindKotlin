@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorldWindKotlin 2.0 — Cache API Reference</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/kotlin.min.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());</script>
+<style>
+  :root {
+    --bg: #fafafa;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #dbeafe;
+    --border: #e5e7eb;
+    --code-bg: #282c34;
+    --section-bg: #ffffff;
+    --note-bg: #fef3c7;
+    --note-border: #f59e0b;
+    --table-header: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+  header {
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 2rem;
+    color: var(--accent);
+  }
+  header .subtitle {
+    color: var(--muted);
+    font-size: 1rem;
+  }
+  nav.toc {
+    background: var(--section-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  nav.toc h2 {
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 1.25rem;
+    columns: 2;
+    column-gap: 2rem;
+  }
+  nav.toc a {
+    color: var(--fg);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--muted);
+  }
+  nav.toc a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  section {
+    background: var(--section-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  section h2 {
+    margin: 0 0 0.75rem;
+    color: var(--accent);
+    font-size: 1.35rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+  section h2 .num {
+    display: inline-block;
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 0.9rem;
+    width: 1.5em;
+  }
+  section h3 {
+    margin: 1.25rem 0 0.5rem;
+    font-size: 1rem;
+    color: var(--fg);
+  }
+  p { margin: 0 0 0.75rem; }
+  p.lead { color: var(--muted); margin-bottom: 1rem; }
+  pre {
+    margin: 0.5rem 0 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    background: var(--code-bg);
+  }
+  pre code.hljs {
+    padding: 1rem 1.25rem;
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  code:not(.hljs) {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.88em;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.5rem 0 1rem;
+    font-size: 0.92rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th { background: var(--table-header); font-weight: 600; }
+  .note {
+    background: var(--note-bg);
+    border-left: 4px solid var(--note-border);
+    padding: 0.75rem 1rem;
+    margin: 0.5rem 0 1rem;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95rem;
+  }
+  .note strong { color: #92400e; }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  @media print {
+    body { background: white; }
+    section { break-inside: avoid; box-shadow: none; }
+    pre { break-inside: avoid; }
+    nav.toc { display: none; }
+  }
+  @media (max-width: 720px) {
+    nav.toc ol { columns: 1; }
+    .container { padding: 1rem; }
+    section { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Cache API Reference</h1>
+  <div class="subtitle">WorldWindKotlin 2.0 &middot; source-decorator cache architecture</div>
+</header>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#orchestrator">The orchestrator — <code>ContentManager</code></a></li>
+    <li><a href="#decorators">Source decorators</a></li>
+    <li><a href="#stores">Stores (cache backing)</a></li>
+    <li><a href="#introspection">Introspection</a></li>
+    <li><a href="#offline">Offline-mode toggle</a></li>
+    <li><a href="#bulk">Bulk download</a></li>
+    <li><a href="#factories">Layer creation factories</a></li>
+    <li><a href="#reopen">Reopen — handle-driven dispatch</a></li>
+    <li><a href="#webservice">Web-service registration</a></li>
+    <li><a href="#usage">Usage in three lines</a></li>
+  </ol>
+</nav>
+
+<section id="orchestrator">
+<h2><span class="num">1.</span> The orchestrator</h2>
+<p class="lead">One <code>ContentManager</code> per backend (gpkg file / IDB database / iOS filesystem root). Hosts many keyed content entries; the only public way to access elevation cache is through <code>createElevationSourceFactory</code>.</p>
+
+<pre><code class="language-kotlin">package earth.worldwind.util
+
+interface ContentManager {
+    val pathName: String
+    val isReadOnly: Boolean
+    val isClosed: Boolean
+    suspend fun close()
+
+    // diagnostics
+    suspend fun contentSize(): Long
+    suspend fun sizeBytesOf(contentKey: String): Long
+    suspend fun lastModifiedDate(): Instant?
+
+    // per-data-type creation
+    suspend fun openImageTileStore(
+        contentKey: String, levelSet: LevelSet,
+        imageFormat: String = "image/png", isTransparent: Boolean = false,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        displayName: String? = null,
+    ): TileStore
+
+    suspend fun openVectorTileStore(
+        contentKey: String, levelSet: LevelSet,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        displayName: String? = null,
+    ): TileStore
+
+    suspend fun openFeatureStore(
+        contentKey: String,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        displayName: String? = null,
+    ): FeatureStore
+
+    // elevation has its own factory entry — owns Float32 / Int16 transcoding
+    suspend fun createElevationSourceFactory(
+        contentKey: String, tileMatrixSet: TileMatrixSet,
+        networkSource: TileSource?, outputFormat: String,
+        isFloat: Boolean = false,
+        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        displayName: String? = null,
+    ): ElevationSourceFactory
+
+    // web-service metadata (infallible — implementations catch + log)
+    suspend fun registerWebService(contentKey: String, info: WebServiceInfo)
+    suspend fun readWebService(contentKey: String): WebServiceInfo?
+
+    // enumeration / introspection
+    suspend fun listCachedSources(): List&lt;CachedSourceHandle&gt;
+    suspend fun findCachedSource(contentKey: String): CachedSourceHandle?
+
+    // lifecycle
+    suspend fun clearContent(contentKey: String)   // truncate tiles, keep registration
+    suspend fun deleteContent(contentKey: String)  // drop everything
+
+    // platform extension hooks (default no-op)
+    suspend fun tryRecoverLevelSet(contentKey: String): LevelSet? = null
+    suspend fun tryRecoverTileMatrixSet(contentKey: String): TileMatrixSet? = null
+    suspend fun tryOpenNativeContent(handle: CachedSourceHandle): Any? = null
+}</code></pre>
+
+<h3>Implementations</h3>
+<table>
+<tr><th>Platform</th><th>Class</th><th>Backing</th></tr>
+<tr><td>JVM / Android</td><td><code>GpkgContentManager</code></td><td>GeoPackage file</td></tr>
+<tr><td>JS</td><td><code>WebContentManager</code></td><td>IndexedDB database</td></tr>
+<tr><td>iOS</td><td><code>IosContentManager</code></td><td>Filesystem directory</td></tr>
+</table>
+</section>
+
+<section id="decorators">
+<h2><span class="num">2.</span> Source decorators</h2>
+<p class="lead">Bytes for tiles / vector tiles / elevation network bytes; row streams for features. The cache decorator wraps a network source + a store, serving cache-first reads with write-through on miss.</p>
+
+<h3>Bytes-oriented</h3>
+<pre><code class="language-kotlin">package earth.worldwind.layer.cache
+
+interface TileSource {
+    suspend fun fetchTile(z: Int, x: Int, y: Int,
+                          previousEtag: String? = null,
+                          previousLastModified: String? = null): TileBlob?
+    fun close() {}
+}
+
+class CachedTileSource(
+    private val inner: TileSource?,
+    private val store: TileStore,
+) : TileSource, OfflineToggleable, CachedSourceInfoProvider {
+    override var isCacheOnly: Boolean = inner == null
+    override val cacheInfo: CachedSourceInfo?  // delegates to store
+    // fetchTile: cache → network → write-through
+}</code></pre>
+
+<h3>Feature rows</h3>
+<pre><code class="language-kotlin">interface BulkFeatureSource  { suspend fun fetchAll(): Flow&lt;CachedFeatureRow&gt; }
+interface TiledFeatureSource { suspend fun fetchTile(z: Int, x: Int, y: Int,
+                                                      sector: Sector): Flow&lt;CachedFeatureRow&gt;? }
+
+class CachedBulkFeatureSource(inner: BulkFeatureSource?, store: FeatureStore)
+    : BulkFeatureSource, OfflineToggleable, CachedSourceInfoProvider
+
+class CachedTiledFeatureSource(inner: TiledFeatureSource?, store: FeatureStore)
+    : TiledFeatureSource, OfflineToggleable, CachedSourceInfoProvider</code></pre>
+</section>
+
+<section id="stores">
+<h2><span class="num">3.</span> Stores</h2>
+<p class="lead">The cache backing under the decorators. Per-platform implementations honor the same interface; eviction is enforced lazily per <code>CacheEvictionPolicy</code>.</p>
+
+<pre><code class="language-kotlin">interface TileStore {
+    val evictionPolicy: CacheEvictionPolicy
+    suspend fun readTile(z: Int, x: Int, y: Int): TileBlob?
+    suspend fun writeTile(z: Int, x: Int, y: Int, blob: TileBlob)
+    suspend fun deleteTile(z: Int, x: Int, y: Int)
+    suspend fun evict()
+    suspend fun sizeBytes(): Long
+}
+
+interface FeatureStore {
+    val evictionPolicy: CacheEvictionPolicy
+    suspend fun readAll(): Flow&lt;CachedFeatureRow&gt;
+    suspend fun replaceAll(rows: Flow&lt;CachedFeatureRow&gt;)
+    suspend fun readTile(z: Int, x: Int, y: Int): Flow&lt;CachedFeatureRow&gt;?
+    suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow&lt;CachedFeatureRow&gt;)
+    suspend fun evict()
+    suspend fun sizeBytes(): Long
+}</code></pre>
+
+<table>
+<tr><th>Platform</th><th>Tile store</th><th>Feature store</th></tr>
+<tr><td>JVM</td><td><code>GpkgTileStore</code></td><td><code>GpkgFeatureStore</code></td></tr>
+<tr><td>JS</td><td><code>IndexedDbTileStore</code></td><td><code>IndexedDbFeatureStore</code></td></tr>
+<tr><td>iOS</td><td><code>FileSystemTileStore</code></td><td><code>FileSystemFeatureStore</code></td></tr>
+</table>
+</section>
+
+<section id="introspection">
+<h2><span class="num">4.</span> Introspection</h2>
+<p class="lead">Two layers: <code>CachedSourceHandle</code> for enumerating what's in the cache; <code>cachedSourceInfo</code> for asking a live layer "where do you store my bytes?".</p>
+
+<h3>What's in the cache</h3>
+<pre><code class="language-kotlin">data class CachedSourceHandle(
+    val contentKey: String,
+    val dataType: DataType,            // TILES | VECTOR_TILES | COVERAGE | FEATURES
+    val service: WebServiceInfo?,
+    val boundingSector: Sector?,
+    val lastModified: Instant?,
+    val displayName: String = contentKey,
+    val metadata: SourceMetadata? = null,
+)
+
+sealed class SourceMetadata {
+    data class CoverageMetadata(val isFloat: Boolean) : SourceMetadata()
+    data object TilesMetadata        : SourceMetadata()
+    data object VectorTilesMetadata  : SourceMetadata()
+    data object FeaturesMetadata     : SourceMetadata()
+}</code></pre>
+
+<h3>Cache identity of a live layer</h3>
+<pre><code class="language-kotlin">data class CachedSourceInfo(val contentKey: String, val contentPath: String)
+
+interface CachedSourceInfoProvider {
+    val cacheInfo: CachedSourceInfo?
+}
+
+// Layer-side extensions — `null` means no cache wired (network-only)
+val TiledImageLayer.cachedSourceInfo: CachedSourceInfo?
+val TiledElevationCoverage.cachedSourceInfo: CachedSourceInfo?
+val MvtVectorLayer.cachedSourceInfo: CachedSourceInfo?
+val WfsFeatureLayer.cachedSourceInfo: CachedSourceInfo?
+val OsmBuildingsLayer.cachedSourceInfo: CachedSourceInfo?</code></pre>
+</section>
+
+<section id="offline">
+<h2><span class="num">5.</span> Offline-mode toggle</h2>
+<p class="lead">One generic switch implemented by every cache-aware decorator and factory. App-level "go offline" walks the layers and flips the flag.</p>
+
+<pre><code class="language-kotlin">interface OfflineToggleable {
+    var isCacheOnly: Boolean
+}
+
+// Implementations:
+// — CachedTileSource
+// — CachedBulkFeatureSource
+// — CachedTiledFeatureSource
+// — GpkgCachedElevationSourceFactory   (JVM)
+// — CachedElevationSourceFactory       (JS / iOS)</code></pre>
+</section>
+
+<section id="bulk">
+<h2><span class="num">6.</span> Bulk download</h2>
+<p class="lead">Same dispatch pattern for both layer types: the helper iterates <code>(z, x, y)</code> over a sector and resolution range, calling an interface to fetch + cache each tile. The interface differs because the underlying source models differ.</p>
+
+<h3>Maps — via <code>TileSource</code> itself</h3>
+<pre><code class="language-kotlin">// commonMain
+fun TiledImageLayer.launchBulkRetrieval(
+    sector: Sector,
+    resolution: ClosedRange&lt;Angle&gt;,
+    scope: CoroutineScope = GlobalScope,
+    onProgress: ((downloaded: Long, skipped: Long, total: Long) -&gt; Unit)? = null,
+): Job?</code></pre>
+
+<h3>Elevation — via a typed mixin</h3>
+<pre><code class="language-kotlin">interface BulkRetrievableElevationSourceFactory {
+    /** True if the tile is now in cache (already was or just got written);
+     *  false on permanent miss or unrecoverable network failure. */
+    suspend fun fetchAndCacheTile(z: Int, x: Int, y: Int): Boolean
+}
+
+fun TiledElevationCoverage.launchBulkRetrieval(
+    sector: Sector,
+    resolution: ClosedRange&lt;Angle&gt;,
+    scope: CoroutineScope = GlobalScope,
+    onProgress: ((downloaded: Long, skipped: Long, total: Long) -&gt; Unit)? = null,
+): Job?</code></pre>
+</section>
+
+<section id="factories">
+<h2><span class="num">7.</span> Layer creation factories</h2>
+<p class="lead">Cache-aware factories are the recommended creation path — they wire the cache during construction, which avoids the post-factum sector / matrix validation hazards. <code>attachCache</code> is the escape hatch for layers built elsewhere.</p>
+
+<h3>Image layers</h3>
+<pre><code class="language-kotlin">WmsLayerFactory.createLayer(
+    serviceAddress, layerNames, displayName,
+    contentManager, contentKey, serviceMetadata? = null,
+)
+WmtsLayerFactory.createLayer(
+    serviceAddress, layerName, displayName,
+    contentManager, contentKey, serviceMetadata? = null,
+)
+WebMercatorLayerFactory.createLayer(urlTemplate, name, imageFormat, ...)
+
+// post-factum
+WebMercatorImageLayer.attachCache(contentManager, contentKey, evictionPolicy)
+WmsImageLayer.attachCache(contentManager, contentKey, evictionPolicy)
+WmtsImageLayer.attachCache(contentManager, contentKey, evictionPolicy)</code></pre>
+
+<h3>Elevation</h3>
+<pre><code class="language-kotlin">WmsElevationCoverage.createCoverage(
+    serviceAddress, coverageName, outputFormat,
+    sector, resolution,
+    contentManager?, contentKey?,
+    isFloat = false, displayName? = null, offlineOnly = false,
+)
+Wcs100ElevationCoverage.createCoverage(...)
+Wcs201ElevationCoverage.createCoverage(
+    serviceAddress, coverageName, outputFormat,
+    contentManager?, contentKey?,
+    serviceMetadata? = null, isFloat = false, displayName? = null,
+    offlineOnly = false,
+)
+
+// post-factum
+BasicElevationCoverage.attachCache(contentManager, contentKey?, evictionPolicy)</code></pre>
+
+<h3>Vector tiles &amp; features</h3>
+<pre><code class="language-kotlin">MvtVectorLayer.attachCache(contentManager, contentKey, evictionPolicy)
+WfsFeatureLayer.attachCache(contentManager, contentKey, evictionPolicy)
+OsmBuildingsLayer.attachCache(contentManager, contentKey, evictionPolicy)</code></pre>
+
+<div class="note">
+<strong>Why elevation has its own factory entry on <code>ContentManager</code>:</strong>
+elevation tiles are <em>encoded</em> in the cache (PNG-Int16 with per-tile scale/offset, or
+TIFF-Float32), not raw network bytes. A generic <code>openCoverageStore</code> that handed
+out a <code>TileStore</code> would lure callers into wrapping it in <code>CachedTileSource</code>
+and feeding those encoded bytes through the wire-format decoder — exactly the
+"raw bytes through BIL16 decoder" bug class. <code>createElevationSourceFactory</code>
+hides that asymmetry behind one correct entry point.
+</div>
+</section>
+
+<section id="reopen">
+<h2><span class="num">8.</span> Reopen — handle-driven dispatch</h2>
+<p class="lead">After restart: list cached entries → pick a handle → call <code>openCachedLayer</code>. The registry dispatches on (data type, service type) to the right opener; the per-platform native-content hook handles handles without a registered web service.</p>
+
+<pre><code class="language-kotlin">suspend fun ContentManager.openCachedLayer(
+    handle: CachedSourceHandle,
+    offlineOnly: Boolean = false,
+): Any?   // the right layer/coverage class for the handle's service type
+
+object CachedLayerRegistry {
+    fun register(
+        dataType: CachedSourceHandle.DataType,
+        serviceType: String,
+        opener: CachedLayerOpener,
+    )
+}
+
+typealias CachedLayerOpener = suspend (
+    contentManager: ContentManager,
+    handle: CachedSourceHandle,
+    offlineOnly: Boolean,
+) -&gt; Any?</code></pre>
+
+<h3>Built-in registrations</h3>
+<table>
+<tr><th>Data type</th><th>Service types</th></tr>
+<tr><td><code>TILES</code></td><td>WMS, WMTS, WebMercator</td></tr>
+<tr><td><code>VECTOR_TILES</code></td><td>MVT</td></tr>
+<tr><td><code>COVERAGE</code></td><td>WCS 1.0, WCS 2.0.1, WMS Elevation</td></tr>
+<tr><td><code>FEATURES</code></td><td>WFS, Shapefile, OsmBuildings</td></tr>
+</table>
+<p>Apps register custom service types via <code>CachedLayerRegistry.register(...)</code>.</p>
+</section>
+
+<section id="webservice">
+<h2><span class="num">9.</span> Web-service registration</h2>
+<p class="lead">Persisted metadata that lets the reopen dispatcher reconstruct a layer without contacting the server. Capabilities XML / JSON survives across launches in <code>WebServiceInfo.metadata</code>.</p>
+
+<pre><code class="language-kotlin">data class WebServiceInfo(
+    val type: String,           // "WMS" | "WMTS" | "WCS 1.0.0" | "WCS 2.0.1" |
+                                // "MVT" | "WebMercator" |
+                                // "WFS" | "Shapefile" | "OsmBuildings"
+    val address: String,
+    val layerName: String? = null,
+    val outputFormat: String? = null,
+    val metadata: String? = null,        // capabilities XML / JSON
+    val isTransparent: Boolean = false,
+)</code></pre>
+</section>
+
+<section id="usage">
+<h2><span class="num">10.</span> Usage in three lines</h2>
+
+<pre><code class="language-kotlin">// Create
+val coverage = WmsElevationCoverage.createCoverage(
+    serviceAddress = "https://elevation.example.com/wms",
+    coverageName   = "DEP3Elevation",
+    outputFormat   = "application/bil16",
+    sector         = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
+    resolution     = Angle.fromSeconds(1.0 / 3.0),
+    contentManager = cm,
+    contentKey     = "elev_3dep",
+    isFloat        = false,
+)
+
+// Introspect
+val info: CachedSourceInfo? = coverage.cachedSourceInfo
+// → CachedSourceInfo(contentKey = "elev_3dep", contentPath = "/.../OnlineCache.gpkg")
+
+// Reopen after restart
+val handle = cm.findCachedSource("elev_3dep") ?: return
+val reopened = cm.openCachedLayer(handle) as? TiledElevationCoverage</code></pre>
+
+<div class="note">
+<strong>Migration shape:</strong> 15 methods on <code>ContentManager</code> (down from 17 pre-2.0).
+One elevation entry point. <code>findCachedSource</code> returns sealed metadata.
+<code>OfflineToggleable</code> + <code>CachedSourceInfoProvider</code> +
+<code>BulkRetrievableElevationSourceFactory</code> are the three mixins layers
+look for. Nothing else.
+</div>
+</section>
+
+<footer>
+WorldWindKotlin 2.0 cache API &middot; generated for distribution &middot;
+view source on the <code>feature/cache-redesign-v3</code> branch
+</footer>
+
+</div>
+</body>
+</html>

@@ -3,7 +3,6 @@ package earth.worldwind.ogc.gpkg
 import com.j256.ormlite.dao.BaseDaoImpl
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
-import com.j256.ormlite.misc.TransactionManager
 import com.j256.ormlite.table.DatabaseTableConfig
 import com.j256.ormlite.table.TableUtils
 import earth.worldwind.MR
@@ -12,8 +11,6 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
 import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
-import earth.worldwind.layer.CacheableImageLayer
-import earth.worldwind.layer.WebFeatureLayer
 import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.mercator.MercatorSector
@@ -156,6 +153,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     fun shutdown() = geoPackage.close().also {
         tileUserDataDao.clear()
         tileMatrixCache.clear()
+        tablesWithLastModified.clear()
     }
 
     suspend fun countContent(dataType: String) = withContext(Dispatchers.IO) {
@@ -175,9 +173,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         } else emptyList()
     }
 
-    suspend fun getWebService(content: GpkgContent): GpkgWebService? = withContext(Dispatchers.IO) {
+    suspend fun getWebService(content: GpkgContent): GpkgWebService? = getWebService(content.tableName)
+
+    /**
+     * Direct web-service lookup by table name. Does NOT require a [GpkgContent] row to
+     * exist — capabilities metadata is independent of any tile/feature pyramid being
+     * provisioned for the same key, so this query stays cheap and unconditional.
+     */
+    suspend fun getWebService(tableName: String): GpkgWebService? = withContext(Dispatchers.IO) {
         if (webServiceDao.isTableExists) {
-            webServiceDao.queryBuilder().where().eq(GpkgWebService.COLUMN_TABLE_NAME, content.tableName).queryForFirst()
+            webServiceDao.queryBuilder().where().eq(GpkgWebService.COLUMN_TABLE_NAME, tableName).queryForFirst()
         } else null
     }
 
@@ -206,7 +211,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 .where().eq(GeometryColumns.COLUMN_TABLE_NAME, tableName)
                 .queryForFirst()?.columnName?.let { columnName ->
                     if (geoPackage.featureTables.contains(tableName)) {
-                        result = dao.queryRawValue("SELECT SUM(LENGTH($columnName)) FROM '$tableName'")
+                        // Geometry alone undercounts tag-heavy sources (OsmBuildings, WFS).
+                        result = dao.queryRawValue(
+                            "SELECT COALESCE(SUM(LENGTH(\"$columnName\")), 0) + " +
+                                "COALESCE(SUM(LENGTH(\"$FEATURE_PROPERTIES_COLUMN\")), 0) " +
+                                "FROM '$tableName'"
+                        )
                     }
                 }
         }
@@ -236,7 +246,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             it.tileColumn = tileColumn
             it.tileRow = tileRow
         }
-        tileUserData.tileData = tileData // Replace tile data
+        tileUserData.tileData = tileData
         getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
         // last_modified is set via raw SQL because the column isn't on the ORM entity (see
         // GpkgTileUserData — declaring it would break reads of pre-eviction / third-party
@@ -278,6 +288,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             val cutoff = System.currentTimeMillis() - policy.maxAge.inWholeMilliseconds
             geoPackage.database.execSQL("DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff")
         }
+
         if (policy.maxEntries < Long.MAX_VALUE) {
             geoPackage.database.execSQL(
                 "DELETE FROM $q WHERE id IN (" +
@@ -420,75 +431,98 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         }
     }
 
+    /**
+     * Create (or open) an image-tile pyramid table. Idempotent — a prior partial setup or
+     * a previous successful run is detected and the existing content row is returned.
+     *
+     * @param imageFormat triggers the `gpkg_webp` extension when `image/webp`.
+     */
     @Throws(IllegalStateException::class)
     suspend fun setupTilesContent(
-        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, setupWebLayer: Boolean
+        tableName: String,
+        levelSet: LevelSet,
+        displayName: String? = null,
+        imageFormat: String = "image/png",
     ): GpkgContent = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
-        TransactionManager.callInTransaction(connectionSource) {
-            // Ensure the necessary tables created
-            geoPackage.createTileMatrixSetTable()
-            geoPackage.createTileMatrixTable()
-
-            // Write WEBP extension if necessary
-            if (layer is WebImageLayer && layer.imageFormat.equals("image/webp", ignoreCase = true)) {
-                WebPExtension(geoPackage).getOrCreate(tableName)
+        // Re-entrant by design — a previous run that succeeded (or crashed midway) leaves
+        // some of the artifacts in place. No transaction wraps these calls (see commit
+        // history; NGA's createTileTable + ContentsDao.verifyCreate use different JDBC
+        // connections), so every step here is guarded with an existence check + CREATE-IF
+        // / createIfNotExists semantics so re-execution is a no-op for already-done work.
+        contentDao.queryForId(tableName)?.let { existing ->
+            check(existing.dataTypeName.equals(TILES, ignoreCase = true)) {
+                "Content '$tableName' exists but is not a tiles table (was '${existing.dataTypeName}')"
             }
-
-            // Write the necessary SRS data
-            val srs = srsDao.getOrCreateFromEpsg(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
-
-            // Define bounding boxes. Content bounding box can be smaller than matrix set bounding box.
-            val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
-            val contentBox = if (levelSet.sector != levelSet.tileOrigin)
-                buildBoundingBox(levelSet.sector, srs.id) else matrixBox
-
-            // Create tile data table
-            val columns = TileTable.createRequiredColumns()
-            val tileTable = TileTable(tableName, columns)
-            geoPackage.createTileTable(tileTable)
-
-            // Create or update content metadata
-            val content = GpkgContent().also {
-                it.tableName = tableName
-                it.dataTypeName = TILES
-                it.identifier = layer.displayName ?: tableName
-                //it.lastChange = Date()
-                it.minX = contentBox.minLongitude
-                it.minY = contentBox.minLatitude
-                it.maxX = contentBox.maxLongitude
-                it.maxY = contentBox.maxLatitude
-                it.srs = srs
-            }
-            contentDao.create(content)
-
-            // Write tile matrix set
-            val tms = GpkgTileMatrixSet().also {
-                it.contents = content
-                it.srs = srs
-                it.minX = matrixBox.minLongitude
-                it.minY = matrixBox.minLatitude
-                it.maxX = matrixBox.maxLongitude
-                it.maxY = matrixBox.maxLatitude
-            }
-            tileMatrixSetDao.create(tms)
-
-            content
-        }.also { content ->
-            setupTileMatrices(content, levelSet)
-            ensureLastModifiedColumn(content.tableName)
-            if (setupWebLayer && layer is WebImageLayer) setupWebLayer(layer, content)
+            return@withContext existing
         }
+
+        // NGA's createTileMatrixSetTable / createTileMatrixTable internally check
+        // isTableExists before issuing CREATE TABLE, so they're safe to re-call.
+        geoPackage.createTileMatrixSetTable()
+        geoPackage.createTileMatrixTable()
+
+        // WebPExtension.getOrCreate queries the gpkg_extensions row first; idempotent.
+        if (imageFormat.equals("image/webp", ignoreCase = true)) {
+            WebPExtension(geoPackage).getOrCreate(tableName)
+        }
+
+        // srsDao.getOrCreateFromEpsg is get-then-create — idempotent across calls.
+        val srs = srsDao.getOrCreateFromEpsg(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
+
+        val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
+        val contentBox = if (levelSet.sector != levelSet.tileOrigin)
+            buildBoundingBox(levelSet.sector, srs.id) else matrixBox
+
+        if (!geoPackage.isTable(tableName)) {
+            val tileTable = TileTable(tableName, TileTable.createRequiredColumns())
+            geoPackage.createTileTable(tileTable)
+        }
+
+        val content = GpkgContent().also {
+            it.tableName = tableName
+            it.dataTypeName = TILES
+            it.identifier = displayName ?: tableName
+            it.minX = contentBox.minLongitude
+            it.minY = contentBox.minLatitude
+            it.maxX = contentBox.maxLongitude
+            it.maxY = contentBox.maxLatitude
+            it.srs = srs
+        }
+        val persistedContent = contentDao.createIfNotExists(content)
+
+        val tms = GpkgTileMatrixSet().also {
+            it.contents = persistedContent
+            it.srs = srs
+            it.minX = matrixBox.minLongitude
+            it.minY = matrixBox.minLatitude
+            it.maxX = matrixBox.maxLongitude
+            it.maxY = matrixBox.maxLatitude
+        }
+        tileMatrixSetDao.createIfNotExists(tms)
+
+        setupTileMatrices(persistedContent, levelSet)
+        ensureLastModifiedColumn(persistedContent.tableName)
+        persistedContent
     }
 
+    /** Refresh the [GpkgContent] identifier + bbox to match the layer's current
+     *  [LevelSet.sector] and [displayName]. The level-set sector is the in-memory
+     *  source of truth for the layer's data extent; this call persists it back to gpkg
+     *  so the round-trip is safe — open via [tryRecoverLevelSet] copies the persisted
+     *  bbox into the level-set sector; the next reopen writes the same value back.
+     *  Bulk-download mutates the level-set sector before re-binding the cache, so the
+     *  new extent lands on disk through the same write. */
     suspend fun updateTilesContent(
-        layer: CacheableImageLayer, tableName: String, levelSet: LevelSet, content: GpkgContent
+        tableName: String, levelSet: LevelSet, displayName: String?, content: GpkgContent,
     ): Unit = withContext(writeDispatcher) {
+        // Reopen of a read-only GeoPackage is pure-read; never attempt the metadata write.
+        if (isReadOnly) return@withContext
         val srs = srsDao.queryForId(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
         val box = buildBoundingBox(levelSet.sector, srs.srsId)
         with(content) {
-            identifier = layer.displayName ?: tableName
+            identifier = displayName ?: tableName
             minX = box.minLongitude
             minY = box.minLatitude
             maxX = box.maxLongitude
@@ -515,52 +549,60 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     ): GpkgContent = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
-        TransactionManager.callInTransaction(connectionSource) {
-            geoPackage.createTileMatrixSetTable()
-            geoPackage.createTileMatrixTable()
-
-            val srs = srsDao.getOrCreateFromEpsg(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
-
-            val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
-            val contentBox = if (levelSet.sector != levelSet.tileOrigin)
-                buildBoundingBox(levelSet.sector, srs.id) else matrixBox
-
-            // Standard GeoPackage tile pyramid table — identical schema to raster tiles.
-            val columns = TileTable.createRequiredColumns()
-            val tileTable = TileTable(tableName, columns)
-            geoPackage.createTileTable(tileTable)
-
-            val content = GpkgContent().also {
-                it.tableName = tableName
-                it.dataTypeName = dataType
-                it.identifier = displayName ?: tableName
-                it.minX = contentBox.minLongitude
-                it.minY = contentBox.minLatitude
-                it.maxX = contentBox.maxLongitude
-                it.maxY = contentBox.maxLatitude
-                it.srs = srs
+        // Re-entrant by design — see [setupTilesContent].
+        contentDao.queryForId(tableName)?.let { existing ->
+            check(existing.dataTypeName.equals(dataType, ignoreCase = true)) {
+                "Content '$tableName' exists but data_type is '${existing.dataTypeName}' (expected '$dataType')"
             }
-            contentDao.create(content)
-
-            val tms = GpkgTileMatrixSet().also {
-                it.contents = content
-                it.srs = srs
-                it.minX = matrixBox.minLongitude
-                it.minY = matrixBox.minLatitude
-                it.maxX = matrixBox.maxLongitude
-                it.maxY = matrixBox.maxLatitude
-            }
-            tileMatrixSetDao.create(tms)
-
-            // Register the encoding extension in the same transaction so external readers see
-            // consistent metadata. The encoding decides extension_name / scope / definition.
+            // Make sure the encoding registration is still in place even on the re-entry path.
             encoding?.getOrCreate(tableName)
-
-            content
-        }.also { content ->
-            setupTileMatrices(content, levelSet)
-            ensureLastModifiedColumn(content.tableName)
+            return@withContext existing
         }
+
+        geoPackage.createTileMatrixSetTable()
+        geoPackage.createTileMatrixTable()
+
+        val srs = srsDao.getOrCreateFromEpsg(if (levelSet.sector is MercatorSector) EPSG_3857 else EPSG_4326)
+
+        val matrixBox = buildBoundingBox(levelSet.tileOrigin, srs.id)
+        val contentBox = if (levelSet.sector != levelSet.tileOrigin)
+            buildBoundingBox(levelSet.sector, srs.id) else matrixBox
+
+        // Standard GeoPackage tile pyramid table — identical schema to raster tiles.
+        if (!geoPackage.isTable(tableName)) {
+            val tileTable = TileTable(tableName, TileTable.createRequiredColumns())
+            geoPackage.createTileTable(tileTable)
+        }
+
+        val content = GpkgContent().also {
+            it.tableName = tableName
+            it.dataTypeName = dataType
+            it.identifier = displayName ?: tableName
+            it.minX = contentBox.minLongitude
+            it.minY = contentBox.minLatitude
+            it.maxX = contentBox.maxLongitude
+            it.maxY = contentBox.maxLatitude
+            it.srs = srs
+        }
+        val persistedContent = contentDao.createIfNotExists(content)
+
+        val tms = GpkgTileMatrixSet().also {
+            it.contents = persistedContent
+            it.srs = srs
+            it.minX = matrixBox.minLongitude
+            it.minY = matrixBox.minLatitude
+            it.maxX = matrixBox.maxLongitude
+            it.maxY = matrixBox.maxLatitude
+        }
+        tileMatrixSetDao.createIfNotExists(tms)
+
+        // Encoding extension row (e.g. im_vector_tiles_mapbox) tags the BLOB format for
+        // external readers. getOrCreate is query-then-create — idempotent.
+        encoding?.getOrCreate(tableName)
+
+        setupTileMatrices(persistedContent, levelSet)
+        ensureLastModifiedColumn(persistedContent.tableName)
+        persistedContent
     }
 
     @Throws(IllegalStateException::class)
@@ -572,43 +614,55 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         initializeTileMatrices(content) // Ensure foreign collection exists
         val ctm = content.tileMatrix ?: error("Tile Matrix foreign collection must not be empty at this point")
         val tm = ctm.associateBy { it.zoomLevel.toInt() }.toMutableMap().also { tileMatrixCache[content.tableName] = it }
-        TransactionManager.callInTransaction(connectionSource) {
-            for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
-                if (!tm.containsKey(levelNumber)) {
-                    val matrixWidth = levelWidth / tileWidth
-                    val matrixHeight = levelHeight / tileHeight
-                    val pixelXSize = deltaX / levelWidth
-                    val pixelYSize = deltaY / levelHeight
-                    val matrix = GpkgTileMatrix().also {
-                        it.contents = content
-                        it.zoomLevel = levelNumber.toLong()
-                        it.matrixWidth = matrixWidth.toLong()
-                        it.matrixHeight = matrixHeight.toLong()
-                        it.tileWidth = tileWidth.toLong()
-                        it.tileHeight = tileHeight.toLong()
-                        it.pixelXSize = pixelXSize
-                        it.pixelYSize = pixelYSize
-                    }
-                    ctm.add(matrix)
-                    tm[levelNumber] = matrix
+        // No transaction wrap — see [setupTilesContent].
+        for (i in 0 until levelSet.numLevels) levelSet.level(i)?.run {
+            if (!tm.containsKey(levelNumber)) {
+                val matrixWidth = levelWidth / tileWidth
+                val matrixHeight = levelHeight / tileHeight
+                val pixelXSize = deltaX / levelWidth
+                val pixelYSize = deltaY / levelHeight
+                val matrix = GpkgTileMatrix().also {
+                    it.contents = content
+                    it.zoomLevel = levelNumber.toLong()
+                    it.matrixWidth = matrixWidth.toLong()
+                    it.matrixHeight = matrixHeight.toLong()
+                    it.tileWidth = tileWidth.toLong()
+                    it.tileHeight = tileHeight.toLong()
+                    it.pixelXSize = pixelXSize
+                    it.pixelYSize = pixelYSize
                 }
+                ctm.add(matrix)
+                tm[levelNumber] = matrix
             }
         }
     }
 
+    /**
+     * Upsert a [GpkgWebService] row for [tableName] with the supplied fields. Single
+     * entry point for every web-backed cache content (image / elevation / vector-tile /
+     * feature) — the previous per-layer-type setup variants have been collapsed here.
+     */
     @Throws(IllegalStateException::class)
-    suspend fun setupWebLayer(layer: WebImageLayer, content: GpkgContent): Unit = withContext(writeDispatcher) {
-        if (isReadOnly) error("WebService $content cannot be updated. GeoPackage is read-only!")
+    suspend fun setupWebService(
+        tableName: String,
+        type: String,
+        address: String,
+        layerName: String? = null,
+        outputFormat: String? = null,
+        metadata: String? = null,
+        isTransparent: Boolean = false,
+    ): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) error("WebService $tableName cannot be updated. GeoPackage is read-only!")
         createWebServiceTable()
         webServiceDao.createOrUpdate(
             GpkgWebService().also {
-                it.tableName = content.tableName
-                it.type = layer.serviceType
-                it.address = layer.serviceAddress
-                it.metadata = layer.serviceMetadata
-                it.layerName = layer.layerName
-                it.outputFormat = layer.imageFormat
-                it.isTransparent = layer.isTransparent
+                it.tableName = tableName
+                it.type = type
+                it.address = address
+                it.layerName = layerName
+                it.outputFormat = outputFormat
+                it.metadata = metadata
+                it.isTransparent = isTransparent
             }
         )
     }
@@ -633,45 +687,61 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         TileMatrixSet(sector, entries)
     }
 
+    /**
+     * Create (or open) a gridded-coverage tile pyramid. Idempotent — re-running after a
+     * partial setup or a previous successful run is a no-op.
+     */
     @Throws(IllegalStateException::class)
     suspend fun setupGriddedCoverageContent(
-        coverage: CacheableElevationCoverage, tableName: String, setupWebCoverage: Boolean, isFloat: Boolean
+        tableName: String,
+        tileMatrixSet: TileMatrixSet,
+        sector: Sector = tileMatrixSet.sector,
+        displayName: String? = null,
+        isFloat: Boolean = false,
     ): GpkgContent = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
 
-        TransactionManager.callInTransaction(connectionSource) {
-            val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
-            val matrixBox = buildBoundingBox(coverage.tileMatrixSet.sector, srs.id)
-            val contentBox = if (coverage.sector != coverage.tileMatrixSet.sector)
-                buildBoundingBox(coverage.sector, srs.id) else matrixBox
-            val coverageData = createCoverageData(
-                geoPackage, tableName, coverage.displayName, contentBox, srs.id, matrixBox, srs.id, isFloat
-            )
-            val tms = coverageData.tileMatrixSet
-
-            griddedCoverageDao.create(
-                GpkgGriddedCoverage().also {
-                    it.tileMatrixSet = tms
-                    it.dataType = if (isFloat) FLOAT else INTEGER
-                    it.dataNull = if (isFloat) Float.MAX_VALUE.toDouble() else Short.MIN_VALUE.toDouble()
-                }
-            )
-
-            tms.contents
-        }.also { content ->
-            setupTileMatrices(content, coverage.tileMatrixSet)
-            ensureLastModifiedColumn(content.tableName)
-            if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, content)
+        contentDao.queryForId(tableName)?.let { existing ->
+            check(existing.dataTypeName.equals(COVERAGE, ignoreCase = true)) {
+                "Content '$tableName' exists but is not a gridded-coverage table (was '${existing.dataTypeName}')"
+            }
+            return@withContext existing
         }
+
+        val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
+        val matrixBox = buildBoundingBox(tileMatrixSet.sector, srs.id)
+        val contentBox = if (sector != tileMatrixSet.sector)
+            buildBoundingBox(sector, srs.id) else matrixBox
+        val coverageData = createCoverageData(
+            geoPackage, tableName, displayName, contentBox, srs.id, matrixBox, srs.id, isFloat
+        )
+        val tms = coverageData.tileMatrixSet
+
+        griddedCoverageDao.createIfNotExists(
+            GpkgGriddedCoverage().also {
+                it.tileMatrixSet = tms
+                it.dataType = if (isFloat) FLOAT else INTEGER
+                it.dataNull = if (isFloat) Float.MAX_VALUE.toDouble() else Short.MIN_VALUE.toDouble()
+            }
+        )
+
+        val content = tms.contents
+        setupTileMatrices(content, tileMatrixSet)
+        ensureLastModifiedColumn(content.tableName)
+        content
     }
 
+    /** Refresh the [GpkgContent] identifier + bbox for a coverage table, mirroring the
+     *  round-trip safety of [updateTilesContent]. */
     suspend fun updateGriddedCoverageContent(
-        coverage: CacheableElevationCoverage, tableName: String, content: GpkgContent
+        tableName: String, sector: Sector, displayName: String?, content: GpkgContent,
     ) = withContext(writeDispatcher) {
+        // Reopen of a read-only GeoPackage is pure-read; never attempt the metadata write.
+        if (isReadOnly) return@withContext
         val srs = srsDao.queryForId(EPSG_4326)
-        val box = buildBoundingBox(coverage.sector, srs.id)
+        val box = buildBoundingBox(sector, srs.id)
         with(content) {
-            identifier = coverage.displayName ?: tableName
+            identifier = displayName ?: tableName
             minX = box.minLongitude
             minY = box.minLatitude
             maxX = box.maxLongitude
@@ -689,86 +759,25 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         initializeTileMatrices(content) // Ensure foreign collection exists
         val ctm = content.tileMatrix ?: error("Tile Matrix foreign collection must not be empty at this point")
         val tm = ctm.associateBy { it.zoomLevel.toInt() }.toMutableMap().also { tileMatrixCache[content.tableName] = it }
-        TransactionManager.callInTransaction(connectionSource) {
-            for (tileMatrix in tileMatrixSet.entries) if (!tm.containsKey(tileMatrix.ordinal)) with(tileMatrix) {
-                val pixelXSize = deltaX / matrixWidth / tileWidth
-                val pixelYSize = deltaY / matrixHeight / tileHeight
-                val matrix = GpkgTileMatrix().also {
-                    it.contents = content
-                    it.zoomLevel = ordinal.toLong()
-                    it.matrixWidth = matrixWidth.toLong()
-                    it.matrixHeight = matrixHeight.toLong()
-                    it.tileWidth = tileWidth.toLong()
-                    it.tileHeight = tileHeight.toLong()
-                    it.pixelXSize = pixelXSize
-                    it.pixelYSize = pixelYSize
-                }
-                ctm.add(matrix)
-                tm[ordinal] = matrix
+        // No transaction wrap — see [setupTilesContent].
+        for (tileMatrix in tileMatrixSet.entries) if (!tm.containsKey(tileMatrix.ordinal)) with(tileMatrix) {
+            val pixelXSize = deltaX / matrixWidth / tileWidth
+            val pixelYSize = deltaY / matrixHeight / tileHeight
+            val matrix = GpkgTileMatrix().also {
+                it.contents = content
+                it.zoomLevel = ordinal.toLong()
+                it.matrixWidth = matrixWidth.toLong()
+                it.matrixHeight = matrixHeight.toLong()
+                it.tileWidth = tileWidth.toLong()
+                it.tileHeight = tileHeight.toLong()
+                it.pixelXSize = pixelXSize
+                it.pixelYSize = pixelYSize
             }
+            ctm.add(matrix)
+            tm[ordinal] = matrix
         }
     }
 
-    @Throws(IllegalStateException::class)
-    suspend fun setupWebCoverage(coverage: WebElevationCoverage, content: GpkgContent): Unit = withContext(writeDispatcher) {
-        if (isReadOnly) error("WebService ${content.tableName} cannot be updated. GeoPackage is read-only!")
-        createWebServiceTable()
-        webServiceDao.createOrUpdate(
-            GpkgWebService().also {
-                it.tableName = content.tableName
-                it.type = coverage.serviceType
-                it.address = coverage.serviceAddress
-                it.metadata = coverage.serviceMetadata
-                it.layerName = coverage.coverageName
-                it.outputFormat = coverage.outputFormat
-            }
-        )
-    }
-
-    /**
-     * Persist a vector-tile service association for a `vector-tiles` content row so the
-     * layer can be rebuilt as a network-backed [earth.worldwind.layer.mvt.MvtVectorLayer]
-     * on next open. Mirrors [setupWebFeatureLayer] but for raw-blob tile pyramids.
-     *
-     * Uses the GpkgWebService table generically — only `tableName`, `type`, `address` are
-     * required; the rest stay null for MVT.
-     */
-    @Throws(IllegalStateException::class)
-    suspend fun setupWebVectorTileLayer(
-        content: GpkgContent, serviceType: String, urlTemplate: String,
-    ): Unit = withContext(writeDispatcher) {
-        if (isReadOnly) error("WebService ${content.tableName} cannot be updated. GeoPackage is read-only!")
-        createWebServiceTable()
-        webServiceDao.createOrUpdate(
-            GpkgWebService().also {
-                it.tableName = content.tableName
-                it.type = serviceType
-                it.address = urlTemplate
-                it.outputFormat = "application/vnd.mapbox-vector-tile"
-            }
-        )
-    }
-
-    /**
-     * Persist the WFS / OGC API - Features service association for a FEATURES content row
-     * so the next time the GeoPackage is opened the layer can be rebuilt as a web-backed
-     * [WebFeatureLayer] and refreshed from the server.
-     */
-    @Throws(IllegalStateException::class)
-    suspend fun setupWebFeatureLayer(layer: WebFeatureLayer, content: GpkgContent): Unit = withContext(writeDispatcher) {
-        if (isReadOnly) error("WebService ${content.tableName} cannot be updated. GeoPackage is read-only!")
-        createWebServiceTable()
-        webServiceDao.createOrUpdate(
-            GpkgWebService().also {
-                it.tableName = content.tableName
-                it.type = layer.serviceType
-                it.address = layer.serviceAddress
-                it.metadata = layer.serviceMetadata
-                it.layerName = layer.layerName
-                it.outputFormat = layer.outputFormat
-            }
-        )
-    }
 
     /**
      * Create a features cache table with universal schema `(id, geom, tile_*, properties)`.
@@ -788,40 +797,60 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             return@withContext existing
         }
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
-        TransactionManager.callInTransaction(connectionSource) {
-            val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
-            val box = BoundingBox(-180.0, -90.0, 180.0, 90.0)
-            val geometryColumns = GeometryColumns().also {
-                it.tableName = tableName
-                it.columnName = FEATURE_GEOM_COLUMN
-                // GEOMETRY (not POLYGON) — MVT mixes points/lines/polygons in one payload.
-                it.geometryType = GeometryType.GEOMETRY
-                it.srs = srs
-                it.z = 0
-                it.m = 0
-            }
-            val columns = listOf(
-                FeatureColumn.createPrimaryKeyColumn(FEATURE_ID_COLUMN),
-                FeatureColumn.createGeometryColumn(FEATURE_GEOM_COLUMN, GeometryType.GEOMETRY),
-                FeatureColumn.createColumn(TILE_Z_COLUMN, GeoPackageDataType.INTEGER),
-                FeatureColumn.createColumn(TILE_X_COLUMN, GeoPackageDataType.INTEGER),
-                FeatureColumn.createColumn(TILE_Y_COLUMN, GeoPackageDataType.INTEGER),
-                FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, GeoPackageDataType.TEXT),
-                FeatureColumn.createColumn(LAST_MODIFIED_COLUMN, GeoPackageDataType.INTEGER),
-            )
-            val metadata = FeatureTableMetadata.create(geometryColumns, columns, box)
-            metadata.identifier = displayName ?: tableName
+        // No transaction wrap. NGA's createFeatureTable calls back into ORMLite DAOs
+        // (ContentsDao.verifyCreate → GeometryColumnsDao.isTableExists) on a different
+        // JDBC connection than NGA's private `Connection`. Wrapping in either ORMLite's
+        // TransactionManager or NGA's beginTransaction makes one side hold uncommitted
+        // schema changes that the other side can't see — manifesting as either
+        // SQLITE_BUSY (ORMLite-txn + NGA writes) or "GeometryColumns table missing"
+        // (NGA-txn + ORMLite reads). Without a transaction every CREATE IF NOT EXISTS /
+        // INSERT autocommits; the operations below are individually idempotent.
+        val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
+        val box = BoundingBox(-180.0, -90.0, 180.0, 90.0)
+        val geometryColumns = GeometryColumns().also {
+            it.tableName = tableName
+            it.columnName = FEATURE_GEOM_COLUMN
+            // GEOMETRY (not POLYGON) — MVT mixes points/lines/polygons in one payload.
+            it.geometryType = GeometryType.GEOMETRY
+            it.srs = srs
+            it.z = 0
+            it.m = 0
+        }
+        // List is passed to FeatureTableMetadata as `additionalColumns`, not `columns` —
+        // buildColumns() auto-prepends the primary-key + geometry columns from
+        // GeometryColumns, so adding them here would duplicate (NGA 6.6.7+ rejects with
+        // "Duplicate column found at index: 2, Name: id"). Keep only the extras.
+        val columns = listOf(
+            FeatureColumn.createColumn(TILE_Z_COLUMN, GeoPackageDataType.INTEGER),
+            FeatureColumn.createColumn(TILE_X_COLUMN, GeoPackageDataType.INTEGER),
+            FeatureColumn.createColumn(TILE_Y_COLUMN, GeoPackageDataType.INTEGER),
+            FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, GeoPackageDataType.TEXT),
+            FeatureColumn.createColumn(LAST_MODIFIED_COLUMN, GeoPackageDataType.INTEGER),
+        )
+        val metadata = FeatureTableMetadata.create(geometryColumns, columns, box)
+        metadata.identifier = displayName ?: tableName
+        // NGA's createFeatureTable internally CREATEs the user table + INSERTs Contents +
+        // GeometryColumns rows. If a prior run crashed mid-flight the user table may
+        // already exist; skip in that case rather than fail on a raw CREATE TABLE.
+        // For a partial state where the table exists but the Contents row is missing,
+        // delete the orphan and retry: `deleteEntry(tableName)` then call setup again.
+        if (!geoPackage.isFeatureTable(tableName)) {
             geoPackage.createFeatureTable(metadata)
-            val indexName = "${tableName}_$TILE_INDEX_SUFFIX"
-            val escapedTable = tableName.replace("\"", "\"\"")
-            val escapedIndex = indexName.replace("\"", "\"\"")
-            // Critical for tile-pyramid sources; harmless NULL entry for bulk-refresh sources.
-            geoPackage.database.execSQL(
-                "CREATE INDEX IF NOT EXISTS \"$escapedIndex\" ON \"$escapedTable\" " +
-                        "($TILE_Z_COLUMN, $TILE_X_COLUMN, $TILE_Y_COLUMN)"
-            )
-            contentDao.queryForId(tableName) ?: error("Features content $tableName missing after createFeatureTable")
-        }.also { ensureLastModifiedColumn(tableName) }
+        }
+        val indexName = "${tableName}_$TILE_INDEX_SUFFIX"
+        val escapedTable = tableName.replace("\"", "\"\"")
+        val escapedIndex = indexName.replace("\"", "\"\"")
+        // Critical for tile-pyramid sources; harmless NULL entry for bulk-refresh sources.
+        geoPackage.database.execSQL(
+            "CREATE INDEX IF NOT EXISTS \"$escapedIndex\" ON \"$escapedTable\" " +
+                    "($TILE_Z_COLUMN, $TILE_X_COLUMN, $TILE_Y_COLUMN)"
+        )
+        val persisted = contentDao.queryForId(tableName) ?: error(
+            "Features content '$tableName' missing after createFeatureTable — the .gpkg file " +
+                "may be in a half-created state. Call `deleteEntry(\"$tableName\")` and retry."
+        )
+        ensureLastModifiedColumn(tableName)
+        persisted
     }
 
     /**
@@ -833,10 +862,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, rows: List<Pair<Geometry, String?>>,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Cached features ${content.tableName} cannot be updated. GeoPackage is read-only!")
-        TransactionManager.callInTransaction(connectionSource) {
-            truncateFeatureTable(geoPackage, content.tableName)
-            if (rows.isNotEmpty()) insertCachedFeatures(geoPackage, content.tableName, rows)
-        }
+        // No transaction wrap — see [setupTilesContent]. Migration ran in setupFeaturesContent;
+        // the feature-row actuals probe getColumnIndex per call to skip last_modified when absent.
+        truncateFeatureTable(geoPackage, content.tableName)
+        if (rows.isNotEmpty()) insertCachedFeatures(geoPackage, content.tableName, rows)
         content.lastChange = Date()
         contentDao.update(content)
     }
@@ -859,6 +888,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, z: Int, x: Int, y: Int, rows: List<GpkgFeatureRow>,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Feature tile ${content.tableName}/$z/$x/$y cannot be saved. GeoPackage is read-only!")
+        // Migration ran in setupFeaturesContent; per-call probes in the feature-row actuals
+        // skip last_modified when absent.
         replaceFeatureTileRows(geoPackage, content.tableName, z, x, y, rows)
         content.lastChange = Date()
         contentDao.update(content)
@@ -938,6 +969,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 "DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff"
             )
         }
+
         if (policy.maxEntries < Long.MAX_VALUE) {
             geoPackage.database.execSQL(
                 "DELETE FROM $q WHERE $FEATURE_ID_COLUMN IN (" +
@@ -955,26 +987,31 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
 
-    /**
-     * Clear specified content table and keep its related metadata
-     *
-     * @throws IllegalStateException In case of read-only database.
-     */
+    /** Update the user-visible identifier on [tableName]'s registration row. */
     @Throws(IllegalStateException::class)
-    suspend fun clearContent(tableName: String): Unit = withContext(writeDispatcher) {
+    suspend fun setDisplayName(tableName: String, displayName: String): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) error("Content $tableName cannot be updated. GeoPackage is read-only!")
+        val content = contentDao.queryForId(tableName) ?: return@withContext
+        content.identifier = displayName
+        contentDao.update(content)
+    }
+
+    @Throws(IllegalStateException::class)
+    suspend fun clearEntry(tableName: String): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
-        // Remove all tiles in specified content table and gridded tile data but keep the table itself
-        TransactionManager.callInTransaction(connectionSource) {
-            val dao = getOrCreateTileUserDataDao(tableName)
-            TableUtils.dropTable(dao, true)
-            TableUtils.createTable(dao)
-            if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
-                where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
-            }.delete()
-        }
+        // Remove all tiles in specified content table and gridded tile data but keep the
+        // table itself. Content row metadata (bbox, identifier, service config) stays —
+        // clearing tiles isn't deletion; the content still exists with the same data
+        // extent, just no cached blobs. No transaction wrap — see [setupTilesContent].
+        val dao = getOrCreateTileUserDataDao(tableName)
+        TableUtils.dropTable(dao, true)
+        TableUtils.createTable(dao)
+        if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
+            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
+        }.delete()
     }
 
     /**
@@ -983,45 +1020,36 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * @throws IllegalStateException In case of read-only database.
      */
     @Throws(IllegalStateException::class)
-    suspend fun deleteContent(tableName: String): Unit = withContext(writeDispatcher) {
+    suspend fun deleteEntry(tableName: String): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("Content $tableName cannot be deleted. GeoPackage is read-only!")
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
-        TransactionManager.callInTransaction(connectionSource) {
-            // Remove specified content table and gridded tile data
-            if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
-                where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, tableName)
+        // No transaction wrap — see [setupTilesContent].
+        if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
+            where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, tableName)
+        }.delete()
+        TableUtils.dropTable(getOrCreateTileUserDataDao(tableName), true)
+        removeTileUserDataDao(tableName)
+
+        if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
+            where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, tableName)
+        }.delete()
+
+        if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(tableName)?.let { tileMatrixSet ->
+            if (griddedCoverageDao.isTableExists) griddedCoverageDao.deleteBuilder().apply {
+                where().eq(GpkgGriddedCoverage.COLUMN_TILE_MATRIX_SET_NAME, tableName)
             }.delete()
-            TableUtils.dropTable(getOrCreateTileUserDataDao(tableName), true)
-            removeTileUserDataDao(tableName)
-
-            // Remove all tile matrices related to specified content table
-            if (tileMatrixDao.isTableExists) tileMatrixDao.deleteBuilder().apply {
-                where().eq(GpkgTileMatrix.COLUMN_TABLE_NAME, tableName)
-            }.delete()
-
-            if (tileMatrixSetDao.isTableExists) tileMatrixSetDao.queryForId(tableName)?.let { tileMatrixSet ->
-                // Remove gridded coverage metadata if exists
-                if (griddedCoverageDao.isTableExists) griddedCoverageDao.deleteBuilder().apply {
-                    where().eq(GpkgGriddedCoverage.COLUMN_TILE_MATRIX_SET_NAME, tableName)
-                }.delete()
-
-                // Remove tile matrix set related to specified content table
-                tileMatrixSetDao.delete(tileMatrixSet)
-            }
-
-            // Remove all extensions related to specified content table
-            if (extensionDao.isTableExists) extensionDao.deleteBuilder().apply {
-                where().eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
-            }.delete()
-
-            // Remove web service settings if exists
-            if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
-
-            // Remove metadata of specified content table
-            contentDao.delete(content)
+            tileMatrixSetDao.delete(tileMatrixSet)
         }
+
+        if (extensionDao.isTableExists) extensionDao.deleteBuilder().apply {
+            where().eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
+        }.delete()
+
+        if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
+
+        contentDao.delete(content)
     }
 
     fun getBoundingSector(content: GpkgContent): Sector? {

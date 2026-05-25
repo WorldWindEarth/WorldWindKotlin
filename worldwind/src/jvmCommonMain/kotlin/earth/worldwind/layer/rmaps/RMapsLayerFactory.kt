@@ -24,8 +24,6 @@ object RMapsLayerFactory {
             tileHeight = 256,
             levelOffset = tileFactory.minZoom
         )
-        MercatorTiledImageLayer(tileFactory.contentKey, MercatorTiledSurfaceImage(tileFactory, levelSet)).apply {
-            tiledSurfaceImage?.cacheTileFactory = tileFactory
-        }
+        MercatorTiledImageLayer(tileFactory.contentKey, MercatorTiledSurfaceImage(tileFactory, levelSet))
     }
 }

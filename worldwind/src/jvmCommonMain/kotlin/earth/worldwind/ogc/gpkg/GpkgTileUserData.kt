@@ -15,10 +15,12 @@ import java.io.Serializable
  *   UNIQUE (zoom_level, tile_column, tile_row)
  * );
  *
- * Note: the eviction `last_modified INTEGER` column is intentionally NOT declared as
- * an `@DatabaseField` here. Declaring it would force ORMLite to emit it in every
- * SELECT and break reads of pre-eviction GeoPackages and third-party GPKG files that
- * lack the column. The value is written via raw SQL `UPDATE` in [GeoPackage.writeTileUserData].
+ * `last_modified INTEGER` may be present (added on first write through this library, used
+ * by eviction) but is intentionally NOT declared as an `@DatabaseField` here — third-party
+ * .gpkg files and pre-eviction caches don't have the column, and declaring it would force
+ * ORMLite to emit it in every SELECT, with the Android cursor adapter throwing
+ * "Unknown field 'last_modified'" when the cursor lacks it. The value is written via raw
+ * SQL `UPDATE` in [GeoPackage.writeTileUserData].
  */
 @DatabaseTable(tableName = "sample_tile_pyramid")
 class GpkgTileUserData : Serializable {

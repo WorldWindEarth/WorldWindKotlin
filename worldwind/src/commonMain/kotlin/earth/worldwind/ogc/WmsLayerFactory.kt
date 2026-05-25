@@ -3,13 +3,14 @@ package earth.worldwind.ogc
 import com.eygraber.uri.Uri
 import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Sector
-import earth.worldwind.layer.TiledImageLayer
+import earth.worldwind.layer.cache.TileSourceFactoryAdapter
 import earth.worldwind.ogc.wms.WmsCapabilities
 import earth.worldwind.ogc.wms.WmsLayer
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import earth.worldwind.util.Logger.ERROR
+import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.Logger.makeMessage
 import earth.worldwind.util.http.DefaultHttpClient
@@ -19,7 +20,6 @@ import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmsLayerFactory {
@@ -30,32 +30,38 @@ object WmsLayerFactory {
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
 
     /**
-     * Create tiled image layer based on WMS layer metadata retrieved from server capabilities or decoded from parameter
+     * Create a WMS tiled image layer (cache-agnostic).
+     *
+     * Capabilities resolution is offline-first: [serviceMetadata] (caller-supplied XML) is
+     * used when present and it deserializes cleanly; only when it is missing, blank, or
+     * undecodable does the factory issue an online `GetCapabilities` request. The cache
+     * subsystem is not consulted here — see the canonical 2-step
+     * `factory + ContentManager.attachCache` pattern.
      *
      * @param serviceAddress WMS service address
-     * @param layerNames Optional list of WMS layer names to be requested and combined into the resulting image layer
-     * @param serviceMetadata Optional WMS capabilities XML string to avoid online capabilities request
+     * @param layerNames Layer names to combine into the resulting image layer
      * @param displayName Optional layer display name
+     * @param serviceMetadata Optional capabilities XML override (skips the online fetch)
      */
     suspend fun createLayer(
-        serviceAddress: String, layerNames: List<String>, serviceMetadata: String? = null, displayName: String? = null
-    ): TiledImageLayer {
+        serviceAddress: String, layerNames: List<String>,
+        displayName: String? = null,
+        serviceMetadata: String? = null,
+    ): WmsImageLayer {
         require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingServiceAddress")
         }
         require(layerNames.isNotEmpty()) {
             logMessage(ERROR, "WmsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val capabilities = decodeWmsCapabilities(serviceMetadata ?: retrieveWmsCapabilities(serviceAddress))
+        val (xmlText, capabilities) = resolveCapabilities(serviceAddress, serviceMetadata)
         val layers = capabilities.getNamedLayers(layerNames)
         require(layers.isNotEmpty()) {
             makeMessage("WmsLayerFactory", "createLayer", "Provided layer names did not match available layers")
         }
-        return createWmsImageLayer(
-            serviceAddress,
-            serviceMetadata ?: xml.encodeToString(capabilities.copy(capability = capabilities.capability.copy(layers = layers))),
-            layers, displayName
-        )
+        val wmsLayerConfig = getLayerConfigFromWmsCapabilities(layers)
+        val imageFormat = wmsLayerConfig.imageFormat ?: "image/png"
+        return createWmsImageLayer(serviceAddress, xmlText, layers, wmsLayerConfig, imageFormat, displayName)
     }
 
     /**
@@ -64,9 +70,13 @@ object WmsLayerFactory {
      * @param serviceAddress the WMS service address
      * @return WMS 1.3.0 map service capabilities
      */
-    suspend fun getCapabilities(serviceAddress: String) = decodeWmsCapabilities(retrieveWmsCapabilities(serviceAddress))
+    suspend fun getCapabilities(serviceAddress: String) = decodeWmsCapabilities(getCapabilitiesXml(serviceAddress))
 
-    private suspend fun retrieveWmsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
+    /**
+     * Issue a `GetCapabilities` request and return the raw XML. Exposed so cache-aware
+     * helpers can short-circuit to a persisted copy without paying for a parse round-trip.
+     */
+    suspend fun getCapabilitiesXml(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
             .appendQueryParameter("VERSION", VERSION)
             .appendQueryParameter("SERVICE", SERVICE)
@@ -79,14 +89,43 @@ object WmsLayerFactory {
         xml.decodeFromString<WmsCapabilities>(xmlText)
     }
 
+    /**
+     * Resolve the capabilities offline-first. Use [serviceMetadata] when it is present and
+     * deserializes cleanly; otherwise — missing, blank, or undecodable — issue an online
+     * `GetCapabilities` request. Returns the XML actually used together with its parsed
+     * form so the caller persists the exact metadata it built the layer from.
+     */
+    private suspend fun resolveCapabilities(
+        serviceAddress: String, serviceMetadata: String?,
+    ): Pair<String, WmsCapabilities> {
+        serviceMetadata?.takeIf { it.isNotBlank() }?.let { stored ->
+            runCatching { stored to decodeWmsCapabilities(stored) }.onFailure {
+                logMessage(
+                    WARN, "WmsLayerFactory", "resolveCapabilities",
+                    "Stored WMS capabilities failed to deserialize (${it.message}); fetching online"
+                )
+            }.getOrNull()?.let { return it }
+        }
+        val online = getCapabilitiesXml(serviceAddress)
+        return online to decodeWmsCapabilities(online)
+    }
+
     private fun createWmsImageLayer(
-        serviceAddress: String, serviceMetadata: String, wmsLayers: List<WmsLayer>, name: String?
+        serviceAddress: String, serviceMetadata: String, wmsLayers: List<WmsLayer>,
+        wmsLayerConfig: WmsLayerConfig, imageFormat: String, name: String?,
     ) = WmsImageLayer(
-        serviceAddress, serviceMetadata, wmsLayers.mapNotNull { lc -> lc.name }.joinToString(","),
-        name ?: wmsLayers.joinToString(",") { lc -> lc.title }, createWmsSurfaceImage(wmsLayers)
+        serviceAddress = serviceAddress,
+        serviceMetadata = serviceMetadata,
+        layerName = wmsLayers.mapNotNull { lc -> lc.name }.joinToString(","),
+        imageFormat = imageFormat,
+        isTransparent = wmsLayerConfig.isTransparent,
+        name = name ?: wmsLayers.joinToString(",") { lc -> lc.title },
+        tiledSurfaceImage = createWmsSurfaceImage(wmsLayers, wmsLayerConfig, imageFormat),
     )
 
-    private fun createWmsSurfaceImage(wmsLayers: List<WmsLayer>): TiledSurfaceImage {
+    private fun createWmsSurfaceImage(
+        wmsLayers: List<WmsLayer>, wmsLayerConfig: WmsLayerConfig, imageFormat: String,
+    ): TiledSurfaceImage {
         // Check if the server supports multiple layer request
         val layerLimit = wmsLayers[0].capability?.capabilities?.service?.layerLimit
         require (layerLimit == null || layerLimit >= wmsLayers.size) {
@@ -95,9 +134,10 @@ object WmsLayerFactory {
                 "The number of layers specified exceeds the services limit"
             )
         }
-        val wmsLayerConfig = getLayerConfigFromWmsCapabilities(wmsLayers)
-        val levelSetConfig = getLevelSetConfigFromWmsCapabilities(wmsLayers)
-        return TiledSurfaceImage(WmsTileFactory(wmsLayerConfig), LevelSet(levelSetConfig))
+        val levelSet = LevelSet(getLevelSetConfigFromWmsCapabilities(wmsLayers))
+        val networkSource = WmsTileSource(wmsLayerConfig, levelSet)
+        val tileFactory = TileSourceFactoryAdapter(networkSource, imageFormat)
+        return TiledSurfaceImage(tileFactory, levelSet)
     }
 
     internal fun getLayerConfigFromWmsCapabilities(wmsLayers: List<WmsLayer>): WmsLayerConfig {

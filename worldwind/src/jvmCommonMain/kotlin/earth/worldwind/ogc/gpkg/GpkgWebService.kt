@@ -12,7 +12,7 @@ import java.io.Serializable
  *   service_address TEXT NOT NULL,
  *   service_metadata TEXT,
  *   layer_name TEXT,
- *   output_format TEXT NOT NULL,
+ *   output_format TEXT,
  *   is_transparent SMALLINT DEFAULT 0
  * );
  */
@@ -29,7 +29,7 @@ class GpkgWebService : Serializable {
     @DatabaseField(columnName = COLUMN_LAYER_NAME, dataType = DataType.STRING)
     var layerName: String? = null
     @DatabaseField(columnName = COLUMN_OUTPUT_FORMAT, dataType = DataType.STRING)
-    lateinit var outputFormat: String
+    var outputFormat: String? = null
     @DatabaseField(columnName = COLUMN_IS_TRANSPARENT, dataType = DataType.BOOLEAN_INTEGER)
     var isTransparent: Boolean = false // For elevation coverages this attribute is always false
 

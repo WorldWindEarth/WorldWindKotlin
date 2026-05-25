@@ -1,0 +1,213 @@
+package earth.worldwind.layer.cache
+import earth.worldwind.layer.source.TileSource
+
+import earth.worldwind.geom.TileMatrix
+import earth.worldwind.geom.TileMatrixSet
+import earth.worldwind.globe.elevation.CacheReadableElevationSourceFactory
+import earth.worldwind.globe.elevation.ElevationSource
+import earth.worldwind.globe.elevation.ElevationSourceFactory
+import earth.worldwind.util.Logger.WARN
+import earth.worldwind.util.Logger.log
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.roundToInt
+
+/**
+ * Cross-platform [ElevationSourceFactory] backed by an [ElevationStoreBackend] + an
+ * optional upstream [TileSource]. Owns the source-format → storage-format transcoding
+ * pipeline (encode/decode via [ElevationStorageCodec]) so platforms (JS, iOS) don't have
+ * to reimplement it.
+ *
+ * Platform-specific bits are deliberately small:
+ *   - [backend] handles "where do the bytes live" (IDB / filesystem / etc.).
+ *   - [networkDecoder] handles "how to decode the wire format" (each platform has its own
+ *     BIL/TIFF/DTED decode path).
+ * The factory itself stays in commonMain.
+ *
+ * Used by `WebContentManager.createElevationSourceFactory` (JS) and
+ * `IosContentManager.createElevationSourceFactory` (iOS). JVM keeps its own gpkg-bound
+ * factory (`GpkgCachedElevationSourceFactory`) because the GeoPackage ancillary-table
+ * layout doesn't fit the simple `(scale, offset)` shape the backend interface exposes.
+ */
+class CachedElevationSourceFactory(
+    private val backend: ElevationStoreBackend,
+    private val networkSource: TileSource?,
+    private val networkDecoder: NetworkBytesDecoder,
+    val outputFormat: String,
+    val isFloat: Boolean,
+    private val tileMatrixSet: TileMatrixSet,
+) : ElevationSourceFactory, OfflineToggleable, CachedSourceInfoProvider,
+    BulkRetrievableElevationSourceFactory, CacheReadableElevationSourceFactory {
+    override val contentType = "CachedElevation"
+    override var isCacheOnly: Boolean = networkSource == null
+    override val cacheInfo: CachedSourceInfo
+        get() = backend.cacheInfo
+
+    override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource =
+        ElevationSource.fromUnrecognized(CachedElevationRef(this, tileMatrix.ordinal, column, row))
+
+    // Tile axis mapping mirrors createElevationSource: z = matrix ordinal, x = column, y = row.
+    override suspend fun readCachedTileArray(tileMatrix: TileMatrix, row: Int, column: Int): ShortArray? =
+        readCachedTile(tileMatrix.ordinal, column, row)
+
+    /**
+     * Bulk-download path: by default skip already-cached tiles, otherwise force a network
+     * fetch and persist. **Bypasses [isCacheOnly]** — bulk is user-initiated and
+     * orthogonal to the renderer's offline toggle. Returns `true` on cache hit /
+     * successful fetch + write, `false` on cache miss + (no network / fetch failure /
+     * decode failure). When [overrideCache] is true, the cache hit short-circuit is
+     * skipped and every tile is re-downloaded.
+     */
+    override suspend fun fetchAndCacheTile(z: Int, x: Int, y: Int, overrideCache: Boolean): Boolean {
+        if (!overrideCache && readCachedTile(z, x, y) != null) return true
+        val network = networkSource ?: return false
+        // Let transport errors propagate so the bulk-retrieval loop can retry with backoff.
+        // Returning false here (as the renderer-facing fetchTile does) would make the loop
+        // treat a transient failure as a permanent skip. `false` is reserved for genuinely
+        // non-recoverable cases below: empty/404 tile and decode failure.
+        val blob = network.fetchTile(z, x, y) ?: return false
+        if (blob.isEmpty) return false
+        val networkType = blob.contentType?.takeUnless {
+            it.equals("application/octet-stream", ignoreCase = true)
+        } ?: outputFormat
+        val decoded = try {
+            networkDecoder.decodeNetworkBytes(blob.bytes, networkType)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation network decode failed [$z/$x/$y]: ${t.message}")
+            return false
+        } ?: return false
+        if (backend.isReadOnly) return true
+        val matrix = tileMatrixSet.entries.getOrNull(z) ?: return true
+        return try {
+            val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
+            backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset)
+            true
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation backend write failed [$z/$x/$y]: ${t.message}")
+            true  // network round-trip succeeded; write failure is best-effort
+        }
+    }
+
+    /**
+     * Cache-only read: decode the tile from [backend] without any network I/O. Returns the
+     * rendered `ShortArray` on a hit, or `null` on a miss / decode failure. A decode failure
+     * (corrupted blob, transitional state) is treated as a miss so the tile isn't trapped
+     * forever — the network path can repopulate it.
+     */
+    private suspend fun readCachedTile(z: Int, x: Int, y: Int): ShortArray? {
+        val cached = try {
+            backend.readTile(z, x, y)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation backend read failed [$z/$x/$y]: ${t.message}; falling through to network")
+            null
+        } ?: return null
+        return try {
+            val decoded = ElevationStorageCodec.decode(cached.bytes, isFloat, cached.tileScale, cached.tileOffset)
+            tileBufferToShorts(decoded)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation cache decode failed [$z/$x/$y]: ${t.message}; falling through to network")
+            null
+        }
+    }
+
+    /**
+     * Fetch one tile through the cache. Reads the encoded blob from [backend]; on cache
+     * miss falls through to [networkSource], decodes via [networkDecoder], transcodes
+     * via [ElevationStorageCodec], persists to [backend], returns the rendered
+     * `ShortArray`.
+     *
+     * Returns `null` for any cache + network failure — the caller (a platform-specific
+     * `retrieveTileArray`) maps that to the elevation pipeline's `retrievalFailed`.
+     */
+    suspend fun fetchTile(z: Int, x: Int, y: Int): ShortArray? {
+        readCachedTile(z, x, y)?.let { return it }
+        if (isCacheOnly) return null
+        val network = networkSource ?: return null
+        val blob = try {
+            network.fetchTile(z, x, y)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation network fetch failed [$z/$x/$y]: ${t.message}")
+            return null
+        } ?: return null
+        if (blob.isEmpty) return null
+        val networkType = blob.contentType?.takeUnless {
+            it.equals("application/octet-stream", ignoreCase = true)
+        } ?: outputFormat
+        val decoded = try {
+            networkDecoder.decodeNetworkBytes(blob.bytes, networkType)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation network decode failed [$z/$x/$y]: ${t.message}")
+            return null
+        } ?: return null
+        // Encode + persist (best-effort) before returning the rendered shorts. A write
+        // failure shouldn't poison the current render — log and continue.
+        if (!backend.isReadOnly) {
+            val matrix = tileMatrixSet.entries.getOrNull(z)
+            if (matrix != null) {
+                try {
+                    val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
+                    backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (t: Throwable) {
+                    log(WARN, "CachedElevation backend write failed [$z/$x/$y]: ${t.message}")
+                }
+            }
+        }
+        return tileBufferToShorts(decoded)
+    }
+
+    private fun tileBufferToShorts(buffer: ElevationTileBuffer): ShortArray = when (buffer) {
+        is ElevationTileBuffer.Shorts -> buffer.values
+        is ElevationTileBuffer.Floats -> ShortArray(buffer.values.size) { i ->
+            val v = buffer.values[i]
+            if (v == Float.MAX_VALUE) Short.MIN_VALUE else v.roundToInt().toShort()
+        }
+    }
+}
+
+/**
+ * Per-tile carrier emitted by [CachedElevationSourceFactory.createElevationSource]. Each
+ * platform's `retrieveTileArray` detects this via `elevationSource.asUnrecognized()` and
+ * dispatches into [factory] for the actual cache/network + transcoding flow.
+ */
+class CachedElevationRef(
+    val factory: CachedElevationSourceFactory,
+    val z: Int, val x: Int, val y: Int,
+)
+
+/**
+ * Platform-specific wire-format decoder used by [CachedElevationSourceFactory.fetchTile]
+ * on cache miss. Each platform implements the same MIME dispatch table (BIL16 / BIL32 /
+ * TIFF / DTED → [ElevationTileBuffer]) — sharing the dispatch in commonMain would mean
+ * porting every per-platform decoder kernel here, which buys little vs. the per-platform
+ * footprint cost.
+ */
+fun interface NetworkBytesDecoder {
+    suspend fun decodeNetworkBytes(bytes: ByteArray, contentType: String): ElevationTileBuffer?
+}
+
+/**
+ * Mixin for cache-aware sources / factories that can flip between online and offline
+ * modes at runtime. Lets app-level "go offline" walks dispatch generically across
+ * [CachedTileSource] (image / vector / feature pyramids) and the elevation factories
+ * (`CachedElevationSourceFactory`, `GpkgCachedElevationSourceFactory`).
+ *
+ * When [isCacheOnly] is `true`, fetch paths never call the upstream network source;
+ * cache misses return `null` (or the layer's equivalent of "no data"). Implementations
+ * should respond to runtime toggles without re-wiring.
+ */
+interface OfflineToggleable {
+    var isCacheOnly: Boolean
+}

@@ -37,10 +37,14 @@ internal object WfsGmlReader {
     /** Geometry extracted from a GML response. Multi* containers expand into one record
      *  per inner geometry, each sharing the parent feature's properties. */
     internal sealed interface GmlGeometry {
-        data class PointGeom(val position: Position) : GmlGeometry
-        data class LineGeom(val positions: List<Position>) : GmlGeometry
+        /** [is3D] records whether the source coordinates carried a Z, so the cache can keep a
+         *  legitimate altitude (including exactly 0.0) and distinguish it from a 2D geometry. */
+        data class PointGeom(val position: Position, val is3D: Boolean) : GmlGeometry
+        data class LineGeom(val positions: List<Position>, val is3D: Boolean) : GmlGeometry
         /** [interiors] is the list of hole boundaries (GML `<gml:interior>` rings). */
-        data class PolygonGeom(val exterior: List<Position>, val interiors: List<List<Position>> = emptyList()) : GmlGeometry
+        data class PolygonGeom(
+            val exterior: List<Position>, val interiors: List<List<Position>> = emptyList(), val is3D: Boolean = false,
+        ) : GmlGeometry
     }
 
     /** Decode the GML payload into [Renderable]s suitable for adding to a [RenderableLayer]. */
@@ -141,40 +145,44 @@ internal object WfsGmlReader {
     /** Reader sits on a GML geometry element. Returns a list because Multi* containers
      *  fan out into multiple inner geometries. */
     private fun parseGmlGeometry(reader: XmlReader): List<GmlGeometry> = when (reader.localName) {
-        "Point" -> parsePoint(reader)?.let { listOf(GmlGeometry.PointGeom(it)) } ?: emptyList()
-        "LineString" -> parseLineString(reader)?.let { listOf(GmlGeometry.LineGeom(it)) } ?: emptyList()
+        "Point" -> parsePoint(reader)?.let { listOf(it) } ?: emptyList()
+        "LineString" -> parseLineString(reader)?.let { listOf(it) } ?: emptyList()
         "Polygon" -> parsePolygon(reader)?.let { listOf(it) } ?: emptyList()
-        "MultiPoint" -> parseMulti(reader, "Point", ::parsePoint).map { GmlGeometry.PointGeom(it) }
+        "MultiPoint" -> parseMulti(reader, "Point", ::parsePoint)
         "MultiCurve", "MultiLineString" -> parseMulti(reader, "LineString", ::parseLineString)
-            .map { GmlGeometry.LineGeom(it) }
         "MultiSurface", "MultiPolygon" -> parseMulti(reader, "Polygon", ::parsePolygon)
         else -> { skipElement(reader); emptyList() }
     }
 
     /** Parse `<gml:Point>` — reader positioned on its START_ELEMENT, exits on END_ELEMENT. */
-    private fun parsePoint(reader: XmlReader): Position? {
+    private fun parsePoint(reader: XmlReader): GmlGeometry.PointGeom? {
         val srs = reader.attr("srsName")
         var result: Position? = null
+        var is3D = false
         forEachChildElement(reader) {
             if (reader.isGml() && (reader.localName == "pos" || reader.localName == "coordinates")) {
                 val text = readElementText(reader)
                 val normalized = if (reader.localName == "coordinates") text.replace(',', ' ') else text
+                // A third coordinate token means the source carried a Z (true 3D point).
+                is3D = normalized.trim().split(Regex("\\s+")).size >= 3
                 result = parseSinglePos(normalized, srs)
             } else skipElement(reader)
         }
-        return result
+        return result?.let { GmlGeometry.PointGeom(it, is3D) }
     }
 
     /** Parse `<gml:LineString>` — reader positioned on its START_ELEMENT. */
-    private fun parseLineString(reader: XmlReader): List<Position>? {
+    private fun parseLineString(reader: XmlReader): GmlGeometry.LineGeom? {
         val srs = reader.attr("srsName")
         val outerDim = reader.attr("srsDimension")?.toIntOrNull() ?: 2
+        var is3D = outerDim >= 3
         val positions = mutableListOf<Position>()
         forEachChildElement(reader) {
             if (!reader.isGml()) { skipElement(reader); return@forEachChildElement }
             when (reader.localName) {
                 "posList" -> {
                     val dim = reader.attr("srsDimension")?.toIntOrNull() ?: outerDim
+                    if (dim >= 3) is3D = true
                     positions += parsePosList(readElementText(reader), srs, dim)
                 }
                 "pos" -> parseSinglePos(readElementText(reader), srs)?.let(positions::add)
@@ -182,7 +190,7 @@ internal object WfsGmlReader {
                 else -> skipElement(reader)
             }
         }
-        return positions.takeIf { it.size >= 2 }
+        return positions.takeIf { it.size >= 2 }?.let { GmlGeometry.LineGeom(it, is3D) }
     }
 
     /** Parse `<gml:Polygon>` — reader positioned on its START_ELEMENT. Returns the
@@ -200,7 +208,7 @@ internal object WfsGmlReader {
                 else -> skipElement(reader)
             }
         }
-        return exterior?.takeIf { it.size >= 3 }?.let { GmlGeometry.PolygonGeom(it, interiors) }
+        return exterior?.takeIf { it.size >= 3 }?.let { GmlGeometry.PolygonGeom(it, interiors, outerDim >= 3) }
     }
 
     /** Reader on `<gml:exterior>` / `<gml:interior>` start; descends into the inner LinearRing. */

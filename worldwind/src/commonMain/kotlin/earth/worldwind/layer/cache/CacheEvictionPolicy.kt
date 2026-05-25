@@ -3,8 +3,8 @@ package earth.worldwind.layer.cache
 import kotlin.time.Duration
 
 /**
- * LRU/TTL/size caps applied by [earth.worldwind.layer.FeatureCacheSourceFactory] and the
- * image/elevation tile factories. Defaults are unbounded — callers opt in to each axis.
+ * LRU/TTL/size caps applied by [TileStore] / [FeatureStore]. Defaults are unbounded —
+ * callers opt in to each axis.
  *
  * Caches sweep on bind (so a freshly-opened content is brought into bounds immediately) and
  * via explicit `evict()` calls. There is no per-write trigger — high-frequency writers must

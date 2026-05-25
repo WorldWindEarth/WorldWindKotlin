@@ -5,6 +5,9 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.AbstractLayer
+import earth.worldwind.layer.VectorLayer
+import earth.worldwind.layer.source.CachedFeatureRow
+import earth.worldwind.layer.source.TiledFeatureSource
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.render.Color
@@ -65,7 +68,7 @@ import kotlin.math.tan
  * wall/roof colouring. Always call [close] to cancel in-flight fetches.
  */
 open class OsmBuildingsLayer(
-    val source: OsmBuildingsSource = OverpassBuildingsSource(),
+    var source: TiledFeatureSource = OverpassBuildingsSource(),
     val tileZoom: Int = 15,
     val tileRadius: Int = 4,
     val maxLoadedTiles: Int = 256,
@@ -84,7 +87,7 @@ open class OsmBuildingsLayer(
      */
     val useBatchedRendering: Boolean = true,
     displayName: String? = "OSM Buildings",
-) : AbstractLayer(displayName) {
+) : AbstractLayer(displayName), VectorLayer {
 
     /** Shape attributes applied to every building polygon. Mutating between frames is safe. */
     var attributes: ShapeAttributes = defaultBuildingAttributes()
@@ -300,9 +303,26 @@ open class OsmBuildingsLayer(
     protected open fun toTile(key: TileKey, buildings: List<OsmBuilding>): OsmBuildingsTile =
         OsmBuildingsTile(buildings, attributes, useOsmColors = useOsmColors, shadowMode = shadowMode)
 
-    /** Resolve buildings for one tile. Subclasses override to consult a persistent cache. */
-    protected open suspend fun loadBuildings(key: TileKey): List<OsmBuilding> =
-        source.fetchBuildings(key.sector)
+    /** Resolve buildings for one tile from [source]. Cache-backed sources serve hits via
+     *  [TiledFeatureSource.tryReadCachedTile] WITHOUT taking a [semaphore] permit — only the
+     *  network round-trip on a cache miss is throttled. Otherwise a slow Overpass fetch for one
+     *  uncached tile would hold the (small) fetch budget and stall cached neighbours behind it.
+     *  Subclasses override to attach custom per-tile processing. */
+    protected open suspend fun loadBuildings(key: TileKey): List<OsmBuilding> {
+        val src = source
+        val rows = mutableListOf<CachedFeatureRow>()
+        val cached = src.tryReadCachedTile(key.z, key.x, key.y)
+        if (cached != null) {
+            cached.collect { rows += it }
+        } else {
+            // Cache miss (or a non-caching source): the network fetch is gated by [semaphore].
+            semaphore.withPermit {
+                val flow = src.fetchTile(key.z, key.x, key.y, key.sector) ?: return emptyList()
+                flow.collect { rows += it }
+            }
+        }
+        return rows.mapNotNull(OsmBuildingCodec::decode)
+    }
 
     private fun drainResults() {
         while (true) {
@@ -341,11 +361,13 @@ open class OsmBuildingsLayer(
 
     private suspend fun fetch(key: TileKey) {
         val value = try {
-            semaphore.withPermit {
-                val buildings = loadBuildings(key)
-                if (useBatchedRendering) toTile(key, buildings) as Any
-                else buildings.flatMap(::toPolygons) as Any
-            }
+            // Network concurrency is throttled inside [loadBuildings] (network path only) so
+            // cache hits aren't gated behind it. Mesh assembly runs unthrottled — it's CPU work
+            // already bounded by the Default dispatcher, and gating it here would re-introduce
+            // the stall for cached tiles.
+            val buildings = loadBuildings(key)
+            if (useBatchedRendering) toTile(key, buildings) as Any
+            else buildings.flatMap(::toPolygons) as Any
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {

@@ -30,12 +30,43 @@ open class ElevationDecoder: Closeable {
     override fun close() = httpClient.close()
 
     open suspend fun decodeElevation(elevationSource: ElevationSource) = withContext(Dispatchers.IO) {
+        val raw = elevationSource.asUnrecognized()
         decodeBuffer(when {
+            raw is TileSourceElevationRef -> decodeTileSource(raw, elevationSource.postprocessor)
             elevationSource.isElevationDataFactory -> elevationSource.asElevationDataFactory().fetchElevationData()
             elevationSource.isFile -> decodeFile(elevationSource.asFile(), elevationSource.postprocessor)
             elevationSource.isUrl -> decodeUrl(elevationSource.asUrl(), elevationSource.postprocessor)
             else -> decodeUnrecognized(elevationSource)
         })
+    }
+
+    /**
+     * Fetch bytes through the [TileSourceElevationRef]'s [TileSource] then dispatch through
+     * the standard byte-stream decoder.
+     *
+     * **Specific Content-Type wins; requested format is the fallback.** A server response
+     * with a specific elevation MIME (`application/bil16`, `image/tiff`, …) is trusted —
+     * dispatching on it catches service-error `text/xml` responses at HTTP 200 that would
+     * otherwise be parsed as BIL16 garbage. Cache hits (no header) AND *generic* responses
+     * like `application/octet-stream` (used by WMS / WCS servers that don't advertise a
+     * specific elevation MIME but still return correct bytes) fall back to
+     * [TileSourceElevationRef.outputFormat]. Without this generic-MIME fallback the
+     * decoder threw "Format not supported: application/octet-stream" on every fresh fetch
+     * from such servers while the same bytes decoded fine on the subsequent cache hit —
+     * "fresh fetch fails / cache replay works" observed as "terrain at 0 altitude after
+     * v3 migration" when downloads silently fail layer-wide.
+     */
+    protected open suspend fun decodeTileSource(
+        ref: TileSourceElevationRef, postprocessor: ResourcePostprocessor?,
+    ): Buffer? {
+        val blob = ref.source.fetchTile(ref.z, ref.x, ref.y) ?: return null
+        if (blob.isEmpty) return null
+        val serverType = blob.contentType
+        val effectiveType =
+            if (serverType == null || serverType.equals("application/octet-stream", ignoreCase = true))
+                ref.outputFormat
+            else serverType
+        return decodeBytes(blob.bytes, effectiveType, postprocessor)
     }
 
     protected open fun decodeBuffer(buffer: Buffer?) = when (buffer) {
@@ -47,6 +78,11 @@ open class ElevationDecoder: Closeable {
         }
         else -> null
     }
+
+    /** Public [decodeBuffer] for cache-only readers that fetch their own [Buffer] (e.g.
+     *  `GpkgCachedElevationSourceFactory.readCachedTileArray`) and need the same
+     *  `Buffer -> ShortArray` conversion the standard decode path applies. */
+    fun bufferToShortArray(buffer: Buffer?): ShortArray? = decodeBuffer(buffer)
 
     protected open suspend fun decodeFile(file: File, postprocessor: ResourcePostprocessor?): Buffer? {
         val ext = file.name.substring(file.name.lastIndexOf('.') + 1).lowercase()
@@ -77,12 +113,28 @@ open class ElevationDecoder: Closeable {
         return null
     }
 
+    /**
+     * Public delegate for decoding raw network bytes by elevation MIME. Used by cache
+     * factories that fetch their own bytes (bypassing `decodeTileSource`) but still want
+     * the standard format-dispatch table. No postprocessor — the caller is responsible
+     * for any side-effects (cache write-through, etc.) it wants on the decoded buffer.
+     */
+    open suspend fun decodeElevationBytes(bytes: ByteArray, contentType: String?): Buffer? =
+        decodeBytes(bytes, contentType, postprocessor = null)
+
     protected open suspend fun decodeBytes(bytes: ByteArray, contentType: String?, postprocessor: ResourcePostprocessor?) = when {
         contentType.equals("image/bil", true) ||
         contentType.equals("application/bil", true) ||
         contentType.equals("application/bil16", true) -> wrapBytes(bytes).asShortBuffer()
         contentType.equals("application/bil32", true) -> wrapBytes(bytes).asFloatBuffer()
-        contentType.equals("image/tiff", true) -> decodeTiff(bytes)
+        // Accept the OGC MIME plus the bare WCS/WMS FORMAT spellings ("geotiff",
+        // "image/geotiff", "GeoTIFF") so a cache-hit replay through this decoder doesn't
+        // need to know the precise response Content-Type the server returned originally.
+        contentType.equals("image/tiff", true) ||
+        contentType.equals("image/geotiff", true) ||
+        contentType.equals("application/geotiff", true) ||
+        contentType.equals("geotiff", true) ||
+        contentType.equals("tiff", true) -> decodeTiff(bytes)
         contentType.equals("image/png", true) -> decodePng(bytes)
         contentType.equals("application/dted", true) ||
         contentType.equals("application/dted0", true) ||

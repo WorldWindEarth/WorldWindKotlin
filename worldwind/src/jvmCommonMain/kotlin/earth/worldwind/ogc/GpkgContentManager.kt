@@ -1,26 +1,20 @@
+@file:OptIn(earth.worldwind.layer.cache.LowLevelCacheApi::class)
+
 package earth.worldwind.ogc
 
 import earth.worldwind.geom.Location
-import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
-import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
-import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
-import earth.worldwind.layer.CacheableFeatureLayer
-import earth.worldwind.layer.CacheableImageLayer
-import earth.worldwind.layer.CacheableVectorTileLayer
+import earth.worldwind.geom.Sector
+import earth.worldwind.geom.TileMatrixSet
+import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.layer.cache.CacheEvictionPolicy
-import earth.worldwind.layer.mvt.CacheOnlyMvtTileSource
-import earth.worldwind.layer.mvt.GpkgVectorTileCacheFactory
-import earth.worldwind.layer.mvt.MvtVectorLayer
-import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
-import earth.worldwind.layer.RenderableLayer
-import earth.worldwind.layer.TiledImageLayer
-import earth.worldwind.layer.WebFeatureLayer
-import earth.worldwind.layer.WebImageLayer
-import earth.worldwind.ogc.wfs.CachedWfsFeatureLayer
-import earth.worldwind.ogc.wfs.WfsFeatureLayer
-import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
-import earth.worldwind.layer.mercator.WebMercatorImageLayer
-import earth.worldwind.layer.mercator.WebMercatorLayerFactory
+import earth.worldwind.layer.cache.CacheEntry
+import earth.worldwind.layer.cache.FeatureStore
+import earth.worldwind.layer.cache.GpkgFeatureStore
+import earth.worldwind.layer.cache.GpkgTileStore
+import earth.worldwind.layer.source.TileSource
+import earth.worldwind.layer.cache.TileStore
+import earth.worldwind.layer.cache.WebServiceInfo
+import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.ogc.gpkg.GeoPackage
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.COVERAGE
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.EPSG_3857
@@ -29,385 +23,452 @@ import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FLOAT
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.INTEGER
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
 import earth.worldwind.ogc.gpkg.GeoPackage.Companion.VECTOR_TILES
-import earth.worldwind.shape.TiledSurfaceImage
-import earth.worldwind.util.CacheTileFactory
+import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.util.ContentManager
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 import mil.nga.geopackage.extension.WebPExtension
+import mil.nga.geopackage.extension.im.vector_tiles.VectorTilesMapboxExtension
 import mil.nga.geopackage.tiles.user.TileTable
 import java.io.File
 import kotlin.time.Instant
 
-class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false): ContentManager {
-    private val geoPackage by lazy { GeoPackage(pathName, isReadOnly) }
+/**
+ * GeoPackage-backed [ContentManager]. One instance binds to one `.gpkg` file. Stores
+ * stay narrow — they read/write the cache; the manager is the orchestration layer that
+ * opens stores, registers web-service metadata, and enumerates what's cached.
+ *
+ * The previous layer-typed API (`getFeatureLayers`, `setupFeatureLayerCache`, etc.) was
+ * removed in the 3.0 redesign. Callers now build sources + layers themselves over the
+ * stores this manager hands out.
+ */
+class GpkgContentManager(
+    override val pathName: String,
+    override val isReadOnly: Boolean = false,
+) : ContentManager {
+
+    init {
+        // Ensure the parent directory exists before the GeoPackage open. NGA's GeoPackage
+        // library fails the SQLite open with "path to '...' does not exist" rather than
+        // creating intermediate directories — so we do it here. Skipped when the GPKG is
+        // opened read-only (in which case the parent must already exist; caller intent is
+        // clearly "open an existing file").
+        if (!isReadOnly) File(pathName).parentFile?.mkdirs()
+    }
+
+    internal val geoPackage = GeoPackage(pathName, isReadOnly)
 
     /**
-     * Returns database connection state. If true, then the Content Manager cannot be used anymore.
+     * All SQLite work is dispatched on this scope so [close] can cancel in-flight reads
+     * before the underlying handle is shut down. Without this coordination, a wrapper
+     * lookup that blocks on the IO dispatcher can resume *after* the gpkg is closed and
+     * throw "attempt to re-open an already-closed object" deep in SQLite.
+     *
+     * [SupervisorJob] so one read failing doesn't cancel siblings.
      */
-    val isShutdown get() = geoPackage.isShutdown
+    private val managerJob = SupervisorJob()
+    private val managerScope =
+        CoroutineScope(managerJob + Dispatchers.IO + CoroutineName("GpkgContentManager:$pathName"))
 
-    /**
-     * Shutdown GPKG database connection forever for this Content Manager instance.
-     */
-    fun shutdown() = geoPackage.shutdown()
+    override val isClosed get() = !managerJob.isActive
 
-    override suspend fun contentSize() = withContext(Dispatchers.IO) { File(pathName).length() }
+    override suspend fun close() {
+        if (!managerJob.isActive) return
+        // Cancel every in-flight read/write and wait for them to unwind. Children launched
+        // on [managerScope] observe the cancellation cooperatively; the [runScoped] /
+        // [runScopedOrThrow] helpers translate the resulting CancellationException into a
+        // "closed" return / error for the caller.
+        managerJob.cancelAndJoin()
+        // NonCancellable so the actual SQLite shutdown isn't interrupted by *our* caller's
+        // scope getting cancelled mid-close. By this point all reads are quiesced so the
+        // shutdown call itself is the last thing touching the handle.
+        withContext(NonCancellable + Dispatchers.IO) {
+            if (!geoPackage.isShutdown) geoPackage.shutdown()
+        }
+    }
 
-    override suspend fun lastModifiedDate() = withContext(Dispatchers.IO) {
+    /** Run [block] on the manager's scope. If the manager closes (scope cancelled) while
+     *  the read is in flight, the caller sees [default] instead of CancellationException —
+     *  appropriate for "metadata fetch returned nothing because the file is gone".
+     *  Genuine caller-driven cancellation (the *caller's* coroutine context cancelled) is
+     *  re-thrown so cooperative cancellation works normally. */
+    private suspend fun <T> runScoped(default: T, block: suspend CoroutineScope.() -> T): T {
+        if (!managerJob.isActive) return default
+        val deferred = managerScope.async(block = block)
+        return try {
+            deferred.await()
+        } catch (e: CancellationException) {
+            // Caller's scope was cancelled while we awaited → propagate (cooperative).
+            coroutineContext.ensureActive()
+            // Manager scope was cancelled (close in progress) → benign "closed" condition.
+            default
+        }
+    }
+
+    /** [runScoped] variant for operations where there's no sensible default (store-opening
+     *  factory methods). Throws [IllegalStateException] when the manager is already closed
+     *  or closed mid-operation. */
+    private suspend fun <T> runScopedOrThrow(block: suspend CoroutineScope.() -> T): T {
+        check(managerJob.isActive) { "GpkgContentManager($pathName) is closed" }
+        val deferred = managerScope.async(block = block)
+        return try {
+            deferred.await()
+        } catch (e: CancellationException) {
+            coroutineContext.ensureActive()
+            throw IllegalStateException("GpkgContentManager($pathName) closed during operation", e)
+        }
+    }
+
+    // Pure file I/O — not gated on SQLite lifecycle, so it stays on Dispatchers.IO directly
+    // and continues to work for callers polling file size after close (rare but harmless).
+    override suspend fun contentSize(): Long = withContext(Dispatchers.IO) { File(pathName).length() }
+
+    override suspend fun sizeBytesOf(contentKey: String): Long = runScoped(default = 0L) {
+        val content = geoPackage.getContent(contentKey) ?: return@runScoped 0L
+        when (content.dataTypeName.lowercase()) {
+            TILES, VECTOR_TILES, COVERAGE -> geoPackage.readTilesDataSize(content.tableName)
+            FEATURES -> geoPackage.readFeaturesDataSize(content.tableName)
+            else -> 0L
+        }
+    }
+
+    override suspend fun lastModifiedDate(): Instant? = withContext(Dispatchers.IO) {
         val file = File(pathName)
         if (file.exists()) Instant.fromEpochMilliseconds(file.lastModified()) else null
     }
 
-    override suspend fun getImageLayersCount() = withContext(Dispatchers.IO) { geoPackage.countContent(TILES).toInt() }
+    // --- Tile stores ----------------------------------------------------------------
 
-    override suspend fun getImageLayers(contentKeys: List<String>?) = withContext(Dispatchers.IO) {
-        geoPackage.getContent(TILES, contentKeys).mapNotNull { content ->
-            // Try to build the level set. It may fail due to unsupported projection or other requirements.
-            runCatching { geoPackage.buildLevelSetConfig(content) }.onFailure {
-                logMessage(WARN, "GpkgContentManager", "getImageLayers", it.message!!)
-            }.getOrNull()?.let { config ->
-                // Check if valid WEB service config available and try to create a Web Layer. May fail on big metadata.
-                runCatching { geoPackage.getWebService(content) }.getOrNull()?.let { service ->
-                    // Try to create WEB layer. May fail on invalid capabilities response or server unreachable.
-                    runCatching {
-                        when (service.type) {
-                            WmsImageLayer.SERVICE_TYPE -> {
-                                val layerNames = service.layerName?.split(",") ?: error("Layer not specified")
-                                try {
-                                    WmsLayerFactory.createLayer(
-                                        serviceAddress = service.address,
-                                        layerNames = layerNames,
-                                        serviceMetadata = service.metadata,
-                                        displayName = content.identifier
-                                    )
-                                } catch (e: Exception) {
-                                    // If metadata was not null, try to request online metadata and replace layer cache
-                                    if (service.metadata == null) throw e else WmsLayerFactory.createLayer(
-                                        service.address, layerNames, serviceMetadata = null, content.identifier
-                                    ).also {
-                                        if (it is CacheableImageLayer) setupImageLayerCache(it, content.tableName)
-                                    }
-                                }
-                            }
-
-                            WmtsImageLayer.SERVICE_TYPE -> {
-                                val layerName = service.layerName ?: error("Layer not specified")
-                                try {
-                                    WmtsLayerFactory.createLayer(
-                                        serviceAddress = service.address,
-                                        layerName = layerName,
-                                        serviceMetadata = service.metadata,
-                                        displayName = content.identifier
-                                    )
-                                } catch (e: Exception) {
-                                    // If metadata was not null, try to request online metadata and replace layer cache
-                                    if (service.metadata == null) throw e else WmtsLayerFactory.createLayer(
-                                        service.address, layerName, serviceMetadata = null, content.identifier
-                                    ).also {
-                                        if (it is CacheableImageLayer) setupImageLayerCache(it, content.tableName)
-                                    }
-                                }
-                            }
-
-                            WebMercatorImageLayer.SERVICE_TYPE -> WebMercatorLayerFactory.createLayer(
-                                urlTemplate = service.address,
-                                name = content.identifier,
-                                imageFormat = service.outputFormat,
-                                transparent = service.isTransparent,
-                                maxZoom = config.firstLevelNumber + config.numLevels - 1,
-                                minZoom = config.firstLevelNumber,
-                                tileSize = config.tileHeight
-                            )
-
-                            else -> null // It is not a known Web Layer type
-                        }?.apply {
-                            // Apply bounding sector from content
-                            tiledSurfaceImage?.levelSet?.sector?.copy(config.sector)
-                            // Configure cache for Web Layer
-                            tiledSurfaceImage?.cacheTileFactory = GpkgTileFactory(geoPackage, content, service.outputFormat)
-                        }
-                    }.onFailure {
-                        logMessage(WARN, "GpkgContentManager", "getImageLayers", it.message!!)
-                    }.getOrNull()
-                } ?: TiledImageLayer(
-                    content.identifier, if (content.srs?.id == EPSG_3857) {
-                        MercatorTiledSurfaceImage(GpkgTileFactory(geoPackage, content), LevelSet(config))
-                    } else {
-                        TiledSurfaceImage(GpkgTileFactory(geoPackage, content), LevelSet(config))
-                    }
-                ).apply {
-                    // Set cache factory to be able to use cacheale layer interface
-                    tiledSurfaceImage?.cacheTileFactory = tiledSurfaceImage?.tileFactory as? CacheTileFactory
-                }
-            }
-        }
-    }
-
-    override suspend fun setupImageLayerCache(
-        layer: CacheableImageLayer, contentKey: String, setupWebLayer: Boolean,
+    override suspend fun openImageTileStore(
+        contentKey: String,
+        levelSet: LevelSet,
+        imageFormat: String,
+        isTransparent: Boolean,
         evictionPolicy: CacheEvictionPolicy,
-    ) = withContext(Dispatchers.IO) {
-        val tiledSurfaceImage = layer.tiledSurfaceImage ?: error("Surface image not defined")
-        val levelSet = tiledSurfaceImage.levelSet
-        val imageFormat = (layer as? WebImageLayer)?.imageFormat ?: "image/png"
-        val content = geoPackage.getContent(contentKey)?.also { content ->
-            // Check if the current layer fits cache content
-            val config = geoPackage.buildLevelSetConfig(content)
-            require(config.tileWidth == levelSet.tileWidth && config.tileHeight == levelSet.tileHeight) { "Invalid tile size" }
-            require(config.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) { "Invalid tile origin" }
-            require(config.firstLevelNumber <= levelSet.firstLevel.levelNumber) { "Invalid first level number" }
-            val divider = 1 shl (levelSet.firstLevel.levelNumber - config.firstLevelNumber)
-            val firstLevelDelta = Location(config.firstLevelDelta.latitude / divider, config.firstLevelDelta.longitude / divider)
-            require(firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) { "Invalid first level delta" }
-            if (imageFormat.equals("image/webp", true)) requireNotNull(geoPackage.getExtension(
-                tableName = contentKey, TileTable.COLUMN_TILE_DATA, WebPExtension.EXTENSION_NAME
-            )) { "WEBP extension missed" }
-            // Check and update web service config
-            if (layer is WebImageLayer) {
-                val webService = geoPackage.getWebService(content)
-                val serviceType = webService?.type
-                require(serviceType == null || serviceType == layer.serviceType) { "Invalid service type" }
-                val outputFormat = webService?.outputFormat
-                require(outputFormat == null || outputFormat == layer.imageFormat) { "Invalid image format" }
-                if (setupWebLayer && !geoPackage.isReadOnly) geoPackage.setupWebLayer(layer, content)
-            }
-            // Verify if all required tile matrices created
-            if (!geoPackage.isReadOnly && config.numLevels < levelSet.numLevels) {
-                geoPackage.setupTileMatrices(content, levelSet)
-            }
-            // Update content metadata
-            geoPackage.updateTilesContent(layer, contentKey, levelSet, content)
-            // Pre-eviction tile tables may not have last_modified yet; migrate on reopen.
-            if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(content.tableName)
-        } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, setupWebLayer)
-
-        val factory = GpkgTileFactory(geoPackage, content, imageFormat)
-        factory.evictionPolicy = evictionPolicy
-        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
-        layer.tiledSurfaceImage?.cacheTileFactory = factory
-    }
-
-    override suspend fun getElevationCoveragesCount() = withContext(Dispatchers.IO) { geoPackage.countContent(COVERAGE).toInt() }
-
-    override suspend fun getElevationCoverages(contentKeys: List<String>?) = withContext(Dispatchers.IO) {
-        geoPackage.getContent(COVERAGE, contentKeys).mapNotNull { content ->
-            runCatching {
-                val metadata = geoPackage.getGriddedCoverage(content)
-                requireNotNull(metadata) { "Missing gridded coverage metadata for '${content.tableName}'" }
-                val matrixSet = geoPackage.buildTileMatrixSet(content)
-                val factory = GpkgElevationSourceFactory(geoPackage, content, metadata.dataType == FLOAT)
-                val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
-                when (service?.type) {
-                    Wcs100ElevationCoverage.SERVICE_TYPE -> Wcs100ElevationCoverage(
-                        serviceAddress = service.address,
-                        coverageName = service.layerName ?: error("Coverage not specified"),
-                        outputFormat = service.outputFormat,
-                        sector = matrixSet.sector,
-                        resolution = matrixSet.maxResolution
-                    ).apply { cacheSourceFactory = factory }
-
-                    Wcs201ElevationCoverage.SERVICE_TYPE -> {
-                        val layerName = service.layerName ?: error("Coverage not specified")
-                        try {
-                            Wcs201ElevationCoverage.createCoverage(
-                                serviceAddress = service.address,
-                                coverageName = layerName,
-                                outputFormat = service.outputFormat,
-                                serviceMetadata = service.metadata
-                            )
-                        } catch (e: Exception) {
-                            // If metadata was not null, try to request online metadata and replace layer cache
-                            if (service.metadata == null) throw e else Wcs201ElevationCoverage.createCoverage(
-                                service.address, layerName, service.outputFormat
-                            ).also { setupElevationCoverageCache(it, content.tableName) }
-                        }.apply { cacheSourceFactory = factory }
-                    }
-
-                    WmsElevationCoverage.SERVICE_TYPE -> WmsElevationCoverage(
-                        serviceAddress = service.address,
-                        coverageName = service.layerName ?: error("Coverage not specified"),
-                        outputFormat = service.outputFormat,
-                        sector = matrixSet.sector,
-                        resolution = matrixSet.maxResolution
-                    ).apply { cacheSourceFactory = factory }
-
-                    else -> TiledElevationCoverage(matrixSet, factory).apply {
-                        // Configure cache to be able to use cacheable coverage interface
-                        cacheSourceFactory = factory
-                    }
-                }.apply {
-                    displayName = content.identifier
-                    // Apply bounding sector from content
-                    geoPackage.getBoundingSector(content)?.let { sector.copy(it) }
-                }
-            }.onFailure {
-                logMessage(WARN, "GpkgContentManager", "getElevationCoverages", it.message!!)
-            }.getOrNull()
+        displayName: String?,
+    ): TileStore = runScopedOrThrow {
+        val content = openOrCreateTileContent(
+            contentKey, TILES, levelSet, imageFormat = imageFormat, displayName = displayName,
+        )
+        GpkgTileStore(geoPackage, content, evictionPolicy).also {
+            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
         }
     }
 
-    override suspend fun setupElevationCoverageCache(
-        coverage: CacheableElevationCoverage, contentKey: String, setupWebCoverage: Boolean, isFloat: Boolean,
+    override suspend fun openVectorTileStore(
+        contentKey: String,
+        levelSet: LevelSet,
         evictionPolicy: CacheEvictionPolicy,
-    ) = withContext(Dispatchers.IO) {
-        val content = geoPackage.getContent(contentKey)?.also { content ->
-            // Check if the current layer fits cache content
-            val matrixSet = geoPackage.buildTileMatrixSet(content)
-            require(matrixSet.sector.equals(coverage.tileMatrixSet.sector, TOLERANCE)) { "Invalid sector" }
-            val dataType = if (isFloat) FLOAT else INTEGER
-            requireNotNull(geoPackage.getGriddedCoverage(content)?.dataType == dataType) { "Invalid data type" }
-            // Check and update web service config
-            if (coverage is WebElevationCoverage) {
-                val serviceType = geoPackage.getWebService(content)?.type
-                require(serviceType == null || serviceType == coverage.serviceType) { "Invalid service type" }
-                if (setupWebCoverage && !geoPackage.isReadOnly) geoPackage.setupWebCoverage(coverage, content)
-            }
-            // Verify if all required tile matrices created
-            if (!geoPackage.isReadOnly && matrixSet.entries.size < coverage.tileMatrixSet.entries.size) {
-                geoPackage.setupTileMatrices(content, coverage.tileMatrixSet)
-            }
-            // Update content metadata
-            geoPackage.updateGriddedCoverageContent(coverage, contentKey, content)
-            // Pre-eviction coverage tables may not have last_modified yet; migrate on reopen.
-            if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(content.tableName)
-        } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, setupWebCoverage, isFloat)
-
-        val factory = GpkgElevationSourceFactory(geoPackage, content, isFloat)
-        factory.evictionPolicy = evictionPolicy
-        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
-        coverage.cacheSourceFactory = factory
-    }
-
-    override suspend fun deleteContent(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.deleteContent(contentKey) }
-
-    override suspend fun getFeatureLayersCount() = withContext(Dispatchers.IO) { geoPackage.countContent(FEATURES).toInt() }
-
-    override suspend fun getFeatureLayers(contentKeys: List<String>?): List<RenderableLayer> = withContext(Dispatchers.IO) {
-        geoPackage.getContent(FEATURES, contentKeys).mapNotNull { content ->
-            // Check if there's an associated web feature service. If yes, rebuild a
-            // service-backed layer. Otherwise return a plain RenderableLayer with the
-            // GPKG-cached features. Mirrors the pattern in getImageLayers().
-            val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
-            runCatching {
-                when (service?.type) {
-                    WfsFeatureLayer.SERVICE_TYPE -> CachedWfsFeatureLayer(
-                        serviceAddress = service.address,
-                        layerName = service.layerName ?: error("Layer name not specified"),
-                        serviceMetadata = service.metadata,
-                        outputFormat = service.outputFormat,
-                        displayName = content.identifier,
-                    ).apply {
-                        // Bind cache + replay any features already in the GPKG features
-                        // table so the layer is populated even when offline.
-                        cacheSourceFactory = GpkgFeatureCacheFactory(geoPackage, content)
-                        runCatching { loadFromCache() }.onFailure {
-                            logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message ?: "loadFromCache failed")
-                        }
-                    }
-                    else -> RenderableLayer(geoPackage.getRenderables(content)).apply {
-                        displayName = content.identifier
-                        isPickEnabled = false
-                    }
-                }.apply {
-                    putUserProperty(FEATURE_CONTENT_KEY, content.tableName)
-                    content.lastChange?.let { putUserProperty(FEATURE_LAST_CHANGE_KEY, Instant.fromEpochMilliseconds(it.time)) }
-                    geoPackage.getBoundingSector(content)?.let { putUserProperty(FEATURE_BOUNDING_SECTOR_KEY, it) }
-                }
-            }.onFailure {
-                logMessage(WARN, "GpkgContentManager", "getFeatureLayers", it.message!!)
-            }.getOrNull()
-        }
-    }
-
-    override suspend fun getVectorTileLayersCount() = withContext(Dispatchers.IO) {
-        geoPackage.countContent(VECTOR_TILES).toInt()
-    }
-
-    override suspend fun getVectorTileLayers(contentKeys: List<String>?): List<MvtVectorLayer> = withContext(Dispatchers.IO) {
-        geoPackage.getContent(VECTOR_TILES, contentKeys).mapNotNull { content ->
-            runCatching {
-                val config = geoPackage.buildLevelSetConfig(content)
-                val service = runCatching { geoPackage.getWebService(content) }.getOrNull()
-                val source = when {
-                    service?.type == MvtVectorLayer.SERVICE_TYPE -> UrlTemplateMvtTileSource(service.address)
-                    else -> CacheOnlyMvtTileSource
-                }
-                val minZ = config.firstLevelNumber
-                val maxZ = config.firstLevelNumber + config.numLevels - 1
-                MvtVectorLayer(
-                    source = source,
-                    minZoom = minZ,
-                    maxZoom = maxZ,
-                    displayName = content.identifier ?: content.tableName,
-                ).apply {
-                    cacheTileFactory = GpkgVectorTileCacheFactory(geoPackage, content)
-                }
-            }.onFailure {
-                logMessage(WARN, "GpkgContentManager", "getVectorTileLayers", it.message ?: "rebuild failed")
-            }.getOrNull()
-        }
-    }
-
-    override suspend fun setupVectorTileLayerCache(
-        layer: CacheableVectorTileLayer, contentKey: String, setupWebLayer: Boolean,
-        evictionPolicy: CacheEvictionPolicy,
-    ): Unit = withContext(Dispatchers.IO) {
-        // Build a slippy / Web-Mercator level set spanning the layer's zoom range. MVT pyramids
-        // are always 256 × 256, EPSG:3857, single root tile.
-        val (minZ, maxZ) = (layer as? MvtVectorLayer)?.let { it.minZoom to it.maxZoom } ?: (0 to 22)
-        val levelSet = buildMvtLevelSet(minZ, maxZ)
+        displayName: String?,
+    ): TileStore = runScopedOrThrow {
         val content = geoPackage.getContent(contentKey)?.also {
             // Pre-eviction vector-tile tables may not have last_modified yet; migrate on reopen.
             if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(it.tableName)
         } ?: geoPackage.setupVectorTilesContent(
             tableName = contentKey,
             levelSet = levelSet,
-            displayName = layer.displayName,
-            encoding = mil.nga.geopackage.extension.im.vector_tiles.VectorTilesMapboxExtension(geoPackage.core),
+            displayName = displayName,
+            encoding = VectorTilesMapboxExtension(geoPackage.core),
         )
-        // Persist URL template so the layer can be rebuilt later via getVectorTileLayers().
-        val source = (layer as? MvtVectorLayer)?.source
-        if (setupWebLayer && source is UrlTemplateMvtTileSource && !geoPackage.isReadOnly) {
-            geoPackage.setupWebVectorTileLayer(content, MvtVectorLayer.SERVICE_TYPE, source.urlTemplate)
+        require(content.dataTypeName.equals(VECTOR_TILES, ignoreCase = true)) {
+            "Content '$contentKey' is not a vector-tiles table (was '${content.dataTypeName}')"
         }
-        val factory = GpkgVectorTileCacheFactory(geoPackage, content)
-        factory.evictionPolicy = evictionPolicy
-        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
-        layer.cacheTileFactory = factory
+        GpkgTileStore(geoPackage, content, evictionPolicy).also {
+            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
+        }
     }
 
-    private fun buildMvtLevelSet(minZoom: Int, maxZoom: Int): LevelSet {
-        val sector = earth.worldwind.layer.mercator.MercatorSector()
-        val tileOrigin = earth.worldwind.layer.mercator.MercatorSector()
-        val firstLevelDelta = Location(tileOrigin.deltaLatitude, tileOrigin.deltaLongitude)
-        return LevelSet(sector, tileOrigin, firstLevelDelta, maxZoom + 1, 256, 256, minZoom)
-    }
-
-    override suspend fun setupFeatureLayerCache(
-        layer: CacheableFeatureLayer, contentKey: String, setupWebLayer: Boolean,
+    override suspend fun createElevationSourceFactory(
+        contentKey: String,
+        tileMatrixSet: TileMatrixSet,
+        networkSource: TileSource?,
+        outputFormat: String,
+        isFloat: Boolean,
         evictionPolicy: CacheEvictionPolicy,
-    ) = withContext(Dispatchers.IO) {
-        // One schema for every source — WFS leaves tile columns NULL; OSM/MVT populate them.
-        val content = geoPackage.setupFeaturesContent(contentKey, layer.displayName)
-        if (setupWebLayer && layer is WebFeatureLayer && !geoPackage.isReadOnly) {
-            geoPackage.setupWebFeatureLayer(layer, content)
+        displayName: String?,
+    ): ElevationSourceFactory = runScopedOrThrow {
+        val content = openOrCreateCoverageContent(contentKey, tileMatrixSet, isFloat, displayName)
+        // Honor the *stored* dataType — see openOrCreateCoverageContent's reconciliation:
+        // the caller's [isFloat] is a creation-time hint that loses to whatever's persisted.
+        val effectiveIsFloat = when (geoPackage.getGriddedCoverage(content)?.dataType) {
+            FLOAT -> true
+            INTEGER -> false
+            else -> isFloat
         }
-        val factory = GpkgFeatureCacheFactory(geoPackage, content)
-        factory.evictionPolicy = evictionPolicy
-        if (!evictionPolicy.isUnbounded) runCatching { factory.evict() }
-        layer.cacheSourceFactory = factory
+        if (!evictionPolicy.isUnbounded) runCatching { geoPackage.evictTiles(content, evictionPolicy) }
+        GpkgCachedElevationSourceFactory(
+            geoPackage = geoPackage,
+            content = content,
+            networkSource = networkSource,
+            outputFormat = outputFormat,
+            isFloat = effectiveIsFloat,
+            tileMatrixSet = tileMatrixSet,
+        )
     }
 
-    suspend fun getFeatureLayerSize(contentKey: String) = withContext(Dispatchers.IO) { geoPackage.readFeaturesDataSize(contentKey) }
+    /**
+     * Open the existing coverage content row (validating sector + reconciling storage
+     * layout) or create it on first use. Shared between [openCoverageStore] and
+     * [createElevationSourceFactory].
+     */
+    private suspend fun openOrCreateCoverageContent(
+        contentKey: String,
+        tileMatrixSet: TileMatrixSet,
+        isFloat: Boolean,
+        displayName: String?,
+    ): GpkgContent = geoPackage.getContent(contentKey)?.also { existing ->
+        require(existing.dataTypeName.equals(COVERAGE, ignoreCase = true)) {
+            "Content '$contentKey' is not a coverage table (was '${existing.dataTypeName}')"
+        }
+        val current = geoPackage.buildTileMatrixSet(existing)
+        require(current.sector.equals(tileMatrixSet.sector, TOLERANCE)) {
+            "Coverage '$contentKey' sector mismatch — opened ${current.sector} vs requested ${tileMatrixSet.sector}"
+        }
+        // Storage-layout reconciliation on reopen. gpkg's stored dataType is the source of
+        // truth — it describes what the on-disk bytes actually are. A caller value that
+        // disagrees is logged as WARN, not thrown: a failed open here cascades to a failed
+        // coverage and "terrain at 0 altitude" across the pyramid, far worse than a logged
+        // mismatch. The stored value still wins; callers can resync by reading
+        // findEntry(contentKey)?.metadata.
+        val storedType = geoPackage.getGriddedCoverage(existing)?.dataType
+        val expected = if (isFloat) FLOAT else INTEGER
+        if (storedType != null && storedType != expected) {
+            logMessage(
+                WARN, "GpkgContentManager", "openOrCreateCoverageContent",
+                "Coverage '$contentKey' storage layout mismatch — gpkg stores '$storedType' but " +
+                    "caller requested '$expected'. Honoring the stored value; read it back via " +
+                    "ContentManager.findEntry(key)?.isFloat."
+            )
+        }
+        if (!geoPackage.isReadOnly && current.entries.size < tileMatrixSet.entries.size) {
+            geoPackage.setupTileMatrices(existing, tileMatrixSet)
+        }
+        if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(existing.tableName)
+    } ?: geoPackage.setupGriddedCoverageContent(
+        tableName = contentKey,
+        tileMatrixSet = tileMatrixSet,
+        displayName = displayName,
+        isFloat = isFloat,
+    )
+
+    // --- Feature store --------------------------------------------------------------
+
+    override suspend fun openFeatureStore(
+        contentKey: String,
+        evictionPolicy: CacheEvictionPolicy,
+        displayName: String?,
+    ): FeatureStore = runScopedOrThrow {
+        val content = geoPackage.getContent(contentKey)?.also { existing ->
+            require(existing.dataTypeName.equals(FEATURES, ignoreCase = true)) {
+                "Content '$contentKey' is not a features table (was '${existing.dataTypeName}')"
+            }
+        } ?: geoPackage.setupFeaturesContent(contentKey, displayName = displayName)
+        GpkgFeatureStore(geoPackage, content, evictionPolicy).also {
+            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
+        }
+    }
+
+    // --- Web-service registry -------------------------------------------------------
+
+    override suspend fun registerWebService(contentKey: String, info: WebServiceInfo): Unit =
+        runScoped(default = Unit) {
+            // Read-only reopen: the metadata is already on disk; never attempt to persist it.
+            if (geoPackage.isReadOnly) return@runScoped
+            try {
+                geoPackage.setupWebService(
+                    tableName = contentKey,
+                    type = info.type,
+                    address = info.address,
+                    layerName = info.layerName,
+                    outputFormat = info.outputFormat,
+                    metadata = info.metadata,
+                    isTransparent = info.isTransparent,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                logMessage(
+                    WARN, "GpkgContentManager", "registerWebService",
+                    "Failed to persist web-service metadata for '$contentKey' " +
+                        "(${e::class.simpleName}: ${e.message}); layer wiring is still valid in-memory."
+                )
+            }
+        }
+
+    // --- Enumeration ----------------------------------------------------------------
+
+    override suspend fun listEntries(): List<CacheEntry> = runScoped(default = emptyList()) {
+        val all = mutableListOf<CacheEntry>()
+        for (dataType in listOf(TILES, VECTOR_TILES, COVERAGE, FEATURES)) {
+            for (content in geoPackage.getContent(dataType, null)) {
+                all += content.toHandle()
+            }
+        }
+        all
+    }
+
+    override suspend fun findEntry(contentKey: String): CacheEntry? =
+        runScoped<CacheEntry?>(default = null) {
+            geoPackage.getContent(contentKey)?.toHandle()
+        }
+
+    override suspend fun tryRecoverLevelSet(contentKey: String): LevelSet? =
+        runScoped<LevelSet?>(default = null) {
+            val content = geoPackage.getContent(contentKey) ?: return@runScoped null
+            runCatching {
+                val config = geoPackage.buildLevelSetConfig(content)
+                if (content.srs?.organizationCoordsysId == EPSG_3857) {
+                    LevelSet(
+                        sector = MercatorSector.fromSector(config.sector),
+                        tileOrigin = MercatorSector.fromSector(config.tileOrigin),
+                        firstLevelDelta = config.firstLevelDelta,
+                        numLevels = config.numLevels,
+                        tileWidth = config.tileWidth,
+                        tileHeight = config.tileHeight,
+                        levelOffset = config.levelOffset,
+                        firstLevelNumber = config.firstLevelNumber,
+                    )
+                } else {
+                    LevelSet(config)
+                }
+            }.getOrNull()
+        }
+
+    override suspend fun tryRecoverTileMatrixSet(contentKey: String): TileMatrixSet? =
+        runScoped<TileMatrixSet?>(default = null) {
+            val content = geoPackage.getContent(contentKey) ?: return@runScoped null
+            runCatching { geoPackage.buildTileMatrixSet(content) }.getOrNull()
+        }
+
+    override suspend fun tryOpenNativeContent(entry: CacheEntry): Any? =
+        runScoped<Any?>(default = null) { openGpkgNative(entry) }
+
+    override suspend fun clearEntry(contentKey: String): Unit = runScoped(default = Unit) {
+        runCatching { geoPackage.clearEntry(contentKey) }.onFailure {
+            logMessage(
+                WARN, "GpkgContentManager", "clearEntry",
+                "clearEntry('$contentKey') failed: ${it.message}",
+            )
+        }
+    }
+
+    override suspend fun deleteEntry(contentKey: String): Unit = runScoped(default = Unit) {
+        runCatching { geoPackage.deleteEntry(contentKey) }.onFailure {
+            logMessage(WARN, "GpkgContentManager", "deleteEntry",
+                "deleteEntry('$contentKey') failed: ${it.message}")
+        }
+    }
+
+    override suspend fun setDisplayName(contentKey: String, displayName: String): Unit = runScoped(default = Unit) {
+        runCatching { geoPackage.setDisplayName(contentKey, displayName) }.onFailure {
+            logMessage(WARN, "GpkgContentManager", "setDisplayName",
+                "setDisplayName('$contentKey') failed: ${it.message}")
+        }
+    }
+
+    // --- Internal helpers -----------------------------------------------------------
+
+    /** Open-or-create the image-tile pyramid. Validates schema compat on re-open. */
+    private suspend fun openOrCreateTileContent(
+        contentKey: String,
+        dataType: String,
+        levelSet: LevelSet,
+        imageFormat: String,
+        displayName: String?,
+    ): GpkgContent {
+        val existing = geoPackage.getContent(contentKey)
+        if (existing != null) {
+            require(existing.dataTypeName.equals(dataType, ignoreCase = true)) {
+                "Content '$contentKey' is not a $dataType table (was '${existing.dataTypeName}')"
+            }
+            val current = geoPackage.buildLevelSetConfig(existing)
+            require(current.tileWidth == levelSet.tileWidth && current.tileHeight == levelSet.tileHeight) {
+                "Tile size mismatch for '$contentKey'"
+            }
+            require(current.tileOrigin.equals(levelSet.tileOrigin, TOLERANCE)) {
+                "Tile origin mismatch for '$contentKey'"
+            }
+            require(current.firstLevelNumber <= levelSet.firstLevel.levelNumber) {
+                "First level number mismatch for '$contentKey'"
+            }
+            val divider = 1 shl (levelSet.firstLevel.levelNumber - current.firstLevelNumber)
+            val firstLevelDelta = Location(
+                current.firstLevelDelta.latitude / divider,
+                current.firstLevelDelta.longitude / divider,
+            )
+            require(firstLevelDelta.equals(levelSet.firstLevelDelta, TOLERANCE)) {
+                "First level delta mismatch for '$contentKey'"
+            }
+            if (imageFormat.equals("image/webp", ignoreCase = true)) {
+                requireNotNull(geoPackage.getExtension(contentKey, TileTable.COLUMN_TILE_DATA, WebPExtension.EXTENSION_NAME)) {
+                    "WEBP extension missing on existing content '$contentKey'"
+                }
+            }
+            if (!geoPackage.isReadOnly && current.numLevels < levelSet.numLevels) {
+                geoPackage.setupTileMatrices(existing, levelSet)
+            }
+            // Reopen of a read-only GeoPackage must never write — skip the metadata sync.
+            if (!geoPackage.isReadOnly) {
+                geoPackage.updateTilesContent(contentKey, levelSet, displayName = existing.identifier, content = existing)
+                // Pre-eviction tile tables may not have last_modified yet; migrate on reopen.
+                geoPackage.ensureLastModifiedColumn(existing.tableName)
+            }
+            return existing
+        }
+        return geoPackage.setupTilesContent(
+            tableName = contentKey,
+            levelSet = levelSet,
+            displayName = displayName,
+            imageFormat = imageFormat,
+        )
+    }
+
+    private suspend fun GpkgContent.toHandle(): CacheEntry {
+        val service = runCatching { geoPackage.getWebService(this) }.getOrNull()
+        val webInfo = service?.let {
+            WebServiceInfo(
+                type = it.type,
+                address = it.address,
+                layerName = it.layerName,
+                outputFormat = it.outputFormat,
+                metadata = it.metadata,
+                isTransparent = it.isTransparent,
+            )
+        }
+        val sector: Sector? = runCatching { geoPackage.getBoundingSector(this) }.getOrNull()
+        val dataType = when (dataTypeName.lowercase()) {
+            TILES -> CacheEntry.DataType.TILES
+            VECTOR_TILES -> CacheEntry.DataType.VECTOR_TILES
+            COVERAGE -> CacheEntry.DataType.COVERAGE
+            FEATURES -> CacheEntry.DataType.FEATURES
+            else -> error("Unknown data_type '$dataTypeName' for content '$tableName'")
+        }
+        val isFloat = dataType == CacheEntry.DataType.COVERAGE &&
+            geoPackage.getGriddedCoverage(this)?.dataType == FLOAT
+        return CacheEntry(
+            contentKey = tableName,
+            dataType = dataType,
+            service = webInfo,
+            boundingSector = sector,
+            lastModified = lastChange?.let { Instant.fromEpochMilliseconds(it.time) },
+            displayName = identifier ?: tableName,
+            isFloat = isFloat,
+        )
+    }
 
     companion object {
-        const val FEATURE_CONTENT_KEY = "featureContentKey"
-        const val FEATURE_LAST_CHANGE_KEY = "featureLastChange"
-        const val FEATURE_BOUNDING_SECTOR_KEY = "featureBoundingSector"
         private const val TOLERANCE = 1e-6
     }
 }

@@ -5,7 +5,7 @@ import earth.worldwind.geom.Angle.Companion.toRadians
 import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Location.Companion.fromDegrees
 import earth.worldwind.geom.Sector.Companion.fromDegrees
-import earth.worldwind.layer.TiledImageLayer
+import earth.worldwind.layer.cache.TileSourceFactoryAdapter
 import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_COL_TEMPLATE
 import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_MATRIX_TEMPLATE
 import earth.worldwind.ogc.WmtsTileFactory.Companion.TILE_ROW_TEMPLATE
@@ -18,7 +18,6 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.Logger.makeMessage
-import earth.worldwind.util.TileFactory
 import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
@@ -26,7 +25,6 @@ import io.ktor.client.statement.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import nl.adaptivity.xmlutil.serialization.XML
 
 object WmtsLayerFactory {
@@ -39,32 +37,35 @@ object WmtsLayerFactory {
     private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
 
     /**
-     * Create tiled image layer based on WMTS layer metadata retrieved from server capabilities or decoded from parameter
+     * Create a WMTS tiled image layer (cache-agnostic).
      *
-     * @param serviceAddress WMTS service address
-     * @param layerName Optional WMTS layer name to be requested into the resulting image layer
-     * @param serviceMetadata Optional WMTS capabilities XML string to avoid online capabilities request
-     * @param displayName Optional layer display name
+     * Capabilities resolution is offline-first: [serviceMetadata] (caller-supplied XML) is
+     * used when present and it deserializes cleanly; only when it is missing, blank, or
+     * undecodable does the factory issue an online `GetCapabilities` request. The cache
+     * subsystem is not consulted here — see the canonical 2-step
+     * `factory + ContentManager.attachCache` pattern.
      */
     suspend fun createLayer(
-        serviceAddress: String, layerName: String, serviceMetadata: String? = null, displayName: String? = null
-    ): TiledImageLayer {
-		require(serviceAddress.isNotEmpty()) {
+        serviceAddress: String, layerName: String,
+        displayName: String? = null,
+        serviceMetadata: String? = null,
+    ): WmtsImageLayer {
+        require(serviceAddress.isNotEmpty()) {
             logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingServiceAddress")
         }
         require(layerName.isNotEmpty()) {
             logMessage(ERROR, "WmtsLayerFactory", "createLayer", "missingLayerNames")
         }
-        val capabilities = decodeWmtsCapabilities(serviceMetadata ?: retrieveWmtsCapabilities(serviceAddress))
+        val (xmlText, capabilities) = resolveCapabilities(serviceAddress, serviceMetadata)
         val layer = capabilities.getLayer(layerName)
         requireNotNull(layer) {
             makeMessage("WmtsLayerFactory", "createLayer", "Specified layer name was not found")
         }
-        return createWmtsImageLayer(
-            serviceAddress,
-            serviceMetadata ?: xml.encodeToString(capabilities.copy(contents = capabilities.contents.copy(layers = listOf(layer)))),
-            layer, displayName
+        val tileMatrixSet = determineCompatibleTileMatrixSet(layer.layerSupportedTileMatrixSets) ?: error(
+            makeMessage("WmtsLayerFactory", "createLayer", "Tile Schemes Not Compatible")
         )
+        val (template, imageFormat) = resolveTemplateAndFormat(layer, tileMatrixSet)
+        return createWmtsImageLayer(serviceAddress, xmlText, layer, tileMatrixSet, template, imageFormat, displayName)
     }
 
     /**
@@ -73,9 +74,13 @@ object WmtsLayerFactory {
      * @param serviceAddress the WMTS service address
      * @return WMTS 1.0.0 map service capabilities
      */
-    suspend fun getCapabilities(serviceAddress: String) = decodeWmtsCapabilities(retrieveWmtsCapabilities(serviceAddress))
+    suspend fun getCapabilities(serviceAddress: String) = decodeWmtsCapabilities(getCapabilitiesXml(serviceAddress))
 
-    private suspend fun retrieveWmtsCapabilities(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
+    /**
+     * Issue a `GetCapabilities` request and return the raw XML. Exposed so cache-aware
+     * helpers can short-circuit to a persisted copy without paying for a parse round-trip.
+     */
+    suspend fun getCapabilitiesXml(serviceAddress: String) = DefaultHttpClient().use { httpClient ->
         val serviceUri = Uri.parse(serviceAddress).buildUpon()
             .appendQueryParameter("VERSION", VERSION)
             .appendQueryParameter("SERVICE", SERVICE)
@@ -88,43 +93,73 @@ object WmtsLayerFactory {
         xml.decodeFromString<WmtsCapabilities>(xmlText)
     }
 
+    /**
+     * Resolve the capabilities offline-first. Use [serviceMetadata] when it is present and
+     * deserializes cleanly; otherwise — missing, blank, or undecodable — issue an online
+     * `GetCapabilities` request. Returns the XML actually used together with its parsed
+     * form so the caller persists the exact metadata it built the layer from.
+     */
+    private suspend fun resolveCapabilities(
+        serviceAddress: String, serviceMetadata: String?,
+    ): Pair<String, WmtsCapabilities> {
+        serviceMetadata?.takeIf { it.isNotBlank() }?.let { stored ->
+            runCatching { stored to decodeWmtsCapabilities(stored) }.onFailure {
+                logMessage(
+                    WARN, "WmtsLayerFactory", "resolveCapabilities",
+                    "Stored WMTS capabilities failed to deserialize (${it.message}); fetching online"
+                )
+            }.getOrNull()?.let { return it }
+        }
+        val online = getCapabilitiesXml(serviceAddress)
+        return online to decodeWmtsCapabilities(online)
+    }
+
     private fun createWmtsImageLayer(
-        serviceAddress: String, serviceMetadata: String, wmtsLayer: WmtsLayer, name: String?
+        serviceAddress: String, serviceMetadata: String, wmtsLayer: WmtsLayer,
+        tileMatrixSet: TileMatrixSet, template: String, imageFormat: String, name: String?,
     ) = WmtsImageLayer(
-        serviceAddress, serviceMetadata, wmtsLayer.identifier, name ?: wmtsLayer.title, createWmtsSurfaceImage(wmtsLayer)
+        serviceAddress = serviceAddress,
+        serviceMetadata = serviceMetadata,
+        layerName = wmtsLayer.identifier,
+        imageFormat = imageFormat,
+        name = name ?: wmtsLayer.title,
+        tiledSurfaceImage = createWmtsSurfaceImage(wmtsLayer, tileMatrixSet, template, imageFormat),
     )
 
-    private fun createWmtsSurfaceImage(wmtsLayer: WmtsLayer): TiledSurfaceImage {
-        // Search the list of coordinate system compatible tile matrix sets for compatible tiling schemes
-        val tileMatrixSet = determineCompatibleTileMatrixSet(wmtsLayer.layerSupportedTileMatrixSets) ?: error(
-            makeMessage("WmtsLayerFactory", "createWmtsLayer", "Tile Schemes Not Compatible")
-        )
-        val tileFactory = createWmtsTileFactory(wmtsLayer, tileMatrixSet)
+    private fun createWmtsSurfaceImage(
+        wmtsLayer: WmtsLayer, tileMatrixSet: TileMatrixSet, template: String, imageFormat: String,
+    ): TiledSurfaceImage {
         val levelSet = createWmtsLevelSet(wmtsLayer, tileMatrixSet)
+        val networkSource = WmtsTileSource(
+            template = template,
+            tileMatrixIdentifiers = tileMatrixSet.tileMatrices,
+            imageFormat = imageFormat,
+        )
+        val tileFactory = TileSourceFactoryAdapter(networkSource, imageFormat)
         return TiledSurfaceImage(tileFactory, levelSet)
     }
 
-    private fun createWmtsTileFactory(wmtsLayer: WmtsLayer, tileMatrixSet: TileMatrixSet): TileFactory {
-        // First choice is a ResourceURL
+    /** Pick a RESTful ResourceURL template if available, falling back to KVP. Returns
+     *  `(template, imageFormat)` for [WmtsTileSource]. */
+    private fun resolveTemplateAndFormat(wmtsLayer: WmtsLayer, tileMatrixSet: TileMatrixSet): Pair<String, String> {
         for (resourceUrl in wmtsLayer.resourceUrls) if (compatibleImageFormats.contains(resourceUrl.format)) {
             val template = resourceUrl.template
                 .replace(STYLE_TEMPLATE, wmtsLayer.styles[0].identifier)
                 .replace(TILE_MATRIX_SET_TEMPLATE, tileMatrixSet.identifier)
-            return WmtsTileFactory(template, tileMatrixSet.tileMatrices, tileMatrixSet.matrixHeight, resourceUrl.format)
+            return template to resourceUrl.format
         }
-
-        // Second choice is if the server supports KVP
         val baseUrl = determineKvpUrl(wmtsLayer)
-        return if (baseUrl != null) {
+        if (baseUrl != null) {
             val imageFormat = compatibleImageFormats.firstOrNull { format -> wmtsLayer.formats.contains(format) } ?: error(
-                makeMessage("WmtsLayerFactory", "getWmtsTileFactory", "Image Formats Not Compatible")
+                makeMessage("WmtsLayerFactory", "resolveTemplateAndFormat", "Image Formats Not Compatible")
             )
             val styleIdentifier = wmtsLayer.styles[0].identifier
             val template = buildWmtsKvpTemplate(
                 baseUrl, wmtsLayer.identifier, imageFormat, styleIdentifier, tileMatrixSet.identifier
             )
-            WmtsTileFactory(template, tileMatrixSet.tileMatrices, tileMatrixSet.matrixHeight, imageFormat)
-        } else error(makeMessage("WmtsLayerFactory", "getWmtsTileFactory", "No KVP Get Support"))
+            return template to imageFormat
+        }
+        error(makeMessage("WmtsLayerFactory", "resolveTemplateAndFormat", "No KVP Get Support"))
     }
 
     private fun createWmtsLevelSet(wmtsLayer: WmtsLayer, tileMatrixSet: TileMatrixSet) = with(tileMatrixSet) {
