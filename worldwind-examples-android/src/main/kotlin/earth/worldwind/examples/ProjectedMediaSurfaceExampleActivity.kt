@@ -24,17 +24,24 @@ class ProjectedMediaSurfaceExampleActivity : GeneralGlobeActivity() {
 
         // Add dragging callback
         wwd.selectDragDetector.callback = object : SelectDragCallback {
-            override fun canPickRenderable(renderable: Renderable) = true
-            override fun canMoveRenderable(renderable: Renderable) = renderable === selectedObject && renderable.hasUserProperty(MOVABLE)
-            override fun onRenderablePicked(renderable: Renderable, position: Position) = toggleSelection(renderable)
-            override fun onRenderableContext(renderable: Renderable, position: Position) = contextMenu(renderable)
+            override fun canPickObjects(userObject: Any) = userObject is Renderable
+            override fun canMoveObjects(userObject: Any) =
+                userObject is Renderable && userObject === selectedObject && userObject.hasUserProperty(MOVABLE)
+            override fun onObjectPicked(userObject: Any, position: Position) {
+                if (userObject is Renderable) toggleSelection(userObject)
+            }
+            override fun onObjectContext(userObject: Any, position: Position) {
+                if (userObject is Renderable) contextMenu(userObject)
+            }
             override fun onTerrainContext(position: Position) = contextMenu()
-            override fun onRenderableDoubleTap(renderable: Renderable, position: Position) {
+            override fun onObjectDoubleTap(userObject: Any, position: Position) {
+                val renderable = userObject as? Renderable ?: return
                 // Note that double-tapping should not toggle a "selected" object's selected state
                 if (renderable !== selectedObject) toggleSelection(renderable) // deselects a previously selected item
             }
 
-            override fun onRenderableMoved(renderable: Renderable, fromPosition: Position, toPosition: Position) {
+            override fun onObjectMoved(userObject: Any, fromPosition: Position, toPosition: Position) {
+                val renderable = userObject as? Renderable ?: return
                 (renderable as? Placemark)?.moveTo(wwd.engine.globe, toPosition)
                 val surface = renderable.getUserProperty<ProjectedMediaSurface>(SURFACE_REF)
                 val vertexIndex = renderable.getUserProperty<Int>(VERTEX_INDEX)

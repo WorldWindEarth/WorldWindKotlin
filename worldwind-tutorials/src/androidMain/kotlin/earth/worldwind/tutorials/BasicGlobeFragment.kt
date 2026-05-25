@@ -18,14 +18,14 @@ import earth.worldwind.layer.CompassLayer
 import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
+import earth.worldwind.layer.cache.attachCache
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.GpkgContentManager
-import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
+import earth.worldwind.util.Logger
 import kotlinx.coroutines.launch
-import java.io.File
 
 open class BasicGlobeFragment: Fragment() {
     /**
@@ -35,8 +35,7 @@ open class BasicGlobeFragment: Fragment() {
         private set
 
     /** Shared cache; subclass fragments wire their layers' caches into the same GeoPackage. */
-    protected lateinit var contentManager: GpkgContentManager
-        private set
+    protected val contentManager: GpkgContentManager get() = TutorialContentManagerHolder.get(requireContext())
 
     /**
      * Creates a new WorldWindow (GLSurfaceView) object.
@@ -44,18 +43,20 @@ open class BasicGlobeFragment: Fragment() {
     open fun createWorldWindow(): WorldWindow {
         // Create the WorldWindow (a GLSurfaceView) which displays the globe.
         wwd = WorldWindow(requireContext())
-        // Define cache content manager
-        contentManager = GpkgContentManager(File(requireContext().cacheDir, "cache_content.gpkg").absolutePath)
-        // Setting up the WorldWindow's layers.
+        // Base layers are added synchronously in their final positions but `isEnabled = false`
+        // so the renderer issues no tile requests against the network-only factory. The launch
+        // below opens the cache, swaps in the cached factory, then flips `isEnabled = true`.
+        // Pre-adding (vs add-on-completion) lets tutorials that disable existing coverages at
+        // `start()` time — DTED, WCS — see the base layers regardless of attach timing.
+        val satellite = WebMercatorLayerFactory.createLayer(
+            urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+            imageFormat = "image/jpeg",
+            name = "Google Satellite",
+        ).apply { isEnabled = false }
+        val elevation = BasicElevationCoverage().apply { isEnabled = false }
         wwd.engine.layers.apply {
             addLayer(BackgroundLayer())
-            addLayer(WebMercatorLayerFactory.createLayer(
-                urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
-                imageFormat = "image/jpeg",
-                name = "Google Satellite"
-            ).apply {
-                lifecycleScope.launch { configureCache(contentManager, "GSat") }
-            })
+            addLayer(satellite)
             addLayer(StarFieldLayer())
             // Atmosphere `time` is null by default: no day/night terminator. BasicTutorial
             // sets it (and animates) on start; other tutorials use the layer's
@@ -66,14 +67,22 @@ open class BasicGlobeFragment: Fragment() {
             addLayer(WorldMapLayer().apply { corner = WorldMapLayer.Corner.TOP_LEFT })
             addLayer(ViewControlsLayer())
         }
-        // Setting up the WorldWindow's elevation coverages.
-        wwd.engine.globe.elevationModel.addCoverage(BasicElevationCoverage().apply {
-            lifecycleScope.launch { configureCache(contentManager, "NASADEM") }
-        })
+        wwd.engine.globe.elevationModel.addCoverage(elevation)
         // Allow picking and dragging any Movable renderable, mirroring the JVM / JS tutorial setup.
         wwd.selectDragDetector.callback = object : SelectDragCallback {
-            override fun canPickRenderable(renderable: Renderable) = renderable is Movable
-            override fun canMoveRenderable(renderable: Renderable) = renderable is Movable
+            override fun canPickObjects(userObject: Any) = userObject is Movable
+            override fun canMoveObjects(userObject: Any) = userObject is Movable
+        }
+        lifecycleScope.launch {
+            try {
+                contentManager.attachCache(satellite, "GSat")
+                contentManager.attachCache(elevation, BasicElevationCoverage.COVERAGE_NAME)
+                satellite.isEnabled = true
+                elevation.isEnabled = true
+                wwd.requestRedraw()
+            } catch (e: Throwable) {
+                Logger.log(Logger.ERROR, "Cache attach for base globe failed", e)
+            }
         }
         return wwd
     }

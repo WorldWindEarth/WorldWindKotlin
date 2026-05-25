@@ -6,6 +6,11 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.util.Logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * Schematic 3D buildings from OpenStreetMap. Demonstrates [OsmBuildingsLayer] hitting the
@@ -22,19 +27,34 @@ import earth.worldwind.layer.buildings.OsmBuildingsLayer
  * A fresh [OsmBuildingsLayer] is created on every [start] (and closed on [stop]) so re-entering
  * the tutorial after navigating away gets a clean coroutine scope and an empty tile cache.
  *
- * [layerFactory] lets JVM/Android inject a CachedOsmBuildingsLayer; the default is network-only.
+ * [layerLoader] lets JVM/Android/JS/iOS inject an OsmBuildingsLayer over a cache-wrapped source
+ * (CachedTiledFeatureSource + GpkgFeatureStore). The loader runs inside a coroutine and
+ * `attachCache` completes before the layer is added to the engine — this avoids the
+ * "first batch of tiles bypasses cache" race the synchronous factory had.
  */
 class OsmBuildingsTutorial(
     engine: WorldWind,
-    private val layerFactory: () -> OsmBuildingsLayer = { OsmBuildingsLayer(useOsmColors = true) },
+    private val scope: CoroutineScope,
+    private val layerLoader: suspend () -> OsmBuildingsLayer = ::defaultNetworkOnlyLoader,
 ) : AbstractTutorial(engine) {
 
     private var buildings: OsmBuildingsLayer? = null
+    private var job: Job? = null
 
     override fun start() {
         super.start()
-        val layer = layerFactory().also { buildings = it }
-        engine.layers.addLayer(layer)
+        job = scope.launch {
+            try {
+                val layer = layerLoader()
+                if (isActive) {
+                    buildings = layer
+                    engine.layers.addLayer(layer)
+                    WorldWind.requestRedraw()
+                }
+            } catch (e: Throwable) {
+                Logger.log(Logger.ERROR, "OSM Buildings layer creation failed", e)
+            }
+        }
         engine.cameraFromLookAt(
             LookAt(
                 position = Position(40.7484.degrees, (-73.9857).degrees, 0.0),
@@ -49,10 +69,19 @@ class OsmBuildingsTutorial(
 
     override fun stop() {
         super.stop()
+        job?.cancel()
+        job = null
         buildings?.let {
             engine.layers.removeLayer(it)
             it.close()
         }
         buildings = null
+    }
+
+    companion object {
+        /** Default loader: network-only [OsmBuildingsLayer] (no cache wired). */
+        @Suppress("RedundantSuspendModifier")
+        suspend fun defaultNetworkOnlyLoader(): OsmBuildingsLayer =
+            OsmBuildingsLayer(useOsmColors = true)
     }
 }

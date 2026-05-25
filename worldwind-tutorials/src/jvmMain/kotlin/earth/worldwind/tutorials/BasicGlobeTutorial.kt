@@ -4,7 +4,6 @@ import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.Line
 import earth.worldwind.gesture.SelectDragCallback
-import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.globe.projection.EquirectangularProjection
 import earth.worldwind.globe.projection.GnomonicProjection
 import earth.worldwind.globe.projection.MercatorProjection
@@ -20,16 +19,23 @@ import earth.worldwind.layer.CompassLayer
 import earth.worldwind.layer.CoordinatesDisplayLayer
 import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
-import earth.worldwind.formats.shapefile.CachedShapefileLayer
-import earth.worldwind.layer.RenderableLayer
-import earth.worldwind.layer.configureCache
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
-import earth.worldwind.layer.buildings.CachedOsmBuildingsLayer
+import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
+import earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource
+import earth.worldwind.layer.cache.attachCache
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
+import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
+import earth.worldwind.ogc.Wcs100ElevationCoverage
+import earth.worldwind.ogc.WmsLayerFactory
+import earth.worldwind.ogc.WmtsLayerFactory
+import earth.worldwind.layer.mvt.MvtVectorLayer
+import earth.worldwind.layer.mvt.OpenTopoMapRules
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.GpkgContentManager
-import earth.worldwind.render.Renderable
+import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
+import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.shape.Movable
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -46,10 +52,16 @@ fun main() {
     installPermissiveSslForTutorials()
     SwingUtilities.invokeLater {
         val mainScope = MainScope()
-        // Shared GeoPackage cache; per-layer rows namespaced by content key.
-        val contentManager = GpkgContentManager(
-            File(System.getProperty("user.home"), ".cache/worldwind-tutorials/cache_content.gpkg").absolutePath
-        ).also { File(it.pathName).parentFile?.mkdirs() }
+        // Shared GeoPackage cache; per-layer rows namespaced by content key. Parent-dir
+        // creation must happen BEFORE the GpkgContentManager constructor — `geoPackage` is
+        // an eager `val` that opens the SQLite file synchronously, so a missing parent dir
+        // fails the open before any post-construction `.also { mkdirs() }` could run.
+        val cachePath = File(
+            System.getProperty("user.home"),
+            ".cache/worldwind-tutorials/cache_content.gpkg",
+        )
+        cachePath.parentFile?.mkdirs()
+        val contentManager = GpkgContentManager(cachePath.absolutePath)
         val tutorialCombo = JComboBox<String>()
         val projectionCombo = JComboBox<String>()
         val actionsPanel = JPanel(FlowLayout(FlowLayout.LEFT))
@@ -57,16 +69,20 @@ fun main() {
         var wwd: WorldWindow? = null
 
         wwd = WorldWindow { engine ->
-            engine.globe.elevationModel.addCoverage(BasicElevationCoverage())
+            // Base layers are added synchronously in their final positions but `isEnabled = false`
+            // so the renderer issues no tile requests against the network-only factory. The launch
+            // below opens the cache, swaps in the cached factory, then flips `isEnabled = true`.
+            // Pre-adding (vs add-on-completion) lets tutorials that disable existing coverages
+            // at `start()` time — DTED, WCS — see the base layers regardless of attach timing.
+            val satellite = WebMercatorLayerFactory.createLayer(
+                urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+                imageFormat = "image/jpeg",
+                name = "Google Satellite",
+            ).apply { isEnabled = false }
+            val elevation = BasicElevationCoverage().apply { isEnabled = false }
             with(engine.layers) {
                 addLayer(BackgroundLayer())
-                addLayer(
-                    WebMercatorLayerFactory.createLayer(
-                        urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
-                        imageFormat = "image/jpeg",
-                        name = "Google Satellite"
-                    )
-                )
+                addLayer(satellite)
                 addLayer(StarFieldLayer())
                 // Atmosphere `time` is null by default: no day/night terminator. BasicTutorial
                 // sets it (and animates) on start; other tutorials use the layer's
@@ -77,6 +93,14 @@ fun main() {
                 addLayer(CoordinatesDisplayLayer())
                 addLayer(WorldMapLayer().apply { mapWidthDp = 300.0 })
                 addLayer(ViewControlsLayer())
+            }
+            engine.globe.elevationModel.addCoverage(elevation)
+            mainScope.launch {
+                contentManager.attachCache(satellite, "GSat")
+                contentManager.attachCache(elevation, BasicElevationCoverage.COVERAGE_NAME)
+                satellite.isEnabled = true
+                elevation.isEnabled = true
+                wwd?.requestRedraw()
             }
 
             val colladaTutorial = ColladaTutorial(engine).also { tutorial ->
@@ -101,12 +125,22 @@ fun main() {
                 "Triangle meshes" to triMeshTutorial,
                 "COLLADA" to colladaTutorial,
                 "GLTF" to gltfTutorial,
-                "OSM Buildings" to OsmBuildingsTutorial(engine, layerFactory = {
-                    CachedOsmBuildingsLayer(useOsmColors = true).also { layer ->
-                        mainScope.launch { layer.configureCache(contentManager, "OsmBuildings") }
+                "OSM Buildings" to OsmBuildingsTutorial(engine, mainScope, layerLoader = {
+                    OsmBuildingsLayer(useOsmColors = true).also {
+                        contentManager.attachCache(it, "OsmBuildings")
                     }
                 }),
-                "Vector Tiles (MVT)" to MvtVectorTilesTutorial(engine),
+                "Vector Tiles (MVT)" to MvtVectorTilesTutorial(engine, mainScope, layerLoader = {
+                    val layer = MvtVectorLayer(
+                        source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
+                        minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
+                        maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
+                        tileRadius = MvtVectorTilesTutorial.TILE_RADIUS,
+                        style = OpenTopoMapRules,
+                    )
+                    contentManager.attachCache(layer, "MVT_Versatiles")
+                    layer
+                }),
                 "Dash and fill" to ShapesDashAndFillTutorial(engine),
                 "Labels" to LabelsTutorial(engine),
                 "Real-time sightline" to SightlineTutorial(engine),
@@ -121,21 +155,54 @@ fun main() {
                 "Show tessellation" to ShowTessellationTutorial(engine),
                 "MGRS Graticule" to MGRSGraticuleTutorial(engine),
                 "Gauss-Kruger Graticule" to GKGraticuleTutorial(engine),
-                "WMS Layer" to WmsLayerTutorial(engine, mainScope),
-                "WMTS Layer" to WmtsLayerTutorial(engine, mainScope),
-                "WFS Layer" to WfsLayerTutorial(engine, mainScope),
-                "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope, layerLoader = {
-                    val layer: RenderableLayer = CachedShapefileLayer(
-                        shpUrl = ShapefileLayerTutorial.SHP_URL,
-                        displayName = ShapefileLayerTutorial.DISPLAY_NAME,
-                        attributes = ShapefileLayerTutorial.defaultPolygonStyle(),
-                    ).also { cached ->
-                        cached.configureCache(contentManager, "Shapefile_Countries")
-                        cached.load()
-                    }
+                "WMS Layer" to WmsLayerTutorial(engine, mainScope, layerLoader = {
+                    val key = "WMS_NeoTemperature"
+                    WmsLayerFactory.createLayer(
+                        serviceAddress = WmsLayerTutorial.SERVICE_ADDRESS,
+                        layerNames = WmsLayerTutorial.LAYER_NAMES,
+                        serviceMetadata = contentManager.findEntry(key)?.service?.metadata,
+                    ).also { contentManager.attachCache(it, key) }
+                }),
+                "WMTS Layer" to WmtsLayerTutorial(engine, mainScope, layerLoader = {
+                    val key = "WMTS_DlrHillshade"
+                    WmtsLayerFactory.createLayer(
+                        serviceAddress = WmtsLayerTutorial.SERVICE_ADDRESS,
+                        layerName = WmtsLayerTutorial.LAYER_NAME,
+                        serviceMetadata = contentManager.findEntry(key)?.service?.metadata,
+                    ).also { contentManager.attachCache(it, key) }
+                }),
+                "WFS Layer" to WfsLayerTutorial(engine, mainScope, layerLoader = {
+                    val layer = BulkFeatureLayer(
+                        source = WfsBulkFeatureSource(
+                            serviceAddress = WfsLayerTutorial.SERVICE_ADDRESS,
+                            layerName = WfsLayerTutorial.TYPE_NAME,
+                            maxFeatures = WfsLayerTutorial.MAX_FEATURES,
+                            pageSize = WfsLayerTutorial.PAGE_SIZE,
+                        ),
+                        displayName = WfsLayerTutorial.DISPLAY_NAME,
+                        customLogicToApplyProperties = WfsLayerTutorial.populationStyling,
+                    )
+                    contentManager.attachCache(layer, "WFS_Cities")
                     layer
                 }),
-                "WCS Elevation" to WcsElevationTutorial(engine),
+                "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope, layerLoader = {
+                    val layer = BulkFeatureLayer(
+                        source = ShapefileBulkFeatureSource(ShapefileLayerTutorial.SHP_URL),
+                        displayName = ShapefileLayerTutorial.DISPLAY_NAME,
+                        shapeAttributes = ShapefileLayerTutorial.defaultPolygonStyle(),
+                    ).also { it.isPickEnabled = false }
+                    contentManager.attachCache(layer, "Shapefile_Countries")
+                    layer
+                }),
+                "WCS Elevation" to WcsElevationTutorial(engine, mainScope, layerLoader = {
+                    Wcs100ElevationCoverage(
+                        serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,
+                        coverageName = WcsElevationTutorial.COVERAGE_NAME,
+                        outputFormat = WcsElevationTutorial.OUTPUT_FORMAT,
+                        sector = WcsElevationTutorial.BOUNDING_SECTOR,
+                        resolution = WcsElevationTutorial.RESOLUTION,
+                    ).also { contentManager.attachCache(it, "WCS_3DEP") }
+                }),
                 "DTED Elevation (local)" to DtedElevationTutorial(engine),
                 "NITF Imagery" to NitfImageryTutorial(engine),
                 "Elevation Heatmap" to ElevationHeatmapTutorial(engine),
@@ -238,8 +305,8 @@ fun main() {
         }
 
         wwd.selectDragDetector.callback = object : SelectDragCallback {
-            override fun canPickRenderable(renderable: Renderable) = renderable is Movable
-            override fun canMoveRenderable(renderable: Renderable) = renderable is Movable
+            override fun canPickObjects(userObject: Any) = userObject is Movable
+            override fun canMoveObjects(userObject: Any) = userObject is Movable
         }
 
         wwd.controller = object : BasicWorldWindowController(wwd) {

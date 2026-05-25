@@ -26,6 +26,13 @@
 </p>
 <h2>Example</h2>
 <h3>MvtVectorTilesFragment.kt</h3>
+<p>
+    The MVT byte stream uses the same <code>TileSource</code> abstraction as image tiles:
+    <code>UrlTemplateMvtTileSource</code> is the network source,
+    <code>CachedTileSource(networkSource, store)</code> decorates it with write-through
+    persistence into a GeoPackage vector-tile store. The layer is unaware of the cache —
+    it just calls <code>fetchTile(z, x, y)</code> on the source it was given.
+</p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class MvtVectorTilesFragment : BasicGlobeFragment() {
@@ -33,7 +40,25 @@ class MvtVectorTilesFragment : BasicGlobeFragment() {
 
     override fun createWorldWindow(): WorldWindow {
         val wwd = super.createWorldWindow()
-        MvtVectorTilesTutorial(wwd.engine).also {
+        MvtVectorTilesTutorial(wwd.engine, lifecycleScope, layerLoader = {
+            // 1. LevelSet drives the cache's tile-pyramid validation. The companion
+            //    helper builds a slippy-map (Web Mercator) pyramid for max zoom 22.
+            val levelSet = MvtVectorTilesTutorial.buildMvtLevelSet()
+            // 2. Open (or create) the GPKG vector-tile store for this content key.
+            val store = contentManager.openVectorTileStore("MVT_Versatiles", levelSet)
+            // 3. CachedTileSource = read store first; on miss, hit network and write back.
+            val cached = CachedTileSource(
+                UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
+                store,
+            )
+            MvtVectorLayer(
+                source = cached,
+                minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
+                maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
+                tileRadius = MvtVectorTilesTutorial.TILE_RADIUS,
+                style = OpenTopoMapRules,
+            )
+        }).also {
             tutorial = it
             it.start()
         }
@@ -47,22 +72,22 @@ class MvtVectorTilesFragment : BasicGlobeFragment() {
     }
 }
 
-class MvtVectorTilesTutorial(engine: WorldWind) : AbstractTutorial(engine) {
+class MvtVectorTilesTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope = MainScope(),
+    private val layerLoader: suspend () -> MvtVectorLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
+
     private var mvt: MvtVectorLayer? = null
+    private var cacheJob: Job? = null
 
     override fun start() {
         super.start()
-        val layer = MvtVectorLayer(
-            source = UrlTemplateMvtTileSource(
-                urlTemplate = "https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}",
-                headers = mapOf("User-Agent" to "WorldWindKotlin-Tutorials"),
-            ),
-            minZoom = 2,
-            maxZoom = 14,
-            tileRadius = 3,
-            style = OpenTopoMapRules,
-        ).also { mvt = it }
-        engine.layers.addLayer(layer)
+        cacheJob = scope.launch {
+            val layer = layerLoader()
+            mvt = layer
+            engine.layers.addLayer(layer)
+        }
         engine.cameraFromLookAt(
             LookAt(
                 position = Position(47.2692.degrees, 11.4041.degrees, 0.0),
@@ -77,11 +102,39 @@ class MvtVectorTilesTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun stop() {
         super.stop()
+        cacheJob?.cancel()
+        cacheJob = null
         mvt?.let {
             engine.layers.removeLayer(it)
             it.close()
         }
         mvt = null
+    }
+
+    companion object {
+        const val URL_TEMPLATE = "https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}"
+        const val MIN_ZOOM = 2
+        const val MAX_ZOOM = 14
+        const val TILE_RADIUS = 3
+
+        /** Web-Mercator slippy-map LevelSet for max zoom 22, 256 px tiles. */
+        fun buildMvtLevelSet(): LevelSet = LevelSet(
+            sector = MercatorSector(),
+            tileOrigin = MercatorSector(),
+            firstLevelDelta = Location(180.degrees, 360.degrees),
+            numLevels = 23,
+            tileWidth = 256,
+            tileHeight = 256,
+        )
+
+        /** Network-only fallback used on iOS/JS until they get a cache binding. */
+        suspend fun defaultNetworkOnlyLoader(): MvtVectorLayer = MvtVectorLayer(
+            source = UrlTemplateMvtTileSource(urlTemplate = URL_TEMPLATE),
+            minZoom = MIN_ZOOM,
+            maxZoom = MAX_ZOOM,
+            tileRadius = TILE_RADIUS,
+            style = OpenTopoMapRules,
+        )
     }
 }
     </textarea>

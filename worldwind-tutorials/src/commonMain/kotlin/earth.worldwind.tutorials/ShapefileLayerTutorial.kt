@@ -5,6 +5,7 @@ import earth.worldwind.formats.shapefile.ShapefileLayerFactory
 import earth.worldwind.formats.shapefile.ShapefileShapeConfiguration
 import earth.worldwind.geom.Angle
 import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.render.Color
 import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.util.Logger
@@ -22,7 +23,8 @@ import kotlinx.coroutines.launch
  * Source files are hosted on the `nvkelso/natural-earth-vector` GitHub raw URLs, which
  * is the canonical Natural Earth vector mirror.
  *
- * [layerLoader] lets JVM/Android inject a CachedShapefileLayer; the default is network-only.
+ * [layerLoader] lets JVM/Android inject a cache-wrapped source (CachedBulkFeatureSource +
+ * GpkgFeatureStore feeding BulkFeatureLayer); the default is network-only.
  */
 class ShapefileLayerTutorial(
     engine: WorldWind,
@@ -38,11 +40,16 @@ class ShapefileLayerTutorial(
         job = scope.launch {
             try {
                 val layer = layerLoader?.invoke() ?: defaultLayerLoader()
-                if (isActive) {
-                    shapefileLayer = layer
-                    engine.layers.addLayer(layer)
-                    WorldWind.requestRedraw()
-                }
+                if (!isActive) return@launch
+                shapefileLayer = layer
+                engine.layers.addLayer(layer)
+                // The cache-wrapped path returns a BulkFeatureLayer that's empty until
+                // `load()` pulls rows from its source (network → ShapefileBulkFeatureSource,
+                // or cache hit on second launch). The network-only `defaultLayerLoader`
+                // returns a populated RenderableLayer from ShapefileLayerFactory and skips
+                // this call. Same pattern as WfsLayerTutorial.
+                if (layer is BulkFeatureLayer) layer.load()
+                WorldWind.requestRedraw()
                 Logger.log(Logger.INFO, "Shapefile layer creation succeeded")
             } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "Shapefile layer creation failed", e)

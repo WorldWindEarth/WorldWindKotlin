@@ -2,21 +2,19 @@ package earth.worldwind.tutorials
 
 import androidx.lifecycle.lifecycleScope
 import earth.worldwind.WorldWindow
-import earth.worldwind.layer.buildings.CachedOsmBuildingsLayer
-import earth.worldwind.layer.configureCache
-import kotlinx.coroutines.launch
+import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.layer.cache.attachCache
 
 class OsmBuildingsFragment : BasicGlobeFragment() {
     private var tutorial: OsmBuildingsTutorial? = null
 
     override fun createWorldWindow(): WorldWindow {
         val wwd = super.createWorldWindow()
-        val factory: () -> CachedOsmBuildingsLayer = {
-            CachedOsmBuildingsLayer(useOsmColors = true).also { layer ->
-                lifecycleScope.launch { layer.configureCache(contentManager, "OsmBuildings") }
+        OsmBuildingsTutorial(wwd.engine, lifecycleScope, layerLoader = {
+            OsmBuildingsLayer(useOsmColors = true).also {
+                contentManager.attachCache(it, "OsmBuildings")
             }
-        }
-        OsmBuildingsTutorial(wwd.engine, layerFactory = factory).also {
+        }).also {
             tutorial = it
             it.start()
         }

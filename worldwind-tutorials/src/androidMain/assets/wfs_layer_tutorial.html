@@ -14,66 +14,60 @@
 <p>
     Demonstrates how to display an OGC Web Feature Service (WFS) layer.</p>
 <p>
-    WfsLayerFactory negotiates a compatible output format with the WFS endpoint
-    (preferring GeoJSON, falling back to GML 3.2 / 3.1), fetches features via GetFeature,
-    and produces a RenderableLayer. This tutorial also shows two of the factory's hooks:
-    <code>pageSize</code> triggers WFS 2.0 STARTINDEX pagination so large datasets come
-    back in chunks, and <code>customLogicToApplyProperties</code> runs once per parsed
-    feature so callers can style placemarks/paths/polygons from the server's attributes.</p>
-
+    <code>WfsBulkFeatureSource</code> negotiates a compatible output format with the WFS
+    endpoint (preferring GeoJSON, falling back to GML 3.2 / 3.1) and fetches features
+    via GetFeature. <code>BulkFeatureLayer</code> consumes the source and runs the
+    supplied <code>customLogicToApplyProperties</code> styling lambda over every rebuilt
+    renderable. <code>contentManager.attachCache(layer, contentKey)</code> wraps the
+    source in the cache decorator and registers a service-identity row, so subsequent
+    launches can rediscover the same layer through <code>listEntries()</code> /
+    <code>openLayer&lt;BulkFeatureLayer&gt;</code>.
+</p>
 <h2>Example</h2>
 <h3>WfsLayerFragment.kt</h3>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class WfsLayerFragment : BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a WFS Layer
-     *
-     * @return The WorldWindow object containing the globe.
-     */
-    override fun createWorldWindow() = super.createWorldWindow().also { WfsLayerTutorial(it.engine, lifecycleScope).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        WfsLayerTutorial(it.engine, lifecycleScope, layerLoader = {
+            val layer = BulkFeatureLayer(
+                source = WfsBulkFeatureSource(
+                    serviceAddress = WfsLayerTutorial.SERVICE_ADDRESS,
+                    layerName = WfsLayerTutorial.TYPE_NAME,
+                    maxFeatures = WfsLayerTutorial.MAX_FEATURES,
+                    pageSize = WfsLayerTutorial.PAGE_SIZE,
+                ),
+                displayName = WfsLayerTutorial.DISPLAY_NAME,
+                customLogicToApplyProperties = WfsLayerTutorial.populationStyling,
+            )
+            // Uniform attachCache: wraps the source in CachedBulkFeatureSource + registers
+            // a "WFS" service-identity row so listEntries() can rediscover next launch.
+            contentManager.attachCache(layer, "WFS_Cities")
+            layer
+        }).start()
+    }
 }
 
-class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
+class WfsLayerTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val layerLoader: suspend () -> RenderableLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
 
     private var wfsLayer: RenderableLayer? = null
     private var job: Job? = null
-
-    private val populationTiers = listOf(
-        5_000_000.0 to Color.fromHexString("#E63946"), // megacity (5M+) — red
-        2_000_000.0 to Color.fromHexString("#F4A261"), // major (2–5M)   — orange
-        1_000_000.0 to Color.fromHexString("#E9C46A"), // large (1–2M)   — yellow
-        0.0         to Color.fromHexString("#2A9D8F"), // rest (<1M)     — teal
-    )
 
     override fun start() {
         super.start()
         job = scope.launch {
             try {
-                WfsLayerFactory.createLayer(
-                    serviceAddress = "https://demo.mapserver.org/cgi-bin/wfs",
-                    typeName = "ms:cities",
-                    displayName = "Major Cities (WFS)",
-                    maxFeatures = 500,
-                    pageSize = 100,
-                    customLogicToApplyProperties = { properties ->
-                        val population = (properties["POPULATION"] as? Number)?.toDouble() ?: return@createLayer
-                        val color = populationTiers.first { (threshold, _) -> population >= threshold }.second
-                        // GeoJsonLayerFactory emits a Label when a feature has `name` but
-                        // no `icon`, and a Placemark otherwise — colour whichever we got.
-                        when (this) {
-                            is Placemark -> attributes.imageColor = color
-                            is Label -> attributes.textColor = color
-                        }
-                    },
-                ).also {
-                    if (isActive) {
-                        wfsLayer = it
-                        engine.layers.addLayer(it)
-                        WorldWind.requestRedraw()
-                    }
-                }
-                Logger.log(Logger.INFO, "WFS layer creation succeeded")
+                val layer = layerLoader()
+                if (!isActive) return@launch
+                layer.isPickEnabled = false
+                wfsLayer = layer
+                engine.layers.addLayer(layer)
+                if (layer is BulkFeatureLayer) layer.load() // pulls from cache OR network
+                WorldWind.requestRedraw()
             } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "WFS layer creation failed", e)
             }
@@ -90,6 +84,37 @@ class WfsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
         super.stop()
         job?.cancel()
         wfsLayer?.let { engine.layers.removeLayer(it) }.also { wfsLayer = null }
+    }
+
+    companion object {
+        const val SERVICE_ADDRESS = "https://demo.mapserver.org/cgi-bin/wfs"
+        const val TYPE_NAME = "ms:cities"
+        const val DISPLAY_NAME = "Major Cities (WFS)"
+        const val MAX_FEATURES = 500
+        const val PAGE_SIZE = 100
+
+        val populationTiers = listOf(
+            5_000_000.0 to Color.fromHexString("#E63946"), // megacity (5M+) — red
+            2_000_000.0 to Color.fromHexString("#F4A261"), // major (2–5M)   — orange
+            1_000_000.0 to Color.fromHexString("#E9C46A"), // large (1–2M)   — yellow
+            0.0         to Color.fromHexString("#2A9D8F"), // rest (<1M)     — teal
+        )
+
+        /** Per-feature styling — tints each placemark / label by its POPULATION attribute. */
+        val populationStyling: Renderable.(LinkedHashMap<String, Any?>) -> Unit = { properties ->
+            val population = (properties["POPULATION"] as? Number)?.toDouble()
+            if (population != null) {
+                val color = populationTiers.first { (threshold, _) -> population >= threshold }.second
+                when (this) {
+                    is Placemark -> attributes.imageColor = color
+                    is Label -> attributes.textColor = color
+                }
+            }
+        }
+
+        /** Default loader for platforms without WFS support. JVM/Android override with a
+         *  real BulkFeatureLayer built from WfsBulkFeatureSource (jvmCommonMain only). */
+        suspend fun defaultNetworkOnlyLoader(): RenderableLayer = RenderableLayer(DISPLAY_NAME)
     }
 }
     </textarea>

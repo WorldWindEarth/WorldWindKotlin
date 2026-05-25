@@ -1,12 +1,18 @@
 package earth.worldwind.tutorials
 
 import androidx.lifecycle.lifecycleScope
+import earth.worldwind.layer.cache.attachCache
+import earth.worldwind.ogc.WmtsLayerFactory
 
 class WmtsLayerFragment : BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a WMTS Layer
-     *
-     * @return The WorldWindow object containing the globe.
-     */
-    override fun createWorldWindow() = super.createWorldWindow().also { WmtsLayerTutorial(it.engine, lifecycleScope).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        WmtsLayerTutorial(it.engine, lifecycleScope, layerLoader = {
+            val contentKey = "WMTS_DlrHillshade"
+            WmtsLayerFactory.createLayer(
+                serviceAddress = WmtsLayerTutorial.SERVICE_ADDRESS,
+                layerName = WmtsLayerTutorial.LAYER_NAME,
+                serviceMetadata = contentManager.findEntry(contentKey)?.service?.metadata,
+            ).also { layer -> contentManager.attachCache(layer, contentKey) }
+        }).start()
+    }
 }

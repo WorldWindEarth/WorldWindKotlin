@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>WMS Layer Tutorial</title>
+    <title>GeoPackage Tutorial</title>
     <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
@@ -12,55 +12,56 @@
 <body>
 <h1>GeoPackage Tutorial</h1>
 <p>
-    Demonstrates how to display an OGC GeoPackage layer.</p>
+    Demonstrates how to open every cached layer / coverage stored in a GeoPackage and add
+    each one to the engine.</p>
 <p>
-    This tutorial displays a GeoPackage database containing high resolution monochromatic imagery of Naval Air Station
-    Oceana in Virginia Beach, VA.</p>
+    Every cache-writing layer (WMS, WMTS, MVT, WCS, WFS, Shapefile, OSM Buildings,
+    XYZ-templated image) records its web-service metadata under <code>gpkg_web_service</code>
+    when its store is first populated. <code>ContentManager.open(category)</code> walks
+    the catalog and rebuilds every entry in that category — image layers, vector layers,
+    feature layers, or elevation coverages — as fully wired instances ready to be added to
+    the engine.
+</p>
+<p>
+    This tutorial opens the bundled <code>geopackage_tutorial.gpkg</code> in read-only
+    mode and pulls every cached layer / coverage via the typed bulk-open helpers. The
+    bundled file has no live server twin, so each result is flipped into strict cache-only
+    mode with <code>setOfflineOnly()</code> — cache misses return nothing, never network.
+</p>
 
 <h2>Example</h2>
 <h3>GeoPackageFragment.kt</h3>
-<p>
-    The GeoPackageFragment class extends BasicGlobeFragment and overrides the createWorldWindow method. Here we use
-    WorldWind's LayerFactory to display the contents of a local OGC GeoPackage database. LayerFactory asynchronously
-    reads the GeoPackage contents to configure a WorldWind layer, then notifies the application when it's done.
-</p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-class GeoPackageFragment: BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a GeoPackage Layer
-     *
-     * @return The WorldWindow object containing the globe.
-     */
+class GeoPackageFragment : BasicGlobeFragment() {
     override fun createWorldWindow(): WorldWindow {
-        // Let the super class (BasicGlobeFragment) do the creation
         val wwd = super.createWorldWindow()
-
         lifecycleScope.launch {
             try {
-                val layer = withContext(Dispatchers.IO) {
-                    // Unpack the tutorial GeoPackage asset to the Android application cache. GeoPackage relies on the Android
-                    // SQLite library which operates only on files in the local Android filesystem.
-                    val geoPackageFile = TutorialUtil.unpackAsset(requireContext(), "geopackage_tutorial.gpkg")
-
-                    // Create an OGC GeoPackage layer to display a high resolution monochromatic image of Naval Air Station
-                    // Oceana in Virginia Beach, VA.
-                    GpkgLayerFactory.createLayer(geoPackageFile.path)
+                // GeoPackage's SQLite driver only works on filesystem-backed files, so
+                // unpack the bundled asset into the Android app cache directory.
+                val gpkgPath = withContext(Dispatchers.IO) {
+                    TutorialUtil.unpackAsset(requireContext(), "geopackage_tutorial.gpkg").path
                 }
-
-                // Add the finished GeoPackage layer to the WorldWindow.
-                wwd.engine.layers.addLayer(layer)
+                val tutorialGpkg = GpkgContentManager(gpkgPath, isReadOnly = true)
+                // Bundled GPKG has no live server twin — flip every reopened layer/coverage
+                // into strict cache-only mode before adding it to the engine.
+                val tiledImages = tutorialGpkg.open(CacheCategory.Tiles).onEach { it.setOfflineOnly() }
+                val vectorTiles = tutorialGpkg.open(CacheCategory.VectorTiles).onEach { it.setOfflineOnly() }
+                val features = tutorialGpkg.open(CacheCategory.Features).onEach { it.setOfflineOnly() }
+                val coverages = tutorialGpkg.open(CacheCategory.Coverage).onEach { it.setOfflineOnly() }
+                tiledImages.forEach { wwd.engine.layers.addLayer(it) }
+                vectorTiles.forEach { wwd.engine.layers.addLayer(it) }
+                features.forEach { wwd.engine.layers.addLayer(it) }
+                coverages.forEach { wwd.engine.globe.elevationModel.addCoverage(it) }
                 wwd.requestRedraw()
-                Logger.log(Logger.INFO, "GeoPackage layer creation succeeded")
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "GeoPackage layer creation failed", e)
             }
         }
-
-        // Place the viewer directly over the GeoPackage image.
-        wwd.engine.camera.position.setDegrees(
-            36.8139677556754, -76.03260320181614, 10e3
-        )
+        // Centre the camera over the bundled GPKG's sample area
+        // (Naval Air Station Oceana, Virginia Beach, VA).
+        wwd.engine.camera.position.setDegrees(36.8139677556754, -76.03260320181614, 10e3)
         return wwd
     }
 }
@@ -74,9 +75,6 @@ class GeoPackageFragment: BasicGlobeFragment() {
         mode: "google-kotlin",
         readOnly: true
       });
-
-
-
 </script>
 </body>
 </html>

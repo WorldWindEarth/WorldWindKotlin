@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>WMS Layer Tutorial</title>
+    <title>WMTS Layer Tutorial</title>
     <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
@@ -19,23 +19,39 @@
 <h2>Example</h2>
 <h3>WmtsLayerFragment.kt</h3>
 <p>
-    The WmtsLayerFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method. Here we use
-    WorldWind's LayerFactory to display the contents of a remote OGC Web Map Tile Service (WMTS). LayerFactory
-    asynchronously
-    negotiates with the WMTS endpoint to configure a WorldWind layer, then notifies the application when it's done.
+    <code>WmtsLayerFactory.createLayer</code> reads the WMTS Capabilities document,
+    selects a TileMatrixSet and tile format, and builds a <code>WmtsTileSource</code> that
+    substitutes <code>{TileMatrix}</code>, <code>{TileRow}</code>, and <code>{TileCol}</code>
+    placeholders into the advertised URL template. Like WMS, the cache is wired via
+    <code>cacheBinder</code>: it fires after capabilities resolution with the derived
+    LevelSet + image format, and a non-null return triggers the factory to wrap the
+    network source in <code>CachedTileSource</code>.
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class WmtsLayerFragment : BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a WMTS Layer
-     *
-     * @return The WorldWindow object containing the globe.
-     */
-    override fun createWorldWindow() = super.createWorldWindow().also { WmtsLayerTutorial(it.engine, lifecycleScope).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        WmtsLayerTutorial(it.engine, lifecycleScope, layerLoader = {
+            WmtsLayerFactory.createLayer(
+                serviceAddress = WmtsLayerTutorial.SERVICE_ADDRESS,
+                layerName = WmtsLayerTutorial.LAYER_NAME,
+                cacheBinder = { levelSet, imageFormat ->
+                    contentManager.openImageTileStore(
+                        contentKey = "WMTS_DlrHillshade",
+                        levelSet = levelSet,
+                        imageFormat = imageFormat,
+                    )
+                },
+            )
+        }).start()
+    }
 }
 
-class WmtsLayerTutorial(private val engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial() {
+class WmtsLayerTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val layerLoader: suspend () -> TiledImageLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
 
     private var wmtsLayer: TiledImageLayer? = null
     private var job: Job? = null
@@ -44,15 +60,12 @@ class WmtsLayerTutorial(private val engine: WorldWind, private val scope: Corout
         super.start()
         job = scope.launch {
             try {
-                // Create an OGC Web Map Tile Service (WMTS) layer to display Global Hillshade based on GMTED2010
-                WmtsLayerFactory.createLayer("https://tiles.geoservice.dlr.de/service/wmts", "hillshade").also {
-                    if (isActive) {
-                        wmtsLayer = it
-                        engine.layers.addLayer(it)
-                        WorldWind.requestRedraw()
-                    }
+                val layer = layerLoader()
+                if (isActive) {
+                    wmtsLayer = layer
+                    engine.layers.addLayer(layer)
+                    WorldWind.requestRedraw()
                 }
-                Logger.log(Logger.INFO, "WMTS layer creation succeeded")
             } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "WMTS layer creation failed", e)
             }
@@ -71,6 +84,13 @@ class WmtsLayerTutorial(private val engine: WorldWind, private val scope: Corout
         wmtsLayer?.let { engine.layers.removeLayer(it) }.also { wmtsLayer = null }
     }
 
+    companion object {
+        const val SERVICE_ADDRESS = "https://tiles.geoservice.dlr.de/service/wmts"
+        const val LAYER_NAME = "hillshade"
+
+        suspend fun defaultNetworkOnlyLoader(): TiledImageLayer =
+            WmtsLayerFactory.createLayer(SERVICE_ADDRESS, LAYER_NAME)
+    }
 }
     </textarea>
 </div>
@@ -82,10 +102,6 @@ class WmtsLayerTutorial(private val engine: WorldWind, private val scope: Corout
         mode: "google-kotlin",
         readOnly: true
       });
-
-
-
-
 </script>
 </body>
 </html>

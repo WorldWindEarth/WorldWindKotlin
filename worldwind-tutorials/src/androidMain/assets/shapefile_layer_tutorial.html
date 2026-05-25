@@ -15,56 +15,33 @@
     Demonstrates how to load an ESRI Shapefile (.shp + .dbf + .prj) and display its
     features as a RenderableLayer.</p>
 <p>
-    ShapefileLayerFactory fetches the .shp file at the supplied URL plus the .dbf and
-    .prj sidecars (auto-derived by extension), parses them, and creates Path / Polygon /
-    Placemark renderables. A per-record shapeConfiguration callback customizes
-    attributes, labels, altitude, or extrusion.</p>
+    <code>ShapefileBulkFeatureSource</code> fetches the .shp file at the supplied URL
+    plus its .dbf / .prj / .cpg sidecars (auto-derived by extension) and parses every
+    record. <code>BulkFeatureLayer</code> consumes the source — the same consumer used by
+    WFS, since the row format is identical. <code>contentManager.attachCache(layer,
+    contentKey)</code> wraps the source in the cache decorator and registers a
+    "Shapefile" service-identity row so subsequent launches replay from the GeoPackage
+    feature store.</p>
 
 <h2>Example</h2>
 <h3>ShapefileLayerFragment.kt</h3>
+<p>
+    The fragment disables picking on the layer so the SelectDragCallback doesn't let the
+    user drag individual country polygons around.
+</p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class ShapefileLayerFragment : BasicGlobeFragment() {
-    override fun createWorldWindow() = super.createWorldWindow().also {
-        ShapefileLayerTutorial(it.engine, lifecycleScope).start()
-    }
-}
-
-class ShapefileLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
-
-    private var shapefileLayer: RenderableLayer? = null
-    private var job: Job? = null
-
-    override fun start() {
-        super.start()
-        job = scope.launch {
-            try {
-                val polygonStyle = ShapeAttributes().apply {
-                    interiorColor = Color(0.4f, 0.6f, 0.9f, 0.35f)
-                    outlineColor = Color(1f, 1f, 1f, 0.9f)
-                    outlineWidth = 1f
-                }
-                val layer = ShapefileLayerFactory.createLayer(
-                    shpUrl = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/110m_cultural/ne_110m_admin_0_countries.shp",
-                    displayName = "Country Boundaries (Shapefile)",
-                ) { record ->
-                    ShapefileShapeConfiguration(attributes = polygonStyle)
-                }
-                if (isActive) {
-                    shapefileLayer = layer
-                    engine.layers.addLayer(layer)
-                    WorldWind.requestRedraw()
-                }
-            } catch (e: Throwable) {
-                Logger.log(Logger.ERROR, "Shapefile layer creation failed", e)
-            }
-        }
-    }
-
-    override fun stop() {
-        super.stop()
-        job?.cancel()
-        shapefileLayer?.let { engine.layers.removeLayer(it) }.also { shapefileLayer = null }
+    override fun createWorldWindow() = super.createWorldWindow().also { wwd ->
+        ShapefileLayerTutorial(wwd.engine, lifecycleScope, layerLoader = {
+            val layer = BulkFeatureLayer(
+                source = ShapefileBulkFeatureSource(ShapefileLayerTutorial.SHP_URL),
+                displayName = ShapefileLayerTutorial.DISPLAY_NAME,
+                shapeAttributes = ShapefileLayerTutorial.defaultPolygonStyle(),
+            ).also { it.isPickEnabled = false }
+            contentManager.attachCache(layer, "Shapefile_Countries")
+            layer
+        }).start()
     }
 }
     </textarea>

@@ -10,7 +10,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class WmsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
+/**
+ * @param layerLoader full layer-creation override. JVM/Android pass a loader that reads
+ *   any previously-persisted capabilities XML (`contentManager.findEntry(key)?.service?.metadata`),
+ *   constructs the layer via [WmsLayerFactory.createLayer], and calls
+ *   [earth.worldwind.layer.cache.attachCache] so subsequent launches stay offline-replayable.
+ *   The default loader skips the cache and runs network-only.
+ */
+class WmsLayerTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val layerLoader: suspend () -> TiledImageLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
 
     private var wmsLayer: TiledImageLayer? = null
     private var job: Job? = null
@@ -19,14 +30,11 @@ class WmsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
         super.start()
         job = scope.launch {
             try {
-                // Create an OGC Web Map Service (WMS) layer to display the
-                // surface temperature layer from NASA's Near Earth Observations WMS.
-                WmsLayerFactory.createLayer("https://neo.gsfc.nasa.gov/wms/wms", listOf("MOD_LSTD_CLIM_M")).also {
-                    if (isActive) {
-                        wmsLayer = it
-                        engine.layers.addLayer(it)
-                        WorldWind.requestRedraw()
-                    }
+                val layer = layerLoader()
+                if (isActive) {
+                    wmsLayer = layer
+                    engine.layers.addLayer(layer)
+                    WorldWind.requestRedraw()
                 }
                 Logger.log(Logger.INFO, "WMS layer creation succeeded")
             } catch (e: Throwable) {
@@ -47,4 +55,13 @@ class WmsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : A
         wmsLayer?.let { engine.layers.removeLayer(it) }.also { wmsLayer = null }
     }
 
+    companion object {
+        /** NASA Near Earth Observations WMS — surface-temperature climatology (monthly). */
+        const val SERVICE_ADDRESS = "https://neo.gsfc.nasa.gov/wms/wms"
+        val LAYER_NAMES = listOf("MOD_LSTD_CLIM_M")
+
+        /** Default loader: network-only WMS request via [WmsLayerFactory]. */
+        suspend fun defaultNetworkOnlyLoader(): TiledImageLayer =
+            WmsLayerFactory.createLayer(SERVICE_ADDRESS, LAYER_NAMES)
+    }
 }

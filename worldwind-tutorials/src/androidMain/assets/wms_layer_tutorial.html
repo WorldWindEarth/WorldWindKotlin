@@ -14,27 +14,51 @@
 <p>
     Demonstrates how to display an OGC Web Map Service (WMS) layer.</p>
 <p>
-    This example adds a surface temperature WMS layer to the basic globe example.</p>
+    This example adds a surface-temperature WMS layer to the basic globe example.</p>
 
 <h2>Example</h2>
 <h3>WmsLayerFragment.kt</h3>
 <p>
-    The WmsLayerFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method. Here we use
-    WorldWind's LayerFactory to display the contents of a remote OGC Web Map Service (WMS). LayerFactory asynchronously
-    negotiates with the WMS endpoint to configure a WorldWind layer, then notifies the application when it's done.
+    <code>WmsLayerFactory.createLayer</code> negotiates capabilities with the WMS endpoint,
+    derives a <code>LevelSet</code> from the advertised bounding box / coordinate system,
+    builds a <code>WmsTileSource</code>, and returns a <code>TiledImageLayer</code>.
+    Resolving capabilities is what tells us how big the tile pyramid is — but the cache
+    needs that LevelSet up-front to size its tile-matrix table. That chicken-and-egg is
+    solved by the <code>cacheBinder</code> callback: the factory invokes it after
+    capabilities resolution with the resolved LevelSet + image format, and the caller
+    returns a <code>TileStore</code> sized exactly to those dimensions. If the binder
+    returns non-null the factory wraps the network <code>WmsTileSource</code> in a
+    <code>CachedTileSource</code> automatically.
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class WmsLayerFragment : BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a WMS Layer
-     *
-     * @return The WorldWindow object containing the globe.
-     */
-    override fun createWorldWindow() = super.createWorldWindow().also { WmsLayerTutorial(it.engine, lifecycleScope).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        WmsLayerTutorial(it.engine, lifecycleScope, layerLoader = {
+            WmsLayerFactory.createLayer(
+                serviceAddress = WmsLayerTutorial.SERVICE_ADDRESS,
+                layerNames = WmsLayerTutorial.LAYER_NAMES,
+                // Fires after capabilities resolution with the LevelSet + image format
+                // derived from the WMS advertisement. We open a GPKG store sized to that
+                // pyramid and return it — the factory then wraps the network source in
+                // CachedTileSource so subsequent runs replay tiles from the GPKG.
+                cacheBinder = { levelSet, imageFormat ->
+                    contentManager.openImageTileStore(
+                        contentKey = "WMS_NeoTemperature",
+                        levelSet = levelSet,
+                        imageFormat = imageFormat,
+                    )
+                },
+            )
+        }).start()
+    }
 }
 
-class WmsLayerTutorial(private val engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial() {
+class WmsLayerTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val layerLoader: suspend () -> TiledImageLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
 
     private var wmsLayer: TiledImageLayer? = null
     private var job: Job? = null
@@ -43,16 +67,12 @@ class WmsLayerTutorial(private val engine: WorldWind, private val scope: Corouti
         super.start()
         job = scope.launch {
             try {
-                // Create an OGC Web Map Service (WMS) layer to display the
-                // surface temperature layer from NASA's Near Earth Observations WMS.
-                WmsLayerFactory.createLayer("https://neo.gsfc.nasa.gov/wms/wms", listOf("MOD_LSTD_CLIM_M")).also {
-                    if (isActive) {
-                        wmsLayer = it
-                        engine.layers.addLayer(it)
-                        WorldWind.requestRedraw()
-                    }
+                val layer = layerLoader()
+                if (isActive) {
+                    wmsLayer = layer
+                    engine.layers.addLayer(layer)
+                    WorldWind.requestRedraw()
                 }
-                Logger.log(Logger.INFO, "WMS layer creation succeeded")
             } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "WMS layer creation failed", e)
             }
@@ -71,6 +91,13 @@ class WmsLayerTutorial(private val engine: WorldWind, private val scope: Corouti
         wmsLayer?.let { engine.layers.removeLayer(it) }.also { wmsLayer = null }
     }
 
+    companion object {
+        const val SERVICE_ADDRESS = "https://neo.gsfc.nasa.gov/wms/wms"
+        val LAYER_NAMES = listOf("MOD_LSTD_CLIM_M")
+
+        suspend fun defaultNetworkOnlyLoader(): TiledImageLayer =
+            WmsLayerFactory.createLayer(SERVICE_ADDRESS, LAYER_NAMES)
+    }
 }
     </textarea>
 </div>
@@ -82,9 +109,6 @@ class WmsLayerTutorial(private val engine: WorldWind, private val scope: Corouti
         mode: "google-kotlin",
         readOnly: true
       });
-
-
-
 </script>
 </body>
 </html>

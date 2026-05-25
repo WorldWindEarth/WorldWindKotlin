@@ -6,6 +6,7 @@ import earth.worldwind.WorldWind
 import earth.worldwind.WorldWindow as PlatformWorldWindow
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.log
+import earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -18,12 +19,24 @@ import earth.worldwind.layer.CoordinatesDisplayLayer
 import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
+import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.layer.cache.IosContentManager
+import earth.worldwind.layer.cache.attachCache
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
+import earth.worldwind.layer.mvt.MvtVectorLayer
+import earth.worldwind.layer.mvt.OpenTopoMapRules
+import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
-import earth.worldwind.render.Renderable
+import earth.worldwind.ogc.Wcs100ElevationCoverage
+import earth.worldwind.ogc.WfsLayerFactory
+import earth.worldwind.ogc.WmsLayerFactory
+import earth.worldwind.ogc.WmtsLayerFactory
+import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
+import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.shape.Movable
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import platform.CoreGraphics.CGRectMake
 import platform.UIKit.UIView
@@ -49,8 +62,8 @@ fun createWorldWindow(): PlatformWorldWindow {
     setupDefaultGlobe(wwd.engine)
     // Renderable selection / drag, matches the JVM and Android tutorial setup.
     wwd.selectDragDetector.callback = object : SelectDragCallback {
-        override fun canPickRenderable(renderable: Renderable) = renderable is Movable
-        override fun canMoveRenderable(renderable: Renderable) = renderable is Movable
+        override fun canPickObjects(userObject: Any) = userObject is Movable
+        override fun canMoveObjects(userObject: Any) = userObject is Movable
     }
     return wwd
 }
@@ -74,15 +87,26 @@ fun requestRedrawOn(window: UIView) { (window as PlatformWorldWindow).requestRed
  *
  *  Layer order matches :worldwind-tutorials JS/JVM Main: low-res blue-marble background
  *  underneath, Google Satellite Web-Mercator tiles on top of that, then sky/UI overlays. */
+/** Shared, process-lifetime cache backing every tutorial. Tile bytes persist under
+ *  `~/Library/Caches/worldwind-cache/${contentKey}` so subsequent app launches replay
+ *  imagery + elevation offline. */
+val contentManager: IosContentManager = IosContentManager()
+private val iosMainScope = MainScope()
+
 fun setupDefaultGlobe(engine: WorldWind) {
+    // Base layers are added synchronously in their final positions but `isEnabled = false`
+    // so the renderer issues no tile requests against the network-only factory. The launch
+    // below opens the cache, swaps in the cached factory, then flips `isEnabled = true`.
+    // Pre-adding (vs add-on-completion) lets tutorials that disable existing coverages at
+    // `start()` time — DTED, WCS — see the base layers regardless of attach timing.
+    val satellite = WebMercatorLayerFactory.createLayer(
+        urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
+        imageFormat = "image/jpeg",
+        name = "Google Satellite",
+    ).apply { isEnabled = false }
+    val elevation = BasicElevationCoverage().apply { isEnabled = false }
     engine.layers.addLayer(BackgroundLayer())
-    engine.layers.addLayer(
-        WebMercatorLayerFactory.createLayer(
-            urlTemplate = "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl={lang}",
-            imageFormat = "image/jpeg",
-            name = "Google Satellite",
-        )
-    )
+    engine.layers.addLayer(satellite)
     engine.layers.addLayer(StarFieldLayer())
     engine.layers.addLayer(AtmosphereLayer())
     engine.layers.addLayer(ShadowLayer())
@@ -90,7 +114,7 @@ fun setupDefaultGlobe(engine: WorldWind) {
     engine.layers.addLayer(CoordinatesDisplayLayer())
     engine.layers.addLayer(WorldMapLayer().apply { mapWidthDp = 300.0 })
     engine.layers.addLayer(ViewControlsLayer())
-    engine.globe.elevationModel.addCoverage(BasicElevationCoverage())
+    engine.globe.elevationModel.addCoverage(elevation)
     engine.camera.set(
         latitude = 30.0.degrees,
         longitude = -90.0.degrees,
@@ -98,6 +122,17 @@ fun setupDefaultGlobe(engine: WorldWind) {
         altitudeMode = AltitudeMode.ABSOLUTE,
         heading = ZERO, tilt = ZERO, roll = ZERO,
     )
+    iosMainScope.launch {
+        try {
+            contentManager.attachCache(satellite, "GSat")
+            contentManager.attachCache(elevation, BasicElevationCoverage.COVERAGE_NAME)
+            satellite.isEnabled = true
+            elevation.isEnabled = true
+            WorldWind.requestRedraw()
+        } catch (e: Throwable) {
+            log(ERROR, "iOS cache attach failed: ${e.message}")
+        }
+    }
 }
 
 /** Identity + display title for a single tutorial. */
@@ -131,8 +166,26 @@ object Tutorials {
         TutorialFactory("triangleMeshes", "Triangle meshes", ::TriangleMeshesTutorial),
         TutorialFactory("collada", "COLLADA", ::ColladaTutorial),
         TutorialFactory("gltf", "GLTF", ::GltfTutorial),
-        TutorialFactory("osmBuildings", "OSM Buildings", ::OsmBuildingsTutorial),
-        TutorialFactory("mvtVectorTiles", "Vector Tiles (MVT)", ::MvtVectorTilesTutorial),
+        TutorialFactory("osmBuildings", "OSM Buildings") { e ->
+            OsmBuildingsTutorial(e, iosMainScope, layerLoader = {
+                OsmBuildingsLayer(useOsmColors = true).also {
+                    contentManager.attachCache(it, "OsmBuildings")
+                }
+            })
+        },
+        TutorialFactory("mvtVectorTiles", "Vector Tiles (MVT)") { e ->
+            MvtVectorTilesTutorial(e, iosMainScope, layerLoader = {
+                val layer = MvtVectorLayer(
+                    source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
+                    minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
+                    maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
+                    tileRadius = MvtVectorTilesTutorial.TILE_RADIUS,
+                    style = OpenTopoMapRules,
+                )
+                contentManager.attachCache(layer, "MVT_Versatiles")
+                layer
+            })
+        },
         TutorialFactory("dashAndFill", "Dash and fill", ::ShapesDashAndFillTutorial),
         TutorialFactory("labels", "Labels", ::LabelsTutorial),
         TutorialFactory("sightline", "Real-time sightline", ::SightlineTutorial),
@@ -143,12 +196,64 @@ object Tutorials {
         TutorialFactory("showTessellation", "Show tessellation", ::ShowTessellationTutorial),
         TutorialFactory("mgrsGraticule", "MGRS Graticule", ::MGRSGraticuleTutorial),
         TutorialFactory("gkGraticule", "Gauss-Kruger Graticule", ::GKGraticuleTutorial),
-        // WMS/WMTS take the engine's mainScope as a second parameter.
-        TutorialFactory("wmsLayer", "WMS Layer") { e -> WmsLayerTutorial(e, e.renderResourceCache.mainScope) },
-        TutorialFactory("wmtsLayer", "WMTS Layer") { e -> WmtsLayerTutorial(e, e.renderResourceCache.mainScope) },
-        TutorialFactory("wfsLayer", "WFS Layer") { e -> WfsLayerTutorial(e, e.renderResourceCache.mainScope) },
-        TutorialFactory("shapefileLayer", "Shapefile Layer") { e -> ShapefileLayerTutorial(e, e.renderResourceCache.mainScope) },
-        TutorialFactory("wcsElevation", "WCS Elevation", ::WcsElevationTutorial),
+        TutorialFactory("wmsLayer", "WMS Layer") { e ->
+            WmsLayerTutorial(e, iosMainScope, layerLoader = {
+                val key = "WMS_NeoTemperature"
+                WmsLayerFactory.createLayer(
+                    serviceAddress = WmsLayerTutorial.SERVICE_ADDRESS,
+                    layerNames = WmsLayerTutorial.LAYER_NAMES,
+                    serviceMetadata = contentManager.findEntry(key)?.service?.metadata,
+                ).also { contentManager.attachCache(it, key) }
+            })
+        },
+        TutorialFactory("wmtsLayer", "WMTS Layer") { e ->
+            WmtsLayerTutorial(e, iosMainScope, layerLoader = {
+                val key = "WMTS_DlrHillshade"
+                WmtsLayerFactory.createLayer(
+                    serviceAddress = WmtsLayerTutorial.SERVICE_ADDRESS,
+                    layerName = WmtsLayerTutorial.LAYER_NAME,
+                    serviceMetadata = contentManager.findEntry(key)?.service?.metadata,
+                ).also { contentManager.attachCache(it, key) }
+            })
+        },
+        TutorialFactory("wfsLayer", "WFS Layer") { e ->
+            WfsLayerTutorial(e, iosMainScope, layerLoader = {
+                val layer = BulkFeatureLayer(
+                    source = WfsBulkFeatureSource(
+                        serviceAddress = WfsLayerTutorial.SERVICE_ADDRESS,
+                        layerName = WfsLayerTutorial.TYPE_NAME,
+                        maxFeatures = WfsLayerTutorial.MAX_FEATURES,
+                        pageSize = WfsLayerTutorial.PAGE_SIZE,
+                    ),
+                    displayName = WfsLayerTutorial.DISPLAY_NAME,
+                    customLogicToApplyProperties = WfsLayerTutorial.populationStyling,
+                )
+                contentManager.attachCache(layer, "WFS_Cities")
+                layer
+            })
+        },
+        TutorialFactory("shapefileLayer", "Shapefile Layer") { e ->
+            ShapefileLayerTutorial(e, iosMainScope, layerLoader = {
+                val layer = BulkFeatureLayer(
+                    source = ShapefileBulkFeatureSource(ShapefileLayerTutorial.SHP_URL),
+                    displayName = ShapefileLayerTutorial.DISPLAY_NAME,
+                    shapeAttributes = ShapefileLayerTutorial.defaultPolygonStyle(),
+                ).also { it.isPickEnabled = false }
+                contentManager.attachCache(layer, "Shapefile_Countries")
+                layer
+            })
+        },
+        TutorialFactory("wcsElevation", "WCS Elevation") { e ->
+            WcsElevationTutorial(e, iosMainScope, layerLoader = {
+                Wcs100ElevationCoverage(
+                    serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,
+                    coverageName = WcsElevationTutorial.COVERAGE_NAME,
+                    outputFormat = WcsElevationTutorial.OUTPUT_FORMAT,
+                    sector = WcsElevationTutorial.BOUNDING_SECTOR,
+                    resolution = WcsElevationTutorial.RESOLUTION,
+                ).also { contentManager.attachCache(it, "WCS_3DEP") }
+            })
+        },
         TutorialFactory("nitfImagery", "NITF Imagery", ::NitfImageryTutorial),
         TutorialFactory("elevationHeatmap", "Elevation Heatmap", ::ElevationHeatmapTutorial),
     )
@@ -179,6 +284,7 @@ object Tutorials {
             }
             else -> {}
         }
+        WorldWind.requestRedraw()
     }
 
     /** Stop and clear the current tutorial. */

@@ -67,8 +67,8 @@ open class OmnidirectionalSightlineActivity: BasicGlobeActivity() {
 
         // Add dragging callback
         wwd.selectDragDetector.callback = object : SelectDragCallback {
-            override fun canMoveRenderable(renderable: Renderable) = renderable === sightlinePlacemark
-            override fun onRenderableMoved(renderable: Renderable, fromPosition: Position, toPosition: Position) {
+            override fun canMoveObjects(userObject: Any) = userObject === sightlinePlacemark
+            override fun onObjectMoved(userObject: Any, fromPosition: Position, toPosition: Position) {
                 sightline.position = toPosition
             }
         }

@@ -3,11 +3,20 @@ package earth.worldwind.tutorials
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
+import earth.worldwind.geom.Location
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
+import earth.worldwind.layer.mercator.MercatorSector
+import earth.worldwind.layer.mvt.MvtStyle
 import earth.worldwind.layer.mvt.MvtVectorLayer
 import earth.worldwind.layer.mvt.OpenTopoMapRules
 import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
+import earth.worldwind.util.LevelSet
+import earth.worldwind.util.Logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 /**
  * Vector-tile demo: fetches OpenMapTiles-schema MVT data from Versatiles' public CDN and
@@ -24,31 +33,44 @@ import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
  * Versatiles is currently free for non-commercial use without an API key — for production,
  * either subscribe to a Versatiles plan, point at a self-hosted OpenMapTiles server, or swap
  * to Maptiler/Mapbox by changing only the [UrlTemplateMvtTileSource]'s template.
+ *
+ * @param layerLoader full layer-creation override. JVM/Android pass a loader that opens a
+ *   `ContentManager.openVectorTileStore`, decorates the network `UrlTemplateMvtTileSource`
+ *   with `CachedTileSource(network, store)`, and hands the cached source to `MvtVectorLayer`.
+ *   The default loader skips the cache and runs network-only.
  */
-class MvtVectorTilesTutorial(engine: WorldWind) : AbstractTutorial(engine) {
+class MvtVectorTilesTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope = MainScope(),
+    private val layerLoader: suspend () -> MvtVectorLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
 
     private var mvt: MvtVectorLayer? = null
+    private var cacheJob: Job? = null
 
     override fun start() {
         super.start()
-        val layer = MvtVectorLayer(
-            source = UrlTemplateMvtTileSource(
-                // Versatiles' public CDN. OpenMapTiles v3 schema.
-                urlTemplate = "https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}",
-                // Versatiles doesn't require it but sending a User-Agent is good citizenship.
-                headers = mapOf("User-Agent" to "WorldWindKotlin-Tutorials"),
-            ),
-            // minZoom/maxZoom bracket what the server serves; Versatiles publishes up to z14.
-            // Zoom is auto-selected per render from camera altitude.
-            minZoom = 2,
-            maxZoom = 14,
-            tileRadius = 3,
-            // Rule-based OpenTopoMap palette with zoom-interpolated widths and labels. Swap
-            // to [OpenTopoMapMvtStyle] for the imperative-DSL reference impl without zoom
-            // interpolation.
-            style = OpenTopoMapRules,
-        ).also { mvt = it }
-        engine.layers.addLayer(layer)
+        cacheJob = scope.launch {
+            try {
+                val layer = layerLoader()
+                mvt = layer
+                engine.layers.addLayer(layer)
+                // Force a redraw post-addLayer so doRender fires on the new layer
+                // instance. Without this, the layer can sit dormant when the previous
+                // redraw (triggered by cameraFromLookAt) lands before the addLayer
+                // — observed on second-time tutorial selection where the cached
+                // layerLoader returns faster than the camera-driven frame.
+                WorldWind.requestRedraw()
+                Logger.log(Logger.INFO, "MVT layer loaded")
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                // attachCache validation on re-open (existing vector-tile pyramid mismatch
+                // vs requested LevelSet) surfaces here. Fire-and-forget would hide it and
+                // the user would just see an empty layer.
+                Logger.log(Logger.ERROR, "MVT layer failed to load", e)
+            }
+        }
 
         // Drop the camera on Innsbruck — dense road/landuse/water mix in a single tile, plus
         // the alpine setting was the OpenTopoMap project's original test bed so the palette
@@ -67,10 +89,54 @@ class MvtVectorTilesTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun stop() {
         super.stop()
+        cacheJob?.cancel()
+        cacheJob = null
         mvt?.let {
             engine.layers.removeLayer(it)
             it.close()
         }
         mvt = null
+    }
+
+    companion object {
+        /** Versatiles' public CDN. OpenMapTiles v3 schema, no API key. */
+        const val URL_TEMPLATE = "https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}"
+        const val USER_AGENT = "WorldWindKotlin-Tutorials"
+        const val MIN_ZOOM = 2
+        const val MAX_ZOOM = 14
+        const val TILE_RADIUS = 3
+        /** Rule-based OpenTopoMap palette with zoom-interpolated widths and labels. Swap for
+         *  [earth.worldwind.layer.mvt.OpenTopoMapMvtStyle] for the imperative-DSL reference
+         *  impl without zoom interpolation. */
+        val STYLE: MvtStyle = OpenTopoMapRules
+
+        /** Default loader: network-only [MvtVectorLayer] constructor (no cache wired). */
+        @Suppress("RedundantSuspendModifier")
+        suspend fun defaultNetworkOnlyLoader(): MvtVectorLayer = MvtVectorLayer(
+            source = UrlTemplateMvtTileSource(
+                urlTemplate = URL_TEMPLATE,
+                headers = mapOf("User-Agent" to USER_AGENT),
+            ),
+            minZoom = MIN_ZOOM,
+            maxZoom = MAX_ZOOM,
+            tileRadius = TILE_RADIUS,
+            style = STYLE,
+        )
+
+        /** Build the MVT level set (Web-Mercator, 256×256, 0..[MAX_ZOOM]). Used by cache
+         *  wiring to open a vector-tile store with a matching tile pyramid. */
+        fun buildMvtLevelSet(): LevelSet {
+            val sector = MercatorSector()
+            val tileOrigin = MercatorSector()
+            return LevelSet(
+                sector = sector,
+                tileOrigin = tileOrigin,
+                firstLevelDelta = Location(tileOrigin.deltaLatitude, tileOrigin.deltaLongitude),
+                numLevels = MAX_ZOOM + 1,
+                tileWidth = 256,
+                tileHeight = 256,
+                levelOffset = MIN_ZOOM,
+            )
+        }
     }
 }

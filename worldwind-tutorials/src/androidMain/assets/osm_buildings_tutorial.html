@@ -23,6 +23,14 @@
     Public Overpass mirrors rate-limit aggressively — for production traffic, point the layer
     at a self-hosted endpoint via <code>OverpassBuildingsSource(endpoint = …)</code>.
 </p>
+<p>
+    OSM Buildings is the tiled-feature counterpart to WFS/Shapefile's bulk-feature pattern:
+    <code>OverpassBuildingsSource</code> implements <code>TiledFeatureSource</code>, emitting
+    one <code>CachedFeatureRow</code> per building tile-by-tile. Wrapping it in
+    <code>CachedTiledFeatureSource(networkSource, store)</code> mirrors every fetched
+    building into the GeoPackage feature store keyed by (z, x, y); revisits replay from
+    cache without hitting Overpass again.
+</p>
 <h2>Example</h2>
 <h3>OsmBuildingsFragment.kt</h3>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
@@ -32,7 +40,11 @@ class OsmBuildingsFragment : BasicGlobeFragment() {
 
     override fun createWorldWindow(): WorldWindow {
         val wwd = super.createWorldWindow()
-        OsmBuildingsTutorial(wwd.engine).also {
+        OsmBuildingsTutorial(wwd.engine, lifecycleScope, layerLoader = {
+            OsmBuildingsLayer(useOsmColors = true).also {
+                contentManager.attachCache(it, "OsmBuildings")
+            }
+        }).also {
             tutorial = it
             it.start()
         }
@@ -46,13 +58,28 @@ class OsmBuildingsFragment : BasicGlobeFragment() {
     }
 }
 
-class OsmBuildingsTutorial(engine: WorldWind) : AbstractTutorial(engine) {
+class OsmBuildingsTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val layerLoader: suspend () -> OsmBuildingsLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
     private var buildings: OsmBuildingsLayer? = null
+    private var job: Job? = null
 
     override fun start() {
         super.start()
-        val layer = OsmBuildingsLayer(useOsmColors = true).also { buildings = it }
-        engine.layers.addLayer(layer)
+        job = scope.launch {
+            try {
+                val layer = layerLoader()
+                if (isActive) {
+                    buildings = layer
+                    engine.layers.addLayer(layer)
+                    WorldWind.requestRedraw()
+                }
+            } catch (e: Throwable) {
+                Logger.log(Logger.ERROR, "OSM Buildings layer creation failed", e)
+            }
+        }
         engine.cameraFromLookAt(
             LookAt(
                 position = Position(40.7484.degrees, (-73.9857).degrees, 0.0),
@@ -67,6 +94,8 @@ class OsmBuildingsTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun stop() {
         super.stop()
+        job?.cancel()
+        job = null
         buildings?.let {
             engine.layers.removeLayer(it)
             it.close()

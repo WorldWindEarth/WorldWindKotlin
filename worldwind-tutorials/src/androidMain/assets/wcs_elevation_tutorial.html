@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>WMS Layer Tutorial</title>
+    <title>WCS Elevation Coverage Tutorial</title>
     <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
     <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
@@ -12,82 +12,114 @@
 <body>
 <h1>WCS Elevation Coverage Tutorial</h1>
 <p>
-    Demonstrates how to add a OGC Web Coverage Service (WCS) elevation coverage.</p>
+    Demonstrates how to add an OGC Web Coverage Service (WCS) elevation coverage.</p>
 <p>
-    This tutorial demonstrates how to add USGS NED elevation data from a WCS.</p>
+    This tutorial loads USGS 3DEP elevation data from a WCS 1.0.0 endpoint.</p>
 
 <h2>Example</h2>
 <h3>WcsElevationFragment.kt</h3>
 <p>
-    The WcsElevationFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method. Here we
-    use the Wcs100ElevationCoverage class to load USGS NED elevation data. Once the coverage is added to the elevation
-    model, the Wcs100ElevationCoverage class will request elevation data via the WCS version 1.0.0 specification and
-    WorldWind will generate terrain. A similar connection to a WCS supporting version 2.0.1 is available in the
-    Wcs201ElevationCoverage class.
+    Elevation tiles flow through the same <code>TileSource</code> abstraction as image
+    tiles. Internally <code>Wcs100ElevationTileSource</code> builds a
+    <code>GetCoverage</code> URL for each (z, x, y), and
+    <code>TileSourceElevationSourceFactory</code> bridges those byte blobs into the
+    engine's existing <code>ElevationSourceFactory</code> contract (which decodes
+    GeoTIFF / BIL16 into a tile of floats).
+</p>
+<p>
+    The fragment builds a network-only <code>Wcs100ElevationCoverage</code> synchronously,
+    then calls <code>attachCache</code> from a coroutine. That extension opens the GPKG
+    coverage store sized to the coverage's <code>tileMatrixSet</code>, wraps the network
+    tile source in <code>CachedTileSource</code>, and swaps the live
+    <code>elevationSourceFactory</code> in-place — matching the same attach-pattern the
+    basic globe uses for Google Satellite + NASADEM.
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class WcsElevationFragment : BasicGlobeFragment() {
-    /**
-     * Creates a new WorldWindow (GLSurfaceView) object with a WCS Elevation Coverage
-     *
-     * @return The WorldWindow object containing the globe.
-     */
-    override fun createWorldWindow() = super.createWorldWindow().also { WcsElevationTutorial(it.engine).start() }
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        WcsElevationTutorial(it.engine, lifecycleScope, layerLoader = {
+            // Build the network-only coverage; `attachCache` swaps in a cached
+            // elevationSourceFactory once the GPKG coverage store opens.
+            Wcs100ElevationCoverage(
+                serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,
+                coverageName = WcsElevationTutorial.COVERAGE_NAME,
+                outputFormat = WcsElevationTutorial.OUTPUT_FORMAT,
+                sector = WcsElevationTutorial.BOUNDING_SECTOR,
+                resolution = WcsElevationTutorial.RESOLUTION,
+            ).also { coverage ->
+                lifecycleScope.launch {
+                    coverage.attachCache(contentManager, "WCS_3DEP")
+                }
+            }
+        }).start()
+    }
 }
 
-class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
-    // Create an elevation coverage from a version 1.0.0 WCS
-    private val wcsElevationCoverage by lazy {
-        Wcs100ElevationCoverage(
-            // Specify the version 1.0.0 WCS address
-            serviceAddress = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer",
-            // Specify the coverage name
-            coverageName = "DEP3Elevation",
-            // Specify the output format
-            outputFormat = "geotiff",
-            // Specify the bounding sector - provided by the WCS
-            sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
-            // Specify the data resolution of 10m (1/3 arc-second)
-            resolution = Angle.fromSeconds(1.0 / 3.0)
-        )
-    }
+class WcsElevationTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope = MainScope(),
+    private val layerLoader: suspend () -> TiledElevationCoverage = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
+
+    private var coverage: TiledElevationCoverage? = null
+    private var cacheJob: Job? = null
 
     override fun start() {
         super.start()
-        engine.globe.elevationModel.apply {
-            forEach { coverage -> coverage.isEnabled = false }
-            addCoverage(wcsElevationCoverage)
+        cacheJob = scope.launch {
+            val resolved = layerLoader()
+            coverage = resolved
+            engine.globe.elevationModel.apply {
+                forEach { c -> c.isEnabled = false }
+                addCoverage(resolved)
+            }
         }
         positionView()
     }
 
     override fun stop() {
         super.stop()
+        cacheJob?.cancel()
+        cacheJob = null
         engine.globe.elevationModel.apply {
-            removeCoverage(wcsElevationCoverage)
-            forEach { coverage -> coverage.isEnabled = true }
+            coverage?.let { removeCoverage(it) }
+            forEach { c -> c.isEnabled = true }
         }
+        coverage = null
     }
 
     private fun positionView() {
         val mtRainier = Position.fromDegrees(46.852886, -121.760374, 4392.0)
         val eye = Position.fromDegrees(46.912, -121.527, 2000.0)
 
-        // Compute heading and distance from peak to eye
         val heading = eye.greatCircleAzimuth(mtRainier)
         val distanceRadians = mtRainier.greatCircleDistance(eye)
         val distance = distanceRadians * engine.globe.getRadiusAt(mtRainier.latitude, mtRainier.longitude)
-
-        // Compute camera settings
         val tilt = atan(distance / eye.altitude).radians
 
-        // Apply the new view
         engine.camera.set(
-            eye.latitude, eye.longitude, eye.altitude, AltitudeMode.ABSOLUTE, heading, tilt, roll = Angle.ZERO
+            eye.latitude, eye.longitude, eye.altitude, AltitudeMode.ABSOLUTE,
+            heading, tilt, roll = Angle.ZERO,
         )
     }
 
+    companion object {
+        const val SERVICE_ADDRESS =
+            "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer"
+        const val COVERAGE_NAME = "DEP3Elevation"
+        const val OUTPUT_FORMAT = "geotiff"
+        val BOUNDING_SECTOR: Sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0)
+        val RESOLUTION: Angle = Angle.fromSeconds(1.0 / 3.0)
+
+        suspend fun defaultNetworkOnlyLoader(): Wcs100ElevationCoverage = Wcs100ElevationCoverage(
+            serviceAddress = SERVICE_ADDRESS,
+            coverageName = COVERAGE_NAME,
+            outputFormat = OUTPUT_FORMAT,
+            sector = BOUNDING_SECTOR,
+            resolution = RESOLUTION,
+        )
+    }
 }
     </textarea>
 </div>
@@ -99,7 +131,6 @@ class WcsElevationTutorial(private val engine: WorldWind) : AbstractTutorial() {
         mode: "google-kotlin",
         readOnly: true
       });
-
 </script>
 </body>
 </html>

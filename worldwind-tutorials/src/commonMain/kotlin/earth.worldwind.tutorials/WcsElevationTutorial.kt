@@ -6,41 +6,68 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
+import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.ogc.Wcs100ElevationCoverage
+import earth.worldwind.util.Logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import kotlin.math.atan
 
-class WcsElevationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
-    // Create an elevation coverage from a version 1.0.0 WCS
-    private val wcsElevationCoverage by lazy {
-        Wcs100ElevationCoverage(
-            // Specify the version 1.0.0 WCS address
-            serviceAddress = "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer",
-            // Specify the coverage name
-            coverageName = "DEP3Elevation",
-            // Specify the output format
-            outputFormat = "geotiff",
-            // Specify the bounding sector - provided by the WCS
-            sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0),
-            // Specify the data resolution of 10m (1/3 arc-second)
-            resolution = Angle.fromSeconds(1.0 / 3.0)
-        )
-    }
+/**
+ * @param layerLoader full coverage-creation override. JVM/Android pass a loader that
+ *   constructs a [Wcs100ElevationCoverage] and calls
+ *   [earth.worldwind.layer.cache.attachCache] — the per-coverage attach routes through
+ *   `ContentManager.createElevationSourceFactory` so the gpkg PNG-Int16 / TIFF-Float32
+ *   transcoding pipeline runs on every cache write. The default loader skips the cache
+ *   and runs network-only.
+ */
+class WcsElevationTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope = MainScope(),
+    private val layerLoader: suspend () -> TiledElevationCoverage = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
+
+    private var coverage: TiledElevationCoverage? = null
+    private var cacheJob: Job? = null
 
     override fun start() {
         super.start()
-        engine.globe.elevationModel.apply {
-            forEach { coverage -> coverage.isEnabled = false }
-            addCoverage(wcsElevationCoverage)
+        cacheJob = scope.launch {
+            try {
+                val resolved = layerLoader()
+                coverage = resolved
+                engine.globe.elevationModel.apply {
+                    forEach { c -> c.isEnabled = false }
+                    addCoverage(resolved)
+                }
+                // Match WMS / WFS / MVT tutorials — async loader completion needs an
+                // explicit redraw to wake the renderer once the new coverage is wired.
+                WorldWind.requestRedraw()
+                Logger.log(Logger.INFO, "WCS coverage loaded")
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                // attachCache validation on re-open (sector / matrix / data-type mismatch)
+                // surfaces here. Pre-3.0 callers got the same error via the synchronous
+                // setupElevationCoverageCache → silent failure on a fire-and-forget launch
+                // would hide a real schema regression.
+                Logger.log(Logger.ERROR, "WCS coverage failed to load", e)
+            }
         }
         positionView()
     }
 
     override fun stop() {
         super.stop()
+        cacheJob?.cancel()
+        cacheJob = null
         engine.globe.elevationModel.apply {
-            removeCoverage(wcsElevationCoverage)
-            forEach { coverage -> coverage.isEnabled = true }
+            coverage?.let { removeCoverage(it) }
+            forEach { c -> c.isEnabled = true }
         }
+        coverage = null
     }
 
     private fun positionView() {
@@ -61,4 +88,23 @@ class WcsElevationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
         )
     }
 
+    companion object {
+        /** USGS National Map 3DEP elevation coverage — WCS 1.0.0. */
+        const val SERVICE_ADDRESS =
+            "https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WCSServer"
+        const val COVERAGE_NAME = "DEP3Elevation"
+        const val OUTPUT_FORMAT = "geotiff"
+        val BOUNDING_SECTOR: Sector = Sector.fromDegrees(25.0, -125.0, 25.0, 60.0)
+        val RESOLUTION: Angle = Angle.fromSeconds(1.0 / 3.0)
+
+        /** Default loader: network-only [Wcs100ElevationCoverage] constructor (no cache wired). */
+        @Suppress("RedundantSuspendModifier")
+        suspend fun defaultNetworkOnlyLoader(): Wcs100ElevationCoverage = Wcs100ElevationCoverage(
+            serviceAddress = SERVICE_ADDRESS,
+            coverageName = COVERAGE_NAME,
+            outputFormat = OUTPUT_FORMAT,
+            sector = BOUNDING_SECTOR,
+            resolution = RESOLUTION,
+        )
+    }
 }

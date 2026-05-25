@@ -10,7 +10,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class WmtsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
+/** @param layerLoader see [WmsLayerTutorial]. */
+class WmtsLayerTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val layerLoader: suspend () -> TiledImageLayer = ::defaultNetworkOnlyLoader,
+) : AbstractTutorial(engine) {
 
     private var wmtsLayer: TiledImageLayer? = null
     private var job: Job? = null
@@ -19,13 +24,11 @@ class WmtsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : 
         super.start()
         job = scope.launch {
             try {
-                // Create an OGC Web Map Tile Service (WMTS) layer to display Global Hillshade based on GMTED2010
-                WmtsLayerFactory.createLayer("https://tiles.geoservice.dlr.de/service/wmts", "hillshade").also {
-                    if (isActive) {
-                        wmtsLayer = it
-                        engine.layers.addLayer(it)
-                        WorldWind.requestRedraw()
-                    }
+                val layer = layerLoader()
+                if (isActive) {
+                    wmtsLayer = layer
+                    engine.layers.addLayer(layer)
+                    WorldWind.requestRedraw()
                 }
                 Logger.log(Logger.INFO, "WMTS layer creation succeeded")
             } catch (e: Throwable) {
@@ -46,4 +49,13 @@ class WmtsLayerTutorial(engine: WorldWind, private val scope: CoroutineScope) : 
         wmtsLayer?.let { engine.layers.removeLayer(it) }.also { wmtsLayer = null }
     }
 
+    companion object {
+        /** DLR Geoservice WMTS — global hillshade based on GMTED2010. */
+        const val SERVICE_ADDRESS = "https://tiles.geoservice.dlr.de/service/wmts"
+        const val LAYER_NAME = "hillshade"
+
+        /** Default loader: network-only WMTS request via [WmtsLayerFactory]. */
+        suspend fun defaultNetworkOnlyLoader(): TiledImageLayer =
+            WmtsLayerFactory.createLayer(SERVICE_ADDRESS, LAYER_NAME)
+    }
 }
