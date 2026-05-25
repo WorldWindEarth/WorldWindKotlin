@@ -19,18 +19,23 @@ actual open class MercatorImageTile actual constructor(
     override suspend fun <Resource> process(resource: Resource) = super.process(resource).let { image ->
         if (image is BufferedImage) {
             // Re-project mercator tile to equirectangular projection
+            val w = image.width
+            val h = image.height
             val type = if (image.type != BufferedImage.TYPE_INT_RGB) BufferedImage.TYPE_INT_ARGB else BufferedImage.TYPE_INT_RGB
-            val result = BufferedImage(image.width, image.height, type)
+            val result = BufferedImage(w, h, type)
+            val pixels = image.getRGB(0, 0, w, h, null, 0, w)
+            val dst = IntArray(w * h)
             val sector = sector as MercatorSector
             val miny = sector.minLatPercent
             val maxy = sector.maxLatPercent
-            for (y in 0 until image.height) {
-                val sy = 1.0 - y / (image.height - 1.0)
+            for (y in 0 until h) {
+                val sy = 1.0 - y / (h - 1.0)
                 val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
                 val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
-                val iy = (dy * (image.height - 1)).toInt()
-                for (x in 0 until image.width) result.setRGB(x, y, image.getRGB(x, iy))
+                val iy = (dy * (h - 1)).toInt()
+                System.arraycopy(pixels, iy * w, dst, y * w, w)
             }
+            result.setRGB(0, 0, w, h, dst, 0, w)
             @Suppress("UNCHECKED_CAST")
             result as Resource
         } else image

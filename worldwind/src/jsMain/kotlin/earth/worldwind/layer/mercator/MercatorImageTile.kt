@@ -4,8 +4,6 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.layer.mercator.MercatorSector.Companion.gudermannianInverse
 import earth.worldwind.util.Level
 import kotlinx.browser.document
-import org.khronos.webgl.get
-import org.khronos.webgl.set
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.Image
@@ -51,19 +49,16 @@ actual open class MercatorImageTile actual constructor(
         val sector = sector as MercatorSector
         val miny = sector.minLatPercent
         val maxy = sector.maxLatPercent
+        val rowBytes = width * 4
+        val srcBytes = srcData.data.asDynamic()
+        val dstBytes = dstData.data.asDynamic()
         for (y in 0 until height) {
             val sy = 1.0 - y / (height - 1.0)
             val lat = sy * sector.deltaLatitude.inDegrees + sector.minLatitude.inDegrees
             val dy = (1.0 - (gudermannianInverse(lat.degrees) - miny) / (maxy - miny)).coerceIn(0.0, 1.0)
             val srcRow = floor(dy * (height - 1)).toInt()
-            for (x in 0 until width) {
-                val src = 4 * (x + srcRow * width)
-                val dst = 4 * (x + y * width)
-                dstData.data[dst] = srcData.data[src]
-                dstData.data[dst + 1] = srcData.data[src + 1]
-                dstData.data[dst + 2] = srcData.data[src + 2]
-                dstData.data[dst + 3] = srcData.data[src + 3]
-            }
+            val srcOff = srcRow * rowBytes
+            dstBytes.set(srcBytes.subarray(srcOff, srcOff + rowBytes), y * rowBytes)
         }
 
         // Replace image source with transformed canvas image data
