@@ -265,11 +265,11 @@ open class BasicWorldWindowController(
         when (state) {
             BEGAN -> {
                 gestureDidBegin()
-                zoomAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
+                pivotAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
             }
             CHANGED -> if (scale != 0f) {
                 lookAt.range = beginLookAt.range / scale
-                zoomAnchor.apply()
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -283,11 +283,11 @@ open class BasicWorldWindowController(
         when (state) {
             BEGAN -> {
                 gestureDidBegin()
-                zoomAnchor.capture(screenX.toDouble(), screenY.toDouble())
+                pivotAnchor.capture(screenX.toDouble(), screenY.toDouble())
             }
             CHANGED -> if (scale != 0f) {
                 lookAt.range = beginLookAt.range / scale
-                zoomAnchor.apply()
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -297,13 +297,18 @@ open class BasicWorldWindowController(
 
     /** Programmatic rotation entry for Mac trackpad's `UIRotationGestureRecognizer` -
      *  UITouch-based [RotationRecognizer] doesn't see indirect (trackpad) rotations. */
-    fun handleIndirectRotate(state: GestureState, rotationRadians: Float) {
+    fun handleIndirectRotate(state: GestureState, rotationRadians: Float, screenX: Float, screenY: Float) {
         val degrees = (rotationRadians.toDouble() * (180.0 / kotlin.math.PI)).toFloat()
         when (state) {
-            BEGAN -> { gestureDidBegin(); lastRotation = 0f }
+            BEGAN -> {
+                gestureDidBegin()
+                lastRotation = 0f
+                pivotAnchor.capture(screenX.toDouble(), screenY.toDouble())
+            }
             CHANGED -> {
                 lookAt.heading = lookAt.heading.plusDegrees((lastRotation - degrees).toDouble()).normalize360()
                 lastRotation = degrees
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -329,11 +334,16 @@ open class BasicWorldWindowController(
         val state = recognizer.state
         val rotation = (recognizer as RotationRecognizer).rotation
         when (state) {
-            BEGAN -> { gestureDidBegin(); lastRotation = 0f }
+            BEGAN -> {
+                gestureDidBegin()
+                lastRotation = 0f
+                pivotAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
+            }
             CHANGED -> {
                 val headingDegrees = lastRotation - rotation
                 lookAt.heading = lookAt.heading.plusDegrees(headingDegrees.toDouble()).normalize360()
                 lastRotation = rotation
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()

@@ -151,11 +151,11 @@ open class BasicWorldWindowController(
         if ((now - lastWheelEventNanos) / 1_000_000L > 500L) {
             wwd.engine.cameraAsLookAt(lookAt)
             val p = wwd.viewportCoordinates(event.x, event.y)
-            zoomAnchor.capture(p.x, p.y)
+            pivotAnchor.capture(p.x, p.y)
         }
         lastWheelEventNanos = now
         lookAt.range *= scale
-        zoomAnchor.apply()
+        pivotAnchor.apply()
         applyChanges()
         return true
     }

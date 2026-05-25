@@ -273,11 +273,11 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             BEGAN -> {
                 gestureDidBegin()
                 val cp = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
-                zoomAnchor.capture(cp.x, cp.y)
+                pivotAnchor.capture(cp.x, cp.y)
             }
             CHANGED -> if (scale != 0.0) {
                 lookAt.range = beginLookAt.range / scale
-                zoomAnchor.apply()
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -293,13 +293,15 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             BEGAN -> {
                 gestureDidBegin()
                 lastRotation = 0.0
+                val cp = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
+                pivotAnchor.capture(cp.x, cp.y)
             }
             CHANGED -> {
-                // Apply the change in gesture rotation to this view's current heading. We apply relative to the
-                // current heading rather than the heading when the gesture began in order to work simultaneously with
-                // pan operations that also modify the current heading.
+                // Update heading relative to its current value (not beginLookAt.heading) so a pan
+                // gesture that also nudges heading composes cleanly with this one.
                 lookAt.heading = lookAt.heading.minusDegrees(rotation - lastRotation)
                 lastRotation = rotation
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -338,7 +340,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             wwd.engine.cameraAsLookAt(lookAt)
             lastWheelEvent = timeStamp
             val cp = wwd.canvasCoordinates(event.clientX, event.clientY)
-            zoomAnchor.capture(cp.x, cp.y)
+            pivotAnchor.capture(cp.x, cp.y)
         }
 
         // Normalize the wheel delta based on the wheel delta mode. This produces a roughly consistent delta across
@@ -356,7 +358,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         val scale = 1.0 + (normalizedDelta / 1000.0)
 
         lookAt.range *= scale
-        zoomAnchor.apply()
+        pivotAnchor.apply()
         applyChanges()
     }
 

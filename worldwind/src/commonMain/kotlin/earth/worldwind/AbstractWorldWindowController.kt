@@ -4,8 +4,8 @@ import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Vec3
 import earth.worldwind.gesture.FlingAnimator
 import earth.worldwind.gesture.FrameScheduler
+import earth.worldwind.gesture.PivotAnchorState
 import earth.worldwind.gesture.ReleaseVelocitySampler
-import earth.worldwind.gesture.ZoomAnchorState
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -33,9 +33,9 @@ abstract class AbstractWorldWindowController {
     /** Counts in-progress real and "virtual" (fling) gestures. The first gesture snapshots [beginLookAt]. */
     protected var activeGestures = 0
 
-    /** Anchor state used by `handlePinch`/`handleWheelEvent`-style code in subclasses.
-     *  Lazy because [engine] may not be initialized yet at controller-construction time. */
-    val zoomAnchor: ZoomAnchorState by lazy { ZoomAnchorState(engine, lookAt) }
+    /** Shared anchor for pinch / rotate / wheel handlers. Lazy because [engine] may not be
+     *  initialized yet at controller-construction time. */
+    val pivotAnchor: PivotAnchorState by lazy { PivotAnchorState(engine, lookAt) }
 
     /** Trailing-window velocity tracker used to seed [fling] on gesture release. */
     val velocitySampler = ReleaseVelocitySampler()

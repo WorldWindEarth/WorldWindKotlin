@@ -214,12 +214,17 @@ class WorldWindow @OverrideInit constructor(frame: CValue<CGRect>) : UIView(fram
         }
     }
 
-    /** Mac trackpad two-finger rotation -> camera heading. */
+    /** Mac trackpad two-finger rotation -> camera heading.
+     *  locationInView is the gesture centroid; we forward it so the controller can anchor the
+     *  rotation around that point (matches iOS two-finger rotation focal-point model). */
     @ObjCAction
     fun handleNativeRotate(sender: UIRotationGestureRecognizer) {
         val ctrl = controller as? BasicWorldWindowController ?: return
         val state = nativeGestureState(sender.state) ?: return
-        ctrl.handleIndirectRotate(state, sender.rotation.toFloat())
+        val s = contentScaleFactor.toFloat()
+        sender.locationInView(this).useContents {
+            ctrl.handleIndirectRotate(state, sender.rotation.toFloat(), (x * s).toFloat(), (y * s).toFloat())
+        }
     }
 
     /** Mac trackpad two-finger pan -> camera tilt. */

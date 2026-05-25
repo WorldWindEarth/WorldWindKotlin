@@ -241,11 +241,11 @@ open class BasicWorldWindowController(
         when (state) {
             BEGAN -> {
                 gestureDidBegin()
-                zoomAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
+                pivotAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
             }
             CHANGED -> if (scale != 0f) {
                 lookAt.range = beginLookAt.range / scale
-                zoomAnchor.apply()
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
@@ -260,12 +260,13 @@ open class BasicWorldWindowController(
             BEGAN -> {
                 gestureDidBegin()
                 lastRotation = 0f
+                pivotAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
             }
             CHANGED -> {
-                // Apply the change in rotation to the camera, relative to the camera's current values.
                 val headingDegrees = lastRotation - rotation
                 lookAt.heading = lookAt.heading.plusDegrees(headingDegrees.toDouble()).normalize360()
                 lastRotation = rotation
+                pivotAnchor.apply()
                 applyChanges()
             }
             ENDED, CANCELLED -> gestureDidEnd()
