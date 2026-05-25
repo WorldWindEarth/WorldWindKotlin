@@ -160,6 +160,14 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
 
             // Use the draw context's pick mode.
             program.enablePickMode(dc.isPickMode)
+            // Surface shapes are flat top-down rasterizations — Lambert shading is
+            // meaningless here (no real surface normal to drive it; dFdx/dFdy in a
+            // texture-space orthographic projection lights backwards). Always-off.
+            // Without this, [TriangleShaderProgram.enableLighting]'s "skip-if-unchanged"
+            // cache lets a previous lit-shape draw (e.g. [OsmBuildingsLayer]) leave
+            // lighting enabled, dimming every subsequent surface line/poly to ~35%
+            // intensity — visually reads as "all lines black" in MVT vector layers.
+            program.enableLighting(false)
             // The rasterize-to-texture pass uses a texture-space orthographic [mvpMatrix],
             // so `gl_Position.w == 1` and [viewDepth] / [worldPos] aren't meaningful for a
             // shadow lookup. Surface shapes pick up shadow attenuation in the composite pass
