@@ -71,6 +71,13 @@ class OsmBuildingsTile(
     displayName: String? = null,
 ) : AbstractRenderable(displayName) {
 
+    // Per the OSM "Simple 3D Buildings" convention, when a `building=*` outline has any
+    // `building:part=*` inside it, the outline is a grouping feature and the parts replace its
+    // volume. Skip such outlines once at construction — keeping them produces coplanar roof
+    // surfaces (outline roof + covering part roof at the same height) whose Z-fight only resolves
+    // cleanly on 24-bit-depth targets; on 16-bit-depth defaults (notably the WebGL default
+    // framebuffer) the two roofs flicker per-pixel.
+    private val effectiveBuildings: List<OsmBuilding> = filterRedundantOutlines(buildings)
     private val data = mutableMapOf<Globe.State?, TileData>()
     private val boundingBox = BoundingBox()
     private var bufferDataVersion = 0
@@ -247,7 +254,7 @@ class OsmBuildingsTile(
         // Anchor the tile-local origin at the first valid building's first corner so per-vertex
         // floats stay small relative to ECEF magnitudes. Skip the tile if no building has a
         // viable outer ring.
-        val anchor = buildings.firstOrNull { it.outerRing.size >= 3 }?.outerRing?.get(0)
+        val anchor = effectiveBuildings.firstOrNull { it.outerRing.size >= 3 }?.outerRing?.get(0)
         if (anchor == null) {
             tileData.vertexArray = FloatArray(0)
             tileData.elementArray = IntArray(0)
@@ -260,7 +267,7 @@ class OsmBuildingsTile(
         tileData.vertexOrigin.copy(vertexOrigin)
 
         val defaultWallColorPacked = packColor(attributes.interiorColor)
-        for (b in buildings) {
+        for (b in effectiveBuildings) {
             if (b.outerRing.size < 3) continue
             assembleBuilding(rc, b, defaultWallColorPacked)
         }
@@ -478,6 +485,83 @@ class OsmBuildingsTile(
             val b = ((packed ushr 8) and 0xFF) / 255f
             val a = (packed and 0xFF) / 255f
             out.set(r, g, b, a)
+        }
+
+        /**
+         * Drop `building=*` outlines whose footprint contains at least one `building:part=*`
+         * centroid. Implements OSM "Simple 3D Buildings": parts replace the outline's volume,
+         * so retaining the outline produces coplanar roof surfaces that Z-fight.
+         *
+         * Containment test uses each part's bbox center against the outline's outer ring with
+         * a bbox prefilter. Inner rings (holes) of the outline are intentionally ignored — a
+         * part centred in a hole would falsely keep the outline, but real OSM data rarely
+         * places a part inside a hole and the worst case is a kept outline (no missing geometry).
+         */
+        internal fun filterRedundantOutlines(input: List<OsmBuilding>): List<OsmBuilding> {
+            if (input.size < 2) return input
+            val outlines = ArrayList<OsmBuilding>()
+            val parts = ArrayList<OsmBuilding>()
+            for (b in input) {
+                val partTag = b.tags["building:part"]
+                if (partTag != null && partTag != "no") parts += b else outlines += b
+            }
+            if (parts.isEmpty() || outlines.isEmpty()) return input
+
+            val partCenters = DoubleArray(parts.size * 2)
+            for (i in parts.indices) {
+                val (cx, cy) = bboxCenterDeg(parts[i].outerRing)
+                partCenters[i * 2] = cx
+                partCenters[i * 2 + 1] = cy
+            }
+
+            val result = ArrayList<OsmBuilding>(input.size)
+            for (outline in outlines) {
+                var minLon = Double.POSITIVE_INFINITY; var maxLon = Double.NEGATIVE_INFINITY
+                var minLat = Double.POSITIVE_INFINITY; var maxLat = Double.NEGATIVE_INFINITY
+                for (p in outline.outerRing) {
+                    val lon = p.longitude.inDegrees; val lat = p.latitude.inDegrees
+                    if (lon < minLon) minLon = lon
+                    if (lon > maxLon) maxLon = lon
+                    if (lat < minLat) minLat = lat
+                    if (lat > maxLat) maxLat = lat
+                }
+                var covered = false
+                for (i in parts.indices) {
+                    val px = partCenters[i * 2]
+                    val py = partCenters[i * 2 + 1]
+                    if (px < minLon || px > maxLon || py < minLat || py > maxLat) continue
+                    if (pointInRingDeg(px, py, outline.outerRing)) { covered = true; break }
+                }
+                if (!covered) result += outline
+            }
+            for (p in parts) result += p
+            return result
+        }
+
+        private fun bboxCenterDeg(ring: List<Position>): Pair<Double, Double> {
+            var minLon = Double.POSITIVE_INFINITY; var maxLon = Double.NEGATIVE_INFINITY
+            var minLat = Double.POSITIVE_INFINITY; var maxLat = Double.NEGATIVE_INFINITY
+            for (p in ring) {
+                val lon = p.longitude.inDegrees; val lat = p.latitude.inDegrees
+                if (lon < minLon) minLon = lon
+                if (lon > maxLon) maxLon = lon
+                if (lat < minLat) minLat = lat
+                if (lat > maxLat) maxLat = lat
+            }
+            return ((minLon + maxLon) * 0.5) to ((minLat + maxLat) * 0.5)
+        }
+
+        /** Even-odd ray-cast point-in-polygon in (lon°, lat°) space. */
+        private fun pointInRingDeg(x: Double, y: Double, ring: List<Position>): Boolean {
+            var inside = false
+            var j = ring.size - 1
+            for (i in ring.indices) {
+                val xi = ring[i].longitude.inDegrees; val yi = ring[i].latitude.inDegrees
+                val xj = ring[j].longitude.inDegrees; val yj = ring[j].latitude.inDegrees
+                if ((yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside
+                j = i
+            }
+            return inside
         }
     }
 }
