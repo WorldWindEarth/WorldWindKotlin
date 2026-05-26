@@ -332,6 +332,8 @@ internal class KmlToRenderableConverter {
             outlineColor = lineStyle?.color?.let { fromHexABRG(it) } ?: defaultLineColor
             interiorColor = polyStyle?.color?.let { fromHexABRG(it) } ?: defaultFillColor
             outlineWidth = lineStyle?.width ?: options.density
+            polyStyle?.fill?.let { isDrawInterior = it }
+            polyStyle?.outline?.let { isDrawOutline = it }
 
             isPickInterior = false // Allow picking outline only
             isDrawVerticals = true
