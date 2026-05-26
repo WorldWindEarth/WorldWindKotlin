@@ -63,75 +63,77 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder, Sh
         // Disable depth writing if requested.
         if (!drawState.enableDepthWrite) dc.gl.depthMask(false)
 
-        // Make multi-texture unit 0 active.
-        dc.activeTextureUnit(GL_TEXTURE0)
-        program.loadTextureUnit(GL_TEXTURE0)
+        try {
+            // Make multi-texture unit 0 active.
+            dc.activeTextureUnit(GL_TEXTURE0)
+            program.loadTextureUnit(GL_TEXTURE0)
 
-        // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass,
-        // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.
-        dc.applyShadowReceiverUniforms(program, drawState.shadowMode.receivesShadows)
+            // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass,
+            // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.
+            dc.applyShadowReceiverUniforms(program, drawState.shadowMode.receivesShadows)
 
-        // Model -> world transform for the shadow-receiver pass; skipped on no-shadow frames.
-        if (dc.shadowState != null) {
-            modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
-            program.loadModelMatrix(modelMatrix)
-        }
-
-        // Use the shape's vertex point attribute.
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, 0)
-
-        // Apply lighting.
-        if (!dc.isPickMode && drawState.enableLighting && normalsBuffer?.bindBuffer(dc) == true) {
-            program.loadApplyLighting(true)
-            dc.gl.enableVertexAttribArray(1 /*normalVector*/)
-            dc.gl.vertexAttribPointer(1 /*normalVector*/, 3, GL_FLOAT, false, 0, 0)
-            program.loadModelviewInverse(dc.modelviewNormalTransform)
-            // Transform the world-space light direction into eye space using the same orthonormal
-            // rotation as the normals (modelviewNormalTransform). The fragment shader dots this
-            // against the eye-space normal directly.
-            eyeLightDirection.copy(dc.lightDirection).multiplyByMatrix(dc.modelviewNormalTransform).normalize()
-            program.loadLightDirection(eyeLightDirection)
-        }
-
-        // Draw the specified primitives.
-        for (idx in 0 until drawState.primCount) {
-            val prim = drawState.prims[idx]
-            // Use the draw context's modelview projection matrix, transformed to shape local coordinates.
-            if (prim.depthOffset != 0.0) {
-                mvpMatrix.copy(dc.projection).offsetProjectionDepth(prim.depthOffset)
-                mvpMatrix.multiplyByMatrix(dc.modelview)
-            } else {
-                mvpMatrix.copy(dc.modelviewProjection)
+            // Model -> world transform for the shadow-receiver pass; skipped on no-shadow frames.
+            if (dc.shadowState != null) {
+                modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+                program.loadModelMatrix(modelMatrix)
             }
-            mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
-            program.loadModelviewProjection(mvpMatrix)
-            program.loadColor(prim.color)
-            program.loadOpacity(prim.opacity)
-            if (prim.texture?.bindTexture(dc) == true && texCoordsBuffer?.bindBuffer(dc) == true) {
-                dc.gl.enableVertexAttribArray(2)
-                dc.gl.vertexAttribPointer(2 /*vertexTexCoord*/, 2, GL_FLOAT, false, 0, 0)
-                program.loadTextureEnabled(true)
-                program.loadTextureMatrix(prim.texCoordMatrix)
-            } else {
-                dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
-                program.loadTextureEnabled(false)
-                // prevent "RENDER WARNING: there is no texture bound to unit 0"
-                dc.defaultTexture.bindTexture(dc)
-            }
-            dc.gl.lineWidth(prim.lineWidth)
-            dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
-        }
 
-        // Restore the default WorldWind OpenGL state.
-        if (!drawState.enableCullFace) dc.gl.enable(GL_CULL_FACE)
-        if (!drawState.enableDepthTest) dc.gl.enable(GL_DEPTH_TEST)
-        if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
-        dc.gl.lineWidth(1f)
-        if (!dc.isPickMode && drawState.enableLighting) {
-            program.loadApplyLighting(false)
-            dc.gl.disableVertexAttribArray(1 /*normalVector*/)
+            // Use the shape's vertex point attribute.
+            dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 3, GL_FLOAT, false, 0, 0)
+
+            // Apply lighting.
+            if (!dc.isPickMode && drawState.enableLighting && normalsBuffer?.bindBuffer(dc) == true) {
+                program.loadApplyLighting(true)
+                dc.gl.enableVertexAttribArray(1 /*normalVector*/)
+                dc.gl.vertexAttribPointer(1 /*normalVector*/, 3, GL_FLOAT, false, 0, 0)
+                program.loadModelviewInverse(dc.modelviewNormalTransform)
+                // Transform the world-space light direction into eye space using the same orthonormal
+                // rotation as the normals (modelviewNormalTransform). The fragment shader dots this
+                // against the eye-space normal directly.
+                eyeLightDirection.copy(dc.lightDirection).multiplyByMatrix(dc.modelviewNormalTransform).normalize()
+                program.loadLightDirection(eyeLightDirection)
+            }
+
+            // Draw the specified primitives.
+            for (idx in 0 until drawState.primCount) {
+                val prim = drawState.prims[idx]
+                // Use the draw context's modelview projection matrix, transformed to shape local coordinates.
+                if (prim.depthOffset != 0.0) {
+                    mvpMatrix.copy(dc.projection).offsetProjectionDepth(prim.depthOffset)
+                    mvpMatrix.multiplyByMatrix(dc.modelview)
+                } else {
+                    mvpMatrix.copy(dc.modelviewProjection)
+                }
+                mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+                program.loadModelviewProjection(mvpMatrix)
+                program.loadColor(prim.color)
+                program.loadOpacity(prim.opacity)
+                if (prim.texture?.bindTexture(dc) == true && texCoordsBuffer?.bindBuffer(dc) == true) {
+                    dc.gl.enableVertexAttribArray(2)
+                    dc.gl.vertexAttribPointer(2 /*vertexTexCoord*/, 2, GL_FLOAT, false, 0, 0)
+                    program.loadTextureEnabled(true)
+                    program.loadTextureMatrix(prim.texCoordMatrix)
+                } else {
+                    dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
+                    program.loadTextureEnabled(false)
+                    // prevent "RENDER WARNING: there is no texture bound to unit 0"
+                    dc.defaultTexture.bindTexture(dc)
+                }
+                dc.gl.lineWidth(prim.lineWidth)
+                dc.gl.drawElements(prim.mode, prim.count, prim.type, prim.offset)
+            }
+        } finally {
+            // Restore the default WorldWind OpenGL state.
+            if (!drawState.enableCullFace) dc.gl.enable(GL_CULL_FACE)
+            if (!drawState.enableDepthTest) dc.gl.enable(GL_DEPTH_TEST)
+            if (!drawState.enableDepthWrite) dc.gl.depthMask(true)
+            dc.gl.lineWidth(1f)
+            if (!dc.isPickMode && drawState.enableLighting) {
+                program.loadApplyLighting(false)
+                dc.gl.disableVertexAttribArray(1 /*normalVector*/)
+            }
+            dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
         }
-        dc.gl.disableVertexAttribArray(2 /*vertexTexCoord*/)
     }
 
     override fun drawSightlineDepth(dc: DrawContext, sightline: DrawableSightline) {
