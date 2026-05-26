@@ -98,6 +98,8 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         for (entity in entities) drawEntity(dc, prog, entity)
 
         if (doubleSided) dc.gl.enable(GL_CULL_FACE)
+        // [drawEntity] disables depth write for translucent entities and never restores it.
+        dc.gl.depthMask(true)
         prog.loadTextureEnabled(false)
         prog.loadApplyLighting(false)
         dc.gl.disableVertexAttribArray(1) // normalVector

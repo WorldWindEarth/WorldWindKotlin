@@ -89,6 +89,7 @@ open class DrawShapeState internal constructor() {
         vertexStride = 0
         enableCullFace = true
         enableDepthTest = true
+        enableDepthWrite = true
         enableLighting = false
         shadowMode = ShadowMode.ENABLED
         isLine = false
