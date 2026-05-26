@@ -60,6 +60,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         var refreshVertexArray = true
         var refreshNormalsArray = true
         var isDrawInterior = false
+        var assemblyElevationTimestamp = 0L
         private var expiryTime = 0L
 
         fun resetExpiryTime(expirationInterval: Int) {
@@ -238,6 +239,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         if (currentData.isDrawInterior != activeAttributes.isDrawInterior) return true
         if (activeAttributes.isLightingEnabled && currentData.refreshNormalsArray) return true
         val isTerrainDependent = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
+        if (isTerrainDependent && rc.elevationModelTimestamp != currentData.assemblyElevationTimestamp) return true
         return isTerrainDependent && currentData.isExpired()
     }
 
@@ -251,6 +253,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         // Convert the geographic coordinates to the Cartesian coordinates that will be rendered
         currentData.vertexArray = computeMeshPoints(rc)
         currentData.refreshVertexArray = false
+        currentData.assemblyElevationTimestamp = rc.elevationModelTimestamp
 
         // Capture texture coordinates in a parallel array to the mesh points. These are associated with this
         // shape, itself, because they're independent of elevation or globe state.
