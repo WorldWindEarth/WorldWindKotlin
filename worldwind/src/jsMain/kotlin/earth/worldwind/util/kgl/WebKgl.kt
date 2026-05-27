@@ -1,8 +1,7 @@
 package earth.worldwind.util.kgl
 
+import earth.worldwind.util.js.JsObjectWithConstructorName
 import org.khronos.webgl.*
-import web.gl.WebGL2RenderingContext
-import web.gl.WebGLRenderbuffer
 
 actual data class KglShader(val obj: WebGLShader? = null) {
     actual companion object{ actual val NONE = KglShader() }
@@ -39,9 +38,51 @@ actual data class KglRenderbuffer(val obj: WebGLRenderbuffer? = null) {
     actual fun isValid() = obj != null
 }
 
-actual data class KglSync(val obj: web.gl.WebGLSync? = null) {
+actual data class KglSync(val obj: WebGLSync? = null) {
     actual companion object { actual val NONE = KglSync() }
     actual fun isValid() = obj != null
+}
+
+/** Opaque WebGL2 renderbuffer handle. The browser returns these from `createRenderbuffer()`
+ *  and accepts them back in bind/framebuffer/delete calls; we never touch fields on them.
+ *  Public because [KglRenderbuffer] (an `actual` data class) exposes the handle. */
+external class WebGLRenderbuffer
+/** Opaque WebGL2 sync (fence) handle — same usage as [WebGLRenderbuffer]. */
+external class WebGLSync
+
+/**
+ * Typed view of the WebGL2 surface this project actually calls. Replaces the kotlin-wrappers
+ * `web.gl.WebGL2RenderingContext` binding: kotlin-wrappers wraps every enum/bitfield argument
+ * in a sealed `GLenum` / `GLbitfield` class, which doesn't compose with [Kgl]'s Int-based
+ * interface and forced an `unsafeCast<GLenum>()` at every call site. Declaring our own
+ * external surface lets us pass plain `Int` for every enum/bitfield parameter — the runtime
+ * JS layer treats them as numbers regardless.
+ *
+ * Covers two distinct method groups: the WebGL2-only surface that the legacy
+ * `org.khronos.webgl.WebGLRenderingContext` binding doesn't expose (renderbuffer ops, blit,
+ * PBO-offset readPixels / texSubImage2D, sync API) and the `getBufferSubData` overload that
+ * needs an `org.khronos.webgl.Uint8Array` (rather than a parameterised ArrayBufferView).
+ */
+private external interface WebGL2RenderingContext {
+    fun createRenderbuffer(): WebGLRenderbuffer?
+    fun deleteRenderbuffer(buffer: WebGLRenderbuffer?)
+    fun bindRenderbuffer(target: Int, buffer: WebGLRenderbuffer?)
+    fun renderbufferStorageMultisample(target: Int, samples: Int, internalFormat: Int, width: Int, height: Int)
+    fun framebufferRenderbuffer(target: Int, attachment: Int, renderbufferTarget: Int, buffer: WebGLRenderbuffer?)
+    fun blitFramebuffer(
+        srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int,
+        dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
+        mask: Int, filter: Int,
+    )
+    fun readPixels(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, pboOffset: Int)
+    fun texSubImage2D(
+        target: Int, level: Int, xoffset: Int, yoffset: Int,
+        width: Int, height: Int, format: Int, type: Int, pboOffset: Int,
+    )
+    fun getBufferSubData(target: Int, srcOffset: Int, view: Uint8Array)
+    fun fenceSync(condition: Int, flags: Int): WebGLSync?
+    fun clientWaitSync(sync: WebGLSync, flags: Int, timeout: Int): Int
+    fun deleteSync(sync: WebGLSync)
 }
 
 class WebKgl(val gl: WebGLRenderingContext) : Kgl {
@@ -57,7 +98,7 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     // formats and WebGL2 rejects them. Constructor-name compare is Realm-agnostic
     // ([WorldWindow.createContext] already uses the same approach).
     private val gl2: WebGL2RenderingContext? =
-        if (gl.asDynamic().constructor?.name == "WebGL2RenderingContext")
+        if (gl.unsafeCast<JsObjectWithConstructorName>().constructor.name == "WebGL2RenderingContext")
             gl.unsafeCast<WebGL2RenderingContext>() else null
     private val isWebGL2: Boolean get() = gl2 != null
 
@@ -345,11 +386,9 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     override fun texSubImage2D(
         target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
     ) {
-        // PBO-bound texSubImage2D — only available on WebGL2. The gl-binding's typed
-        // signature for the int-offset variant isn't on the legacy WebGL1
-        // RenderingContext binding, so route through asDynamic to call the real DOM
-        // overload. Caller is responsible for ensuring a WebGL2 context.
-        requireGl2().asDynamic().texSubImage2D(
+        // PBO-bound texSubImage2D — only available on WebGL2. Caller guards via
+        // [supportsSizedTextureFormats] or [supportsMultisampleFBO] checks.
+        requireGl2().texSubImage2D(
             target, level, xoffset, yoffset, width, height, format, type, offset
         )
     }
@@ -392,68 +431,50 @@ class WebKgl(val gl: WebGLRenderingContext) : Kgl {
     }
 
     // Renderbuffer + multisample ops below route through `gl2`; on WebGL1 `requireGl2()`
-    // throws. Call sites must guard with `supportsMultisampleFBO` first. Int args are
-    // `unsafeCast` to `web.gl.GLenum` / `GLbitfield` (sealed external interfaces wrapping
-    // Int at runtime — the JS layer treats them as numbers regardless).
+    // throws. Call sites must guard with `supportsMultisampleFBO` first.
     override fun createRenderbuffer(): KglRenderbuffer =
         KglRenderbuffer(requireGl2().createRenderbuffer())
     override fun deleteRenderbuffer(renderbuffer: KglRenderbuffer) =
         requireGl2().deleteRenderbuffer(renderbuffer.obj)
     override fun bindRenderbuffer(target: Int, renderbuffer: KglRenderbuffer) =
-        requireGl2().bindRenderbuffer(target.glEnum(), renderbuffer.obj)
+        requireGl2().bindRenderbuffer(target, renderbuffer.obj)
     override fun renderbufferStorageMultisample(target: Int, samples: Int, internalFormat: Int, width: Int, height: Int) =
-        requireGl2().renderbufferStorageMultisample(target.glEnum(), samples, internalFormat.glEnum(), width, height)
+        requireGl2().renderbufferStorageMultisample(target, samples, internalFormat, width, height)
     override fun framebufferRenderbuffer(target: Int, attachment: Int, renderbufferTarget: Int, renderbuffer: KglRenderbuffer) =
-        requireGl2().framebufferRenderbuffer(target.glEnum(), attachment.glEnum(), renderbufferTarget.glEnum(), renderbuffer.obj)
+        requireGl2().framebufferRenderbuffer(target, attachment, renderbufferTarget, renderbuffer.obj)
     override fun blitFramebuffer(
         srcX0: Int, srcY0: Int, srcX1: Int, srcY1: Int,
         dstX0: Int, dstY0: Int, dstX1: Int, dstY1: Int,
         mask: Int, filter: Int
-    ) = requireGl2().blitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask.glBitfield(), filter.glEnum())
+    ) = requireGl2().blitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
     private fun requireGl2(): WebGL2RenderingContext =
         gl2 ?: throw UnsupportedOperationException("WebGL2 required for MSAA / multisample renderbuffer operations")
-    private fun Int.glEnum(): web.gl.GLenum = unsafeCast<web.gl.GLenum>()
-    private fun Int.glBitfield(): web.gl.GLbitfield = unsafeCast<web.gl.GLbitfield>()
 
     override fun readPixels(
         x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray
     ) = gl.readPixels(x, y, width, height, format, type, Uint8Array(buffer.unsafeCast<Int8Array>().buffer))
 
-    // PBO-target readPixels and the sync API are WebGL2-only. Routed through gl2 (the
-    // kotlin-wrappers WebGL2 surface) where the necessary overloads live.
+    // PBO-target readPixels and the sync API are WebGL2-only — guarded by isWebGL2.
     override fun readPixelsToBuffer(x: Int, y: Int, width: Int, height: Int, format: Int, type: Int, offset: Int) =
-        requireGl2().readPixels(x, y, width, height, format.glEnum(), type.glEnum(), offset)
+        requireGl2().readPixels(x, y, width, height, format, type, offset)
 
     override fun getBufferSubData(target: Int, srcOffset: Int, dst: ByteArray) {
-        // The kotlin-wrappers `web.gl.WebGL2RenderingContext.getBufferSubData` takes its own
-        // `ArrayBufferView<ArrayBufferLike>` generic, but the runtime argument is the same JS
-        // typed-array — the legacy `org.khronos.webgl.Uint8Array` we already use elsewhere in
-        // this file. Routing through `asDynamic()` bypasses the static type-graph mismatch
-        // without forcing a deep dependency on `web.buffer.*`.
         val view = Uint8Array(dst.unsafeCast<Int8Array>().buffer)
-        requireGl2().asDynamic().getBufferSubData(target.glEnum(), srcOffset, view)
+        requireGl2().getBufferSubData(target, srcOffset, view)
     }
 
-    // Sync API routes through asDynamic() to sidestep the kotlin-wrappers type maze
-    // (`GLenum`/`GLbitfield`/`GLuint64`/`GLsync` are all opaque generics that don't compose
-    // smoothly with our Int-based Kgl interface). The runtime calls are the same; the
-    // dynamic dispatch just lets us pass plain numbers and receive plain numbers back.
-    override fun fenceSync(): KglSync {
-        val obj = requireGl2().asDynamic().fenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-            .unsafeCast<web.gl.WebGLSync?>()
-        return KglSync(obj)
-    }
+    override fun fenceSync(): KglSync = KglSync(requireGl2().fenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0))
 
     override fun isSyncSignalled(sync: KglSync): Boolean {
         val obj = sync.obj ?: return false
         // 0 timeout + no flush: returns immediately with status. ALREADY_SIGNALED or
         // CONDITION_SATISFIED both indicate the fence is reached; everything else is "not yet".
-        val result = requireGl2().asDynamic().clientWaitSync(obj, 0, 0).unsafeCast<Int>()
+        val result = requireGl2().clientWaitSync(obj, 0, 0)
         return result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED
     }
 
     override fun deleteSync(sync: KglSync) {
-        sync.obj?.let { requireGl2().asDynamic().deleteSync(it) }
+        sync.obj?.let { requireGl2().deleteSync(it) }
     }
 
     override fun pixelStorei(pname: Int, param: Int) = gl.pixelStorei(pname, param)
