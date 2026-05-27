@@ -58,8 +58,13 @@ actual open class TiledElevationCoverage actual constructor(
                         contentType.equals("application/dted1", true) ||
                         contentType.equals("application/dted2", true) -> decodeDted(arrayBuffer)
                         contentType.equals("text/xml", true) -> {
-                            message = "Elevations retrieval failed (${response.statusText}): $url.\n"
-                            +String.asDynamic().fromCharCode.apply(null, Uint8Array(arrayBuffer))
+                            // The XML body usually carries a server error message; decode and append
+                            // it so the failure log is actionable. The leading `+` continuation here
+                            // previously parsed as a unary-plus expression-statement, so the decoded
+                            // text never reached [message] — fixed by chaining the `+` onto the prior
+                            // string literal.
+                            message = "Elevations retrieval failed (${response.statusText}): $url.\n" +
+                                js("new TextDecoder().decode(arrayBuffer)").unsafeCast<String>()
                             null
                         }
                         else -> {

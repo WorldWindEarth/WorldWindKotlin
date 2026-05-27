@@ -10,6 +10,7 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.js.JsObjectWithConstructorName
 import earth.worldwind.util.kgl.WebKgl
 import earth.worldwind.util.window.PrepareEventHandler
 import earth.worldwind.util.window.createDefaultPrepareEventHandler
@@ -184,7 +185,7 @@ open class WorldWindow(
         if (entry == null) {
             entry = EventListenerEntry { dirtyEvent ->
                 val event = prepareEvent(dirtyEvent)
-                event.asDynamic().worldWindow = this@WorldWindow
+                event.unsafeCast<WorldWindowTaggedEvent>().worldWindow = this@WorldWindow
                 // calls listeners in reverse registration order
                 entry?.listeners?.forEach{ l -> l.handleEvent(event) }
             }.also { eventListeners[type] = it }
@@ -452,7 +453,7 @@ open class WorldWindow(
                 ?: canvas.getContext("webgl", glAttrs)
                 ?: canvas.getContext("experimental-webgl", glAttrs)
             // Cross-window `instanceof` can fail, so identify the context by constructor name.
-            val ctorName = context?.asDynamic()?.constructor?.name as? String
+            val ctorName = context?.unsafeCast<JsObjectWithConstructorName>()?.constructor?.name
             require(ctorName == "WebGL2RenderingContext" || ctorName == "WebGLRenderingContext") {
                 logMessage(ERROR, "WorldWindow", "createContext", "webglNotSupported")
             }
@@ -470,4 +471,10 @@ open class WorldWindow(
          */
         BEFORE_REDRAW;
     }
+}
+
+/** Typed tag for the `worldWindow` field we attach to every dispatched DOM event so that
+ *  external listeners can reach back to the originating [WorldWindow]. */
+private external interface WorldWindowTaggedEvent {
+    var worldWindow: WorldWindow?
 }

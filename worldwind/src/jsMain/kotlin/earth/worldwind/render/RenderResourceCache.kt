@@ -36,7 +36,7 @@ actual open class RenderResourceCache(
     capacity: Long = recommendedCapacity(), lowWater: Long = (capacity * 0.75).toLong()
 ) : LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     companion object {
-        fun recommendedCapacity(): Long = (window.navigator.asDynamic().deviceMemory as? Number)
+        fun recommendedCapacity(): Long = window.navigator.unsafeCast<NavigatorWithDeviceMemory>().deviceMemory
             ?.let { it.toLong() * 1024 * 1024 * 1024 / 16 * 3 } ?: (512L * 1024 * 1024) // 512 Mb as backup
     }
 
@@ -267,4 +267,10 @@ actual open class RenderResourceCache(
         ctx.drawImage(image, 0.0, 0.0, canvas.width.toDouble(), canvas.height.toDouble())
         return canvas
     }
+}
+
+/** Typed view of `navigator.deviceMemory` (Chrome / Edge / Opera; unsupported on Safari /
+ *  Firefox where the property is absent and reads as `undefined` → null at the Kotlin call site). */
+private external interface NavigatorWithDeviceMemory {
+    val deviceMemory: Number?
 }

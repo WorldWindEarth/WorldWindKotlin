@@ -12,7 +12,6 @@ import kotlinx.coroutines.await
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLVideoElement
-import kotlin.js.Promise
 
 /**
  * JS/browser tutorial: drapes a real STANAG 4609 drone clip onto the terrain via a hidden
@@ -103,7 +102,7 @@ class HtmlVideoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     private suspend fun fetchText(url: String): String? = try {
         val response = window.fetch(url).await()
-        (response.asDynamic().text() as Promise<String>).await()
+        response.text().await()
     } catch (_: Throwable) {
         null
     }
