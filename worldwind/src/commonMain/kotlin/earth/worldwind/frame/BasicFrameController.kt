@@ -193,6 +193,12 @@ open class BasicFrameController: FrameController {
         dc.activeTextureUnit(GL_TEXTURE0)
         val depthTexture = dc.pickFramebuffer.getAttachedTexture(GL_DEPTH_ATTACHMENT)
         if (!depthTexture.bindTexture(dc)) return
+        // Pick FBO grows monotonically in ensurePickFramebuffer, so after a viewport shrink the
+        // depth texture is bigger than the rendered region — clamp UV to the rendered portion.
+        program.loadUvScale(
+            dc.viewport.width.toFloat() / depthTexture.width.toFloat(),
+            dc.viewport.height.toFloat() / depthTexture.height.toFloat()
+        )
 
         dc.gl.vertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0)
         dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)

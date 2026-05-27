@@ -17,16 +17,18 @@ import earth.worldwind.util.kgl.KglUniformLocation
  *
  * The vertex shader expects a unit-square triangle strip at attribute 0 (see
  * [earth.worldwind.draw.DrawContext.unitSquareBuffer]) and rasterises the full output
- * framebuffer.
+ * framebuffer. [loadUvScale] must be called every blit with `viewport.size / depthTexture.size`
+ * to clamp `vUV` to the rendered region of the (oversized) depth texture.
  */
 class DepthToColorProgram : AbstractShaderProgram() {
 
     override var programSources = arrayOf(
         """
         attribute vec2 aPos;
+        uniform vec2 uUvScale;
         varying vec2 vUV;
         void main() {
-            vUV = aPos;
+            vUV = aPos * uUvScale;
             gl_Position = vec4(aPos * 2.0 - 1.0, 0.0, 1.0);
         }
         """.trimIndent(),
@@ -58,10 +60,15 @@ class DepthToColorProgram : AbstractShaderProgram() {
     override val attribBindings = arrayOf("aPos")
 
     private var depthLoc = KglUniformLocation.NONE
+    private var uvScaleLoc = KglUniformLocation.NONE
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
         depthLoc = gl.getUniformLocation(program, "uDepth")
         gl.uniform1i(depthLoc, 0)
+        uvScaleLoc = gl.getUniformLocation(program, "uUvScale")
+        gl.uniform2f(uvScaleLoc, 1f, 1f)
     }
+
+    fun loadUvScale(scaleX: Float, scaleY: Float) = gl.uniform2f(uvScaleLoc, scaleX, scaleY)
 }
