@@ -38,7 +38,7 @@ import kotlin.math.tan
 
 /**
  * Renders OpenStreetMap-derived schematic 3D buildings. Footprints + height tags are fetched
- * on demand via an [OsmBuildingsSource] (defaults to [OverpassBuildingsSource]) and cached per
+ * on demand via a [TiledFeatureSource] (defaults to [OverpassBuildingsSource]) and cached per
  * slippy-map tile.
  *
  * Each cached tile is either:

@@ -452,8 +452,8 @@ open class MvtVectorLayer(
     /**
      * Parallel set tracking values currently in [tiles]. [LruMemoryCache] doesn't expose its
      * values; we need them here to fire batched tiles' GPU release on [close]. Kept in sync
-     * via [drainResults] (insert) and [tiles.entryRemoved] (remove). Same workaround
-     * [earth.worldwind.layer.buildings.OsmBuildingsLayer] uses for the same reason.
+     * via [drainResults] (insert) and the `entryRemoved` override on [tiles] (remove). Same
+     * workaround [earth.worldwind.layer.buildings.OsmBuildingsLayer] uses for the same reason.
      */
     private val cachedValues = HashSet<List<Renderable>>()
 

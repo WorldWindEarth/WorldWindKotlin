@@ -180,7 +180,8 @@ open class BasicFrameController: FrameController {
     /**
      * RG-packs the pick framebuffer's depth attachment into the readback framebuffer so its
      * 16-bit depth can be retrieved via `glReadPixels` (DEPTH_COMPONENT isn't portably readable
-     * on WebGL1 / GLES2). No-op when the engine hasn't provided a [DepthToColorProgram].
+     * on WebGL1 / GLES2). No-op when the engine hasn't provided a
+     * [earth.worldwind.render.program.DepthToColorProgram].
      */
     protected open fun copyDepthToReadbackFramebuffer(dc: DrawContext) {
         val program = dc.depthToColorProgram ?: return

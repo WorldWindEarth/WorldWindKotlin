@@ -714,7 +714,7 @@ open class Polygon @JvmOverloads constructor(
      * Builds outline chain(s) for a split sub-polygon. For pole polygons, skips the pole-connecting edges.
      * For regular split polygons, emits each point as a single continuous chain.
      *
-     * Splitter-inserted vertices ([iMap][k] != null — antimeridian intersections and pole-detour
+     * Splitter-inserted vertices (`iMap[k] != null` — antimeridian intersections and pole-detour
      * points) are emitted with `isIntermediate = true`. Surface shapes don't use the
      * `isExtrude && !isIntermediate` vertical-stroke path anyway, so this only affects the line
      * texture-coordinate handling along boundaries.
@@ -899,7 +899,7 @@ open class Polygon @JvmOverloads constructor(
      * Detects:
      *  - **Antimeridian crossing**, by an adjacent-vertex longitude jump > 180° on any edge
      *    (including the implicit closing edge).
-     *  - **Pole proximity**, by any boundary vertex's latitude exceeding [POLE_PROXIMITY_DEG].
+     *  - **Pole proximity**, by any boundary vertex's latitude exceeding [AbstractShape.POLE_PROXIMITY_DEG].
      *    The threshold is conservative (75°) so the polar throttle still has plenty of room to
      *    smooth great-circles whose endpoints are well above the equator.
      */

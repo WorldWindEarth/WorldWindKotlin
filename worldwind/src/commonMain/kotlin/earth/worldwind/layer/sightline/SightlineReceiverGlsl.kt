@@ -53,7 +53,7 @@ object SightlineReceiverGlsl {
     """.trimIndent()
 
     /**
-     * Block to splice into the **fragment** shader. Provides [computeSightlineTint] which
+     * Block to splice into the **fragment** shader. Provides `computeSightlineTint` which
      * returns the premultiplied tint to additively blend into the surface colour.
      *
      * Texture units: `sightlineMomentsSampler` = unit 4 (2D for directional path),

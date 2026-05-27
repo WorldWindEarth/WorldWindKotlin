@@ -160,8 +160,8 @@ abstract class CallbackVideoTexture(
 
     /**
      * Upload [pixels] to the bound 2D texture. On the first frame and on any resolution
-     * change we use [texImage2D] to (re-)allocate GPU storage; subsequent same-size frames
-     * use [texSubImage2D] (cheaper, no realloc) — optionally routed via a PBO when
+     * change we use `texImage2D` to (re-)allocate GPU storage; subsequent same-size frames
+     * use `texSubImage2D` (cheaper, no realloc) — optionally routed via a PBO when
      * [usePbo] is true.
      */
     private fun uploadFrame(dc: DrawContext, pixels: ByteArray, w: Int, h: Int) {

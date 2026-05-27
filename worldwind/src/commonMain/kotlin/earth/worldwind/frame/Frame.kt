@@ -28,12 +28,12 @@ open class Frame {
     /**
      * Per-frame snapshot of the cascaded shadow-map state. Pre-allocated and owned by this
      * Frame: on Android, render runs on the main thread and draw on the GL thread, so we
-     * cannot share [ShadowLayer]'s in-place-mutated scratch instance by reference -
+     * cannot share [earth.worldwind.layer.shadow.ShadowLayer]'s in-place-mutated scratch instance by reference -
      * [ShadowState.copyFrom] populates this snapshot at the end of render. Valid only when
      * [hasShadowState] is `true`.
      */
     val shadowState: ShadowState = ShadowState()
-    /** `true` when [ShadowLayer] populated [shadowState] this frame. */
+    /** `true` when [earth.worldwind.layer.shadow.ShadowLayer] populated [shadowState] this frame. */
     var hasShadowState: Boolean = false
 //    val infiniteProjection = Matrix4()
     val uploadQueue = UploadQueue()

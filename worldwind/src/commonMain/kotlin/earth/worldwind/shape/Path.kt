@@ -409,7 +409,7 @@ open class Path @JvmOverloads constructor(
 
     /**
      * Cheap pre-check: does the path cross the antimeridian or come within
-     * [POLE_PROXIMITY_DEG] of a pole? If neither, the densify-then-split pipeline is wasted
+     * [AbstractShape.POLE_PROXIMITY_DEG] of a pole? If neither, the densify-then-split pipeline is wasted
      * work — straight 2D lat/lon segments with inline densification rasterize fine for a
      * mid-latitude path.
      */
@@ -472,7 +472,7 @@ open class Path @JvmOverloads constructor(
      *
      * Each emitted intermediate comes from [positionPool] rather than `Position(pos)` —
      * eliminates per-intermediate allocation. The output `ArrayList<Position>` is pre-sized
-     * using a per-path bound: the polar-throttled cap if any vertex exceeds [POLE_PROXIMITY_DEG],
+     * using a per-path bound: the polar-throttled cap if any vertex exceeds [AbstractShape.POLE_PROXIMITY_DEG],
      * otherwise the much tighter unthrottled cap. Avoids the grow-resize churn `mutableListOf`
      * would do on dense paths.
      */

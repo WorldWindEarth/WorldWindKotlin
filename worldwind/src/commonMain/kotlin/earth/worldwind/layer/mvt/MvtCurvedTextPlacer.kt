@@ -23,15 +23,6 @@ import kotlin.math.sqrt
  * angle.
  *
  * The placer is pure: no global state, no allocations beyond the returned list.
- *
- * @param polyline    Screen-space waypoints (typically projected from geographic via
- *                    `rc.project(...)`). Z is ignored; we treat the curve as 2D in screen.
- *                    At least 2 points required, otherwise returns empty list.
- * @param charWidths  Per-character advance widths in pixels, parallel to [text].
- * @param textWidth   Total width of [text] in pixels (sum of [charWidths]). Passed
- *                    separately to avoid recomputation by callers that already have it.
- * @param repeatGapPx Gap between the end of one label's last glyph and the start of the
- *                    next repeat's first glyph. Mapbox's `symbol-spacing` default is 250 px.
  */
 object MvtCurvedTextPlacer {
 
@@ -53,6 +44,15 @@ object MvtCurvedTextPlacer {
     /**
      * Lay out [text] along [polyline] using one [GlyphRun] per repeat. Returns empty when
      * the polyline is too short to fit a single full repeat (length < textWidth).
+     *
+     * @param polyline    Screen-space waypoints (typically projected from geographic via
+     *                    `rc.project(...)`). Z is ignored; we treat the curve as 2D in screen.
+     *                    At least 2 points required, otherwise returns empty list.
+     * @param charWidths  Per-character advance widths in pixels, parallel to [text].
+     * @param textWidth   Total width of [text] in pixels (sum of [charWidths]). Passed
+     *                    separately to avoid recomputation by callers that already have it.
+     * @param repeatGapPx Gap between the end of one label's last glyph and the start of the
+     *                    next repeat's first glyph. Mapbox's `symbol-spacing` default is 250 px.
      */
     fun place(
         polyline: List<Vec2>,

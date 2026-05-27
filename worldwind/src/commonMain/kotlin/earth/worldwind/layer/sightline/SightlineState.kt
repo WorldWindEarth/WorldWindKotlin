@@ -36,7 +36,7 @@ class SightlineState {
     val occludedColor = Color(0f, 0f, 0f, 0f)
 
     /**
-     * Frame stamp incremented each time [DrawableSightline] re-populates this state.
+     * Frame stamp incremented each time [earth.worldwind.draw.DrawableSightline] re-populates this state.
      * Receiver programs cache the stamp and skip uniform uploads when the stamp matches —
      * GL uniforms persist across draws, so the second program-bind in the same frame
      * doesn't need to re-load the matrices.

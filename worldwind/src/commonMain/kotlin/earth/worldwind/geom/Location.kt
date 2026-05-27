@@ -150,7 +150,7 @@ open class Location(
 
         /**
          * Parses a geographic location from text, autodetecting the coordinate format. The
-         * dispatcher matches the input against each coord class's [STRING_PATTERN] in turn —
+         * dispatcher matches the input against each coord class's `STRING_PATTERN` in turn —
          * MGRS (e.g. `32TLP5626635418`), UTM (e.g. `36 N 329839E 5581722N`), Gauss-Krüger
          * (e.g. `53-01351, 66-65624`) — and falls back to [WGSCoord.fromString] for any
          * WGS-84 lat/lon notation (decimal degrees, D M, D M S with optional N/S/E/W markers

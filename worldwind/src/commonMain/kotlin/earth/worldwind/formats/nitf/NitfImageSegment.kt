@@ -6,7 +6,7 @@ import earth.worldwind.geom.Sector
 /**
  * Parsed subheader for one NITF/NSIF image segment. The image *data* (the
  * pixel grid itself, possibly preceded by a block mask) is not decoded here —
- * see [NitfImageReader] / [Nitf.readImagePixels].
+ * see [NitfImageReader.decodeArgb] / [NitfImageReader.decodeRaw].
  *
  * Fields follow MIL-STD-2500C §5.4 and use the spec acronyms in the doc
  * comments so the source is easy to cross-reference with the standard.
@@ -112,7 +112,7 @@ class NitfImageSegment internal constructor(
         val filterCondition: Char,
         /** IMFLTn — image filter code (reserved). */
         val filterCode: String,
-        /** Decoded LUT, or null if NLUTSn == 0. Shape: [nLuts][nEntries] of 0..255. */
+        /** Decoded LUT, or null if NLUTSn == 0. Shape: `[nLuts][nEntries]` of 0..255. */
         val lookupTables: Array<IntArray>?,
     )
 

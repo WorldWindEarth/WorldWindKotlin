@@ -115,7 +115,7 @@ import platform.gles3.glViewport
 
 /**
  * Kgl over the iOS OpenGLES.framework ES 3.0 bindings (`platform.gles3.*`). The class is the
- * iOS counterpart of [androidMain.AndroidKgl] / [jvmMain.JoglKgl] — a thin marshalling layer
+ * iOS counterpart of `androidMain.AndroidKgl` / `jvmMain.JoglKgl` — a thin marshalling layer
  * that pins Kotlin arrays for the duration of each gl call and converts our `Int`-typed
  * enum values to `GLenum` (`UInt`).
  *
@@ -146,7 +146,7 @@ class IosKgl : Kgl {
      * and checks `glCheckFramebufferStatus`. iOS GLES3 on real devices typically supports
      * both; iOS Simulator on Mac silicon (Metal-backed) often supports only RGBA16F. The
      * result is cached so the probe runs at most once per [IosKgl] instance, after the
-     * GL context is current (see [WorldWindow.eaglContext]).
+     * GL context is current (see `WorldWindow.eaglContext`).
      */
     override val maxRenderableFloatBits: Int by lazy {
         when {

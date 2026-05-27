@@ -16,7 +16,7 @@ actual fun buildTileSourceImageSource(
     source: TileSource, z: Int, x: Int, y: Int, imageFormat: String,
 ): ImageSource = ImageSource.fromImageFactory(TileSourceImageFactory(source, z, x, y, imageFormat))
 
-/** JS [ImageSource.ImageFactory] decoding via [createImageBitmap]. */
+/** JS [ImageSource.ImageFactory] decoding via the platform `createImageBitmap` API. */
 private class TileSourceImageFactory(
     private val source: TileSource,
     private val z: Int, private val x: Int, private val y: Int,

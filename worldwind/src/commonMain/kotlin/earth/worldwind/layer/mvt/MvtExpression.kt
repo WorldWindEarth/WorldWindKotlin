@@ -419,7 +419,7 @@ sealed class MvtExpression<out T> {
 
     /**
      * Built-in lerp functions for the value types interpolation actually targets in MVT
-     * styling: floats and colors. Plugged into [Interpolate]'s [lerp] parameter at
+     * styling: floats and colors. Plugged into [Interpolate]'s `lerp` parameter at
      * construction.
      */
     object Interpolators {

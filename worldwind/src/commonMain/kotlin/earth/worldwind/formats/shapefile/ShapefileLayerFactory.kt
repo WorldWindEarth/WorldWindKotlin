@@ -263,11 +263,6 @@ object ShapefileLayerFactory {
         emit()
     }
 
-    /**
-     * Sign of the shoelace integral over [positions]. In geographic (Y-up = north)
-     * coordinates a clockwise ring integrates to a positive value; the shapefile spec
-     * uses CW for outer rings and CCW for holes.
-     */
     private fun addMultiPatch(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
         val partTypes = record.partTypes ?: return
         val zValues = record.zValues
@@ -337,6 +332,11 @@ object ShapefileLayerFactory {
         consumer(mesh)
     }
 
+    /**
+     * Sign of the shoelace integral over [positions]. In geographic (Y-up = north)
+     * coordinates a clockwise ring integrates to a positive value; the shapefile spec
+     * uses CW for outer rings and CCW for holes.
+     */
     private fun isClockwise(positions: List<Position>): Boolean {
         var sum = 0.0
         for (i in positions.indices) {

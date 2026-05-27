@@ -10,7 +10,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * iOS port of NavigatorEventSupport. The "stopped" delay is scheduled on the engine's
- * main coroutine scope (same as Android — driven by [WorldWindow.engine.renderResourceCache.mainScope]).
+ * main coroutine scope (same as Android — driven by `WorldWindow.engine.renderResourceCache.mainScope`).
  * Differences from Android: events are our [TouchEvent], not `MotionEvent` (no recycle pool needed
  * because TouchEvent allocations are cheap and short-lived on iOS).
  */

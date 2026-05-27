@@ -1,7 +1,8 @@
 package earth.worldwind.formats.geojson
 
 /**
- * Normalize the raw `feature.properties` value handed back by [io.data2viz.geojson] into
+ * Normalize the raw `feature.properties` value handed back by the `io.data2viz.geojson`
+ * library into
  * a [LinkedHashMap]. On the JVM the underlying Jackson deserialization already produces a
  * LinkedHashMap, so a direct cast works. On Kotlin/JS the library leaves the field as a
  * native JS object literal — the cast fails and the map comes back empty — so the JS

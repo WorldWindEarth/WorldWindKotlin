@@ -18,7 +18,7 @@ import platform.QuartzCore.CACurrentMediaTime
  * synchronously on DOWN (via [WorldWindow.pick] which drains the pick frame inline), so by
  * the time we return to the dispatcher we already know whether a draggable renderable is
  * under the finger. Subsequent MOVE events drive the drag directly when armed; otherwise
- * they fall through to [BasicWorldWindowController] for camera panning.
+ * they fall through to [earth.worldwind.BasicWorldWindowController] for camera panning.
  */
 open class SelectDragDetector(protected val wwd: WorldWindow) {
     var callback: SelectDragCallback? = null
@@ -187,7 +187,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     companion object {
         /**
          * Meters above the terrain at the reference lat/lon above which the grabbed surface is
-         * treated as elevated. Below it the drag adapts to terrain via [WorldWindow.pickTerrainPosition];
+         * treated as elevated. Below it the drag adapts to terrain via [earth.worldwind.WorldWind.pickTerrainPosition];
          * above it the cursor is unprojected onto the offset ellipsoid at [grabAltitude] to keep
          * cursor-to-surface tracking consistent under perspective.
          */

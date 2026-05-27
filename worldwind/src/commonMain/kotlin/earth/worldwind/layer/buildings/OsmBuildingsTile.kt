@@ -545,8 +545,8 @@ class OsmBuildingsTile(
 
     /**
      * Feeds outer + inner contours to GLU and collects emitted triangles into the active colour
-     * bucket via [tessCallback]. [tessRc] / [tessCapAlt] stay populated so [combineData] can
-     * convert synthesised (lon, lat) vertices back to local Cartesian.
+     * bucket via [tessCallback]. [tessRc] / [tessCapAlt] stay populated so the tess callback's
+     * `combineData` override can convert synthesised (lon, lat) vertices back to local Cartesian.
      */
     private fun runTess(
         rc: RenderContext, outer: List<Position>, innerRings: List<List<Position>>,
@@ -582,7 +582,7 @@ class OsmBuildingsTile(
 
     /**
      * Streams one ring's corners as 2D (lon, lat) coords. [baseOrdinal] starts at 0 for the outer
-     * ring; each hole starts at its own [holeBases] offset so the tess callback can map ordinal
+     * ring; each hole starts at its own `holeBases` offset so the tess callback can map ordinal
      * back to absolute vertex index via `topIndexBase + ordinal`.
      */
     private fun feedContour(tess: GLUtessellator, ring: List<Position>, baseOrdinal: Int) {
@@ -619,9 +619,9 @@ class OsmBuildingsTile(
     }
 
     /**
-     * Drops this tile's GL buffer entries from [RenderResourceCache] for every cached globe state.
-     * Called by [OsmBuildingsLayer] on LRU eviction so the kernel reclaims GPU pages eagerly
-     * instead of waiting for renderResourceCache pressure.
+     * Drops this tile's GL buffer entries from [earth.worldwind.render.RenderResourceCache] for
+     * every cached globe state. Called by [OsmBuildingsLayer] on LRU eviction so the kernel
+     * reclaims GPU pages eagerly instead of waiting for renderResourceCache pressure.
      */
     fun releaseRenderResources(rc: RenderContext) {
         for (td in data.values) {

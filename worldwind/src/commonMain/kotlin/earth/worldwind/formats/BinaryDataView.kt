@@ -4,7 +4,8 @@ import kotlin.experimental.and
 
 /**
  * Random-access view over a byte buffer with explicit endian-aware getters. Mirrors the JS
- * `DataView` API surface used by [GeoTiffReader] / [TiffIFDEntry] / [GeoTiffUtil] so the
+ * `DataView` API surface used by [earth.worldwind.formats.geotiff.GeoTiffReader] /
+ * [earth.worldwind.formats.geotiff.TiffIFDEntry] / [earth.worldwind.formats.geotiff.GeoTiffUtil] so the
  * same parsing code compiles on every KMP target. Indices and read sizes are validated up
  * front; reads past the end throw [IndexOutOfBoundsException].
  */

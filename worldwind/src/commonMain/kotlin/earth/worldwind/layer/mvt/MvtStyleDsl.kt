@@ -136,7 +136,8 @@ class MvtPaintBuilder {
     /**
      * Mapbox `line-dasharray` shorthand. Alternating dash + gap lengths (e.g.
      * `dasharray(2f, 2f)` = even dashes/gaps; `dasharray(3f, 1f, 1f, 1f)` = long-short-short).
-     * Dashed features bypass [MvtBatchedLineTile] and render as per-feature [Path]s.
+     * Dashed features bypass [MvtBatchedLineTile] and render as per-feature
+     * [earth.worldwind.shape.Path]s.
      */
     fun dasharray(vararg dashes: Float) {
         lineDashArray = if (dashes.isEmpty()) null else dashes

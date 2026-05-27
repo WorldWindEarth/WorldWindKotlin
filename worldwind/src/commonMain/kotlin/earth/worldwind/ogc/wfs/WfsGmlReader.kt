@@ -47,7 +47,8 @@ internal object WfsGmlReader {
         ) : GmlGeometry
     }
 
-    /** Decode the GML payload into [Renderable]s suitable for adding to a [RenderableLayer]. */
+    /** Decode the GML payload into [Renderable]s suitable for adding to a
+     *  [earth.worldwind.layer.RenderableLayer]. */
     fun parseFeatures(xmlText: String): List<Renderable> = toRenderables(parseFeatureRecords(xmlText))
 
     /** Convert pre-parsed [FeatureRecord]s to renderables, invoking [customLogicToApplyProperties]

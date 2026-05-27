@@ -417,7 +417,7 @@ class MvtStyleRule(
              * boundary that keeps each line ≤ [maxWidthPx]. Single words longer than the max
              * width stay on their own line (don't split inside a word — Mapbox doesn't either).
              *
-             * Default uses [font.measureText] for accurate per-platform widths. Set
+             * Default uses [Font.measureText] for accurate per-platform widths. Set
              * [useApproximateMetrics] to true to use a fixed 0.55 × font-size approximation
              * (matches the label-collision heuristic) — break points then come out IDENTICAL
              * across all four platforms, at the cost of slightly looser wrapping on glyphs
@@ -519,8 +519,8 @@ class MvtStyleRule(
 
 /**
  * Style backed by an ordered list of [MvtStyleRule]s. For each feature, iterates rules in
- * order and returns the first match's resolved attributes. The same first match's [zOrder]
- * is reported from [zOrderFor].
+ * order and returns the first match's resolved attributes. The same first match's
+ * [MvtStyleRule.zOrder] is reported from [zOrderFor].
  *
  * Rule order = paint order = z-order tiebreak. Put earlier rules where you want them under
  * later rules. Within a tile, this layer relies on the rule list itself for cross-feature

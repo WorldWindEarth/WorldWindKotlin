@@ -17,7 +17,7 @@ package earth.worldwind.layer.mvt
  * ```
  *
  * Some servers send packed repeated fields as non-packed, and some old encoders do the
- * opposite; both forms decode identically here because [readPackedUInt32List] accepts a
+ * opposite; both forms decode identically here because [appendPackedUInt32] accepts a
  * single value (non-packed) by treating it as a one-element packed run.
  */
 object MvtDecoder {

@@ -436,7 +436,7 @@ open class WorldWindow(
     }
 
     companion object {
-        /** Squared tap-vs-drag threshold in CSS pixels for the click-after-drag suppressor in [init]. */
+        /** Squared tap-vs-drag threshold in CSS pixels for the click-after-drag suppressor in the init block. */
         private const val CLICK_TAP_SLOP_SQUARED = 100.0
 
         /**

@@ -20,7 +20,7 @@ interface ShadowReceiverProgram {
      * at program init time; the caller is responsible for binding the matching cascade
      * textures to those units before invoking this method - [applyShadowReceiverUniforms]
      * does both in lockstep. The [useMSM] flag drives the GLSL branch in
-     * [ShadowReceiverGlsl.computeShadowVisibility]: `true` runs the Hamburger 4-moment
+     * `ShadowReceiverGlsl.computeShadowVisibility`: `true` runs the Hamburger 4-moment
      * Cholesky path, `false` runs PCF.
      */
     fun loadShadowEnabled(
@@ -48,7 +48,8 @@ interface ShadowReceiverProgram {
 
 /**
  * Binds the per-frame cascade moments textures to texture units 1..3 and pushes the cascade
- * matrices into [program] - or, when no shadow state is available (no [ShadowLayer] this
+ * matrices into [program] - or, when no shadow state is available (no
+ * [earth.worldwind.layer.shadow.ShadowLayer] this
  * frame, or pick mode, or the platform doesn't support `RGBA32F` for moments, or the caller
  * passes `applyShadow = false`), calls [ShadowReceiverProgram.loadShadowDisabled] so the
  * receiver shader's `applyShadow` branch elides the lookup. Active texture unit is restored
@@ -58,8 +59,10 @@ interface ShadowReceiverProgram {
  * The [applyShadow] parameter lets per-shape drawables opt out (e.g. a shape with
  * `isLightingEnabled = false` is sun-independent and shouldn't receive shadow attenuation).
  *
- * Centralising this here means the per-receiver drawables ([DrawableMesh], [DrawableShape],
- * [DrawableCollada], [DrawableSurfaceTexture], [DrawableSurfaceShape]) drop ~30 lines of
+ * Centralising this here means the per-receiver drawables
+ * ([earth.worldwind.draw.DrawableMesh], [earth.worldwind.draw.DrawableShape],
+ * [earth.worldwind.draw.DrawableCollada], [earth.worldwind.draw.DrawableSurfaceTexture],
+ * [earth.worldwind.draw.DrawableSurfaceShape]) drop ~30 lines of
  * copy-pasted state-binding into a single call.
  */
 fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram, applyShadow: Boolean = true) {

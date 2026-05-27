@@ -85,7 +85,7 @@ class AVPlayerVideoTexture(
         coordTransform.setToVerticalFlip()
     }
 
-    /** Convenience accessor for [VideoOnTerrainTutorial]'s `currentTimeMs` callback. */
+    /** Convenience accessor for `VideoOnTerrainTutorial`'s `currentTimeMs` callback. */
     fun currentTimeMs(): Long = (CMTimeGetSeconds(player.currentTime()) * 1000.0).toLong().coerceAtLeast(0L)
 
     fun play() = player.play()

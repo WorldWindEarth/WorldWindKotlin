@@ -14,7 +14,7 @@ import mil.nga.sf.Point
 import mil.nga.sf.Polygon
 
 /**
- * Convert a GeoJSON geometry (already parsed into a kotlinx-serialization [JsonObject])
+ * Convert a GeoJSON geometry (already parsed into a kotlinx-serialization `JsonObject`)
  * into the corresponding [mil.nga.sf.Geometry] tree so it can be encoded as a GPKG
  * geometry blob via [mil.nga.geopackage.geom.GeoPackageGeometryData].
  *

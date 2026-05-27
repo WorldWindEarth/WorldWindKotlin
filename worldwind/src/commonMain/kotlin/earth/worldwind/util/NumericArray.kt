@@ -7,7 +7,7 @@ sealed class NumericArray {
     class Shorts(val array: ShortArray, override val byteCount: Int = array.size * Short.SIZE_BYTES) : NumericArray()
 
     /**
-     * Zero-copy upload from an [IntList]: the backing array may be larger than [list.size], so
+     * Zero-copy upload from an [IntList]: the backing array may be larger than `list.size`, so
      * [byteCount] (and the GL backend, given a correct `size` argument) bounds the upload.
      * Avoids the [IntList.toIntArray] copy the eager [Ints] variant would force.
      */

@@ -94,7 +94,7 @@ open class BasicWorldWindowController(
     private var hudWorldMapLayer: WorldMapLayer? = null
 
     /** ViewControlsLayer's continuous-press repeat: holding a pan/zoom/tilt control fires
-     *  [handleClick] every 50 ms so the camera moves while the finger is down. */
+     *  [ViewControlsLayer.handleClick] every 50 ms so the camera moves while the finger is down. */
     private var vcRepeatTimer: NSTimer? = null
     private var vcCurrentX = 0.0
     private var vcCurrentY = 0.0
@@ -383,8 +383,8 @@ open class BasicWorldWindowController(
     private fun nowNanos(): Long = (CACurrentMediaTime() * 1_000_000_000.0).toLong()
 }
 
-/** Vsync-aligned scheduler driving [FlingAnimator] off CADisplayLink. iOS counterpart of the
- *  Android Choreographer scheduler. */
+/** Vsync-aligned scheduler driving [earth.worldwind.gesture.FlingAnimator] off CADisplayLink.
+ *  iOS counterpart of the Android Choreographer scheduler. */
 private class CADisplayLinkFrameScheduler : FrameScheduler {
     private val target = DisplayLinkTarget()
     private var displayLink: CADisplayLink? = null

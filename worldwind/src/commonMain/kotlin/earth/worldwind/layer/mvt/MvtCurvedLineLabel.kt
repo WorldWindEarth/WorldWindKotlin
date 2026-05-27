@@ -23,8 +23,8 @@ import earth.worldwind.shape.OrientationMode
  *
  * Collision: each [Label] participates in [MvtLabelGroup]'s screen-space collision via its
  * own bounding box. Per-glyph collision would tear adjacent characters of the same word
- * apart, so a single run is treated as one collision candidate via [averagePixelSize] and
- * [averageWidth]; callers can pass these to the global collision pass.
+ * apart, so a single run is treated as one collision candidate via the average pixel size
+ * and width across its glyphs; callers can pass these to the global collision pass.
  *
  * Construction is cheap (just holds inputs). The expensive work — projection, arc-length
  * walk, glyph placement, Label allocation — happens in [doRender]. Label instances are

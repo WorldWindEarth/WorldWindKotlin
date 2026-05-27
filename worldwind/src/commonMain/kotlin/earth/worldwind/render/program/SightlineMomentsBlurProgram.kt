@@ -15,7 +15,7 @@ import earth.worldwind.util.kgl.KglUniformLocation
  * computes a smooth probabilistic occlusion across whole triangles, not along their borders.
  *
  * Implementation: classic 5-tap binomial Gaussian (weights `1, 4, 6, 4, 1` / 16) at 2-texel
- * spacing along [blurDirection]. Run twice - horizontal then vertical - against
+ * spacing along `blurDirection`. Run twice - horizontal then vertical - against
  * `momentsBlurFramebuffer` ping-pong, ending with the blurred result back in the original
  * moments texture for the occlusion pass to sample. Per-pass cost is one fullscreen quad
  * with 5 texture fetches.

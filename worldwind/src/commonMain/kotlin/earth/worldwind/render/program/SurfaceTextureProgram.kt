@@ -135,7 +135,7 @@ open class SurfaceTextureProgram(
     private var applyShadowId = KglUniformLocation.NONE
     private var useMSMId = KglUniformLocation.NONE
     private var ambientShadowId = KglUniformLocation.NONE
-    /** Cascade moments samplers, one per cascade, bound to [GL_TEXTURE1] + cascadeIndex. */
+    /** Cascade moments samplers, one per cascade, bound to `GL_TEXTURE1` + cascadeIndex. */
     private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
     private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
     private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)

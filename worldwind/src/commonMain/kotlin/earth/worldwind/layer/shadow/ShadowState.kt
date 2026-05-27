@@ -45,7 +45,7 @@ class ShadowState(
     /**
      * Active shadow algorithm for this frame. `null` = cascade pipeline can't run on this
      * GL implementation (no `RGBA32F`); receivers treat fragments as fully lit. Otherwise
-     * this is [ShadowLayer.algorithm]. Finalised by [DrawableShadow] at draw time.
+     * this is [ShadowLayer.algorithm]. Finalised by [earth.worldwind.draw.DrawableShadow] at draw time.
      */
     var algorithm: ShadowAlgorithm? = null
 
@@ -147,7 +147,8 @@ class ShadowState(
 
     /**
      * Deep-copy [source] into this instance. Lets [ShadowLayer] publish per-frame cascades
-     * into a [Frame]-owned [ShadowState] without leaking a reference to its scratch state.
+     * into a [earth.worldwind.frame.Frame]-owned [ShadowState] without leaking a reference to
+     * its scratch state.
      */
     fun copyFrom(source: ShadowState) {
         require(cascadeCount == source.cascadeCount) { "cascadeCount mismatch" }

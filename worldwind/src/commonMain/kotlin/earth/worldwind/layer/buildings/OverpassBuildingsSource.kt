@@ -31,7 +31,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Heights are derived via [OsmHeight.resolve]; coordinates are emitted as
  * [Position]s with the top-altitude pre-baked, ready for [OsmBuildingsLayer] to wrap in an
- * extruded [earth.worldwind.shape.Polygon] with [AltitudeMode.RELATIVE_TO_GROUND].
+ * extruded [earth.worldwind.shape.Polygon] with
+ * [earth.worldwind.geom.AltitudeMode.RELATIVE_TO_GROUND].
  *
  * @param endpoint Overpass-compatible HTTP endpoint. Defaults to the public main instance —
  *                 for production use, route to a self-hosted mirror to respect fair-use limits.

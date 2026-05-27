@@ -7,7 +7,7 @@ import kotlin.math.sinh
 
 /**
  * Convert the raw MVT command stream of an [MvtFeature] into lat/lon geometry for a slippy
- * tile at (z, x, y) with the given [extent].
+ * tile at (z, x, y) with the given `extent` (tile-coordinate resolution; conventionally 4096).
  *
  * Command stream layout (vector-tile-spec §4.3.2):
  *   CommandInteger = (id & 0x7) | (count << 3)
@@ -168,7 +168,7 @@ object MvtGeometry {
     /**
      * Walk a command stream, invoking [block] once per command with the decoded `id`, `count`,
      * a zig-zag-decoded parameter array, and the offset of that command's parameters.
-     * [block] receives the same [params] array on every call — don't retain references across
+     * [block] receives the same `params` array on every call — don't retain references across
      * calls; the contents are owned by this walker.
      */
     private inline fun walkCommands(

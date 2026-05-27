@@ -9,7 +9,7 @@ import earth.worldwind.draw.DrawContext
  *  - `varying vec3 worldPos` — world-space Cartesian position
  *  - `varying float viewDepth` — positive distance to the camera plane (`gl_Position.w`)
  *
- * Receiver fragment shader calls [computeShadowVisibility]: returns 1.0 lit, [ambientShadow]
+ * Receiver fragment shader calls `computeShadowVisibility`: returns 1.0 lit, `ambientShadow`
  * occluded, smoothly varying in between. Short-circuits to 1.0 when `applyShadow` is false.
  *
  * Two algorithms, selected by the `useMSM` uniform: rotated PCF (portable) or Hamburger

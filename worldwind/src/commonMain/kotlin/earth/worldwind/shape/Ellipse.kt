@@ -1087,7 +1087,7 @@ open class Ellipse @JvmOverloads constructor(
      */
     /**
      * Cheap pre-check: does the parametric perimeter cross the antimeridian or come within
-     * [POLE_PROXIMITY_DEG] of a pole? If neither, the densify-then-split pipeline (and the
+     * [AbstractShape.POLE_PROXIMITY_DEG] of a pole? If neither, the densify-then-split pipeline (and the
      * sanitize+split pass that goes with it) is wasted work — the 256-sample parametric
      * perimeter rasterizes fine as 2D lat/lon segments for a mid-latitude ellipse.
      */

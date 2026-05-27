@@ -15,7 +15,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * file offline (e.g. opened in QGIS-style "browse cached layers" mode). A network failure
  * with no cached blob propagates as `null` from [fetchTile].
  *
- * Cache hits bypass [previousEtag] / [previousLastModified] entirely — the cached blob is
+ * Cache hits bypass `previousEtag` / `previousLastModified` entirely — the cached blob is
  * served verbatim. Pass those revalidation headers in only when you want the inner source
  * to issue a conditional GET, which the decorator only does on a miss.
  */

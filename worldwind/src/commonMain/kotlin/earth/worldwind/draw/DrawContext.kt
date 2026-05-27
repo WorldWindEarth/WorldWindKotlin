@@ -120,9 +120,9 @@ open class DrawContext(val gl: Kgl) {
     /**
      * Monotonic counter incremented each time [contextLost] runs (typically Android pause /
      * resume tearing down the GLSurfaceView's GL context). Renderables that own GPU handles
-     * outside [RenderResourceCache] can compare this against a cached value to detect that
-     * their handles are stale and need re-allocating. Propagated to [RenderContext] per frame
-     * by the engine.
+     * outside [earth.worldwind.render.RenderResourceCache] can compare this against a cached
+     * value to detect that their handles are stale and need re-allocating. Propagated to
+     * [earth.worldwind.render.RenderContext] per frame by the engine.
      */
     var contextVersion = 0L
         private set
@@ -207,7 +207,7 @@ open class DrawContext(val gl: Kgl) {
      * The colour attachment is `GL_LINEAR`-filtered where the GL supports linear-filterable
      * RGBA32F (see [createMomentsColorAttachment]) so a single hardware tap averages 2x2
      * neighbouring `(d, d^2, d^3, d^4)` values; the separable Gaussian in
-     * [SightlineMomentsBlurProgram] widens the support further. Same per-side resolution as
+     * [earth.worldwind.render.program.SightlineMomentsBlurProgram] widens the support further. Same per-side resolution as
      * [scratchFramebuffer]; lazily allocated and cached.
      */
     val momentsFramebuffer get() = momentsFramebufferCache ?: Framebuffer().apply {

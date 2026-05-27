@@ -259,7 +259,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
 
         /**
          * Meters above the terrain at the reference lat/lon above which the grabbed surface is
-         * treated as elevated. Below it the drag adapts to terrain via [WorldWindow.pickTerrainPosition];
+         * treated as elevated. Below it the drag adapts to terrain via [earth.worldwind.WorldWind.pickTerrainPosition];
          * above it the cursor is unprojected onto the offset ellipsoid at [grabAltitude] to keep
          * cursor-to-surface tracking consistent under perspective.
          */
