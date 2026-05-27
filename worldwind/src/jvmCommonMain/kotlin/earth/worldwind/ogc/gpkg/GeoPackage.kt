@@ -34,11 +34,15 @@ import mil.nga.geopackage.GeoPackageCore
 import mil.nga.geopackage.contents.Contents
 import mil.nga.geopackage.contents.ContentsDataType
 import mil.nga.geopackage.db.DateConverter
+import mil.nga.geopackage.db.GeoPackageDataType
+import mil.nga.geopackage.extension.ExtensionScopeType
 import mil.nga.geopackage.extension.WebPExtension
 import mil.nga.geopackage.extension.im.vector_tiles.VectorTilesEncodingExtension
 import mil.nga.geopackage.persister.DatePersister
 import mil.nga.geopackage.extension.coverage.*
 import mil.nga.geopackage.features.columns.GeometryColumns
+import mil.nga.geopackage.features.user.FeatureColumn
+import mil.nga.geopackage.features.user.FeatureTableMetadata
 import mil.nga.geopackage.tiles.user.TileTable
 import mil.nga.proj.ProjectionConstants
 import mil.nga.sf.*
@@ -140,6 +144,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val griddedTileDao = CoverageDataCore.getGriddedTileDao(geoPackage)
     private val tileUserDataDao = mutableMapOf<String, Dao<GpkgTileUserData, Int>>()
     private val tileMatrixCache = mutableMapOf<String, Map<Int, GpkgTileMatrix>>()
+    /** Tables known to have the `last_modified` column — populated by [ensureLastModifiedColumn]
+     *  on success. Read on every cache write to gate the per-tile `UPDATE` (skip the SQL round-trip
+     *  on pre-eviction / external GPKGs where the column is absent) and on every feature insert
+     *  to skip the `setValue` that would otherwise throw `GeoPackageException`. */
+    private val tablesWithLastModified = mutableSetOf<String>()
     private val writeDispatcher = Dispatchers.IO.limitedParallelism(1) // Single thread dispatcher
 
     val isShutdown get() = !connectionSource.isOpen("")
@@ -222,15 +231,25 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
-        ensureLastModifiedColumn(content.tableName)
         val tileUserData = readTileUserData(content, zoomLevel, tileColumn, tileRow) ?: GpkgTileUserData().also {
             it.zoomLevel = zoomLevel
             it.tileColumn = tileColumn
             it.tileRow = tileRow
         }
         tileUserData.tileData = tileData // Replace tile data
-        tileUserData.lastModified = System.currentTimeMillis()
         getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
+        // last_modified is set via raw SQL because the column isn't on the ORM entity (see
+        // GpkgTileUserData — declaring it would break reads of pre-eviction / third-party
+        // GPKGs that don't have the column). Gated on the session cache so un-migrated tables
+        // cost zero — no SQL prepare, no swallowed exception. WHERE uses the PK we just got
+        // from createOrUpdate (PK lookup, no composite-index scan).
+        if (content.tableName in tablesWithLastModified) {
+            val escapedTable = content.tableName.replace("\"", "\"\"")
+            geoPackage.database.execSQL(
+                "UPDATE \"$escapedTable\" SET $LAST_MODIFIED_COLUMN = ${System.currentTimeMillis()} " +
+                    "WHERE ${GpkgTileUserData.ID} = ${tileUserData.id}"
+            )
+        }
         // Update content last modified date
         content.lastChange = Date()
         contentDao.update(content)
@@ -241,12 +260,17 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * on the GPKG tile-user-data table (`zoom_level`, `tile_column`, `tile_row`, `tile_data`,
      * `last_modified`). No-op when read-only or unbounded.
      */
-    @Throws(IllegalStateException::class)
     suspend fun evictTiles(
         content: GpkgContent, policy: CacheEvictionPolicy,
     ) = withContext(writeDispatcher) {
         if (isReadOnly || policy.isUnbounded) return@withContext
-        ensureLastModifiedColumn(content.tableName)
+        if (content.tableName !in tablesWithLastModified) {
+            // Column missing (migration was skipped or failed). Eviction needs it, so degrade
+            // gracefully — log once and skip instead of throwing on the DELETE.
+            logMessage(WARN, "GeoPackage", "evictTiles",
+                "Skipped eviction for '${content.tableName}': last_modified column unavailable")
+            return@withContext
+        }
         val escapedTable = content.tableName.replace("\"", "\"\"")
         val q = "\"$escapedTable\""
 
@@ -254,7 +278,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             val cutoff = System.currentTimeMillis() - policy.maxAge.inWholeMilliseconds
             geoPackage.database.execSQL("DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff")
         }
-
         if (policy.maxEntries < Long.MAX_VALUE) {
             geoPackage.database.execSQL(
                 "DELETE FROM $q WHERE id IN (" +
@@ -454,7 +477,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             content
         }.also { content ->
             setupTileMatrices(content, levelSet)
-            registerLastModifiedExtension(content.tableName)
+            ensureLastModifiedColumn(content.tableName)
             if (setupWebLayer && layer is WebImageLayer) setupWebLayer(layer, content)
         }
     }
@@ -534,7 +557,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             encoding?.getOrCreate(tableName)
 
             content
-        }.also { content -> setupTileMatrices(content, levelSet) }
+        }.also { content ->
+            setupTileMatrices(content, levelSet)
+            ensureLastModifiedColumn(content.tableName)
+        }
     }
 
     @Throws(IllegalStateException::class)
@@ -634,7 +660,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             tms.contents
         }.also { content ->
             setupTileMatrices(content, coverage.tileMatrixSet)
-            registerLastModifiedExtension(content.tableName)
+            ensureLastModifiedColumn(content.tableName)
             if (setupWebCoverage && coverage is WebElevationCoverage) setupWebCoverage(coverage, content)
         }
     }
@@ -757,31 +783,33 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             check(existing.dataTypeName.equals(FEATURES, ignoreCase = true)) {
                 "Content '$tableName' exists but is not a features table"
             }
+            // Pre-eviction features tables may not have last_modified yet; migrate on reopen.
+            if (!isReadOnly) ensureLastModifiedColumn(tableName)
             return@withContext existing
         }
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
         TransactionManager.callInTransaction(connectionSource) {
             val srs = srsDao.getOrCreateFromEpsg(EPSG_4326)
-            val box = mil.nga.geopackage.BoundingBox(-180.0, -90.0, 180.0, 90.0)
+            val box = BoundingBox(-180.0, -90.0, 180.0, 90.0)
             val geometryColumns = GeometryColumns().also {
                 it.tableName = tableName
                 it.columnName = FEATURE_GEOM_COLUMN
                 // GEOMETRY (not POLYGON) — MVT mixes points/lines/polygons in one payload.
-                it.geometryType = mil.nga.sf.GeometryType.GEOMETRY
+                it.geometryType = GeometryType.GEOMETRY
                 it.srs = srs
                 it.z = 0
                 it.m = 0
             }
             val columns = listOf(
-                mil.nga.geopackage.features.user.FeatureColumn.createPrimaryKeyColumn(FEATURE_ID_COLUMN),
-                mil.nga.geopackage.features.user.FeatureColumn.createGeometryColumn(FEATURE_GEOM_COLUMN, mil.nga.sf.GeometryType.GEOMETRY),
-                mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_Z_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
-                mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_X_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
-                mil.nga.geopackage.features.user.FeatureColumn.createColumn(TILE_Y_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
-                mil.nga.geopackage.features.user.FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.TEXT),
-                mil.nga.geopackage.features.user.FeatureColumn.createColumn(LAST_MODIFIED_COLUMN, mil.nga.geopackage.db.GeoPackageDataType.INTEGER),
+                FeatureColumn.createPrimaryKeyColumn(FEATURE_ID_COLUMN),
+                FeatureColumn.createGeometryColumn(FEATURE_GEOM_COLUMN, GeometryType.GEOMETRY),
+                FeatureColumn.createColumn(TILE_Z_COLUMN, GeoPackageDataType.INTEGER),
+                FeatureColumn.createColumn(TILE_X_COLUMN, GeoPackageDataType.INTEGER),
+                FeatureColumn.createColumn(TILE_Y_COLUMN, GeoPackageDataType.INTEGER),
+                FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, GeoPackageDataType.TEXT),
+                FeatureColumn.createColumn(LAST_MODIFIED_COLUMN, GeoPackageDataType.INTEGER),
             )
-            val metadata = mil.nga.geopackage.features.user.FeatureTableMetadata.create(geometryColumns, columns, box)
+            val metadata = FeatureTableMetadata.create(geometryColumns, columns, box)
             metadata.identifier = displayName ?: tableName
             geoPackage.createFeatureTable(metadata)
             val indexName = "${tableName}_$TILE_INDEX_SUFFIX"
@@ -792,9 +820,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 "CREATE INDEX IF NOT EXISTS \"$escapedIndex\" ON \"$escapedTable\" " +
                         "($TILE_Z_COLUMN, $TILE_X_COLUMN, $TILE_Y_COLUMN)"
             )
-            registerLastModifiedExtension(tableName)
             contentDao.queryForId(tableName) ?: error("Features content $tableName missing after createFeatureTable")
-        }
+        }.also { ensureLastModifiedColumn(tableName) }
     }
 
     /**
@@ -806,7 +833,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, rows: List<Pair<Geometry, String?>>,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Cached features ${content.tableName} cannot be updated. GeoPackage is read-only!")
-        ensureLastModifiedColumn(content.tableName)
         TransactionManager.callInTransaction(connectionSource) {
             truncateFeatureTable(geoPackage, content.tableName)
             if (rows.isNotEmpty()) insertCachedFeatures(geoPackage, content.tableName, rows)
@@ -833,7 +859,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, z: Int, x: Int, y: Int, rows: List<GpkgFeatureRow>,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Feature tile ${content.tableName}/$z/$x/$y cannot be saved. GeoPackage is read-only!")
-        ensureLastModifiedColumn(content.tableName)
         replaceFeatureTileRows(geoPackage, content.tableName, z, x, y, rows)
         content.lastChange = Date()
         contentDao.update(content)
@@ -844,21 +869,48 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * the eviction feature. No-op on read-only or when the column is already present. ALTER TABLE
      * ADD COLUMN is non-destructive — existing rows get NULL, treated as epoch 0 by [evictFeatures]
      * so external / pre-migration rows age out first.
+     *
+     * Called once per content during setup / reopen from every [setupTilesContent],
+     * [setupVectorTilesContent], [setupGriddedCoverageContent], [setupFeaturesContent], and the
+     * reopen branches in `GpkgContentManager`. **Never throws** — any migration failure (read-only
+     * filesystem, schema locks, extension-table write errors, etc.) is logged at WARN and the
+     * call returns, so layer instantiation cannot be blocked by an unmigratable cache. Eviction
+     * and last-modified stamping then degrade gracefully: the raw-SQL writes in
+     * [writeTileUserData] / [evictTiles] swallow missing-column errors.
      */
-    @Throws(IllegalStateException::class)
     suspend fun ensureLastModifiedColumn(tableName: String): Unit = withContext(writeDispatcher) {
-        if (isReadOnly) return@withContext
-        val escapedTable = tableName.replace("\"", "\"\"")
-        // SQLite has no IF NOT EXISTS for ADD COLUMN; ALTER then catch only the duplicate-column
-        // case. Schema locks / malformed SQL / etc. must propagate so silent migrations don't mask
-        // real failures.
-        try {
-            geoPackage.database.execSQL("ALTER TABLE \"$escapedTable\" ADD COLUMN $LAST_MODIFIED_COLUMN INTEGER")
-        } catch (e: Exception) {
-            if (e.message?.contains("duplicate column", ignoreCase = true) != true) throw e
+        if (isReadOnly || tableName in tablesWithLastModified) return@withContext
+        runCatching {
+            // Probe schema first so a GPKG that already has the column never reaches ALTER and
+            // never logs anything. SQLite has no IF NOT EXISTS for ADD COLUMN, so the inner
+            // try/catch around ALTER is a belt-and-suspenders for Android's WAL connection pool,
+            // where columnExists can read stale schema and report "no" for a column that's
+            // present. Anything other than duplicate-column propagates to the outer runCatching.
+            if (!geoPackage.database.columnExists(tableName, LAST_MODIFIED_COLUMN)) {
+                val escapedTable = tableName.replace("\"", "\"\"")
+                try {
+                    geoPackage.database.execSQL(
+                        "ALTER TABLE \"$escapedTable\" ADD COLUMN $LAST_MODIFIED_COLUMN INTEGER"
+                    )
+                } catch (e: Exception) {
+                    if (e.message?.contains("duplicate column", ignoreCase = true) != true) throw e
+                }
+            }
+            registerLastModifiedExtension(tableName)
+            tablesWithLastModified += tableName
+        }.onFailure {
+            logMessage(WARN, "GeoPackage", "ensureLastModifiedColumn",
+                "Skipped last_modified migration for '$tableName': ${it.message}")
         }
-        registerLastModifiedExtension(tableName)
     }
+
+    /**
+     * True when [ensureLastModifiedColumn] has successfully verified or added `last_modified` on
+     * [tableName] this session. Cache-write paths (`writeTileUserData`, the feature-row actuals)
+     * consult this before issuing any `last_modified`-touching SQL so an un-migrated table costs
+     * nothing instead of a wasted statement + caught exception per row.
+     */
+    fun hasLastModifiedColumn(tableName: String): Boolean = tableName in tablesWithLastModified
 
     /**
      * Evict rows from a features cache table per [policy]. Honors all three caps:
@@ -868,12 +920,15 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      *
      * No-op when GeoPackage is read-only or the policy is unbounded.
      */
-    @Throws(IllegalStateException::class)
     suspend fun evictFeatures(
         content: GpkgContent, policy: CacheEvictionPolicy,
     ) = withContext(writeDispatcher) {
         if (isReadOnly || policy.isUnbounded) return@withContext
-        ensureLastModifiedColumn(content.tableName)
+        if (content.tableName !in tablesWithLastModified) {
+            logMessage(WARN, "GeoPackage", "evictFeatures",
+                "Skipped eviction for '${content.tableName}': last_modified column unavailable")
+            return@withContext
+        }
         val escapedTable = content.tableName.replace("\"", "\"\"")
         val q = "\"$escapedTable\""
 
@@ -883,7 +938,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 "DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff"
             )
         }
-
         if (policy.maxEntries < Long.MAX_VALUE) {
             geoPackage.database.execSQL(
                 "DELETE FROM $q WHERE $FEATURE_ID_COLUMN IN (" +
@@ -1015,7 +1069,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             it.columnName = columnName
             it.extensionName = extensionName
             it.definition = WW_EXTENSION_DEFINITION
-            it.scope = mil.nga.geopackage.extension.ExtensionScopeType.READ_WRITE
+            it.scope = ExtensionScopeType.READ_WRITE
         })
     }
 

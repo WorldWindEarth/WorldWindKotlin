@@ -181,6 +181,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             }
             // Update content metadata
             geoPackage.updateTilesContent(layer, contentKey, levelSet, content)
+            // Pre-eviction tile tables may not have last_modified yet; migrate on reopen.
+            if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(content.tableName)
         } ?: geoPackage.setupTilesContent(layer, contentKey, levelSet, setupWebLayer)
 
         val factory = GpkgTileFactory(geoPackage, content, imageFormat)
@@ -270,6 +272,8 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
             }
             // Update content metadata
             geoPackage.updateGriddedCoverageContent(coverage, contentKey, content)
+            // Pre-eviction coverage tables may not have last_modified yet; migrate on reopen.
+            if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(content.tableName)
         } ?: geoPackage.setupGriddedCoverageContent(coverage, contentKey, setupWebCoverage, isFloat)
 
         val factory = GpkgElevationSourceFactory(geoPackage, content, isFloat)
@@ -356,7 +360,10 @@ class GpkgContentManager(val pathName: String, val isReadOnly: Boolean = false):
         // are always 256 × 256, EPSG:3857, single root tile.
         val (minZ, maxZ) = (layer as? MvtVectorLayer)?.let { it.minZoom to it.maxZoom } ?: (0 to 22)
         val levelSet = buildMvtLevelSet(minZ, maxZ)
-        val content = geoPackage.getContent(contentKey) ?: geoPackage.setupVectorTilesContent(
+        val content = geoPackage.getContent(contentKey)?.also {
+            // Pre-eviction vector-tile tables may not have last_modified yet; migrate on reopen.
+            if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(it.tableName)
+        } ?: geoPackage.setupVectorTilesContent(
             tableName = contentKey,
             levelSet = levelSet,
             displayName = layer.displayName,

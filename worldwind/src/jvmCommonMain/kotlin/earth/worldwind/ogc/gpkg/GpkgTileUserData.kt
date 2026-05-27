@@ -12,9 +12,13 @@ import java.io.Serializable
  *   tile_column INTEGER NOT NULL,
  *   tile_row INTEGER NOT NULL,
  *   tile_data BLOB NOT NULL,
- *   last_modified INTEGER,            -- epoch-ms, added for eviction; nullable for back-compat
  *   UNIQUE (zoom_level, tile_column, tile_row)
  * );
+ *
+ * Note: the eviction `last_modified INTEGER` column is intentionally NOT declared as
+ * an `@DatabaseField` here. Declaring it would force ORMLite to emit it in every
+ * SELECT and break reads of pre-eviction GeoPackages and third-party GPKG files that
+ * lack the column. The value is written via raw SQL `UPDATE` in [GeoPackage.writeTileUserData].
  */
 @DatabaseTable(tableName = "sample_tile_pyramid")
 class GpkgTileUserData : Serializable {
@@ -28,9 +32,6 @@ class GpkgTileUserData : Serializable {
     var tileRow: Int = 0
     @DatabaseField(columnName = TILE_DATA, dataType = DataType.BYTE_ARRAY, canBeNull = false)
     lateinit var tileData: ByteArray
-    /** Epoch-ms; null for tiles written before the column was added. */
-    @DatabaseField(columnName = LAST_MODIFIED, dataType = DataType.LONG_OBJ)
-    var lastModified: Long? = null
 
     companion object {
         const val ID = "id"
@@ -38,6 +39,5 @@ class GpkgTileUserData : Serializable {
         const val TILE_COLUMN = "tile_column"
         const val TILE_ROW = "tile_row"
         const val TILE_DATA = "tile_data"
-        const val LAST_MODIFIED = "last_modified"
     }
 }

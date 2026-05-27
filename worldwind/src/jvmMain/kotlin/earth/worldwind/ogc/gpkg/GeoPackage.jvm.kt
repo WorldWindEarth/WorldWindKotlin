@@ -1,5 +1,10 @@
 package earth.worldwind.ogc.gpkg
 
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FEATURE_PROPERTIES_COLUMN
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.LAST_MODIFIED_COLUMN
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILE_X_COLUMN
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILE_Y_COLUMN
+import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILE_Z_COLUMN
 import earth.worldwind.render.image.ImageSource
 import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackage
@@ -7,6 +12,7 @@ import mil.nga.geopackage.GeoPackageCore
 import mil.nga.geopackage.GeoPackageManager
 import mil.nga.geopackage.extension.coverage.GriddedCoverageDataType
 import mil.nga.geopackage.extension.nga.style.FeatureStyleExtension
+import mil.nga.geopackage.geom.GeoPackageGeometryData
 import mil.nga.geopackage.tiles.user.TileTableMetadata
 import mil.nga.sf.Geometry
 import java.awt.Image
@@ -49,7 +55,7 @@ actual fun readCachedFeaturesWithProperties(
     geoPackage: GeoPackageCore, tableName: String,
 ): List<Pair<Geometry, String?>> = (geoPackage as GeoPackage).getFeatureDao(tableName).queryForAll().mapNotNull { row ->
     val geom = row.getGeometry()?.geometry?.takeIf { !it.isEmpty } ?: return@mapNotNull null
-    geom to (row.getValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN) as? String)
+    geom to (row.getValue(FEATURE_PROPERTIES_COLUMN) as? String)
 }
 
 actual fun insertCachedFeatures(
@@ -57,11 +63,14 @@ actual fun insertCachedFeatures(
 ) {
     val featureDao = (geoPackage as GeoPackage).getFeatureDao(tableName)
     val now = System.currentTimeMillis()
+    // `last_modified` may be absent if migration was skipped (pre-eviction GPKG, ensure
+    // failed, etc.). Probe once and skip setValue rather than throw per row.
+    val hasLastModified = runCatching { featureDao.table.getColumnIndex(LAST_MODIFIED_COLUMN) }.isSuccess
     for ((geometry, propertiesJson) in rows) {
         val row = featureDao.newRow()
-        row.geometry = mil.nga.geopackage.geom.GeoPackageGeometryData.create(featureDao.geometryColumns.srsId, geometry)
-        propertiesJson?.let { row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN, it) }
-        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.LAST_MODIFIED_COLUMN, now)
+        row.geometry = GeoPackageGeometryData.create(featureDao.geometryColumns.srsId, geometry)
+        propertiesJson?.let { row.setValue(FEATURE_PROPERTIES_COLUMN, it) }
+        if (hasLastModified) row.setValue(LAST_MODIFIED_COLUMN, now)
         featureDao.insert(row)
     }
 }
@@ -76,13 +85,13 @@ actual fun readFeatureTileRows(
     val featureDao = (geoPackage as GeoPackage).getFeatureDao(tableName)
     return featureDao.queryForFieldValues(
         mapOf(
-            earth.worldwind.ogc.gpkg.GeoPackage.TILE_Z_COLUMN to z,
-            earth.worldwind.ogc.gpkg.GeoPackage.TILE_X_COLUMN to x,
-            earth.worldwind.ogc.gpkg.GeoPackage.TILE_Y_COLUMN to y,
+            TILE_Z_COLUMN to z,
+            TILE_X_COLUMN to x,
+            TILE_Y_COLUMN to y,
         )
     ).map { row ->
         val geometry = row.getGeometry()?.geometry?.takeIf { !it.isEmpty }
-        val properties = row.getValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN) as? String
+        val properties = row.getValue(FEATURE_PROPERTIES_COLUMN) as? String
         GpkgFeatureRow(geometry, properties)
     }
 }
@@ -97,23 +106,24 @@ actual fun replaceFeatureTileRows(
     val escapedTable = tableName.replace("\"", "\"\"")
     gpkg.database.execSQL(
         "DELETE FROM \"$escapedTable\" WHERE " +
-                "${earth.worldwind.ogc.gpkg.GeoPackage.TILE_Z_COLUMN} = $z AND " +
-                "${earth.worldwind.ogc.gpkg.GeoPackage.TILE_X_COLUMN} = $x AND " +
-                "${earth.worldwind.ogc.gpkg.GeoPackage.TILE_Y_COLUMN} = $y"
+                "$TILE_Z_COLUMN = $z AND " +
+                "$TILE_X_COLUMN = $x AND " +
+                "$TILE_Y_COLUMN = $y"
     )
     if (rows.isEmpty()) return
     val srsId = featureDao.geometryColumns.srsId
     val now = System.currentTimeMillis()
+    val hasLastModified = runCatching { featureDao.table.getColumnIndex(LAST_MODIFIED_COLUMN) }.isSuccess
     for ((geometry, propertiesJson) in rows) {
         val row = featureDao.newRow()
         if (geometry != null) {
-            row.geometry = mil.nga.geopackage.geom.GeoPackageGeometryData.create(srsId, geometry)
+            row.geometry = GeoPackageGeometryData.create(srsId, geometry)
         }
-        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_Z_COLUMN, z)
-        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_X_COLUMN, x)
-        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.TILE_Y_COLUMN, y)
-        propertiesJson?.let { row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.FEATURE_PROPERTIES_COLUMN, it) }
-        row.setValue(earth.worldwind.ogc.gpkg.GeoPackage.LAST_MODIFIED_COLUMN, now)
+        row.setValue(TILE_Z_COLUMN, z)
+        row.setValue(TILE_X_COLUMN, x)
+        row.setValue(TILE_Y_COLUMN, y)
+        propertiesJson?.let { row.setValue(FEATURE_PROPERTIES_COLUMN, it) }
+        if (hasLastModified) row.setValue(LAST_MODIFIED_COLUMN, now)
         featureDao.insert(row)
     }
 }
