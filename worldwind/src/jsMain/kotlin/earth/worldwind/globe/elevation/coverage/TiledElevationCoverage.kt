@@ -23,6 +23,7 @@ import org.khronos.webgl.Int16Array
 import org.khronos.webgl.Int8Array
 import org.khronos.webgl.Uint8Array
 import org.khronos.webgl.get
+import org.khronos.webgl.set
 import kotlin.math.roundToInt
 
 actual open class TiledElevationCoverage actual constructor(
@@ -163,7 +164,7 @@ actual open class TiledElevationCoverage actual constructor(
 
     private fun byteArrayToUint8Array(bytes: ByteArray): Uint8Array {
         val u8 = Uint8Array(bytes.size)
-        for (i in bytes.indices) u8.asDynamic()[i] = bytes[i].toInt() and 0xFF
+        for (i in bytes.indices) u8[i] = bytes[i]
         return u8
     }
 
