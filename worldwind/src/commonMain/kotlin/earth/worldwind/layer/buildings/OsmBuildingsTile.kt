@@ -1,5 +1,6 @@
 package earth.worldwind.layer.buildings
 
+import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.DrawableShape
 import earth.worldwind.geom.AltitudeMode
@@ -44,14 +45,21 @@ import kotlin.math.min
  * Same one-VBO-one-EBO footprint; just more sub-draw calls per tile. A uniform-colour tile (the
  * default) collapses to a single sub-draw.
  *
- * Geometry per building:
- *   - Top cap: tessellated via [GLU] with holes from inner rings.
+ * Geometry per building follows the OSM "Simple 3D Buildings" convention:
+ *   - Top cap: flat horizontal slab tessellated via [GLU] (with holes from inner rings) at
+ *     `max(corner ground) + height` so the roof clears every footprint corner.
  *   - Side walls: each edge gets four fresh corner vertices (no sharing across walls or with the
  *     cap) so the fragment shader's dFdx-derived flat normal stays sharp at every face break.
- *   - Bottom cap: only when [OsmBuilding.minHeight] > 0 (floating slab — bridges, podiums).
- *     Ground-rooted buildings have a draping skirt that meets the terrain implicitly.
+ *     Ground-rooted walls drape their base to per-corner local terrain — the wall meets the
+ *     ground at each corner regardless of slope.
+ *   - Bottom cap: only when [OsmBuilding.minHeight] > 0 (floating slab — bridges, podiums). For
+ *     floating buildings the wall base is also planar at `max(corner ground) + minHeight` so the
+ *     slab stays coplanar with the floor cap.
  *
- * Pickability is intentionally off — schematic scenery, not interactive.
+ * Per-building picking: in pick mode each [OsmBuilding] gets its own pick id and one
+ * [DrawShapeState.drawElements] sub-draw. A separate building-major element buffer
+ * ([TileData.pickElementArray]) backs this; the visual EBO stays colour-major. Click hits
+ * resolve to the [OsmBuilding] via [PickedObject.userObject].
  */
 class OsmBuildingsTile(
     private val buildings: List<OsmBuilding>,
@@ -88,6 +96,9 @@ class OsmBuildingsTile(
     // bucket switches via [selectColor] before each face; the tess callback writes to it implicitly.
     private val perColorElements = LinkedHashMap<Int, IntList>()
     private var currentElements: IntList = IntList()
+    // Building-major mirror of [perColorElements] — feeds the pick EBO so each building's
+    // triangles end up contiguous. [emitTriangle] writes to both views.
+    private val pickElements = IntList()
     private val vertexOrigin = Vec3()
     // [topIndexBase] is the absolute index of the FIRST cap-corner vertex of the current building;
     // the tess callback receives a per-cap ordinal (0..n-1) as vertexData and resolves the global
@@ -145,39 +156,78 @@ class OsmBuildingsTile(
         override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?) { /* no-op */ }
     }
 
-    init { isPickEnabled = false }
-
     /**
-     * Per-globe-state geometry cache. [elementArray] is ordered by colour bucket so each
-     * [ColorRange] in [colorRanges] is a contiguous slice; [vertexArray] is shared across buckets.
+     * Per-globe-state geometry cache. [elementArray] is colour-major (one [ColorRange] per bucket);
+     * [pickElementArray] holds the same triangle indices reordered building-major (one [PickRange]
+     * per building). Both share the same [vertexArray] / VBO.
      */
     private class TileData {
         val vertexOrigin = Vec3()
         var vertexArray = FloatArray(0)
         var elementArray = IntArray(0)
         var colorRanges: List<ColorRange> = emptyList()
+        var pickElementArray = IntArray(0)
+        var pickRanges: List<PickRange> = emptyList()
         val vertexBufferKey = Any()
         val elementBufferKey = Any()
+        val pickElementBufferKey = Any()
         var refreshGeometry = true
+        // Watermarks for the elevation snapshot baked into [vertexArray] so [doRender] can
+        // invalidate the cache when a higher-resolution DEM lands or vertical exaggeration changes;
+        // without this, buildings stay anchored to the lower-resolution ground that was available
+        // at first assembly and sink below the updated terrain.
+        var lastTimestamp = 0L
+        var lastVE = 0.0
     }
 
     private class ColorRange(val colorPacked: Int, val offset: Int, val count: Int)
+    private class PickRange(val building: OsmBuilding, val offset: Int, val count: Int)
 
     override fun doRender(rc: RenderContext) {
         val tileData = data.getOrPut(rc.globeState) { TileData() }
-        if (tileData.refreshGeometry) {
+        // Re-tessellate when the cached geometry is stale: first frame, a new DEM coverage landed
+        // (per-vertex baked-in ground altitude is out of date), or vertical exaggeration changed
+        // (Globe.geographicToCartesian scales every altitude by VE). [rc.globeState] keying already
+        // separates 2D / projection variants. AbstractShape.checkTerrainState uses the same pattern.
+        val timestamp = rc.elevationModelTimestamp
+        val ve = rc.globe.verticalExaggeration
+        val needsAssembly = tileData.refreshGeometry
+            || timestamp != tileData.lastTimestamp
+            || ve != tileData.lastVE
+        // Charge the per-frame assembly budget so a DEM update that invalidates every visible tile
+        // (potentially thousands of buildings across a city) spreads its re-tessellation across
+        // several frames instead of stalling one Choreographer tick. Budget-exhausted tiles fall
+        // through with last frame's geometry (or nothing on the first frame); [canAssembleGeometry]
+        // schedules the follow-up redraw. Same pattern as AbstractShape.prepareGeometry.
+        if (needsAssembly && rc.canAssembleGeometry()) {
             assembleGeometry(rc, tileData)
             tileData.refreshGeometry = false
+            tileData.lastTimestamp = timestamp
+            tileData.lastVE = ve
         }
         if (tileData.vertexArray.isEmpty()) return
         if (!boundingBox.intersectsFrustum(rc.frustum)) return
+
+        val cameraDistanceSq = computeCameraDistanceSq(rc)
+        if (rc.isPickMode) {
+            // Pick pass: one sub-draw per building using the building-major pick EBO. Each
+            // building gets its own [rc.nextPickedObjectId].
+            val ranges = tileData.pickRanges
+            if (ranges.isEmpty()) return
+            var chunkStart = 0
+            while (chunkStart < ranges.size) {
+                val chunkEnd = min(chunkStart + DrawShapeState.MAX_DRAW_ELEMENTS, ranges.size)
+                emitPickDrawable(rc, tileData, ranges, chunkStart, chunkEnd, cameraDistanceSq)
+                chunkStart = chunkEnd
+            }
+            return
+        }
 
         // One sub-draw per colour, chunked across [DrawableShape] instances when colours exceed
         // [DrawShapeState.MAX_DRAW_ELEMENTS]. Every chunk references the same VBO + EBO via the
         // tile's buffer keys — extra drawables do NOT add GL buffers.
         val ranges = tileData.colorRanges
         if (ranges.isEmpty()) return
-        val cameraDistanceSq = computeCameraDistanceSq(rc)
         var chunkStart = 0
         while (chunkStart < ranges.size) {
             val chunkEnd = min(chunkStart + DrawShapeState.MAX_DRAW_ELEMENTS, ranges.size)
@@ -238,6 +288,58 @@ class OsmBuildingsTile(
         rc.offerShapeDrawable(drawable, cameraDistanceSq)
     }
 
+    private fun emitPickDrawable(
+        rc: RenderContext, tileData: TileData, ranges: List<PickRange>,
+        from: Int, to: Int, cameraDistanceSq: Double,
+    ) {
+        val pool = rc.getDrawablePool(DrawableShape.KEY)
+        val drawable = DrawableShape.obtain(pool)
+        val drawState = drawable.drawState
+        drawState.program = TriangleShaderProgram.get(rc)
+
+        // Shared VBO with the visual pass; pick has its own EBO so the building-major order
+        // here doesn't affect the colour-major draw path.
+        drawState.vertexBuffer = rc.getBufferObject(tileData.vertexBufferKey) {
+            BufferObject(GL_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(tileData.vertexBufferKey, bufferDataVersion) {
+            NumericArray.Floats(tileData.vertexArray)
+        }
+        drawState.elementBuffer = rc.getBufferObject(tileData.pickElementBufferKey) {
+            BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
+        }
+        rc.offerGLBufferUpload(tileData.pickElementBufferKey, bufferDataVersion) {
+            NumericArray.Ints(tileData.pickElementArray)
+        }
+
+        drawState.opacity = 1f
+        drawState.vertexOrigin.copy(tileData.vertexOrigin)
+        drawState.boundingCenter.copy(boundingBox.center)
+        drawState.boundingRadius = boundingBox.radius
+        drawState.vertexStride = VERTEX_STRIDE * Float.SIZE_BYTES
+        drawState.enableCullFace = true
+        drawState.enableDepthTest = attributes.isDepthTest
+        drawState.enableLighting = false
+        drawState.shadowMode = ShadowMode.DISABLED
+        drawState.enableDepthWrite = true
+        drawState.texCoordAttrib.size = 1
+        drawState.texCoordAttrib.offset = 0
+
+        val layer = rc.currentLayer
+        for (i in from until to) {
+            val range = ranges[i]
+            if (range.count == 0) continue
+            val pickedObjectId = rc.nextPickedObjectId()
+            PickedObject.identifierToUniqueColor(pickedObjectId, drawState.color)
+            drawState.drawElements(
+                GL_TRIANGLES, range.count, GL_UNSIGNED_INT, range.offset * Int.SIZE_BYTES,
+            )
+            rc.offerPickedObject(PickedObject.fromUserObject(pickedObjectId, range.building, layer))
+        }
+
+        rc.offerShapeDrawable(drawable, cameraDistanceSq)
+    }
+
     private fun computeCameraDistanceSq(rc: RenderContext): Double {
         val c = boundingBox.center
         val dx = c.x - rc.cameraPoint.x
@@ -250,6 +352,8 @@ class OsmBuildingsTile(
         ++bufferDataVersion
         vertices.clear()
         perColorElements.clear()
+        pickElements.clear()
+        val pickRangesTmp = ArrayList<PickRange>(effectiveBuildings.size)
 
         // Anchor the tile-local origin at the first valid building's first corner so per-vertex
         // floats stay small relative to ECEF magnitudes. Skip the tile if no building has a
@@ -259,6 +363,8 @@ class OsmBuildingsTile(
             tileData.vertexArray = FloatArray(0)
             tileData.elementArray = IntArray(0)
             tileData.colorRanges = emptyList()
+            tileData.pickElementArray = IntArray(0)
+            tileData.pickRanges = emptyList()
             return
         }
         rc.geographicToCartesian(
@@ -269,7 +375,10 @@ class OsmBuildingsTile(
         val defaultWallColorPacked = packColor(attributes.interiorColor)
         for (b in effectiveBuildings) {
             if (b.outerRing.size < 3) continue
+            val pickStart = pickElements.size
             assembleBuilding(rc, b, defaultWallColorPacked)
+            val pickCount = pickElements.size - pickStart
+            if (pickCount > 0) pickRangesTmp.add(PickRange(b, pickStart, pickCount))
         }
 
         // Concatenate per-colour buckets into the final element array, recording offset/count per
@@ -287,6 +396,8 @@ class OsmBuildingsTile(
         tileData.vertexArray = vertices.toFloatArray()
         tileData.elementArray = finalElements
         tileData.colorRanges = ranges
+        tileData.pickElementArray = pickElements.toIntArray()
+        tileData.pickRanges = pickRangesTmp
 
         boundingBox.setToPoints(tileData.vertexArray, tileData.vertexArray.size, VERTEX_STRIDE)
         boundingBox.translate(tileData.vertexOrigin.x, tileData.vertexOrigin.y, tileData.vertexOrigin.z)
@@ -294,15 +405,36 @@ class OsmBuildingsTile(
         // Drop the working buffers — otherwise they pin ~the same memory as the final arrays.
         vertices.shrink()
         perColorElements.clear()
+        pickElements.clear()
     }
 
     private fun assembleBuilding(rc: RenderContext, b: OsmBuilding, defaultWallColorPacked: Int) {
-        // Single-sample terrain anchor matches Polygon.isPlanar: keeps tower-on-podium tops and
-        // skirts coplanar on sloped ground without a per-vertex elevation walk.
-        val anchor = b.outerRing[0]
-        val groundAlt = rc.globe.getElevation(anchor.latitude, anchor.longitude)
-        val topAlt = groundAlt + b.height
-        val baseAlt = groundAlt + b.minHeight
+        // Per-corner terrain samples implement OSM "Simple 3D Buildings" on sloped ground:
+        // ground-rooted walls drape their bases to local elevation at each footprint corner so
+        // the building meets the terrain everywhere (a single anchor sample leaves downhill
+        // corners flying above ground). Roofs — and floors of [minHeight] > 0 floating slabs —
+        // remain planar; their reference altitude is the MAX corner elevation so the slab clears
+        // every corner of its footprint by the requested height instead of disappearing into the
+        // hill on the high side.
+        val outer = b.outerRing
+        val outerGroundAlts = DoubleArray(outer.size)
+        var maxGround = Double.NEGATIVE_INFINITY
+        for (i in outer.indices) {
+            val alt = rc.globe.getElevation(outer[i].latitude, outer[i].longitude)
+            outerGroundAlts[i] = alt
+            if (alt > maxGround) maxGround = alt
+        }
+        val innerGroundAlts = Array(b.innerRings.size) { hi ->
+            val hole = b.innerRings[hi]
+            DoubleArray(hole.size) { i ->
+                val alt = rc.globe.getElevation(hole[i].latitude, hole[i].longitude)
+                if (alt > maxGround) maxGround = alt
+                alt
+            }
+        }
+        val isFloating = b.minHeight > 0.0
+        val topAlt = maxGround + b.height
+        val floatingFloorAlt = maxGround + b.minHeight
 
         val wallColorPacked = if (useOsmColors) {
             OsmColors.resolve(b.tags)?.let { packColor(it) } ?: defaultWallColorPacked
@@ -312,11 +444,13 @@ class OsmBuildingsTile(
         } else wallColorPacked
 
         selectColor(wallColorPacked)
-        emitRingGeometry(rc, b.outerRing, topAlt, baseAlt, isHole = false)
-        for (hole in b.innerRings) {
-            if (hole.size >= 3) emitRingGeometry(rc, hole, topAlt, baseAlt, isHole = true)
+        emitRingGeometry(rc, outer, outerGroundAlts, topAlt, floatingFloorAlt, isFloating, isHole = false)
+        for ((hi, hole) in b.innerRings.withIndex()) {
+            if (hole.size >= 3) emitRingGeometry(
+                rc, hole, innerGroundAlts[hi], topAlt, floatingFloorAlt, isFloating, isHole = true,
+            )
         }
-        if (b.minHeight > 0.0) emitCap(rc, b, baseAlt, isTop = false)
+        if (isFloating) emitCap(rc, b, floatingFloorAlt, isTop = false)
         selectColor(roofColorPacked)
         emitCap(rc, b, topAlt, isTop = true)
     }
@@ -325,26 +459,37 @@ class OsmBuildingsTile(
         currentElements = perColorElements.getOrPut(colorPacked) { IntList() }
     }
 
+    // Mirror every triangle into [pickElements] so the building-major pick EBO is built in lockstep
+    // with the colour-major visual EBO. Both consume from the same VBO, so the indices are the same.
     private fun emitTriangle(v0: Int, v1: Int, v2: Int) {
         currentElements.add(v0); currentElements.add(v1); currentElements.add(v2)
+        pickElements.add(v0); pickElements.add(v1); pickElements.add(v2)
     }
 
     /**
      * Four fresh corner vertices per edge so adjacent walls each get their own dFdx-derived
      * normal. For holes the winding is reversed so the wall faces inward into the courtyard.
+     *
+     * [groundAlts] is the per-corner terrain elevation for [ring]; ground-rooted walls
+     * ([isFloating] = false) drape their base to that elevation at each corner. Floating
+     * slabs use [floatingFloorAlt] for both endpoints so the wall bottom stays coplanar
+     * with the floor cap.
      */
     private fun emitRingGeometry(
-        rc: RenderContext, ring: List<Position>, topAlt: Double, baseAlt: Double, isHole: Boolean,
+        rc: RenderContext, ring: List<Position>, groundAlts: DoubleArray,
+        topAlt: Double, floatingFloorAlt: Double, isFloating: Boolean, isHole: Boolean,
     ) {
         val n = ringCount(ring)
         if (n < 2) return
         for (i in 0 until n) {
             val a = ring[i]
             val b = ring[(i + 1) % n]
+            val baseAltA = if (isFloating) floatingFloorAlt else groundAlts[i]
+            val baseAltB = if (isFloating) floatingFloorAlt else groundAlts[(i + 1) % n]
             val topAIdx = pushLocalVertex(rc, a.latitude, a.longitude, topAlt)
             val topBIdx = pushLocalVertex(rc, b.latitude, b.longitude, topAlt)
-            val botAIdx = pushLocalVertex(rc, a.latitude, a.longitude, baseAlt)
-            val botBIdx = pushLocalVertex(rc, b.latitude, b.longitude, baseAlt)
+            val botAIdx = pushLocalVertex(rc, a.latitude, a.longitude, baseAltA)
+            val botBIdx = pushLocalVertex(rc, b.latitude, b.longitude, baseAltB)
             if (!isHole) {
                 // CCW outer ring: outward = right-of-(a→b). Verify via right-hand rule on the
                 // first edge of any CCW-from-above building.
@@ -463,6 +608,7 @@ class OsmBuildingsTile(
         for (td in data.values) {
             rc.renderResourceCache.remove(td.vertexBufferKey)
             rc.renderResourceCache.remove(td.elementBufferKey)
+            rc.renderResourceCache.remove(td.pickElementBufferKey)
         }
     }
 
@@ -489,8 +635,21 @@ class OsmBuildingsTile(
 
         /**
          * Drop `building=*` outlines whose footprint contains at least one `building:part=*`
-         * centroid. Implements OSM "Simple 3D Buildings": parts replace the outline's volume,
-         * so retaining the outline produces coplanar roof surfaces that Z-fight.
+         * centroid AND whose own height would Z-fight with the parts above it. Implements OSM
+         * "Simple 3D Buildings" with one practical relaxation:
+         *
+         * Per spec an outline is 2D-only once parts exist — parts must fully describe the
+         * volume. In practice many contributors take a shortcut: they tag the outline as
+         * `building=*` with its own [height] (using the outline's polygon as the podium) and
+         * model only the upper parts as `building:part=yes` with `min_height = podium_height`.
+         * Strict filtering throws the podium away and the upper parts levitate. We therefore
+         * KEEP an outline-with-height when every part it contains starts at or above its top
+         * (`part.minHeight >= outline.height` for all enclosed parts) — there's no roof
+         * Z-fight to avoid, and the outline IS the podium the contributor encoded.
+         *
+         * Spec-compliant data (podium tagged as a separate part with `min_height = 0`) still
+         * filters cleanly: at least one of its enclosed parts will have `min_height = 0`, the
+         * relaxation does not fire, the outline is dropped as before.
          *
          * Containment test uses each part's bbox center against the outline's outer ring with
          * a bbox prefilter. Inner rings (holes) of the outline are intentionally ignored — a
@@ -525,14 +684,21 @@ class OsmBuildingsTile(
                     if (lat < minLat) minLat = lat
                     if (lat > maxLat) maxLat = lat
                 }
+                // Walk every enclosed part once. Track whether ANY part is inside (covered),
+                // and the LOWEST start altitude across them — the outline is acting as a podium
+                // iff that lowest start sits at or above the outline's own roof.
                 var covered = false
+                var minPartStart = Double.POSITIVE_INFINITY
                 for (i in parts.indices) {
                     val px = partCenters[i * 2]
                     val py = partCenters[i * 2 + 1]
                     if (px < minLon || px > maxLon || py < minLat || py > maxLat) continue
-                    if (pointInRingDeg(px, py, outline.outerRing)) { covered = true; break }
+                    if (!pointInRingDeg(px, py, outline.outerRing)) continue
+                    covered = true
+                    if (parts[i].minHeight < minPartStart) minPartStart = parts[i].minHeight
                 }
-                if (!covered) result += outline
+                val outlineIsPodium = covered && outline.height > 0.0 && minPartStart >= outline.height
+                if (!covered || outlineIsPodium) result += outline
             }
             for (p in parts) result += p
             return result

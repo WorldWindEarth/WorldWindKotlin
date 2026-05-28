@@ -128,10 +128,6 @@ open class OsmBuildingsLayer(
 
     init {
         maxActiveAltitude = 30_000.0
-        // Buildings are scenery, not interactive. Disabling picking at the layer level keeps
-        // them out of the drag detector (Polygon implements Movable, so without this they'd
-        // shift under the cursor with the standard SelectDragCallback wiring).
-        isPickEnabled = false
     }
 
     override fun doRender(rc: RenderContext) {
