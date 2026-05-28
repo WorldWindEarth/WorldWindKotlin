@@ -4,7 +4,6 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.SphericalRotation
-import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
 import kotlinx.coroutines.runBlocking
 import java.awt.event.MouseEvent
@@ -13,7 +12,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     var callback: SelectDragCallback? = null
     var isEnabled = true
 
-    protected var pickedRenderable: Renderable? = null
+    protected var pickedUserObject: Any? = null
     protected var pickedPosition: Position? = null
     protected var isDraggingArmed = false
     protected var isDragging = false
@@ -47,8 +46,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
             MouseEvent.MOUSE_DRAGGED -> {
                 if (!isDraggingArmed) return false
                 val cb = callback ?: return false
-                val renderable = pickedRenderable ?: return false
-                val fromPosition = if (renderable is Movable) renderable.referencePosition else pickedPosition ?: return false
+                val userObject = pickedUserObject ?: return false
+                val movable = userObject as? Movable
+                val fromPosition = movable?.referencePosition ?: pickedPosition ?: return false
                 val toPosition = Position()
 
                 val p = wwd.viewportCoordinates(event.x, event.y)
@@ -65,7 +65,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                     // the reference's lat/lon — catches RELATIVE_TO_GROUND with altitude > 0 and
                     // the top face of extruded shapes. Ground-anchored picks fall back to
                     // terrain so the drag adapts to varying terrain.
-                    val mode = (renderable as? Movable)?.altitudeMode
+                    val mode = movable?.altitudeMode
                     val elevated = mode == AltitudeMode.ABSOLUTE ||
                         grabAltitude > wwd.engine.globe.getElevation(
                             fromPosition.latitude, fromPosition.longitude
@@ -80,8 +80,8 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
 
                 if (moved) {
                     toPosition.altitude = fromPosition.altitude
-                    cb.onRenderableMoved(renderable, fromPosition, toPosition)
-                    if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
+                    cb.onObjectMoved(userObject, fromPosition, toPosition)
+                    movable?.moveTo(wwd.engine.globe, toPosition)
                     isDragging = true
                     wwd.requestRedraw()
                     true
@@ -91,9 +91,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
             MouseEvent.MOUSE_RELEASED -> {
                 if (isDragging) {
                     val cb = callback
-                    val renderable = pickedRenderable
+                    val userObject = pickedUserObject
                     val position = pickedPosition
-                    if (cb != null && renderable != null && position != null) cb.onRenderableMovingFinished(renderable, position)
+                    if (cb != null && userObject != null && position != null) cb.onObjectMovingFinished(userObject, position)
                 }
                 isDragging = false
                 isDraggingArmed = false
@@ -107,10 +107,10 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected open fun onSingleClick() {
         val cb = callback ?: return
         val position = pickedPosition
-        val renderable = pickedRenderable
+        val userObject = pickedUserObject
         when {
             position == null -> cb.onNothingPicked()
-            renderable != null && cb.canPickRenderable(renderable) -> cb.onRenderablePicked(renderable, position)
+            userObject != null && cb.canPickObjects(userObject) -> cb.onObjectPicked(userObject, position)
             else -> cb.onTerrainPicked(position)
         }
         wwd.requestRedraw()
@@ -119,10 +119,10 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected open fun onDoubleClick() {
         val cb = callback ?: return
         val position = pickedPosition
-        val renderable = pickedRenderable
+        val userObject = pickedUserObject
         when {
             position == null -> cb.onNothingContext()
-            renderable != null && cb.canPickRenderable(renderable) -> cb.onRenderableDoubleTap(renderable, position)
+            userObject != null && cb.canPickObjects(userObject) -> cb.onObjectDoubleTap(userObject, position)
             else -> cb.onTerrainDoubleTap(position)
         }
         wwd.requestRedraw()
@@ -135,12 +135,11 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         val topObject = topPicked?.userObject
         val movable = topObject as? Movable
         val terrainPos = pickList.terrainPickedObject?.terrainPosition
-        val renderable = topObject as? Renderable
-        pickedRenderable = renderable
+        pickedUserObject = topObject
         // Prefer the depth-tested shape-surface point over the terrain behind the shape.
         val shapePickPos = topPicked?.geographicPoint(wwd.engine.globe)
         pickedPosition = shapePickPos ?: terrainPos ?: movable?.referencePosition
-        isDraggingArmed = renderable != null && callback?.canMoveRenderable(renderable) == true
+        isDraggingArmed = topObject != null && callback?.canMoveObjects(topObject) == true
         // Approach A applies only to ground-clamped point shapes; everything else takes Approach
         // B with anchor tracking. Point shapes render with a billboard depth offset so the
         // depth-readback unprojection is shifted toward the camera; use the reference position

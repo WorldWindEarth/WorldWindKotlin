@@ -9,7 +9,6 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.SphericalRotation
-import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Movable
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -83,10 +82,10 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     private fun onSingleTap() {
         val callback = callback ?: return
         mainScope.launch {
-            val (renderable, position) = awaitPickResult(false)
+            val (userObject, position) = awaitPickResult(false)
             if (position != null) {
-                if (renderable is Renderable && callback.canPickRenderable(renderable)) {
-                    callback.onRenderablePicked(renderable, position)
+                if (userObject != null && callback.canPickObjects(userObject)) {
+                    callback.onObjectPicked(userObject, position)
                 } else callback.onTerrainPicked(position)
             } else callback.onNothingPicked()
             wwd.requestRedraw()
@@ -106,7 +105,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         // touch thread. Reading referencePosition fresh each call picks up the prior moveTo,
         // so this stays equivalent to awaitPickResult(true)'s referencePosition-first result.
         val movable = draggedMovable
-        if (isDraggingArmed && movable is Renderable) {
+        if (isDraggingArmed && movable != null) {
             doDragMove(movable, movable.referencePosition, cursorX, cursorY, callback)
             return true
         }
@@ -114,21 +113,22 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         // Slow path — pick still in flight (first move after touch-down) or pick didn't yield a
         // Movable. Defer to a coroutine and await the result.
         draggingJob = mainScope.launch {
-            val (renderable, fromPosition) = awaitPickResult(true)
-            if (isDraggingArmed && fromPosition != null && renderable is Renderable) {
-                doDragMove(renderable, fromPosition, cursorX, cursorY, callback)
+            val (userObject, fromPosition) = awaitPickResult(true)
+            if (isDraggingArmed && fromPosition != null && userObject != null) {
+                doDragMove(userObject, fromPosition, cursorX, cursorY, callback)
             }
         }
         return isDraggingArmed // We consumed this event, even if dragging has been stopped.
     }
 
     private fun doDragMove(
-        renderable: Renderable, fromPosition: Position, cursorX: Double, cursorY: Double, callback: SelectDragCallback
+        userObject: Any, fromPosition: Position, cursorX: Double, cursorY: Double, callback: SelectDragCallback
     ) {
         isDragging = true
 
         val toPosition = Position()
         val rotation = grabRotation
+        val movable = userObject as? Movable
         val moved = if (rotation == null) {
             // Approach A — ground-clamped point shape: snap to cursor on terrain.
             wwd.engine.pickTerrainPosition(cursorX, cursorY, toPosition)
@@ -141,7 +141,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
             // the reference's lat/lon — catches RELATIVE_TO_GROUND with altitude > 0 and
             // the top face of extruded shapes. Ground-anchored picks fall back to
             // terrain so the drag adapts to varying terrain.
-            val mode = (renderable as? Movable)?.altitudeMode
+            val mode = movable?.altitudeMode
             val elevated = mode == AltitudeMode.ABSOLUTE ||
                 grabAltitude > wwd.engine.globe.getElevation(
                     fromPosition.latitude, fromPosition.longitude
@@ -155,8 +155,8 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         }
         if (moved) {
             toPosition.altitude = fromPosition.altitude
-            callback.onRenderableMoved(renderable, fromPosition, toPosition)
-            if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
+            callback.onObjectMoved(userObject, fromPosition, toPosition)
+            movable?.moveTo(wwd.engine.globe, toPosition)
             wwd.requestRedraw()
         } else {
             // Probably clipped by near/far clipping plane or off the globe. The position was not updated. Stop the drag.
@@ -167,9 +167,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     override fun onDoubleTap(event: MotionEvent): Boolean {
         val callback = callback ?: return false
         return runBlocking {
-            val (renderable, position) = awaitPickResult(false)
+            val (userObject, position) = awaitPickResult(false)
             if (position != null) {
-                if (renderable is Renderable) callback.onRenderableDoubleTap(renderable, position)
+                if (userObject != null) callback.onObjectDoubleTap(userObject, position)
                 else callback.onTerrainDoubleTap(position)
                 wwd.requestRedraw()
                 true
@@ -196,9 +196,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         draggingJob = null
         val callback = callback ?: return
         mainScope.launch {
-            val (renderable, position) = awaitPickResult(true)
-            if (renderable is Renderable && position != null) {
-                callback.onRenderableMovingFinished(renderable, position)
+            val (userObject, position) = awaitPickResult(true)
+            if (userObject != null && position != null) {
+                callback.onObjectMovingFinished(userObject, position)
                 wwd.requestRedraw()
             }
         }
@@ -207,9 +207,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     private fun showContext() {
         val callback = callback ?: return
         mainScope.launch {
-            val (renderable, position) = awaitPickResult(false)
+            val (userObject, position) = awaitPickResult(false)
             if (position != null) {
-                if (renderable is Renderable) callback.onRenderableContext(renderable, position)
+                if (userObject != null) callback.onObjectContext(userObject, position)
                 else callback.onTerrainContext(position)
             } else callback.onNothingContext()
             wwd.requestRedraw()
@@ -231,7 +231,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
             val userObject = topPicked?.userObject
             val movable = userObject as? Movable
             val terrainPos = pickList.terrainPickedObject?.terrainPosition
-            isDraggingArmed = userObject is Renderable && callback?.canMoveRenderable(userObject) == true
+            isDraggingArmed = userObject != null && callback?.canMoveObjects(userObject) == true
             // Publish the picked Movable for onScroll's fast path. Only Movables qualify because
             // the fast path reads fromPosition from referencePosition; non-Movable draggables
             // still take the slow path and fall back to terrainPosition via awaitPickResult.

@@ -24,7 +24,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
      */
     var isEnabled = true
     protected var pickedPosition: Position? = null
-    protected var pickedRenderable: Renderable? = null
+    protected var pickedUserObject: Any? = null
     protected val oldHighlighted = mutableSetOf<Highlightable>()
     protected val newHighlighted = mutableSetOf<Highlightable>()
     protected var isDragging = false
@@ -75,7 +75,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
 
         // Reset previous pick result
         pickedPosition = null
-        pickedRenderable = null
+        pickedUserObject = null
 
         // Get pick point in canvas coordinates
         val pickPoint = wwd.canvasCoordinates(clientX, clientY)
@@ -124,13 +124,13 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         // Update the window if we changed anything
         if (redrawRequired) wwd.requestRedraw()
 
-        if (topPickedObject is Renderable) pickedRenderable = topPickedObject
+        pickedUserObject = topPickedObject
 
         // Take reference position as a backup, if user pressed outside the globe
         if (topPickedObject is Movable && pickedPosition == null) pickedPosition = topPickedObject.referencePosition
 
         // Determine whether the dragging flag should be "armed".
-        isDraggingArmed = topPickedObject is Renderable && callback?.canMoveRenderable(topPickedObject) == true
+        isDraggingArmed = topPickedObject != null && callback?.canMoveObjects(topPickedObject) == true
 
         // Approach A applies only to ground-clamped point shapes; everything else takes Approach
         // B with anchor tracking. Mousedown is filtered out by the `buttons != 0` guard above, so
@@ -157,9 +157,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected val handlePrimaryClick: (GestureRecognizer) -> Unit = {
         callback?.let { callback ->
             pickedPosition?.let { position ->
-                val renderable = pickedRenderable
-                if (renderable != null && callback.canPickRenderable(renderable))
-                    callback.onRenderablePicked(renderable, position) else callback.onTerrainPicked(position)
+                val userObject = pickedUserObject
+                if (userObject != null && callback.canPickObjects(userObject))
+                    callback.onObjectPicked(userObject, position) else callback.onTerrainPicked(position)
             } ?: callback.onNothingPicked()
             wwd.requestRedraw()
         }
@@ -168,9 +168,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
     protected val handleSecondaryClick: (GestureRecognizer) -> Unit = {
         callback?.let { callback ->
             pickedPosition?.let { position ->
-                val renderable = pickedRenderable
-                if (renderable != null && callback.canPickRenderable(renderable))
-                    callback.onRenderableContext(renderable, position) else callback.onTerrainContext(position)
+                val userObject = pickedUserObject
+                if (userObject != null && callback.canPickObjects(userObject))
+                    callback.onObjectContext(userObject, position) else callback.onTerrainContext(position)
             } ?: callback.onNothingContext()
             wwd.requestRedraw()
         }
@@ -180,10 +180,11 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         when (recognizer.state) {
             BEGAN, CHANGED -> {
                 val callback = callback
-                val renderable = pickedRenderable
+                val userObject = pickedUserObject
+                val movable = userObject as? Movable
                 // Reference position is a priority during movement
-                val fromPosition = if (renderable is Movable) renderable.referencePosition else pickedPosition
-                if (fromPosition != null && renderable != null && callback != null) {
+                val fromPosition = movable?.referencePosition ?: pickedPosition
+                if (fromPosition != null && userObject != null && callback != null) {
                     // Signal that dragging is in progress
                     isDragging = true
 
@@ -202,7 +203,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                         // the terrain at the reference's lat/lon — catches RELATIVE_TO_GROUND
                         // with altitude > 0 and the top face of extruded shapes. Ground-anchored
                         // picks fall back to terrain so the drag adapts to varying terrain.
-                        val mode = (renderable as? Movable)?.altitudeMode
+                        val mode = movable?.altitudeMode
                         val elevated = mode == AltitudeMode.ABSOLUTE ||
                             grabAltitude > wwd.engine.globe.getElevation(
                                 fromPosition.latitude, fromPosition.longitude
@@ -216,8 +217,8 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
                     }
                     if (moved) {
                         toPosition.altitude = fromPosition.altitude
-                        callback.onRenderableMoved(renderable, fromPosition, toPosition)
-                        if (renderable is Movable) renderable.moveTo(wwd.engine.globe, toPosition)
+                        callback.onObjectMoved(userObject, fromPosition, toPosition)
+                        movable?.moveTo(wwd.engine.globe, toPosition)
                         wwd.requestRedraw()
                     } else {
                         // Probably clipped by near/far clipping plane or off the globe.
@@ -229,9 +230,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
             ENDED -> {
                 val callback = callback
                 val position = pickedPosition
-                val renderable = pickedRenderable
-                if (renderable != null && position != null && callback != null) {
-                    callback.onRenderableMovingFinished(renderable, position)
+                val userObject = pickedUserObject
+                if (userObject != null && position != null && callback != null) {
+                    callback.onObjectMovingFinished(userObject, position)
                     wwd.requestRedraw()
                 }
                 cancelDragging()
