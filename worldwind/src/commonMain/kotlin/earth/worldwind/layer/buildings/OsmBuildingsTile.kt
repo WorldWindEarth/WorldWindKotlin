@@ -172,12 +172,9 @@ class OsmBuildingsTile(
         val elementBufferKey = Any()
         val pickElementBufferKey = Any()
         var refreshGeometry = true
-        // Watermarks for the elevation snapshot baked into [vertexArray] so [doRender] can
-        // invalidate the cache when a higher-resolution DEM lands or vertical exaggeration changes;
-        // without this, buildings stay anchored to the lower-resolution ground that was available
-        // at first assembly and sink below the updated terrain.
         var lastTimestamp = 0L
         var lastVE = 0.0
+        var groundSignature = 0L
     }
 
     private class ColorRange(val colorPacked: Int, val offset: Int, val count: Int)
@@ -191,9 +188,11 @@ class OsmBuildingsTile(
         // separates 2D / projection variants. AbstractShape.checkTerrainState uses the same pattern.
         val timestamp = rc.elevationModelTimestamp
         val ve = rc.globe.verticalExaggeration
-        val needsAssembly = tileData.refreshGeometry
-            || timestamp != tileData.lastTimestamp
-            || ve != tileData.lastVE
+        var needsAssembly = tileData.refreshGeometry || ve != tileData.lastVE
+        if (!needsAssembly && timestamp != tileData.lastTimestamp) {
+            if (computeGroundSignature(rc) != tileData.groundSignature) needsAssembly = true
+            else tileData.lastTimestamp = timestamp // ground unchanged — absorb the tick, no re-tess
+        }
         // Charge the per-frame assembly budget so a DEM update that invalidates every visible tile
         // (potentially thousands of buildings across a city) spreads its re-tessellation across
         // several frames instead of stalling one Choreographer tick. Budget-exhausted tiles fall
@@ -204,6 +203,7 @@ class OsmBuildingsTile(
             tileData.refreshGeometry = false
             tileData.lastTimestamp = timestamp
             tileData.lastVE = ve
+            tileData.groundSignature = computeGroundSignature(rc)
         }
         if (tileData.vertexArray.isEmpty()) return
         if (!boundingBox.intersectsFrustum(rc.frustum)) return
@@ -406,6 +406,25 @@ class OsmBuildingsTile(
         vertices.shrink()
         perColorElements.clear()
         pickElements.clear()
+    }
+
+    /**
+     * Rolling hash of the ground elevation under one representative corner of each building.
+     * Used only to decide whether a DEM tick actually moved this tile's terrain (see [doRender]),
+     * NOT to seat geometry — so a single sample per footprint is enough: elevation tiles load at a
+     * far coarser granularity than a building, so when this tile's DEM arrives every building's
+     * sample moves together. One getElevation per building (cache lookup + bilinear; no projection,
+     * no tessellation). A missed change only costs a slightly-late re-tessellation, never wrong
+     * output, and [refreshGeometry] / VE changes re-assemble unconditionally.
+     */
+    private fun computeGroundSignature(rc: RenderContext): Long {
+        var sig = 1125899906842597L // large-prime seed
+        for (b in effectiveBuildings) {
+            if (b.outerRing.size < 3) continue
+            val p = b.outerRing[0]
+            sig = 31L * sig + rc.globe.getElevation(p.latitude, p.longitude).toRawBits()
+        }
+        return sig
     }
 
     private fun assembleBuilding(rc: RenderContext, b: OsmBuilding, defaultWallColorPacked: Int) {
