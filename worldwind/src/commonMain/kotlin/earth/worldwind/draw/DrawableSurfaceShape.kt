@@ -274,6 +274,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             program.enableOneVertexMode(true)
             program.enablePickMode(false)
             program.enableTexture(true)
+            val lightingActive = drawState.enableLighting && !drawState.isLine && !dc.isPickMode
+            program.enableLighting(lightingActive)
+            if (lightingActive) program.loadLightDirection(dc.lightDirection)
             program.loadTexCoordMatrix(identityMatrix3)
             program.loadColor(color)
             program.loadOpacity(opacity)
