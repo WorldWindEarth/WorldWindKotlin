@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.math.abs
 
 class MvtRuleBasedStyleTest {
 
@@ -126,7 +127,7 @@ class MvtRuleBasedStyleTest {
 // Helper for absoluteTolerance signature when KMP's kotlin.test doesn't infer the Float overload.
 private fun assertEquals(expected: Float, actual: Float?, absoluteTolerance: Float) {
     if (actual == null) error("expected $expected, got null")
-    val diff = kotlin.math.abs(expected - actual)
+    val diff = abs(expected - actual)
     if (diff > absoluteTolerance) {
         error("expected ~$expected but was $actual (diff $diff > tolerance $absoluteTolerance)")
     }

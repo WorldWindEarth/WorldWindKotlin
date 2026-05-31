@@ -6,6 +6,8 @@ import org.w3c.dom.events.Event
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration
+import org.khronos.webgl.Int8Array
+import org.khronos.webgl.Uint8Array
 
 /**
  * Suspend-aware wrapper around the browser `IndexedDB` API. One database, one object store
@@ -304,7 +306,7 @@ internal external interface IdbVectorTileRecord {
     var z: Int
     var x: Int
     var y: Int
-    var bytes: org.khronos.webgl.Uint8Array
+    var bytes: Uint8Array
     var etag: String?
     var lastModified: String?
     var fetchedAt: Double
@@ -324,22 +326,22 @@ internal fun newIdbVectorTileRecord(
     return r
 }
 
-internal fun ByteArray.toUint8Array(): org.khronos.webgl.Uint8Array {
+internal fun ByteArray.toUint8Array(): Uint8Array {
     // Kotlin/JS backs `ByteArray` with a native `Int8Array`. `Uint8Array` and `Int8Array`
     // are bit-compatible so we hand IDB a view over the same buffer instead of copying
     // byte-by-byte through `asDynamic()`. A 50 KB tile-decode loop is O(N) but each
     // `asDynamic()` access is a JS dynamic dispatch — orders of magnitude slower than the
     // view-construction here.
-    val int8 = this.unsafeCast<org.khronos.webgl.Int8Array>()
-    return org.khronos.webgl.Uint8Array(int8.buffer, int8.byteOffset, int8.length)
+    val int8 = this.unsafeCast<Int8Array>()
+    return Uint8Array(int8.buffer, int8.byteOffset, int8.length)
 }
 
-internal fun org.khronos.webgl.Uint8Array.toByteArray(): ByteArray {
+internal fun Uint8Array.toByteArray(): ByteArray {
     // Same zero-copy trick in reverse — wrap the underlying buffer with an `Int8Array`
     // view and cast to `ByteArray` (which IS an `Int8Array` on Kotlin/JS). Element-wise
     // copying here previously dominated cache-hit latency: with a populated cache every
     // visible tile (~100 per frame) went through `asDynamic()` element access in a tight
     // loop, hanging the browser on page reload.
-    return org.khronos.webgl.Int8Array(this.buffer, this.byteOffset, this.length).unsafeCast<ByteArray>()
+    return Int8Array(this.buffer, this.byteOffset, this.length).unsafeCast<ByteArray>()
 }
 

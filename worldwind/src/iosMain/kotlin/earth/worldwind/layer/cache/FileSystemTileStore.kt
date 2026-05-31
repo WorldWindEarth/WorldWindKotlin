@@ -16,6 +16,7 @@ import platform.Foundation.NSNumber
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.writeToFile
+import platform.posix.memcpy
 
 /**
  * Filesystem-backed [TileStore] for iOS. One root directory per content key under
@@ -124,7 +125,7 @@ internal fun NSData.toByteArray(): ByteArray {
     if (len == 0) return ByteArray(0)
     val out = ByteArray(len)
     out.usePinned { pinned ->
-        platform.posix.memcpy(pinned.addressOf(0), bytes, length)
+        memcpy(pinned.addressOf(0), bytes, length)
     }
     return out
 }

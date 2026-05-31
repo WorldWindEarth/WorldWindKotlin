@@ -8,6 +8,7 @@ import java.awt.event.MouseWheelEvent
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
+import javax.swing.Timer
 
 open class BasicWorldWindowController(
     protected val wwd: WorldWindow,
@@ -17,7 +18,7 @@ open class BasicWorldWindowController(
     override val engine get() = wwd.engine
     protected val viewControlsLayer get() = engine.layers.filterIsInstance<ViewControlsLayer>().firstOrNull()
     protected val worldMapLayer get() = engine.layers.filterIsInstance<WorldMapLayer>().firstOrNull()
-    protected var vcRepeatTimer: javax.swing.Timer? = null
+    protected var vcRepeatTimer: Timer? = null
     private var vcCurrentX = 0.0
     private var vcCurrentY = 0.0
 
@@ -57,7 +58,7 @@ open class BasicWorldWindowController(
                     wwd.requestRedraw()
                     vcCurrentX = p.x
                     vcCurrentY = p.y
-                    vcRepeatTimer = javax.swing.Timer(50) {
+                    vcRepeatTimer = Timer(50) {
                         // Re-dispatch with the live cursor position: drag within the pan
                         // button updates direction/velocity, drag-off auto-releases.
                         if (vcl.handleClick(vcCurrentX, vcCurrentY, wwd.engine.viewport.height, wwd.engine))
@@ -211,12 +212,12 @@ open class BasicWorldWindowController(
      * margin keeps each rendered frame fed and avoids visible stutter when a tick fires late.
      */
     private inner class SwingTimerScheduler : FrameScheduler {
-        private var timer: javax.swing.Timer? = null
+        private var timer: Timer? = null
         private var lastNanos = 0L
         override fun start(tick: (dtMs: Double) -> Unit) {
             stop()
             lastNanos = System.nanoTime()
-            timer = javax.swing.Timer(8) {
+            timer = Timer(8) {
                 val now = System.nanoTime()
                 val dtMs = ((now - lastNanos) / 1_000_000.0).coerceAtMost(64.0)
                 lastNanos = now

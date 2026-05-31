@@ -32,6 +32,9 @@ import platform.Foundation.NSTimer
 import platform.QuartzCore.CACurrentMediaTime
 import platform.QuartzCore.CADisplayLink
 import platform.darwin.NSObject
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** iOS port of the gesture-driven camera controller. Mirrors the Android shape — own a set of
  *  recognizers, dispatch [TouchEvent]s, translate `gestureStateChanged` into camera updates. */
@@ -229,8 +232,8 @@ open class BasicWorldWindowController(
                 val forwardMeters = ty * metersPerPixel
                 val sideMeters = -tx * metersPerPixel
                 val heading = lookAt.heading
-                val sinHeading = kotlin.math.sin(heading.inRadians)
-                val cosHeading = kotlin.math.cos(heading.inRadians)
+                val sinHeading = sin(heading.inRadians)
+                val cosHeading = cos(heading.inRadians)
                 val x = beginLookAtPoint.x + forwardMeters * sinHeading + sideMeters * cosHeading
                 val y = beginLookAtPoint.y + forwardMeters * cosHeading - sideMeters * sinHeading
                 engine.globe.cartesianToGeographic(x, y, beginLookAtPoint.z, lookAt.position)
@@ -298,7 +301,7 @@ open class BasicWorldWindowController(
     /** Programmatic rotation entry for Mac trackpad's `UIRotationGestureRecognizer` -
      *  UITouch-based [RotationRecognizer] doesn't see indirect (trackpad) rotations. */
     fun handleIndirectRotate(state: GestureState, rotationRadians: Float, screenX: Float, screenY: Float) {
-        val degrees = (rotationRadians.toDouble() * (180.0 / kotlin.math.PI)).toFloat()
+        val degrees = (rotationRadians.toDouble() * (180.0 / PI)).toFloat()
         when (state) {
             BEGAN -> {
                 gestureDidBegin()

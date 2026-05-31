@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Vector-tile demo: fetches OpenMapTiles-schema MVT data from Versatiles' public CDN and
@@ -62,7 +63,7 @@ class MvtVectorTilesTutorial(
                 // layerLoader returns faster than the camera-driven frame.
                 WorldWind.requestRedraw()
                 Logger.log(Logger.INFO, "MVT layer loaded")
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 // attachCache validation on re-open (existing vector-tile pyramid mismatch

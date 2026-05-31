@@ -1,4 +1,4 @@
-@file:OptIn(earth.worldwind.layer.cache.LowLevelCacheApi::class)
+@file:OptIn(LowLevelCacheApi::class)
 
 package earth.worldwind.formats.gpkg
 
@@ -44,6 +44,7 @@ import mil.nga.geopackage.extension.im.vector_tiles.VectorTilesMapboxExtension
 import mil.nga.geopackage.tiles.user.TileTable
 import java.io.File
 import kotlin.time.Instant
+import earth.worldwind.layer.cache.LowLevelCacheApi
 
 /**
  * GeoPackage-backed [ContentManager]. One instance binds to one `.gpkg` file. Stores

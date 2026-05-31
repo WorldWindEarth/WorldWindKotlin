@@ -1,5 +1,8 @@
 package earth.worldwind.render
 
+import java.awt.FontMetrics
+import java.awt.image.BufferedImage
+
 actual open class Font(var font: java.awt.Font) {
     actual constructor() : this("Arial", FontWeight.BOLD, DEFAULT_FONT_SIZE)
     actual constructor(family: String, weight: FontWeight, size: Int) :
@@ -32,11 +35,11 @@ actual open class Font(var font: java.awt.Font) {
         // the cost of allocating one per measurement call. Per-font cache keyed by the
         // AWT Font reference (Font is value-equal but caching by identity is safe — the
         // engine reuses Font instances for the same (family, weight, size) tuple).
-        private val probe = java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB)
-        private val metricsCache = HashMap<java.awt.Font, java.awt.FontMetrics>()
+        private val probe = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+        private val metricsCache = HashMap<java.awt.Font, FontMetrics>()
 
         @Synchronized
-        private fun sharedFontMetrics(font: java.awt.Font): java.awt.FontMetrics =
+        private fun sharedFontMetrics(font: java.awt.Font): FontMetrics =
             metricsCache.getOrPut(font) { probe.createGraphics().also { it.font = font }.fontMetrics }
     }
 

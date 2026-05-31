@@ -14,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlin.math.atan
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * @param layerLoader full coverage-creation override. JVM/Android pass a loader that
@@ -46,7 +47,7 @@ class WcsElevationTutorial(
                 // explicit redraw to wake the renderer once the new coverage is wired.
                 WorldWind.requestRedraw()
                 Logger.log(Logger.INFO, "WCS coverage loaded")
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 // attachCache validation on re-open (sector / matrix / data-type mismatch)

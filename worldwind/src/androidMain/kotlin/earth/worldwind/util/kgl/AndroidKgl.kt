@@ -6,6 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.ShortBuffer
+import java.nio.Buffer
 
 class AndroidKgl : Kgl {
     private val arrI = IntArray(16)
@@ -254,7 +255,7 @@ class AndroidKgl : Kgl {
         // Non-zero offsets aren't exposed; callers needing them must use the JVM/desktop
         // path or seek the PBO with bufferSubData beforehand.
         require(offset == 0) { "AndroidKgl.texSubImage2D PBO path supports only offset=0" }
-        GLES30.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, null as java.nio.Buffer?)
+        GLES30.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, null as Buffer?)
     }
 
     override fun activeTexture(texture: Int) = GLES20.glActiveTexture(texture)

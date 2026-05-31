@@ -3,6 +3,7 @@ package earth.worldwind.layer.mvt
 import earth.worldwind.render.Color
 import kotlin.math.ln
 import kotlin.math.pow
+import kotlin.math.abs
 
 /**
  * Mapbox-style expression tree. Each node evaluates to `T?` against an [EvalContext]
@@ -477,9 +478,9 @@ sealed class MvtExpression<out T> {
             var t = x.coerceIn(0.0, 1.0)
             for (i in 0 until 8) {
                 val px = ((ax * t + bx) * t + cx) * t - x
-                if (kotlin.math.abs(px) < 1e-6) break
+                if (abs(px) < 1e-6) break
                 val dx = (3.0 * ax * t + 2.0 * bx) * t + cx
-                if (kotlin.math.abs(dx) < 1e-6) break
+                if (abs(dx) < 1e-6) break
                 t -= px / dx
             }
             return (((ay * t + by) * t + cy) * t).coerceIn(0.0, 1.0)

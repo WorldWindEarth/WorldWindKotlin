@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.toList
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.layer.source.CachedFeatureRow
 
 /**
  * End-to-end test for the GeoJSON cache cycle:
@@ -84,18 +86,18 @@ class GeoJsonCacheRoundTripTest {
  *  in this test set. */
 private class InMemoryFeatureStore : FeatureStore {
     override val evictionPolicy = CacheEvictionPolicy.UNBOUNDED
-    val bulkRows = mutableListOf<earth.worldwind.layer.source.CachedFeatureRow>()
+    val bulkRows = mutableListOf<CachedFeatureRow>()
 
-    override suspend fun readAll(): Flow<earth.worldwind.layer.source.CachedFeatureRow> =
+    override suspend fun readAll(): Flow<CachedFeatureRow> =
         bulkRows.toList().asFlow()
 
-    override suspend fun replaceAll(rows: Flow<earth.worldwind.layer.source.CachedFeatureRow>) {
+    override suspend fun replaceAll(rows: Flow<CachedFeatureRow>) {
         bulkRows.clear()
         rows.toList().also { bulkRows.addAll(it) }
     }
 
     override suspend fun readTile(z: Int, x: Int, y: Int) = throw UnsupportedOperationException()
-    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<earth.worldwind.layer.source.CachedFeatureRow>) =
+    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>) =
         throw UnsupportedOperationException()
     override suspend fun deleteTile(z: Int, x: Int, y: Int) = throw UnsupportedOperationException()
 
@@ -103,7 +105,7 @@ private class InMemoryFeatureStore : FeatureStore {
         bulkRows.sumOf { (it.properties?.length ?: 0).toLong() + 32L }
 }
 
-private fun BulkFeatureLayer.toList() = (this as earth.worldwind.layer.RenderableLayer).toList()
+private fun BulkFeatureLayer.toList() = (this as RenderableLayer).toList()
 
 private fun runTest(body: suspend () -> Unit) {
     kotlinx.coroutines.test.runTest { body() }

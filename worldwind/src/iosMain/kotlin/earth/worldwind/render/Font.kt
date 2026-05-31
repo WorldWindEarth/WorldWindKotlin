@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.BetaInteropApi::class, kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(BetaInteropApi::class, ExperimentalForeignApi::class)
 
 package earth.worldwind.render
 
@@ -8,6 +8,8 @@ import platform.Foundation.create
 import platform.UIKit.NSFontAttributeName
 import platform.UIKit.UIFont
 import platform.UIKit.size
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.ExperimentalForeignApi
 
 actual open class Font {
     var family: String = "Helvetica"

@@ -23,6 +23,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonElement
 
 /**
  * Vector-feature layer driven by a [BulkFeatureSource]. The source delivers
@@ -199,7 +200,7 @@ open class BulkFeatureLayer(
         return result
     }
 
-    private fun jsonValueToAny(element: kotlinx.serialization.json.JsonElement): Any? = when (element) {
+    private fun jsonValueToAny(element: JsonElement): Any? = when (element) {
         is JsonNull -> null
         is JsonPrimitive -> when {
             element.isString -> element.content

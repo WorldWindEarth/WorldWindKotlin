@@ -47,6 +47,11 @@ import kotlin.math.atan
 import kotlin.math.sinh
 import kotlin.math.tan
 import kotlin.time.Clock
+import kotlin.concurrent.Volatile
+import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.log2
+import kotlin.math.sqrt
 
 /**
  * Renders Mapbox Vector Tile (MVT) data as flat surface-draped polygons and polylines.
@@ -149,9 +154,9 @@ open class MvtVectorLayer(
      * render thread. Tiles fetched before any [doRender] has run see null here and skip
      * pre-assembly; the render thread then assembles on first paint.
      */
-    @kotlin.concurrent.Volatile
+    @Volatile
     private var capturedGlobe: Globe? = null
-    @kotlin.concurrent.Volatile
+    @Volatile
     private var capturedGlobeState: Globe.State? = null
 
     init {
@@ -260,7 +265,7 @@ open class MvtVectorLayer(
         val target = rc.lookAtPosition
         val distance = if (target != null) {
             val cameraAlt = rc.camera.position.altitude
-            kotlin.math.abs(cameraAlt - target.altitude).coerceAtLeast(1.0)
+            abs(cameraAlt - target.altitude).coerceAtLeast(1.0)
         } else {
             rc.camera.position.altitude.coerceAtLeast(1.0)
         }
@@ -268,7 +273,7 @@ open class MvtVectorLayer(
         if (metersPerPixel <= 0.0) return minZoom.toDouble()
         val tileMeters = TILE_PIXEL_SIZE * metersPerPixel
         val equatorialCircumference = 2.0 * PI * rc.globe.equatorialRadius
-        return kotlin.math.log2(equatorialCircumference / tileMeters)
+        return log2(equatorialCircumference / tileMeters)
     }
 
     /**
@@ -320,10 +325,10 @@ open class MvtVectorLayer(
         val active = activeTileZoom
         if (active == -1) return 1f
         val delta = (lastCameraZoomReal - active).coerceIn(-1.0, 1.0)
-        return kotlin.math.exp(delta * LN2).toFloat()
+        return exp(delta * LN2).toFloat()
     }
 
-    private val LN2 = kotlin.math.ln(2.0)
+    private val LN2 = ln(2.0)
 
     /** How many consecutive frames a different zoom must be observed before switching. */
     var zoomStableFrames: Int = 8
@@ -536,7 +541,7 @@ open class MvtVectorLayer(
         WorldWind.requestRedraw()
     }
 
-    @kotlin.concurrent.Volatile
+    @Volatile
     private var firstFetchLogged: Boolean = false
 
     /** Count of tiles currently in the LRU cache (visible + fringe). Best-effort, may briefly
@@ -553,7 +558,7 @@ open class MvtVectorLayer(
      * first-tile responses. Useful for surfacing a "loaded <schema>-flavoured tiles" status
      * in UI, or for selecting a matching style at runtime.
      */
-    @kotlin.concurrent.Volatile
+    @Volatile
     var detectedSchema: MvtSchemaDetector.Schema? = null
         private set
 
@@ -988,7 +993,7 @@ open class MvtVectorLayer(
         for (i in 1 until n) {
             val dy = line[i].latitude.inDegrees - line[i - 1].latitude.inDegrees
             val dx = line[i].longitude.inDegrees - line[i - 1].longitude.inDegrees
-            cum[i] = cum[i - 1] + kotlin.math.sqrt(dx * dx + dy * dy)
+            cum[i] = cum[i - 1] + sqrt(dx * dx + dy * dy)
         }
         val total = cum.last()
         if (total <= 0.0) return

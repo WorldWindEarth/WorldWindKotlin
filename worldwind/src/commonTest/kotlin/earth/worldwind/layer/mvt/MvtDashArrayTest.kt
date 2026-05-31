@@ -3,6 +3,7 @@ package earth.worldwind.layer.mvt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import earth.worldwind.render.Color
 
 class MvtDashArrayTest {
 
@@ -30,7 +31,7 @@ class MvtDashArrayTest {
     @Test fun integratesThroughPaintSpecBuildOutlineImageSource() {
         // PaintSpec.build should populate outlineImageSource when lineDashArray is set.
         val paint = MvtStyleRule.PaintSpec(
-            lineColor = MvtExpression.Literal(earth.worldwind.render.Color(1f, 0f, 0f)),
+            lineColor = MvtExpression.Literal(Color(1f, 0f, 0f)),
             lineWidth = MvtExpression.Literal(2f),
             lineDashArray = floatArrayOf(4f, 2f),
         )

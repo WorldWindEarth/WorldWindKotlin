@@ -1,6 +1,7 @@
 package earth.worldwind.formats.nitf
 
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.geom.Sector
 
 /**
  * A decoded NITF image ready to be displayed. Holds a row-major ARGB int[]
@@ -20,7 +21,7 @@ class NitfImage(
      *  `BufferedImage.TYPE_INT_ARGB` and Android `Bitmap.Config.ARGB_8888`. */
     val argb: IntArray,
     /** Georeferenced sector from the image segment's IGEOLO field. */
-    val sector: earth.worldwind.geom.Sector,
+    val sector: Sector,
 )
 
 /**

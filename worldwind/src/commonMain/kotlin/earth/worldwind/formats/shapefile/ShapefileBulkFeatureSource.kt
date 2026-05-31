@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonElement
 
 /**
  * [BulkFeatureSource] for ESRI Shapefiles. Downloads the .shp/.dbf/.prj/.cpg quartet from
@@ -90,7 +91,7 @@ class ShapefileBulkFeatureSource(
 
     private fun attributesToJsonString(attrs: Map<String, Any?>): String? {
         if (attrs.isEmpty()) return null
-        val map = LinkedHashMap<String, kotlinx.serialization.json.JsonElement>(attrs.size)
+        val map = LinkedHashMap<String, JsonElement>(attrs.size)
         for ((k, v) in attrs) if (v != null) map[k] = JsonPrimitive(v.toString())
         return JsonObject(map).toString()
     }

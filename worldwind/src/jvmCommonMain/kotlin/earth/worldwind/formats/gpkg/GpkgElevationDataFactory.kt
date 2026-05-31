@@ -18,6 +18,9 @@ import earth.worldwind.util.Logger.log
 import java.nio.Buffer
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
+import earth.worldwind.layer.source.TileBlob
+import kotlin.math.round
+import kotlinx.coroutines.CancellationException
 
 /**
  * Elevation source factory that pairs a [GeoPackage] cache with an optional upstream
@@ -123,7 +126,7 @@ open class GpkgCachedElevationDataFactory(
         if (!overrideCache) {
             try {
                 readFromCache()?.let { return it }
-            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (t: Throwable) {
                 log(
@@ -137,7 +140,7 @@ open class GpkgCachedElevationDataFactory(
         val networkSource = parent.networkSource ?: return null
         val blob = try {
             networkSource.fetchTile(zoomLevel, tileColumn, tileRow)
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
             log(WARN, "GpkgCachedElevation network fetch failed [$zoomLevel/$tileColumn/$tileRow]: ${t.message}")
@@ -162,7 +165,7 @@ open class GpkgCachedElevationDataFactory(
      */
     suspend fun fetchCachedElevationData(): Buffer? = try {
         readFromCache()
-    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+    } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (t: Throwable) {
         log(
@@ -196,7 +199,7 @@ open class GpkgCachedElevationDataFactory(
 
     /** Decode network bytes per [GpkgCachedElevationSourceFactory.outputFormat] (or the
      *  server's `Content-Type` when it advertises a specific elevation MIME). */
-    protected open suspend fun decodeNetworkBlob(blob: earth.worldwind.layer.source.TileBlob): Buffer? {
+    protected open suspend fun decodeNetworkBlob(blob: TileBlob): Buffer? {
         val serverType = blob.contentType
         val effectiveType =
             if (serverType == null || serverType.equals("application/octet-stream", ignoreCase = true))
@@ -296,7 +299,7 @@ open class GpkgCachedElevationDataFactory(
             } else {
                 val raw = ((f - tileOffset) / tileScale).toDouble()
                 val clamped = raw.coerceIn(0.0, 65535.0)
-                kotlin.math.round(clamped).toInt()
+                round(clamped).toInt()
             }
             // PNG writer takes the low 16 bits of scanline[i]. Storing as signed Short
             // round-trips correctly because the reader interprets the row as 16-bit

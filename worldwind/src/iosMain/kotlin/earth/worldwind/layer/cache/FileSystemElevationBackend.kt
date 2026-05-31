@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(ExperimentalForeignApi::class)
 
 package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.TileBlob
@@ -9,6 +9,7 @@ import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.writeToFile
+import kotlinx.cinterop.ExperimentalForeignApi
 
 /**
  * Filesystem-backed [ElevationStoreBackend] for iOS. Wraps an existing [FileSystemTileStore]

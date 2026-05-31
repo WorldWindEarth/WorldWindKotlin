@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class, ExperimentalCoroutinesApi::class)
 
 package earth.worldwind
 
@@ -91,6 +91,7 @@ import platform.gles3.glViewport
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /** Lets pinch+rotation+pan recognizers fire together. K/N NSObject subclasses must be regular classes. */
 @ExportObjCClass

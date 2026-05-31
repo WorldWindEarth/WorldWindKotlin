@@ -19,6 +19,7 @@ import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetCurrentContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
 import platform.UIKit.UIImage
+import kotlin.math.PI
 
 /** iOS port of the JVM/Android [TriangleMeshImageFactory]: red->green->red radial gradient
  *  filling a circle of [outerRadius]; outside the circle stays transparent. [innerRadius]
@@ -53,7 +54,7 @@ actual class TriangleMeshImageFactory actual constructor(
         if (gradient != null && cs != null) {
             // Clip to the outer circle so the gradient doesn't paint the whole bitmap.
             CGContextBeginPath(ctx)
-            CGContextAddArc(ctx, c, c, outerRadius.toDouble(), 0.0, 2.0 * kotlin.math.PI, 0)
+            CGContextAddArc(ctx, c, c, outerRadius.toDouble(), 0.0, 2.0 * PI, 0)
             CGContextClip(ctx)
             CGContextDrawRadialGradient(
                 ctx,

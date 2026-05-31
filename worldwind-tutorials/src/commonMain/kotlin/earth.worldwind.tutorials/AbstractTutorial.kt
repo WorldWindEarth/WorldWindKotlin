@@ -7,6 +7,7 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import kotlin.math.cos
 import kotlin.math.sin
+import earth.worldwind.render.RenderContext
 
 abstract class AbstractTutorial(protected val engine: WorldWind) {
 
@@ -61,7 +62,7 @@ abstract class AbstractTutorial(protected val engine: WorldWind) {
      * sun via [computeSceneLightDirection]. Lives as a method (not a captured lambda) so
      * subclasses can override the angle parameters without re-registering a new provider.
      */
-    protected open fun applySceneLight(rc: earth.worldwind.render.RenderContext) {
+    protected open fun applySceneLight(rc: RenderContext) {
         computeSceneLightDirection(
             rc.camera.position, sunAzimuthDegrees, sunElevationDegrees, rc.lightDirection
         )

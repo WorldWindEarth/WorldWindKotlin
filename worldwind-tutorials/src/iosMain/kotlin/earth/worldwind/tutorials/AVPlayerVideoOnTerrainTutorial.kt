@@ -22,6 +22,8 @@ import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
 import platform.QuartzCore.CADisplayLink
 import platform.darwin.NSObject
+import earth.worldwind.util.Logger
+import kotlinx.cinterop.ExportObjCClass
 
 /**
  * iOS tutorial: drapes a STANAG 4609 drone clip onto the terrain via [AVPlayerVideoTexture],
@@ -50,15 +52,15 @@ class AVPlayerVideoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engin
         super.start()
         // Lazy resource lookup so a missing video file produces a warning, not a crash.
         val videoUrl = bundleURL("drone_motion", "mp4") ?: run {
-            earth.worldwind.util.Logger.log(
-                earth.worldwind.util.Logger.WARN,
+            Logger.log(
+                Logger.WARN,
                 "drone_motion.mp4 not found in main bundle — video tutorial disabled"
             )
             return
         }
         val timelineJson = bundleText("drone_motion", "json") ?: run {
-            earth.worldwind.util.Logger.log(
-                earth.worldwind.util.Logger.WARN,
+            Logger.log(
+                Logger.WARN,
                 "drone_motion.json not found in main bundle — video tutorial disabled"
             )
             return
@@ -113,7 +115,7 @@ class AVPlayerVideoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engin
  * scoping, mutable state) with Obj-C supertypes — same constraint that forced
  * `BasicWorldWindowController.DisplayLinkTarget` to be a separate class.
  */
-@kotlinx.cinterop.ExportObjCClass
+@ExportObjCClass
 private class DisplayLinkRedraw : NSObject() {
     private var link: CADisplayLink? = null
     private var tick: (() -> Unit)? = null

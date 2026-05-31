@@ -6,6 +6,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.math.abs
 
 class MvtMapboxStyleLoaderTest {
 
@@ -250,6 +251,6 @@ class MvtMapboxStyleLoaderTest {
 }
 
 private fun assertEquals(expected: Float, actual: Float, tol: Float) {
-    if (kotlin.math.abs(expected - actual) > tol)
+    if (abs(expected - actual) > tol)
         error("expected ~$expected but was $actual (tol $tol)")
 }
