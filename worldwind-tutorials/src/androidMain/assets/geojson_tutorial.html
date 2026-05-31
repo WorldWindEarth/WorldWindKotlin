@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>GeoJSON Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>GeoJSON Tutorial</h1>
+<p>
+    Demonstrates loading a GeoJSON document through the v3
+    <code>BulkFeatureLayer</code> pipeline.</p>
+<p>
+    <code>GeoJsonBulkFeatureSource</code> parses the document into <code>CachedFeatureRow</code>s
+    on demand; <code>BulkFeatureLayer</code> renders each row, applying GeoJSON
+    <a href="https://github.com/mapbox/simplestyle-spec">simplestyle</a> keys
+    (<code>stroke</code> / <code>fill</code> / <code>stroke-width</code> / <code>icon</code> / …)
+    automatically before the <code>customLogicToApplyProperties</code> lambda runs.
+    <code>GeoJsonLayerFactory.createLayer(text, …)</code> is the convenience facade.
+</p>
+<p>
+    The sample document holds three European countries (UK as a <code>MultiPolygon</code>,
+    France and Spain as plain Polygons), a <code>GeometryCollection</code> for a mountain range,
+    and six cities. Each feature carries a <code>population</code> attribute; the lambda tints
+    placemarks, labels, and polygons by population tier on top of the simplestyle defaults.
+    The UK's MultiPolygon fans out to two <code>Polygon</code> renderables that share the same
+    properties map — the lambda runs once per renderable, so both pieces get the same tint.
+</p>
+
+<h2>Example</h2>
+<h3>GeoJsonTutorial.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class GeoJsonTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+) : AbstractTutorial(engine) {
+
+    private var layer: BulkFeatureLayer? = null
+    private var job: Job? = null
+
+    override fun start() {
+        super.start()
+        job = scope.launch {
+            try {
+                val built = GeoJsonLayerFactory.createLayer(
+                    text = SAMPLE,
+                    displayName = "European demo",
+                    labelVisibilityThreshold = 4_000_000.0,
+                    customLogicToApplyProperties = populationStyling,
+                )
+                if (!isActive) return@launch
+                layer = built
+                engine.layers.addLayer(built)
+                WorldWind.requestRedraw()
+            } catch (e: Throwable) {
+                Logger.log(Logger.ERROR, "GeoJSON tutorial: ${e.message}", e)
+            }
+        }
+        engine.camera.apply {
+            position.setDegrees(47.0, 1.0, 6_000_000.0)
+            heading = Angle.ZERO; tilt = Angle.ZERO; roll = Angle.ZERO
+        }
+    }
+
+    override fun stop() {
+        super.stop()
+        job?.cancel()
+        layer?.let { engine.layers.removeLayer(it) }.also { layer = null }
+    }
+
+    companion object {
+        private val populationTiers = listOf(
+            5_000_000.0 to Color.fromHexString("#E63946"), // megacity — red
+            1_000_000.0 to Color.fromHexString("#F4A261"), // major    — orange
+            0.0         to Color.fromHexString("#2A9D8F"), // small    — teal
+        )
+
+        val populationStyling: Renderable.(LinkedHashMap<String, Any?>) -> Unit = { properties ->
+            val population = (properties["population"] as? Number)?.toDouble()
+            if (population != null && population > 0.0) {
+                val color = populationTiers.first { (threshold, _) -> population >= threshold }.second
+                when (this) {
+                    is Placemark -> attributes.imageColor = color
+                    is Label -> attributes.textColor = color
+                    is Polygon -> attributes.interiorColor = color
+                }
+            }
+        }
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

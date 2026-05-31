@@ -16,7 +16,6 @@ private const val METERS_PER_LATITUDE_DEGREE = 111_320.0
 internal const val DEFAULT_DENSITY = 1.0f
 internal const val HIGHLIGHT_INCREMENT = 4f
 internal const val DEFAULT_IMAGE_SCALE = 1.0
-internal const val DEFAULT_PLACEMARK_ICON_SIZE = 24.0
 internal const val DEFAULT_LABEL_VISIBILITY_THRESHOLD = 0.0
 
 internal val DEFAULT_ICON_COLOR = Color(1f, 1f, 1f, 1f) // white

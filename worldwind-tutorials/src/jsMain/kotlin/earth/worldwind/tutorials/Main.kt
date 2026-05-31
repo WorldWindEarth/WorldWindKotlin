@@ -42,6 +42,7 @@ import earth.worldwind.shape.Movable
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.await
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -194,6 +195,9 @@ fun main() {
                 contentManager.attachCache(layer, "Shapefile_Countries")
                 layer
             }),
+            "GeoJSON" to GeoJsonTutorial(wwd.engine, mainScope) {
+                window.fetch(MR.assets.geojson_sample_json.originalPath).await().text().await()
+            },
             "WCS Elevation" to WcsElevationTutorial(wwd.engine, mainScope, layerLoader = {
                 Wcs100ElevationCoverage(
                     serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,

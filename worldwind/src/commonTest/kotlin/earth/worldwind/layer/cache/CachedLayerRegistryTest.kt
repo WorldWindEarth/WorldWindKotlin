@@ -11,6 +11,7 @@ import earth.worldwind.ogc.WmsElevationCoverage
 import earth.worldwind.ogc.WmsImageLayer
 import earth.worldwind.ogc.WmtsImageLayer
 import earth.worldwind.layer.BulkFeatureLayer
+import earth.worldwind.layer.source.GeoJsonBulkFeatureSource
 import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
 import earth.worldwind.util.CachedLayerRegistry
 import earth.worldwind.util.ContentManager
@@ -24,9 +25,9 @@ import kotlin.time.Instant
 
 /**
  * Regression tests for the cross-platform reopen dispatcher. The bug classes covered:
- *   1. A entry with a registered web service must dispatch through the registry, not
+ *   1. An entry with a registered web service must dispatch through the registry, not
  *      through `tryOpenNativeContent` (the JVM-specific gpkg fallback).
- *   2. A entry without a registered web service must consult `tryOpenNativeContent`
+ *   2. An entry without a registered web service must consult `tryOpenNativeContent`
  *      and return whatever it yields (including `null` on platforms with no fallback).
  *   3. The built-in registrations cover every standard service type (so apps don't
  *      need to register them manually).
@@ -54,6 +55,8 @@ class CachedLayerRegistryTest {
         // Features
         assertNotNull(CachedLayerRegistry.opener(
             CacheEntry.DataType.FEATURES, WfsBulkFeatureSource.SERVICE_TYPE))
+        assertNotNull(CachedLayerRegistry.opener(
+            CacheEntry.DataType.FEATURES, GeoJsonBulkFeatureSource.SERVICE_TYPE))
     }
 
     @Test
