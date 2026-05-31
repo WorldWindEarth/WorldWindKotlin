@@ -248,7 +248,6 @@ abstract class AbstractMainActivity: AppCompatActivity(), NavigationView.OnNavig
             R.id.nav_projected_media_surface_example_activity -> startActivity(Intent(applicationContext, ProjectedMediaSurfaceExampleActivity::class.java))
             R.id.nav_placemarks_stress_activity -> startActivity(Intent(applicationContext, PlacemarksStressTestActivity::class.java))
             R.id.nav_texture_stress_test_activity -> startActivity(Intent(applicationContext, TextureStressTestActivity::class.java))
-            R.id.nav_kml_demo_activity -> startActivity(Intent(applicationContext, KmlDemoActivity::class.java))
         }
         val drawer = findViewById<DrawerLayout>(R.id.drawer_layout)
         drawer.closeDrawer(GravityCompat.START)

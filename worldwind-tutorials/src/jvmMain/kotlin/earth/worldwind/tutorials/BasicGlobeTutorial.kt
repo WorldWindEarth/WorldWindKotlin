@@ -1,5 +1,6 @@
 package earth.worldwind.tutorials
 
+import java.awt.Toolkit
 import earth.worldwind.BasicWorldWindowController
 import earth.worldwind.WorldWindow
 import earth.worldwind.geom.Line
@@ -196,6 +197,9 @@ fun main() {
                 }),
                 "GeoJSON" to GeoJsonTutorial(engine, mainScope) {
                     MR.assets.geojson_sample_json.readText()
+                },
+                "KML" to KmlTutorial(engine, mainScope, density = Toolkit.getDefaultToolkit().screenResolution / 96f) {
+                    MR.assets.kml_sample_kml.readText()
                 },
                 "WCS Elevation" to WcsElevationTutorial(engine, mainScope, layerLoader = {
                     Wcs100ElevationCoverage(
