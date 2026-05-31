@@ -98,7 +98,7 @@ object ElevationStorageCodec {
         var max = Float.NEGATIVE_INFINITY
         var hasValid = false
         for (f in values) {
-            if (f == Float.MAX_VALUE || f.isNaN()) continue
+            if (f.isNoData()) continue
             hasValid = true
             if (f < min) min = f
             if (f > max) max = f
@@ -112,7 +112,7 @@ object ElevationStorageCodec {
         // Null sentinel (Float.MAX_VALUE) maps to code 0 — lossy but consistent.
         val codes = IntArray(values.size) { i ->
             val f = values[i]
-            if (f == Float.MAX_VALUE || f.isNaN()) {
+            if (f.isNoData()) {
                 0
             } else {
                 val raw = ((f - tileOffset) / tileScale).toDouble()
@@ -124,6 +124,17 @@ object ElevationStorageCodec {
             tileScale = tileScale, tileOffset = tileOffset,
         )
     }
+
+    /**
+     * No-data test for an elevation sample. `Float.MAX_VALUE`
+     * ([earth.worldwind.globe.elevation.coverage.ElevationCoverage.MISSING_DATA]) is the
+     * sentinel, but it's detected by magnitude rather than `== Float.MAX_VALUE`: on Kotlin/JS
+     * a value round-tripped through a `Float32Array` doesn't reliably equal the
+     * `Float.MAX_VALUE` constant (float-vs-double rounding), so an exact compare lets the
+     * sentinel leak into the min/max sweep and blows up the packing scale. No real elevation
+     * comes anywhere near 1e30, so the threshold is unambiguous.
+     */
+    private fun Float.isNoData(): Boolean = isNaN() || this >= 1e30f
 }
 
 /**
