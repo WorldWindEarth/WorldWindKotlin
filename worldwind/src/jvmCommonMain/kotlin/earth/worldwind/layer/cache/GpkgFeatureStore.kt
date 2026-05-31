@@ -2,9 +2,9 @@ package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.CachedGeometry
 
-import earth.worldwind.ogc.gpkg.GeoPackage
-import earth.worldwind.ogc.gpkg.GpkgContent
-import earth.worldwind.ogc.gpkg.GpkgFeatureRow
+import earth.worldwind.formats.gpkg.GeoPackage
+import earth.worldwind.formats.gpkg.GpkgContent
+import earth.worldwind.formats.gpkg.GpkgFeatureRow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow

@@ -22,7 +22,7 @@ import earth.worldwind.layer.cache.attachCache
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
-import earth.worldwind.ogc.GpkgContentManager
+import earth.worldwind.formats.gpkg.GpkgContentManager
 import earth.worldwind.shape.Movable
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.launch

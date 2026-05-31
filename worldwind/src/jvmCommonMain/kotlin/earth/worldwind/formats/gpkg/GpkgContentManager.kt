@@ -1,6 +1,6 @@
 @file:OptIn(earth.worldwind.layer.cache.LowLevelCacheApi::class)
 
-package earth.worldwind.ogc
+package earth.worldwind.formats.gpkg
 
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
@@ -15,15 +15,15 @@ import earth.worldwind.layer.source.TileSource
 import earth.worldwind.layer.cache.TileStore
 import earth.worldwind.layer.cache.WebServiceInfo
 import earth.worldwind.layer.mercator.MercatorSector
-import earth.worldwind.ogc.gpkg.GeoPackage
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.COVERAGE
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.EPSG_3857
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FEATURES
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FLOAT
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.INTEGER
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILES
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.VECTOR_TILES
-import earth.worldwind.ogc.gpkg.GpkgContent
+import earth.worldwind.formats.gpkg.GeoPackage
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.COVERAGE
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.EPSG_3857
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.FEATURES
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.FLOAT
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.INTEGER
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.TILES
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.VECTOR_TILES
+import earth.worldwind.formats.gpkg.GpkgContent
 import earth.worldwind.util.ContentManager
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger.WARN

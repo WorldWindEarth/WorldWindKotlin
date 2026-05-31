@@ -1,12 +1,12 @@
-package earth.worldwind.ogc.gpkg
+package earth.worldwind.formats.gpkg
 
 import android.database.sqlite.SQLiteDatabase
 import androidx.core.graphics.scale
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.FEATURE_PROPERTIES_COLUMN
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.LAST_MODIFIED_COLUMN
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILE_X_COLUMN
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILE_Y_COLUMN
-import earth.worldwind.ogc.gpkg.GeoPackage.Companion.TILE_Z_COLUMN
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.FEATURE_PROPERTIES_COLUMN
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.LAST_MODIFIED_COLUMN
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.TILE_X_COLUMN
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.TILE_Y_COLUMN
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.TILE_Z_COLUMN
 import earth.worldwind.render.image.ImageSource
 import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackage
@@ -78,20 +78,37 @@ actual fun readCachedFeaturesWithProperties(
 actual fun insertCachedFeatures(
     geoPackage: GeoPackageCore, tableName: String, rows: List<Pair<Geometry, String?>>,
 ) {
+    if (rows.isEmpty()) return
     val featureDao = (geoPackage as GeoPackage).getFeatureDao(tableName)
     val now = System.currentTimeMillis()
     // `last_modified` may be absent if migration was skipped (pre-eviction GPKG, ensure
     // failed, etc.). `row.setValue` throws GeoPackageException on unknown columns —
     // swallow it so writes still succeed without eviction metadata.
     val hasLastModified = runCatching { featureDao.table.getColumnIndex(LAST_MODIFIED_COLUMN) }.isSuccess
-    for ((geometry, propertiesJson) in rows) {
-        val row = featureDao.newRow()
-        row.geometry = GeoPackageGeometryData.create(featureDao.geometryColumns.srsId, geometry)
-        propertiesJson?.let { row.setValue(FEATURE_PROPERTIES_COLUMN, it) }
-        if (hasLastModified) row.setValue(LAST_MODIFIED_COLUMN, now)
-        featureDao.insert(row)
+    // Chunked transactions instead of per-row autocommit: a Shapefile/WFS layer can be tens
+    // of thousands of features, and a commit (fsync) per row makes the write minutes-long.
+    // Chunking — rather than one big transaction — bounds how long the write lock is held so
+    // concurrent render reads from the same GeoPackage aren't starved.
+    featureDao.beginTransaction()
+    var committed = false
+    try {
+        var inserted = 0
+        for ((geometry, propertiesJson) in rows) {
+            val row = featureDao.newRow()
+            row.geometry = GeoPackageGeometryData.create(featureDao.geometryColumns.srsId, geometry)
+            propertiesJson?.let { row.setValue(FEATURE_PROPERTIES_COLUMN, it) }
+            if (hasLastModified) row.setValue(LAST_MODIFIED_COLUMN, now)
+            featureDao.insert(row)
+            if (++inserted % FEATURE_INSERT_BATCH == 0) featureDao.endAndBeginTransaction()
+        }
+        committed = true
+    } finally {
+        featureDao.endTransaction(committed)
     }
 }
+
+/** Rows per write transaction for bulk feature inserts — see [insertCachedFeatures]. */
+private const val FEATURE_INSERT_BATCH = 1000
 
 actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
     (geoPackage as GeoPackage).getFeatureDao(tableName).deleteAll()
@@ -133,17 +150,26 @@ actual fun replaceFeatureTileRows(
     val srsId = featureDao.geometryColumns.srsId
     val now = System.currentTimeMillis()
     val hasLastModified = runCatching { featureDao.table.getColumnIndex(LAST_MODIFIED_COLUMN) }.isSuccess
-    for ((geometry, propertiesJson) in rows) {
-        val row = featureDao.newRow()
-        if (geometry != null) {
-            row.geometry = GeoPackageGeometryData.create(srsId, geometry)
+    featureDao.beginTransaction()
+    var committed = false
+    try {
+        var inserted = 0
+        for ((geometry, propertiesJson) in rows) {
+            val row = featureDao.newRow()
+            if (geometry != null) {
+                row.geometry = GeoPackageGeometryData.create(srsId, geometry)
+            }
+            row.setValue(TILE_Z_COLUMN, z)
+            row.setValue(TILE_X_COLUMN, x)
+            row.setValue(TILE_Y_COLUMN, y)
+            propertiesJson?.let { row.setValue(FEATURE_PROPERTIES_COLUMN, it) }
+            if (hasLastModified) row.setValue(LAST_MODIFIED_COLUMN, now)
+            featureDao.insert(row)
+            if (++inserted % FEATURE_INSERT_BATCH == 0) featureDao.endAndBeginTransaction()
         }
-        row.setValue(TILE_Z_COLUMN, z)
-        row.setValue(TILE_X_COLUMN, x)
-        row.setValue(TILE_Y_COLUMN, y)
-        propertiesJson?.let { row.setValue(FEATURE_PROPERTIES_COLUMN, it) }
-        if (hasLastModified) row.setValue(LAST_MODIFIED_COLUMN, now)
-        featureDao.insert(row)
+        committed = true
+    } finally {
+        featureDao.endTransaction(committed)
     }
 }
 

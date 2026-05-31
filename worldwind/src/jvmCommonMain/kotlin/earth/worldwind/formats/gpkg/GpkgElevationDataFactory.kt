@@ -1,4 +1,4 @@
-package earth.worldwind.ogc
+package earth.worldwind.formats.gpkg
 
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.geom.TileMatrixSet
@@ -11,8 +11,8 @@ import earth.worldwind.layer.cache.CachedSourceInfo
 import earth.worldwind.layer.cache.CachedSourceInfoProvider
 import earth.worldwind.layer.cache.OfflineToggleable
 import earth.worldwind.layer.source.TileSource
-import earth.worldwind.ogc.gpkg.GeoPackage
-import earth.worldwind.ogc.gpkg.GpkgContent
+import earth.worldwind.formats.gpkg.GeoPackage
+import earth.worldwind.formats.gpkg.GpkgContent
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import java.nio.Buffer

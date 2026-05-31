@@ -31,6 +31,7 @@ vlcj = "4.12.1"
 javacv = "1.5.13"
 javafx = "26.0.1"
 xmlutil = "0.91.3"
+webp-imageio = "0.10.0"
 
 [plugins]
 
@@ -100,6 +101,7 @@ javafx-base = { module = "org.openjfx:javafx-base", version.ref = "javafx" }
 javafx-graphics = { module = "org.openjfx:javafx-graphics", version.ref = "javafx" }
 javafx-media = { module = "org.openjfx:javafx-media", version.ref = "javafx" }
 javafx-swing = { module = "org.openjfx:javafx-swing", version.ref = "javafx" }
+webp-imageio = { module = "com.github.usefulness:webp-imageio", version.ref = "webp-imageio" }
 
 kotlin-wrappers-bom = { module = "org.jetbrains.kotlin-wrappers:kotlin-wrappers-bom", version.ref = "kotlin-wrappers" }
 kotlin-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser" }

@@ -1,4 +1,4 @@
-package earth.worldwind.ogc.gpkg
+package earth.worldwind.formats.gpkg
 
 import com.j256.ormlite.field.DataType
 import com.j256.ormlite.field.DatabaseField

@@ -1,4 +1,4 @@
-package earth.worldwind.ogc
+package earth.worldwind.formats.gpkg
 
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.TiledImageLayer
@@ -13,9 +13,8 @@ import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.layer.mercator.MercatorTiledImageLayer
 import earth.worldwind.layer.mercator.MercatorTiledSurfaceImage
 import earth.worldwind.layer.mvt.MvtVectorLayer
-import earth.worldwind.ogc.gpkg.GeoPackage
-import earth.worldwind.ogc.gpkg.GpkgContent
 import earth.worldwind.layer.BulkFeatureLayer
+import earth.worldwind.ogc.Wcs100ElevationCoverage
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
