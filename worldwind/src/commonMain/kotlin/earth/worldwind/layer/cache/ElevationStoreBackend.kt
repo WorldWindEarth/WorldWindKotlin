@@ -36,11 +36,13 @@ interface ElevationStoreBackend {
 }
 
 /** One stored tile pulled out of an [ElevationStoreBackend]: the encoded blob plus the
- *  per-tile `(scale, offset)` the codec needs to decode it. */
+ *  per-tile `(scale, offset)` the codec needs to decode it. [cachedAt] is the epoch-millis the
+ *  tile was written (for stale-while-revalidate); `null` when the backend doesn't track it. */
 data class CachedTile(
     val bytes: ByteArray,
     val tileScale: Float,
     val tileOffset: Float,
+    val cachedAt: Long? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

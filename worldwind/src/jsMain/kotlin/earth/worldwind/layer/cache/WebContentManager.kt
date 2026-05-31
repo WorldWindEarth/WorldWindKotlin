@@ -222,6 +222,7 @@ class WebContentManager(
             outputFormat = outputFormat,
             isFloat = effectiveIsFloat,
             tileMatrixSet = tileMatrixSet,
+            maxAge = evictionPolicy.maxAge,
         )
     }
 

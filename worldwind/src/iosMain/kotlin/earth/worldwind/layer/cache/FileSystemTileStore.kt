@@ -10,13 +10,17 @@ import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import platform.Foundation.NSData
+import platform.Foundation.NSDate
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSFileModificationDate
 import platform.Foundation.NSFileSize
 import platform.Foundation.NSNumber
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
+import platform.Foundation.timeIntervalSince1970
 import platform.Foundation.writeToFile
 import platform.posix.memcpy
+import kotlin.time.Duration
 
 /**
  * Filesystem-backed [TileStore] for iOS. One root directory per content key under
@@ -53,7 +57,16 @@ class FileSystemTileStore(
         val bytes = data.toByteArray()
         if (bytes.isEmpty()) return@withContext TileBlob.EMPTY
         val (etag, lastModified) = readMeta(z, x, y)
-        TileBlob(bytes, etag, lastModified)
+        // Surface write time (the tile file's mtime) only when freshness tracking is on
+        // (finite maxAge), to drive stale-while-revalidate in CachedTileSource / elevation factory.
+        val cachedAt = if (evictionPolicy.maxAge != Duration.INFINITE) fileModifiedMillis(path) else null
+        TileBlob(bytes, etag, lastModified, cachedAt = cachedAt)
+    }
+
+    private fun fileModifiedMillis(path: String): Long? {
+        val attrs = NSFileManager.defaultManager.attributesOfItemAtPath(path, null) ?: return null
+        val date = attrs[NSFileModificationDate] as? NSDate ?: return null
+        return (date.timeIntervalSince1970 * 1000.0).toLong()
     }
 
     override suspend fun writeTile(z: Int, x: Int, y: Int, blob: TileBlob): Unit = withContext(Dispatchers.Default) {

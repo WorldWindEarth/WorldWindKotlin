@@ -148,6 +148,7 @@ class IosContentManager(
             outputFormat = outputFormat,
             isFloat = storedIsFloat ?: isFloat,
             tileMatrixSet = tileMatrixSet,
+            maxAge = evictionPolicy.maxAge,
         )
     }
 
