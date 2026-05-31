@@ -236,6 +236,24 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             .queryForFirst()
     }
 
+    /** Epoch-millis the tile was last written, for stale-while-revalidate reads. Returns
+     *  `null` when the table doesn't track `last_modified` (third-party / pre-eviction GPKG),
+     *  `0` when the column is present but NULL (treated as always-stale, matching eviction).
+     *  Read via raw SQL because `last_modified` isn't on [GpkgTileUserData]; coords are ints,
+     *  so inlining is injection-safe. Caller gates this on a finite eviction `maxAge`. */
+    suspend fun readTileLastModified(
+        content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int
+    ): Long? = withContext(Dispatchers.IO) {
+        if (content.tableName !in tablesWithLastModified) return@withContext null
+        val escaped = content.tableName.replace("\"", "\"\"")
+        getOrCreateTileUserDataDao(content.tableName).queryRawValue(
+            "SELECT COALESCE($LAST_MODIFIED_COLUMN, 0) FROM \"$escaped\" " +
+                "WHERE ${GpkgTileUserData.ZOOM_LEVEL} = $zoomLevel " +
+                "AND ${GpkgTileUserData.TILE_COLUMN} = $tileColumn " +
+                "AND ${GpkgTileUserData.TILE_ROW} = $tileRow"
+        )
+    }
+
     @Throws(IllegalStateException::class)
     suspend fun writeTileUserData(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray
