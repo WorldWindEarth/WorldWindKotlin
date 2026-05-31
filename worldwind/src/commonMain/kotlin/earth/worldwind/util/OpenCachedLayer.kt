@@ -3,6 +3,7 @@
 package earth.worldwind.util
 
 import earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource
+import earth.worldwind.layer.source.GeoJsonBulkFeatureSource
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrixSet
@@ -235,6 +236,9 @@ private val builtInRegistration: Unit = run {
     CachedLayerRegistry.register(features, ShapefileBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
         cm.openShapefileLayer(h, h.service!!.address, eviction)
     }
+    CachedLayerRegistry.register(features, GeoJsonBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
+        cm.openGeoJsonLayer(h, eviction)
+    }
     CachedLayerRegistry.register(features, OverpassBuildingsSource.SERVICE_TYPE) { cm, h, eviction ->
         cm.openOsmBuildingsLayer(h, h.service!!.address, eviction)
     }
@@ -462,6 +466,19 @@ private suspend fun ContentManager.openShapefileLayer(
     val store = openFeatureStore(entry.contentKey, evictionPolicy, displayName = entry.displayName)
     val network = ShapefileBulkFeatureSource(shpUrl)
     val source = CachedBulkFeatureSource(network, store)
+    return BulkFeatureLayer(source = source, displayName = entry.displayName).also { it.load() }
+}
+
+/** GeoJSON has no reopen-time upstream: the document text was supplied inline at
+ *  attachCache time and isn't persisted. The cache-only [CachedBulkFeatureSource] replays
+ *  the stored rows; if the cache has been evicted the layer comes back empty. Callers that
+ *  want to refresh must re-attach with the original text. */
+private suspend fun ContentManager.openGeoJsonLayer(
+    entry: CacheEntry,
+    evictionPolicy: CacheEvictionPolicy,
+): BulkFeatureLayer {
+    val store = openFeatureStore(entry.contentKey, evictionPolicy, displayName = entry.displayName)
+    val source = CachedBulkFeatureSource(inner = null, store = store)
     return BulkFeatureLayer(source = source, displayName = entry.displayName).also { it.load() }
 }
 

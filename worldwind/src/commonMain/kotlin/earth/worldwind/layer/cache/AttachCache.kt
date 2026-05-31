@@ -12,6 +12,7 @@ import earth.worldwind.layer.buildings.OverpassBuildingsSource
 import earth.worldwind.layer.mercator.WebMercatorImageLayer
 import earth.worldwind.layer.mvt.MvtVectorLayer
 import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
+import earth.worldwind.layer.source.GeoJsonBulkFeatureSource
 import earth.worldwind.layer.source.TileSource
 import earth.worldwind.ogc.Wcs100ElevationCoverage
 import earth.worldwind.ogc.Wcs100ElevationTileSource
@@ -227,6 +228,14 @@ internal suspend fun ContentManager.attachBulkFeatureLayerCache(
             address = current.serviceAddress,
             layerName = current.layerName,
             metadata = current.serviceMetadata,
+        )
+        // GeoJSON has no upstream URL — the text was supplied inline. Across launches the
+        // cache replays via [CachedBulkFeatureSource] with `inner = null`; on reopen the
+        // opener constructs a cache-only layer from the persisted rows. `address` is a
+        // placeholder so the gpkg row is well-formed; the opener doesn't read it.
+        is GeoJsonBulkFeatureSource -> WebServiceInfo(
+            type = GeoJsonBulkFeatureSource.SERVICE_TYPE,
+            address = "inline",
         )
         else -> error("BulkFeatureLayer wraps unknown BulkFeatureSource: ${current::class.simpleName}")
     }

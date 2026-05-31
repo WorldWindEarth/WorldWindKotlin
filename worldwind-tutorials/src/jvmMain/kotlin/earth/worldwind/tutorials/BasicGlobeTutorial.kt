@@ -194,6 +194,9 @@ fun main() {
                     contentManager.attachCache(layer, "Shapefile_Countries")
                     layer
                 }),
+                "GeoJSON" to GeoJsonTutorial(engine, mainScope) {
+                    MR.assets.geojson_sample_json.readText()
+                },
                 "WCS Elevation" to WcsElevationTutorial(engine, mainScope, layerLoader = {
                     Wcs100ElevationCoverage(
                         serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,

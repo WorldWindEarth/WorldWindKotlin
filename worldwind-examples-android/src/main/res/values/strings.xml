@@ -22,7 +22,6 @@
     <string name="title_placemarks_select_drag">Placemark Select and Drag</string>
     <string name="title_projected_media_surface_example">Projected media surface</string>
     <string name="title_kml_demo">KML Demonstration</string>
-    <string name="title_geo_json_demo">GeoJSON Demonstration</string>
     <string name="title_placemarks_stress_test">Placemarks Stress Test</string>
     <string name="title_texture_stress_test">Texture Stress Test</string>
 

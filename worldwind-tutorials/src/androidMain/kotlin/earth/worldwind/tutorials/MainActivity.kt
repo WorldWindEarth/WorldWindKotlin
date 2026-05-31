@@ -381,6 +381,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/shapefile_layer_tutorial.html",
                 R.string.title_shapefile_layer
             )
+            R.id.nav_geojson_activity -> loadTutorial(
+                GeoJsonFragment::class.java,
+                "file:///android_asset/geojson_tutorial.html",
+                R.string.title_geojson
+            )
             R.id.nav_wcs_elevation_activity -> loadTutorial(
                 WcsElevationFragment::class.java,
                 "file:///android_asset/wcs_elevation_tutorial.html",

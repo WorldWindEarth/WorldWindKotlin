@@ -243,6 +243,9 @@ object Tutorials {
                 layer
             })
         },
+        TutorialFactory("geojson", "GeoJSON") { e ->
+            GeoJsonTutorial(e, iosMainScope) { MR.assets.geojson_sample_json.readText() }
+        },
         TutorialFactory("wcsElevation", "WCS Elevation") { e ->
             WcsElevationTutorial(e, iosMainScope, layerLoader = {
                 Wcs100ElevationCoverage(
