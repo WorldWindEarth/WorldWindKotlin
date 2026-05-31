@@ -101,8 +101,12 @@ actual open class RenderResourceCache(
                     currentRetrievals += imageSource
                     mainScope.launch {
                         try {
-                            imageSource.asImageFactory().createImage()?.let { retrievalSucceeded(imageSource, options, it) }
-                                ?: retrievalFailed(imageSource)
+                            val image = imageSource.asImageFactory().createImage()
+                            if (image != null) {
+                                // Apply image postprocessor (e.g. Mercator reprojection) before caching
+                                val processed = imageSource.postprocessor?.process(image) ?: image
+                                retrievalSucceeded(imageSource, options, processed)
+                            } else retrievalFailed(imageSource)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Throwable) {
