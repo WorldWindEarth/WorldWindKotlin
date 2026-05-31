@@ -4,11 +4,21 @@ import earth.worldwind.layer.source.TileSource
 
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock
+import kotlin.time.Duration
 
 /**
  * Cache-first decorator over a [TileSource]. The lookup order is:
- *   1. Read [store]. Hit → return cached blob (no network).
+ *   1. Read [store]. Hit → return cached blob (no network); if the blob is older than the
+ *      store's eviction [CacheEvictionPolicy.maxAge], also kick a background refresh
+ *      (stale-while-revalidate — see [maybeRevalidate]).
  *   2. Miss → fetch from [inner] (network), write-through to [store], return.
  *
  * When [inner] is `null`, this acts as a pure cache view — useful for replaying a GPKG
@@ -19,10 +29,22 @@ import kotlin.coroutines.cancellation.CancellationException
  * served verbatim. Pass those revalidation headers in only when you want the inner source
  * to issue a conditional GET, which the decorator only does on a miss.
  */
+@OptIn(DelicateCoroutinesApi::class)
 class CachedTileSource(
     private val inner: TileSource?,
     private val store: TileStore,
+    /** Background scope for stale-while-revalidate refreshes; defaults to [GlobalScope] since
+     *  they're fire-and-forget and must outlive the render call that triggered them. */
+    private val revalidationScope: CoroutineScope = GlobalScope,
 ) : TileSource, OfflineToggleable, CachedSourceInfoProvider {
+
+    /** Invoked (off the render thread) after a stale tile is re-downloaded and written through,
+     *  so the render layer can drop the tile's cached texture and redraw. `null` = no swap;
+     *  the fresh tile then appears on the next texture (re)load. */
+    var onTileRevalidated: ((z: Int, x: Int, y: Int) -> Unit)? = null
+
+    private val revalidating = mutableSetOf<Long>()
+    private val revalidateMutex = Mutex()
 
     /** The wrapped upstream tile source (e.g. `WmsTileSource`, `WmtsTileSource`,
      *  `UrlTemplateImageTileSource`). Exposed for rebind flows — `attachCache` extractors
@@ -79,7 +101,10 @@ class CachedTileSource(
         previousEtag: String?,
         previousLastModified: String?,
     ): TileBlob? {
-        store.readTile(z, x, y)?.let { return it }
+        store.readTile(z, x, y)?.let { cached ->
+            maybeRevalidate(z, x, y, cached)
+            return cached
+        }
         if (isCacheOnly) return null
         val fetched = try {
             inner?.fetchTile(z, x, y, previousEtag, previousLastModified)
@@ -104,4 +129,41 @@ class CachedTileSource(
         }
         return fetched
     }
+
+    /**
+     * Stale-while-revalidate: after serving a cached tile, if it's older than the store's
+     * eviction [CacheEvictionPolicy.maxAge], re-download it in the background and write through
+     * (which bumps `last_modified`, so it stops being eviction-eligible). No-op when offline,
+     * when there's no network source, when freshness isn't tracked (`maxAge == INFINITE` or the
+     * store didn't surface [TileBlob.cachedAt]), or when a refresh for this tile is already
+     * in flight. Errors are swallowed — a failed refresh just leaves the stale tile in place.
+     */
+    private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cached: TileBlob) {
+        if (isCacheOnly) return
+        val network = inner ?: return
+        val maxAge = store.evictionPolicy.maxAge
+        if (maxAge == Duration.INFINITE) return
+        val cachedAt = cached.cachedAt ?: return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        val key = tileKey(z, x, y)
+        if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
+        revalidationScope.launch {
+            try {
+                val fresh = network.fetchTile(z, x, y) ?: return@launch
+                store.writeTile(z, x, y, fresh)
+                onTileRevalidated?.invoke(z, x, y)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                logMessage(WARN, "CachedTileSource", "maybeRevalidate",
+                    "Background refresh failed for ($z,$x,$y): ${e::class.simpleName}: ${e.message}")
+            } finally {
+                revalidateMutex.withLock { revalidating.remove(key) }
+            }
+        }
+    }
+
+    /** Packs (z,x,y) into one Long for the in-flight-revalidation set (x/y < 2^24, z < 2^16). */
+    private fun tileKey(z: Int, x: Int, y: Int): Long =
+        (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
 }

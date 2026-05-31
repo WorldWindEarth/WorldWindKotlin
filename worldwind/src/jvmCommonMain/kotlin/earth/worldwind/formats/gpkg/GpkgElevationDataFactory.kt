@@ -21,6 +21,14 @@ import java.nio.ShortBuffer
 import earth.worldwind.layer.source.TileBlob
 import kotlin.math.round
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.time.Clock
+import kotlin.time.Duration
 
 /**
  * Elevation source factory that pairs a [GeoPackage] cache with an optional upstream
@@ -46,6 +54,7 @@ import kotlinx.coroutines.CancellationException
  *
  * Set [networkSource] = `null` for offline replay (cache hits served, misses return null).
  */
+@OptIn(DelicateCoroutinesApi::class)
 class GpkgCachedElevationSourceFactory(
     internal val geoPackage: GeoPackage,
     internal val content: GpkgContent,
@@ -54,12 +63,50 @@ class GpkgCachedElevationSourceFactory(
     internal val isFloat: Boolean,
     internal val tileMatrixSet: TileMatrixSet,
     internal val elevationDecoder: ElevationDecoder = ElevationDecoder(),
+    /** Stale-while-revalidate threshold (reuses eviction `maxAge`); [Duration.INFINITE] = off. */
+    internal val maxAge: Duration = Duration.INFINITE,
+    /** Background scope for revalidation refreshes; fire-and-forget, outlives the read. */
+    private val revalidationScope: CoroutineScope = GlobalScope,
 ) : ElevationSourceFactory, OfflineToggleable, CachedSourceInfoProvider,
     BulkRetrievableElevationSourceFactory, CacheReadableElevationSourceFactory {
     override val contentType = "GpkgCachedElevation"
 
     override val cacheInfo: CachedSourceInfo
         get() = CachedSourceInfo(contentKey = content.tableName, contentPath = geoPackage.pathName)
+
+    /** Invoked (off the render thread) after a stale tile is re-downloaded; the coverage wires
+     *  this to bump its timestamp + request a redraw so the tessellator re-pulls the tile. */
+    var onTileRevalidated: (() -> Unit)? = null
+
+    private val revalidating = mutableSetOf<Long>()
+    private val revalidateMutex = Mutex()
+
+    /**
+     * After a cache hit, if the tile is older than [maxAge], re-download it in the background
+     * (forcing past the cache via `overrideCache`, which write-throughs and bumps
+     * `last_modified`). No-op when offline, when there's no network, when freshness isn't
+     * tracked, or when a refresh for this tile is already in flight.
+     */
+    internal suspend fun maybeRevalidate(zoomLevel: Int, tileColumn: Int, tileRow: Int) {
+        if (isCacheOnly || networkSource == null || maxAge == Duration.INFINITE) return
+        val cachedAt = geoPackage.readTileLastModified(content, zoomLevel, tileColumn, tileRow) ?: return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        val key = (zoomLevel.toLong() shl 48) or (tileColumn.toLong() and 0xFFFFFF shl 24) or (tileRow.toLong() and 0xFFFFFF)
+        if (!revalidateMutex.withLock { revalidating.add(key) }) return
+        revalidationScope.launch {
+            try {
+                GpkgCachedElevationDataFactory(this@GpkgCachedElevationSourceFactory, zoomLevel, tileColumn, tileRow)
+                    .fetchElevationDataIgnoringCacheOnly(overrideCache = true)
+                onTileRevalidated?.invoke()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (t: Throwable) {
+                log(WARN, "GpkgCachedElevation background refresh failed [$zoomLevel/$tileColumn/$tileRow]: ${t.message}")
+            } finally {
+                revalidateMutex.withLock { revalidating.remove(key) }
+            }
+        }
+    }
 
     /** Bulk-download path: bypass [isCacheOnly] and force a network fetch + persist on
      *  cache miss. When [overrideCache] is true, also skip the cache hit short-circuit
@@ -125,7 +172,11 @@ open class GpkgCachedElevationDataFactory(
         // let the network path overwrite with fresh, correctly-transcoded bytes.
         if (!overrideCache) {
             try {
-                readFromCache()?.let { return it }
+                readFromCache()?.let { hit ->
+                    // Serve cached now; if stale, re-download in the background (SWR).
+                    parent.maybeRevalidate(zoomLevel, tileColumn, tileRow)
+                    return hit
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (t: Throwable) {

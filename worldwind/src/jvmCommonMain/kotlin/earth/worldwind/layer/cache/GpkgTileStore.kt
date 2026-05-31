@@ -3,6 +3,7 @@ import earth.worldwind.layer.source.TileBlob
 
 import earth.worldwind.formats.gpkg.GeoPackage
 import earth.worldwind.formats.gpkg.GpkgContent
+import kotlin.time.Duration
 
 /**
  * GeoPackage-backed [TileStore]. One instance binds to one tile-pyramid table — works for
@@ -29,12 +30,14 @@ class GpkgTileStore(
     override suspend fun readTile(z: Int, x: Int, y: Int): TileBlob? {
         val row = geoPackage.readTileUserData(content, z, x, y) ?: return null
         if (row.tileData.isEmpty()) return TileBlob.EMPTY
-        // Serve the cached bytes directly. ETag / Last-Modified are deliberately NOT read
-        // here: nothing on the render path issues a conditional GET (cache hits are served
-        // verbatim), so joining gpkg_tile_revalidation on every tile read — 100+ tiles per
-        // frame during a pan — is pure overhead. A revalidation-on-refresh path can read it
-        // on demand via geoPackage.readTileRevalidation.
-        return TileBlob(bytes = row.tileData)
+        // ETag / Last-Modified are deliberately NOT read here — nothing issues a conditional
+        // GET on the render path, so joining gpkg_tile_revalidation every read is pure waste.
+        // last_modified is surfaced only when freshness tracking is on (finite maxAge), to
+        // drive [CachedTileSource]'s stale-while-revalidate; one cheap gated read.
+        val cachedAt = if (evictionPolicy.maxAge != Duration.INFINITE) {
+            geoPackage.readTileLastModified(content, z, x, y)
+        } else null
+        return TileBlob(bytes = row.tileData, cachedAt = cachedAt)
     }
 
     override suspend fun writeTile(z: Int, x: Int, y: Int, blob: TileBlob) {
