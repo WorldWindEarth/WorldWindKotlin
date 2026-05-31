@@ -1,12 +1,14 @@
 package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.TileSource
 
+import earth.worldwind.WorldWind
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.mercator.MercatorImageTile
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.render.image.ImageTile
 import earth.worldwind.util.Level
+import earth.worldwind.util.SynchronizedList
 import earth.worldwind.util.Tile
 import earth.worldwind.util.TileFactory
 
@@ -28,6 +30,35 @@ class TileSourceFactoryAdapter(
     val imageFormat: String = "image/png",
 ) : TileFactory {
     override val contentType = "TileSource"
+
+    // Slippy (z,x,y) of tiles a stale-while-revalidate refresh re-downloaded (packed into a
+    // Long). Populated off the render thread by [RevalidatingSource.onTileRevalidated]; drained
+    // on the render thread by [TiledSurfaceImage] to evict the stale textures. SynchronizedList
+    // keeps the cross-thread add/drain safe.
+    private val pendingRevalidations = SynchronizedList<Long>()
+
+    init {
+        (source as? RevalidatingSource)?.onTileRevalidated = { z, x, y ->
+            pendingRevalidations.add(packKey(z, x, y))
+            WorldWind.requestRedraw()
+        }
+    }
+
+    /** Render-thread drain: the [ImageSource]s whose cached textures should be evicted so they
+     *  re-decode from the now-fresh store. Rebuilds each key the same way [createTile] does, so
+     *  it matches the texture-cache entry by value. */
+    fun drainRevalidatedImageSources(): List<ImageSource> {
+        if (pendingRevalidations.isEmpty()) return emptyList()
+        val out = ArrayList<ImageSource>()
+        while (pendingRevalidations.isNotEmpty()) {
+            val key = pendingRevalidations.removeAt(0)
+            out += buildTileSourceImageSource(source, (key shr 48).toInt(), (key shr 24 and 0xFFFFFF).toInt(), (key and 0xFFFFFF).toInt(), imageFormat)
+        }
+        return out
+    }
+
+    private fun packKey(z: Int, x: Int, y: Int): Long =
+        (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int): Tile {
         val tile = if (sector is MercatorSector) {

@@ -4,6 +4,7 @@ import earth.worldwind.draw.DrawableSurfaceTexture
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.Globe
+import earth.worldwind.layer.cache.TileSourceFactoryAdapter
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
@@ -78,6 +79,12 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
 
     override fun doRender(rc: RenderContext) {
         if (rc.terrain.sector.isEmpty) return // no terrain surface to render on
+        // Stale-while-revalidate: drop textures for tiles a background refresh just re-cached so
+        // they re-decode from the now-fresh store. Done here (render thread) because the texture
+        // cache isn't synchronized; the refresh thread only enqueues + requests this redraw.
+        (tileFactory as? TileSourceFactoryAdapter)?.drainRevalidatedImageSources()?.forEach {
+            rc.renderResourceCache.remove(it)
+        }
         checkGlobeState(rc)
         determineActiveProgram(rc)
         assembleTiles(rc)
