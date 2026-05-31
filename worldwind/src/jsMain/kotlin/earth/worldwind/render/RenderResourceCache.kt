@@ -160,7 +160,7 @@ actual open class RenderResourceCache(
                 mainScope.launch {
                     try {
                         postprocessor.process(image)
-                    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    } catch (e: CancellationException) {
                         throw e
                     } catch (e: Throwable) {
                         log(WARN, "Image postprocessor failed ($imageSource): ${e.message}")

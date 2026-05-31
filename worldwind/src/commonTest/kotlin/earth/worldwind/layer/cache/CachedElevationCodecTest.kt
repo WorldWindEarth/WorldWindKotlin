@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.math.abs
 
 /**
  * Bug-class regression tests for the cross-platform elevation cache codec. Each test
@@ -89,7 +90,7 @@ class CachedElevationCodecTest {
         val out = decoded.values
         assertEquals(input.size, out.size)
         for (i in input.indices) {
-            val drift = kotlin.math.abs(out[i] - input[i])
+            val drift = abs(out[i] - input[i])
             assertTrue(drift <= encoded.tileScale,
                 "pixel $i drift $drift exceeds quantization step ${encoded.tileScale}")
         }

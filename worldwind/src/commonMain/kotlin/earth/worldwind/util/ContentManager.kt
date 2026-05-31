@@ -236,7 +236,7 @@ interface ContentManager {
      * shape. Other backends keep the default no-op.
      */
     @LowLevelCacheApi
-    suspend fun tryRecoverTileMatrixSet(contentKey: String): earth.worldwind.geom.TileMatrixSet? = null
+    suspend fun tryRecoverTileMatrixSet(contentKey: String): TileMatrixSet? = null
 
     /**
      * Open a cached layer/coverage for a [CacheEntry] that has *no* registered

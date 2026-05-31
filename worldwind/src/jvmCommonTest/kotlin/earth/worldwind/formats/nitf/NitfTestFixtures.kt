@@ -1,5 +1,7 @@
 package earth.worldwind.formats.nitf
 
+import java.util.Locale
+
 /**
  * Hand-synthesises a minimal NITF 2.1 file in memory for tests — no real .ntf
  * fixture needed. The parser code we're testing is itself the only "ground
@@ -318,7 +320,7 @@ internal fun formatDecimalIgeolo(latS: Double, latN: Double, lonW: Double, lonE:
 }
 
 private fun formatDecimalCorner(lat: Double, lon: Double): String {
-    val latStr = String.format(java.util.Locale.ROOT, if (lat >= 0) "+%06.3f" else "-%06.3f", if (lat >= 0) lat else -lat)
-    val lonStr = String.format(java.util.Locale.ROOT, if (lon >= 0) "+%07.3f" else "-%07.3f", if (lon >= 0) lon else -lon)
+    val latStr = String.format(Locale.ROOT, if (lat >= 0) "+%06.3f" else "-%06.3f", if (lat >= 0) lat else -lat)
+    val lonStr = String.format(Locale.ROOT, if (lon >= 0) "+%07.3f" else "-%07.3f", if (lon >= 0) lon else -lon)
     return latStr + lonStr
 }

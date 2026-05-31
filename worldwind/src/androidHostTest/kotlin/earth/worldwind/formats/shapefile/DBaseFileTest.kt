@@ -127,7 +127,7 @@ private fun buildDbfRaw(
     val recordLength = 1 + fieldLen
     val totalSize = headerLength + values.size * recordLength + 1
     val out = ByteArray(totalSize)
-    val buf = java.nio.ByteBuffer.wrap(out).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+    val buf = ByteBuffer.wrap(out).order(ByteOrder.LITTLE_ENDIAN)
     buf.put(0, 0x03.toByte())
     buf.putInt(4, values.size)
     buf.putShort(8, headerLength.toShort())

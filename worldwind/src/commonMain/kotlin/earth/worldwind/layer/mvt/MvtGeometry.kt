@@ -4,6 +4,9 @@ import earth.worldwind.geom.Position
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.sinh
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sqrt
 
 /**
  * Convert the raw MVT command stream of an [MvtFeature] into lat/lon geometry for a slippy
@@ -232,7 +235,7 @@ object MvtGeometry {
             val b = line[i + 1]
             val dx = b.longitude.inDegrees - a.longitude.inDegrees
             val dy = b.latitude.inDegrees - a.latitude.inDegrees
-            val len = kotlin.math.sqrt(dx * dx + dy * dy)
+            val len = sqrt(dx * dx + dy * dy)
             segLen[i] = len
             total += len
         }
@@ -257,12 +260,12 @@ object MvtGeometry {
 
         // Tangent bearing — compute from the same segment we picked. Equirectangular
         // approximation (cos(lat) for longitude scaling).
-        val cosLat = kotlin.math.cos(midLat * PI / 180.0)
+        val cosLat = cos(midLat * PI / 180.0)
         val dx = (b.longitude.inDegrees - a.longitude.inDegrees) * cosLat
         val dy = b.latitude.inDegrees - a.latitude.inDegrees
         // atan2 returns radians from east-counter-clockwise; convert to north-clockwise
         // (the cartographic bearing convention WorldWind's Label uses).
-        var bearing = kotlin.math.atan2(dx, dy) * 180.0 / PI
+        var bearing = atan2(dx, dy) * 180.0 / PI
         // Flip 180° if text would otherwise read upside-down. Keep bearing in [-90, 90] so
         // labels always read left-to-right rather than right-to-left.
         if (bearing > 90.0) bearing -= 180.0

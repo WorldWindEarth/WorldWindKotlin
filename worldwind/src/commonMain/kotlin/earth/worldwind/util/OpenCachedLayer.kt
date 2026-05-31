@@ -1,4 +1,4 @@
-@file:OptIn(earth.worldwind.layer.cache.LowLevelCacheApi::class)
+@file:OptIn(LowLevelCacheApi::class)
 
 package earth.worldwind.util
 
@@ -47,6 +47,8 @@ import earth.worldwind.ogc.WmtsLayerFactory
 import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
 import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.shape.TiledSurfaceImage
+import earth.worldwind.geom.Location
+import earth.worldwind.layer.cache.LowLevelCacheApi
 
 /**
  * One reconstruction recipe — given a [ContentManager] and a [CacheEntry], produce a
@@ -319,7 +321,7 @@ private fun buildSlippyLevelSet(maxZoom: Int, tileSize: Int): LevelSet {
     return LevelSet(
         sector = MercatorSector(),
         tileOrigin = origin,
-        firstLevelDelta = earth.worldwind.geom.Location(origin.deltaLatitude, origin.deltaLongitude),
+        firstLevelDelta = Location(origin.deltaLatitude, origin.deltaLongitude),
         numLevels = maxZoom + 1,
         tileWidth = tileSize,
         tileHeight = tileSize,

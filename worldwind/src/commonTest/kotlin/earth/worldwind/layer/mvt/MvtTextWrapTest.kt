@@ -5,6 +5,7 @@ import earth.worldwind.render.FontWeight
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import earth.worldwind.render.Color
 
 class MvtTextWrapTest {
 
@@ -59,7 +60,7 @@ class MvtTextWrapTest {
     @Test fun buildTextWrapsWhenTextMaxWidthIsSet() {
         val paint = MvtStyleRule.PaintSpec(
             textField = "name",
-            textColor = MvtExpression.Literal(earth.worldwind.render.Color(1f, 1f, 1f)),
+            textColor = MvtExpression.Literal(Color(1f, 1f, 1f)),
             textSize = MvtExpression.Literal(14f),
             textMaxWidth = MvtExpression.Literal(3f),  // 3 em × 14 px = 42 px
             fontWeight = FontWeight.BOLD,

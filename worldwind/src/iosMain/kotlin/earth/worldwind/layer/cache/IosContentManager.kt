@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalForeignApi::class, earth.worldwind.layer.cache.LowLevelCacheApi::class)
+@file:OptIn(ExperimentalForeignApi::class, LowLevelCacheApi::class)
 
 package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.TileSource
@@ -23,6 +23,9 @@ import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.timeIntervalSince1970
 import platform.Foundation.writeToFile
 import kotlin.time.Instant
+import earth.worldwind.layer.cache.LowLevelCacheApi
+import earth.worldwind.util.Logger
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Filesystem-backed [ContentManager] for iOS. Everything persists under [baseDirectory]
@@ -177,11 +180,11 @@ class IosContentManager(
             val text = JSON.encodeToString(WebServiceInfoSurrogate.serializer(), WebServiceInfoSurrogate.from(info))
             text.encodeToByteArray().toNsData().writeToFile(metaPathFor(contentKey), atomically = true)
             Unit
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            earth.worldwind.util.Logger.log(
-                earth.worldwind.util.Logger.WARN,
+            Logger.log(
+                Logger.WARN,
                 "IosContentManager.registerWebService('$contentKey') failed: ${e.message}",
             )
         }
@@ -256,8 +259,8 @@ class IosContentManager(
                 fm.removeItemAtPath("$root/$name", null)
             }
         } catch (e: Throwable) {
-            earth.worldwind.util.Logger.log(
-                earth.worldwind.util.Logger.WARN,
+            Logger.log(
+                Logger.WARN,
                 "IosContentManager.clearEntry('$contentKey') failed: ${e.message}",
             )
         }

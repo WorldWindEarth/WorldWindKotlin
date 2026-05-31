@@ -9,6 +9,7 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.shape.Label
 import earth.worldwind.shape.OrientationMode
+import earth.worldwind.shape.TextAttributes
 
 /**
  * Per-glyph baseline-following text label for one MVT LINESTRING feature. Each render-pass
@@ -33,7 +34,7 @@ import earth.worldwind.shape.OrientationMode
 class MvtCurvedLineLabel(
     val polyline: List<Position>,
     val text: String,
-    val attributes: earth.worldwind.shape.TextAttributes,
+    val attributes: TextAttributes,
     /** Per-character pixel widths produced by the source font's [earth.worldwind.render.Font.measureChars]. */
     val charWidths: FloatArray,
     val textWidth: Float,

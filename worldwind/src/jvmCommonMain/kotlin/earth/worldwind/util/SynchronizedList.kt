@@ -1,3 +1,5 @@
 package earth.worldwind.util
 
-actual typealias SynchronizedList<E> = java.util.concurrent.CopyOnWriteArrayList<E>
+import java.util.concurrent.CopyOnWriteArrayList
+
+actual typealias SynchronizedList<E> = CopyOnWriteArrayList<E>

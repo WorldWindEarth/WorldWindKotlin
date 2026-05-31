@@ -7,6 +7,7 @@ import android.widget.CheckBox
 import earth.worldwind.WorldWind
 import earth.worldwind.WorldWindow
 import earth.worldwind.render.video.MediaSurfaceTexture
+import android.view.View
 
 /**
  * Android tutorial: drapes a real STANAG 4609 drone clip onto the terrain via the OES
@@ -115,7 +116,7 @@ class VideoOnTerrainFragment : BasicGlobeFragment() {
         // fragment only. Other tutorials re-use the same toolbar without it.
         toolbar3dCheckbox()?.apply {
             setOnCheckedChangeListener(null)
-            visibility = android.view.View.GONE
+            visibility = View.GONE
         }
     }
 
@@ -125,7 +126,7 @@ class VideoOnTerrainFragment : BasicGlobeFragment() {
         // Wire the activity's toolbar 3D toggle to this tutorial. Visible alongside the
         // existing 2D projection checkbox so all globe controls share one row.
         toolbar3dCheckbox()?.apply {
-            visibility = android.view.View.VISIBLE
+            visibility = View.VISIBLE
             isChecked = tutorial?.useCameraProjection == true
             setOnCheckedChangeListener { _, on -> tutorial?.useCameraProjection = on }
         }

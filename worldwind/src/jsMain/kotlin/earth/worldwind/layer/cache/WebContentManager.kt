@@ -1,4 +1,4 @@
-@file:OptIn(earth.worldwind.layer.cache.LowLevelCacheApi::class)
+@file:OptIn(LowLevelCacheApi::class)
 
 package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.TileSource
@@ -15,6 +15,9 @@ import org.w3c.dom.events.Event
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Instant
+import earth.worldwind.layer.cache.LowLevelCacheApi
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock.System
 
 /**
  * IndexedDB-backed [ContentManager] for the JS target. Implements every method of the
@@ -300,7 +303,7 @@ class WebContentManager(
             val tx = db.transaction(DATA_TYPE_STORE, "readwrite")
             tx.objectStore(DATA_TYPE_STORE).put(dataType.name, contentKey)
             idbAwaitTransaction(tx)
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             console.warn("WebContentManager.rememberDataType('$contentKey') skipped: ${e.message}")
@@ -319,7 +322,7 @@ class WebContentManager(
                 store.put(displayName, contentKey)
             }
             idbAwaitTransaction(tx)
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             console.warn("WebContentManager.rememberDisplayName('$contentKey') skipped: ${e.message}")
@@ -331,7 +334,7 @@ class WebContentManager(
         val tx = db.transaction(DISPLAY_NAME_STORE, "readonly")
         val store = tx.objectStore(DISPLAY_NAME_STORE)
         idbAwait<String?>(store.get(contentKey))
-    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+    } catch (e: CancellationException) {
         throw e
     } catch (e: Throwable) {
         null
@@ -344,7 +347,7 @@ class WebContentManager(
         val name = idbAwait<String?>(store.get(contentKey))
         // No idbAwaitTransaction — readonly auto-commits.
         name?.let { runCatching { CacheEntry.DataType.valueOf(it) }.getOrNull() }
-    } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+    } catch (e: CancellationException) {
         throw e
     } catch (e: Throwable) {
         console.warn("WebContentManager.readDataType('$contentKey') skipped: ${e.message}")
@@ -369,11 +372,11 @@ class WebContentManager(
                 metadata = info.metadata,
                 isTransparent = info.isTransparent,
                 // Epoch millis as Double — IDB structured clone doesn't understand kotlin.Long.
-                lastModifiedMs = kotlin.time.Clock.System.now().toEpochMilliseconds().toDouble(),
+                lastModifiedMs = System.now().toEpochMilliseconds().toDouble(),
             )
             store.put(record, contentKey)
             idbAwaitTransaction(tx)
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             console.warn("WebContentManager.registerWebService('$contentKey') failed: ${e.message}")
@@ -477,7 +480,7 @@ class WebContentManager(
             val tx = db.transaction(DISPLAY_NAME_STORE, "readwrite")
             tx.objectStore(DISPLAY_NAME_STORE).put(displayName, contentKey)
             idbAwaitTransaction(tx)
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             console.warn("WebContentManager.setDisplayName('$contentKey') failed: ${e.message}")
@@ -511,7 +514,7 @@ class WebContentManager(
             val featuresReq = featuresStore.index(IndexedDbFeatureStore.INDEX_BY_CONTENT).openCursor(contentKey)
             idbWalkCursor(featuresReq) { cursor -> cursor.delete() }
             idbAwaitTransaction(featuresTx)
-        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             console.warn("WebContentManager.clearEntry('$contentKey') failed: ${e.message}")

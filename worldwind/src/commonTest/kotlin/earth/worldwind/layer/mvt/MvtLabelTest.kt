@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.math.abs
 
 /**
  * Tests for the Stage 4a label pipeline — text paint properties, buildText resolution,
@@ -163,7 +164,7 @@ class MvtLabelTest {
 }
 
 private fun assertEquals(expected: Float, actual: Float, absoluteTolerance: Float) {
-    val diff = kotlin.math.abs(expected - actual)
+    val diff = abs(expected - actual)
     if (diff > absoluteTolerance) {
         error("expected ~$expected but was $actual (diff $diff > tolerance $absoluteTolerance)")
     }

@@ -6,6 +6,7 @@ import earth.worldwind.render.Font
 import earth.worldwind.render.FontWeight
 import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.shape.TextAttributes
+import earth.worldwind.render.image.ImageSource
 
 /**
  * One declarative rule in an [MvtRuleBasedStyle]. Matches features by source layer name,
@@ -258,7 +259,7 @@ class MvtStyleRule(
                 if (lineDashArray != null && lineDashArray.isNotEmpty()) {
                     val (factor, pattern) = dashArrayToStipple(lineDashArray)
                     outlineImageSource =
-                        earth.worldwind.render.image.ImageSource.fromLineStipple(factor, pattern)
+                        ImageSource.fromLineStipple(factor, pattern)
                 }
             }
         }

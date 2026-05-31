@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import earth.worldwind.geom.Position
 
 /**
  * [BulkFeatureSource] that fetches features from an OGC WFS endpoint. Delegates to
@@ -76,7 +77,7 @@ class WfsBulkFeatureSource(
     // 0.0 (sea level). A 2D geometry yields z = null so it clamps to ground rather than being
     // treated as absolute-altitude-0. (Was `altitude.takeIf { it != 0.0 }`, which wrongly
     // demoted a genuine 3D-at-sea-level vertex to 2D.)
-    private fun earth.worldwind.geom.Position.toCachedPoint(is3D: Boolean): CachedGeometry.Point =
+    private fun Position.toCachedPoint(is3D: Boolean): CachedGeometry.Point =
         CachedGeometry.Point(longitude.inDegrees, latitude.inDegrees, altitude.takeIf { is3D })
 
     private fun propertiesToJson(props: Map<String, String>): String =

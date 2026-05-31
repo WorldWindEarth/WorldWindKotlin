@@ -1,4 +1,4 @@
-@file:OptIn(earth.worldwind.layer.cache.LowLevelCacheApi::class)
+@file:OptIn(LowLevelCacheApi::class)
 
 package earth.worldwind.layer.cache
 
@@ -28,6 +28,11 @@ import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
 import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.ContentManager
+import earth.worldwind.geom.Location
+import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
+import earth.worldwind.layer.cache.LowLevelCacheApi
+import earth.worldwind.layer.mercator.MercatorSector
+import earth.worldwind.util.LevelSet
 
 /**
  * Common semantics for every `register` overload below.
@@ -197,12 +202,12 @@ internal suspend fun ContentManager.attachMvtVectorLayerCache(
     ))
 }
 
-private fun buildMvtLevelSet(minZoom: Int, maxZoom: Int): earth.worldwind.util.LevelSet {
-    val origin = earth.worldwind.layer.mercator.MercatorSector()
-    return earth.worldwind.util.LevelSet(
+private fun buildMvtLevelSet(minZoom: Int, maxZoom: Int): LevelSet {
+    val origin = MercatorSector()
+    return LevelSet(
         sector = origin,
         tileOrigin = origin,
-        firstLevelDelta = earth.worldwind.geom.Location(origin.deltaLatitude, origin.deltaLongitude),
+        firstLevelDelta = Location(origin.deltaLatitude, origin.deltaLongitude),
         numLevels = maxZoom + 1,
         tileWidth = 256,
         tileHeight = 256,
@@ -336,7 +341,7 @@ private suspend fun <C> ContentManager.attachElevationCoverageCache(
     serviceType: String,
     serviceMetadata: String?,
 ) where C : TiledElevationCoverage,
-        C : earth.worldwind.globe.elevation.coverage.WebElevationCoverage {
+        C : WebElevationCoverage {
     val networkSource: TileSource? = network(coverage)
     coverage.elevationSourceFactory = createElevationSourceFactory(
         contentKey = contentKey,

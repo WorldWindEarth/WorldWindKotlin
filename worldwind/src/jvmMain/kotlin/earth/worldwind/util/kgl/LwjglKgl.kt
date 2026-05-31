@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.ShortBuffer
+import org.lwjgl.opengl.GL32
 
 class LwjglKgl : Kgl {
     private val arrI = IntArray(16)
@@ -282,17 +283,17 @@ class LwjglKgl : Kgl {
         GL33.glGetBufferSubData(target, srcOffset.toLong(), ByteBuffer.wrap(dst))
 
     override fun fenceSync() = KglSync(
-        org.lwjgl.opengl.GL32.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
+        GL32.glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
     )
 
     override fun isSyncSignalled(sync: KglSync): Boolean {
         if (!sync.isValid()) return false
-        val result = org.lwjgl.opengl.GL32.glClientWaitSync(sync.id, 0, 0)
+        val result = GL32.glClientWaitSync(sync.id, 0, 0)
         return result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED
     }
 
     override fun deleteSync(sync: KglSync) {
-        if (sync.isValid()) org.lwjgl.opengl.GL32.glDeleteSync(sync.id)
+        if (sync.isValid()) GL32.glDeleteSync(sync.id)
     }
 
     override fun pixelStorei(pname: Int, param: Int) = GL33.glPixelStorei(pname, param)

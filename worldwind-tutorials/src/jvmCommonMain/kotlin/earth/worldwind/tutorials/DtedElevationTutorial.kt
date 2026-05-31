@@ -12,6 +12,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.sin
+import kotlin.math.abs
 
 /**
  * Loads a local DTED library through [DtedElevationCoverage]. By default the tutorial
@@ -144,10 +145,10 @@ class DtedElevationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
             val bytes = ByteArray(3428 + width * recSize)
             writeAscii(bytes, 0, "UHL")
             writeAscii(bytes, 4,
-                kotlin.math.abs(lonSW).toString().padStart(3, '0') + "00" + "00" +
+                abs(lonSW).toString().padStart(3, '0') + "00" + "00" +
                         (if (lonSW >= 0) 'E' else 'W'))
             writeAscii(bytes, 12,
-                kotlin.math.abs(latSW).toString().padStart(3, '0') + "00" + "00" +
+                abs(latSW).toString().padStart(3, '0') + "00" + "00" +
                         (if (latSW >= 0) 'N' else 'S'))
             writeAscii(bytes, 32, "U  ")
             writeAscii(bytes, 47, width.toString().padStart(4, '0'))

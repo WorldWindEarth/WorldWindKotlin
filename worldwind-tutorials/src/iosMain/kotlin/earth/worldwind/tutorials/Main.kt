@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalForeignApi::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@file:OptIn(ExperimentalForeignApi::class, ExperimentalCoroutinesApi::class)
 
 package earth.worldwind.tutorials
 
@@ -41,6 +41,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import platform.CoreGraphics.CGRectMake
 import platform.UIKit.UIView
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /**
  * iOS bridge for the SwiftUI tutorials app.

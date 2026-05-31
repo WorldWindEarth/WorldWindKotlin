@@ -26,6 +26,10 @@ import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetCurrentContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
 import platform.UIKit.UIImage
+import platform.CoreGraphics.CGPathAddLineToPoint
+import platform.CoreGraphics.CGPathCreateMutable
+import platform.CoreGraphics.CGPathMoveToPoint
+import platform.CoreGraphics.CGSizeMake
 
 /**
  * iOS [ImageSource]. Mirrors the JS / JVM shape: an [AbstractSource] holding either an
@@ -114,7 +118,7 @@ private open class LineStippleImageFactory(
         // WebGL1 / GLES2 require POT for GL_REPEAT; same constraint applies here for parity.
         val widthPow2 = if (factor <= 0) 16 else powerOfTwoCeiling(factor * 16)
         val height = 1
-        val sizeStruct: CValue<CGSize> = platform.CoreGraphics.CGSizeMake(
+        val sizeStruct: CValue<CGSize> = CGSizeMake(
             widthPow2.toDouble(), height.toDouble()
         )
 
@@ -132,18 +136,18 @@ private open class LineStippleImageFactory(
         CGContextSetLineWidth(ctx, 1.0)
 
         // Build a single CGPath of all segments to fill, then stroke once.
-        val path = platform.CoreGraphics.CGPathCreateMutable()
+        val path = CGPathCreateMutable()
         if (factor <= 0) {
             // Solid line — single segment spanning the full width.
-            platform.CoreGraphics.CGPathMoveToPoint(path, null, 0.0, 0.5)
-            platform.CoreGraphics.CGPathAddLineToPoint(path, null, widthPow2.toDouble(), 0.5)
+            CGPathMoveToPoint(path, null, 0.0, 0.5)
+            CGPathAddLineToPoint(path, null, widthPow2.toDouble(), 0.5)
         } else {
             var offset = 0
             for (bi in 0..15) {
                 val bit = pattern.toInt() and (1 shl bi)
                 if (bit != 0) {
-                    platform.CoreGraphics.CGPathMoveToPoint(path, null, offset.toDouble(), 0.5)
-                    platform.CoreGraphics.CGPathAddLineToPoint(
+                    CGPathMoveToPoint(path, null, offset.toDouble(), 0.5)
+                    CGPathAddLineToPoint(
                         path, null, (offset + factor).toDouble(), 0.5
                     )
                 }

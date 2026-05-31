@@ -28,6 +28,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
+import earth.worldwind.render.image.ImageData
+import platform.UIKit.UIImage
 
 /**
  * iOS render-resource cache with the async retrieval pipeline wired up. Mirrors the JVM
@@ -123,10 +125,10 @@ actual open class RenderResourceCache(
         // "HTTP load failed Error -1004" in the iOS console.
         val asset = assets.values().firstOrNull { it.originalPath == path } ?: return null
         return ImageSource.fromImageFactory(object : ImageSource.ImageFactory {
-            override suspend fun createImage(): platform.UIKit.UIImage? {
+            override suspend fun createImage(): UIImage? {
                 val filePath = asset.bundle.pathForResource(asset.fileName, asset.extension)
                     ?: return null
-                return platform.UIKit.UIImage.imageWithContentsOfFile(filePath)
+                return UIImage.imageWithContentsOfFile(filePath)
             }
         })
     }
@@ -158,7 +160,7 @@ actual open class RenderResourceCache(
     }
 
     protected open fun createTexture(
-        options: ImageOptions?, image: earth.worldwind.render.image.ImageData
+        options: ImageOptions?, image: ImageData
     ): Texture {
         val texture = ImageTexture(image)
         if (options?.resamplingMode == ResamplingMode.NEAREST_NEIGHBOR) {

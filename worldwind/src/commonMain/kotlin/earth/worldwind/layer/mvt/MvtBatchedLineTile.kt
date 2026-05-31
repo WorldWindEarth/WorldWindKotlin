@@ -23,6 +23,10 @@ import earth.worldwind.util.kgl.GL_TRIANGLE_STRIP
 import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import kotlin.math.max
 import kotlin.math.min
+import earth.worldwind.render.image.ImageOptions
+import earth.worldwind.render.image.ImageSource
+import earth.worldwind.render.image.ResamplingMode
+import earth.worldwind.render.image.WrapMode
 
 /**
  * Batched line-stroke renderable for one MVT slippy tile.
@@ -110,14 +114,14 @@ class MvtBatchedLineTile(
         val offset: Int,
         val count: Int,
         /** Optional stipple texture source (Mapbox `line-dasharray`); null = solid line. */
-        val outlineImageSource: earth.worldwind.render.image.ImageSource? = null,
+        val outlineImageSource: ImageSource? = null,
     )
 
     /** Hash + equality key for bucketing line features by visual state. */
     private data class BucketKey(
         val colorPacked: Int,
         val widthBits: Int,
-        val outlineImageSource: earth.worldwind.render.image.ImageSource?,
+        val outlineImageSource: ImageSource?,
     )
 
     /**
@@ -488,9 +492,9 @@ class MvtBatchedLineTile(
 
         // Same options Path uses for its outline stipple texture: REPEAT + NEAREST so the
         // dash pattern tiles cleanly without bilinear smear.
-        private val defaultOutlineImageOptions = earth.worldwind.render.image.ImageOptions().apply {
-            wrapMode = earth.worldwind.render.image.WrapMode.REPEAT
-            resamplingMode = earth.worldwind.render.image.ResamplingMode.NEAREST_NEIGHBOR
+        private val defaultOutlineImageOptions = ImageOptions().apply {
+            wrapMode = WrapMode.REPEAT
+            resamplingMode = ResamplingMode.NEAREST_NEIGHBOR
         }
 
         private fun packColor(c: Color): Int {

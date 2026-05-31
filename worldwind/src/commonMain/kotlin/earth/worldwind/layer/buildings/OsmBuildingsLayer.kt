@@ -35,6 +35,7 @@ import kotlin.math.asinh
 import kotlin.math.atan
 import kotlin.math.sinh
 import kotlin.math.tan
+import kotlin.math.abs
 
 /**
  * Renders OpenStreetMap-derived schematic 3D buildings. Footprints + height tags are fetched
@@ -168,7 +169,7 @@ open class OsmBuildingsLayer(
         for (dy in -tileRadius..tileRadius) {
             for (dx in -tileRadius..tileRadius) add(dx to dy)
         }
-    }.sortedBy { (dx, dy) -> maxOf(kotlin.math.abs(dx), kotlin.math.abs(dy)) }
+    }.sortedBy { (dx, dy) -> maxOf(abs(dx), abs(dy)) }
 
     private fun processTile(rc: RenderContext, key: TileKey) {
         val tile = tiles[key]

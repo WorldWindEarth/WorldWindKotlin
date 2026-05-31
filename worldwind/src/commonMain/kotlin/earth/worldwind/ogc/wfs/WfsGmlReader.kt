@@ -1,4 +1,4 @@
-@file:OptIn(nl.adaptivity.xmlutil.XmlUtilInternal::class)
+@file:OptIn(XmlUtilInternal::class)
 
 package earth.worldwind.ogc.wfs
 
@@ -13,6 +13,7 @@ import nl.adaptivity.xmlutil.EventType
 import nl.adaptivity.xmlutil.XmlReader
 import nl.adaptivity.xmlutil.core.impl.multiplatform.StringReader
 import nl.adaptivity.xmlutil.xmlStreaming
+import nl.adaptivity.xmlutil.XmlUtilInternal
 
 /**
  * Pull-parses an OGC WFS GetFeature response encoded as GML (3.1 or 3.2) and emits the

@@ -13,6 +13,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import earth.worldwind.shape.ShapeAttributes
 
 /**
  * Round-trip tests: GeoJSON text → [GeoJsonBulkFeatureSource] → [BulkFeatureLayer] →
@@ -123,12 +124,12 @@ class BulkFeatureLayerTest {
         // template must survive when the source has no `stroke` / `fill` properties —
         // because the layer's defaultLineColor / defaultFillColor are null by default, so
         // applyFeatureStyle has nothing to write.
-        val template = earth.worldwind.shape.ShapeAttributes().apply {
+        val template = ShapeAttributes().apply {
             interiorColor.set(red = 0.0f, green = 0.0f, blue = 1.0f, alpha = 0.5f)
             outlineColor.set(red = 1.0f, green = 1.0f, blue = 1.0f, alpha = 1.0f)
         }
         val layer = BulkFeatureLayer(
-            source = earth.worldwind.layer.source.GeoJsonBulkFeatureSource(
+            source = GeoJsonBulkFeatureSource(
                 """{"type":"Feature",
                 | "geometry":{"type":"Polygon","coordinates":[[[0.0,0.0],[1.0,0.0],[1.0,1.0],[0.0,0.0]]]},
                 | "properties":{"POP_EST":1000}}""".trimMargin()
@@ -189,7 +190,6 @@ class BulkFeatureLayerTest {
                     if (attributes.interiorColor.green == 1.0f) sawAutoStyleApplied = true
                     attributes.interiorColor.set(red = 0.0f, green = 0.0f, blue = 1.0f, alpha = 1.0f)
                 }
-                Unit
             },
         )
         layer.load()
