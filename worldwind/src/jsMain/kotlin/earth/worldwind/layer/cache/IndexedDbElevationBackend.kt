@@ -33,7 +33,7 @@ internal class IndexedDbElevationBackend(
         val blob = tileStore.readTile(z, x, y) ?: return null
         if (blob.isEmpty) return null
         val (scale, offset) = readAncillary(z, x, y) ?: (1f to 0f)
-        return CachedTile(bytes = blob.bytes, tileScale = scale, tileOffset = offset)
+        return CachedTile(bytes = blob.bytes, tileScale = scale, tileOffset = offset, cachedAt = blob.cachedAt)
     }
 
     override suspend fun writeTile(

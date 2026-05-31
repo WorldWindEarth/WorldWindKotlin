@@ -8,8 +8,16 @@ import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
+import kotlin.time.Clock
+import kotlin.time.Duration
 
 /**
  * Cross-platform [ElevationSourceFactory] backed by an [ElevationStoreBackend] + an
@@ -28,6 +36,7 @@ import kotlin.math.roundToInt
  * factory (`GpkgCachedElevationSourceFactory`) because the GeoPackage ancillary-table
  * layout doesn't fit the simple `(scale, offset)` shape the backend interface exposes.
  */
+@OptIn(DelicateCoroutinesApi::class)
 class CachedElevationSourceFactory(
     private val backend: ElevationStoreBackend,
     private val networkSource: TileSource?,
@@ -35,12 +44,45 @@ class CachedElevationSourceFactory(
     val outputFormat: String,
     val isFloat: Boolean,
     private val tileMatrixSet: TileMatrixSet,
+    /** Stale-while-revalidate threshold (reuses eviction `maxAge`); [Duration.INFINITE] = off. */
+    private val maxAge: Duration = Duration.INFINITE,
+    /** Background scope for revalidation refreshes; fire-and-forget, outlives the read. */
+    private val revalidationScope: CoroutineScope = GlobalScope,
 ) : ElevationSourceFactory, OfflineToggleable, CachedSourceInfoProvider,
-    BulkRetrievableElevationSourceFactory, CacheReadableElevationSourceFactory {
+    BulkRetrievableElevationSourceFactory, CacheReadableElevationSourceFactory, RevalidatingSource {
     override val contentType = "CachedElevation"
     override var isCacheOnly: Boolean = networkSource == null
     override val cacheInfo: CachedSourceInfo
         get() = backend.cacheInfo
+
+    /** Invoked (off the render thread, with `(matrix ordinal, column, row)`) after a stale tile
+     *  is re-downloaded; the coverage wires this to drop the cached array + redraw. */
+    override var onTileRevalidated: ((z: Int, x: Int, y: Int) -> Unit)? = null
+
+    private val revalidating = mutableSetOf<Long>()
+    private val revalidateMutex = Mutex()
+
+    /** After a cache hit, if the tile is older than [maxAge], re-download it in the background
+     *  (via [fetchAndCacheTile] with `overrideCache`, which write-throughs). No-op when offline,
+     *  when freshness isn't tracked, or when a refresh for this tile is already in flight. */
+    private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cachedAt: Long?) {
+        if (isCacheOnly || networkSource == null || maxAge == Duration.INFINITE || cachedAt == null) return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        val key = (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
+        if (!revalidateMutex.withLock { revalidating.add(key) }) return
+        revalidationScope.launch {
+            try {
+                fetchAndCacheTile(z, x, y, overrideCache = true)
+                onTileRevalidated?.invoke(z, x, y)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (t: Throwable) {
+                log(WARN, "CachedElevation background refresh failed [$z/$x/$y]: ${t.message}")
+            } finally {
+                revalidateMutex.withLock { revalidating.remove(key) }
+            }
+        }
+    }
 
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource =
         ElevationSource.fromUnrecognized(CachedElevationRef(this, tileMatrix.ordinal, column, row))
@@ -97,7 +139,11 @@ class CachedElevationSourceFactory(
      * (corrupted blob, transitional state) is treated as a miss so the tile isn't trapped
      * forever — the network path can repopulate it.
      */
-    private suspend fun readCachedTile(z: Int, x: Int, y: Int): ShortArray? {
+    private suspend fun readCachedTile(z: Int, x: Int, y: Int): ShortArray? =
+        readCachedTileWithMeta(z, x, y)?.first
+
+    /** Like [readCachedTile] but also returns the tile's `cachedAt` (for stale-while-revalidate). */
+    private suspend fun readCachedTileWithMeta(z: Int, x: Int, y: Int): Pair<ShortArray, Long?>? {
         val cached = try {
             backend.readTile(z, x, y)
         } catch (cancellation: CancellationException) {
@@ -108,7 +154,7 @@ class CachedElevationSourceFactory(
         } ?: return null
         return try {
             val decoded = ElevationStorageCodec.decode(cached.bytes, isFloat, cached.tileScale, cached.tileOffset)
-            tileBufferToShorts(decoded)
+            tileBufferToShorts(decoded) to cached.cachedAt
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
@@ -127,7 +173,10 @@ class CachedElevationSourceFactory(
      * `retrieveTileArray`) maps that to the elevation pipeline's `retrievalFailed`.
      */
     suspend fun fetchTile(z: Int, x: Int, y: Int): ShortArray? {
-        readCachedTile(z, x, y)?.let { return it }
+        readCachedTileWithMeta(z, x, y)?.let { (shorts, cachedAt) ->
+            maybeRevalidate(z, x, y, cachedAt)  // serve cached now; refresh in background if stale
+            return shorts
+        }
         if (isCacheOnly) return null
         val network = networkSource ?: return null
         val blob = try {

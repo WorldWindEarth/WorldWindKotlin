@@ -7,6 +7,8 @@ import kotlinx.coroutines.sync.withLock
 import org.khronos.webgl.Uint8Array
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Clock
+import kotlin.time.Duration
 
 /** Global serialisation lock for all IndexedDB operations on the JS target. Chrome's IDB
  *  engine can deadlock when many readonly transactions on the same store are opened
@@ -48,13 +50,19 @@ internal class IndexedDbTileStore(
             bytes = bytes.toByteArray(),
             etag = record.etag,
             lastModified = record.lastModified,
+            // Surface write time only when freshness tracking is on (finite maxAge), to drive
+            // stale-while-revalidate in CachedTileSource / the elevation factory.
+            cachedAt = if (evictionPolicy.maxAge != Duration.INFINITE) record.cachedAt?.toLong() else null,
         )
     }
 
     override suspend fun writeTile(z: Int, x: Int, y: Int, blob: TileBlob) = idbSerializationLock.withLock {
         val tx = db.transaction(storeName, "readwrite")
         val store = tx.objectStore(storeName)
-        val record = newIdbImageTileRecord(blob.bytes.toUint8Array(), blob.etag, blob.lastModified)
+        val record = newIdbImageTileRecord(
+            blob.bytes.toUint8Array(), blob.etag, blob.lastModified,
+            cachedAt = Clock.System.now().toEpochMilliseconds().toDouble(),
+        )
         store.put(record, compositeKey(z, x, y))
         idbAwaitTransaction(tx)
     }
@@ -91,13 +99,17 @@ internal external interface IdbImageTileRecord {
     var bytes: Uint8Array
     var etag: String?
     var lastModified: String?
+    var cachedAt: Double?
 }
 
-internal fun newIdbImageTileRecord(bytes: Uint8Array, etag: String?, lastModified: String?): IdbImageTileRecord {
+internal fun newIdbImageTileRecord(
+    bytes: Uint8Array, etag: String?, lastModified: String?, cachedAt: Double? = null,
+): IdbImageTileRecord {
     val r = js("({})").unsafeCast<IdbImageTileRecord>()
     r.bytes = bytes
     r.etag = etag
     r.lastModified = lastModified
+    r.cachedAt = cachedAt
     return r
 }
 
