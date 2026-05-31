@@ -74,6 +74,60 @@ typealias CachedLayerOpener = suspend (
 object CachedLayerRegistry {
     private val openers = mutableMapOf<Pair<CacheEntry.DataType, String>, CachedLayerOpener>()
 
+    // Built-in openers for the standard layer types, registered in this object's init block.
+    // It runs lazily on the first access to the registry (register / opener) on BOTH JVM and
+    // JS. A top-level `val` initializer worked on JVM (the file class's <clinit> ran it) but
+    // Kotlin/JS dead-code elimination drops an unreferenced top-level `val`, leaving the
+    // registry empty on JS — the cause of the JS-only reopen-from-cache failure. Apps add
+    // custom types via register(...) (which also triggers this init first).
+    init {
+        val tiles = CacheEntry.DataType.TILES
+        val vectorTiles = CacheEntry.DataType.VECTOR_TILES
+        val coverage = CacheEntry.DataType.COVERAGE
+        val features = CacheEntry.DataType.FEATURES
+
+        register(tiles, WmsImageLayer.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openWmsImageLayer(h, h.service!!, eviction)
+        }
+        register(tiles, WmtsImageLayer.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openWmtsImageLayer(h, h.service!!, eviction)
+        }
+        register(tiles, WebMercatorImageLayer.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openWebMercatorImageLayer(
+                h, h.service!!.address, h.service.outputFormat ?: "image/png", h.service.isTransparent, eviction,
+            )
+        }
+
+        register(vectorTiles, MvtVectorLayer.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openMvtVectorLayer(h, h.service!!.address, eviction)
+        }
+
+        register(coverage, Wcs100ElevationCoverage.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openWcs100ElevationCoverage(h, h.service!!, eviction)
+        }
+        register(coverage, Wcs201ElevationCoverage.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openWcs201ElevationCoverage(h, h.service!!, eviction)
+        }
+        // WmsElevationCoverage shares "WMS" with WmsImageLayer; the COVERAGE data_type
+        // disambiguates here.
+        register(coverage, WmsElevationCoverage.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openWmsElevationCoverage(h, h.service!!, eviction)
+        }
+
+        register(features, WfsBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openWfsLayer(h, h.service!!, eviction)
+        }
+        register(features, ShapefileBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openShapefileLayer(h, h.service!!.address, eviction)
+        }
+        register(features, GeoJsonBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openGeoJsonLayer(h, eviction)
+        }
+        register(features, OverpassBuildingsSource.SERVICE_TYPE) { cm, h, eviction ->
+            cm.openOsmBuildingsLayer(h, h.service!!.address, eviction)
+        }
+    }
+
     fun register(
         dataType: CacheEntry.DataType,
         serviceType: String,
@@ -192,64 +246,9 @@ suspend fun <T : Any> ContentManager.open(
     .filter { it.dataType == category.dataType }
     .mapNotNull { dispatchCachedEntry(it, evictionPolicy) as? T }
 
-// ============================================================================
-// Built-in openers — registered at module init so the dispatcher knows about
-// the standard layer types out of the box. Apps add custom types via
-// CachedLayerRegistry.register(...).
-// ============================================================================
-
-private val builtInRegistration: Unit = run {
-    val tiles = CacheEntry.DataType.TILES
-    val vectorTiles = CacheEntry.DataType.VECTOR_TILES
-    val coverage = CacheEntry.DataType.COVERAGE
-    val features = CacheEntry.DataType.FEATURES
-
-    CachedLayerRegistry.register(tiles, WmsImageLayer.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openWmsImageLayer(h, h.service!!, eviction)
-    }
-    CachedLayerRegistry.register(tiles, WmtsImageLayer.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openWmtsImageLayer(h, h.service!!, eviction)
-    }
-    CachedLayerRegistry.register(tiles, WebMercatorImageLayer.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openWebMercatorImageLayer(
-            h, h.service!!.address, h.service.outputFormat ?: "image/png", h.service.isTransparent, eviction,
-        )
-    }
-
-    CachedLayerRegistry.register(vectorTiles, MvtVectorLayer.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openMvtVectorLayer(h, h.service!!.address, eviction)
-    }
-
-    CachedLayerRegistry.register(coverage, Wcs100ElevationCoverage.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openWcs100ElevationCoverage(h, h.service!!, eviction)
-    }
-    CachedLayerRegistry.register(coverage, Wcs201ElevationCoverage.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openWcs201ElevationCoverage(h, h.service!!, eviction)
-    }
-    // WmsElevationCoverage shares "WMS" with WmsImageLayer; the COVERAGE data_type
-    // disambiguates here.
-    CachedLayerRegistry.register(coverage, WmsElevationCoverage.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openWmsElevationCoverage(h, h.service!!, eviction)
-    }
-
-    CachedLayerRegistry.register(features, WfsBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openWfsLayer(h, h.service!!, eviction)
-    }
-    CachedLayerRegistry.register(features, ShapefileBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openShapefileLayer(h, h.service!!.address, eviction)
-    }
-    CachedLayerRegistry.register(features, GeoJsonBulkFeatureSource.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openGeoJsonLayer(h, eviction)
-    }
-    CachedLayerRegistry.register(features, OverpassBuildingsSource.SERVICE_TYPE) { cm, h, eviction ->
-        cm.openOsmBuildingsLayer(h, h.service!!.address, eviction)
-    }
-}
-
-/** Force initialization of [builtInRegistration]. The registry would otherwise stay
- *  empty until something else touches the module — opening a ContentManager before any
- *  layer-factory call would otherwise miss the standard openers. */
-private val _initOnce: Unit = builtInRegistration
+// Built-in openers are registered in CachedLayerRegistry's init block (above), which runs
+// lazily on first registry access on every platform — see the note there for why a top-level
+// `val` initializer was unsafe on Kotlin/JS.
 
 // ============================================================================
 // TILES (image) helpers
