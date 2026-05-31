@@ -33,7 +33,7 @@ import earth.worldwind.layer.mvt.MvtVectorLayer
 import earth.worldwind.layer.mvt.OpenTopoMapRules
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
-import earth.worldwind.ogc.GpkgContentManager
+import earth.worldwind.formats.gpkg.GpkgContentManager
 import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
 import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.shape.Movable
@@ -206,6 +206,9 @@ fun main() {
                         resolution = WcsElevationTutorial.RESOLUTION,
                     ).also { contentManager.attachCache(it, "WCS_3DEP") }
                 }),
+                "GeoPackage (bundled)" to GeoPackageTutorial(engine, mainScope) {
+                    SharedStagedGeoPackage.path()
+                },
                 "DTED Elevation (local)" to DtedElevationTutorial(engine),
                 "NITF Imagery" to NitfImageryTutorial(engine),
                 "Elevation Heatmap" to ElevationHeatmapTutorial(engine),

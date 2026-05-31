@@ -31,38 +31,51 @@
 
 <h2>Example</h2>
 <h3>GeoPackageFragment.kt</h3>
+<p>
+    The fragment extends <code>BasicGlobeFragment</code> and starts the shared
+    <code>GeoPackageTutorial</code> against the engine. The tutorial itself lives in
+    <code>jvmCommonMain</code> so the JVM desktop host and Android host run the same code;
+    the fragment supplies only the platform-specific staging step that copies the bundled
+    <code>moko-resource</code> into <code>cacheDir</code> (GeoPackage's SQLite driver only
+    opens real files, not asset-stream offsets inside the APK).
+</p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class GeoPackageFragment : BasicGlobeFragment() {
-    override fun createWorldWindow(): WorldWindow {
-        val wwd = super.createWorldWindow()
-        lifecycleScope.launch {
-            try {
-                // GeoPackage's SQLite driver only works on filesystem-backed files, so
-                // unpack the bundled asset into the Android app cache directory.
-                val gpkgPath = withContext(Dispatchers.IO) {
-                    TutorialUtil.unpackAsset(requireContext(), "geopackage_tutorial.gpkg").path
-                }
-                val tutorialGpkg = GpkgContentManager(gpkgPath, isReadOnly = true)
-                // Bundled GPKG has no live server twin — flip every reopened layer/coverage
-                // into strict cache-only mode before adding it to the engine.
-                val tiledImages = tutorialGpkg.open(CacheCategory.Tiles).onEach { it.setOfflineOnly() }
-                val vectorTiles = tutorialGpkg.open(CacheCategory.VectorTiles).onEach { it.setOfflineOnly() }
-                val features = tutorialGpkg.open(CacheCategory.Features).onEach { it.setOfflineOnly() }
-                val coverages = tutorialGpkg.open(CacheCategory.Coverage).onEach { it.setOfflineOnly() }
-                tiledImages.forEach { wwd.engine.layers.addLayer(it) }
-                vectorTiles.forEach { wwd.engine.layers.addLayer(it) }
-                features.forEach { wwd.engine.layers.addLayer(it) }
-                coverages.forEach { wwd.engine.globe.elevationModel.addCoverage(it) }
-                wwd.requestRedraw()
-            } catch (e: Throwable) {
-                Logger.log(Logger.ERROR, "GeoPackage layer creation failed", e)
+    override fun createWorldWindow() = super.createWorldWindow().also { wwd ->
+        GeoPackageTutorial(wwd.engine, lifecycleScope) {
+            val ctx = requireContext()
+            withContext(Dispatchers.IO) {
+                File(ctx.cacheDir, "geopackage_tutorial.gpkg").also { out ->
+                    if (!out.exists()) ctx.assets
+                        .open(MR.assets.geopackage_tutorial_gpkg.originalPath)
+                        .buffered()
+                        .use { input -> out.outputStream().buffered().use { input.copyTo(it) } }
+                }.path
             }
+        }.start()
+    }
+}
+
+class GeoPackageTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val gpkgPathLoader: suspend () -> String,
+) : AbstractTutorial(engine) {
+
+    override fun start() {
+        super.start()
+        engine.camera.position.setDegrees(36.8139677556754, -76.03260320181614, 10e3)
+        scope.launch {
+            val cm = GpkgContentManager(gpkgPathLoader(), isReadOnly = true)
+            val tiledImages = cm.open(CacheCategory.Tiles).onEach { it.setOfflineOnly() }
+            val vectorTiles = cm.open(CacheCategory.VectorTiles).onEach { it.setOfflineOnly() }
+            val features = cm.open(CacheCategory.Features).onEach { it.setOfflineOnly() }
+            val coverages = cm.open(CacheCategory.Coverage).onEach { it.setOfflineOnly() }
+            (tiledImages + vectorTiles + features).forEach { engine.layers.addLayer(it) }
+            coverages.forEach { engine.globe.elevationModel.addCoverage(it) }
+            WorldWind.requestRedraw()
         }
-        // Centre the camera over the bundled GPKG's sample area
-        // (Naval Air Station Oceana, Virginia Beach, VA).
-        wwd.engine.camera.position.setDegrees(36.8139677556754, -76.03260320181614, 10e3)
-        return wwd
     }
 }
     </textarea>

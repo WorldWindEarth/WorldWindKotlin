@@ -1,7 +1,7 @@
 package earth.worldwind.tutorials
 
 import android.content.Context
-import earth.worldwind.ogc.GpkgContentManager
+import earth.worldwind.formats.gpkg.GpkgContentManager
 import java.io.File
 
 /**

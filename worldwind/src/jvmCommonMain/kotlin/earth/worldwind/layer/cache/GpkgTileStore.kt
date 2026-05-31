@@ -1,8 +1,8 @@
 package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.TileBlob
 
-import earth.worldwind.ogc.gpkg.GeoPackage
-import earth.worldwind.ogc.gpkg.GpkgContent
+import earth.worldwind.formats.gpkg.GeoPackage
+import earth.worldwind.formats.gpkg.GpkgContent
 
 /**
  * GeoPackage-backed [TileStore]. One instance binds to one tile-pyramid table — works for

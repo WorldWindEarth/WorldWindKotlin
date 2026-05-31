@@ -129,6 +129,7 @@ kotlin {
                 implementation(libs.mil.sym.java)
                 implementation(libs.geopackage.java)
                 implementation(libs.ormlite.jdbc)
+                implementation(libs.webp.imageio)
 
                 implementation(libs.kotlinx.coroutines.swing)
 
