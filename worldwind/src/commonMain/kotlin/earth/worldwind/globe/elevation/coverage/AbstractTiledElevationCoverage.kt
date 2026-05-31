@@ -8,10 +8,12 @@ import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.CacheReadableElevationSourceFactory
 import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISSING_DATA
+import earth.worldwind.layer.cache.RevalidatingSource
 import earth.worldwind.util.AbsentResourceList
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.LongLruMemoryCache
+import earth.worldwind.util.SynchronizedList
 import earth.worldwind.util.format.format
 import earth.worldwind.util.math.fract
 import earth.worldwind.util.math.mod
@@ -38,9 +40,30 @@ abstract class AbstractTiledElevationCoverage(
         }
     var elevationSourceFactory = elevationSourceFactory
         set(value) {
+            (field as? RevalidatingSource)?.onTileRevalidated = null
             field = value
+            wireRevalidation(value)
             clear()
         }
+
+    // Tile keys (matrix.tileKey) a stale-while-revalidate refresh re-cached, enqueued off the
+    // render thread and drained on it (see fetchTileArray) to drop the stale in-memory array so
+    // the tessellator re-reads the fresh tile. SynchronizedList keeps the cross-thread hand-off safe.
+    private val pendingRevalidations = SynchronizedList<Long>()
+
+    init { wireRevalidation(elevationSourceFactory) }
+
+    /** Wire a [RevalidatingSource] factory's refresh callback to drop the tile's cached array
+     *  and redraw. No-op for factories that don't support revalidation. */
+    private fun wireRevalidation(factory: ElevationSourceFactory) {
+        (factory as? RevalidatingSource)?.onTileRevalidated = { z, column, row ->
+            tileMatrixSet.entries.getOrNull(z)?.let { matrix ->
+                pendingRevalidations.add(matrix.tileKey(row, column))
+                updateTimestamp()
+                WorldWind.requestRedraw()
+            }
+        }
+    }
     /**
      * Unique identifier of the coverage type, defined by elevation source factory content type
      */
@@ -280,7 +303,18 @@ abstract class AbstractTiledElevationCoverage(
         return true
     }
 
+    /** Render-thread drain: drop in-memory arrays for tiles a background refresh re-cached and
+     *  un-mark them as cache-checked, so the next fetch re-reads the fresh tile from the store. */
+    private fun drainRevalidations() {
+        while (pendingRevalidations.isNotEmpty()) {
+            val key = pendingRevalidations.removeAt(0)
+            coverageCache.remove(key)
+            cacheCheckedKeys -= key
+        }
+    }
+
     protected open fun fetchTileArray(tileMatrix: TileMatrix, row: Int, column: Int): ShortArray? {
+        drainRevalidations()
         val key = tileMatrix.tileKey(row, column)
         return coverageCache[key] ?: run {
             // Ignore retrieval of already requested or marked as absent tiles

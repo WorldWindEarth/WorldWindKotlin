@@ -10,6 +10,7 @@ import earth.worldwind.layer.cache.BulkRetrievableElevationSourceFactory
 import earth.worldwind.layer.cache.CachedSourceInfo
 import earth.worldwind.layer.cache.CachedSourceInfoProvider
 import earth.worldwind.layer.cache.OfflineToggleable
+import earth.worldwind.layer.cache.RevalidatingSource
 import earth.worldwind.layer.source.TileSource
 import earth.worldwind.formats.gpkg.GeoPackage
 import earth.worldwind.formats.gpkg.GpkgContent
@@ -68,15 +69,16 @@ class GpkgCachedElevationSourceFactory(
     /** Background scope for revalidation refreshes; fire-and-forget, outlives the read. */
     private val revalidationScope: CoroutineScope = GlobalScope,
 ) : ElevationSourceFactory, OfflineToggleable, CachedSourceInfoProvider,
-    BulkRetrievableElevationSourceFactory, CacheReadableElevationSourceFactory {
+    BulkRetrievableElevationSourceFactory, CacheReadableElevationSourceFactory, RevalidatingSource {
     override val contentType = "GpkgCachedElevation"
 
     override val cacheInfo: CachedSourceInfo
         get() = CachedSourceInfo(contentKey = content.tableName, contentPath = geoPackage.pathName)
 
-    /** Invoked (off the render thread) after a stale tile is re-downloaded; the coverage wires
-     *  this to bump its timestamp + request a redraw so the tessellator re-pulls the tile. */
-    var onTileRevalidated: (() -> Unit)? = null
+    /** Invoked (off the render thread, with the tile's `(matrix ordinal, column, row)`) after a
+     *  stale tile is re-downloaded; the coverage wires this to drop the tile's cached array,
+     *  bump its timestamp, and request a redraw so the tessellator re-pulls the fresh tile. */
+    override var onTileRevalidated: ((z: Int, x: Int, y: Int) -> Unit)? = null
 
     private val revalidating = mutableSetOf<Long>()
     private val revalidateMutex = Mutex()
@@ -97,7 +99,7 @@ class GpkgCachedElevationSourceFactory(
             try {
                 GpkgCachedElevationDataFactory(this@GpkgCachedElevationSourceFactory, zoomLevel, tileColumn, tileRow)
                     .fetchElevationDataIgnoringCacheOnly(overrideCache = true)
-                onTileRevalidated?.invoke()
+                onTileRevalidated?.invoke(zoomLevel, tileColumn, tileRow)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (t: Throwable) {

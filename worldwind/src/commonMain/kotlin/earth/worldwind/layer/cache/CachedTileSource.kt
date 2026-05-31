@@ -36,12 +36,12 @@ class CachedTileSource(
     /** Background scope for stale-while-revalidate refreshes; defaults to [GlobalScope] since
      *  they're fire-and-forget and must outlive the render call that triggered them. */
     private val revalidationScope: CoroutineScope = GlobalScope,
-) : TileSource, OfflineToggleable, CachedSourceInfoProvider {
+) : TileSource, OfflineToggleable, CachedSourceInfoProvider, RevalidatingSource {
 
     /** Invoked (off the render thread) after a stale tile is re-downloaded and written through,
      *  so the render layer can drop the tile's cached texture and redraw. `null` = no swap;
      *  the fresh tile then appears on the next texture (re)load. */
-    var onTileRevalidated: ((z: Int, x: Int, y: Int) -> Unit)? = null
+    override var onTileRevalidated: ((z: Int, x: Int, y: Int) -> Unit)? = null
 
     private val revalidating = mutableSetOf<Long>()
     private val revalidateMutex = Mutex()
