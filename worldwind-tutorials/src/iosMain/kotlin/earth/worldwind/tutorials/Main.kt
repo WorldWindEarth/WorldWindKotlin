@@ -6,6 +6,7 @@ import earth.worldwind.WorldWind
 import earth.worldwind.WorldWindow as PlatformWorldWindow
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.log
+import platform.UIKit.UIScreen
 import earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.ZERO
@@ -245,6 +246,11 @@ object Tutorials {
         },
         TutorialFactory("geojson", "GeoJSON") { e ->
             GeoJsonTutorial(e, iosMainScope) { MR.assets.geojson_sample_json.readText() }
+        },
+        TutorialFactory("kml", "KML") { e ->
+            KmlTutorial(e, iosMainScope, density = UIScreen.mainScreen.scale.toFloat()) {
+                MR.assets.kml_sample_kml.readText()
+            }
         },
         TutorialFactory("wcsElevation", "WCS Elevation") { e ->
             WcsElevationTutorial(e, iosMainScope, layerLoader = {

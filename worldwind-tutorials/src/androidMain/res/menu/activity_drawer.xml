@@ -26,6 +26,10 @@
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_geojson"/>
         <item
+            android:id="@+id/nav_kml_activity"
+            android:icon="@android:drawable/ic_menu_mapmode"
+            android:title="@string/title_kml"/>
+        <item
             android:id="@+id/nav_wcs_elevation_activity"
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_wcs_elevation_coverage"/>

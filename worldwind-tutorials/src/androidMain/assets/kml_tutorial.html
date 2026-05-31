@@ -1,0 +1,89 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>KML Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>KML Tutorial</h1>
+<p>
+    Loads a small KML document via <code>KmlLayerFactory</code>.</p>
+<p>
+    The sample document defines two shared <code>&lt;Style&gt;</code> blocks (an icon style
+    and a line+poly style) and references them from three placemarks (London /
+    Paris / Brussels) plus one polygon that connects the three. The factory parses the XML,
+    resolves <code>&lt;styleUrl&gt;</code> references against the document, and emits one
+    <code>RenderableLayer</code> per <code>&lt;Document&gt;</code> / <code>&lt;Folder&gt;</code>.
+</p>
+
+<h2>Example</h2>
+<h3>KmlTutorial.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class KmlTutorial(
+    engine: WorldWind,
+    private val scope: CoroutineScope,
+    private val density: Float = 1f,
+    private val kmlTextProvider: suspend () -> String,
+) : AbstractTutorial(engine) {
+
+    private val installedLayers = mutableListOf<Layer>()
+    private var job: Job? = null
+
+    override fun start() {
+        super.start()
+        job = scope.launch {
+            try {
+                val text = kmlTextProvider()
+                val layers = KmlLayerFactory.createLayers(
+                    text = text,
+                    options = KmlLayerFactory.Options(
+                        density = density,
+                        renderLabelsForShapes = true,
+                    ),
+                )
+                if (!isActive) return@launch
+                installedLayers.addAll(layers)
+                engine.layers.addAllLayers(layers)
+                WorldWind.requestRedraw()
+            } catch (e: Throwable) {
+                Logger.log(Logger.ERROR, "KML tutorial: ${e.message}", e)
+            }
+        }
+        engine.cameraFromLookAt(
+            LookAt(
+                position = Position.fromDegrees(37.42228990140251, -122.0822035425683, 0.0),
+                altitudeMode = AltitudeMode.ABSOLUTE,
+                range = 2e2,
+                heading = ZERO,
+                tilt = 45.0.degrees,
+                roll = ZERO,
+            )
+        )
+    }
+
+    override fun stop() {
+        super.stop()
+        job?.cancel()
+        installedLayers.forEach { engine.layers.removeLayer(it) }
+        installedLayers.clear()
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

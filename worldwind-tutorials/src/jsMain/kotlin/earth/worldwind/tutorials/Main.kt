@@ -198,6 +198,9 @@ fun main() {
             "GeoJSON" to GeoJsonTutorial(wwd.engine, mainScope) {
                 window.fetch(MR.assets.geojson_sample_json.originalPath).await().text().await()
             },
+            "KML" to KmlTutorial(wwd.engine, mainScope, density = window.devicePixelRatio.toFloat()) {
+                window.fetch(MR.assets.kml_sample_kml.originalPath).await().text().await()
+            },
             "WCS Elevation" to WcsElevationTutorial(wwd.engine, mainScope, layerLoader = {
                 Wcs100ElevationCoverage(
                     serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,
