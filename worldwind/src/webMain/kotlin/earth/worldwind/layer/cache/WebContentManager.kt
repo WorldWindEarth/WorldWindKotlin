@@ -90,6 +90,9 @@ class WebContentManager(
                 )
             }
             if (!db.objectStoreNames.contains(METADATA_STORE)) db.createObjectStore(METADATA_STORE)
+            // Shared store for every 3D Tiles dataset's payload blobs. Composite key
+            // `[contentKey, uri]` namespaces by content key the same way the tile stores do.
+            if (!db.objectStoreNames.contains(BLOB_STORE_OGC3D)) db.createObjectStore(BLOB_STORE_OGC3D)
             // Per-content-key data-type registry — keeps openXxxStore reads honest after a
             // wrong-type re-open attempt. Mirrors the GPKG `data_type` mismatch check.
             if (!db.objectStoreNames.contains(DATA_TYPE_STORE)) db.createObjectStore(DATA_TYPE_STORE)
@@ -128,6 +131,8 @@ class WebContentManager(
                 IndexedDbTileStore(db(), contentKey, COVERAGE_TILES_STORE, CachePolicy.UNBOUNDED).sizeBytes()
             CacheEntry.DataType.FEATURES ->
                 IndexedDbFeatureStore(db(), contentKey, CachePolicy.UNBOUNDED).sizeBytes()
+            CacheEntry.DataType.OGC_3D_TILES ->
+                IndexedDbBlobStore(db(), contentKey, BLOB_STORE_OGC3D, CachePolicy.UNBOUNDED).sizeBytes()
         }
     }
 
@@ -277,6 +282,23 @@ class WebContentManager(
         }
     }
 
+    /**
+     * IndexedDB-backed [BlobStore] for 3D Tiles payloads. Shares the [BLOB_STORE_OGC3D]
+     * object store across every dataset; records are namespaced by `contentKey` via the
+     * composite key `[contentKey, uri]`.
+     */
+    override suspend fun openBlobStore(
+        contentKey: String,
+        evictionPolicy: CachePolicy,
+        displayName: String?,
+    ): BlobStore {
+        rememberDataType(contentKey, CacheEntry.DataType.OGC_3D_TILES)
+        if (displayName != null) rememberDisplayName(contentKey, displayName)
+        return IndexedDbBlobStore(db(), contentKey, BLOB_STORE_OGC3D, evictionPolicy).also {
+            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
+        }
+    }
+
     override suspend fun openFeatureStore(
         contentKey: String,
         cachePolicy: CachePolicy,
@@ -320,20 +342,32 @@ class WebContentManager(
     }
 
     /** Persist the user-visible name. First-write-wins per content key — re-opens don't
-     *  overwrite a name already on file (matches gpkg_contents.identifier's stability). */
+     *  overwrite a name already on file (matches gpkg_contents.identifier's stability).
+     *  Chains the conditional put inside the get's onsuccess so both stay on the same
+     *  transaction; awaiting between them lets IDB auto-commit (postMessage in the JS
+     *  dispatcher crosses a task boundary). Same pattern as [rememberIsFloat]. */
     private suspend fun rememberDisplayName(contentKey: String, displayName: String) = idbSerializationLock.withLock {
-        try {
+        runCatching {
             val db = db()
             val tx = db.transaction(DISPLAY_NAME_STORE, "readwrite")
             val store = tx.objectStore(DISPLAY_NAME_STORE)
-            val existing = idbAwaitString(store.get(contentKey.toJsString()))
-            if (existing.isNullOrBlank()) {
-                store.put(displayName.toJsString(), contentKey.toJsString())
+            val getReq = store.get(contentKey.toJsString())
+            suspendCancellableCoroutine<Unit> { cont ->
+                getReq.onsuccess = { _: Event ->
+                    @Suppress("REDUNDANT_CALL_OF_CONVERSION_METHOD")
+                    val existing = getReq.result?.unsafeCast<JsString>()?.toString()
+                    if (existing.isNullOrBlank()) {
+                        val putReq = store.put(displayName.toJsString(), contentKey.toJsString())
+                        putReq.onsuccess = { _: Event -> cont.resume(Unit) }
+                        putReq.onerror = { _: Event -> cont.resume(Unit) }
+                    } else {
+                        cont.resume(Unit)
+                    }
+                }
+                getReq.onerror = { _: Event -> cont.resume(Unit) }
             }
-            idbAwaitTransaction(tx)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
             console.warn("WebContentManager.rememberDisplayName('$contentKey') skipped: ${e.message}")
         }
     }
@@ -487,6 +521,7 @@ class WebContentManager(
         "WCS 1.0.0" -> CacheEntry.DataType.COVERAGE
         "MVT" -> CacheEntry.DataType.VECTOR_TILES
         "WFS", "Shapefile", "OsmBuildings" -> CacheEntry.DataType.FEATURES
+        "3DTiles" -> CacheEntry.DataType.OGC_3D_TILES
         else -> CacheEntry.DataType.TILES
     }
 
@@ -583,6 +618,10 @@ class WebContentManager(
         internal const val DISPLAY_NAME_STORE = "display_names"
         internal const val IS_FLOAT_STORE = "coverage_is_float"
         internal const val COVERAGE_ANCILLARY_STORE = "coverage_ancillary"
+        /** Shared store for every 3D Tiles dataset's payload blobs. Records keyed by
+         *  `[contentKey, uri]`; one store hosts every layer's cache (no per-content-key
+         *  store proliferation, mirroring the tile-store pattern). */
+        internal const val BLOB_STORE_OGC3D = "ogc3d_blobs"
         private val TILE_STORES =
             arrayOf(IMAGE_TILES_STORE, VECTOR_TILES_STORE, COVERAGE_TILES_STORE)
     }

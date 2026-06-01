@@ -87,7 +87,7 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     }
 
     protected open fun renderGround(rc: RenderContext) {
-        if (rc.terrain.sector.isEmpty) return  // no terrain surface to render on
+        if (rc.terrain.sector.isEmpty || !rc.writeTerrainDepth) return  // no terrain surface to render on
         val pool = rc.getDrawablePool(DrawableGroundAtmosphere.KEY)
         val drawable = DrawableGroundAtmosphere.obtain(pool)
         drawable.program = rc.getShaderProgram { GroundProgram() }

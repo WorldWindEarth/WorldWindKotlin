@@ -6,9 +6,11 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSourceFactory
+import earth.worldwind.layer.cache.BlobStore
 import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CacheEntry
 import earth.worldwind.layer.cache.FeatureStore
+import earth.worldwind.layer.cache.GpkgBlobStore
 import earth.worldwind.layer.cache.GpkgFeatureStore
 import earth.worldwind.layer.cache.GpkgTileStore
 import earth.worldwind.layer.source.TileSource
@@ -21,6 +23,7 @@ import earth.worldwind.formats.gpkg.GeoPackage.Companion.EPSG_3857
 import earth.worldwind.formats.gpkg.GeoPackage.Companion.FEATURES
 import earth.worldwind.formats.gpkg.GeoPackage.Companion.FLOAT
 import earth.worldwind.formats.gpkg.GeoPackage.Companion.INTEGER
+import earth.worldwind.formats.gpkg.GeoPackage.Companion.OGC_3D_TILES
 import earth.worldwind.formats.gpkg.GeoPackage.Companion.TILES
 import earth.worldwind.formats.gpkg.GeoPackage.Companion.VECTOR_TILES
 import earth.worldwind.formats.gpkg.GpkgContent
@@ -280,6 +283,31 @@ class GpkgContentManager(
         GpkgFeatureStore(geoPackage, content, cachePolicy).also { store -> deferEvict(cachePolicy) { store.evict() } }
     }
 
+    // --- 3D Tiles blob store --------------------------------------------------------
+
+    /**
+     * Open (or create) a [BlobStore] for 3D Tiles content payloads. The on-disk shape
+     * follows the OGC 3D Tiles GeoPackage Extension community proposal: the table is
+     * registered in `gpkg_contents` with `data_type='3d-tiles'` and in `gpkg_extensions`
+     * as `gpkg_3d_tiles`. The per-tile schema ([GpkgBlobRow]) is the proposal's
+     * `tile_path` PK + `tile_data` BLOB plus WorldWind's extended bookkeeping columns
+     * for conditional fetches + LRU eviction.
+     */
+    override suspend fun openBlobStore(
+        contentKey: String,
+        evictionPolicy: CachePolicy,
+        displayName: String?,
+    ): BlobStore = runScopedOrThrow {
+        // Re-entrant: existing content with the right data_type re-uses the row, mismatched
+        // data_type throws. setup3DTilesContent does the work.
+        if (!geoPackage.isReadOnly) {
+            geoPackage.setup3DTilesContent(contentKey, displayName)
+        }
+        GpkgBlobStore(geoPackage, contentKey, evictionPolicy).also { store ->
+            deferEvict(evictionPolicy) { store.evict() }
+        }
+    }
+
     // --- Web-service registry -------------------------------------------------------
 
     override suspend fun registerWebService(contentKey: String, info: WebServiceInfo): Unit =
@@ -311,7 +339,7 @@ class GpkgContentManager(
 
     override suspend fun listEntries(): List<CacheEntry> = runScoped(default = emptyList()) {
         val all = mutableListOf<CacheEntry>()
-        for (dataType in listOf(TILES, VECTOR_TILES, COVERAGE, FEATURES)) {
+        for (dataType in listOf(TILES, VECTOR_TILES, COVERAGE, FEATURES, OGC_3D_TILES)) {
             for (content in geoPackage.getContent(dataType, null)) {
                 all += content.toHandle()
             }
@@ -451,6 +479,7 @@ class GpkgContentManager(
             VECTOR_TILES -> CacheEntry.DataType.VECTOR_TILES
             COVERAGE -> CacheEntry.DataType.COVERAGE
             FEATURES -> CacheEntry.DataType.FEATURES
+            OGC_3D_TILES -> CacheEntry.DataType.OGC_3D_TILES
             else -> error("Unknown data_type '$dataTypeName' for content '$tableName'")
         }
         val isFloat = dataType == CacheEntry.DataType.COVERAGE &&

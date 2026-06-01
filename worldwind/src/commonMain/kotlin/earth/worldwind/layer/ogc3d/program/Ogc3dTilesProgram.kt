@@ -1,0 +1,501 @@
+package earth.worldwind.layer.ogc3d.program
+
+import earth.worldwind.draw.DrawContext
+import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.shadow.ShadowReceiverGlsl
+import earth.worldwind.layer.shadow.ShadowReceiverProgram
+import earth.worldwind.layer.sightline.SightlineReceiverGlsl
+import earth.worldwind.layer.sightline.SightlineReceiverProgram
+import earth.worldwind.render.Color
+import earth.worldwind.render.RenderContext
+import earth.worldwind.render.program.AbstractShaderProgram
+import earth.worldwind.util.kgl.KglUniformLocation
+
+/**
+ * Color-pass shader for b3dm / i3dm / cmpt / glTF mesh content. Four variants:
+ * base, shadow-only, sightline-only, both — picked by [get] via sentinel subclasses.
+ * Lambertian lighting; baseColorFactor × optional unit-0 texture.
+ */
+open class Ogc3dTilesProgram(
+    protected val shadowsEnabled: Boolean = false,
+    protected val sightlineEnabled: Boolean = false,
+) : AbstractShaderProgram(), ShadowReceiverProgram, SightlineReceiverProgram {
+
+    override var programSources: Array<String> = arrayOf(
+        defines() + VERTEX_SHADER,
+        defines() + FRAGMENT_SHADER,
+    )
+
+    override val attribBindings: Array<String> = arrayOf(
+        "vertexPosition", "vertexNormal", "vertexTexCoord", "vertexColor", "vertexBatchId",
+    )
+
+    private fun defines(): String {
+        var out = ""
+        if (shadowsEnabled) out += ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE
+        if (sightlineEnabled) out += SightlineReceiverGlsl.SIGHTLINE_ENABLED_DEFINE
+        return out
+    }
+
+    // --- uniform handles -----------------------------------------------------------
+
+    private var mvpMatrixId = KglUniformLocation.NONE
+    private var modelMatrixId = KglUniformLocation.NONE
+    private var colorId = KglUniformLocation.NONE
+    private var opacityId = KglUniformLocation.NONE
+    private var enableTextureId = KglUniformLocation.NONE
+    private var enableLightingId = KglUniformLocation.NONE
+    private var enableVertexColorId = KglUniformLocation.NONE
+    private var lightDirectionId = KglUniformLocation.NONE
+    private var alphaCutoffId = KglUniformLocation.NONE
+    private var enableAlphaMaskId = KglUniformLocation.NONE
+    private var enablePickModeId = KglUniformLocation.NONE
+    private var enableBatchPickId = KglUniformLocation.NONE
+    private var pickColorId = KglUniformLocation.NONE
+    private var pickIdBaseId = KglUniformLocation.NONE
+    private var texSamplerId = KglUniformLocation.NONE
+
+    // Shadow receiver uniforms (only present in shadow variants).
+    private var applyShadowId = KglUniformLocation.NONE
+    private var useMSMId = KglUniformLocation.NONE
+    private var ambientShadowId = KglUniformLocation.NONE
+    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+
+    // Sightline receiver uniforms (only present in sightline variants).
+    private var applySightlineId = KglUniformLocation.NONE
+    private var sightlineOmnidirectionalId = KglUniformLocation.NONE
+    private var sightlineMvMatrixId = KglUniformLocation.NONE
+    private var sightlineProjMatrixId = KglUniformLocation.NONE
+    private var sightlineLocalMatrixId = KglUniformLocation.NONE
+    private var sightlineRangeId = KglUniformLocation.NONE
+    private var sightlineColorsId = KglUniformLocation.NONE
+    private var sightlineMomentsSamplerId = KglUniformLocation.NONE
+    private var sightlineMomentsCubeSamplerId = KglUniformLocation.NONE
+
+    // --- uniform state caches (skip redundant GL calls) ----------------------------
+
+    private val mvpMatrix = Matrix4()
+    private val modelMatrix = Matrix4()
+    private val matrixArray = FloatArray(16)
+    private val color = Color()
+    private var opacity = 1.0f
+    private var enableTexture = false
+    private var enableLighting = false
+    private var enableVertexColor = false
+    private var enableAlphaMask = false
+    private var alphaCutoff = 0.5f
+    private var enablePickMode = false
+    private var enableBatchPick = false
+    private val pickColor = Color(0f, 0f, 0f, 1f)
+    private var pickIdBase = 0f
+    private val lightDirection = Vec3(0.0, 0.0, 1.0)
+
+    override var shadowUploadStamp: Long = -1L
+    override var sightlineUploadStamp: Long = -1L
+
+    override fun initProgram(dc: DrawContext) {
+        super.initProgram(dc)
+        mvpMatrixId = gl.getUniformLocation(program, "mvpMatrix")
+        mvpMatrix.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(mvpMatrixId, 1, false, matrixArray, 0)
+        modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
+        modelMatrix.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(modelMatrixId, 1, false, matrixArray, 0)
+        colorId = gl.getUniformLocation(program, "color")
+        gl.uniform4f(colorId, color.red, color.green, color.blue, color.alpha)
+        opacityId = gl.getUniformLocation(program, "opacity")
+        gl.uniform1f(opacityId, opacity)
+        enableTextureId = gl.getUniformLocation(program, "enableTexture")
+        gl.uniform1i(enableTextureId, 0)
+        enableLightingId = gl.getUniformLocation(program, "enableLighting")
+        gl.uniform1i(enableLightingId, 0)
+        enableVertexColorId = gl.getUniformLocation(program, "enableVertexColor")
+        gl.uniform1i(enableVertexColorId, 0)
+        lightDirectionId = gl.getUniformLocation(program, "lightDirection")
+        gl.uniform3f(lightDirectionId, 0f, 0f, 1f)
+        alphaCutoffId = gl.getUniformLocation(program, "alphaCutoff")
+        gl.uniform1f(alphaCutoffId, 0.5f)
+        enableAlphaMaskId = gl.getUniformLocation(program, "enableAlphaMask")
+        gl.uniform1i(enableAlphaMaskId, 0)
+        enablePickModeId = gl.getUniformLocation(program, "enablePickMode")
+        gl.uniform1i(enablePickModeId, 0)
+        enableBatchPickId = gl.getUniformLocation(program, "enableBatchPick")
+        gl.uniform1i(enableBatchPickId, 0)
+        pickColorId = gl.getUniformLocation(program, "pickColor")
+        gl.uniform4f(pickColorId, 0f, 0f, 0f, 1f)
+        pickIdBaseId = gl.getUniformLocation(program, "pickIdBase")
+        gl.uniform1f(pickIdBaseId, 0f)
+        texSamplerId = gl.getUniformLocation(program, "texSampler")
+        gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
+
+        if (shadowsEnabled) {
+            applyShadowId = gl.getUniformLocation(program, "applyShadow")
+            gl.uniform1i(applyShadowId, 0)
+            useMSMId = gl.getUniformLocation(program, "useMSM")
+            gl.uniform1i(useMSMId, 0)
+            ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
+            gl.uniform1f(ambientShadowId, 0.4f)
+            for (i in shadowMapIds.indices) {
+                shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
+                gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
+                lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
+                cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
+                gl.uniform1f(cascadeFarDepthIds[i], 0f)
+            }
+        }
+
+        if (sightlineEnabled) {
+            applySightlineId = gl.getUniformLocation(program, "applySightline")
+            gl.uniform1i(applySightlineId, 0)
+            sightlineOmnidirectionalId = gl.getUniformLocation(program, "sightlineOmnidirectional")
+            gl.uniform1i(sightlineOmnidirectionalId, 0)
+            sightlineMvMatrixId = gl.getUniformLocation(program, "sightlineMvMatrix")
+            sightlineProjMatrixId = gl.getUniformLocation(program, "sightlineProjMatrix")
+            sightlineLocalMatrixId = gl.getUniformLocation(program, "sightlineLocalMatrix")
+            sightlineRangeId = gl.getUniformLocation(program, "sightlineRange")
+            gl.uniform1f(sightlineRangeId, 0f)
+            sightlineColorsId = gl.getUniformLocation(program, "sightlineColors")
+            sightlineMomentsSamplerId = gl.getUniformLocation(program, "sightlineMomentsSampler")
+            gl.uniform1i(sightlineMomentsSamplerId, 4) // GL_TEXTURE4
+            sightlineMomentsCubeSamplerId = gl.getUniformLocation(program, "sightlineMomentsCubeSampler")
+            gl.uniform1i(sightlineMomentsCubeSamplerId, 5) // GL_TEXTURE5
+        }
+    }
+
+    // --- per-draw setters ----------------------------------------------------------
+
+    fun loadModelviewProjection(matrix: Matrix4) {
+        if (mvpMatrix != matrix) {
+            mvpMatrix.copy(matrix)
+            matrix.transposeToArray(matrixArray, 0)
+            gl.uniformMatrix4fv(mvpMatrixId, 1, false, matrixArray, 0)
+        }
+    }
+
+    fun loadModelMatrix(matrix: Matrix4) {
+        if (modelMatrix != matrix) {
+            modelMatrix.copy(matrix)
+            matrix.transposeToArray(matrixArray, 0)
+            gl.uniformMatrix4fv(modelMatrixId, 1, false, matrixArray, 0)
+        }
+    }
+
+    fun loadColor(c: Color) {
+        if (color != c) {
+            color.copy(c)
+            gl.uniform4f(colorId, c.red, c.green, c.blue, c.alpha)
+        }
+    }
+
+    fun loadOpacity(value: Float) {
+        if (opacity != value) {
+            opacity = value
+            gl.uniform1f(opacityId, value)
+        }
+    }
+
+    fun enableTexture(enable: Boolean) {
+        if (enableTexture != enable) {
+            enableTexture = enable
+            gl.uniform1i(enableTextureId, if (enable) 1 else 0)
+        }
+    }
+
+    fun enableLighting(enable: Boolean) {
+        if (enableLighting != enable) {
+            enableLighting = enable
+            gl.uniform1i(enableLightingId, if (enable) 1 else 0)
+        }
+    }
+
+    fun enableVertexColor(enable: Boolean) {
+        if (enableVertexColor != enable) {
+            enableVertexColor = enable
+            gl.uniform1i(enableVertexColorId, if (enable) 1 else 0)
+        }
+    }
+
+    fun loadLightDirection(direction: Vec3) {
+        if (lightDirection != direction) {
+            lightDirection.copy(direction)
+            gl.uniform3f(lightDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
+        }
+    }
+
+    fun enableAlphaMask(enable: Boolean, cutoff: Float) {
+        if (enableAlphaMask != enable) {
+            enableAlphaMask = enable
+            gl.uniform1i(enableAlphaMaskId, if (enable) 1 else 0)
+        }
+        if (alphaCutoff != cutoff) {
+            alphaCutoff = cutoff
+            gl.uniform1f(alphaCutoffId, cutoff)
+        }
+    }
+
+    fun enablePickMode(enable: Boolean) {
+        if (enablePickMode != enable) {
+            enablePickMode = enable
+            gl.uniform1i(enablePickModeId, if (enable) 1 else 0)
+        }
+    }
+
+    fun loadPickColor(c: Color) {
+        if (pickColor != c) {
+            pickColor.copy(c)
+            gl.uniform4f(pickColorId, c.red, c.green, c.blue, c.alpha)
+        }
+    }
+
+    /** Enable per-feature pick mode. When true, the fragment shader uses the per-vertex
+     *  `batchPickColor` varying (computed from `vertexBatchId + pickIdBase`) instead of
+     *  the uniform [loadPickColor]. The drawable must have a valid `vertexBatchId`
+     *  attribute bound and have called [loadPickIdBase] with the first pickedObjectId
+     *  reserved for the tile's batches. */
+    fun enableBatchPick(enable: Boolean) {
+        if (enableBatchPick != enable) {
+            enableBatchPick = enable
+            gl.uniform1i(enableBatchPickId, if (enable) 1 else 0)
+        }
+    }
+
+    /** First `rc.nextPickedObjectId()` reserved for this tile's batches. The vertex shader
+     *  computes `pickId = pickIdBase + vertexBatchId` and decomposes that to RGB. */
+    fun loadPickIdBase(base: Int) {
+        val v = base.toFloat()
+        if (pickIdBase != v) {
+            pickIdBase = v
+            gl.uniform1f(pickIdBaseId, v)
+        }
+    }
+
+    // --- ShadowReceiverProgram impl -----------------------------------------------
+
+    override fun loadShadowDisabled() {
+        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
+    }
+
+    override fun loadShadowEnabled(
+        ambientShadow: Float,
+        lightProjectionView0: Matrix4,
+        lightProjectionView1: Matrix4,
+        lightProjectionView2: Matrix4,
+        cascadeFarDepth0: Float,
+        cascadeFarDepth1: Float,
+        cascadeFarDepth2: Float,
+        useMSM: Boolean,
+    ) {
+        if (!shadowsEnabled) return
+        gl.uniform1i(applyShadowId, 1)
+        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
+        gl.uniform1f(ambientShadowId, ambientShadow)
+        lightProjectionView0.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, matrixArray, 0)
+        lightProjectionView1.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, matrixArray, 0)
+        lightProjectionView2.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, matrixArray, 0)
+        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
+        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
+        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
+    }
+
+    // --- SightlineReceiverProgram impl --------------------------------------------
+
+    override fun loadSightlineDisabled() {
+        if (sightlineEnabled) gl.uniform1i(applySightlineId, 0)
+    }
+
+    override fun loadSightlineEnabled(
+        omnidirectional: Boolean,
+        sightlineMv: Matrix4,
+        cubeMapProjection: Matrix4,
+        sightlineLocal: Matrix4,
+        range: Float,
+        visibleColor: Color,
+        occludedColor: Color,
+    ) {
+        if (!sightlineEnabled) return
+        gl.uniform1i(applySightlineId, 1)
+        gl.uniform1i(sightlineOmnidirectionalId, if (omnidirectional) 1 else 0)
+        sightlineMv.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(sightlineMvMatrixId, 1, false, matrixArray, 0)
+        cubeMapProjection.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(sightlineProjMatrixId, 1, false, matrixArray, 0)
+        sightlineLocal.transposeToArray(matrixArray, 0)
+        gl.uniformMatrix4fv(sightlineLocalMatrixId, 1, false, matrixArray, 0)
+        gl.uniform1f(sightlineRangeId, range)
+        val colorsArray = floatArrayOf(
+            visibleColor.red * visibleColor.alpha,
+            visibleColor.green * visibleColor.alpha,
+            visibleColor.blue * visibleColor.alpha,
+            visibleColor.alpha,
+            occludedColor.red * occludedColor.alpha,
+            occludedColor.green * occludedColor.alpha,
+            occludedColor.blue * occludedColor.alpha,
+            occludedColor.alpha,
+        )
+        gl.uniform4fv(sightlineColorsId, 2, colorsArray, 0)
+    }
+
+    companion object {
+        /** Resolve the right variant for [rc] based on the active receivers. */
+        fun get(rc: RenderContext): Ogc3dTilesProgram {
+            val s = rc.hasShadowLayer
+            val l = rc.hasActiveSightline
+            return when {
+                s && l -> rc.getShaderProgram { Ogc3dTilesProgramBoth() }
+                s -> rc.getShaderProgram { Ogc3dTilesProgramShadow() }
+                l -> rc.getShaderProgram { Ogc3dTilesProgramSightline() }
+                else -> rc.getShaderProgram { Ogc3dTilesProgram() }
+            }
+        }
+
+        // GLSL — pure ASCII.
+
+        private val VERTEX_SHADER: String = """
+            uniform mat4 mvpMatrix;
+            uniform mat4 modelMatrix;
+            /* Batch picking: encode pickIdBase + vertexBatchId into 24-bit RGB. */
+            uniform float pickIdBase;
+
+            attribute vec3 vertexPosition;
+            attribute vec3 vertexNormal;
+            attribute vec2 vertexTexCoord;
+            attribute vec4 vertexColor;
+            attribute float vertexBatchId;
+
+            varying vec2 texCoord;
+            varying vec3 worldNormal;
+            varying vec4 vertColor;
+            varying vec4 batchPickColor;
+            #if defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)
+            varying vec3 worldPos;
+            #endif
+            #ifdef SHADOWS_ENABLED
+            varying float viewDepth;
+            #endif
+
+            #ifdef SIGHTLINE_ENABLED
+            ${SightlineReceiverGlsl.VERTEX_DECLARATIONS}
+            #endif
+
+            void main() {
+                vec4 localPos = vec4(vertexPosition, 1.0);
+                vec4 worldPos4 = modelMatrix * localPos;
+                gl_Position = mvpMatrix * localPos;
+
+                texCoord = vertexTexCoord;
+                vertColor = vertexColor;
+                /* Normalise in case the tile transform has non-uniform scale. */
+                worldNormal = normalize(mat3(modelMatrix) * vertexNormal);
+
+                /* Pack pickId as 24-bit RGB matching PickedObject.identifierToUniqueColor. */
+                float pickId = pickIdBase + vertexBatchId;
+                float pickR = floor(pickId / 65536.0);
+                float pickG = floor(mod(pickId, 65536.0) / 256.0);
+                float pickB = mod(pickId, 256.0);
+                batchPickColor = vec4(pickR, pickG, pickB, 255.0) / 255.0;
+
+                #if defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)
+                worldPos = worldPos4.xyz;
+                #endif
+                #ifdef SHADOWS_ENABLED
+                viewDepth = gl_Position.w;
+                #endif
+                #ifdef SIGHTLINE_ENABLED
+                emitSightlineVaryings(worldPos4);
+                #endif
+            }
+        """.trimIndent()
+
+        private val FRAGMENT_SHADER: String = """
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            #elif defined(GL_ES)
+            precision mediump float;
+            #endif
+
+            uniform vec4 color;
+            uniform float opacity;
+            uniform bool enableTexture;
+            uniform bool enableLighting;
+            uniform bool enableVertexColor;
+            uniform bool enableAlphaMask;
+            uniform float alphaCutoff;
+            uniform bool enablePickMode;
+            uniform bool enableBatchPick;
+            uniform vec4 pickColor;
+            uniform vec3 lightDirection;
+            uniform sampler2D texSampler;
+
+            varying vec2 texCoord;
+            varying vec3 worldNormal;
+            varying vec4 vertColor;
+            varying vec4 batchPickColor;
+            #if defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)
+            varying vec3 worldPos;
+            #endif
+            #ifdef SHADOWS_ENABLED
+            varying float viewDepth;
+            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            #endif
+
+            #ifdef SIGHTLINE_ENABLED
+            ${SightlineReceiverGlsl.FRAGMENT_DECLARATIONS}
+            #endif
+
+            void main() {
+                if (enablePickMode) {
+                    /* enableBatchPick selects between per-feature (batchPickColor varying,
+                       baked from pickIdBase + vertexBatchId in the vertex shader) and
+                       tile-level (uniform pickColor) picking. The branch is uniform so
+                       it's free on any modern GPU. */
+                    gl_FragColor = enableBatchPick ? batchPickColor : pickColor;
+                    return;
+                }
+
+                vec4 baseColor = color;
+                if (enableVertexColor) baseColor *= vertColor;
+                if (enableTexture) baseColor *= texture2D(texSampler, texCoord);
+
+                if (enableAlphaMask && baseColor.a < alphaCutoff) discard;
+
+                if (enableLighting) {
+                    /* Lambert against world-space sun direction. Adjacent triangles share
+                       per-vertex normals so a true diffuse term works (unlike the OSM-buildings
+                       dFdx fallback). Ambient 0.35 + 0.65 * lambert matches TriangleShaderProgram. */
+                    float lambert = max(dot(normalize(worldNormal), lightDirection), 0.0);
+                    baseColor.rgb *= 0.35 + 0.65 * lambert;
+                }
+
+                baseColor *= opacity;
+
+                #ifdef SHADOWS_ENABLED
+                float shadowVis = computeShadowVisibility(worldPos, viewDepth);
+                baseColor.rgb *= shadowVis;
+                #endif
+
+                #ifdef SIGHTLINE_ENABLED
+                vec4 tint = computeSightlineTint();
+                baseColor.rgb = baseColor.rgb * (1.0 - tint.a) + tint.rgb;
+                baseColor.a = max(baseColor.a, tint.a);
+                #endif
+
+                gl_FragColor = baseColor;
+            }
+        """.trimIndent()
+    }
+}
+
+/** Sentinel subclass for shadow-only variant — distinct cache key. */
+class Ogc3dTilesProgramShadow : Ogc3dTilesProgram(shadowsEnabled = true, sightlineEnabled = false)
+
+/** Sentinel subclass for sightline-only variant. */
+class Ogc3dTilesProgramSightline : Ogc3dTilesProgram(shadowsEnabled = false, sightlineEnabled = true)
+
+/** Sentinel subclass for both shadow + sightline variant. */
+class Ogc3dTilesProgramBoth : Ogc3dTilesProgram(shadowsEnabled = true, sightlineEnabled = true)

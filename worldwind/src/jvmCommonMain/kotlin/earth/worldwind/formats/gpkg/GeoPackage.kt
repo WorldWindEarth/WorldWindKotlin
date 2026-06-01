@@ -1265,6 +1265,45 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /**
+     * Set up a 3D Tiles GeoPackage extension blob table for [tableName]. Idempotent:
+     * re-opening an existing 3D Tiles content registers the same row + extension entry.
+     *
+     * Schema follows the OGC 3D Tiles GeoPackage Extension proposal — the per-dataset
+     * blob table is created by the caller's DAO ([GpkgBlobRow] columns), and this method
+     * stitches it into the GPKG content + extension registries so external readers see it
+     * as a documented extension rather than an anonymous user table.
+     */
+    suspend fun setup3DTilesContent(
+        tableName: String,
+        displayName: String? = null,
+    ): GpkgContent = withContext(writeDispatcher) {
+        if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
+        contentDao.queryForId(tableName)?.let { existing ->
+            check(existing.dataTypeName.equals(OGC_3D_TILES, ignoreCase = true)) {
+                "Content '$tableName' exists but data_type is '${existing.dataTypeName}' " +
+                    "(expected '$OGC_3D_TILES')"
+            }
+            // Make sure the extension row is still in place on the re-entry path.
+            registerExtension(tableName, null, OGC_3D_TILES_EXTENSION)
+            return@withContext existing
+        }
+        // Data table must exist before the gpkg_contents row: NGA's verifyCreate rejects
+        // a content row whose target table isn't there. Idempotent on re-entry.
+        TableUtils.createTableIfNotExists(
+            connectionSource,
+            DatabaseTableConfig(GpkgBlobRow::class.java, tableName, null),
+        )
+        val content = GpkgContent().also {
+            it.tableName = tableName
+            it.dataTypeName = OGC_3D_TILES
+            it.identifier = displayName ?: tableName
+        }
+        val persisted = contentDao.createIfNotExists(content)
+        registerExtension(tableName, null, OGC_3D_TILES_EXTENSION)
+        persisted
+    }
+
+    /**
      * Register a row in `gpkg_extensions` per OGC spec. Idempotent — if the same (table, column,
      * extension) triple is already present, no-op. Lets external GPKG readers introspect our
      * custom extensions (`worldwind_web_service`, `worldwind_last_modified`) instead of seeing
@@ -1438,6 +1477,24 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         const val WW_TILE_REVALIDATION_EXTENSION = "worldwind_tile_revalidation"
         const val WW_FEATURE_COVERAGE_EXTENSION = "worldwind_feature_coverage"
         const val WW_EXTENSION_DEFINITION = "https://worldwind.earth"
+
+        /**
+         * `gpkg_contents.data_type` value for the OGC 3D Tiles GeoPackage Extension. Each
+         * blob-cache table created by [setup3DTilesContent] registers its row with this
+         * data_type so external GeoPackage tools (QGIS, GDAL, ogr2ogr) recognise the
+         * 3D Tiles payload rather than seeing it as an unknown user table.
+         */
+        const val OGC_3D_TILES = "3d-tiles"
+
+        /**
+         * Extension name registered in `gpkg_extensions` for the 3D Tiles cache table.
+         * Author prefix `gpkg_` per the OGC GeoPackage extension naming convention; the
+         * row points at the [OGC_3D_TILES_DEFINITION] documentation URL.
+         */
+        const val OGC_3D_TILES_EXTENSION = "gpkg_3d_tiles"
+
+        /** Documentation URL stored in the extension row for cross-tool introspection. */
+        const val OGC_3D_TILES_DEFINITION = "https://docs.ogc.org/cs/22-025r4/22-025r4.html"
 
         init { installLenientDatePatterns() }
 

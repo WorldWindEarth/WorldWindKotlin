@@ -80,7 +80,7 @@ open class BasicFrameController: FrameController {
     }
 
     protected open fun renderTerrain(rc: RenderContext) {
-        if (rc.terrain.sector.isEmpty) return  // no terrain to pick
+        if (rc.terrain.sector.isEmpty || !rc.writeTerrainDepth) return  // no terrain to pick
 
         // Enqueue drawable for processing on the OpenGL thread that displays terrain in the transparent color.
         // This is required to modify depth buffer and correctly cut the interior of 3D shapes by the terrain.
@@ -98,13 +98,15 @@ open class BasicFrameController: FrameController {
         // Acquire a unique picked object ID for terrain.
         val pickedObjectId = rc.nextPickedObjectId()
 
-        // Enqueue drawable for processing on the OpenGL thread that displays terrain in the unique pick color.
-        val pool = rc.getDrawablePool(DrawableSurfaceColor.KEY)
-        val drawable = obtain(pool)
-        identifierToUniqueColor(pickedObjectId, drawable.color)
-        drawable.opacity = 1.0f // Just to be sure to reset opacity
-        drawable.program = rc.getShaderProgram { BasicShaderProgram() }
-        rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
+        // Skip the terrain-color drawable when depth occlusion is off; the CPU ray intersection below still runs.
+        if (rc.writeTerrainDepth) {
+            val pool = rc.getDrawablePool(DrawableSurfaceColor.KEY)
+            val drawable = obtain(pool)
+            identifierToUniqueColor(pickedObjectId, drawable.color)
+            drawable.opacity = 1.0f // Just to be sure to reset opacity
+            drawable.program = rc.getShaderProgram { BasicShaderProgram() }
+            rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
+        }
 
         // If the pick ray intersects the terrain, enqueue a picked object that associates the terrain drawable with its
         // picked object ID and the intersection position.
@@ -228,7 +230,12 @@ open class BasicFrameController: FrameController {
             val topObject = if (topObjectId != 0) pickedObjects.pickedObjectWithId(topObjectId) else null
 
             if (topObject == null) {
-                if (pickPointOnly) pickedObjects.clearPickedObjects()
+                if (pickPointOnly) {
+                    // Empty pixel: drop shape candidates but keep the terrain pick as ground anchor (matters when writeTerrainDepth = false).
+                    val terrainObject = pickedObjects.terrainPickedObject
+                    pickedObjects.clearPickedObjects()
+                    if (terrainObject != null) pickedObjects.offerPickedObject(terrainObject)
+                }
                 return@let
             }
             if (!topObject.isTerrain) {

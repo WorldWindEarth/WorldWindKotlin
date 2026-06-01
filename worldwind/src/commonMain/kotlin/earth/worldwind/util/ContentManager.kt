@@ -2,10 +2,12 @@ package earth.worldwind.util
 
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSourceFactory
+import earth.worldwind.layer.cache.BlobStore
 import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CacheEntry
 import earth.worldwind.layer.cache.FeatureStore
 import earth.worldwind.layer.cache.LowLevelCacheApi
+import earth.worldwind.layer.cache.NoOpBlobStore
 import earth.worldwind.layer.source.TileSource
 import earth.worldwind.layer.cache.TileStore
 import earth.worldwind.layer.cache.WebServiceInfo
@@ -249,4 +251,28 @@ interface ContentManager {
      * keep the default no-op.
      */
     suspend fun tryOpenNativeContent(entry: CacheEntry): Any? = null
+
+    /**
+     * Open (or create) a URI-keyed [BlobStore] — a flat key/value store for arbitrary HTTP
+     * payloads. Distinct from [openImageTileStore] / [openFeatureStore] in that entries are
+     * keyed by string URI rather than by `(z, x, y)` or a feature id, which makes it the
+     * right shape for caches whose entries are independent URLs.
+     *
+     * First user: 3D Tiles content payloads
+     * ([earth.worldwind.layer.ogc3d.Ogc3dTilesLayer]) — each `tileset.json` and each tile
+     * content URI keys into one row. Future users: arbitrary HTTP asset caches.
+     *
+     * **Default returns [NoOpBlobStore].** Platform backends that have implemented a real
+     * persistence layer (GeoPackage on JVM/Android, IndexedDB on JS, file blobs on iOS)
+     * override this. Layers that cache to a [NoOpBlobStore] silently fall back to
+     * network-only fetches — caller code never has to branch on store availability.
+     *
+     * See [openImageTileStore] for [displayName] semantics.
+     */
+    @LowLevelCacheApi
+    suspend fun openBlobStore(
+        contentKey: String,
+        evictionPolicy: CachePolicy = CachePolicy.UNBOUNDED,
+        displayName: String? = null,
+    ): BlobStore = NoOpBlobStore
 }
