@@ -6,11 +6,20 @@ import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock
+import kotlin.time.Duration
 
 /**
  * Cache-first decorator over a [BulkFeatureSource]. On [fetchAll]:
@@ -76,17 +85,30 @@ class CachedBulkFeatureSource(
 /**
  * Cache-first decorator over a [TiledFeatureSource]. On [fetchTile]:
  *   1. Read [store] for `(z, x, y)`. Hit → return cached flow (an empty flow means the
- *      tile is cached with zero features — the negative-cache sentinel).
+ *      tile is cached with zero features — the negative-cache sentinel); if the tile is older
+ *      than the store's eviction [CacheEvictionPolicy.maxAge], also kick a background refresh
+ *      (stale-while-revalidate — see [maybeRevalidate]).
  *   2. Miss → fetch from [inner], write-through, return.
  */
+@OptIn(DelicateCoroutinesApi::class)
 class CachedTiledFeatureSource(
     private val inner: TiledFeatureSource?,
     private val store: FeatureStore,
-) : TiledFeatureSource, OfflineToggleable, CachedSourceInfoProvider {
+    /** Background scope for stale-while-revalidate refreshes; defaults to [GlobalScope] since
+     *  they're fire-and-forget and must outlive the render call that triggered them. */
+    private val revalidationScope: CoroutineScope = GlobalScope,
+) : TiledFeatureSource, OfflineToggleable, CachedSourceInfoProvider, RevalidatingSource {
 
     /** The wrapped upstream tiled-feature source. Exposed for rebind flows — `attachCache`
      *  extractors peel this off when the layer is already cache-attached. */
     val networkSource: TiledFeatureSource? get() = inner
+
+    /** Invoked (off the render thread) after a stale tile is re-downloaded and replaced, so the
+     *  render layer can drop its in-memory copy and reload the fresh rows. */
+    override var onTileRevalidated: ((z: Int, x: Int, y: Int) -> Unit)? = null
+
+    private val revalidating = mutableSetOf<Long>()
+    private val revalidateMutex = Mutex()
 
     /** When true, [fetchTile] never calls [inner] — cache hits served, cache misses
      *  return `null`. Mirrors [CachedTileSource.isCacheOnly]. */
@@ -95,11 +117,11 @@ class CachedTiledFeatureSource(
     override val cacheInfo: CachedSourceInfo?
         get() = (store as? CachedSourceInfoProvider)?.cacheInfo
 
-    override suspend fun tryReadCachedTile(z: Int, x: Int, y: Int): Flow<CachedFeatureRow>? =
-        store.readTile(z, x, y)
+    override suspend fun tryReadCachedTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? =
+        store.readTile(z, x, y)?.also { maybeRevalidate(z, x, y, sector) }
 
     override suspend fun fetchTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? {
-        store.readTile(z, x, y)?.let { return it }
+        store.readTile(z, x, y)?.let { maybeRevalidate(z, x, y, sector); return it }
         if (isCacheOnly) return null
         val fetched = try {
             inner?.fetchTile(z, x, y, sector)
@@ -126,4 +148,44 @@ class CachedTiledFeatureSource(
             }
         }
     }
+
+    /**
+     * Stale-while-revalidate: after serving a cached tile, if it's older than the store's
+     * eviction [CacheEvictionPolicy.maxAge], re-download it in the background and **replace it
+     * only on a non-empty success** — an empty or failed refresh leaves the existing tile
+     * untouched, so a transient Overpass hiccup can never blank good data. The successful write
+     * bumps `last_modified`, so the tile stops being stale. No-op when offline, when there's no
+     * network source, when freshness isn't tracked (`maxAge == INFINITE` or the store doesn't
+     * surface a tile timestamp), or when a refresh for this tile is already in flight.
+     */
+    private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, sector: Sector) {
+        if (isCacheOnly) return
+        val network = inner ?: return
+        val maxAge = store.evictionPolicy.maxAge
+        if (maxAge == Duration.INFINITE) return
+        val cachedAt = store.readTileLastModified(z, x, y) ?: return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        val key = tileKey(z, x, y)
+        if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
+        revalidationScope.launch {
+            try {
+                val fresh = network.fetchTile(z, x, y, sector)?.toList() ?: return@launch
+                // Never blank: an empty refresh keeps the existing rows — replacement only.
+                if (fresh.isEmpty()) return@launch
+                store.writeTile(z, x, y, fresh.asFlow())
+                onTileRevalidated?.invoke(z, x, y)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                logMessage(WARN, "CachedTiledFeatureSource", "maybeRevalidate",
+                    "Background refresh failed for ($z,$x,$y): ${e::class.simpleName}: ${e.message}")
+            } finally {
+                revalidateMutex.withLock { revalidating.remove(key) }
+            }
+        }
+    }
+
+    /** Packs (z,x,y) into one Long for the in-flight-revalidation set (x/y < 2^24, z < 2^16). */
+    private fun tileKey(z: Int, x: Int, y: Int): Long =
+        (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
 }

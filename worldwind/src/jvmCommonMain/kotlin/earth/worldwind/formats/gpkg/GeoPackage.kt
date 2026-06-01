@@ -45,7 +45,6 @@ import mil.nga.proj.ProjectionConstants
 import mil.nga.sf.*
 import java.util.*
 import kotlin.math.*
-import kotlin.time.Duration
 import mil.nga.geopackage.extension.Extensions as GpkgExtension
 import mil.nga.geopackage.extension.coverage.GriddedCoverage as GpkgGriddedCoverage
 import mil.nga.geopackage.extension.coverage.GriddedTile as GpkgGriddedTile
@@ -302,11 +301,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val escapedTable = content.tableName.replace("\"", "\"\"")
         val q = "\"$escapedTable\""
 
-        if (policy.maxAge != Duration.INFINITE) {
-            val cutoff = System.currentTimeMillis() - policy.maxAge.inWholeMilliseconds
-            geoPackage.database.execSQL("DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff")
-        }
-
+        // maxAge never deletes — stale tiles refresh in place via SWR. Only capacity caps evict
+        // (one row per tile here, so already whole-tile).
         if (policy.maxEntries < Long.MAX_VALUE) {
             geoPackage.database.execSQL(
                 "DELETE FROM $q WHERE id IN (" +
@@ -900,6 +896,22 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         readFeatureTileRows(geoPackage, content.tableName, z, x, y)
     }
 
+    /** Epoch-millis a feature tile was last written, for stale-while-revalidate reads. `null`
+     *  when the table doesn't track `last_modified` (third-party / pre-eviction GPKG) or the tile
+     *  isn't cached. All rows of a tile share a write time, so MAX returns that single value.
+     *  Coords are ints, so inlining is injection-safe; caller gates on a finite eviction maxAge. */
+    suspend fun readFeatureTileLastModified(
+        content: GpkgContent, z: Int, x: Int, y: Int,
+    ): Long? = withContext(Dispatchers.IO) {
+        if (content.tableName !in tablesWithLastModified) return@withContext null
+        val escaped = content.tableName.replace("\"", "\"\"")
+        val lm = geoPackage.geometryColumnsDao.queryRawValue(
+            "SELECT COALESCE(MAX($LAST_MODIFIED_COLUMN), 0) FROM \"$escaped\" " +
+                "WHERE $TILE_Z_COLUMN = $z AND $TILE_X_COLUMN = $x AND $TILE_Y_COLUMN = $y"
+        )
+        if (lm > 0L) lm else null
+    }
+
     /** Replace every row for one tile and bump `last_change`. */
     @Throws(IllegalStateException::class)
     suspend fun writeFeatureTile(
@@ -962,10 +974,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     fun hasLastModifiedColumn(tableName: String): Boolean = tableName in tablesWithLastModified
 
     /**
-     * Evict rows from a features cache table per [policy]. Honors all three caps:
-     *  - [CacheEvictionPolicy.maxAge]: deletes rows where `last_modified < (now - maxAge)`
-     *  - [CacheEvictionPolicy.maxEntries]: keeps the N most-recently-modified
-     *  - [CacheEvictionPolicy.maxBytes]: deletes oldest rows until under cap (best-effort)
+     * Evict rows from a features cache table per [policy]:
+     *  - [CacheEvictionPolicy.maxAge]: NOT a deletion trigger — the cache refreshes stale tiles
+     *    in place (stale-while-revalidate), so age never removes data.
+     *  - [CacheEvictionPolicy.maxEntries]: keeps the N newest tile *rows*, but only ever drops
+     *    WHOLE tiles — a tile is never split into a partial, half-rendered set.
+     *  - [CacheEvictionPolicy.maxBytes]: not implemented for GPKG (maxEntries is the proxy).
      *
      * No-op when GeoPackage is read-only or the policy is unbounded.
      */
@@ -981,26 +995,25 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val escapedTable = content.tableName.replace("\"", "\"\"")
         val q = "\"$escapedTable\""
 
-        if (policy.maxAge != Duration.INFINITE) {
-            val cutoff = System.currentTimeMillis() - policy.maxAge.inWholeMilliseconds
-            geoPackage.database.execSQL(
-                "DELETE FROM $q WHERE COALESCE($LAST_MODIFIED_COLUMN, 0) < $cutoff"
-            )
-        }
-
+        // maxAge never deletes feature tiles — stale tiles refresh in place via SWR. Only the
+        // capacity cap below evicts, and only in WHOLE tiles.
         if (policy.maxEntries < Long.MAX_VALUE) {
+            // Whole-tile eviction: delete tile-addressed rows older than the maxEntries-th newest
+            // row. Rows of one tile share a last_modified, so the cutoff falls between tiles and
+            // never splits one into a partial set. Bulk rows (tile_z IS NULL) are exempt; the
+            // subquery yields NULL (deletes nothing) when the table holds <= maxEntries tile rows.
             geoPackage.database.execSQL(
-                "DELETE FROM $q WHERE $FEATURE_ID_COLUMN IN (" +
-                        "SELECT $FEATURE_ID_COLUMN FROM $q " +
-                        "ORDER BY COALESCE($LAST_MODIFIED_COLUMN, 0) ASC, $FEATURE_ID_COLUMN ASC " +
-                        "LIMIT MAX(0, (SELECT COUNT(*) FROM $q) - ${policy.maxEntries})" +
-                        ")"
+                "DELETE FROM $q WHERE $TILE_Z_COLUMN IS NOT NULL " +
+                        "AND COALESCE($LAST_MODIFIED_COLUMN, 0) < (" +
+                        "SELECT COALESCE($LAST_MODIFIED_COLUMN, 0) FROM $q WHERE $TILE_Z_COLUMN IS NOT NULL " +
+                        "ORDER BY COALESCE($LAST_MODIFIED_COLUMN, 0) DESC, $FEATURE_ID_COLUMN DESC " +
+                        "LIMIT 1 OFFSET ${policy.maxEntries - 1})"
             )
         }
 
         // maxBytes is intentionally not implemented for GPKG — would require multi-column cursor
         // walks that aren't on the public mil.nga.geopackage connection surface. Use maxEntries
-        // as a proxy ("N tiles" ≈ "N × typical_tile_size bytes"). IDB / Cache API honor maxBytes
+        // as a proxy ("N rows" ≈ "N × typical_feature_size bytes"). IDB / Cache API honor maxBytes
         // directly since their cursor APIs expose size cheaply.
     }
 

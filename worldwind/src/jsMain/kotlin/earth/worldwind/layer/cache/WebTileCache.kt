@@ -5,7 +5,6 @@ import org.w3c.fetch.Response
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlin.js.Promise
-import kotlin.time.Duration
 
 /**
  * Browser Cache API wrapper for tile HTTP requests. Image + elevation layers route through
@@ -77,11 +76,8 @@ internal object WebTileCache {
         val keys = cache.keys().await()
         if (keys.isEmpty()) return
 
-        val now = js("Date.now()").unsafeCast<Double>()
-        val maxAgeMs = if (policy.maxAge == Duration.INFINITE) Double.POSITIVE_INFINITY
-        else policy.maxAge.inWholeMilliseconds.toDouble()
-        val cutoff = now - maxAgeMs
-
+        // maxAge NEVER deletes — stale tiles are refreshed in place by stale-while-revalidate,
+        // not removed. Only the capacity caps below evict (each tile is one entry, whole-tile).
         // Collect (request, cacheTime, sizeBytes) for sorting + cap math.
         data class Entry(val request: Any, val cacheTime: Double, val sizeBytes: Long)
         val entries = ArrayList<Entry>(keys.size)
@@ -99,10 +95,9 @@ internal object WebTileCache {
         var kept = 0L
         var keptBytes = 0L
         for (e in entries) {
-            val tooOld = e.cacheTime < cutoff
             val overCount = kept >= policy.maxEntries
             val overBytes = keptBytes + e.sizeBytes > policy.maxBytes
-            if (tooOld || overCount || overBytes) toDelete += e.request
+            if (overCount || overBytes) toDelete += e.request
             else { kept++; keptBytes += e.sizeBytes }
         }
         for (req in toDelete) cache.delete(req).await()

@@ -33,8 +33,12 @@ interface TiledFeatureSource {
      * source has no cache to consult. Cache-backed sources override to read their store
      * without going through the network-fetch concurrency budget. Empty flow is the
      * negative-cache sentinel ("fetched, no features"); `null` is a true miss.
+     *
+     * [sector] is the tile's geographic bounds — supplied so a cache-backed source can issue
+     * a stale-while-revalidate background refetch (which needs the bbox) without a second
+     * coordinate→sector conversion on the caller's side. Read-only hits ignore it.
      */
-    suspend fun tryReadCachedTile(z: Int, x: Int, y: Int): Flow<CachedFeatureRow>? = null
+    suspend fun tryReadCachedTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? = null
 
     /** Release any resources held by the source (HTTP client, etc.). Idempotent default no-op. */
     fun close() {}

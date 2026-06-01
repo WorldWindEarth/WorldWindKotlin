@@ -5,7 +5,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import org.w3c.dom.events.Event
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.time.Duration
 import org.khronos.webgl.Int8Array
 import org.khronos.webgl.Uint8Array
 
@@ -79,28 +78,30 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
         val rows = readByContent(contentKey)
         if (rows.isEmpty()) return
 
-        val now = js("Date.now()").unsafeCast<Double>()
-        val maxAgeMs = if (policy.maxAge == Duration.INFINITE) Double.POSITIVE_INFINITY
-        else policy.maxAge.inWholeMilliseconds.toDouble()
-        val cutoff = now - maxAgeMs
-
-        // Sort newest-first so the keep-set is easy to slice off the front.
-        val sorted = rows.sortedByDescending { it.lastModified }
-        val idsToDelete = mutableListOf<Int>()
-        var kept = 0L
-        var keptBytes = 0L
-        for (r in sorted) {
-            val id = r.id ?: continue
-            val tooOld = r.lastModified < cutoff
-            val overCount = kept >= policy.maxEntries
-            val sz = (r.geometry?.length ?: 0) + (r.properties?.length ?: 0)
-            val overBytes = keptBytes + sz > policy.maxBytes
-            if (tooOld || overCount || overBytes) {
-                idsToDelete += id
-            } else {
-                kept++
-                keptBytes += sz
+        // maxAge never deletes — stale tiles refresh in place via SWR. Capacity caps evict only
+        // WHOLE tiles: group rows by (z, x, y) and drop whole tiles oldest-first, never splitting
+        // one into a partial set. Bulk rows (z == null) are exempt.
+        data class TileGroup(val ids: List<Int>, val bytes: Long, val lastModified: Double)
+        val tiles = rows
+            .filter { it.z != null && it.id != null }
+            .groupBy { Triple(it.z, it.x, it.y) }
+            .map { (_, group) ->
+                TileGroup(
+                    ids = group.mapNotNull { it.id },
+                    bytes = group.sumOf { ((it.geometry?.length ?: 0) + (it.properties?.length ?: 0)).toLong() },
+                    lastModified = group.maxOf { it.lastModified },
+                )
             }
+            .sortedByDescending { it.lastModified }  // newest tiles first
+
+        val idsToDelete = mutableListOf<Int>()
+        var keptRows = 0L
+        var keptBytes = 0L
+        for (t in tiles) {
+            val overCount = keptRows + t.ids.size > policy.maxEntries
+            val overBytes = keptBytes + t.bytes > policy.maxBytes
+            if (overCount || overBytes) idsToDelete += t.ids  // drop the whole tile
+            else { keptRows += t.ids.size; keptBytes += t.bytes }
         }
         if (idsToDelete.isEmpty()) return
         deleteByIds(idsToDelete)
@@ -160,21 +161,17 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
         val rows = readAllVectorTiles(contentKey)
         if (rows.isEmpty()) return
 
-        val now = js("Date.now()").unsafeCast<Double>()
-        val maxAgeMs = if (policy.maxAge == Duration.INFINITE) Double.POSITIVE_INFINITY
-        else policy.maxAge.inWholeMilliseconds.toDouble()
-        val cutoff = now - maxAgeMs
-
+        // maxAge NEVER deletes — stale vector tiles are refreshed in place (SWR), not removed.
+        // Only the capacity caps below evict (each tile is one row, whole-tile).
         val sorted = rows.sortedByDescending { it.fetchedAt }
         val toDelete = mutableListOf<Array<Any>>()
         var kept = 0L
         var keptBytes = 0L
         for (r in sorted) {
-            val tooOld = r.fetchedAt < cutoff
             val overCount = kept >= policy.maxEntries
             val sz = r.bytes.length.toLong()
             val overBytes = keptBytes + sz > policy.maxBytes
-            if (tooOld || overCount || overBytes) {
+            if (overCount || overBytes) {
                 toDelete += arrayOf<Any>(r.contentKey, r.z, r.x, r.y)
             } else {
                 kept++

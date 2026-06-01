@@ -28,6 +28,11 @@ interface FeatureStore {
      *  An empty flow distinguishes "tile cached with zero rows" from "tile not cached". */
     suspend fun readTile(z: Int, x: Int, y: Int): Flow<CachedFeatureRow>?
 
+    /** Epoch-millis the tile at `(z, x, y)` was last written, for stale-while-revalidate.
+     *  Default `null` = freshness isn't tracked (the store opts out of SWR — its tiles are
+     *  served but never background-refreshed). */
+    suspend fun readTileLastModified(z: Int, x: Int, y: Int): Long? = null
+
     /** Atomically replace rows for one tile. Pass an empty flow to record "tile has no
      *  features" — that's the negative cache for ocean / empty Overpass responses. */
     suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>)

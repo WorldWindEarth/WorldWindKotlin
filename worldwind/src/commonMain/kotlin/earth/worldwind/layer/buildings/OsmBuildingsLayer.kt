@@ -6,6 +6,7 @@ import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.layer.VectorLayer
+import earth.worldwind.layer.cache.RevalidatingSource
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.TiledFeatureSource
 import earth.worldwind.layer.mercator.MercatorSector
@@ -104,6 +105,13 @@ open class OsmBuildingsLayer(
     private val semaphore = Semaphore(maxConcurrentFetches.coerceAtLeast(1))
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val results = Channel<TileResult>(capacity = Channel.UNLIMITED)
+    // Tiles a stale-while-revalidate refresh has replaced in the cache (delivered off the render
+    // thread via [RevalidatingSource.onTileRevalidated]). [drainRevalidated] drops each from the
+    // in-memory [tiles] LRU on the render thread so the fresh rows reload from cache.
+    private val revalidated = Channel<TileKey>(capacity = Channel.UNLIMITED)
+    // The source the revalidation callback is currently wired to. [source] can be swapped by a
+    // cache attach / rebind, so [wireRevalidation] re-wires whenever it changes.
+    private var wiredSource: TiledFeatureSource? = null
     // [latestRc] is the RC seen on the most recent doRender, used by the LRU eviction callback to
     // route to [OsmBuildingsTile.releaseRenderResources] without needing rc passed through the
     // cache plumbing. doRender + LRU put + eviction all run on the render thread, so this is safe.
@@ -136,6 +144,8 @@ open class OsmBuildingsLayer(
 
     override fun doRender(rc: RenderContext) {
         latestRc = rc
+        wireRevalidation()
+        drainRevalidated()
         drainResults()
 
         // Center on lookAt when available (true look-at point on the globe), else fall back to
@@ -207,6 +217,7 @@ open class OsmBuildingsLayer(
         isClosed = true
         scope.cancel()
         results.close()
+        revalidated.close()
         try { source.close() } catch (_: Exception) {}
         // Best-effort GPU release for in-flight batched tiles. Legacy tiles fall through to
         // RenderResourceCache LRU pressure as usual. [close] is normally called from the render
@@ -312,7 +323,7 @@ open class OsmBuildingsLayer(
     protected open suspend fun loadBuildings(key: TileKey): List<OsmBuilding> {
         val src = source
         val rows = mutableListOf<CachedFeatureRow>()
-        val cached = src.tryReadCachedTile(key.z, key.x, key.y)
+        val cached = src.tryReadCachedTile(key.z, key.x, key.y, key.sector)
         if (cached != null) {
             cached.collect { rows += it }
         } else {
@@ -346,6 +357,37 @@ open class OsmBuildingsLayer(
             // earlier tried `polygons.size` and trashed the cache — see git history.
             cachedValues.add(value)
             tiles.put(result.key, value, 1)
+        }
+    }
+
+    /**
+     * Wire the stale-while-revalidate callback to the current [source] (idempotent per source
+     * instance). Runs on the render thread each frame so a cache attach / rebind that swaps
+     * [source] gets re-wired. The callback fires off the render thread, so it only enqueues the
+     * key; [drainRevalidated] does the cache mutation on the render thread.
+     */
+    private fun wireRevalidation() {
+        val src = source
+        if (src === wiredSource) return
+        wiredSource = src
+        (src as? RevalidatingSource)?.onTileRevalidated = { z, x, y ->
+            revalidated.trySend(TileKey(z, x, y))
+            WorldWind.requestRedraw()
+        }
+    }
+
+    /**
+     * Drop every just-revalidated tile from the in-memory [tiles] LRU so the next [processTile]
+     * reloads the fresh rows the background refresh wrote to the cache. Render-thread only —
+     * [LruMemoryCache.remove] routes batched tiles through [entryRemoved] to free their GPU
+     * buffers, matching normal eviction.
+     */
+    private fun drainRevalidated() {
+        while (true) {
+            val key = revalidated.tryReceive().getOrNull() ?: return
+            tiles.remove(key)
+            pending.remove(key)
+            backoff.remove(key)
         }
     }
 

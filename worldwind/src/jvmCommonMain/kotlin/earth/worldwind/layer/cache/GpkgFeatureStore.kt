@@ -56,6 +56,9 @@ class GpkgFeatureStore(
             .asFlow()
     }
 
+    override suspend fun readTileLastModified(z: Int, x: Int, y: Int): Long? =
+        geoPackage.readFeatureTileLastModified(content, z, x, y)
+
     override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>) {
         val materialised = rows.toList()
         val payload = if (materialised.isEmpty()) {
