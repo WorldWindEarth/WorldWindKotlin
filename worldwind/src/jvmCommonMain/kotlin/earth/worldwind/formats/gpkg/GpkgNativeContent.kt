@@ -35,6 +35,9 @@ internal suspend fun GpkgContentManager.openGpkgNative(entry: CacheEntry): Any? 
         CacheEntry.DataType.VECTOR_TILES -> openGpkgVectorTileLayer(content)
         CacheEntry.DataType.COVERAGE -> openGpkgCoverage(content)
         CacheEntry.DataType.FEATURES -> openGpkgFeatureLayer(content)
+        // 3D Tiles needs TilesetSource (root URI + auth provider) the cache can't reconstruct
+        // from the blob table alone; callers reopen via Ogc3dTilesLayer(source, blobStore).
+        CacheEntry.DataType.OGC_3D_TILES -> null
     }
 }
 

@@ -15,7 +15,7 @@ open class UploadQueue internal constructor() {
         protected const val MIN_CAPACITY_INCREMENT = 12
     }
 
-    fun queueBufferUpload(buffer: BufferObject, array: NumericArray, version: Int) {
+    fun queueBufferUpload(buffer: BufferObject, array: NumericArray, version: Int, onUploaded: (() -> Unit)? = null) {
         val capacity = entries.size
         if (capacity == size) {
             val increment = max(capacity shr 1, MIN_CAPACITY_INCREMENT)
@@ -27,6 +27,7 @@ open class UploadQueue internal constructor() {
         entry.array = array
         entry.buffer = buffer
         entry.version = version
+        entry.onUploaded = onUploaded
         size++
     }
 
@@ -49,7 +50,11 @@ open class UploadQueue internal constructor() {
                     "Exception while uploading '$next'", e
                 )
             }
+            next.onUploaded?.invoke()
+            // Recycle so a re-draw of the same Frame doesn't re-fire onUploaded callbacks.
+            next.recycle()
         }
+        size = 0
     }
 
     fun clearUploads() {
@@ -61,11 +66,13 @@ open class UploadQueue internal constructor() {
         var array: NumericArray? = null
         var buffer: BufferObject? = null
         var version = 0
+        var onUploaded: (() -> Unit)? = null
 
         fun recycle() {
             array = null
             buffer = null
             version = 0
+            onUploaded = null
         }
     }
 }

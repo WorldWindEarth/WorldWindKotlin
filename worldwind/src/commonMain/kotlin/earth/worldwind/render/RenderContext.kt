@@ -123,6 +123,7 @@ open class RenderContext {
      * which is populated later during the depth pass.
      */
     var hasActiveSightline: Boolean = false
+    var writeTerrainDepth: Boolean = false
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -178,6 +179,7 @@ open class RenderContext {
         shadowState = null
         hasShadowLayer = false
         hasActiveSightline = false
+        writeTerrainDepth = false
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()
@@ -454,13 +456,22 @@ open class RenderContext {
         } else null
     }
 
-    inline fun offerGLBufferUpload(key: Any, newVersion: Int, arrayBuilder: () -> NumericArray) {
-        (renderResourceCache[key] as? BufferObject)?.let { buffer ->
-            if (buffer.version < newVersion) {
-                val array = arrayBuilder()
-                uploadQueue?.queueBufferUpload(buffer, array, newVersion)
-                renderResourceCache.updateSize(key, bufferGpuFootprint(array.byteCount))
-            }
+    /** Queue a buffer upload when the cached [BufferObject]'s version trails [newVersion].
+     *  [onUploaded] fires exactly once — async after the GL write, or sync here when no
+     *  upload was queued. Pass nothing to skip; `noinline` is allocation-free at null. */
+    inline fun offerGLBufferUpload(
+        key: Any,
+        newVersion: Int,
+        noinline onUploaded: (() -> Unit)? = null,
+        arrayBuilder: () -> NumericArray,
+    ) {
+        val buffer = renderResourceCache[key] as? BufferObject
+        if (buffer != null && buffer.version < newVersion) {
+            val array = arrayBuilder()
+            uploadQueue?.queueBufferUpload(buffer, array, newVersion, onUploaded)
+            renderResourceCache.updateSize(key, bufferGpuFootprint(array.byteCount))
+        } else {
+            onUploaded?.invoke()
         }
     }
 

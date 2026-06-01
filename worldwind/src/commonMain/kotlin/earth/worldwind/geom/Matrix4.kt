@@ -1536,7 +1536,11 @@ open class Matrix4 private constructor(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Matrix4) return false
-        return m.contentEquals(other.m)
+        val a = m
+        val b = other.m
+        var i = 0
+        while (i < 16) { if (a[i] != b[i]) return false; i++ }
+        return true
     }
 
     override fun hashCode() = m.contentHashCode()

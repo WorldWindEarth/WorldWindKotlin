@@ -87,6 +87,23 @@ class IosContentManager(
         if (maxMs > 0L) Instant.fromEpochMilliseconds(maxMs) else null
     }
 
+    /**
+     * Filesystem-backed [BlobStore] for 3D Tiles payloads. Persists under
+     * `${baseDirectory}/${contentKey}/blobs/<fnv1a-hex>.bin` with a JSON `.meta` sidecar.
+     */
+    override suspend fun openBlobStore(
+        contentKey: String,
+        evictionPolicy: CachePolicy,
+        displayName: String?,
+    ): BlobStore {
+        rejectIfPreviouslyTypedAs(contentKey, CacheEntry.DataType.OGC_3D_TILES)
+        rememberDataType(contentKey, CacheEntry.DataType.OGC_3D_TILES)
+        if (displayName != null) rememberDisplayName(contentKey, displayName)
+        return FileSystemBlobStore(pathName, contentKey, evictionPolicy).also {
+            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
+        }
+    }
+
     override suspend fun openImageTileStore(
         contentKey: String,
         levelSet: LevelSet,
@@ -343,6 +360,7 @@ class IosContentManager(
         "WCS 1.0.0", "WCS 2.0.1" -> CacheEntry.DataType.COVERAGE
         "MVT" -> CacheEntry.DataType.VECTOR_TILES
         "WFS", "Shapefile", "OsmBuildings" -> CacheEntry.DataType.FEATURES
+        "3DTiles" -> CacheEntry.DataType.OGC_3D_TILES
         else -> CacheEntry.DataType.TILES
     }
 

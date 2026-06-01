@@ -57,6 +57,9 @@ open class DrawableGroundAtmosphere : Drawable {
         // Set up to use the shared tile tex coord attributes.
         dc.gl.enableVertexAttribArray(1)
 
+        // Disable depth writes so we don't redundantly claim terrain depth
+        dc.gl.depthMask(false)
+
         // Attempt to bind the night side texture to multi-texture unit 0.
         dc.activeTextureUnit(GL_TEXTURE0)
         val nightTexture = nightTexture
@@ -102,5 +105,6 @@ open class DrawableGroundAtmosphere : Drawable {
         // Restore the default WorldWind OpenGL state.
         dc.gl.blendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
         dc.gl.disableVertexAttribArray(1)
+        dc.gl.depthMask(true)
     }
 }

@@ -27,6 +27,8 @@ data class CacheEntry(
         COVERAGE,
         /** Vector features (WFS, Shapefile, OsmBuildings — distinguished by [WebServiceInfo.type]). */
         FEATURES,
+        /** OGC 3D Tiles content cache (community extension; b3dm / i3dm / cmpt / pnts / glTF). */
+        OGC_3D_TILES,
     }
 }
 
