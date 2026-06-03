@@ -9,9 +9,6 @@ import earth.worldwind.MR
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
-import earth.worldwind.globe.elevation.coverage.CacheableElevationCoverage
-import earth.worldwind.globe.elevation.coverage.WebElevationCoverage
-import earth.worldwind.layer.WebImageLayer
 import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.Renderable
@@ -34,12 +31,16 @@ import mil.nga.geopackage.db.DateConverter
 import mil.nga.geopackage.db.GeoPackageDataType
 import mil.nga.geopackage.extension.ExtensionScopeType
 import mil.nga.geopackage.extension.WebPExtension
+import mil.nga.geopackage.extension.coverage.CoverageDataCore
+import mil.nga.geopackage.extension.coverage.CoverageDataImage
+import mil.nga.geopackage.extension.coverage.CoverageDataRequest
+import mil.nga.geopackage.extension.coverage.CoverageDataResults
+import mil.nga.geopackage.extension.coverage.GriddedCoverageDataType
 import mil.nga.geopackage.extension.im.vector_tiles.VectorTilesEncodingExtension
-import mil.nga.geopackage.persister.DatePersister
-import mil.nga.geopackage.extension.coverage.*
 import mil.nga.geopackage.features.columns.GeometryColumns
 import mil.nga.geopackage.features.user.FeatureColumn
 import mil.nga.geopackage.features.user.FeatureTableMetadata
+import mil.nga.geopackage.persister.DatePersister
 import mil.nga.geopackage.tiles.user.TileTable
 import mil.nga.proj.ProjectionConstants
 import mil.nga.sf.*
@@ -79,7 +80,6 @@ expect fun createCoverageData(
     geoPackage: GeoPackageCore, tableName: String, identifier: String?, contentsBoundingBox: BoundingBox?,
     contentsSrsId: Long, tileBoundingBox: BoundingBox?, tileSrsId: Long, isFloat: Boolean
 ): CoverageData<*>
-expect fun getFeatureList(geoPackage: GeoPackageCore, tableName: String): List<Pair<Geometry, FeatureStyle?>>
 /**
  * Read cached features written by the WFS cache pipeline — each row carries a geometry
  * plus a JSON string of the feature's original properties so callers can re-apply their
@@ -153,10 +153,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         tileUserDataDao.clear()
         tileMatrixCache.clear()
         tablesWithLastModified.clear()
-    }
-
-    suspend fun countContent(dataType: String) = withContext(Dispatchers.IO) {
-        if (contentDao.isTableExists) contentDao.queryBuilder().where().eq(GpkgContent.COLUMN_DATA_TYPE, dataType).countOf() else 0L
     }
 
     suspend fun getContent(tableName: String): GpkgContent? = withContext(Dispatchers.IO) {
@@ -388,21 +384,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             griddedTile.mean = mean?.toDouble()
             griddedTile.standardDeviation = stdDev?.toDouble()
             griddedTileDao.createOrUpdate(griddedTile)
-        }
-    }
-
-    @Throws(IllegalArgumentException::class)
-    suspend fun getRenderables(content: GpkgContent) = withContext(Dispatchers.IO) {
-        require(content.dataTypeName.equals(FEATURES, ignoreCase = true)) {
-            "Unsupported GeoPackage content data_type: ${content.dataTypeName}"
-        }
-        val srs = content.srs?.also { srsDao.refresh(it) }
-        require(srs != null && srs.organization.equals(EPSG, ignoreCase = true)
-                && (srs.organizationCoordsysId == EPSG_3857 || srs.organizationCoordsysId == EPSG_4326)) {
-            "Unsupported GeoPackage spatial reference system: ${srs?.srsName ?: "undefined"}"
-        }
-        getFeatureList(geoPackage, content.tableName).flatMap { (geometry, style) ->
-            geometryToRenderables(geometry, style, srs.srsId)
         }
     }
 
