@@ -74,6 +74,19 @@ internal class IndexedDbTileStore(
         idbAwaitTransaction(tx)
     }
 
+    // 304 path: refresh cachedAt only, keeping bytes / validators. Read and write in separate
+    // transactions — an IDB tx auto-commits when it goes idle across a suspension, so a single
+    // read-then-write tx would risk dropping the put(). The serialization lock makes the gap safe.
+    override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int): Unit = idbSerializationLock.withLock {
+        val readTx = db.transaction(storeName, "readonly")
+        val record = idbAwait<IdbImageTileRecord?>(readTx.objectStore(storeName).get(compositeKey(z, x, y)))
+            ?: return@withLock
+        record.cachedAt = Clock.System.now().toEpochMilliseconds().toDouble()
+        val writeTx = db.transaction(storeName, "readwrite")
+        writeTx.objectStore(storeName).put(record, compositeKey(z, x, y))
+        idbAwaitTransaction(writeTx)
+    }
+
     override suspend fun sizeBytes(): Long = idbSerializationLock.withLock {
         val tx = db.transaction(storeName, "readonly")
         val store = tx.objectStore(storeName)

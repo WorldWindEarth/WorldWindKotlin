@@ -140,10 +140,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val griddedTileDao = CoverageDataCore.getGriddedTileDao(geoPackage)
     private val tileUserDataDao = mutableMapOf<String, Dao<GpkgTileUserData, Int>>()
     private val tileMatrixCache = mutableMapOf<String, Map<Int, GpkgTileMatrix>>()
-    /** Tables known to have the `last_modified` column — populated by [ensureLastModifiedColumn]
-     *  on success. Read on every cache write to gate the per-tile `UPDATE` (skip the SQL round-trip
-     *  on pre-eviction / external GPKGs where the column is absent) and on every feature insert
-     *  to skip the `setValue` that would otherwise throw `GeoPackageException`. */
+    /** Feature-cache tables known to have the `last_modified` column — populated by
+     *  [ensureLastModifiedColumn] on success. Read on every feature insert to skip the `setValue`
+     *  that would otherwise throw `GeoPackageException`, and by [evictFeatures]. (Tile caches no
+     *  longer use this column — their freshness lives in `ww_tile_revalidation`.) */
     private val tablesWithLastModified = mutableSetOf<String>()
     private val writeDispatcher = Dispatchers.IO.limitedParallelism(1) // Single thread dispatcher
 
@@ -231,28 +231,13 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             .queryForFirst()
     }
 
-    /** Epoch-millis the tile was last written, for stale-while-revalidate reads. Returns
-     *  `null` when the table doesn't track `last_modified` (third-party / pre-eviction GPKG),
-     *  `0` when the column is present but NULL (treated as always-stale, matching eviction).
-     *  Read via raw SQL because `last_modified` isn't on [GpkgTileUserData]; coords are ints,
-     *  so inlining is injection-safe. Caller gates this on a finite eviction `maxAge`. */
-    suspend fun readTileLastModified(
-        content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int
-    ): Long? = withContext(Dispatchers.IO) {
-        if (content.tableName !in tablesWithLastModified) return@withContext null
-        val escaped = content.tableName.replace("\"", "\"\"")
-        getOrCreateTileUserDataDao(content.tableName).queryRawValue(
-            "SELECT COALESCE($LAST_MODIFIED_COLUMN, 0) FROM \"$escaped\" " +
-                "WHERE ${GpkgTileUserData.ZOOM_LEVEL} = $zoomLevel " +
-                "AND ${GpkgTileUserData.TILE_COLUMN} = $tileColumn " +
-                "AND ${GpkgTileUserData.TILE_ROW} = $tileRow"
-        )
-    }
-
+    /** Upsert the tile blob for `(z, x, y)` and return its tile-user-data row `id` (the `tpudt_id`
+     *  that [writeTileRevalidation] keys freshness by). The id is stable across rewrites — the row
+     *  is reused, not re-inserted. */
     @Throws(IllegalStateException::class)
     suspend fun writeTileUserData(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray
-    ) = withContext(writeDispatcher) {
+    ): Long = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
         val tileUserData = readTileUserData(content, zoomLevel, tileColumn, tileRow) ?: GpkgTileUserData().also {
             it.zoomLevel = zoomLevel
@@ -261,91 +246,135 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         }
         tileUserData.tileData = tileData
         getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
-        // last_modified is set via raw SQL because the column isn't on the ORM entity (see
-        // GpkgTileUserData — declaring it would break reads of pre-eviction / third-party
-        // GPKGs that don't have the column). Gated on the session cache so un-migrated tables
-        // cost zero — no SQL prepare, no swallowed exception. WHERE uses the PK we just got
-        // from createOrUpdate (PK lookup, no composite-index scan).
-        if (content.tableName in tablesWithLastModified) {
-            val escapedTable = content.tableName.replace("\"", "\"\"")
-            geoPackage.database.execSQL(
-                "UPDATE \"$escapedTable\" SET $LAST_MODIFIED_COLUMN = ${System.currentTimeMillis()} " +
-                    "WHERE ${GpkgTileUserData.ID} = ${tileUserData.id}"
-            )
-        }
+        // Cache freshness (validated_at) rides in the ww_tile_revalidation side table, not a
+        // column on this OGC tile-user-data table — callers stamp it via writeTileRevalidation.
         // Update content last modified date
         content.lastChange = Date()
         contentDao.update(content)
+        tileUserData.id
+    }
+
+    /** The tile-user-data row `id` (tpudt_id) for `(z, x, y)`, or null if not cached. Selects only
+     *  the id — never loads the tile blob — so the SWR freshness check stays cheap. */
+    suspend fun readTileUserDataId(
+        content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int,
+    ): Long? = withContext(Dispatchers.IO) {
+        val dao = getOrCreateTileUserDataDao(content.tableName)
+        if (!dao.isTableExists) return@withContext null
+        dao.queryBuilder().selectColumns(GpkgTileUserData.ID).where()
+            .eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
+            .and().eq(GpkgTileUserData.TILE_COLUMN, tileColumn)
+            .and().eq(GpkgTileUserData.TILE_ROW, tileRow)
+            .queryForFirst()?.id
     }
 
     /**
-     * Evict image/elevation tiles per [policy]. Same algorithm as [evictFeatures] but operates
-     * on the GPKG tile-user-data table (`zoom_level`, `tile_column`, `tile_row`, `tile_data`,
-     * `last_modified`). No-op when read-only or unbounded.
+     * Evict image/elevation tiles per [policy]. Capacity-only: [CacheEvictionPolicy.maxAge] never
+     * deletes (stale tiles refresh in place via SWR), so age is not consulted here. The capacity
+     * cap drops oldest-inserted rows first (by `id`, the autoincrement PK), one row per tile so a
+     * tile is never split. No-op when read-only or unbounded.
      */
     suspend fun evictTiles(
         content: GpkgContent, policy: CacheEvictionPolicy,
     ) = withContext(writeDispatcher) {
         if (isReadOnly || policy.isUnbounded) return@withContext
-        if (content.tableName !in tablesWithLastModified) {
-            // Column missing (migration was skipped or failed). Eviction needs it, so degrade
-            // gracefully — log once and skip instead of throwing on the DELETE.
-            logMessage(WARN, "GeoPackage", "evictTiles",
-                "Skipped eviction for '${content.tableName}': last_modified column unavailable")
-            return@withContext
-        }
         val escapedTable = content.tableName.replace("\"", "\"\"")
         val q = "\"$escapedTable\""
 
-        // maxAge never deletes — stale tiles refresh in place via SWR. Only capacity caps evict
-        // (one row per tile here, so already whole-tile).
         if (policy.maxEntries < Long.MAX_VALUE) {
             geoPackage.database.execSQL(
                 "DELETE FROM $q WHERE id IN (" +
                         "SELECT id FROM $q " +
-                        "ORDER BY COALESCE($LAST_MODIFIED_COLUMN, 0) ASC, id ASC " +
+                        "ORDER BY id ASC " +
                         "LIMIT MAX(0, (SELECT COUNT(*) FROM $q) - ${policy.maxEntries})" +
                         ")"
             )
+            // Drop revalidation rows orphaned by the eviction above — by tpudt_id, so a tile row
+            // that no longer exists in the pyramid leaves no stale freshness row behind.
+            if (tileRevalidationDao.isTableExists) {
+                val escapedName = content.tableName.replace("'", "''")
+                val r = GpkgTileRevalidation.TABLE_NAME
+                geoPackage.database.execSQL(
+                    "DELETE FROM $r WHERE ${GpkgTileRevalidation.COLUMN_TPUDT_NAME} = '$escapedName' " +
+                            "AND ${GpkgTileRevalidation.COLUMN_TPUDT_ID} NOT IN " +
+                            "(SELECT ${GpkgTileUserData.ID} FROM $q)"
+                )
+            }
         }
         // maxBytes: same multi-column-cursor limitation as features. Use maxEntries as proxy.
     }
 
     /**
-     * HTTP revalidation metadata (`ETag`, `Last-Modified`) for the tile at `(z, x, y)` in
-     * [content]. Returns null when no revalidation has been stored for this tile.
+     * Cache freshness row (`ETag`, `Last-Modified`, [GpkgTileRevalidation.validatedAt]) for the
+     * tile at `(z, x, y)` in [content]. Returns null when nothing has been stored for this tile.
      *
      * Lives in a worldwind-private side table; the OGC tile-user-data table stays clean for
      * external readers. Any HTTP-fetched tile cache (image, vector, elevation) can use this.
      */
     suspend fun readTileRevalidation(
-        content: GpkgContent, z: Int, x: Int, y: Int,
+        content: GpkgContent, tpudtId: Long,
     ): GpkgTileRevalidation? = withContext(Dispatchers.IO) {
         if (!tileRevalidationDao.isTableExists) return@withContext null
-        tileRevalidationDao.queryForId(GpkgTileRevalidation.keyOf(content.tableName, z, x, y))
+        queryTileRevalidation(content.tableName, tpudtId)
     }
 
-    /** Upsert revalidation headers for the tile at `(z, x, y)`. Creates the side table on first use. */
+    /** Fetch the revalidation row for `(tpudtName, tpudtId)` by the unique combo, or null. Caller
+     *  ensures the table exists and runs on the appropriate dispatcher. */
+    private fun queryTileRevalidation(tpudtName: String, tpudtId: Long): GpkgTileRevalidation? =
+        tileRevalidationDao.queryBuilder().where()
+            .eq(GpkgTileRevalidation.COLUMN_TPUDT_NAME, tpudtName)
+            .and().eq(GpkgTileRevalidation.COLUMN_TPUDT_ID, tpudtId)
+            .queryForFirst()
+
+    /**
+     * Upsert the full freshness row for the tile row [tpudtId] in [content] — validators plus
+     * [validatedAt] (epoch-millis we just confirmed it fresh). Always writes, even when both headers
+     * are null, because [validatedAt] is the stale-while-revalidate trigger and must exist for every
+     * cached tile. Creates the side table on first use; the table name is fresh, so no schema migration.
+     */
     @Throws(IllegalStateException::class)
     suspend fun writeTileRevalidation(
-        content: GpkgContent, z: Int, x: Int, y: Int,
-        etag: String?, httpLastModified: String?,
+        content: GpkgContent, tpudtId: Long,
+        etag: String?, httpLastModified: String?, validatedAt: Long,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile revalidation cannot be saved. GeoPackage is read-only!")
-        if (etag == null && httpLastModified == null) return@withContext
         if (!tileRevalidationDao.isTableExists) {
             TableUtils.createTableIfNotExists(connectionSource, GpkgTileRevalidation::class.java)
+            // Declare the side table in gpkg_extensions, scoped to itself (column_name null) — never
+            // to the tile-pyramid tables — so strict readers see a documented extension yet still
+            // edit the standard tiles freely. Idempotent.
+            registerExtension(
+                tableName = GpkgTileRevalidation.TABLE_NAME, columnName = null,
+                extensionName = WW_TILE_REVALIDATION_EXTENSION,
+            )
         }
-        val row = GpkgTileRevalidation().apply {
-            id = GpkgTileRevalidation.keyOf(content.tableName, z, x, y)
-            tableName = content.tableName
-            zoomLevel = z
-            tileColumn = x
-            tileRow = y
-            this.etag = etag
-            this.httpLastModified = httpLastModified
+        // Read-modify-write keyed on the unique combo: the generated id is unknown up front, so
+        // reuse the existing row's id (→ UPDATE) or insert a fresh one (id 0 → INSERT).
+        val row = queryTileRevalidation(content.tableName, tpudtId) ?: GpkgTileRevalidation().apply {
+            tpudtName = content.tableName
+            this.tpudtId = tpudtId
         }
+        row.etag = etag
+        row.httpLastModified = httpLastModified
+        row.validatedAt = validatedAt
         tileRevalidationDao.createOrUpdate(row)
+    }
+
+    /**
+     * Refresh only [GpkgTileRevalidation.validatedAt] for tile row [tpudtId] — the 304-Not-Modified
+     * path, where the bytes and validators are unchanged but we want the freshness window to restart
+     * so the tile isn't re-requested every frame. Read-modify-write preserves the stored ETag /
+     * Last-Modified. No-op when the tile has no revalidation row yet.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun bumpTileValidatedAt(
+        content: GpkgContent, tpudtId: Long, validatedAt: Long,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly) error("Tile revalidation cannot be updated. GeoPackage is read-only!")
+        if (!tileRevalidationDao.isTableExists) return@withContext
+        val row = queryTileRevalidation(content.tableName, tpudtId) ?: return@withContext
+        row.validatedAt = validatedAt
+        tileRevalidationDao.update(row)
     }
 
     /** Drop every revalidation row tied to [content]. Called when the content table is cleared. */
@@ -354,7 +383,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (isReadOnly) error("Tile revalidation cannot be cleared. GeoPackage is read-only!")
         if (!tileRevalidationDao.isTableExists) return@withContext
         tileRevalidationDao.deleteBuilder().apply {
-            where().eq(GpkgTileRevalidation.COLUMN_TABLE_NAME, content.tableName)
+            where().eq(GpkgTileRevalidation.COLUMN_TPUDT_NAME, content.tableName)
         }.delete()
     }
 
@@ -498,7 +527,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         tileMatrixSetDao.createIfNotExists(tms)
 
         setupTileMatrices(persistedContent, levelSet)
-        ensureLastModifiedColumn(persistedContent.tableName)
         persistedContent
     }
 
@@ -596,7 +624,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         encoding?.getOrCreate(tableName)
 
         setupTileMatrices(persistedContent, levelSet)
-        ensureLastModifiedColumn(persistedContent.tableName)
         persistedContent
     }
 
@@ -722,7 +749,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
         val content = tms.contents
         setupTileMatrices(content, tileMatrixSet)
-        ensureLastModifiedColumn(content.tableName)
         content
     }
 
@@ -912,13 +938,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * ADD COLUMN is non-destructive — existing rows get NULL, treated as epoch 0 by [evictFeatures]
      * so external / pre-migration rows age out first.
      *
-     * Called once per content during setup / reopen from every [setupTilesContent],
-     * [setupVectorTilesContent], [setupGriddedCoverageContent], [setupFeaturesContent], and the
-     * reopen branches in `GpkgContentManager`. **Never throws** — any migration failure (read-only
-     * filesystem, schema locks, extension-table write errors, etc.) is logged at WARN and the
-     * call returns, so layer instantiation cannot be blocked by an unmigratable cache. Eviction
-     * and last-modified stamping then degrade gracefully: the raw-SQL writes in
-     * [writeTileUserData] / [evictTiles] swallow missing-column errors.
+     * **Features-only.** Tile-user-data caches (image / vector / gridded) now keep their freshness
+     * timestamp in the `ww_tile_revalidation` side table (see [writeTileRevalidation]), leaving the
+     * OGC tile table pristine, so only [setupFeaturesContent] still provisions this column. **Never
+     * throws** — any migration failure (read-only filesystem, schema locks, extension-table write
+     * errors, etc.) is logged at WARN and the call returns, so layer instantiation cannot be blocked
+     * by an unmigratable cache.
      */
     suspend fun ensureLastModifiedColumn(tableName: String): Unit = withContext(writeDispatcher) {
         if (isReadOnly || tableName in tablesWithLastModified) return@withContext
@@ -1024,6 +1049,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
             where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
         }.delete()
+        clearTileRevalidation(content)
     }
 
     /**
@@ -1061,6 +1087,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
         if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
 
+        clearTileRevalidation(content)
         contentDao.delete(content)
     }
 
@@ -1262,6 +1289,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
          *  documented extensions rather than anonymous extra rows / columns. */
         const val WW_WEB_SERVICE_EXTENSION = "worldwind_web_service"
         const val WW_LAST_MODIFIED_EXTENSION = "worldwind_last_modified"
+        const val WW_TILE_REVALIDATION_EXTENSION = "worldwind_tile_revalidation"
         const val WW_EXTENSION_DEFINITION = "https://worldwind.earth"
 
         init { installLenientDatePatterns() }

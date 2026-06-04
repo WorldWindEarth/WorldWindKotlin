@@ -81,6 +81,18 @@ class FileSystemTileStore(
         NSFileManager.defaultManager.removeItemAtPath(metaPath(z, x, y), null)
     }
 
+    // 304 path: cachedAt is the tile file's mtime, so touch it to now — keeps bytes / meta intact.
+    override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int): Unit = withContext(Dispatchers.Default) {
+        val path = tilePath(z, x, y)
+        if (!NSFileManager.defaultManager.fileExistsAtPath(path)) return@withContext
+        NSFileManager.defaultManager.setAttributes(
+            mapOf<Any?, Any?>(NSFileModificationDate to NSDate()),
+            ofItemAtPath = path,
+            error = null,
+        )
+        Unit
+    }
+
     override suspend fun sizeBytes(): Long = withContext(Dispatchers.Default) {
         directorySizeBytes(contentRoot)
     }

@@ -63,7 +63,10 @@ class CachedTileSource(
      *  re-wiring its tile factory. */
     override var isCacheOnly: Boolean = inner == null
 
-    override suspend fun tryReadCachedTile(z: Int, x: Int, y: Int): TileBlob? = store.readTile(z, x, y)
+    // Mirror fetchTile's hit path: serving a cached tile here (the MVT render fast-path) must also
+    // kick stale-while-revalidate, or vector tiles served via tryReadCachedTile never refresh.
+    override suspend fun tryReadCachedTile(z: Int, x: Int, y: Int): TileBlob? =
+        store.readTile(z, x, y)?.also { maybeRevalidate(z, x, y, it) }
 
     /**
      * Bulk-download semantics: by default skip already-cached tiles, otherwise force a
@@ -131,12 +134,14 @@ class CachedTileSource(
     }
 
     /**
-     * Stale-while-revalidate: after serving a cached tile, if it's older than the store's
-     * eviction [CacheEvictionPolicy.maxAge], re-download it in the background and write through
-     * (which bumps `last_modified`, so it stops being eviction-eligible). No-op when offline,
-     * when there's no network source, when freshness isn't tracked (`maxAge == INFINITE` or the
-     * store didn't surface [TileBlob.cachedAt]), or when a refresh for this tile is already
-     * in flight. Errors are swallowed — a failed refresh just leaves the stale tile in place.
+     * Stale-while-revalidate: after serving a cached tile, if it's older than the store's eviction
+     * [CacheEvictionPolicy.maxAge], revalidate it in the background via a conditional GET. A `200`
+     * writes the fresh bytes through and fires [onTileRevalidated]; a `304` only bumps the freshness
+     * stamp ([TileStore.bumpValidatedAt]) and leaves the tile in place. Either outcome restarts the
+     * maxAge window so the tile isn't re-requested every frame. No-op when offline, when there's no
+     * network source, when freshness isn't tracked (`maxAge == INFINITE` or the store didn't surface
+     * [TileBlob.cachedAt]), or when a refresh for this tile is already in flight. Errors are
+     * swallowed — a failed refresh leaves the stale tile (and its old stamp) in place to retry.
      */
     private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cached: TileBlob) {
         if (isCacheOnly) return
@@ -149,9 +154,18 @@ class CachedTileSource(
         if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
         revalidationScope.launch {
             try {
-                val fresh = network.fetchTile(z, x, y) ?: return@launch
-                store.writeTile(z, x, y, fresh)
-                onTileRevalidated?.invoke(z, x, y)
+                // Conditional GET: pass the cached validators so the server can answer 304 when the
+                // tile is unchanged (cheap header-only round-trip, no body re-download).
+                val fresh = network.fetchTile(z, x, y, cached.etag, cached.lastModified)
+                if (fresh == null) {
+                    // 304 Not Modified — bytes still current. Bump the freshness stamp so we don't
+                    // re-request until the next maxAge window, and leave the tile (and its texture)
+                    // untouched: no onTileRevalidated, no redraw.
+                    store.bumpValidatedAt(z, x, y)
+                } else {
+                    store.writeTile(z, x, y, fresh)
+                    onTileRevalidated?.invoke(z, x, y)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {

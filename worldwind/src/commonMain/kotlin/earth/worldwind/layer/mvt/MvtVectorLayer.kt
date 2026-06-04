@@ -10,6 +10,7 @@ import earth.worldwind.geom.Offset
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.layer.VectorLayer
+import earth.worldwind.layer.cache.RevalidatingSource
 import earth.worldwind.layer.buildings.OsmBuilding
 import earth.worldwind.layer.buildings.OsmBuildingsTile
 import earth.worldwind.layer.source.TileSource
@@ -117,6 +118,12 @@ open class MvtVectorLayer(
     private val semaphore = Semaphore(maxConcurrentFetches.coerceAtLeast(1))
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val results = Channel<TileResult>(capacity = Channel.UNLIMITED)
+    // Tiles a stale-while-revalidate refresh has replaced in the cache (delivered off the render
+    // thread via [RevalidatingSource.onTileRevalidated]). [drainRevalidated] drops each from the
+    // in-memory [tiles] LRU on the render thread so the next [processTile] reloads the fresh bytes.
+    private val revalidated = Channel<TileKey>(capacity = Channel.UNLIMITED)
+    // The source the revalidation callback is wired to; re-wired by [wireRevalidation] if [source] swaps.
+    private var wiredSource: TileSource? = null
     private val tiles = object : LruMemoryCache<TileKey, List<Renderable>>(maxLoadedTiles.toLong()) {
         override fun entryRemoved(key: TileKey, oldValue: List<Renderable>, newValue: List<Renderable>?, evicted: Boolean) {
             cachedValues.remove(oldValue)
@@ -171,6 +178,8 @@ open class MvtVectorLayer(
         latestRc = rc
         capturedGlobe = rc.globe
         capturedGlobeState = rc.globeState
+        wireRevalidation()
+        drainRevalidated()
         drainResults()
 
         // Centre on lookAt when available (true ground point under the camera focus); fall
@@ -428,6 +437,7 @@ open class MvtVectorLayer(
         isClosed = true
         scope.cancel()
         results.close()
+        revalidated.close()
         // [LruMemoryCache.clear] doesn't fire [entryRemoved] (see its impl) — release batched
         // tiles' GL buffers ourselves while [latestRc] is still valid. `close` is normally
         // called from the render thread or just before context teardown.
@@ -461,6 +471,37 @@ open class MvtVectorLayer(
      * workaround [earth.worldwind.layer.buildings.OsmBuildingsLayer] uses for the same reason.
      */
     private val cachedValues = HashSet<List<Renderable>>()
+
+    /**
+     * Wire the stale-while-revalidate callback to the current [source] (idempotent per source
+     * instance). Runs on the render thread each frame so a cache attach / rebind that swaps
+     * [source] gets re-wired. The callback fires off the render thread, so it only enqueues the
+     * key; [drainRevalidated] does the cache mutation on the render thread.
+     */
+    private fun wireRevalidation() {
+        val src = source
+        if (src === wiredSource) return
+        wiredSource = src
+        (src as? RevalidatingSource)?.onTileRevalidated = { z, x, y ->
+            revalidated.trySend(TileKey(z, x, y))
+            WorldWind.requestRedraw()
+        }
+    }
+
+    /**
+     * Drop every just-revalidated tile from the in-memory [tiles] LRU so the next [processTile]
+     * reloads the fresh bytes the background refresh wrote to the cache. Render-thread only —
+     * [LruMemoryCache.remove] routes the dropped value through `entryRemoved` to free its GL
+     * buffers and feature state, matching normal eviction.
+     */
+    private fun drainRevalidated() {
+        while (true) {
+            val key = revalidated.tryReceive().getOrNull() ?: return
+            tiles.remove(key)
+            pending.remove(key)
+            backoff.remove(key)
+        }
+    }
 
     private fun drainResults() {
         while (true) {

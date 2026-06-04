@@ -6,44 +6,51 @@ import com.j256.ormlite.table.DatabaseTable
 import java.io.Serializable
 
 /**
- * Worldwind-private side table that stores HTTP `ETag` and `Last-Modified` headers per
- * cached tile, so cache reads can issue conditional requests (`If-None-Match` /
- * `If-Modified-Since`) and the server can answer 304 to skip the body.
+ * Worldwind-private side table that holds per-tile cache freshness metadata: the HTTP `ETag`
+ * and `Last-Modified` validators (so cache refreshes can issue conditional `If-None-Match` /
+ * `If-Modified-Since` requests and the server can answer 304 to skip the body), plus
+ * [validatedAt] — epoch-millis the tile was last confirmed fresh against the server.
  *
- * Not part of the OGC GeoPackage standard — external readers see an unknown table and
- * ignore it. The standard tile-user-data table stays clean.
+ * [validatedAt] is the stale-while-revalidate trigger: when `now - validatedAt` exceeds the
+ * eviction `maxAge`, a background refresh fires. It is bumped on a fresh download AND on a 304,
+ * so a still-current tile doesn't get re-requested until the next window. It lives here, not as
+ * a `last_modified` column on the OGC tile-user-data table, so the standard table stays pristine.
  *
- * Composite key encoded into [id] as `"<tableName>|<z>|<x>|<y>"` so ORMLite can use a
- * single string PK; the broken-out columns are kept for diagnostic queries / bulk delete.
+ * Not part of the OGC GeoPackage standard — external readers see an unknown table and ignore
+ * it. The `ww_` author prefix deliberately stays off the spec-reserved `gpkg_` namespace. (An
+ * earlier build wrote a `gpkg_tile_revalidation` table; this rename starts a fresh schema rather
+ * than migrating it — see [GeoPackage.writeTileRevalidation] — so any such legacy table is just
+ * left orphaned, and freshness self-heals on first read.)
+ *
+ * Keyed by `(tpudt_name, tpudt_id)` — the tile-pyramid-user-data table name plus the `id` of the
+ * tile's row in it — exactly like the OGC `gpkg_2d_gridded_tile_ancillary` table (and this repo's
+ * `GriddedTile` usage). A compact 2-column unique combo; [id] is just an autoincrement rowid
+ * alias (free in SQLite). The combo's leading `tpudt_name` column also serves the per-content bulk
+ * delete in [GeoPackage.clearTileRevalidation]. Tile ids are stable across rewrites (the tile row
+ * is reused), and anything missed self-heals on first read.
  *
  * ```
- * CREATE TABLE IF NOT EXISTS gpkg_tile_revalidation (
- *   id TEXT NOT NULL PRIMARY KEY,
- *   table_name  TEXT NOT NULL,
- *   zoom_level  INTEGER NOT NULL,
- *   tile_column INTEGER NOT NULL,
- *   tile_row    INTEGER NOT NULL,
- *   etag        TEXT,
- *   http_last_modified TEXT
+ * CREATE TABLE IF NOT EXISTS ww_tile_revalidation (
+ *   id INTEGER PRIMARY KEY AUTOINCREMENT,
+ *   tpudt_name TEXT NOT NULL,    -- tile-pyramid-user-data table name
+ *   tpudt_id   INTEGER NOT NULL, -- id of the tile's row in that table
+ *   etag       TEXT,
+ *   http_last_modified TEXT,
+ *   validated_at INTEGER,
+ *   UNIQUE (tpudt_name, tpudt_id)
  * )
  * ```
  */
 @DatabaseTable(tableName = GpkgTileRevalidation.TABLE_NAME)
 class GpkgTileRevalidation : Serializable {
-    @DatabaseField(columnName = COLUMN_ID, dataType = DataType.STRING, canBeNull = false, id = true)
-    lateinit var id: String
+    @DatabaseField(columnName = COLUMN_ID, dataType = DataType.LONG, generatedId = true)
+    var id: Long = 0L
 
-    @DatabaseField(columnName = COLUMN_TABLE_NAME, dataType = DataType.STRING, canBeNull = false, index = true)
-    lateinit var tableName: String
+    @DatabaseField(columnName = COLUMN_TPUDT_NAME, dataType = DataType.STRING, canBeNull = false, uniqueCombo = true)
+    lateinit var tpudtName: String
 
-    @DatabaseField(columnName = COLUMN_ZOOM_LEVEL, dataType = DataType.INTEGER, canBeNull = false)
-    var zoomLevel: Int = 0
-
-    @DatabaseField(columnName = COLUMN_TILE_COLUMN, dataType = DataType.INTEGER, canBeNull = false)
-    var tileColumn: Int = 0
-
-    @DatabaseField(columnName = COLUMN_TILE_ROW, dataType = DataType.INTEGER, canBeNull = false)
-    var tileRow: Int = 0
+    @DatabaseField(columnName = COLUMN_TPUDT_ID, dataType = DataType.LONG, canBeNull = false, uniqueCombo = true)
+    var tpudtId: Long = 0L
 
     @DatabaseField(columnName = COLUMN_ETAG, dataType = DataType.STRING)
     var etag: String? = null
@@ -51,16 +58,16 @@ class GpkgTileRevalidation : Serializable {
     @DatabaseField(columnName = COLUMN_HTTP_LAST_MODIFIED, dataType = DataType.STRING)
     var httpLastModified: String? = null
 
+    @DatabaseField(columnName = COLUMN_VALIDATED_AT, dataType = DataType.LONG_OBJ)
+    var validatedAt: Long? = null
+
     companion object {
-        const val TABLE_NAME = "gpkg_tile_revalidation"
+        const val TABLE_NAME = "ww_tile_revalidation"
         const val COLUMN_ID = "id"
-        const val COLUMN_TABLE_NAME = "table_name"
-        const val COLUMN_ZOOM_LEVEL = "zoom_level"
-        const val COLUMN_TILE_COLUMN = "tile_column"
-        const val COLUMN_TILE_ROW = "tile_row"
+        const val COLUMN_TPUDT_NAME = "tpudt_name"
+        const val COLUMN_TPUDT_ID = "tpudt_id"
         const val COLUMN_ETAG = "etag"
         const val COLUMN_HTTP_LAST_MODIFIED = "http_last_modified"
-
-        fun keyOf(tableName: String, z: Int, x: Int, y: Int) = "$tableName|$z|$x|$y"
+        const val COLUMN_VALIDATED_AT = "validated_at"
     }
 }

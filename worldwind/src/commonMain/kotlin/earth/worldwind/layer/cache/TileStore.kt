@@ -26,6 +26,11 @@ interface TileStore {
     /** Drop a tile from the store (after a server-side delete, manual eviction, etc.). */
     suspend fun deleteTile(z: Int, x: Int, y: Int)
 
+    /** Refresh a tile's freshness timestamp WITHOUT rewriting its bytes — the conditional-GET
+     *  `304 Not Modified` path. Restarts the stale-while-revalidate window so a still-current tile
+     *  isn't re-requested every frame. Default no-op for stores that don't track freshness. */
+    suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) {}
+
     /** Apply [evictionPolicy] now. Idempotent / unbounded policy → no-op. */
     suspend fun evict() {}
 

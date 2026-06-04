@@ -174,10 +174,7 @@ class GpkgContentManager(
         evictionPolicy: CacheEvictionPolicy,
         displayName: String?,
     ): TileStore = runScopedOrThrow {
-        val content = geoPackage.getContent(contentKey)?.also {
-            // Pre-eviction vector-tile tables may not have last_modified yet; migrate on reopen.
-            if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(it.tableName)
-        } ?: geoPackage.setupVectorTilesContent(
+        val content = geoPackage.getContent(contentKey) ?: geoPackage.setupVectorTilesContent(
             tableName = contentKey,
             levelSet = levelSet,
             displayName = displayName,
@@ -257,7 +254,6 @@ class GpkgContentManager(
         if (!geoPackage.isReadOnly && current.entries.size < tileMatrixSet.entries.size) {
             geoPackage.setupTileMatrices(existing, tileMatrixSet)
         }
-        if (!geoPackage.isReadOnly) geoPackage.ensureLastModifiedColumn(existing.tableName)
     } ?: geoPackage.setupGriddedCoverageContent(
         tableName = contentKey,
         tileMatrixSet = tileMatrixSet,
@@ -424,8 +420,6 @@ class GpkgContentManager(
             // Reopen of a read-only GeoPackage must never write — skip the metadata sync.
             if (!geoPackage.isReadOnly) {
                 geoPackage.updateTilesContent(contentKey, levelSet, displayName = existing.identifier, content = existing)
-                // Pre-eviction tile tables may not have last_modified yet; migrate on reopen.
-                geoPackage.ensureLastModifiedColumn(existing.tableName)
             }
             return existing
         }

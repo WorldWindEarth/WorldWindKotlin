@@ -91,7 +91,10 @@ class GpkgCachedElevationSourceFactory(
      */
     internal suspend fun maybeRevalidate(zoomLevel: Int, tileColumn: Int, tileRow: Int) {
         if (isCacheOnly || networkSource == null || maxAge == Duration.INFINITE) return
-        val cachedAt = geoPackage.readTileLastModified(content, zoomLevel, tileColumn, tileRow) ?: return
+        val tpudtId = geoPackage.readTileUserDataId(content, zoomLevel, tileColumn, tileRow) ?: return
+        // Self-heal: no validatedAt yet (tile cached before this row existed) → treat as stale
+        // (epoch 0) so the first read triggers one refresh that stamps it, rather than skipping.
+        val cachedAt = geoPackage.readTileRevalidation(content, tpudtId)?.validatedAt ?: 0L
         if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
         val key = (zoomLevel.toLong() shl 48) or (tileColumn.toLong() and 0xFFFFFF shl 24) or (tileRow.toLong() and 0xFFFFFF)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return
@@ -266,12 +269,18 @@ open class GpkgCachedElevationDataFactory(
         if (parent.geoPackage.isReadOnly) return
         val matrix = parent.tileMatrixSet.entries.getOrNull(zoomLevel) ?: return
         val encoded = encodeForStorage(buffer, matrix.tileWidth, matrix.tileHeight) ?: return
-        parent.geoPackage.writeTileUserData(
+        val tpudtId = parent.geoPackage.writeTileUserData(
             parent.content, zoomLevel, tileColumn, tileRow, encoded.bytes,
         )
         parent.geoPackage.writeGriddedTile(
             parent.content, zoomLevel, tileColumn, tileRow,
             scale = encoded.tileScale, offset = encoded.tileOffset,
+        )
+        // Stamp freshness so stale-while-revalidate has a baseline. Elevation tiles carry no
+        // HTTP validators through the decode path, so refresh is a full re-download (no 304).
+        parent.geoPackage.writeTileRevalidation(
+            parent.content, tpudtId,
+            etag = null, httpLastModified = null, validatedAt = System.currentTimeMillis(),
         )
     }
 

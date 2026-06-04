@@ -11,7 +11,7 @@ import kotlin.time.Duration
  * `image/webp`, gridded coverages, vector-tile protobuf).
  *
  * `(z, x, y)` maps to `(zoom_level, tile_column, tile_row)`. ETag / Last-Modified ride
- * alongside in the `gpkg_tile_revalidation` extension table, so a conditional GET against
+ * alongside in the `ww_tile_revalidation` side table, so a conditional GET against
  * the network source on a follow-up refresh stays cheap.
  *
  * Tile-payload format is whatever the source produced — the store doesn't decode. Image
@@ -30,24 +30,39 @@ class GpkgTileStore(
     override suspend fun readTile(z: Int, x: Int, y: Int): TileBlob? {
         val row = geoPackage.readTileUserData(content, z, x, y) ?: return null
         if (row.tileData.isEmpty()) return TileBlob.EMPTY
-        // ETag / Last-Modified are deliberately NOT read here — nothing issues a conditional
-        // GET on the render path, so joining gpkg_tile_revalidation every read is pure waste.
-        // last_modified is surfaced only when freshness tracking is on (finite maxAge), to
-        // drive [CachedTileSource]'s stale-while-revalidate; one cheap gated read.
-        val cachedAt = if (evictionPolicy.maxAge != Duration.INFINITE) {
-            geoPackage.readTileLastModified(content, z, x, y)
-        } else null
-        return TileBlob(bytes = row.tileData, cachedAt = cachedAt)
+        // Freshness tracking on (finite maxAge): pull the ww_tile_revalidation row (keyed by this
+        // tile row's id) so the SWR refresh can issue a conditional GET (ETag / Last-Modified) and
+        // so `validatedAt` drives staleness. The tile row is already loaded, so its id is free;
+        // skipped entirely when maxAge is INFINITE.
+        val tracked = evictionPolicy.maxAge != Duration.INFINITE
+        val reval = if (tracked) geoPackage.readTileRevalidation(content, row.id) else null
+        return TileBlob(
+            bytes = row.tileData,
+            etag = reval?.etag,
+            lastModified = reval?.httpLastModified,
+            // Self-heal: a tile cached before this row existed (pre-rename build, or freshness was
+            // off when it was written) has no validatedAt. Treat it as stale (epoch 0) so the first
+            // tracked read kicks one revalidation pass that stamps validatedAt — rather than null,
+            // which would freeze it as never-refreshable. INFINITE maxAge → null = no SWR at all.
+            cachedAt = if (tracked) (reval?.validatedAt ?: 0L) else null,
+        )
     }
 
     override suspend fun writeTile(z: Int, x: Int, y: Int, blob: TileBlob) {
         // Empty bytes act as the "no tile at this address" sentinel (HTTP 404 etc.) — store
         // a zero-length array so the next lookup short-circuits without a network call.
-        geoPackage.writeTileUserData(content, z, x, y, blob.bytes)
-        // writeTileRevalidation is a no-op when both headers are null, so the stale row
-        // from a previous fetch survives here. The cost is a stale 304-revalidation hint
-        // until the next write supplies headers, which the network source handles cleanly.
-        geoPackage.writeTileRevalidation(content, z, x, y, blob.etag, blob.lastModified)
+        val tpudtId = geoPackage.writeTileUserData(content, z, x, y, blob.bytes)
+        // Stamp freshness against the tile row's id: validators (if the server sent any) plus
+        // validatedAt = now, so this tile won't be re-requested until it ages past maxAge again.
+        geoPackage.writeTileRevalidation(
+            content, tpudtId, blob.etag, blob.lastModified, System.currentTimeMillis(),
+        )
+    }
+
+    override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) {
+        if (geoPackage.isReadOnly) return
+        val tpudtId = geoPackage.readTileUserDataId(content, z, x, y) ?: return
+        geoPackage.bumpTileValidatedAt(content, tpudtId, System.currentTimeMillis())
     }
 
     override suspend fun deleteTile(z: Int, x: Int, y: Int) {
