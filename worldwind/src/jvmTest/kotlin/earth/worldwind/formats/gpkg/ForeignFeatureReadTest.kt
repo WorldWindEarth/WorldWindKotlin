@@ -1,8 +1,12 @@
 package earth.worldwind.formats.gpkg
 
+import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
+import earth.worldwind.geom.TileMatrixSet
+import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.BulkFeatureLayer
+import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.cache.CacheEntry
 import earth.worldwind.layer.cache.CacheEvictionPolicy
 import earth.worldwind.layer.cache.CachedTiledFeatureSource
@@ -10,6 +14,7 @@ import earth.worldwind.layer.cache.GpkgFeatureStore
 import earth.worldwind.util.LevelSet
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.CachedGeometry
+import mil.nga.geopackage.validate.GeoPackageValidate
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
@@ -459,6 +464,67 @@ class ForeignFeatureReadTest {
         val gpkg = GeoPackage(file.absolutePath, isReadOnly = true)
         try {
             assertNull(gpkg.getWebService("layer1"), "read-only legacy cache opens offline, no migration")
+        } finally { gpkg.shutdown() }
+    }
+
+    @Test
+    fun tilePyramidReopensThroughContentManager() = runBlocking {
+        // Produce a standard raster tile pyramid (EPSG:4326), then reopen it offline through the
+        // content manager — the round trip an external tool would also make.
+        run {
+            val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+            try {
+                val world = Sector.fromDegrees(-90.0, -180.0, 180.0, 360.0)
+                val content = gpkg.setupTilesContent("tiles", LevelSet(world, world, Location.fromDegrees(90.0, 90.0), 3, 256, 256))
+                gpkg.writeTileUserData(content, 0, 0, 0, ByteArray(64))
+            } finally { gpkg.shutdown() }
+        }
+        val manager = GpkgContentManager(file.absolutePath, isReadOnly = true)
+        try {
+            val entry = assertNotNull(manager.findEntry("tiles"), "tile entry not discovered")
+            assertIs<TiledImageLayer>(manager.tryOpenNativeContent(entry), "tiles must reopen as a tiled image layer")
+            assertEquals(CacheEntry.DataType.TILES, entry.dataType)
+        } finally { manager.close() }
+    }
+
+    @Test
+    fun griddedCoverageReopensThroughContentManager() = runBlocking {
+        // Produce a standard OGC Tiled-Gridded-Coverage, then reopen it offline through the content manager.
+        run {
+            val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+            try {
+                val world = Sector.fromDegrees(-90.0, -180.0, 180.0, 360.0)
+                val tms = TileMatrixSet.fromTilePyramid(world, 2, 1, 256, 256, Angle.fromDegrees(0.3))
+                gpkg.setupGriddedCoverageContent("dem", tms, isFloat = false)
+            } finally { gpkg.shutdown() }
+        }
+        val manager = GpkgContentManager(file.absolutePath, isReadOnly = true)
+        try {
+            val entry = assertNotNull(manager.findEntry("dem"), "coverage entry not discovered")
+            assertIs<TiledElevationCoverage>(manager.tryOpenNativeContent(entry), "coverage must reopen as an elevation coverage")
+            assertEquals(CacheEntry.DataType.COVERAGE, entry.dataType)
+        } finally { manager.close() }
+    }
+
+    @Test
+    fun producedGeoPackageValidatesAgainstNgaReferenceValidator() = runBlocking {
+        // A multi-content cache: a raster tile pyramid + a features layer (with the ww_* side tables).
+        run {
+            val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+            try {
+                val world = Sector.fromDegrees(-90.0, -180.0, 180.0, 360.0)
+                val tiles = gpkg.setupTilesContent("tiles", LevelSet(world, world, Location.fromDegrees(90.0, 90.0), 2, 256, 256))
+                gpkg.writeTileUserData(tiles, 0, 0, 0, ByteArray(64))
+                val features = gpkg.setupFeaturesContent("places")
+                gpkg.writeFeatureTile(features, 0, 0, 0, listOf(GpkgFeatureRow(Point(10.0, 20.0), """{"id":"n/1"}""")))
+            } finally { gpkg.shutdown() }
+        }
+        // Validate with the canonical NGA GeoPackage library's reference spec checks.
+        assertTrue(GeoPackageValidate.hasGeoPackageExtension(file), "produced file has the .gpkg extension")
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = true)
+        try {
+            assertTrue(GeoPackageValidate.hasMinimumTables(gpkg.core), "required GeoPackage tables present")
+            GeoPackageValidate.validateMinimumTables(gpkg.core) // throws GeoPackageException if non-conformant
         } finally { gpkg.shutdown() }
     }
 
