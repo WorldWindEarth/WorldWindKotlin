@@ -113,13 +113,13 @@ class WebContentManager(
         val dataType = readDataType(contentKey) ?: return 0L
         return when (dataType) {
             CacheEntry.DataType.TILES ->
-                IndexedDbTileStore(db(), contentKey, IMAGE_TILES_STORE, CacheEvictionPolicy.UNBOUNDED).sizeBytes()
+                IndexedDbTileStore(db(), contentKey, IMAGE_TILES_STORE, CachePolicy.UNBOUNDED).sizeBytes()
             CacheEntry.DataType.VECTOR_TILES ->
-                IndexedDbTileStore(db(), contentKey, VECTOR_TILES_STORE, CacheEvictionPolicy.UNBOUNDED).sizeBytes()
+                IndexedDbTileStore(db(), contentKey, VECTOR_TILES_STORE, CachePolicy.UNBOUNDED).sizeBytes()
             CacheEntry.DataType.COVERAGE ->
-                IndexedDbTileStore(db(), contentKey, COVERAGE_TILES_STORE, CacheEvictionPolicy.UNBOUNDED).sizeBytes()
+                IndexedDbTileStore(db(), contentKey, COVERAGE_TILES_STORE, CachePolicy.UNBOUNDED).sizeBytes()
             CacheEntry.DataType.FEATURES ->
-                IndexedDbFeatureStore(db(), contentKey, CacheEvictionPolicy.UNBOUNDED).sizeBytes()
+                IndexedDbFeatureStore(db(), contentKey, CachePolicy.UNBOUNDED).sizeBytes()
         }
     }
 
@@ -166,27 +166,27 @@ class WebContentManager(
         levelSet: LevelSet,
         imageFormat: String,
         isTransparent: Boolean,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): TileStore {
         rejectIfPreviouslyTypedAs(contentKey, CacheEntry.DataType.TILES)
         rememberDataType(contentKey, CacheEntry.DataType.TILES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
-        return IndexedDbTileStore(db(), contentKey, IMAGE_TILES_STORE, evictionPolicy)
-            .also { if (!evictionPolicy.isUnbounded) runCatching { it.evict() } }
+        return IndexedDbTileStore(db(), contentKey, IMAGE_TILES_STORE, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
     }
 
     override suspend fun openVectorTileStore(
         contentKey: String,
         levelSet: LevelSet,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): TileStore {
         rejectIfPreviouslyTypedAs(contentKey, CacheEntry.DataType.VECTOR_TILES)
         rememberDataType(contentKey, CacheEntry.DataType.VECTOR_TILES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
-        return IndexedDbTileStore(db(), contentKey, VECTOR_TILES_STORE, evictionPolicy)
-            .also { if (!evictionPolicy.isUnbounded) runCatching { it.evict() } }
+        return IndexedDbTileStore(db(), contentKey, VECTOR_TILES_STORE, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
     }
 
     override suspend fun createElevationSourceFactory(
@@ -195,7 +195,7 @@ class WebContentManager(
         networkSource: TileSource?,
         outputFormat: String,
         isFloat: Boolean,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): ElevationSourceFactory {
         // The tile blob store uses the existing coverage_tiles object store; transcoding
@@ -205,8 +205,8 @@ class WebContentManager(
         rememberDataType(contentKey, CacheEntry.DataType.COVERAGE)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
         rememberIsFloat(contentKey, isFloat)
-        val tileStore = IndexedDbTileStore(db(), contentKey, COVERAGE_TILES_STORE, evictionPolicy)
-            .also { if (!evictionPolicy.isUnbounded) runCatching { it.evict() } }
+        val tileStore = IndexedDbTileStore(db(), contentKey, COVERAGE_TILES_STORE, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
         val backend = IndexedDbElevationBackend(
             db = db(),
             contentKey = contentKey,
@@ -222,7 +222,7 @@ class WebContentManager(
             outputFormat = outputFormat,
             isFloat = effectiveIsFloat,
             tileMatrixSet = tileMatrixSet,
-            maxAge = evictionPolicy.maxAge,
+            staleAfter = cachePolicy.staleAfter,
         )
     }
 
@@ -272,13 +272,13 @@ class WebContentManager(
 
     override suspend fun openFeatureStore(
         contentKey: String,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): FeatureStore {
         rejectIfPreviouslyTypedAs(contentKey, CacheEntry.DataType.FEATURES)
         rememberDataType(contentKey, CacheEntry.DataType.FEATURES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
-        return IndexedDbFeatureStore(db(), contentKey, evictionPolicy)
+        return IndexedDbFeatureStore(db(), contentKey, cachePolicy)
     }
 
     /** Throw if [contentKey] was previously opened under a different data type. Without

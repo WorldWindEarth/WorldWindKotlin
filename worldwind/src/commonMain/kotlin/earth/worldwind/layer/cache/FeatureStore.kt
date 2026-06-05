@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.Flow
  * paths use.
  */
 interface FeatureStore {
-    val evictionPolicy: CacheEvictionPolicy
+    val cachePolicy: CachePolicy
 
     /** Read every bulk row (`(z, x, y)` IS NULL) in insertion order. */
     suspend fun readAll(): Flow<CachedFeatureRow>
@@ -40,7 +40,7 @@ interface FeatureStore {
     /** Drop a tile entry from the store. */
     suspend fun deleteTile(z: Int, x: Int, y: Int)
 
-    /** Apply [evictionPolicy] now. Idempotent / unbounded → no-op. */
+    /** Apply [cachePolicy] now. Idempotent / unbounded → no-op. */
     suspend fun evict() {}
 
     /** Approximate byte size of all rows in the store. */

@@ -24,7 +24,7 @@ data class TileBlob(
     val contentType: String? = null,
     /**
      * Epoch-millis the cached tile was written, for a stale-while-revalidate read. Set by a
-     * cache store when freshness tracking is enabled (finite eviction `maxAge`); `null` on
+     * cache store when freshness tracking is enabled (finite eviction `staleAfter`); `null` on
      * network responses and on cache reads where freshness isn't tracked. [CachedTileSource]
      * uses it to decide whether to kick a background refresh after serving the cached blob.
      */

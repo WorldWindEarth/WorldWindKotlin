@@ -2,7 +2,7 @@ package earth.worldwind.util
 
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSourceFactory
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CacheEntry
 import earth.worldwind.layer.cache.FeatureStore
 import earth.worldwind.layer.cache.LowLevelCacheApi
@@ -81,7 +81,7 @@ interface ContentManager {
         levelSet: LevelSet,
         imageFormat: String = "image/png",
         isTransparent: Boolean = false,
-        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
         displayName: String? = null,
     ): TileStore
 
@@ -96,7 +96,7 @@ interface ContentManager {
     suspend fun openVectorTileStore(
         contentKey: String,
         levelSet: LevelSet,
-        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
         displayName: String? = null,
     ): TileStore
 
@@ -150,7 +150,7 @@ interface ContentManager {
         networkSource: TileSource?,
         outputFormat: String,
         isFloat: Boolean = false,
-        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
         displayName: String? = null,
     ): ElevationSourceFactory
 
@@ -164,7 +164,7 @@ interface ContentManager {
     @LowLevelCacheApi
     suspend fun openFeatureStore(
         contentKey: String,
-        evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+        cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
         displayName: String? = null,
     ): FeatureStore
 

@@ -44,8 +44,8 @@ class CachedElevationSourceFactory(
     val outputFormat: String,
     val isFloat: Boolean,
     private val tileMatrixSet: TileMatrixSet,
-    /** Stale-while-revalidate threshold (reuses eviction `maxAge`); [Duration.INFINITE] = off. */
-    private val maxAge: Duration = Duration.INFINITE,
+    /** Stale-while-revalidate threshold (reuses eviction `staleAfter`); [Duration.INFINITE] = off. */
+    private val staleAfter: Duration = Duration.INFINITE,
     /** Background scope for revalidation refreshes; fire-and-forget, outlives the read. */
     private val revalidationScope: CoroutineScope = GlobalScope,
 ) : ElevationSourceFactory, OfflineToggleable, CachedSourceInfoProvider,
@@ -62,12 +62,12 @@ class CachedElevationSourceFactory(
     private val revalidating = mutableSetOf<Long>()
     private val revalidateMutex = Mutex()
 
-    /** After a cache hit, if the tile is older than [maxAge], re-download it in the background
+    /** After a cache hit, if the tile is older than [staleAfter], re-download it in the background
      *  (via [fetchAndCacheTile] with `overrideCache`, which write-throughs). No-op when offline,
      *  when freshness isn't tracked, or when a refresh for this tile is already in flight. */
     private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cachedAt: Long?) {
-        if (isCacheOnly || networkSource == null || maxAge == Duration.INFINITE || cachedAt == null) return
-        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        if (isCacheOnly || networkSource == null || staleAfter == Duration.INFINITE || cachedAt == null) return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
         val key = (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return
         revalidationScope.launch {

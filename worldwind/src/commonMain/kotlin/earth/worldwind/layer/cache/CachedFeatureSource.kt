@@ -88,7 +88,7 @@ class CachedBulkFeatureSource(
  * Cache-first decorator over a [TiledFeatureSource]. On [fetchTile]:
  *   1. Read [store] for `(z, x, y)`. Hit → return cached flow (an empty flow means the
  *      tile is cached with zero features — the negative-cache sentinel); if the tile is older
- *      than the store's eviction [CacheEvictionPolicy.maxAge], also kick a background refresh
+ *      than the store's eviction [CachePolicy.staleAfter], also kick a background refresh
  *      (stale-while-revalidate — see [maybeRevalidate]).
  *   2. Miss → fetch from [inner], write-through, return.
  */
@@ -165,20 +165,20 @@ class CachedTiledFeatureSource(
 
     /**
      * Stale-while-revalidate: after serving a cached tile, if it's older than the store's
-     * eviction [CacheEvictionPolicy.maxAge], re-download it in the background and **replace it
+     * eviction [CachePolicy.staleAfter], re-download it in the background and **replace it
      * only on a non-empty success** — an empty or failed refresh leaves the existing tile
      * untouched, so a transient Overpass hiccup can never blank good data. The successful write
      * bumps `last_modified`, so the tile stops being stale. No-op when offline, when there's no
-     * network source, when freshness isn't tracked (`maxAge == INFINITE` or the store doesn't
+     * network source, when freshness isn't tracked (`staleAfter == INFINITE` or the store doesn't
      * surface a tile timestamp), or when a refresh for this tile is already in flight.
      */
     private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, sector: Sector) {
         if (isCacheOnly) return
         val network = inner ?: return
-        val maxAge = store.evictionPolicy.maxAge
-        if (maxAge == Duration.INFINITE) return
+        val staleAfter = store.cachePolicy.staleAfter
+        if (staleAfter == Duration.INFINITE) return
         val cachedAt = store.readTileLastModified(z, x, y) ?: return
-        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
         val key = tileKey(z, x, y)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
         revalidationScope.launch {

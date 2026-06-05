@@ -21,7 +21,7 @@ import kotlin.time.Duration
 class GpkgTileStore(
     private val geoPackage: GeoPackage,
     private val content: GpkgContent,
-    override val evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    override val cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
 ) : TileStore, CachedSourceInfoProvider {
 
     override val cacheInfo: CachedSourceInfo
@@ -30,11 +30,11 @@ class GpkgTileStore(
     override suspend fun readTile(z: Int, x: Int, y: Int): TileBlob? {
         val row = geoPackage.readTileUserData(content, z, x, y) ?: return null
         if (row.tileData.isEmpty()) return TileBlob.EMPTY
-        // Freshness tracking on (finite maxAge): pull the ww_tile_revalidation row (keyed by this
+        // Freshness tracking on (finite staleAfter): pull the ww_tile_revalidation row (keyed by this
         // tile row's id) so the SWR refresh can issue a conditional GET (ETag / Last-Modified) and
         // so `validatedAt` drives staleness. The tile row is already loaded, so its id is free;
-        // skipped entirely when maxAge is INFINITE.
-        val tracked = evictionPolicy.maxAge != Duration.INFINITE
+        // skipped entirely when staleAfter is INFINITE.
+        val tracked = cachePolicy.staleAfter != Duration.INFINITE
         val reval = if (tracked) geoPackage.readTileRevalidation(content, row.id) else null
         return TileBlob(
             bytes = row.tileData,
@@ -43,7 +43,7 @@ class GpkgTileStore(
             // Self-heal: a tile cached before this row existed (pre-rename build, or freshness was
             // off when it was written) has no validatedAt. Treat it as stale (epoch 0) so the first
             // tracked read kicks one revalidation pass that stamps validatedAt — rather than null,
-            // which would freeze it as never-refreshable. INFINITE maxAge → null = no SWR at all.
+            // which would freeze it as never-refreshable. INFINITE staleAfter → null = no SWR at all.
             cachedAt = if (tracked) (reval?.validatedAt ?: 0L) else null,
         )
     }
@@ -53,7 +53,7 @@ class GpkgTileStore(
         // a zero-length array so the next lookup short-circuits without a network call.
         val tpudtId = geoPackage.writeTileUserData(content, z, x, y, blob.bytes)
         // Stamp freshness against the tile row's id: validators (if the server sent any) plus
-        // validatedAt = now, so this tile won't be re-requested until it ages past maxAge again.
+        // validatedAt = now, so this tile won't be re-requested until it ages past staleAfter again.
         geoPackage.writeTileRevalidation(
             content, tpudtId, blob.etag, blob.lastModified, System.currentTimeMillis(),
         )
@@ -73,8 +73,8 @@ class GpkgTileStore(
     }
 
     override suspend fun evict() {
-        if (evictionPolicy.isUnbounded || geoPackage.isReadOnly) return
-        geoPackage.evictTiles(content, evictionPolicy)
+        if (cachePolicy.isUnbounded || geoPackage.isReadOnly) return
+        geoPackage.evictTiles(content, cachePolicy)
     }
 
     override suspend fun sizeBytes(): Long = geoPackage.readTilesDataSize(content.tableName)

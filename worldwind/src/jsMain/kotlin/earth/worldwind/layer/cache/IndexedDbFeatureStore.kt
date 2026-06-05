@@ -22,7 +22,7 @@ import kotlinx.serialization.json.Json
 internal class IndexedDbFeatureStore(
     private val db: IDBDatabase,
     private val contentKey: String,
-    override val evictionPolicy: CacheEvictionPolicy,
+    override val cachePolicy: CachePolicy,
 ) : FeatureStore, CachedSourceInfoProvider {
 
     override val cacheInfo: CachedSourceInfo

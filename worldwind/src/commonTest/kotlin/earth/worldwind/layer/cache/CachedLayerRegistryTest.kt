@@ -138,23 +138,23 @@ private class NoServiceContentManager(
 
     override suspend fun openImageTileStore(
         contentKey: String, levelSet: LevelSet,
-        imageFormat: String, isTransparent: Boolean, evictionPolicy: CacheEvictionPolicy,
+        imageFormat: String, isTransparent: Boolean, cachePolicy: CachePolicy,
         displayName: String?,
     ): TileStore = throw UnsupportedOperationException()
 
     override suspend fun openVectorTileStore(
         contentKey: String, levelSet: LevelSet,
-        evictionPolicy: CacheEvictionPolicy, displayName: String?,
+        cachePolicy: CachePolicy, displayName: String?,
     ): TileStore = throw UnsupportedOperationException()
 
     override suspend fun createElevationSourceFactory(
         contentKey: String, tileMatrixSet: TileMatrixSet,
         networkSource: TileSource?, outputFormat: String, isFloat: Boolean,
-        evictionPolicy: CacheEvictionPolicy, displayName: String?,
+        cachePolicy: CachePolicy, displayName: String?,
     ): ElevationSourceFactory = throw UnsupportedOperationException()
 
     override suspend fun openFeatureStore(
-        contentKey: String, evictionPolicy: CacheEvictionPolicy, displayName: String?,
+        contentKey: String, cachePolicy: CachePolicy, displayName: String?,
     ): FeatureStore = throw UnsupportedOperationException()
 
     override suspend fun registerWebService(contentKey: String, info: WebServiceInfo) = Unit

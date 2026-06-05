@@ -8,7 +8,7 @@ import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.layer.TiledImageLayer
 import earth.worldwind.layer.cache.CacheEntry
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CachedTiledFeatureSource
 import earth.worldwind.layer.cache.GpkgFeatureStore
 import earth.worldwind.util.LevelSet
@@ -297,7 +297,7 @@ class ForeignFeatureReadTest {
         val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
         try {
             val content = gpkg.setupFeaturesContent("osm")
-            val store = GpkgFeatureStore(gpkg, content, CacheEvictionPolicy(maxEntries = 1L))
+            val store = GpkgFeatureStore(gpkg, content, CachePolicy(maxEntries = 1L))
             // Two non-overlapping tiles (opposite corners of the world), one feature each.
             store.writeTile(2, 0, 0, flowOf(CachedFeatureRow(CachedGeometry.Point(-135.0, 75.0), """{"id":"way/A"}""")))
             store.writeTile(2, 3, 3, flowOf(CachedFeatureRow(CachedGeometry.Point(135.0, -75.0), """{"id":"way/B"}""")))
@@ -320,7 +320,7 @@ class ForeignFeatureReadTest {
         try {
             val content = gpkg.setupFeaturesContent("osm")
             // ~2 KB per feature (geometry + padded properties); maxBytes fits two.
-            val store = GpkgFeatureStore(gpkg, content, CacheEvictionPolicy(maxBytes = 5000L))
+            val store = GpkgFeatureStore(gpkg, content, CachePolicy(maxBytes = 5000L))
             val pad = "x".repeat(2000)
             // Three non-overlapping z=2 tiles, written oldest → newest.
             store.writeTile(2, 0, 0, flowOf(CachedFeatureRow(CachedGeometry.Point(-135.0, 75.0), """{"id":"way/1","pad":"$pad"}""")))
@@ -353,7 +353,7 @@ class ForeignFeatureReadTest {
             gpkg.writeTileUserData(content, 1, 1, 0, blob) // newest
             assertEquals(6000L, gpkg.readTilesDataSize("tiles"))
 
-            gpkg.evictTiles(content, CacheEvictionPolicy(maxBytes = 5000L)) // fits two 2 KB tiles
+            gpkg.evictTiles(content, CachePolicy(maxBytes = 5000L)) // fits two 2 KB tiles
 
             assertEquals(4000L, gpkg.readTilesDataSize("tiles"), "evicted down to the byte budget")
             assertNotNull(gpkg.readTileUserData(content, 1, 1, 0), "newest tile kept")

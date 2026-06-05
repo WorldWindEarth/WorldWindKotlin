@@ -69,16 +69,16 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
     }
 
     /**
-     * Apply a [CacheEvictionPolicy] to rows under [contentKey]. Walks the by-content index in
+     * Apply a [CachePolicy] to rows under [contentKey]. Walks the by-content index in
      * one cursor pass, computes which records to drop (TTL-expired + over-cap by count and bytes),
      * and deletes them in a single readwrite transaction.
      */
-    suspend fun evictByPolicy(contentKey: String, policy: CacheEvictionPolicy) {
+    suspend fun evictByPolicy(contentKey: String, policy: CachePolicy) {
         if (policy.isUnbounded) return
         val rows = readByContent(contentKey)
         if (rows.isEmpty()) return
 
-        // maxAge never deletes — stale tiles refresh in place via SWR. Capacity caps evict only
+        // staleAfter never deletes — stale tiles refresh in place via SWR. Capacity caps evict only
         // WHOLE tiles: group rows by (z, x, y) and drop whole tiles oldest-first, never splitting
         // one into a partial set. Bulk rows (z == null) are exempt.
         data class TileGroup(val ids: List<Int>, val bytes: Long, val lastModified: Double)
@@ -155,13 +155,13 @@ internal class IdbFeatureStore private constructor(private val db: IDBDatabase) 
         return max
     }
 
-    /** Apply [CacheEvictionPolicy] to the vector-tile store under [contentKey]. */
-    suspend fun evictVectorTilesByPolicy(contentKey: String, policy: CacheEvictionPolicy) {
+    /** Apply [CachePolicy] to the vector-tile store under [contentKey]. */
+    suspend fun evictVectorTilesByPolicy(contentKey: String, policy: CachePolicy) {
         if (policy.isUnbounded) return
         val rows = readAllVectorTiles(contentKey)
         if (rows.isEmpty()) return
 
-        // maxAge NEVER deletes — stale vector tiles are refreshed in place (SWR), not removed.
+        // staleAfter NEVER deletes — stale vector tiles are refreshed in place (SWR), not removed.
         // Only the capacity caps below evict (each tile is one row, whole-tile).
         val sorted = rows.sortedByDescending { it.fetchedAt }
         val toDelete = mutableListOf<Array<Any>>()

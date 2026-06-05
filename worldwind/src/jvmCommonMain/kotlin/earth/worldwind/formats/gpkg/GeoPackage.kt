@@ -9,7 +9,7 @@ import earth.worldwind.MR
 import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
@@ -342,14 +342,14 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /**
-     * Evict image/elevation/vector tiles per [policy]. Capacity-only: [CacheEvictionPolicy.maxAge]
-     * never deletes (stale tiles refresh in place via SWR). Both [CacheEvictionPolicy.maxEntries]
-     * (row count) and [CacheEvictionPolicy.maxBytes] (sum of `LENGTH(tile_data)`) drop oldest-inserted
+     * Evict image/elevation/vector tiles per [policy]. Capacity-only: [CachePolicy.staleAfter]
+     * never deletes (stale tiles refresh in place via SWR). Both [CachePolicy.maxEntries]
+     * (row count) and [CachePolicy.maxBytes] (sum of `LENGTH(tile_data)`) drop oldest-inserted
      * rows first (by `id`, the autoincrement PK), one row per tile so a tile is never split. No-op
      * when read-only or unbounded.
      */
     suspend fun evictTiles(
-        content: GpkgContent, policy: CacheEvictionPolicy,
+        content: GpkgContent, policy: CachePolicy,
     ) = withContext(writeDispatcher) {
         if (isReadOnly || policy.isUnbounded) return@withContext
         val escapedTable = content.tableName.replace("\"", "\"\"")
@@ -1124,9 +1124,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     /**
      * Evict from a features cache per [policy], driven by `ww_feature_coverage`:
-     *  - [CacheEvictionPolicy.maxAge]: NOT a deletion trigger — stale tiles refresh in place (SWR).
-     *  - [CacheEvictionPolicy.maxEntries]: cap on cached coverage *tiles*.
-     *  - [CacheEvictionPolicy.maxBytes]: cap on total feature bytes (`LENGTH(geom)+LENGTH(properties)`),
+     *  - [CachePolicy.staleAfter]: NOT a deletion trigger — stale tiles refresh in place (SWR).
+     *  - [CachePolicy.maxEntries]: cap on cached coverage *tiles*.
+     *  - [CachePolicy.maxBytes]: cap on total feature bytes (`LENGTH(geom)+LENGTH(properties)`),
      *    counting a tile-straddling feature once.
      *
      * Both caps keep the newest coverage tiles (by id, so revalidation never changes the victim set)
@@ -1134,7 +1134,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * survives. No-op when read-only, unbounded, or there's no coverage table.
      */
     suspend fun evictFeatures(
-        content: GpkgContent, policy: CacheEvictionPolicy,
+        content: GpkgContent, policy: CachePolicy,
     ) = withContext(writeDispatcher) {
         if (isReadOnly || policy.isUnbounded) return@withContext
         if (!featureCoverageDao.isTableExists) return@withContext

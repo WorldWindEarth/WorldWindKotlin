@@ -64,8 +64,8 @@ class GpkgCachedElevationSourceFactory(
     internal val isFloat: Boolean,
     internal val tileMatrixSet: TileMatrixSet,
     internal val elevationDecoder: ElevationDecoder = ElevationDecoder(),
-    /** Stale-while-revalidate threshold (reuses eviction `maxAge`); [Duration.INFINITE] = off. */
-    internal val maxAge: Duration = Duration.INFINITE,
+    /** Stale-while-revalidate threshold (reuses eviction `staleAfter`); [Duration.INFINITE] = off. */
+    internal val staleAfter: Duration = Duration.INFINITE,
     /** Background scope for revalidation refreshes; fire-and-forget, outlives the read. */
     private val revalidationScope: CoroutineScope = GlobalScope,
 ) : ElevationSourceFactory, OfflineToggleable, CachedSourceInfoProvider,
@@ -84,18 +84,18 @@ class GpkgCachedElevationSourceFactory(
     private val revalidateMutex = Mutex()
 
     /**
-     * After a cache hit, if the tile is older than [maxAge], re-download it in the background
+     * After a cache hit, if the tile is older than [staleAfter], re-download it in the background
      * (forcing past the cache via `overrideCache`, which write-throughs and bumps
      * `last_modified`). No-op when offline, when there's no network, when freshness isn't
      * tracked, or when a refresh for this tile is already in flight.
      */
     internal suspend fun maybeRevalidate(zoomLevel: Int, tileColumn: Int, tileRow: Int) {
-        if (isCacheOnly || networkSource == null || maxAge == Duration.INFINITE) return
+        if (isCacheOnly || networkSource == null || staleAfter == Duration.INFINITE) return
         val tpudtId = geoPackage.readTileUserDataId(content, zoomLevel, tileColumn, tileRow) ?: return
         // Self-heal: no validatedAt yet (tile cached before this row existed) → treat as stale
         // (epoch 0) so the first read triggers one refresh that stamps it, rather than skipping.
         val cachedAt = geoPackage.readTileRevalidation(content, tpudtId)?.validatedAt ?: 0L
-        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
         val key = (zoomLevel.toLong() shl 48) or (tileColumn.toLong() and 0xFFFFFF shl 24) or (tileRow.toLong() and 0xFFFFFF)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return
         revalidationScope.launch {

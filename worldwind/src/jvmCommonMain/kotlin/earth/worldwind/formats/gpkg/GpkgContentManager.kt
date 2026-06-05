@@ -6,7 +6,7 @@ import earth.worldwind.geom.Location
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSourceFactory
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CacheEntry
 import earth.worldwind.layer.cache.FeatureStore
 import earth.worldwind.layer.cache.GpkgFeatureStore
@@ -157,21 +157,21 @@ class GpkgContentManager(
         levelSet: LevelSet,
         imageFormat: String,
         isTransparent: Boolean,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): TileStore = runScopedOrThrow {
         val content = openOrCreateTileContent(
             contentKey, TILES, levelSet, imageFormat = imageFormat, displayName = displayName,
         )
-        GpkgTileStore(geoPackage, content, evictionPolicy).also {
-            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
+        GpkgTileStore(geoPackage, content, cachePolicy).also {
+            if (!cachePolicy.isUnbounded) runCatching { it.evict() }
         }
     }
 
     override suspend fun openVectorTileStore(
         contentKey: String,
         levelSet: LevelSet,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): TileStore = runScopedOrThrow {
         val content = geoPackage.getContent(contentKey) ?: geoPackage.setupVectorTilesContent(
@@ -183,8 +183,8 @@ class GpkgContentManager(
         require(content.dataTypeName.equals(VECTOR_TILES, ignoreCase = true)) {
             "Content '$contentKey' is not a vector-tiles table (was '${content.dataTypeName}')"
         }
-        GpkgTileStore(geoPackage, content, evictionPolicy).also {
-            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
+        GpkgTileStore(geoPackage, content, cachePolicy).also {
+            if (!cachePolicy.isUnbounded) runCatching { it.evict() }
         }
     }
 
@@ -194,7 +194,7 @@ class GpkgContentManager(
         networkSource: TileSource?,
         outputFormat: String,
         isFloat: Boolean,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): ElevationSourceFactory = runScopedOrThrow {
         val content = openOrCreateCoverageContent(contentKey, tileMatrixSet, isFloat, displayName)
@@ -205,7 +205,7 @@ class GpkgContentManager(
             INTEGER -> false
             else -> isFloat
         }
-        if (!evictionPolicy.isUnbounded) runCatching { geoPackage.evictTiles(content, evictionPolicy) }
+        if (!cachePolicy.isUnbounded) runCatching { geoPackage.evictTiles(content, cachePolicy) }
         GpkgCachedElevationSourceFactory(
             geoPackage = geoPackage,
             content = content,
@@ -213,7 +213,7 @@ class GpkgContentManager(
             outputFormat = outputFormat,
             isFloat = effectiveIsFloat,
             tileMatrixSet = tileMatrixSet,
-            maxAge = evictionPolicy.maxAge,
+            staleAfter = cachePolicy.staleAfter,
         )
     }
 
@@ -265,7 +265,7 @@ class GpkgContentManager(
 
     override suspend fun openFeatureStore(
         contentKey: String,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): FeatureStore = runScopedOrThrow {
         val content = geoPackage.getContent(contentKey)?.also { existing ->
@@ -273,8 +273,8 @@ class GpkgContentManager(
                 "Content '$contentKey' is not a features table (was '${existing.dataTypeName}')"
             }
         } ?: geoPackage.setupFeaturesContent(contentKey, displayName = displayName)
-        GpkgFeatureStore(geoPackage, content, evictionPolicy).also {
-            if (!evictionPolicy.isUnbounded) runCatching { it.evict() }
+        GpkgFeatureStore(geoPackage, content, cachePolicy).also {
+            if (!cachePolicy.isUnbounded) runCatching { it.evict() }
         }
     }
 

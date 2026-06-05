@@ -35,12 +35,12 @@ import kotlin.time.Duration
  * data corruption.
  *
  * Eviction is a no-op: the iOS port stays UNBOUNDED. Wire an explicit policy via
- * [CacheEvictionPolicy] only when a JS/iOS use case for it materialises.
+ * [CachePolicy] only when a JS/iOS use case for it materialises.
  */
 class FileSystemTileStore(
     private val baseDirectory: String,
     private val contentKey: String,
-    override val evictionPolicy: CacheEvictionPolicy,
+    override val cachePolicy: CachePolicy,
 ) : TileStore, CachedSourceInfoProvider {
 
     private val contentRoot: String = "$baseDirectory/$contentKey"
@@ -58,8 +58,8 @@ class FileSystemTileStore(
         if (bytes.isEmpty()) return@withContext TileBlob.EMPTY
         val (etag, lastModified) = readMeta(z, x, y)
         // Surface write time (the tile file's mtime) only when freshness tracking is on
-        // (finite maxAge), to drive stale-while-revalidate in CachedTileSource / elevation factory.
-        val cachedAt = if (evictionPolicy.maxAge != Duration.INFINITE) fileModifiedMillis(path) else null
+        // (finite staleAfter), to drive stale-while-revalidate in CachedTileSource / elevation factory.
+        val cachedAt = if (cachePolicy.staleAfter != Duration.INFINITE) fileModifiedMillis(path) else null
         TileBlob(bytes, etag, lastModified, cachedAt = cachedAt)
     }
 

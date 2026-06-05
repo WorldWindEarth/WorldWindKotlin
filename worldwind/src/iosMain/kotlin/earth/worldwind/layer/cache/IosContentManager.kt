@@ -92,27 +92,27 @@ class IosContentManager(
         levelSet: LevelSet,
         imageFormat: String,
         isTransparent: Boolean,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): TileStore {
         rejectIfPreviouslyTypedAs(contentKey, CacheEntry.DataType.TILES)
         rememberDataType(contentKey, CacheEntry.DataType.TILES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
-        return FileSystemTileStore(pathName, contentKey, evictionPolicy)
-            .also { if (!evictionPolicy.isUnbounded) runCatching { it.evict() } }
+        return FileSystemTileStore(pathName, contentKey, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
     }
 
     override suspend fun openVectorTileStore(
         contentKey: String,
         levelSet: LevelSet,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): TileStore {
         rejectIfPreviouslyTypedAs(contentKey, CacheEntry.DataType.VECTOR_TILES)
         rememberDataType(contentKey, CacheEntry.DataType.VECTOR_TILES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
-        return FileSystemTileStore(pathName, contentKey, evictionPolicy)
-            .also { if (!evictionPolicy.isUnbounded) runCatching { it.evict() } }
+        return FileSystemTileStore(pathName, contentKey, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
     }
 
     override suspend fun createElevationSourceFactory(
@@ -121,7 +121,7 @@ class IosContentManager(
         networkSource: TileSource?,
         outputFormat: String,
         isFloat: Boolean,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): ElevationSourceFactory {
         // The tile blob store is the existing per-content FileSystemTileStore (raw bytes,
@@ -132,8 +132,8 @@ class IosContentManager(
         rememberDataType(contentKey, CacheEntry.DataType.COVERAGE)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
         rememberIsFloat(contentKey, isFloat)
-        val tileStore = FileSystemTileStore(pathName, contentKey, evictionPolicy)
-            .also { if (!evictionPolicy.isUnbounded) runCatching { it.evict() } }
+        val tileStore = FileSystemTileStore(pathName, contentKey, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
         val backend = FileSystemElevationBackend(
             baseDirectory = pathName,
             contentKey = contentKey,
@@ -148,7 +148,7 @@ class IosContentManager(
             outputFormat = outputFormat,
             isFloat = storedIsFloat ?: isFloat,
             tileMatrixSet = tileMatrixSet,
-            maxAge = evictionPolicy.maxAge,
+            staleAfter = cachePolicy.staleAfter,
         )
     }
 
@@ -166,13 +166,13 @@ class IosContentManager(
 
     override suspend fun openFeatureStore(
         contentKey: String,
-        evictionPolicy: CacheEvictionPolicy,
+        cachePolicy: CachePolicy,
         displayName: String?,
     ): FeatureStore {
         rejectIfPreviouslyTypedAs(contentKey, CacheEntry.DataType.FEATURES)
         rememberDataType(contentKey, CacheEntry.DataType.FEATURES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
-        return FileSystemFeatureStore(pathName, contentKey, evictionPolicy)
+        return FileSystemFeatureStore(pathName, contentKey, cachePolicy)
     }
 
     override suspend fun registerWebService(contentKey: String, info: WebServiceInfo): Unit = withContext(Dispatchers.Default) {

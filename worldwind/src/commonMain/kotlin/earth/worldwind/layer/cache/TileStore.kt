@@ -10,11 +10,11 @@ import earth.worldwind.layer.source.TileBlob
  *   * GeoPackage on JVM/Android (tiles table + `im_vector_tiles_mapbox` extension for MVT).
  *   * IndexedDB / Cache API on JS.
  *
- * [evictionPolicy] is enforced lazily — implementations may evict during [writeTile] when
+ * [cachePolicy] is enforced lazily — implementations may evict during [writeTile] when
  * the policy is bounded, or on demand via [evict].
  */
 interface TileStore {
-    val evictionPolicy: CacheEvictionPolicy
+    val cachePolicy: CachePolicy
 
     /** Returns the cached blob, or `null` if the tile isn't present. Treat [TileBlob.EMPTY]
      *  as "the server confirmed no tile here" — distinct from `null` cache miss. */
@@ -31,7 +31,7 @@ interface TileStore {
      *  isn't re-requested every frame. Default no-op for stores that don't track freshness. */
     suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) {}
 
-    /** Apply [evictionPolicy] now. Idempotent / unbounded policy → no-op. */
+    /** Apply [cachePolicy] now. Idempotent / unbounded policy → no-op. */
     suspend fun evict() {}
 
     /** Approximate byte size of all tiles in the store. */

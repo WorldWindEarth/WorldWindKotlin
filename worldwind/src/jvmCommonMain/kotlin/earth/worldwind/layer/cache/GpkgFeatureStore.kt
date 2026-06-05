@@ -30,7 +30,7 @@ import mil.nga.sf.Geometry
 class GpkgFeatureStore(
     private val geoPackage: GeoPackage,
     private val content: GpkgContent,
-    override val evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    override val cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
 ) : FeatureStore, CachedSourceInfoProvider {
 
     override val cacheInfo: CachedSourceInfo
@@ -86,8 +86,8 @@ class GpkgFeatureStore(
     }
 
     override suspend fun evict() {
-        if (evictionPolicy.isUnbounded || geoPackage.isReadOnly) return
-        geoPackage.evictFeatures(content, evictionPolicy)
+        if (cachePolicy.isUnbounded || geoPackage.isReadOnly) return
+        geoPackage.evictFeatures(content, cachePolicy)
     }
 
     override suspend fun sizeBytes(): Long = geoPackage.readFeaturesDataSize(content.tableName)

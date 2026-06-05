@@ -12,7 +12,7 @@ import java.io.Serializable
  * [validatedAt] — epoch-millis the tile was last confirmed fresh against the server.
  *
  * [validatedAt] is the stale-while-revalidate trigger: when `now - validatedAt` exceeds the
- * eviction `maxAge`, a background refresh fires. It is bumped on a fresh download AND on a 304,
+ * eviction `staleAfter`, a background refresh fires. It is bumped on a fresh download AND on a 304,
  * so a still-current tile doesn't get re-requested until the next window. It lives here, not as
  * a `last_modified` column on the OGC tile-user-data table, so the standard table stays pristine.
  *

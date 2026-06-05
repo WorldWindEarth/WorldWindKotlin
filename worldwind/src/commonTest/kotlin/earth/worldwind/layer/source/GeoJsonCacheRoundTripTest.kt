@@ -1,7 +1,7 @@
 package earth.worldwind.layer.source
 
 import earth.worldwind.layer.BulkFeatureLayer
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CachedBulkFeatureSource
 import earth.worldwind.layer.cache.FeatureStore
 import earth.worldwind.shape.Label
@@ -85,7 +85,7 @@ class GeoJsonCacheRoundTripTest {
  *  only bulk readAll / replaceAll / sizeBytes are exercised by [CachedBulkFeatureSource]
  *  in this test set. */
 private class InMemoryFeatureStore : FeatureStore {
-    override val evictionPolicy = CacheEvictionPolicy.UNBOUNDED
+    override val cachePolicy = CachePolicy.UNBOUNDED
     val bulkRows = mutableListOf<CachedFeatureRow>()
 
     override suspend fun readAll(): Flow<CachedFeatureRow> =

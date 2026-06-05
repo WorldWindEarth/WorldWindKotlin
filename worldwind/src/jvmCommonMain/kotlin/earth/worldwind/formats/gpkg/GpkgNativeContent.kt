@@ -2,7 +2,7 @@ package earth.worldwind.formats.gpkg
 
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.TiledImageLayer
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CachedBulkFeatureSource
 import earth.worldwind.layer.cache.CacheEntry
 import earth.worldwind.layer.cache.CachedTileSource
@@ -42,7 +42,7 @@ private suspend fun GpkgContentManager.openGpkgTileLayer(content: GpkgContent): 
     val config = runCatching { geoPackage.buildLevelSetConfig(content) }.getOrNull() ?: return null
     val isMercator = content.srs?.organizationCoordsysId == GeoPackage.EPSG_3857
     val levelSet = if (isMercator) levelSetWithMercatorSector(config) else LevelSet(config)
-    val store = GpkgTileStore(geoPackage, content, CacheEvictionPolicy.UNBOUNDED)
+    val store = GpkgTileStore(geoPackage, content, CachePolicy.UNBOUNDED)
     val tileFactory = TileSourceFactoryAdapter(CachedTileSource(inner = null, store = store))
     val name = content.identifier ?: content.tableName
     return if (isMercator) {
@@ -56,7 +56,7 @@ private suspend fun GpkgContentManager.openGpkgVectorTileLayer(content: GpkgCont
     val config = runCatching { geoPackage.buildLevelSetConfig(content) }.getOrNull() ?: return null
     val isMercator = content.srs?.organizationCoordsysId == GeoPackage.EPSG_3857
     val levelSet = if (isMercator) levelSetWithMercatorSector(config) else LevelSet(config)
-    val store = GpkgTileStore(geoPackage, content, CacheEvictionPolicy.UNBOUNDED)
+    val store = GpkgTileStore(geoPackage, content, CachePolicy.UNBOUNDED)
     return MvtVectorLayer(
         source = CachedTileSource(inner = null, store = store),
         minZoom = levelSet.firstLevel.levelNumber,
@@ -88,7 +88,7 @@ private suspend fun GpkgContentManager.openGpkgCoverage(content: GpkgContent): T
 }
 
 private suspend fun GpkgContentManager.openGpkgFeatureLayer(content: GpkgContent): BulkFeatureLayer? {
-    val store = GpkgFeatureStore(geoPackage, content, CacheEvictionPolicy.UNBOUNDED)
+    val store = GpkgFeatureStore(geoPackage, content, CachePolicy.UNBOUNDED)
     val source = CachedBulkFeatureSource(inner = null, store = store)
     val layer = BulkFeatureLayer(source = source, displayName = content.identifier ?: content.tableName)
     layer.load()

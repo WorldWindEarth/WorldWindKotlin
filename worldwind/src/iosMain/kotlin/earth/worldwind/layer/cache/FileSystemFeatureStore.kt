@@ -33,7 +33,7 @@ import earth.worldwind.util.Logger.WARN
 class FileSystemFeatureStore(
     private val baseDirectory: String,
     private val contentKey: String,
-    override val evictionPolicy: CacheEvictionPolicy,
+    override val cachePolicy: CachePolicy,
 ) : FeatureStore, CachedSourceInfoProvider {
 
     override val cacheInfo: CachedSourceInfo

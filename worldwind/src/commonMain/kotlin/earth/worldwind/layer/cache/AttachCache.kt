@@ -59,11 +59,11 @@ import earth.worldwind.util.LevelSet
 suspend fun ContentManager.attachCache(
     layer: TiledImageLayer,
     contentKey: String,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
 ) = when (layer) {
-    is WmsImageLayer -> attachWmsImageLayerCache(layer, contentKey, evictionPolicy)
-    is WmtsImageLayer -> attachWmtsImageLayerCache(layer, contentKey, evictionPolicy)
-    is WebMercatorImageLayer -> attachWebMercatorImageLayerCache(layer, contentKey, evictionPolicy)
+    is WmsImageLayer -> attachWmsImageLayerCache(layer, contentKey, cachePolicy)
+    is WmtsImageLayer -> attachWmtsImageLayerCache(layer, contentKey, cachePolicy)
+    is WebMercatorImageLayer -> attachWebMercatorImageLayerCache(layer, contentKey, cachePolicy)
     else -> error("ContentManager.attachCache: unsupported TiledImageLayer subtype ${layer::class.simpleName}")
 }
 
@@ -78,11 +78,11 @@ suspend fun ContentManager.attachCache(
 suspend fun ContentManager.attachCache(
     layer: VectorLayer,
     contentKey: String,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
 ) = when (layer) {
-    is MvtVectorLayer -> attachMvtVectorLayerCache(layer, contentKey, evictionPolicy)
-    is BulkFeatureLayer -> attachBulkFeatureLayerCache(layer, contentKey, evictionPolicy)
-    is OsmBuildingsLayer -> attachOsmBuildingsLayerCache(layer, contentKey, evictionPolicy)
+    is MvtVectorLayer -> attachMvtVectorLayerCache(layer, contentKey, cachePolicy)
+    is BulkFeatureLayer -> attachBulkFeatureLayerCache(layer, contentKey, cachePolicy)
+    is OsmBuildingsLayer -> attachOsmBuildingsLayerCache(layer, contentKey, cachePolicy)
     else -> error("ContentManager.attachCache: unsupported VectorLayer subtype ${layer::class.simpleName}")
 }
 
@@ -96,13 +96,13 @@ suspend fun ContentManager.attachCache(
 suspend fun ContentManager.attachCache(
     coverage: TiledElevationCoverage,
     contentKey: String,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
     isFloat: Boolean = false,
 ) = when (coverage) {
-    is BasicElevationCoverage -> attachBasicElevationCoverageCache(coverage, contentKey, evictionPolicy, isFloat)
-    is WmsElevationCoverage -> attachWmsElevationCoverageCache(coverage, contentKey, evictionPolicy, isFloat)
-    is Wcs100ElevationCoverage -> attachWcs100ElevationCoverageCache(coverage, contentKey, evictionPolicy, isFloat)
-    is Wcs201ElevationCoverage -> attachWcs201ElevationCoverageCache(coverage, contentKey, evictionPolicy, isFloat)
+    is BasicElevationCoverage -> attachBasicElevationCoverageCache(coverage, contentKey, cachePolicy, isFloat)
+    is WmsElevationCoverage -> attachWmsElevationCoverageCache(coverage, contentKey, cachePolicy, isFloat)
+    is Wcs100ElevationCoverage -> attachWcs100ElevationCoverageCache(coverage, contentKey, cachePolicy, isFloat)
+    is Wcs201ElevationCoverage -> attachWcs201ElevationCoverageCache(coverage, contentKey, cachePolicy, isFloat)
     else -> error("ContentManager.attachCache: unsupported TiledElevationCoverage subtype ${coverage::class.simpleName}")
 }
 
@@ -115,14 +115,14 @@ suspend fun ContentManager.attachCache(
 
 internal suspend fun ContentManager.attachWebMercatorImageLayerCache(
     layer: WebMercatorImageLayer, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ) {
     val tsi = layer.tiledSurfaceImage ?: return
     // No fresh-factory guard needed: the network source is rebuilt from serviceAddress below,
     // so a clone whose factory already wraps a CachedTileSource (rebind to a different content
     // manager — the bulk-download flow) is overwritten cleanly, not nested.
     val store = openImageTileStore(
-        contentKey, tsi.levelSet, layer.imageFormat, layer.isTransparent, evictionPolicy,
+        contentKey, tsi.levelSet, layer.imageFormat, layer.isTransparent, cachePolicy,
         displayName = layer.displayName,
     )
     val networkSource = UrlTemplateImageTileSource(layer.serviceAddress)
@@ -137,12 +137,12 @@ internal suspend fun ContentManager.attachWebMercatorImageLayerCache(
 
 internal suspend fun ContentManager.attachWmsImageLayerCache(
     layer: WmsImageLayer, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ) {
     val tsi = layer.tiledSurfaceImage ?: return
     val networkSource = requireFreshTileFactorySource<WmsTileSource>(tsi, "WmsImageLayer")
     val store = openImageTileStore(
-        contentKey, tsi.levelSet, layer.imageFormat, layer.isTransparent, evictionPolicy,
+        contentKey, tsi.levelSet, layer.imageFormat, layer.isTransparent, cachePolicy,
         displayName = layer.displayName,
     )
     tsi.tileFactory = TileSourceFactoryAdapter(
@@ -161,12 +161,12 @@ internal suspend fun ContentManager.attachWmsImageLayerCache(
 
 internal suspend fun ContentManager.attachWmtsImageLayerCache(
     layer: WmtsImageLayer, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ) {
     val tsi = layer.tiledSurfaceImage ?: return
     val networkSource = requireFreshTileFactorySource<WmtsTileSource>(tsi, "WmtsImageLayer")
     val store = openImageTileStore(
-        contentKey, tsi.levelSet, layer.imageFormat, layer.isTransparent, evictionPolicy,
+        contentKey, tsi.levelSet, layer.imageFormat, layer.isTransparent, cachePolicy,
         displayName = layer.displayName,
     )
     tsi.tileFactory = TileSourceFactoryAdapter(
@@ -184,7 +184,7 @@ internal suspend fun ContentManager.attachWmtsImageLayerCache(
 
 internal suspend fun ContentManager.attachMvtVectorLayerCache(
     layer: MvtVectorLayer, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ) {
     // Peel the upstream source off an already-cache-attached layer (rebind to a different
     // content manager) so we re-wrap the bare source, not a cache inside a cache.
@@ -193,7 +193,7 @@ internal suspend fun ContentManager.attachMvtVectorLayerCache(
         ?: current as? UrlTemplateMvtTileSource
         ?: error("MvtVectorLayer wraps a non-URL-template source: ${current::class.simpleName}")
     val levelSet = buildMvtLevelSet(layer.minZoom, layer.maxZoom)
-    val store = openVectorTileStore(contentKey, levelSet, evictionPolicy, displayName = layer.displayName)
+    val store = openVectorTileStore(contentKey, levelSet, cachePolicy, displayName = layer.displayName)
     layer.source = CachedTileSource(network, store)
     registerWebService(contentKey, WebServiceInfo(
         type = MvtVectorLayer.SERVICE_TYPE,
@@ -217,7 +217,7 @@ private fun buildMvtLevelSet(minZoom: Int, maxZoom: Int): LevelSet {
 
 internal suspend fun ContentManager.attachBulkFeatureLayerCache(
     layer: BulkFeatureLayer, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ) {
     // Peel the upstream source off an already-cache-attached layer (rebind to a different
     // content manager — the bulk-download flow) so we re-wrap the bare source, not a cache
@@ -244,14 +244,14 @@ internal suspend fun ContentManager.attachBulkFeatureLayerCache(
         )
         else -> error("BulkFeatureLayer wraps unknown BulkFeatureSource: ${current::class.simpleName}")
     }
-    val store = openFeatureStore(contentKey, evictionPolicy, displayName = layer.displayName)
+    val store = openFeatureStore(contentKey, cachePolicy, displayName = layer.displayName)
     layer.source = CachedBulkFeatureSource(current, store)
     registerWebService(contentKey, info)
 }
 
 internal suspend fun ContentManager.attachOsmBuildingsLayerCache(
     layer: OsmBuildingsLayer, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ) {
     // Peel the upstream source off an already-cache-attached layer (rebind to a different
     // content manager) so we re-wrap the bare source, not a cache inside a cache.
@@ -259,7 +259,7 @@ internal suspend fun ContentManager.attachOsmBuildingsLayerCache(
     val network = (current as? CachedTiledFeatureSource)?.networkSource as? OverpassBuildingsSource
         ?: current as? OverpassBuildingsSource
         ?: error("OsmBuildingsLayer wraps a non-Overpass source: ${current::class.simpleName}")
-    val store = openFeatureStore(contentKey, evictionPolicy, displayName = layer.displayName)
+    val store = openFeatureStore(contentKey, cachePolicy, displayName = layer.displayName)
     layer.source = CachedTiledFeatureSource(network, store)
     registerWebService(contentKey, WebServiceInfo(
         type = OverpassBuildingsSource.SERVICE_TYPE,
@@ -273,7 +273,7 @@ internal suspend fun ContentManager.attachOsmBuildingsLayerCache(
 
 internal suspend fun ContentManager.attachBasicElevationCoverageCache(
     coverage: BasicElevationCoverage, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy, isFloat: Boolean,
+    cachePolicy: CachePolicy, isFloat: Boolean,
 ) {
     val tms = BasicElevationCoverage.buildTileMatrixSet()
     val network: TileSource? = WmsElevationTileSource(
@@ -289,7 +289,7 @@ internal suspend fun ContentManager.attachBasicElevationCoverageCache(
         outputFormat = BasicElevationCoverage.OUTPUT_FORMAT,
         isFloat = resolveIsFloat(contentKey, isFloat),
         displayName = coverage.displayName,
-        evictionPolicy = evictionPolicy,
+        cachePolicy = cachePolicy,
     )
     registerWebService(contentKey, WebServiceInfo(
         type = WmsElevationCoverage.SERVICE_TYPE,
@@ -301,9 +301,9 @@ internal suspend fun ContentManager.attachBasicElevationCoverageCache(
 
 internal suspend fun ContentManager.attachWmsElevationCoverageCache(
     coverage: WmsElevationCoverage, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy, isFloat: Boolean,
+    cachePolicy: CachePolicy, isFloat: Boolean,
 ) = attachElevationCoverageCache(
-    coverage, contentKey, evictionPolicy, isFloat,
+    coverage, contentKey, cachePolicy, isFloat,
     network = { WmsElevationTileSource(it.serviceAddress, it.coverageName, it.outputFormat, it.tileMatrixSet) },
     serviceType = WmsElevationCoverage.SERVICE_TYPE,
     serviceMetadata = null,
@@ -311,9 +311,9 @@ internal suspend fun ContentManager.attachWmsElevationCoverageCache(
 
 internal suspend fun ContentManager.attachWcs100ElevationCoverageCache(
     coverage: Wcs100ElevationCoverage, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy, isFloat: Boolean,
+    cachePolicy: CachePolicy, isFloat: Boolean,
 ) = attachElevationCoverageCache(
-    coverage, contentKey, evictionPolicy, isFloat,
+    coverage, contentKey, cachePolicy, isFloat,
     network = { Wcs100ElevationTileSource(it.serviceAddress, it.coverageName, it.outputFormat, it.tileMatrixSet) },
     serviceType = Wcs100ElevationCoverage.SERVICE_TYPE,
     serviceMetadata = null,
@@ -321,9 +321,9 @@ internal suspend fun ContentManager.attachWcs100ElevationCoverageCache(
 
 internal suspend fun ContentManager.attachWcs201ElevationCoverageCache(
     coverage: Wcs201ElevationCoverage, contentKey: String,
-    evictionPolicy: CacheEvictionPolicy, isFloat: Boolean,
+    cachePolicy: CachePolicy, isFloat: Boolean,
 ) = attachElevationCoverageCache(
-    coverage, contentKey, evictionPolicy, isFloat,
+    coverage, contentKey, cachePolicy, isFloat,
     network = { Wcs201ElevationTileSource(it.serviceAddress, it.coverageName, it.outputFormat, it.tileMatrixSet) },
     serviceType = Wcs201ElevationCoverage.SERVICE_TYPE,
     serviceMetadata = coverage.serviceMetadata,
@@ -334,7 +334,7 @@ internal suspend fun ContentManager.attachWcs201ElevationCoverageCache(
 private suspend fun <C> ContentManager.attachElevationCoverageCache(
     coverage: C,
     contentKey: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
     isFloat: Boolean,
 
     network: (C) -> TileSource,
@@ -350,7 +350,7 @@ private suspend fun <C> ContentManager.attachElevationCoverageCache(
         outputFormat = coverage.outputFormat,
         isFloat = resolveIsFloat(contentKey, isFloat),
         displayName = coverage.displayName,
-        evictionPolicy = evictionPolicy,
+        cachePolicy = cachePolicy,
     )
     registerWebService(contentKey, WebServiceInfo(
         type = serviceType,

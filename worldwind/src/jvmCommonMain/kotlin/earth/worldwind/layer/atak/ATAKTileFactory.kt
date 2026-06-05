@@ -3,7 +3,7 @@ package earth.worldwind.layer.atak
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
 import earth.worldwind.geom.Sector
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.ContentEntry
 import earth.worldwind.layer.mercator.MercatorImageTile
 import earth.worldwind.layer.mercator.MercatorSector
@@ -44,10 +44,10 @@ open class ATAKTileFactory(
 
     override suspend fun contentSize(): Long = withContext(Dispatchers.IO) { contentFile.length() } // One file should contain one map
 
-    var evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED
+    var cachePolicy: CachePolicy = CachePolicy.UNBOUNDED
         set(value) {
             if (!value.isUnbounded && field.isUnbounded) {
-                logMessage(WARN, "ATAKTileFactory", "evictionPolicy",
+                logMessage(WARN, "ATAKTileFactory", "cachePolicy",
                     "ATAK schema has no per-tile timestamps; eviction policy ignored for $contentPath")
             }
             field = value

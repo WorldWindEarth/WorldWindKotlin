@@ -22,7 +22,7 @@ import earth.worldwind.layer.cache.TileSourceFactoryAdapter
 import earth.worldwind.layer.cache.UrlTemplateImageTileSource
 import earth.worldwind.layer.cache.WebServiceInfo
 import earth.worldwind.layer.Layer
-import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.attachWcs100ElevationCoverageCache
 import earth.worldwind.layer.cache.attachWcs201ElevationCoverageCache
 import earth.worldwind.layer.cache.attachWmsElevationCoverageCache
@@ -60,7 +60,7 @@ import earth.worldwind.layer.cache.LowLevelCacheApi
 typealias CachedLayerOpener = suspend (
     contentManager: ContentManager,
     entry: CacheEntry,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ) -> Any?
 
 /**
@@ -155,12 +155,12 @@ object CachedLayerRegistry {
 @PublishedApi
 internal suspend fun ContentManager.dispatchCachedEntry(
     entry: CacheEntry,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
 ): Any? {
     val service = entry.service
     if (service == null) return tryOpenNativeContent(entry)
     val opener = CachedLayerRegistry.opener(entry.dataType, service.type) ?: return null
-    return opener(this, entry, evictionPolicy)
+    return opener(this, entry, cachePolicy)
 }
 
 /** Untyped key-based dispatch. Marked [PublishedApi] internal so the reified
@@ -169,8 +169,8 @@ internal suspend fun ContentManager.dispatchCachedEntry(
 @PublishedApi
 internal suspend fun ContentManager.dispatchCachedKey(
     contentKey: String,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
-): Any? = findEntry(contentKey)?.let { dispatchCachedEntry(it, evictionPolicy) }
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
+): Any? = findEntry(contentKey)?.let { dispatchCachedEntry(it, cachePolicy) }
 
 // ============================================================================
 // Typed retrieval — layers vs elevation coverages.
@@ -199,8 +199,8 @@ internal suspend fun ContentManager.dispatchCachedKey(
  */
 suspend inline fun <reified T : Layer> ContentManager.openLayer(
     contentKey: String,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
-): T? = dispatchCachedKey(contentKey, evictionPolicy) as? T
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
+): T? = dispatchCachedKey(contentKey, cachePolicy) as? T
 
 /**
  * Open [contentKey] as an elevation coverage narrowed to [T]. Returns `null` when the
@@ -217,8 +217,8 @@ suspend inline fun <reified T : Layer> ContentManager.openLayer(
  */
 suspend inline fun <reified T : ElevationCoverage> ContentManager.openElevationCoverage(
     contentKey: String,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
-): T? = dispatchCachedKey(contentKey, evictionPolicy) as? T
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
+): T? = dispatchCachedKey(contentKey, cachePolicy) as? T
 
 /**
  * Bulk-open every cached entry whose [CacheEntry.dataType] matches [category]. Return
@@ -241,10 +241,10 @@ suspend inline fun <reified T : ElevationCoverage> ContentManager.openElevationC
 @Suppress("UNCHECKED_CAST")
 suspend fun <T : Any> ContentManager.open(
     category: CacheCategory<T>,
-    evictionPolicy: CacheEvictionPolicy = CacheEvictionPolicy.UNBOUNDED,
+    cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
 ): List<T> = listEntries()
     .filter { it.dataType == category.dataType }
-    .mapNotNull { dispatchCachedEntry(it, evictionPolicy) as? T }
+    .mapNotNull { dispatchCachedEntry(it, cachePolicy) as? T }
 
 // Built-in openers are registered in CachedLayerRegistry's init block (above), which runs
 // lazily on first registry access on every platform — see the note there for why a top-level
@@ -256,7 +256,7 @@ suspend fun <T : Any> ContentManager.open(
 
 private suspend fun ContentManager.openWmsImageLayer(
     entry: CacheEntry, service: WebServiceInfo,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): TiledImageLayer? {
     val layerNames = service.layerName?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
         ?: return null
@@ -273,13 +273,13 @@ private suspend fun ContentManager.openWmsImageLayer(
     // the gpkg's persisted bbox so the level-set sector reflects the actual cached-data
     // extent (which bulk-download may have narrowed below the service extent).
     entry.boundingSector?.let { layer.tiledSurfaceImage?.levelSet?.sector?.copy(it) }
-    attachWmsImageLayerCache(layer, entry.contentKey, evictionPolicy)
+    attachWmsImageLayerCache(layer, entry.contentKey, cachePolicy)
     return layer
 }
 
 private suspend fun ContentManager.openWmtsImageLayer(
     entry: CacheEntry, service: WebServiceInfo,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): TiledImageLayer? {
     val name = service.layerName ?: return null
     // Offline-first: persisted capabilities are reused when present and parseable; only a
@@ -291,7 +291,7 @@ private suspend fun ContentManager.openWmtsImageLayer(
         serviceMetadata = service.metadata,
     )
     entry.boundingSector?.let { layer.tiledSurfaceImage?.levelSet?.sector?.copy(it) }
-    attachWmtsImageLayerCache(layer, entry.contentKey, evictionPolicy)
+    attachWmtsImageLayerCache(layer, entry.contentKey, cachePolicy)
     return layer
 }
 
@@ -301,12 +301,12 @@ private suspend fun ContentManager.openWebMercatorImageLayer(
     imageFormat: String,
     isTransparent: Boolean,
 
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): WebMercatorImageLayer {
     val levelSet = tryRecoverLevelSet(entry.contentKey)
         ?: buildSlippyLevelSet(maxZoom = 21, tileSize = 256)
     val store = openImageTileStore(
-        entry.contentKey, levelSet, imageFormat, isTransparent, evictionPolicy, displayName = entry.displayName,
+        entry.contentKey, levelSet, imageFormat, isTransparent, cachePolicy, displayName = entry.displayName,
     )
     val network: TileSource? = UrlTemplateImageTileSource(urlTemplate)
     val source = CachedTileSource(network, store)
@@ -335,14 +335,14 @@ private suspend fun ContentManager.openMvtVectorLayer(
     entry: CacheEntry,
     urlTemplate: String,
 
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): MvtVectorLayer {
     val levelSet = tryRecoverLevelSet(entry.contentKey)
         ?: buildSlippyLevelSet(maxZoom = 22, tileSize = 256)
     // tryRecoverLevelSet derives sector from gpkg bbox; the fallback slippy level-set is
     // global. If the gpkg has a persisted narrower bbox (bulk-download extent), apply it.
     entry.boundingSector?.let { levelSet.sector.copy(it) }
-    val store = openVectorTileStore(entry.contentKey, levelSet, evictionPolicy, displayName = entry.displayName)
+    val store = openVectorTileStore(entry.contentKey, levelSet, cachePolicy, displayName = entry.displayName)
     val network: TileSource? = UrlTemplateMvtTileSource(urlTemplate)
     val source = CachedTileSource(network, store)
     return MvtVectorLayer(source = source, displayName = entry.displayName)
@@ -355,7 +355,7 @@ private suspend fun ContentManager.openMvtVectorLayer(
 
 private suspend fun ContentManager.openWcs100ElevationCoverage(
     entry: CacheEntry, service: WebServiceInfo,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): TiledElevationCoverage {
     val coverageName = service.layerName.orEmpty()
     val outputFormat = service.outputFormat ?: "geotiff"
@@ -368,7 +368,7 @@ private suspend fun ContentManager.openWcs100ElevationCoverage(
         ),
     ).apply { displayName = entry.displayName }
     attachWcs100ElevationCoverageCache(
-        coverage, entry.contentKey, evictionPolicy,
+        coverage, entry.contentKey, cachePolicy,
         isFloat = entry.isFloat,
     )
     return coverage.applyPersistedSector(entry)
@@ -376,7 +376,7 @@ private suspend fun ContentManager.openWcs100ElevationCoverage(
 
 private suspend fun ContentManager.openWmsElevationCoverage(
     entry: CacheEntry, service: WebServiceInfo,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): TiledElevationCoverage {
     val coverageName = service.layerName.orEmpty()
     val outputFormat = service.outputFormat ?: "application/bil16"
@@ -389,7 +389,7 @@ private suspend fun ContentManager.openWmsElevationCoverage(
         ),
     ).apply { displayName = entry.displayName }
     attachWmsElevationCoverageCache(
-        coverage, entry.contentKey, evictionPolicy,
+        coverage, entry.contentKey, cachePolicy,
         isFloat = entry.isFloat,
     )
     return coverage.applyPersistedSector(entry)
@@ -397,7 +397,7 @@ private suspend fun ContentManager.openWmsElevationCoverage(
 
 private suspend fun ContentManager.openWcs201ElevationCoverage(
     entry: CacheEntry, service: WebServiceInfo,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): TiledElevationCoverage {
     // Persisted coverage-description XML is mandatory for WCS 2.0.1 reopen — the dispatcher
     // hands it to createCoverage as `serviceMetadata` so DescribeCoverage never fires.
@@ -409,7 +409,7 @@ private suspend fun ContentManager.openWcs201ElevationCoverage(
         displayName = entry.displayName,
     )
     attachWcs201ElevationCoverageCache(
-        coverage, entry.contentKey, evictionPolicy,
+        coverage, entry.contentKey, cachePolicy,
         isFloat = entry.isFloat,
     )
     return coverage.applyPersistedSector(entry)
@@ -448,9 +448,9 @@ private suspend fun ContentManager.resolveCoverageMatrixSet(
 
 private suspend fun ContentManager.openWfsLayer(
     entry: CacheEntry, service: WebServiceInfo,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): BulkFeatureLayer {
-    val store = openFeatureStore(entry.contentKey, evictionPolicy, displayName = entry.displayName)
+    val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
     val network: WfsBulkFeatureSource? = WfsBulkFeatureSource(
         serviceAddress = service.address,
         layerName = service.layerName ?: "",
@@ -462,9 +462,9 @@ private suspend fun ContentManager.openWfsLayer(
 
 private suspend fun ContentManager.openShapefileLayer(
     entry: CacheEntry, shpUrl: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): BulkFeatureLayer {
-    val store = openFeatureStore(entry.contentKey, evictionPolicy, displayName = entry.displayName)
+    val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
     val network = ShapefileBulkFeatureSource(shpUrl)
     val source = CachedBulkFeatureSource(network, store)
     return BulkFeatureLayer(source = source, displayName = entry.displayName).also { it.load() }
@@ -476,18 +476,18 @@ private suspend fun ContentManager.openShapefileLayer(
  *  want to refresh must re-attach with the original text. */
 private suspend fun ContentManager.openGeoJsonLayer(
     entry: CacheEntry,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): BulkFeatureLayer {
-    val store = openFeatureStore(entry.contentKey, evictionPolicy, displayName = entry.displayName)
+    val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
     val source = CachedBulkFeatureSource(inner = null, store = store)
     return BulkFeatureLayer(source = source, displayName = entry.displayName).also { it.load() }
 }
 
 private suspend fun ContentManager.openOsmBuildingsLayer(
     entry: CacheEntry, endpoint: String,
-    evictionPolicy: CacheEvictionPolicy,
+    cachePolicy: CachePolicy,
 ): OsmBuildingsLayer {
-    val store = openFeatureStore(entry.contentKey, evictionPolicy, displayName = entry.displayName)
+    val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
     val network = OverpassBuildingsSource(endpoint)
     val source = CachedTiledFeatureSource(network, store)
     return OsmBuildingsLayer(source = source, displayName = entry.displayName)

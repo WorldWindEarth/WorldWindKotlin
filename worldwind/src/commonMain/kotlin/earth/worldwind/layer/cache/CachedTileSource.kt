@@ -17,7 +17,7 @@ import kotlin.time.Duration
 /**
  * Cache-first decorator over a [TileSource]. The lookup order is:
  *   1. Read [store]. Hit → return cached blob (no network); if the blob is older than the
- *      store's eviction [CacheEvictionPolicy.maxAge], also kick a background refresh
+ *      store's eviction [CachePolicy.staleAfter], also kick a background refresh
  *      (stale-while-revalidate — see [maybeRevalidate]).
  *   2. Miss → fetch from [inner] (network), write-through to [store], return.
  *
@@ -135,21 +135,21 @@ class CachedTileSource(
 
     /**
      * Stale-while-revalidate: after serving a cached tile, if it's older than the store's eviction
-     * [CacheEvictionPolicy.maxAge], revalidate it in the background via a conditional GET. A `200`
+     * [CachePolicy.staleAfter], revalidate it in the background via a conditional GET. A `200`
      * writes the fresh bytes through and fires [onTileRevalidated]; a `304` only bumps the freshness
      * stamp ([TileStore.bumpValidatedAt]) and leaves the tile in place. Either outcome restarts the
-     * maxAge window so the tile isn't re-requested every frame. No-op when offline, when there's no
-     * network source, when freshness isn't tracked (`maxAge == INFINITE` or the store didn't surface
+     * staleAfter window so the tile isn't re-requested every frame. No-op when offline, when there's no
+     * network source, when freshness isn't tracked (`staleAfter == INFINITE` or the store didn't surface
      * [TileBlob.cachedAt]), or when a refresh for this tile is already in flight. Errors are
      * swallowed — a failed refresh leaves the stale tile (and its old stamp) in place to retry.
      */
     private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cached: TileBlob) {
         if (isCacheOnly) return
         val network = inner ?: return
-        val maxAge = store.evictionPolicy.maxAge
-        if (maxAge == Duration.INFINITE) return
+        val staleAfter = store.cachePolicy.staleAfter
+        if (staleAfter == Duration.INFINITE) return
         val cachedAt = cached.cachedAt ?: return
-        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= maxAge.inWholeMilliseconds) return
+        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
         val key = tileKey(z, x, y)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
         revalidationScope.launch {
@@ -159,7 +159,7 @@ class CachedTileSource(
                 val fresh = network.fetchTile(z, x, y, cached.etag, cached.lastModified)
                 if (fresh == null) {
                     // 304 Not Modified — bytes still current. Bump the freshness stamp so we don't
-                    // re-request until the next maxAge window, and leave the tile (and its texture)
+                    // re-request until the next staleAfter window, and leave the tile (and its texture)
                     // untouched: no onTileRevalidated, no redraw.
                     store.bumpValidatedAt(z, x, y)
                 } else {

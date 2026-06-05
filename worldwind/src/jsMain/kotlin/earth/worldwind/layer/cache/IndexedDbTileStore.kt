@@ -30,7 +30,7 @@ internal class IndexedDbTileStore(
     private val db: IDBDatabase,
     private val contentKey: String,
     private val storeName: String,
-    override val evictionPolicy: CacheEvictionPolicy,
+    override val cachePolicy: CachePolicy,
 ) : TileStore, CachedSourceInfoProvider {
 
     override val cacheInfo: CachedSourceInfo
@@ -50,9 +50,9 @@ internal class IndexedDbTileStore(
             bytes = bytes.toByteArray(),
             etag = record.etag,
             lastModified = record.lastModified,
-            // Surface write time only when freshness tracking is on (finite maxAge), to drive
+            // Surface write time only when freshness tracking is on (finite staleAfter), to drive
             // stale-while-revalidate in CachedTileSource / the elevation factory.
-            cachedAt = if (evictionPolicy.maxAge != Duration.INFINITE) record.cachedAt?.toLong() else null,
+            cachedAt = if (cachePolicy.staleAfter != Duration.INFINITE) record.cachedAt?.toLong() else null,
         )
     }
 
