@@ -5,7 +5,6 @@ import dev.icerock.moko.resources.FileResource
 import dev.icerock.moko.resources.ResourceContainer
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
-import earth.worldwind.layer.cache.WebTileCache
 import earth.worldwind.render.image.*
 import earth.worldwind.util.AbsentResourceList
 import earth.worldwind.util.Logger.DEBUG
@@ -20,7 +19,6 @@ import earth.worldwind.util.math.powerOfTwoFloor
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.await
 import kotlinx.coroutines.launch
 import org.khronos.webgl.TexImageSource
 import org.w3c.dom.CanvasImageSource
@@ -148,11 +146,6 @@ actual open class RenderResourceCache(
     protected open fun retrieveRemoteImage(
         currentRetrievals: MutableSet<ImageSource>, imageSource: ImageSource, options: ImageOptions?, src: String
     ) {
-        val storeName = WebTileCache.storeNameFor(src)
-        if (storeName != null) {
-            retrieveViaWebTileCache(currentRetrievals, imageSource, options, src, storeName)
-            return
-        }
         val image = Image()
         var postprocessorExecuted = false
         image.onload = {
@@ -185,49 +178,6 @@ actual open class RenderResourceCache(
         currentRetrievals += imageSource
         image.crossOrigin = "anonymous"
         image.src = src
-    }
-
-    /** Fetch through Cache API → Blob → object URL → Image; revoke the object URL after decode. */
-    private fun retrieveViaWebTileCache(
-        currentRetrievals: MutableSet<ImageSource>, imageSource: ImageSource, options: ImageOptions?,
-        src: String, storeName: String,
-    ) {
-        currentRetrievals += imageSource
-        mainScope.launch {
-            try {
-                val response = WebTileCache.fetchWithCache(src, storeName)
-                if (!response.ok) {
-                    retrievalFailed(imageSource)
-                    currentRetrievals -= imageSource
-                    return@launch
-                }
-                val blob = response.blob().await()
-                val objectUrl = URL.createObjectURL(blob)
-                val image = Image()
-                var postprocessorExecuted = false
-                image.onload = {
-                    val postprocessor = imageSource.postprocessor
-                    if (postprocessor != null && !postprocessorExecuted) {
-                        postprocessorExecuted = true
-                        mainScope.launch { postprocessor.process(image) }
-                    } else {
-                        retrievalSucceeded(imageSource, options, image)
-                        currentRetrievals -= imageSource
-                        URL.revokeObjectURL(objectUrl)
-                    }
-                }
-                image.onerror = { _, _, _, _, _ ->
-                    retrievalFailed(imageSource)
-                    currentRetrievals -= imageSource
-                    URL.revokeObjectURL(objectUrl)
-                }
-                image.crossOrigin = "anonymous"
-                image.src = objectUrl
-            } catch (e: Throwable) {
-                retrievalFailed(imageSource)
-                currentRetrievals -= imageSource
-            }
-        }
     }
 
     protected open fun createTexture(options: ImageOptions?, image: TexImageSource): Texture? {

@@ -7,7 +7,6 @@ import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.ElevationSourceFactory
 import earth.worldwind.globe.elevation.TileSourceElevationRef
 import earth.worldwind.layer.cache.CachedElevationRef
-import earth.worldwind.layer.cache.WebTileCache
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.isLoggable
@@ -90,10 +89,7 @@ actual open class TiledElevationCoverage actual constructor(
             val url = elevationSource.asUrl()
             try {
                 // Ktor JS Client cannot be used here, because it is not able to return ArrayBuffer directly.
-                // Route through WebTileCache when this URL prefix has a registered store.
-                val storeName = WebTileCache.storeNameFor(url)
-                val response = if (storeName != null) WebTileCache.fetchWithCache(url, storeName)
-                else fetch(url).await()
+                val response = fetch(url).await()
                 if (response.ok) {
                     val arrayBuffer = response.arrayBuffer().await()
                     val contentType = response.headers.get("Content-Type")
