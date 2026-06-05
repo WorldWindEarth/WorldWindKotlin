@@ -53,3 +53,30 @@ sealed class CachedGeometry {
 /** One cached feature row. Null [geometry] is the sentinel that marks a tile as fetched-but-empty. */
 @Serializable
 data class CachedFeatureRow(val geometry: CachedGeometry?, val properties: String?)
+
+/**
+ * Envelope-center `(longitude, latitude)` of this geometry — a deterministic representative point.
+ * Used to assign a feature to a single tile (the one containing its center), so a geometry that
+ * straddles a tile boundary renders in exactly one tile instead of every tile its envelope touches.
+ */
+fun CachedGeometry.envelopeCenter(): Pair<Double, Double> {
+    var minX = Double.MAX_VALUE; var minY = Double.MAX_VALUE
+    var maxX = -Double.MAX_VALUE; var maxY = -Double.MAX_VALUE
+    fun accept(p: CachedGeometry.Point) {
+        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x
+        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y
+    }
+    fun walk(g: CachedGeometry) {
+        when (g) {
+            is CachedGeometry.Point -> accept(g)
+            is CachedGeometry.LineString -> g.points.forEach(::accept)
+            is CachedGeometry.Polygon -> g.rings.forEach { ring -> ring.points.forEach(::accept) }
+            is CachedGeometry.MultiPolygon -> g.polygons.forEach(::walk)
+            is CachedGeometry.MultiPoint -> g.points.forEach(::accept)
+            is CachedGeometry.MultiLineString -> g.lines.forEach { line -> line.points.forEach(::accept) }
+            is CachedGeometry.GeometryCollection -> g.geometries.forEach(::walk)
+        }
+    }
+    walk(this)
+    return (minX + maxX) / 2.0 to (minY + maxY) / 2.0
+}

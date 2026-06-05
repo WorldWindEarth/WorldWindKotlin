@@ -2,6 +2,7 @@ package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.BulkFeatureSource
 import earth.worldwind.layer.source.TiledFeatureSource
 import earth.worldwind.layer.source.CachedFeatureRow
+import earth.worldwind.layer.source.envelopeCenter
 
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Logger.WARN
@@ -12,6 +13,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -118,10 +120,10 @@ class CachedTiledFeatureSource(
         get() = (store as? CachedSourceInfoProvider)?.cacheInfo
 
     override suspend fun tryReadCachedTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? =
-        store.readTile(z, x, y)?.also { maybeRevalidate(z, x, y, sector) }
+        store.readTile(z, x, y)?.also { maybeRevalidate(z, x, y, sector) }?.filter { it.ownedBy(sector) }
 
     override suspend fun fetchTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? {
-        store.readTile(z, x, y)?.let { maybeRevalidate(z, x, y, sector); return it }
+        store.readTile(z, x, y)?.let { maybeRevalidate(z, x, y, sector); return it.filter { row -> row.ownedBy(sector) } }
         if (isCacheOnly) return null
         val fetched = try {
             inner?.fetchTile(z, x, y, sector)
@@ -133,10 +135,13 @@ class CachedTiledFeatureSource(
             null
         } ?: return null
         return flow {
+            // Emit only features this tile owns (envelope-center inside the tile) so a boundary-
+            // straddling feature renders once; but write through the FULL fetch so the neighbouring
+            // tiles can serve the parts they own.
             val accumulator = mutableListOf<CachedFeatureRow>()
             fetched.collect { row ->
                 accumulator += row
-                emit(row)
+                if (row.ownedBy(sector)) emit(row)
             }
             try {
                 store.writeTile(z, x, y, accumulator.asFlow())
@@ -147,6 +152,15 @@ class CachedTiledFeatureSource(
                     "Cache write failed for ($z,$x,$y): ${e::class.simpleName}: ${e.message}")
             }
         }
+    }
+
+    /** A feature is owned by the tile whose [sector] contains its geometry's envelope-center; the
+     *  upper/right edges are exclusive so a center exactly on a shared boundary picks one tile. The
+     *  null-geometry sentinel (never emitted to renderables) is treated as owned. */
+    private fun CachedFeatureRow.ownedBy(sector: Sector): Boolean {
+        val (lon, lat) = (geometry ?: return true).envelopeCenter()
+        return lon >= sector.minLongitude.inDegrees && lon < sector.maxLongitude.inDegrees &&
+            lat >= sector.minLatitude.inDegrees && lat < sector.maxLatitude.inDegrees
     }
 
     /**

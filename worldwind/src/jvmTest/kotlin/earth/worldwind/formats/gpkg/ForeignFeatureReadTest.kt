@@ -5,6 +5,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.layer.cache.CacheEntry
 import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.CachedTiledFeatureSource
 import earth.worldwind.layer.cache.GpkgFeatureStore
 import earth.worldwind.util.LevelSet
 import earth.worldwind.layer.source.CachedFeatureRow
@@ -303,6 +304,39 @@ class ForeignFeatureReadTest {
             assertEquals(4000L, gpkg.readTilesDataSize("tiles"), "evicted down to the byte budget")
             assertNotNull(gpkg.readTileUserData(content, 1, 1, 0), "newest tile kept")
             assertNull(gpkg.readTileUserData(content, 0, 0, 0), "oldest tile evicted")
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun cachedSourceRendersBoundaryFeatureInExactlyOneTile() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("osm")
+            val store = GpkgFeatureStore(gpkg, content)
+            // A polygon straddling lon=0 (the boundary between tiles (1,0,0) and (1,1,0)); its
+            // envelope center is at lon=-2.5 → owned by the western tile.
+            val ring = CachedGeometry.LineString(listOf(
+                CachedGeometry.Point(-10.0, 40.0), CachedGeometry.Point(5.0, 40.0),
+                CachedGeometry.Point(5.0, 50.0), CachedGeometry.Point(-10.0, 50.0),
+            ))
+            val feature = CachedFeatureRow(CachedGeometry.Polygon(listOf(ring)), """{"id":"way/9"}""")
+            // Both neighbouring tiles fetch the straddling feature (same uid → one stored row).
+            store.writeTile(1, 0, 0, flowOf(feature))
+            store.writeTile(1, 1, 0, flowOf(feature))
+            assertEquals(1, store.readAll().toList().size, "uid dedup: one stored row")
+
+            // The store returns it for both tiles' bbox...
+            assertEquals(1, store.readTile(1, 0, 0)?.toList()?.size)
+            assertEquals(1, store.readTile(1, 1, 0)?.toList()?.size)
+
+            // ...but the cached source assigns it to exactly one tile by envelope-center ownership.
+            val source = CachedTiledFeatureSource(inner = null, store = store)
+            val west = Sector.fromDegrees(0.0, -180.0, 85.0511, 180.0) // tile (1,0,0)
+            val east = Sector.fromDegrees(0.0, 0.0, 85.0511, 180.0)    // tile (1,1,0)
+            assertEquals(1, source.tryReadCachedTile(1, 0, 0, west)?.toList()?.size, "owner renders it")
+            assertEquals(0, source.tryReadCachedTile(1, 1, 0, east)?.toList()?.size, "neighbor must not double-render")
         } finally {
             gpkg.shutdown()
         }
