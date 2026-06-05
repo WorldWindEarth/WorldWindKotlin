@@ -8,12 +8,15 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 
 /**
  * IndexedDB-backed [FeatureStore]. Bulk rows (`z`/`x`/`y` all NULL — WFS, Shapefile) and
  * tile-addressed rows (OsmBuildings) live in the same `features` object store; rows
  * discriminate by `(contentKey, z, x, y)` composite. Geometry and properties are
- * serialised as JSON strings — the store doesn't parse them.
+ * serialised as JSON strings — the store doesn't parse them. Each row also carries the
+ * tile's `cachedAt` (epoch-ms), which drives stale-while-revalidate ([readTileLastModified])
+ * and oldest-first capacity [evict].
  *
  * Tile sentinel: a single row at `(contentKey, z, x, y)` with `geometry = null` means
  * "tile fetched, zero features". Distinct from "tile not cached" (no rows at all), which
@@ -115,6 +118,57 @@ internal class IndexedDbFeatureStore(
         return total
     }
 
+    override suspend fun readTileLastModified(z: Int, x: Int, y: Int): Long? {
+        val tx = db.transaction(FEATURES_STORE, "readonly")
+        val store = tx.objectStore(FEATURES_STORE)
+        val arr = idbAwait<Array<dynamic>>(store.index(INDEX_BY_TILE).getAll(arrayOf<Any>(contentKey, z, x, y)))
+        if (arr.isEmpty()) return null
+        // Records of one tile share a write time; take the max defensively.
+        var max = 0.0
+        for (rec in arr) (rec.cachedAt as? Double)?.let { if (it > max) max = it }
+        return if (max > 0.0) max.toLong() else null
+    }
+
+    /** Capacity eviction: drop whole tiles oldest-first (by `cachedAt`) until within
+     *  [CachePolicy.maxEntries] (tile count) and [CachePolicy.maxBytes]. Bulk rows (z == null) are
+     *  atomic snapshots and are never partially evicted. staleAfter never deletes. */
+    override suspend fun evict() {
+        if (cachePolicy.isUnbounded) return
+        data class TileAgg(val z: Int, val x: Int, val y: Int, var cachedAt: Double, var bytes: Long)
+        val readStore = db.transaction(FEATURES_STORE, "readonly").objectStore(FEATURES_STORE)
+        val agg = HashMap<String, TileAgg>()
+        idbWalkCursor(readStore.index(INDEX_BY_CONTENT).openCursor(contentKey)) { cursor ->
+            val rec = cursor.value
+            val zz = rec.z as? Int
+            if (zz != null) {
+                val xx = rec.x as Int
+                val yy = rec.y as Int
+                val size = (((rec.geometry as? String)?.length ?: 0) + ((rec.properties as? String)?.length ?: 0)).toLong()
+                val cachedAt = (rec.cachedAt as? Double) ?: 0.0
+                val existing = agg["$zz/$xx/$yy"]
+                if (existing == null) agg["$zz/$xx/$yy"] = TileAgg(zz, xx, yy, cachedAt, size)
+                else { if (cachedAt > existing.cachedAt) existing.cachedAt = cachedAt; existing.bytes += size }
+            }
+        }
+        // Keep newest tiles within both caps; the rest are victims.
+        var keptCount = 0L
+        var keptBytes = 0L
+        val victims = agg.values.sortedByDescending { it.cachedAt }.filter { tile ->
+            val overCount = keptCount >= cachePolicy.maxEntries
+            val overBytes = cachePolicy.maxBytes != Long.MAX_VALUE && keptBytes + tile.bytes > cachePolicy.maxBytes
+            if (overCount || overBytes) true else { keptCount++; keptBytes += tile.bytes; false }
+        }
+        if (victims.isEmpty()) return
+        val writeTx = db.transaction(FEATURES_STORE, "readwrite")
+        val writeStore = writeTx.objectStore(FEATURES_STORE)
+        for (tile in victims) {
+            idbWalkCursor(writeStore.index(INDEX_BY_TILE).openCursor(arrayOf<Any>(contentKey, tile.z, tile.x, tile.y))) {
+                it.delete()
+            }
+        }
+        idbAwaitTransaction(writeTx)
+    }
+
     private fun newFeatureRecord(
         contentKey: String, z: Int?, x: Int?, y: Int?, row: CachedFeatureRow,
     ): dynamic {
@@ -125,6 +179,7 @@ internal class IndexedDbFeatureStore(
         r.y = y
         r.geometry = row.geometry?.let { encodeGeometry(it) }
         r.properties = row.properties
+        r.cachedAt = Clock.System.now().toEpochMilliseconds().toDouble()
         return r
     }
 

@@ -279,6 +279,7 @@ class WebContentManager(
         rememberDataType(contentKey, CacheEntry.DataType.FEATURES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
         return IndexedDbFeatureStore(db(), contentKey, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
     }
 
     /** Throw if [contentKey] was previously opened under a different data type. Without

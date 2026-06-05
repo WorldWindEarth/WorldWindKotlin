@@ -173,6 +173,7 @@ class IosContentManager(
         rememberDataType(contentKey, CacheEntry.DataType.FEATURES)
         if (displayName != null) rememberDisplayName(contentKey, displayName)
         return FileSystemFeatureStore(pathName, contentKey, cachePolicy)
+            .also { if (!cachePolicy.isUnbounded) runCatching { it.evict() } }
     }
 
     override suspend fun registerWebService(contentKey: String, info: WebServiceInfo): Unit = withContext(Dispatchers.Default) {
@@ -180,7 +181,6 @@ class IosContentManager(
             ensureDirectory("$pathName/$contentKey")
             val text = JSON.encodeToString(WebServiceInfoSurrogate.serializer(), WebServiceInfoSurrogate.from(info))
             text.encodeToByteArray().toNsData().writeToFile(metaPathFor(contentKey), atomically = true)
-            Unit
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {

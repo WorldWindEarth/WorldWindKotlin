@@ -14,8 +14,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import platform.Foundation.NSData
+import platform.Foundation.NSDate
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSFileModificationDate
+import platform.Foundation.NSFileSize
+import platform.Foundation.NSNumber
 import platform.Foundation.dataWithContentsOfFile
+import platform.Foundation.timeIntervalSince1970
 import platform.Foundation.writeToFile
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.WARN
@@ -79,6 +84,44 @@ class FileSystemFeatureStore(
 
     override suspend fun deleteTile(z: Int, x: Int, y: Int): Unit = withContext(Dispatchers.Default) {
         NSFileManager.defaultManager.removeItemAtPath(tilePath(z, x, y), null)
+    }
+
+    override suspend fun readTileLastModified(z: Int, x: Int, y: Int): Long? = withContext(Dispatchers.Default) {
+        fileModifiedMillis(tilePath(z, x, y))
+    }
+
+    /** Capacity eviction: drop whole per-tile files oldest-first (by mtime) until within
+     *  [CachePolicy.maxEntries] (tile count) and [CachePolicy.maxBytes]. `bulk.json` (an atomic
+     *  snapshot) is never touched. staleAfter never deletes. */
+    override suspend fun evict(): Unit = withContext(Dispatchers.Default) {
+        if (cachePolicy.isUnbounded) return@withContext
+        val fm = NSFileManager.defaultManager
+        val names = fm.contentsOfDirectoryAtPath(featuresRoot, null) ?: return@withContext
+        data class TileFile(val path: String, val mtime: Long, val size: Long)
+        val tiles = ArrayList<TileFile>()
+        for (entry in names) {
+            val name = entry as? String ?: continue
+            if (!name.startsWith("tile_") || !name.endsWith(".json")) continue // skip bulk.json
+            val path = "$featuresRoot/$name"
+            val attrs = fm.attributesOfItemAtPath(path, null) ?: continue
+            val mtime = (attrs[NSFileModificationDate] as? NSDate)?.let { (it.timeIntervalSince1970 * 1000.0).toLong() } ?: 0L
+            val size = (attrs[NSFileSize] as? NSNumber)?.longLongValue ?: 0L
+            tiles.add(TileFile(path, mtime, size))
+        }
+        var keptCount = 0L
+        var keptBytes = 0L
+        for (tile in tiles.sortedByDescending { it.mtime }) {
+            val overCount = keptCount >= cachePolicy.maxEntries
+            val overBytes = cachePolicy.maxBytes != Long.MAX_VALUE && keptBytes + tile.size > cachePolicy.maxBytes
+            if (overCount || overBytes) fm.removeItemAtPath(tile.path, null)
+            else { keptCount++; keptBytes += tile.size }
+        }
+    }
+
+    private fun fileModifiedMillis(path: String): Long? {
+        val attrs = NSFileManager.defaultManager.attributesOfItemAtPath(path, null) ?: return null
+        val date = attrs[NSFileModificationDate] as? NSDate ?: return null
+        return (date.timeIntervalSince1970 * 1000.0).toLong()
     }
 
     override suspend fun sizeBytes(): Long = withContext(Dispatchers.Default) {
