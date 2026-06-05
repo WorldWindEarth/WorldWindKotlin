@@ -6,7 +6,13 @@ import com.j256.ormlite.table.DatabaseTable
 import java.io.Serializable
 
 /**
- * CREATE TABLE IF NOT EXISTS gpkg_web_service (
+ * Worldwind-private table holding, per cached content table, how to reconnect its layer to the
+ * network source (service type, address, layer name, output format). Declared in gpkg_extensions as
+ * `worldwind_web_service`; the `ww_` name stays off the spec-reserved `gpkg_` prefix. A legacy
+ * `gpkg_web_service` table is renamed in place on the first writable open (see
+ * [GeoPackage.migrateLegacyWebServiceTable]); read-only caches keep the old name and open offline.
+ *
+ * CREATE TABLE IF NOT EXISTS ww_web_service (
  *   table_name TEXT NOT NULL PRIMARY KEY,
  *   service_type TEXT NOT NULL,
  *   service_address TEXT NOT NULL,
@@ -16,7 +22,7 @@ import java.io.Serializable
  *   is_transparent SMALLINT DEFAULT 0
  * );
  */
-@DatabaseTable(tableName = "gpkg_web_service")
+@DatabaseTable(tableName = GpkgWebService.TABLE_NAME)
 class GpkgWebService : Serializable {
     @DatabaseField(columnName = COLUMN_TABLE_NAME, dataType = DataType.STRING, canBeNull = false, id = true)
     lateinit var tableName: String
@@ -34,6 +40,7 @@ class GpkgWebService : Serializable {
     var isTransparent: Boolean = false // For elevation coverages this attribute is always false
 
     companion object {
+        const val TABLE_NAME = "ww_web_service"
         const val COLUMN_TABLE_NAME = "table_name"
         const val COLUMN_SERVICE_TYPE = "service_type"
         const val COLUMN_SERVICE_ADDRESS = "service_address"

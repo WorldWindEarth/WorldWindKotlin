@@ -211,6 +211,13 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val tileMatrixCache = mutableMapOf<String, Map<Int, GpkgTileMatrix>>()
     private val writeDispatcher = Dispatchers.IO.limitedParallelism(1) // Single thread dispatcher
 
+    init {
+        // On a writable open, migrate the legacy gpkg_web_service table off the reserved gpkg_ prefix.
+        if (!isReadOnly) runCatching { migrateLegacyWebServiceTable() }.onFailure {
+            logMessage(WARN, "GeoPackage", "init", "Legacy web-service table migration skipped: ${it.message}")
+        }
+    }
+
     val isShutdown get() = !connectionSource.isOpen("")
 
     fun shutdown() = geoPackage.close().also {
@@ -1282,7 +1289,26 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     protected open fun createWebServiceTable() {
         if (!webServiceDao.isTableExists) TableUtils.createTable(webServiceDao)
-        registerExtension(tableName = null, columnName = null, extensionName = WW_WEB_SERVICE_EXTENSION)
+        registerExtension(tableName = GpkgWebService.TABLE_NAME, columnName = null, extensionName = WW_WEB_SERVICE_EXTENSION)
+    }
+
+    /**
+     * One-time rename of the legacy `gpkg_web_service` table — which squatted on the spec-reserved
+     * `gpkg_` prefix — to `ww_web_service`, re-scoping its `gpkg_extensions` row to the renamed table.
+     * Runs only on a writable open; a read-only cache keeps the old name and opens offline (it can't
+     * write back, so an online web-service rebind would be pointless). Idempotent; no-op for new files.
+     */
+    private fun migrateLegacyWebServiceTable() {
+        if (!geoPackage.database.tableExists(LEGACY_WEB_SERVICE_TABLE)) return
+        if (geoPackage.database.tableExists(GpkgWebService.TABLE_NAME)) return
+        geoPackage.database.execSQL(
+            "ALTER TABLE \"$LEGACY_WEB_SERVICE_TABLE\" RENAME TO \"${GpkgWebService.TABLE_NAME}\""
+        )
+        if (extensionDao.isTableExists) geoPackage.database.execSQL(
+            "UPDATE gpkg_extensions SET ${GpkgExtension.COLUMN_TABLE_NAME} = '${GpkgWebService.TABLE_NAME}' " +
+                    "WHERE ${GpkgExtension.COLUMN_EXTENSION_NAME} = '$WW_WEB_SERVICE_EXTENSION' " +
+                    "AND ${GpkgExtension.COLUMN_TABLE_NAME} IS NULL"
+        )
     }
 
     /**
@@ -1454,6 +1480,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
          *  custom additions (side tables, web-service metadata) as documented extensions rather
          *  than anonymous extra rows. */
         const val WW_WEB_SERVICE_EXTENSION = "worldwind_web_service"
+        /** Pre-rename name of [GpkgWebService]'s table; migrated to ww_web_service on writable open. */
+        const val LEGACY_WEB_SERVICE_TABLE = "gpkg_web_service"
         const val WW_TILE_REVALIDATION_EXTENSION = "worldwind_tile_revalidation"
         const val WW_FEATURE_COVERAGE_EXTENSION = "worldwind_feature_coverage"
         const val WW_EXTENSION_DEFINITION = "https://worldwind.earth"

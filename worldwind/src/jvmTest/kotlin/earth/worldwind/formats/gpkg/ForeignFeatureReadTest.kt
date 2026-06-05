@@ -412,6 +412,56 @@ class ForeignFeatureReadTest {
         }
     }
 
+    @Test
+    fun legacyWebServiceTableMigratesOnWritableOpen() = runBlocking {
+        // A legacy cache: a gpkg_web_service table (old reserved-prefix name) with one row, as a
+        // prior WorldWind version wrote it.
+        run {
+            val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+            try {
+                gpkg.core.database.execSQL(
+                    "CREATE TABLE gpkg_web_service (table_name TEXT NOT NULL PRIMARY KEY, " +
+                        "service_type TEXT NOT NULL, service_address TEXT NOT NULL, service_metadata TEXT, " +
+                        "layer_name TEXT, output_format TEXT, is_transparent SMALLINT DEFAULT 0)"
+                )
+                gpkg.core.database.execSQL(
+                    "INSERT INTO gpkg_web_service (table_name, service_type, service_address) " +
+                        "VALUES ('layer1', 'WMS', 'https://example.com/wms')"
+                )
+            } finally { gpkg.shutdown() }
+        }
+        // Reopen writable → the rename migration runs at construction; the binding survives under the new name.
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val ws = assertNotNull(gpkg.getWebService("layer1"), "web service preserved after migration")
+            assertEquals("WMS", ws.type)
+            assertEquals("https://example.com/wms", ws.address)
+        } finally { gpkg.shutdown() }
+    }
+
+    @Test
+    fun legacyWebServiceTableNotMigratedWhenReadOnly() = runBlocking {
+        run {
+            val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+            try {
+                gpkg.core.database.execSQL(
+                    "CREATE TABLE gpkg_web_service (table_name TEXT NOT NULL PRIMARY KEY, " +
+                        "service_type TEXT NOT NULL, service_address TEXT NOT NULL, service_metadata TEXT, " +
+                        "layer_name TEXT, output_format TEXT, is_transparent SMALLINT DEFAULT 0)"
+                )
+                gpkg.core.database.execSQL(
+                    "INSERT INTO gpkg_web_service (table_name, service_type, service_address) " +
+                        "VALUES ('layer1', 'WMS', 'https://example.com/wms')"
+                )
+            } finally { gpkg.shutdown() }
+        }
+        // Read-only open: the file can't be migrated, and the layer simply opens offline (no rebind).
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = true)
+        try {
+            assertNull(gpkg.getWebService("layer1"), "read-only legacy cache opens offline, no migration")
+        } finally { gpkg.shutdown() }
+    }
+
     private fun createForeignFeaturesTable(nga: NgaGeoPackage, tableName: String) {
         val srs = nga.spatialReferenceSystemDao.getOrCreateFromEpsg(4326L)
         val geometryColumns = GeometryColumns().also {
