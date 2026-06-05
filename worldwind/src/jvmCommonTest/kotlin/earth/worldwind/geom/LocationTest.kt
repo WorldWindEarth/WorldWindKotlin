@@ -853,4 +853,40 @@ class LocationTest {
     fun testFromString_RejectsBlank() {
         assertFailsWith<IllegalArgumentException> { fromString("   ") }
     }
+
+    @Test
+    fun testFromString_PrefixHemisphereMarkers() {
+        val location = fromString("N36.5 W122.25")
+        assertEquals(36.5, location.latitude.inDegrees, TOLERANCE)
+        assertEquals(-122.25, location.longitude.inDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun testFromString_RoundTripsToDDString() {
+        val original = fromDegrees(48.504419, 37.721170)
+        val parsed = fromString(original.toDDString())
+        assertEquals(original.latitude.inDegrees, parsed.latitude.inDegrees, 1e-6)
+        assertEquals(original.longitude.inDegrees, parsed.longitude.inDegrees, 1e-6)
+    }
+
+    @Test
+    fun testFromString_RoundTripsToDMString() {
+        val original = fromDegrees(48.504419, 37.721170)
+        val parsed = fromString(original.toDMString())
+        assertEquals(original.latitude.inDegrees, parsed.latitude.inDegrees, 1e-4)
+        assertEquals(original.longitude.inDegrees, parsed.longitude.inDegrees, 1e-4)
+    }
+
+    @Test
+    fun testFromString_RoundTripsToDMSString() {
+        val original = fromDegrees(48.504419, 37.721170)
+        val parsed = fromString(original.toDMSString())
+        assertEquals(original.latitude.inDegrees, parsed.latitude.inDegrees, 1e-4)
+        assertEquals(original.longitude.inDegrees, parsed.longitude.inDegrees, 1e-4)
+    }
+
+    @Test
+    fun testFromString_RejectsConsecutivePrefixMarkers() {
+        assertFailsWith<IllegalArgumentException> { fromString("N E 48.5 122.25") }
+    }
 }

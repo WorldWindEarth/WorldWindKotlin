@@ -54,30 +54,61 @@ class WGSCoord private constructor(val latitude: Angle, val longitude: Angle) {
             var lonParts: List<Double>? = null
             var lonSign = 1
             val pending = mutableListOf<Double>()
+            // A hemisphere marker seen before its numbers (prefix form, e.g. "N48.5") binds to
+            // the next group of numbers; toDDString/toDMString/toDMSString all emit this form.
+            var leadingMarker: Char? = null
 
-            fun assignFromMarker(marker: Char) {
-                require(pending.isNotEmpty()) {
-                    "$prefix has hemisphere marker '$marker' without a numeric value"
-                }
+            fun commitGroup(marker: Char, parts: List<Double>) {
                 when (marker.uppercaseChar()) {
                     'N', 'S' -> {
                         require(latParts == null) { "$prefix contains multiple latitude (N/S) hemispheres" }
-                        latParts = pending.toList()
+                        latParts = parts
                         latSign = if (marker.uppercaseChar() == 'S') -1 else 1
                     }
                     'E', 'W' -> {
                         require(lonParts == null) { "$prefix contains multiple longitude (E/W) hemispheres" }
-                        lonParts = pending.toList()
+                        lonParts = parts
                         lonSign = if (marker.uppercaseChar() == 'W') -1 else 1
                     }
                 }
-                pending.clear()
+            }
+
+            fun assignFromMarker(marker: Char) {
+                val leading = leadingMarker
+                when {
+                    // Prefix form: the pending numbers belong to the earlier leading marker, and
+                    // this marker opens the next group.
+                    leading != null -> {
+                        require(pending.isNotEmpty()) {
+                            "$prefix has hemisphere marker '$leading' without a numeric value"
+                        }
+                        commitGroup(leading, pending.toList())
+                        pending.clear()
+                        leadingMarker = marker
+                    }
+                    // Suffix form: the marker closes the numbers gathered so far.
+                    pending.isNotEmpty() -> {
+                        commitGroup(marker, pending.toList())
+                        pending.clear()
+                    }
+                    // Marker with nothing before it: start a prefix group.
+                    else -> leadingMarker = marker
+                }
             }
 
             for (token in tokens) when {
                 NUMBER_REGEX.matches(token) -> pending.add(token.toDouble())
                 token.length == 1 && token[0].uppercaseChar() in "NSEW" -> assignFromMarker(token[0])
                 else -> throw IllegalArgumentException("$prefix contains an unrecognized token '$token'")
+            }
+
+            // Close a trailing prefix group, e.g. the "E037.7°" half of "N48.5°, E037.7°".
+            leadingMarker?.let { marker ->
+                require(pending.isNotEmpty()) {
+                    "$prefix has hemisphere marker '$marker' without a numeric value"
+                }
+                commitGroup(marker, pending.toList())
+                pending.clear()
             }
 
             if (pending.isNotEmpty()) when {
