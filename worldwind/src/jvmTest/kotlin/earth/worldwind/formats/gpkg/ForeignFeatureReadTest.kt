@@ -14,6 +14,8 @@ import earth.worldwind.layer.cache.GpkgFeatureStore
 import earth.worldwind.util.LevelSet
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.CachedGeometry
+import earth.worldwind.layer.source.TileBlob
+import earth.worldwind.layer.source.TileSource
 import mil.nga.geopackage.validate.GeoPackageValidate
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
@@ -526,6 +528,47 @@ class ForeignFeatureReadTest {
             assertTrue(GeoPackageValidate.hasMinimumTables(gpkg.core), "required GeoPackage tables present")
             GeoPackageValidate.validateMinimumTables(gpkg.core) // throws GeoPackageException if non-conformant
         } finally { gpkg.shutdown() }
+    }
+
+    @Test
+    fun coverageRevalidationConditionalGetBumpsOn304() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val world = Sector.fromDegrees(-90.0, -180.0, 180.0, 360.0)
+            val tms = TileMatrixSet.fromTilePyramid(world, 2, 1, 256, 256, Angle.fromDegrees(0.3))
+            val content = gpkg.setupGriddedCoverageContent("dem", tms, isFloat = false)
+            // A cached coverage tile with a stored ETag and a long-ago freshness stamp.
+            val tpudtId = gpkg.writeTileUserData(content, 0, 0, 0, ByteArray(8) { 1 })
+            gpkg.writeTileRevalidation(content, tpudtId, etag = "v1", httpLastModified = null, validatedAt = 1000L)
+
+            // A network source that answers 304 (null) to the conditional GET, recording the sent ETag.
+            var sentEtag: String? = null
+            val source = object : TileSource {
+                override suspend fun fetchTile(
+                    z: Int, x: Int, y: Int, previousEtag: String?, previousLastModified: String?,
+                ): TileBlob? {
+                    sentEtag = previousEtag
+                    return null // 304 Not Modified
+                }
+            }
+            val perTile = GpkgCachedElevationDataFactory(
+                GpkgCachedElevationSourceFactory(
+                    geoPackage = gpkg, content = content, networkSource = source,
+                    outputFormat = "application/bil16", isFloat = false, tileMatrixSet = tms,
+                ),
+                0, 0, 0,
+            )
+            val changed = perTile.conditionalRevalidate("v1", null, tpudtId)
+
+            assertEquals("v1", sentEtag, "the stored ETag was sent as the conditional validator")
+            assertFalse(changed, "304 must not change bytes or trigger a redraw")
+            assertTrue(
+                assertNotNull(gpkg.readTileRevalidation(content, tpudtId)?.validatedAt) > 1000L,
+                "validatedAt bumped on 304",
+            )
+        } finally {
+            gpkg.shutdown()
+        }
     }
 
     private fun createForeignFeaturesTable(nga: NgaGeoPackage, tableName: String) {

@@ -84,25 +84,27 @@ class GpkgCachedElevationSourceFactory(
     private val revalidateMutex = Mutex()
 
     /**
-     * After a cache hit, if the tile is older than [staleAfter], re-download it in the background
-     * (forcing past the cache via `overrideCache`, which write-throughs and bumps
-     * `last_modified`). No-op when offline, when there's no network, when freshness isn't
-     * tracked, or when a refresh for this tile is already in flight.
+     * After a cache hit, if the tile is older than [staleAfter], re-validate it in the background
+     * with a conditional GET (the stored ETag / Last-Modified): a `304 Not Modified` just bumps the
+     * freshness stamp — no re-decode, no redraw; a `200` re-downloads, re-stamps the validators, and
+     * triggers a redraw. No-op when offline, when there's no network, when freshness isn't tracked,
+     * or when a refresh for this tile is already in flight.
      */
     internal suspend fun maybeRevalidate(zoomLevel: Int, tileColumn: Int, tileRow: Int) {
         if (isCacheOnly || networkSource == null || staleAfter == Duration.INFINITE) return
         val tpudtId = geoPackage.readTileUserDataId(content, zoomLevel, tileColumn, tileRow) ?: return
         // Self-heal: no validatedAt yet (tile cached before this row existed) → treat as stale
         // (epoch 0) so the first read triggers one refresh that stamps it, rather than skipping.
-        val cachedAt = geoPackage.readTileRevalidation(content, tpudtId)?.validatedAt ?: 0L
+        val reval = geoPackage.readTileRevalidation(content, tpudtId)
+        val cachedAt = reval?.validatedAt ?: 0L
         if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
         val key = (zoomLevel.toLong() shl 48) or (tileColumn.toLong() and 0xFFFFFF shl 24) or (tileRow.toLong() and 0xFFFFFF)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return
         revalidationScope.launch {
             try {
-                GpkgCachedElevationDataFactory(this@GpkgCachedElevationSourceFactory, zoomLevel, tileColumn, tileRow)
-                    .fetchElevationDataIgnoringCacheOnly(overrideCache = true)
-                onTileRevalidated?.invoke(zoomLevel, tileColumn, tileRow)
+                val changed = GpkgCachedElevationDataFactory(this@GpkgCachedElevationSourceFactory, zoomLevel, tileColumn, tileRow)
+                    .conditionalRevalidate(reval?.etag, reval?.httpLastModified, tpudtId)
+                if (changed) onTileRevalidated?.invoke(zoomLevel, tileColumn, tileRow)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (t: Throwable) {
@@ -204,7 +206,7 @@ open class GpkgCachedElevationDataFactory(
         } ?: return null
         if (blob.isEmpty) return null
         val decoded = decodeNetworkBlob(blob) ?: return null
-        runCatching { writeToCache(decoded) }.onFailure {
+        runCatching { writeToCache(decoded, blob.etag, blob.lastModified) }.onFailure {
             log(WARN, "GpkgCachedElevation cache write failed [$zoomLevel/$tileColumn/$tileRow]: ${it.message}")
         }
         // The cached encode/decode flow rewinds buffers; pass through the original
@@ -264,8 +266,10 @@ open class GpkgCachedElevationDataFactory(
         return parent.elevationDecoder.decodeElevationBytes(blob.bytes, effectiveType)
     }
 
-    /** Write [buffer] to gpkg in the storage layout chosen at coverage creation. */
-    protected open suspend fun writeToCache(buffer: Buffer) {
+    /** Write [buffer] to gpkg in the storage layout chosen at coverage creation, stamping the
+     *  freshness row with the network response's [etag] / [lastModified] so a later refresh can
+     *  issue a conditional GET and accept a 304. */
+    protected open suspend fun writeToCache(buffer: Buffer, etag: String? = null, lastModified: String? = null) {
         if (parent.geoPackage.isReadOnly) return
         val matrix = parent.tileMatrixSet.entries.getOrNull(zoomLevel) ?: return
         val encoded = encodeForStorage(buffer, matrix.tileWidth, matrix.tileHeight) ?: return
@@ -276,12 +280,30 @@ open class GpkgCachedElevationDataFactory(
             parent.content, zoomLevel, tileColumn, tileRow,
             scale = encoded.tileScale, offset = encoded.tileOffset,
         )
-        // Stamp freshness so stale-while-revalidate has a baseline. Elevation tiles carry no
-        // HTTP validators through the decode path, so refresh is a full re-download (no 304).
         parent.geoPackage.writeTileRevalidation(
             parent.content, tpudtId,
-            etag = null, httpLastModified = null, validatedAt = System.currentTimeMillis(),
+            etag = etag, httpLastModified = lastModified, validatedAt = System.currentTimeMillis(),
         )
+    }
+
+    /**
+     * Background conditional revalidation for [maybeRevalidate]. Issues a conditional GET with the
+     * stored [etag] / [lastModified]; on `304` (null blob) bumps only the freshness stamp and returns
+     * `false` (bytes unchanged → no redraw); on `200` re-decodes, write-throughs with the fresh
+     * validators, and returns `true`. Transport errors propagate to the caller's catch (no bump).
+     */
+    internal suspend fun conditionalRevalidate(etag: String?, lastModified: String?, tpudtId: Long): Boolean {
+        val network = parent.networkSource ?: return false
+        val blob = network.fetchTile(zoomLevel, tileColumn, tileRow, etag, lastModified)
+        if (blob == null) {
+            // 304 Not Modified — bytes still current; restart the SWR window, keep the tile as-is.
+            parent.geoPackage.bumpTileValidatedAt(parent.content, tpudtId, System.currentTimeMillis())
+            return false
+        }
+        if (blob.isEmpty) return false
+        val decoded = decodeNetworkBlob(blob) ?: return false
+        writeToCache(decoded, blob.etag, blob.lastModified)
+        return true
     }
 
     /**

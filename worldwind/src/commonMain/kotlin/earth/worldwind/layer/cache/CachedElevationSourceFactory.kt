@@ -62,18 +62,19 @@ class CachedElevationSourceFactory(
     private val revalidating = mutableSetOf<Long>()
     private val revalidateMutex = Mutex()
 
-    /** After a cache hit, if the tile is older than [staleAfter], re-download it in the background
-     *  (via [fetchAndCacheTile] with `overrideCache`, which write-throughs). No-op when offline,
-     *  when freshness isn't tracked, or when a refresh for this tile is already in flight. */
-    private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cachedAt: Long?) {
-        if (isCacheOnly || networkSource == null || staleAfter == Duration.INFINITE || cachedAt == null) return
-        if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
+    /** After a cache hit, if the tile is older than [staleAfter], re-validate it in the background
+     *  with a conditional GET (the stored ETag / Last-Modified): a `304` just bumps the freshness
+     *  stamp (no re-decode, no redraw); a `200` re-downloads, re-stamps the validators, and triggers
+     *  a redraw. No-op when offline, when freshness isn't tracked, or when a refresh for this tile is
+     *  already in flight. */
+    private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cached: CachedTile) {
+        if (isCacheOnly || networkSource == null || staleAfter == Duration.INFINITE || cached.cachedAt == null) return
+        if (Clock.System.now().toEpochMilliseconds() - cached.cachedAt <= staleAfter.inWholeMilliseconds) return
         val key = (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return
         revalidationScope.launch {
             try {
-                fetchAndCacheTile(z, x, y, overrideCache = true)
-                onTileRevalidated?.invoke(z, x, y)
+                if (conditionalRevalidate(z, x, y, cached.etag, cached.lastModified)) onTileRevalidated?.invoke(z, x, y)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (t: Throwable) {
@@ -82,6 +83,34 @@ class CachedElevationSourceFactory(
                 revalidateMutex.withLock { revalidating.remove(key) }
             }
         }
+    }
+
+    /** Conditional GET for [maybeRevalidate]: `304` (null blob) bumps only the freshness stamp and
+     *  returns `false`; `200` decodes, transcodes, write-throughs with the fresh validators, and
+     *  returns `true`. Transport errors propagate to the caller's catch (no false bump). */
+    internal suspend fun conditionalRevalidate(z: Int, x: Int, y: Int, etag: String?, lastModified: String?): Boolean {
+        val network = networkSource ?: return false
+        val blob = network.fetchTile(z, x, y, etag, lastModified)
+        if (blob == null) { // 304 Not Modified — bytes still current; restart the SWR window.
+            backend.bumpValidatedAt(z, x, y)
+            return false
+        }
+        if (blob.isEmpty || backend.isReadOnly) return false
+        val networkType = blob.contentType?.takeUnless {
+            it.equals("application/octet-stream", ignoreCase = true)
+        } ?: outputFormat
+        val decoded = try {
+            networkDecoder.decodeNetworkBytes(blob.bytes, networkType)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation revalidation decode failed [$z/$x/$y]: ${t.message}")
+            return false
+        } ?: return false
+        val matrix = tileMatrixSet.entries.getOrNull(z) ?: return false
+        val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
+        backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset, blob.etag, blob.lastModified)
+        return true
     }
 
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource =
@@ -123,7 +152,7 @@ class CachedElevationSourceFactory(
         val matrix = tileMatrixSet.entries.getOrNull(z) ?: return true
         return try {
             val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
-            backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset)
+            backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset, blob.etag, blob.lastModified)
             true
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -142,8 +171,9 @@ class CachedElevationSourceFactory(
     private suspend fun readCachedTile(z: Int, x: Int, y: Int): ShortArray? =
         readCachedTileWithMeta(z, x, y)?.first
 
-    /** Like [readCachedTile] but also returns the tile's `cachedAt` (for stale-while-revalidate). */
-    private suspend fun readCachedTileWithMeta(z: Int, x: Int, y: Int): Pair<ShortArray, Long?>? {
+    /** Like [readCachedTile] but also returns the stored [CachedTile] meta (cachedAt + the
+     *  ETag/Last-Modified validators) for stale-while-revalidate. */
+    private suspend fun readCachedTileWithMeta(z: Int, x: Int, y: Int): Pair<ShortArray, CachedTile>? {
         val cached = try {
             backend.readTile(z, x, y)
         } catch (cancellation: CancellationException) {
@@ -154,7 +184,7 @@ class CachedElevationSourceFactory(
         } ?: return null
         return try {
             val decoded = ElevationStorageCodec.decode(cached.bytes, isFloat, cached.tileScale, cached.tileOffset)
-            tileBufferToShorts(decoded) to cached.cachedAt
+            tileBufferToShorts(decoded) to cached
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
@@ -173,8 +203,8 @@ class CachedElevationSourceFactory(
      * `retrieveTileArray`) maps that to the elevation pipeline's `retrievalFailed`.
      */
     suspend fun fetchTile(z: Int, x: Int, y: Int): ShortArray? {
-        readCachedTileWithMeta(z, x, y)?.let { (shorts, cachedAt) ->
-            maybeRevalidate(z, x, y, cachedAt)  // serve cached now; refresh in background if stale
+        readCachedTileWithMeta(z, x, y)?.let { (shorts, cached) ->
+            maybeRevalidate(z, x, y, cached)  // serve cached now; refresh in background if stale
             return shorts
         }
         if (isCacheOnly) return null
@@ -206,7 +236,7 @@ class CachedElevationSourceFactory(
             if (matrix != null) {
                 try {
                     val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
-                    backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset)
+                    backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset, blob.etag, blob.lastModified)
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (t: Throwable) {

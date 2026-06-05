@@ -25,24 +25,34 @@ interface ElevationStoreBackend {
      *  when the tile isn't present in the cache (cache miss). */
     suspend fun readTile(z: Int, x: Int, y: Int): CachedTile?
 
-    /** Persist the encoded tile bytes + ancillary metadata for `(z, x, y)`. Implementations
-     *  should be idempotent — writing the same key twice replaces the prior row. */
+    /** Persist the encoded tile bytes + ancillary metadata for `(z, x, y)`, plus the network
+     *  response's [etag] / [lastModified] validators so a later refresh can issue a conditional GET.
+     *  Implementations should be idempotent — writing the same key twice replaces the prior row. */
     suspend fun writeTile(
         z: Int, x: Int, y: Int,
         bytes: ByteArray,
         tileScale: Float,
         tileOffset: Float,
+        etag: String? = null,
+        lastModified: String? = null,
     )
+
+    /** Refresh a tile's freshness timestamp WITHOUT rewriting its bytes — the conditional-GET
+     *  `304 Not Modified` path. Default no-op for backends that don't track freshness. */
+    suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) {}
 }
 
 /** One stored tile pulled out of an [ElevationStoreBackend]: the encoded blob plus the
  *  per-tile `(scale, offset)` the codec needs to decode it. [cachedAt] is the epoch-millis the
- *  tile was written (for stale-while-revalidate); `null` when the backend doesn't track it. */
+ *  tile was written (for stale-while-revalidate); `null` when the backend doesn't track it.
+ *  [etag] / [lastModified] are the stored HTTP validators for a conditional refresh. */
 data class CachedTile(
     val bytes: ByteArray,
     val tileScale: Float,
     val tileOffset: Float,
     val cachedAt: Long? = null,
+    val etag: String? = null,
+    val lastModified: String? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

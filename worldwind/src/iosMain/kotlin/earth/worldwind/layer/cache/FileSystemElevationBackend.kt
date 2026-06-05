@@ -37,7 +37,10 @@ internal class FileSystemElevationBackend(
         val blob = tileStore.readTile(z, x, y) ?: return null
         if (blob.isEmpty) return null
         val (scale, offset) = readAncillary(z, x, y) ?: (1f to 0f)
-        return CachedTile(bytes = blob.bytes, tileScale = scale, tileOffset = offset, cachedAt = blob.cachedAt)
+        return CachedTile(
+            bytes = blob.bytes, tileScale = scale, tileOffset = offset,
+            cachedAt = blob.cachedAt, etag = blob.etag, lastModified = blob.lastModified,
+        )
     }
 
     override suspend fun writeTile(
@@ -45,12 +48,16 @@ internal class FileSystemElevationBackend(
         bytes: ByteArray,
         tileScale: Float,
         tileOffset: Float,
+        etag: String?,
+        lastModified: String?,
     ) {
-        tileStore.writeTile(z, x, y, TileBlob(bytes = bytes))
+        tileStore.writeTile(z, x, y, TileBlob(bytes = bytes, etag = etag, lastModified = lastModified))
         if (tileScale != 1f || tileOffset != 0f) {
             writeAncillary(z, x, y, tileScale, tileOffset)
         }
     }
+
+    override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) = tileStore.bumpValidatedAt(z, x, y)
 
     private suspend fun readAncillary(z: Int, x: Int, y: Int): Pair<Float, Float>? =
         withContext(Dispatchers.Default) {
