@@ -34,8 +34,8 @@ import kotlin.time.Duration
  * the LRU-driven tile-pyramid pipeline where double-write means double-network and not
  * data corruption.
  *
- * Eviction is a no-op: the iOS port stays UNBOUNDED. Wire an explicit policy via
- * [CachePolicy] only when a JS/iOS use case for it materialises.
+ * [evict] honors a bounded [CachePolicy] by dropping the oldest tile files (by mtime); an
+ * unbounded policy is a no-op.
  */
 class FileSystemTileStore(
     private val baseDirectory: String,
@@ -90,7 +90,38 @@ class FileSystemTileStore(
             ofItemAtPath = path,
             error = null,
         )
-        Unit
+    }
+
+    /** Capacity eviction: drop tile files oldest-first (by mtime) until within
+     *  [CachePolicy.maxEntries] (tile count) and [CachePolicy.maxBytes], removing each `.meta`
+     *  sidecar with its `.bin`. staleAfter never deletes. */
+    override suspend fun evict(): Unit = withContext(Dispatchers.Default) {
+        if (cachePolicy.isUnbounded) return@withContext
+        val fm = NSFileManager.defaultManager
+        val enumerator = fm.enumeratorAtPath(contentRoot) ?: return@withContext
+        data class TileFile(val path: String, val mtime: Long, val size: Long)
+        val tiles = ArrayList<TileFile>()
+        while (true) {
+            val name = enumerator.nextObject() as? String ?: break
+            if (!name.endsWith(".bin")) continue // skip directories + .meta sidecars
+            val path = "$contentRoot/$name"
+            val attrs = fm.attributesOfItemAtPath(path, null) ?: continue
+            val mtime = (attrs[NSFileModificationDate] as? NSDate)?.let { (it.timeIntervalSince1970 * 1000.0).toLong() } ?: 0L
+            val size = (attrs[NSFileSize] as? NSNumber)?.longLongValue ?: 0L
+            tiles.add(TileFile(path, mtime, size))
+        }
+        var keptCount = 0L
+        var keptBytes = 0L
+        for (tile in tiles.sortedByDescending { it.mtime }) {
+            val overCount = keptCount >= cachePolicy.maxEntries
+            val overBytes = cachePolicy.maxBytes != Long.MAX_VALUE && keptBytes + tile.size > cachePolicy.maxBytes
+            if (overCount || overBytes) {
+                fm.removeItemAtPath(tile.path, null)
+                fm.removeItemAtPath(tile.path.removeSuffix(".bin") + ".meta", null)
+            } else {
+                keptCount++; keptBytes += tile.size
+            }
+        }
     }
 
     override suspend fun sizeBytes(): Long = withContext(Dispatchers.Default) {

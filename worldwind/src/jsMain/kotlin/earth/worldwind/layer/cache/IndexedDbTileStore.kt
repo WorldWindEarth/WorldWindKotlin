@@ -87,6 +87,33 @@ internal class IndexedDbTileStore(
         idbAwaitTransaction(writeTx)
     }
 
+    /** Capacity eviction: drop tiles oldest-first (by `cachedAt`) until within
+     *  [CachePolicy.maxEntries] (tile count) and [CachePolicy.maxBytes]. One record per tile, so no
+     *  aggregation; staleAfter never deletes. */
+    override suspend fun evict(): Unit = idbSerializationLock.withLock {
+        if (cachePolicy.isUnbounded) return@withLock
+        data class TileRec(val key: Any?, val cachedAt: Double, val bytes: Long)
+        val tiles = ArrayList<TileRec>()
+        val readStore = db.transaction(storeName, "readonly").objectStore(storeName)
+        idbWalkCursor(readStore.openCursor(boundFor(contentKey))) { cursor ->
+            val len = cursor.value.bytes.unsafeCast<Uint8Array?>()?.length?.toLong() ?: 0L
+            val cachedAt = (cursor.value.cachedAt as? Double) ?: 0.0
+            tiles.add(TileRec(cursor.key, cachedAt, len))
+        }
+        var keptCount = 0L
+        var keptBytes = 0L
+        val victims = tiles.sortedByDescending { it.cachedAt }.filter { tile ->
+            val overCount = keptCount >= cachePolicy.maxEntries
+            val overBytes = cachePolicy.maxBytes != Long.MAX_VALUE && keptBytes + tile.bytes > cachePolicy.maxBytes
+            if (overCount || overBytes) true else { keptCount++; keptBytes += tile.bytes; false }
+        }
+        if (victims.isEmpty()) return@withLock
+        val writeTx = db.transaction(storeName, "readwrite")
+        val writeStore = writeTx.objectStore(storeName)
+        for (victim in victims) writeStore.delete(victim.key)
+        idbAwaitTransaction(writeTx)
+    }
+
     override suspend fun sizeBytes(): Long = idbSerializationLock.withLock {
         val tx = db.transaction(storeName, "readonly")
         val store = tx.objectStore(storeName)
