@@ -23,6 +23,7 @@ import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackage as NgaGeoPackage
 import mil.nga.geopackage.db.GeoPackageDataType
 import mil.nga.geopackage.features.columns.GeometryColumns
+import mil.nga.geopackage.extension.nga.index.FeatureTableIndex
 import mil.nga.geopackage.extension.rtree.RTreeIndexExtension
 import mil.nga.geopackage.features.index.FeatureIndexManager
 import mil.nga.geopackage.features.index.FeatureIndexType
@@ -130,6 +131,54 @@ class ForeignFeatureReadTest {
             } finally {
                 fim.close()
             }
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun alsoBuildsGeometryIndexExtensionForCrossPlatformReads() = runBlocking {
+        // Android's framework SQLite can't host the OGC RTree, so a JVM-authored cache must ALSO
+        // carry the NGA Geometry Index Extension for an Android (non-RTree) reader. Verify both
+        // write paths populate it AND keep it in sync on re-fetch, queried explicitly via
+        // FeatureIndexType.GEOPACKAGE (the nga_geometry_index) — not the RTree.
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val nga = gpkg.core as NgaGeoPackage
+
+            // Exactly the read path the Android actual uses: FeatureTableIndex.queryFeatures over
+            // the nga_geometry_index (the OGC RTree is absent on Android, so it never participates).
+            fun geometryIndexCount(table: String, minX: Double, minY: Double, maxX: Double, maxY: Double): Int {
+                val results = FeatureTableIndex(nga, nga.getFeatureDao(table))
+                    .queryFeatures(BoundingBox(minX, minY, maxX, maxY))
+                return try {
+                    var c = 0
+                    val it = results.iterator()
+                    while (it.hasNext()) { it.next(); c++ }
+                    c
+                } finally {
+                    results.close()
+                }
+            }
+
+            // Bulk write path (insertCachedFeatures -> index(true)).
+            gpkg.setupFeaturesContent("bulk")
+            insertCachedFeatures(gpkg.core, "bulk", listOf(Point(30.0, 40.0) to """{"k":"b"}"""))
+            assertEquals(1, geometryIndexCount("bulk", 29.0, 39.0, 31.0, 41.0))
+
+            // Tiled, uid-keyed write path (writeFeatureTileFlat -> index(row)).
+            val tiled = gpkg.setupFeaturesContent("tiled")
+            gpkg.writeFeatureTile(tiled, 0, 0, 0, listOf(
+                GpkgFeatureRow(Point(10.0, 20.0), """{"k":"keep"}""", uid = "keep"),
+                GpkgFeatureRow(Point(12.0, 22.0), """{"k":"gone"}""", uid = "gone"),
+            ))
+            assertEquals(2, geometryIndexCount("tiled", 9.0, 19.0, 13.0, 23.0))
+
+            // Re-fetch the tile without "gone" — deleteIndex must drop it from the Geometry Index too.
+            gpkg.writeFeatureTile(tiled, 0, 0, 0, listOf(
+                GpkgFeatureRow(Point(10.0, 20.0), """{"k":"keep"}""", uid = "keep"),
+            ))
+            assertEquals(1, geometryIndexCount("tiled", 9.0, 19.0, 13.0, 23.0))
         } finally {
             gpkg.shutdown()
         }
@@ -337,6 +386,27 @@ class ForeignFeatureReadTest {
             val east = Sector.fromDegrees(0.0, 0.0, 85.0511, 180.0)    // tile (1,1,0)
             assertEquals(1, source.tryReadCachedTile(1, 0, 0, west)?.toList()?.size, "owner renders it")
             assertEquals(0, source.tryReadCachedTile(1, 1, 0, east)?.toList()?.size, "neighbor must not double-render")
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun reFetchRemovesVanishedFeatures() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("osm")
+            val store = GpkgFeatureStore(gpkg, content)
+            // Two features the tile owns.
+            store.writeTile(0, 0, 0, flowOf(
+                CachedFeatureRow(CachedGeometry.Point(10.0, 20.0), """{"id":"way/1"}"""),
+                CachedFeatureRow(CachedGeometry.Point(30.0, 40.0), """{"id":"way/2"}"""),
+            ))
+            assertEquals(2, store.readAll().toList().size)
+
+            // Re-fetch the same tile; way/2 was deleted upstream and isn't reported anymore.
+            store.writeTile(0, 0, 0, flowOf(CachedFeatureRow(CachedGeometry.Point(10.0, 20.0), """{"id":"way/1"}""")))
+            assertEquals(1, store.readAll().toList().size, "vanished feature removed on re-fetch")
         } finally {
             gpkg.shutdown()
         }

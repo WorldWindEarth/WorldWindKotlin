@@ -217,6 +217,44 @@ actual fun featureIdsInBoundingBox(
     return gpkg.mapFeaturesInBbox(gpkg.getFeatureDao(tableName), minX, minY, maxX, maxY) { it.id }
 }
 
+actual fun deleteVanishedOwnedFeatures(
+    geoPackage: GeoPackageCore, tableName: String,
+    minX: Double, minY: Double, maxX: Double, maxY: Double, keepUids: Set<String>,
+) {
+    if (keepUids.isEmpty()) return
+    val gpkg = geoPackage as GeoPackage
+    val featureDao = gpkg.getFeatureDao(tableName)
+    val featureIndex = FeatureTableIndex(gpkg, featureDao)
+    val doomedIds = gpkg.mapFeaturesInBbox(featureDao, minX, minY, maxX, maxY) {
+        if (it.ownedAndVanished(keepUids, minX, minY, maxX, maxY)) it.id else null
+    }
+    if (doomedIds.isEmpty()) return
+    // deleteById fires the RTree's triggers. Sync the Geometry Index after the feature deletes
+    // commit — its DAO uses a separate connection and would deadlock against the write lock.
+    featureDao.beginTransaction()
+    var ok = false
+    try {
+        for (id in doomedIds) featureDao.deleteById(id)
+        ok = true
+    } finally {
+        featureDao.endTransaction(ok)
+    }
+    for (id in doomedIds) featureIndex.deleteIndex(id)
+}
+
+/** Uid-keyed, not in [keepUids], and geometry envelope-center inside the tile bbox — i.e. it belongs
+ *  to this tile and vanished upstream. Center formula matches CachedGeometry.envelopeCenter. */
+private fun FeatureRow.ownedAndVanished(
+    keepUids: Set<String>, minX: Double, minY: Double, maxX: Double, maxY: Double,
+): Boolean {
+    val uid = getValue(FEATURE_UID_COLUMN) as? String ?: return false
+    if (uid in keepUids) return false
+    val env = geometry?.getOrBuildEnvelope() ?: return false
+    val cx = (env.minX + env.maxX) / 2.0
+    val cy = (env.minY + env.maxY) / 2.0
+    return cx >= minX && cx < maxX && cy >= minY && cy < maxY
+}
+
 actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromImage(iconRow.dataImage.let { image ->
     val width = iconRow.width?.roundToInt() ?: image.width
     val height = iconRow.height?.roundToInt() ?: image.height

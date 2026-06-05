@@ -147,12 +147,24 @@ expect fun readFeaturesInBoundingBox(
     minX: Double, minY: Double, maxX: Double, maxY: Double,
 ): List<Pair<Geometry, String?>>
 
-/** Feature-row ids whose geometry intersects the bounding box, via the RTree (core, Context-free).
+/** Feature-row ids whose geometry intersects the bounding box, via the platform spatial index.
  *  Used by tile writes (bbox-replace) and overlap-safe eviction. */
 expect fun featureIdsInBoundingBox(
     geoPackage: GeoPackageCore, tableName: String,
     minX: Double, minY: Double, maxX: Double, maxY: Double,
 ): List<Long>
+
+/** On a uid-keyed re-fetch, delete features the tile bbox `[minX,minY,maxX,maxY]` OWNS (geometry
+ *  envelope-center inside the tile) whose uid is not in [keepUids] — i.e. genuinely vanished
+ *  upstream. Queries through the platform spatial index (OGC RTree on JVM, NGA Geometry Index
+ *  Extension on Android — Android's SQLite can't host the RTree) and deletes via the DAO so the
+ *  index stays in sync. No-op when [keepUids] is empty. */
+expect fun deleteVanishedOwnedFeatures(
+    geoPackage: GeoPackageCore, tableName: String,
+    minX: Double, minY: Double, maxX: Double, maxY: Double,
+    keepUids: Set<String>,
+)
+
 expect fun buildImageSource(iconRow: IconRow): ImageSource
 
 /**
@@ -1078,6 +1090,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val b = slippyTileBounds(z, x, y)
         val upsertByUid = rows.isNotEmpty() && rows.all { it.uid != null }
         writeFeatureTileFlat(geoPackage, content.tableName, b[0], b[1], b[2], b[3], rows, upsertByUid)
+        // On a uid-keyed re-fetch, drop features this tile OWNS (envelope-center inside it, matching
+        // the read-side ownership) that the new fetch no longer reports — i.e. deleted upstream. The
+        // just-inserted rows are excluded by uid, so only genuinely-vanished features are removed.
+        if (upsertByUid) deleteVanishedOwnedFeatures(
+            geoPackage, content.tableName, b[0], b[1], b[2], b[3], rows.mapNotNull { it.uid }.toSet()
+        )
         writeFeatureCoverage(
             content, z, x, y, etag = null, httpLastModified = null,
             validatedAt = System.currentTimeMillis(), isEmpty = rows.isEmpty(),

@@ -220,6 +220,46 @@ actual fun featureIdsInBoundingBox(
         .use { cursor -> cursor.map { it.id } }
 }
 
+actual fun deleteVanishedOwnedFeatures(
+    geoPackage: GeoPackageCore, tableName: String,
+    minX: Double, minY: Double, maxX: Double, maxY: Double, keepUids: Set<String>,
+) {
+    if (keepUids.isEmpty()) return
+    val gpkg = geoPackage as GeoPackage
+    val featureDao = gpkg.getFeatureDao(tableName)
+    val featureIndex = FeatureTableIndex(gpkg, featureDao)
+    // Candidates whose envelope intersects the tile, via the NGA Geometry Index Extension.
+    val doomed = featureIndex.queryFeatures(BoundingBox(minX, minY, maxX, maxY)).use { cursor ->
+        cursor.filter { it.ownedAndVanished(keepUids, minX, minY, maxX, maxY) }
+    }
+    if (doomed.isNotEmpty()) {
+        featureDao.beginTransaction()
+        var ok = false
+        try {
+            for (row in doomed) {
+                featureIndex.deleteIndex(row)
+                featureDao.delete(row)
+            }
+            ok = true
+        } finally {
+            featureDao.endTransaction(ok)
+        }
+    }
+}
+
+/** Uid-keyed, not in [keepUids], and geometry envelope-center inside the tile bbox — i.e. it belongs
+ *  to this tile and vanished upstream. Center formula matches CachedGeometry.envelopeCenter. */
+private fun FeatureRow.ownedAndVanished(
+    keepUids: Set<String>, minX: Double, minY: Double, maxX: Double, maxY: Double,
+): Boolean {
+    val uid = getValue(FEATURE_UID_COLUMN) as? String ?: return false
+    if (uid in keepUids) return false
+    val env = geometry?.getOrBuildEnvelope() ?: return false
+    val cx = (env.minX + env.maxX) / 2.0
+    val cy = (env.minY + env.maxY) / 2.0
+    return cx >= minX && cx < maxX && cy >= minY && cy < maxY
+}
+
 actual fun buildImageSource(iconRow: IconRow) = ImageSource.fromBitmap(iconRow.dataBitmap.let { bitmap ->
     val width = iconRow.width?.roundToInt() ?: bitmap.width
     val height = iconRow.height?.roundToInt() ?: bitmap.height
