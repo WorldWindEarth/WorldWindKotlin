@@ -22,6 +22,13 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlin.math.PI
+import kotlin.math.atan
+import kotlin.math.sinh
 import mil.nga.color.Color
 import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackageCore
@@ -88,6 +95,26 @@ expect fun createCoverageData(
 expect fun readCachedFeaturesWithProperties(
     geoPackage: GeoPackageCore, tableName: String,
 ): List<Pair<Geometry, String?>>
+
+/**
+ * Serialize a foreign (non-WorldWind) features row's attribute columns into the flat JSON object
+ * that [earth.worldwind.layer.source.CachedFeatureRow.properties] carries, so external GeoPackage
+ * features (ArcGIS / QGIS exports) read into WorldWind with their attributes intact. WorldWind's
+ * own caches keep a single `feature_properties` JSON column and bypass this. Returns null for an
+ * attribute-less row (treated as an empty property map downstream).
+ */
+fun foreignFeaturePropertiesJson(columnValues: Map<String, Any?>): String? {
+    if (columnValues.isEmpty()) return null
+    return JsonObject(columnValues.mapValues { (_, v) -> v.toFeatureJsonElement() }).toString()
+}
+
+private fun Any?.toFeatureJsonElement(): JsonElement = when (this) {
+    null -> JsonNull
+    is String -> JsonPrimitive(this)
+    is Number -> JsonPrimitive(this)
+    is Boolean -> JsonPrimitive(this)
+    else -> JsonPrimitive(toString())
+}
 /**
  * Insert pre-built `(geometry, propertiesJson)` pairs into the WFS cache features table.
  * Caller must hold an open transaction or accept per-row commits.
@@ -100,23 +127,51 @@ expect fun insertCachedFeatures(
  * platform because Android uses a different DAO truncation path.
  */
 expect fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String)
+
+/**
+ * Create the standard GeoPackage RTree spatial index (`gpkg_rtree_index` extension) on
+ * [tableName]'s geometry column, so the features table is spatially queryable — by any external GIS
+ * and by WorldWind's bounding-box reads. NGA wires the virtual table + sync triggers + the
+ * gpkg_extensions registration. Idempotent. Implemented per platform (NGA's RTree extension).
+ */
+expect fun createFeatureSpatialIndex(geoPackage: GeoPackageCore, tableName: String)
+
+/**
+ * Read every feature whose geometry intersects the bounding box (min/max lon/lat in the geometry
+ * column's SRS) via the RTree spatial index — the flat-store query that replaces `tile_z/x/y`
+ * filtering. Same `(geometry, propertiesJson)` shape and generic property handling as
+ * [readCachedFeaturesWithProperties], so it serves WorldWind caches and foreign tables alike.
+ */
+expect fun readFeaturesInBoundingBox(
+    geoPackage: GeoPackageCore, tableName: String,
+    minX: Double, minY: Double, maxX: Double, maxY: Double,
+): List<Pair<Geometry, String?>>
+
+/** Feature-row ids whose geometry intersects the bounding box, via the RTree (core, Context-free).
+ *  Used by tile writes (bbox-replace) and overlap-safe eviction. */
+expect fun featureIdsInBoundingBox(
+    geoPackage: GeoPackageCore, tableName: String,
+    minX: Double, minY: Double, maxX: Double, maxY: Double,
+): List<Long>
 expect fun buildImageSource(iconRow: IconRow): ImageSource
 
 /**
  * One row in a features cache table. Null [geometry] is the sentinel that marks a tile as
  * "fetched but empty"; [properties] is whatever JSON the caller chose to store.
  */
-data class GpkgFeatureRow(val geometry: Geometry?, val properties: String?)
+data class GpkgFeatureRow(val geometry: Geometry?, val properties: String?, val uid: String? = null)
 
-/** Read all rows for tile `(z, x, y)`. Empty list = never fetched. */
-expect fun readFeatureTileRows(
-    geoPackage: GeoPackageCore, tableName: String, z: Int, x: Int, y: Int,
-): List<GpkgFeatureRow>
-
-/** Replace every row for tile `(z, x, y)` in one transaction; empty list writes a sentinel. */
-expect fun replaceFeatureTileRows(
-    geoPackage: GeoPackageCore, tableName: String, z: Int, x: Int, y: Int,
-    rows: List<GpkgFeatureRow>,
+/**
+ * Write tile features into the flat store, within the geographic bounds (min/max lon-lat) that
+ * delimit the tile's region. When [upsertByUid] each row's [GpkgFeatureRow.uid] replaces any row
+ * with the same uid (DELETE-by-uid then INSERT); otherwise every feature intersecting the bbox is
+ * deleted first (bbox-replace). An empty [rows] just clears the bbox (negative-cache region). No
+ * `tile_z/x/y` or `last_modified` — those left with the flat schema.
+ */
+expect fun writeFeatureTileFlat(
+    geoPackage: GeoPackageCore, tableName: String,
+    minX: Double, minY: Double, maxX: Double, maxY: Double,
+    rows: List<GpkgFeatureRow>, upsertByUid: Boolean,
 )
 
 open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
@@ -133,6 +188,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val webServiceDao: Dao<GpkgWebService, String> = DaoManager.createDao(connectionSource, GpkgWebService::class.java)
     private val tileRevalidationDao: Dao<GpkgTileRevalidation, String> =
         DaoManager.createDao(connectionSource, GpkgTileRevalidation::class.java)
+    private val featureCoverageDao: Dao<GpkgFeatureCoverage, Long> =
+        DaoManager.createDao(connectionSource, GpkgFeatureCoverage::class.java)
     private val tileMatrixSetDao = geoPackage.tileMatrixSetDao
     private val tileMatrixDao = geoPackage.tileMatrixDao
     private val extensionDao = geoPackage.extensionsDao
@@ -140,11 +197,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val griddedTileDao = CoverageDataCore.getGriddedTileDao(geoPackage)
     private val tileUserDataDao = mutableMapOf<String, Dao<GpkgTileUserData, Int>>()
     private val tileMatrixCache = mutableMapOf<String, Map<Int, GpkgTileMatrix>>()
-    /** Feature-cache tables known to have the `last_modified` column — populated by
-     *  [ensureLastModifiedColumn] on success. Read on every feature insert to skip the `setValue`
-     *  that would otherwise throw `GeoPackageException`, and by [evictFeatures]. (Tile caches no
-     *  longer use this column — their freshness lives in `ww_tile_revalidation`.) */
-    private val tablesWithLastModified = mutableSetOf<String>()
     private val writeDispatcher = Dispatchers.IO.limitedParallelism(1) // Single thread dispatcher
 
     val isShutdown get() = !connectionSource.isOpen("")
@@ -152,7 +204,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     fun shutdown() = geoPackage.close().also {
         tileUserDataDao.clear()
         tileMatrixCache.clear()
-        tablesWithLastModified.clear()
     }
 
     suspend fun getContent(tableName: String): GpkgContent? = withContext(Dispatchers.IO) {
@@ -206,11 +257,14 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                 .where().eq(GeometryColumns.COLUMN_TABLE_NAME, tableName)
                 .queryForFirst()?.columnName?.let { columnName ->
                     if (geoPackage.featureTables.contains(tableName)) {
-                        // Geometry alone undercounts tag-heavy sources (OsmBuildings, WFS).
+                        // Geometry alone undercounts tag-heavy sources (OsmBuildings, WFS). A foreign
+                        // table has no feature_properties column — drop that term instead of failing.
+                        val propsTerm =
+                            if (geoPackage.database.columnExists(tableName, FEATURE_PROPERTIES_COLUMN))
+                                "+ COALESCE(SUM(LENGTH(\"$FEATURE_PROPERTIES_COLUMN\")), 0) "
+                            else ""
                         result = dao.queryRawValue(
-                            "SELECT COALESCE(SUM(LENGTH(\"$columnName\")), 0) + " +
-                                "COALESCE(SUM(LENGTH(\"$FEATURE_PROPERTIES_COLUMN\")), 0) " +
-                                "FROM '$tableName'"
+                            "SELECT COALESCE(SUM(LENGTH(\"$columnName\")), 0) $propsTerm FROM '$tableName'"
                         )
                     }
                 }
@@ -384,6 +438,86 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (!tileRevalidationDao.isTableExists) return@withContext
         tileRevalidationDao.deleteBuilder().apply {
             where().eq(GpkgTileRevalidation.COLUMN_TPUDT_NAME, content.tableName)
+        }.delete()
+    }
+
+    // --- Feature cache coverage (ww_feature_coverage) ----------------------------------------------
+    // Step 1 of the feature-interop refactor: a side table that will hold per-tile fetch freshness
+    // and the negative-cache flag for features, so the features table itself can become a clean,
+    // standard GeoPackage features layer. Not yet wired into the feature read/write path — the
+    // feature cache still uses the in-table last_modified column for now.
+
+    /** Feature coverage row for the tile region `(z, x, y)` of [content]'s features table, or null
+     *  when that region has never been fetched. */
+    suspend fun readFeatureCoverage(
+        content: GpkgContent, z: Int, x: Int, y: Int,
+    ): GpkgFeatureCoverage? = withContext(Dispatchers.IO) {
+        if (!featureCoverageDao.isTableExists) return@withContext null
+        queryFeatureCoverage(content.tableName, z, x, y)
+    }
+
+    /** Fetch the coverage row for `(tpudtName, z, x, y)` by the unique combo, or null. Caller
+     *  ensures the table exists and runs on the appropriate dispatcher. */
+    private fun queryFeatureCoverage(tpudtName: String, z: Int, x: Int, y: Int): GpkgFeatureCoverage? =
+        featureCoverageDao.queryBuilder().where()
+            .eq(GpkgFeatureCoverage.COLUMN_TPUDT_NAME, tpudtName)
+            .and().eq(GpkgFeatureCoverage.COLUMN_TILE_Z, z)
+            .and().eq(GpkgFeatureCoverage.COLUMN_TILE_X, x)
+            .and().eq(GpkgFeatureCoverage.COLUMN_TILE_Y, y)
+            .queryForFirst()
+
+    /**
+     * Upsert the coverage row for the tile region `(z, x, y)` — validators, [validatedAt] (epoch-
+     * millis just confirmed fresh) and the [isEmpty] negative-cache flag. Creates / declares the
+     * side table on first use.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun writeFeatureCoverage(
+        content: GpkgContent, z: Int, x: Int, y: Int,
+        etag: String?, httpLastModified: String?, validatedAt: Long, isEmpty: Boolean,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly) error("Feature coverage cannot be saved. GeoPackage is read-only!")
+        if (!featureCoverageDao.isTableExists) {
+            TableUtils.createTableIfNotExists(connectionSource, GpkgFeatureCoverage::class.java)
+            registerExtension(
+                tableName = GpkgFeatureCoverage.TABLE_NAME, columnName = null,
+                extensionName = WW_FEATURE_COVERAGE_EXTENSION,
+            )
+        }
+        val row = queryFeatureCoverage(content.tableName, z, x, y) ?: GpkgFeatureCoverage().apply {
+            tpudtName = content.tableName
+            tileZ = z
+            tileX = x
+            tileY = y
+        }
+        row.etag = etag
+        row.httpLastModified = httpLastModified
+        row.validatedAt = validatedAt
+        row.isEmpty = isEmpty
+        featureCoverageDao.createOrUpdate(row)
+    }
+
+    /** Refresh only [GpkgFeatureCoverage.validatedAt] for the tile region `(z, x, y)` — the 304
+     *  path. Read-modify-write preserves the validators / [GpkgFeatureCoverage.isEmpty]. No-op when
+     *  the region has no coverage row yet. */
+    @Throws(IllegalStateException::class)
+    suspend fun bumpFeatureValidatedAt(
+        content: GpkgContent, z: Int, x: Int, y: Int, validatedAt: Long,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly) error("Feature coverage cannot be updated. GeoPackage is read-only!")
+        if (!featureCoverageDao.isTableExists) return@withContext
+        val row = queryFeatureCoverage(content.tableName, z, x, y) ?: return@withContext
+        row.validatedAt = validatedAt
+        featureCoverageDao.update(row)
+    }
+
+    /** Drop every coverage row tied to [content]. Called when the content table is cleared. */
+    @Throws(IllegalStateException::class)
+    suspend fun clearFeatureCoverage(content: GpkgContent): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) error("Feature coverage cannot be cleared. GeoPackage is read-only!")
+        if (!featureCoverageDao.isTableExists) return@withContext
+        featureCoverageDao.deleteBuilder().apply {
+            where().eq(GpkgFeatureCoverage.COLUMN_TPUDT_NAME, content.tableName)
         }.delete()
     }
 
@@ -813,8 +947,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             check(existing.dataTypeName.equals(FEATURES, ignoreCase = true)) {
                 "Content '$tableName' exists but is not a features table"
             }
-            // Pre-eviction features tables may not have last_modified yet; migrate on reopen.
-            if (!isReadOnly) ensureLastModifiedColumn(tableName)
             return@withContext existing
         }
         if (isReadOnly) error("Content $tableName cannot be created. GeoPackage is read-only!")
@@ -837,16 +969,13 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             it.z = 0
             it.m = 0
         }
-        // List is passed to FeatureTableMetadata as `additionalColumns`, not `columns` —
-        // buildColumns() auto-prepends the primary-key + geometry columns from
-        // GeometryColumns, so adding them here would duplicate (NGA 6.6.7+ rejects with
-        // "Duplicate column found at index: 2, Name: id"). Keep only the extras.
+        // Flat standard features table: geometry + a properties JSON column + an optional stable
+        // natural-key column (feature_uid) for upsert/dedup. No tile_z/x/y or last_modified — tile
+        // coverage and freshness live in ww_feature_coverage, so this stays a clean GeoPackage
+        // features layer any external GIS reads. List is `additionalColumns` (NGA prepends id+geom).
         val columns = listOf(
-            FeatureColumn.createColumn(TILE_Z_COLUMN, GeoPackageDataType.INTEGER),
-            FeatureColumn.createColumn(TILE_X_COLUMN, GeoPackageDataType.INTEGER),
-            FeatureColumn.createColumn(TILE_Y_COLUMN, GeoPackageDataType.INTEGER),
             FeatureColumn.createColumn(FEATURE_PROPERTIES_COLUMN, GeoPackageDataType.TEXT),
-            FeatureColumn.createColumn(LAST_MODIFIED_COLUMN, GeoPackageDataType.INTEGER),
+            FeatureColumn.createColumn(FEATURE_UID_COLUMN, GeoPackageDataType.TEXT),
         )
         val metadata = FeatureTableMetadata.create(geometryColumns, columns, box)
         metadata.identifier = displayName ?: tableName
@@ -858,20 +987,20 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (!geoPackage.isFeatureTable(tableName)) {
             geoPackage.createFeatureTable(metadata)
         }
-        val indexName = "${tableName}_$TILE_INDEX_SUFFIX"
+        // Standard GeoPackage spatial index — makes the features table bbox-queryable and lets any
+        // external GIS read it as a properly-indexed layer. Idempotent; kept in sync by NGA triggers.
+        createFeatureSpatialIndex(geoPackage, tableName)
         val escapedTable = tableName.replace("\"", "\"\"")
-        val escapedIndex = indexName.replace("\"", "\"\"")
-        // Critical for tile-pyramid sources; harmless NULL entry for bulk-refresh sources.
+        // UNIQUE so a re-fetch upserts by stable key; SQLite treats NULLs as distinct, so id-less
+        // (bulk) rows coexist freely.
         geoPackage.database.execSQL(
-            "CREATE INDEX IF NOT EXISTS \"$escapedIndex\" ON \"$escapedTable\" " +
-                    "($TILE_Z_COLUMN, $TILE_X_COLUMN, $TILE_Y_COLUMN)"
+            "CREATE UNIQUE INDEX IF NOT EXISTS \"${escapedTable}_uid_idx\" " +
+                    "ON \"$escapedTable\" ($FEATURE_UID_COLUMN)"
         )
-        val persisted = contentDao.queryForId(tableName) ?: error(
+        contentDao.queryForId(tableName) ?: error(
             "Features content '$tableName' missing after createFeatureTable — the .gpkg file " +
                 "may be in a half-created state. Call `deleteEntry(\"$tableName\")` and retry."
         )
-        ensureLastModifiedColumn(tableName)
-        persisted
     }
 
     /**
@@ -896,131 +1025,131 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         readCachedFeaturesWithProperties(geoPackage, content.tableName)
     }
 
-    /** Read rows for tile `(z, x, y)`. Empty = never fetched; one null-geom row = fetched-and-empty. */
+    /** Read the cached features in tile `(z, x, y)`'s region via the RTree bbox query. The flat
+     *  store has no per-tile rows, so this returns every feature intersecting the tile bounds;
+     *  `ww_feature_coverage` is what records whether the tile was actually fetched. */
     suspend fun readFeatureTile(
         content: GpkgContent, z: Int, x: Int, y: Int,
-    ): List<GpkgFeatureRow> = withContext(Dispatchers.IO) {
-        readFeatureTileRows(geoPackage, content.tableName, z, x, y)
+    ): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
+        val b = slippyTileBounds(z, x, y)
+        readFeaturesInBoundingBox(geoPackage, content.tableName, b[0], b[1], b[2], b[3])
     }
 
-    /** Epoch-millis a feature tile was last written, for stale-while-revalidate reads. `null`
-     *  when the table doesn't track `last_modified` (third-party / pre-eviction GPKG) or the tile
-     *  isn't cached. All rows of a tile share a write time, so MAX returns that single value.
-     *  Coords are ints, so inlining is injection-safe; caller gates on a finite eviction maxAge. */
-    suspend fun readFeatureTileLastModified(
-        content: GpkgContent, z: Int, x: Int, y: Int,
-    ): Long? = withContext(Dispatchers.IO) {
-        if (content.tableName !in tablesWithLastModified) return@withContext null
-        val escaped = content.tableName.replace("\"", "\"\"")
-        val lm = geoPackage.geometryColumnsDao.queryRawValue(
-            "SELECT COALESCE(MAX($LAST_MODIFIED_COLUMN), 0) FROM \"$escaped\" " +
-                "WHERE $TILE_Z_COLUMN = $z AND $TILE_X_COLUMN = $x AND $TILE_Y_COLUMN = $y"
-        )
-        if (lm > 0L) lm else null
-    }
-
-    /** Replace every row for one tile and bump `last_change`. */
+    /**
+     * Replace tile `(z, x, y)`'s features in the flat store and stamp coverage. Rows that carry a
+     * stable [GpkgFeatureRow.uid] upsert by it (so a feature straddling tile borders dedupes to one
+     * row); id-less rows replace everything in the tile's bbox. An empty list clears the region and
+     * records the negative cache (`is_empty`) in `ww_feature_coverage` — no null-geometry sentinel.
+     */
     @Throws(IllegalStateException::class)
     suspend fun writeFeatureTile(
         content: GpkgContent, z: Int, x: Int, y: Int, rows: List<GpkgFeatureRow>,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Feature tile ${content.tableName}/$z/$x/$y cannot be saved. GeoPackage is read-only!")
-        // Migration ran in setupFeaturesContent; per-call probes in the feature-row actuals
-        // skip last_modified when absent.
-        replaceFeatureTileRows(geoPackage, content.tableName, z, x, y, rows)
+        val b = slippyTileBounds(z, x, y)
+        val upsertByUid = rows.isNotEmpty() && rows.all { it.uid != null }
+        writeFeatureTileFlat(geoPackage, content.tableName, b[0], b[1], b[2], b[3], rows, upsertByUid)
+        writeFeatureCoverage(
+            content, z, x, y, etag = null, httpLastModified = null,
+            validatedAt = System.currentTimeMillis(), isEmpty = rows.isEmpty(),
+        )
         content.lastChange = Date()
         contentDao.update(content)
     }
 
-    /**
-     * Add the `last_modified` column to [tableName] if missing. Upgrades GPKG files that pre-date
-     * the eviction feature. No-op on read-only or when the column is already present. ALTER TABLE
-     * ADD COLUMN is non-destructive — existing rows get NULL, treated as epoch 0 by [evictFeatures]
-     * so external / pre-migration rows age out first.
-     *
-     * **Features-only.** Tile-user-data caches (image / vector / gridded) now keep their freshness
-     * timestamp in the `ww_tile_revalidation` side table (see [writeTileRevalidation]), leaving the
-     * OGC tile table pristine, so only [setupFeaturesContent] still provisions this column. **Never
-     * throws** — any migration failure (read-only filesystem, schema locks, extension-table write
-     * errors, etc.) is logged at WARN and the call returns, so layer instantiation cannot be blocked
-     * by an unmigratable cache.
-     */
-    suspend fun ensureLastModifiedColumn(tableName: String): Unit = withContext(writeDispatcher) {
-        if (isReadOnly || tableName in tablesWithLastModified) return@withContext
-        runCatching {
-            // Probe schema first so a GPKG that already has the column never reaches ALTER and
-            // never logs anything. SQLite has no IF NOT EXISTS for ADD COLUMN, so the inner
-            // try/catch around ALTER is a belt-and-suspenders for Android's WAL connection pool,
-            // where columnExists can read stale schema and report "no" for a column that's
-            // present. Anything other than duplicate-column propagates to the outer runCatching.
-            if (!geoPackage.database.columnExists(tableName, LAST_MODIFIED_COLUMN)) {
-                val escapedTable = tableName.replace("\"", "\"\"")
-                try {
-                    geoPackage.database.execSQL(
-                        "ALTER TABLE \"$escapedTable\" ADD COLUMN $LAST_MODIFIED_COLUMN INTEGER"
-                    )
-                } catch (e: Exception) {
-                    if (e.message?.contains("duplicate column", ignoreCase = true) != true) throw e
-                }
-            }
-            registerLastModifiedExtension(tableName)
-            tablesWithLastModified += tableName
-        }.onFailure {
-            logMessage(WARN, "GeoPackage", "ensureLastModifiedColumn",
-                "Skipped last_modified migration for '$tableName': ${it.message}")
-        }
+    /** Slippy (Web-Mercator) tile `(z, x, y)` → geographic bounds `[west, south, east, north]` in
+     *  degrees (EPSG:4326, the feature geometry SRS) — the inverse of OsmBuildingsLayer.tileToSector. */
+    private fun slippyTileBounds(z: Int, x: Int, y: Int): DoubleArray {
+        val n = 1 shl z
+        val west = x.toDouble() / n * 360.0 - 180.0
+        val east = (x + 1).toDouble() / n * 360.0 - 180.0
+        val north = atan(sinh(PI * (1 - 2 * y.toDouble() / n))) * 180.0 / PI
+        val south = atan(sinh(PI * (1 - 2 * (y + 1).toDouble() / n))) * 180.0 / PI
+        return doubleArrayOf(west, south, east, north)
     }
 
     /**
-     * True when [ensureLastModifiedColumn] has successfully verified or added `last_modified` on
-     * [tableName] this session. Cache-write paths (`writeTileUserData`, the feature-row actuals)
-     * consult this before issuing any `last_modified`-touching SQL so an un-migrated table costs
-     * nothing instead of a wasted statement + caught exception per row.
-     */
-    fun hasLastModifiedColumn(tableName: String): Boolean = tableName in tablesWithLastModified
-
-    /**
-     * Evict rows from a features cache table per [policy]:
-     *  - [CacheEvictionPolicy.maxAge]: NOT a deletion trigger — the cache refreshes stale tiles
-     *    in place (stale-while-revalidate), so age never removes data.
-     *  - [CacheEvictionPolicy.maxEntries]: keeps the N newest tile *rows*, but only ever drops
-     *    WHOLE tiles — a tile is never split into a partial, half-rendered set.
-     *  - [CacheEvictionPolicy.maxBytes]: not implemented for GPKG (maxEntries is the proxy).
+     * Evict from a features cache per [policy], driven by `ww_feature_coverage`:
+     *  - [CacheEvictionPolicy.maxAge]: NOT a deletion trigger — stale tiles refresh in place (SWR).
+     *  - [CacheEvictionPolicy.maxEntries]: cap on cached coverage *tiles*.
+     *  - [CacheEvictionPolicy.maxBytes]: cap on total feature bytes (`LENGTH(geom)+LENGTH(properties)`),
+     *    counting a tile-straddling feature once.
      *
-     * No-op when GeoPackage is read-only or the policy is unbounded.
+     * Both caps keep the newest coverage tiles (by id, so revalidation never changes the victim set)
+     * and evict the rest as WHOLE tiles — overlap-safe, so a feature shared with a retained tile
+     * survives. No-op when read-only, unbounded, or there's no coverage table.
      */
     suspend fun evictFeatures(
         content: GpkgContent, policy: CacheEvictionPolicy,
     ) = withContext(writeDispatcher) {
         if (isReadOnly || policy.isUnbounded) return@withContext
-        if (content.tableName !in tablesWithLastModified) {
-            logMessage(WARN, "GeoPackage", "evictFeatures",
-                "Skipped eviction for '${content.tableName}': last_modified column unavailable")
-            return@withContext
-        }
-        val escapedTable = content.tableName.replace("\"", "\"\"")
-        val q = "\"$escapedTable\""
+        if (!featureCoverageDao.isTableExists) return@withContext
 
-        // maxAge never deletes feature tiles — stale tiles refresh in place via SWR. Only the
-        // capacity cap below evicts, and only in WHOLE tiles.
-        if (policy.maxEntries < Long.MAX_VALUE) {
-            // Whole-tile eviction: delete tile-addressed rows older than the maxEntries-th newest
-            // row. Rows of one tile share a last_modified, so the cutoff falls between tiles and
-            // never splits one into a partial set. Bulk rows (tile_z IS NULL) are exempt; the
-            // subquery yields NULL (deletes nothing) when the table holds <= maxEntries tile rows.
-            geoPackage.database.execSQL(
-                "DELETE FROM $q WHERE $TILE_Z_COLUMN IS NOT NULL " +
-                        "AND COALESCE($LAST_MODIFIED_COLUMN, 0) < (" +
-                        "SELECT COALESCE($LAST_MODIFIED_COLUMN, 0) FROM $q WHERE $TILE_Z_COLUMN IS NOT NULL " +
-                        "ORDER BY COALESCE($LAST_MODIFIED_COLUMN, 0) DESC, $FEATURE_ID_COLUMN DESC " +
-                        "LIMIT 1 OFFSET ${policy.maxEntries - 1})"
+        // Coverage tiles, newest-inserted first.
+        val tiles = featureCoverageDao.queryBuilder()
+            .orderBy(GpkgFeatureCoverage.COLUMN_ID, false)
+            .where().eq(GpkgFeatureCoverage.COLUMN_TPUDT_NAME, content.tableName).query()
+        if (tiles.isEmpty()) return@withContext
+
+        // Walk newest→oldest, keeping the prefix that fits both caps. keptIds accumulates the kept
+        // tiles' features (deduped), so byte accounting and the overlap-safe delete both reuse it.
+        val keptIds = HashSet<Long>()
+        var keptBytes = 0L
+        var keepCount = 0
+        for (tile in tiles) {
+            if (policy.maxEntries != Long.MAX_VALUE && keepCount >= policy.maxEntries) break
+            val ids = featureIdsForCoverage(content.tableName, tile)
+            if (policy.maxBytes != Long.MAX_VALUE) {
+                val newBytes = sumFeatureBytes(content.tableName, ids.filter { it !in keptIds })
+                // Always keep at least the newest tile, even if it alone exceeds the budget.
+                if (keepCount > 0 && keptBytes + newBytes > policy.maxBytes) break
+                keptBytes += newBytes
+            }
+            keptIds.addAll(ids)
+            keepCount++
+        }
+        if (keepCount >= tiles.size) return@withContext // everything fits
+        val evict = tiles.drop(keepCount)
+
+        // Delete only features that lie in an evicted tile and NO retained tile.
+        val evictIds = HashSet<Long>()
+        for (tile in evict) evictIds += featureIdsForCoverage(content.tableName, tile)
+        evictIds.removeAll(keptIds)
+        deleteFeaturesByIds(content.tableName, evictIds)
+        // Drop the evicted tiles' coverage rows.
+        featureCoverageDao.deleteBuilder().apply {
+            where().`in`(GpkgFeatureCoverage.COLUMN_ID, evict.map { it.id })
+        }.delete()
+    }
+
+    /** Feature ids intersecting one coverage tile's bbox. */
+    private fun featureIdsForCoverage(tableName: String, coverage: GpkgFeatureCoverage): List<Long> {
+        val b = slippyTileBounds(coverage.tileZ, coverage.tileX, coverage.tileY)
+        return featureIdsInBoundingBox(geoPackage, tableName, b[0], b[1], b[2], b[3])
+    }
+
+    /** Total stored byte size (`LENGTH(geom) + LENGTH(properties)`) of the given feature rows. */
+    private fun sumFeatureBytes(tableName: String, ids: Collection<Long>): Long {
+        if (ids.isEmpty()) return 0L
+        val q = "\"${tableName.replace("\"", "\"\"")}\""
+        var total = 0L
+        for (chunk in ids.chunked(500)) {
+            total += geoPackage.geometryColumnsDao.queryRawValue(
+                "SELECT COALESCE(SUM(LENGTH(\"$FEATURE_GEOM_COLUMN\") + " +
+                        "COALESCE(LENGTH(\"$FEATURE_PROPERTIES_COLUMN\"), 0)), 0) " +
+                        "FROM $q WHERE $FEATURE_ID_COLUMN IN (${chunk.joinToString(",")})"
             )
         }
+        return total
+    }
 
-        // maxBytes is intentionally not implemented for GPKG — would require multi-column cursor
-        // walks that aren't on the public mil.nga.geopackage connection surface. Use maxEntries
-        // as a proxy ("N rows" ≈ "N × typical_feature_size bytes"). IDB / Cache API honor maxBytes
-        // directly since their cursor APIs expose size cheaply.
+    /** Delete the given feature rows by id, chunked to stay within SQLite statement limits. */
+    private fun deleteFeaturesByIds(tableName: String, ids: Collection<Long>) {
+        if (ids.isEmpty()) return
+        val q = "\"${tableName.replace("\"", "\"\"")}\""
+        for (chunk in ids.chunked(500)) {
+            geoPackage.database.execSQL("DELETE FROM $q WHERE $FEATURE_ID_COLUMN IN (${chunk.joinToString(",")})")
+        }
     }
 
 
@@ -1050,6 +1179,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
         }.delete()
         clearTileRevalidation(content)
+        clearFeatureCoverage(content)
     }
 
     /**
@@ -1088,6 +1218,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
 
         clearTileRevalidation(content)
+        clearFeatureCoverage(content)
         contentDao.delete(content)
     }
 
@@ -1138,12 +1269,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             it.definition = WW_EXTENSION_DEFINITION
             it.scope = ExtensionScopeType.READ_WRITE
         })
-    }
-
-    /** Register the `worldwind_last_modified` extension for [tableName]. Idempotent. */
-    protected open fun registerLastModifiedExtension(tableName: String) {
-        registerExtension(tableName = tableName, columnName = LAST_MODIFIED_COLUMN,
-            extensionName = WW_LAST_MODIFIED_EXTENSION)
     }
 
     protected open fun latToEPSG3857(lat: Angle) = ln(tan(PI / 4.0 + lat.inRadians / 2.0)) * Ellipsoid.WGS84.semiMajorAxis
@@ -1275,21 +1400,15 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         const val FEATURE_ID_COLUMN = "id"
         const val FEATURE_GEOM_COLUMN = "geom"
         const val FEATURE_PROPERTIES_COLUMN = "properties"
-        const val TILE_Z_COLUMN = "tile_z"
-        const val TILE_X_COLUMN = "tile_x"
-        const val TILE_Y_COLUMN = "tile_y"
-        const val TILE_INDEX_SUFFIX = "tile_idx"
-        /** Epoch-ms timestamp written on every insert. NULL = row written by an external tool
-         *  that doesn't populate the column — treated as epoch 0 by the TTL sweep, so external
-         *  data ages out first. */
-        const val LAST_MODIFIED_COLUMN = "last_modified"
+        /** Optional stable natural key (e.g. OSM `id`) for upsert/dedup; null for id-less sources. */
+        const val FEATURE_UID_COLUMN = "feature_uid"
 
         /** Author-prefixed names registered in `gpkg_extensions` so external OGC tools see our
-         *  custom additions (the worldwind web-service table + per-row last_modified column) as
-         *  documented extensions rather than anonymous extra rows / columns. */
+         *  custom additions (side tables, web-service metadata) as documented extensions rather
+         *  than anonymous extra rows. */
         const val WW_WEB_SERVICE_EXTENSION = "worldwind_web_service"
-        const val WW_LAST_MODIFIED_EXTENSION = "worldwind_last_modified"
         const val WW_TILE_REVALIDATION_EXTENSION = "worldwind_tile_revalidation"
+        const val WW_FEATURE_COVERAGE_EXTENSION = "worldwind_feature_coverage"
         const val WW_EXTENSION_DEFINITION = "https://worldwind.earth"
 
         init { installLenientDatePatterns() }

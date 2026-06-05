@@ -1,0 +1,311 @@
+package earth.worldwind.formats.gpkg
+
+import earth.worldwind.layer.BulkFeatureLayer
+import earth.worldwind.layer.cache.CacheEntry
+import earth.worldwind.layer.cache.CacheEvictionPolicy
+import earth.worldwind.layer.cache.GpkgFeatureStore
+import earth.worldwind.layer.source.CachedFeatureRow
+import earth.worldwind.layer.source.CachedGeometry
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
+import mil.nga.geopackage.BoundingBox
+import mil.nga.geopackage.GeoPackage as NgaGeoPackage
+import mil.nga.geopackage.db.GeoPackageDataType
+import mil.nga.geopackage.features.columns.GeometryColumns
+import mil.nga.geopackage.extension.rtree.RTreeIndexExtension
+import mil.nga.geopackage.features.index.FeatureIndexManager
+import mil.nga.geopackage.features.index.FeatureIndexType
+import mil.nga.geopackage.features.user.FeatureColumn
+import mil.nga.geopackage.features.user.FeatureTableMetadata
+import mil.nga.geopackage.geom.GeoPackageGeometryData
+import mil.nga.sf.GeometryType
+import mil.nga.sf.Point
+import java.io.File
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Validates the step-2 generic feature reader: a standard GeoPackage features table written by a
+ * foreign tool (here: the raw NGA API, no WorldWind columns) reads back through WorldWind with its
+ * typed attributes preserved as properties JSON — and a WorldWind-cache table still round-trips its
+ * own feature_properties column unchanged.
+ */
+class ForeignFeatureReadTest {
+    private val file = File.createTempFile("foreign-features", ".gpkg").also { it.delete() }
+
+    @AfterTest fun cleanup() { file.delete() }
+
+    @Test
+    fun readsForeignFeaturesTableWithTypedAttributes() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            // A standard features table as ArcGIS/QGIS would export it: geometry + typed columns,
+            // no tile_z/x/y, no feature_properties, no last_modified.
+            createForeignFeaturesTable(gpkg.core as NgaGeoPackage, "cities")
+
+            val content = assertNotNull(gpkg.getContent("cities"), "foreign features content missing")
+            val rows = gpkg.readCachedFeatures(content)
+
+            assertEquals(1, rows.size)
+            val (geometry, propsJson) = rows[0]
+            val point = assertIs<Point>(geometry)
+            assertEquals(-89.65, point.x, 1e-9)
+            assertEquals(39.78, point.y, 1e-9)
+
+            val props = Json.parseToJsonElement(assertNotNull(propsJson)).jsonObject
+            assertEquals("Springfield", props["name"]!!.jsonPrimitive.content)
+            assertEquals(116250L, props["population"]!!.jsonPrimitive.long)
+            assertEquals(156.8, props["area"]!!.jsonPrimitive.double, 1e-9)
+            // The PK and geometry column must not leak into properties.
+            assertFalse(props.containsKey("geom"))
+            assertFalse(props.containsKey("id"))
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun readsWorldWindCacheFeaturePropertiesUnchanged() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("ww_cache")
+            val json = """{"name":"WorldWind","n":5}"""
+            gpkg.writeFeatureTile(content, 1, 2, 3, listOf(GpkgFeatureRow(Point(-89.65, 39.78), json)))
+
+            val rows = gpkg.readCachedFeatures(content)
+            assertEquals(1, rows.size)
+            // WorldWind cache path reads the stored feature_properties JSON verbatim.
+            assertEquals(json, rows[0].second)
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun createsSpatialIndexKeptInSyncAndQueryableByBoundingBox() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("indexed")
+            val nga = gpkg.core as NgaGeoPackage
+            val dao = nga.getFeatureDao("indexed")
+
+            // setupFeaturesContent created the standard RTree spatial index.
+            assertTrue(RTreeIndexExtension(nga).has(dao.table), "RTree index not created")
+
+            // A feature written through the normal cache path must land in the RTree (sync triggers).
+            gpkg.writeFeatureTile(content, 0, 0, 0, listOf(GpkgFeatureRow(Point(10.0, 20.0), """{"k":1}""")))
+
+            val fim = FeatureIndexManager(nga, dao).apply { indexLocation = FeatureIndexType.RTREE }
+            try {
+                fun countInBox(minX: Double, minY: Double, maxX: Double, maxY: Double): Int {
+                    val results = fim.query(BoundingBox(minX, minY, maxX, maxY))
+                    return try {
+                        var n = 0
+                        val iter = results.iterator()
+                        while (iter.hasNext()) { iter.next(); n++ }
+                        n
+                    } finally {
+                        results.close()
+                    }
+                }
+                assertEquals(1, countInBox(9.0, 19.0, 11.0, 21.0))
+                assertEquals(0, countInBox(100.0, 100.0, 101.0, 101.0))
+            } finally {
+                fim.close()
+            }
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun readsFeaturesByBoundingBoxViaRTree() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("bbox")
+            gpkg.writeFeatureTile(content, 0, 0, 0, listOf(GpkgFeatureRow(Point(10.0, 20.0), """{"k":"near"}""")))
+            gpkg.writeFeatureTile(content, 1, 1, 1, listOf(GpkgFeatureRow(Point(120.0, 60.0), """{"k":"far"}""")))
+
+            // A window around the first point returns only it; geometry + properties preserved.
+            val near = readFeaturesInBoundingBox(gpkg.core, "bbox", 9.0, 19.0, 11.0, 21.0)
+            assertEquals(1, near.size)
+            assertEquals(10.0, assertIs<Point>(near[0].first).x, 1e-9)
+            assertTrue(near[0].second!!.contains("near"))
+
+            // A window covering both returns both.
+            assertEquals(2, readFeaturesInBoundingBox(gpkg.core, "bbox", -180.0, -90.0, 180.0, 90.0).size)
+            // A window covering neither returns nothing.
+            assertEquals(0, readFeaturesInBoundingBox(gpkg.core, "bbox", -10.0, -10.0, -5.0, -5.0).size)
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun storeReadsViaCoverageAndUpsertsByUid() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("osm")
+            val store = GpkgFeatureStore(gpkg, content)
+
+            // Miss: no coverage row yet (distinct from a fetched-but-empty tile).
+            assertNull(store.readTile(0, 0, 0))
+
+            // Write one OSM-style feature (stable "id") in tile (0,0,0), whose bbox holds its point.
+            store.writeTile(0, 0, 0, flowOf(
+                CachedFeatureRow(CachedGeometry.Point(10.0, 20.0), """{"id":"way/1","name":"A"}""")
+            ))
+            assertEquals(1, store.readTile(0, 0, 0)?.toList()?.size, "hit should serve the feature")
+
+            // Re-fetch the same tile, same uid, updated payload → upsert dedupes to one row.
+            store.writeTile(0, 0, 0, flowOf(
+                CachedFeatureRow(CachedGeometry.Point(10.0, 20.0), """{"id":"way/1","name":"B"}""")
+            ))
+            val after = store.readTile(0, 0, 0)?.toList()
+            assertEquals(1, after?.size, "same uid must not duplicate")
+            assertTrue(after!![0].properties!!.contains("\"B\""), "row should carry the updated payload")
+
+            // Negative cache: an empty fetch records is_empty → readTile is an empty flow, not null.
+            store.writeTile(1, 1, 1, emptyFlow())
+            val negative = store.readTile(1, 1, 1)
+            assertNotNull(negative, "fetched-empty tile is a hit, not a miss")
+            assertEquals(0, negative.toList().size)
+            // ...and it didn't disturb the feature in the other tile.
+            assertEquals(1, store.readTile(0, 0, 0)?.toList()?.size)
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    /** End-to-end #1 (foreign → WorldWind): a standard GeoPackage features table written by a
+     *  foreign tool opens through the real content-manager native path into a renderable layer. */
+    @Test
+    fun foreignFeaturesOpenEndToEndThroughContentManager() = runBlocking {
+        run {
+            val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+            try { createForeignFeaturesTable(gpkg.core as NgaGeoPackage, "cities") } finally { gpkg.shutdown() }
+        }
+        val manager = GpkgContentManager(file.absolutePath, isReadOnly = true)
+        try {
+            val entry = assertNotNull(manager.findEntry("cities"), "foreign features entry not discovered")
+            assertEquals(CacheEntry.DataType.FEATURES, entry.dataType)
+            val layer = manager.tryOpenNativeContent(entry)
+            assertEquals(1, assertIs<BulkFeatureLayer>(layer).count, "foreign feature should render")
+        } finally {
+            manager.close()
+        }
+    }
+
+    /** End-to-end #2 (WorldWind → external): a feature cache written through the store reopens and
+     *  renders through the same native path a foreign GIS file would — proving it's a standard,
+     *  self-describing features layer, not a private schema. */
+    @Test
+    fun worldWindFeatureCacheReopensAndRendersThroughContentManager() = runBlocking {
+        run {
+            val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+            try {
+                val content = gpkg.setupFeaturesContent("osm")
+                GpkgFeatureStore(gpkg, content).writeTile(0, 0, 0, flowOf(
+                    CachedFeatureRow(CachedGeometry.Point(10.0, 20.0), """{"id":"way/1","name":"Tower"}""")
+                ))
+            } finally { gpkg.shutdown() }
+        }
+        val manager = GpkgContentManager(file.absolutePath, isReadOnly = true)
+        try {
+            val entry = assertNotNull(manager.findEntry("osm"), "features entry missing on reopen")
+            assertEquals(CacheEntry.DataType.FEATURES, entry.dataType)
+            val layer = manager.tryOpenNativeContent(entry)
+            assertEquals(1, assertIs<BulkFeatureLayer>(layer).count, "cached feature should render on reopen")
+        } finally {
+            manager.close()
+        }
+    }
+
+    @Test
+    fun evictionDropsWholeOldestTilesOverlapSafe() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("osm")
+            val store = GpkgFeatureStore(gpkg, content, CacheEvictionPolicy(maxEntries = 1L))
+            // Two non-overlapping tiles (opposite corners of the world), one feature each.
+            store.writeTile(2, 0, 0, flowOf(CachedFeatureRow(CachedGeometry.Point(-135.0, 75.0), """{"id":"way/A"}""")))
+            store.writeTile(2, 3, 3, flowOf(CachedFeatureRow(CachedGeometry.Point(135.0, -75.0), """{"id":"way/B"}""")))
+            assertEquals(1, store.readTile(2, 0, 0)?.toList()?.size)
+            assertEquals(1, store.readTile(2, 3, 3)?.toList()?.size)
+
+            store.evict() // maxEntries=1 → keep newest coverage tile, evict the oldest as a whole
+
+            assertNull(store.readTile(2, 0, 0), "evicted tile's coverage is gone → miss")
+            assertEquals(1, store.readTile(2, 3, 3)?.toList()?.size, "retained tile keeps its feature")
+            assertEquals(1, store.readAll().toList().size, "evicted tile's feature is deleted from the flat store")
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun evictionHonorsMaxBytes() = runBlocking {
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("osm")
+            // ~2 KB per feature (geometry + padded properties); maxBytes fits two.
+            val store = GpkgFeatureStore(gpkg, content, CacheEvictionPolicy(maxBytes = 5000L))
+            val pad = "x".repeat(2000)
+            // Three non-overlapping z=2 tiles, written oldest → newest.
+            store.writeTile(2, 0, 0, flowOf(CachedFeatureRow(CachedGeometry.Point(-135.0, 75.0), """{"id":"way/1","pad":"$pad"}""")))
+            store.writeTile(2, 0, 3, flowOf(CachedFeatureRow(CachedGeometry.Point(-135.0, -75.0), """{"id":"way/2","pad":"$pad"}""")))
+            store.writeTile(2, 3, 3, flowOf(CachedFeatureRow(CachedGeometry.Point(135.0, -75.0), """{"id":"way/3","pad":"$pad"}""")))
+            assertEquals(3, store.readAll().toList().size)
+
+            store.evict() // maxBytes=5000 → keep the two newest tiles, evict the oldest
+
+            assertNull(store.readTile(2, 0, 0), "oldest tile evicted by byte budget")
+            assertNotNull(store.readTile(2, 0, 3))
+            assertNotNull(store.readTile(2, 3, 3))
+            assertEquals(2, store.readAll().toList().size, "only the two newest features fit the budget")
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    private fun createForeignFeaturesTable(nga: NgaGeoPackage, tableName: String) {
+        val srs = nga.spatialReferenceSystemDao.getOrCreateFromEpsg(4326L)
+        val geometryColumns = GeometryColumns().also {
+            it.tableName = tableName
+            it.columnName = "geom"
+            it.geometryType = GeometryType.POINT
+            it.srs = srs
+            it.z = 0
+            it.m = 0
+        }
+        val columns = listOf(
+            FeatureColumn.createColumn("name", GeoPackageDataType.TEXT),
+            FeatureColumn.createColumn("population", GeoPackageDataType.INTEGER),
+            FeatureColumn.createColumn("area", GeoPackageDataType.DOUBLE),
+        )
+        val box = BoundingBox(-180.0, -90.0, 180.0, 90.0)
+        nga.createFeatureTable(FeatureTableMetadata.create(geometryColumns, columns, box))
+
+        val dao = nga.getFeatureDao(tableName)
+        dao.newRow().also { row ->
+            row.geometry = GeoPackageGeometryData.create(dao.geometryColumns.srsId, Point(-89.65, 39.78))
+            row.setValue("name", "Springfield")
+            row.setValue("population", 116250L)
+            row.setValue("area", 156.8)
+            dao.insert(row)
+        }
+    }
+}
