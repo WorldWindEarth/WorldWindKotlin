@@ -323,10 +323,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /**
-     * Evict image/elevation tiles per [policy]. Capacity-only: [CacheEvictionPolicy.maxAge] never
-     * deletes (stale tiles refresh in place via SWR), so age is not consulted here. The capacity
-     * cap drops oldest-inserted rows first (by `id`, the autoincrement PK), one row per tile so a
-     * tile is never split. No-op when read-only or unbounded.
+     * Evict image/elevation/vector tiles per [policy]. Capacity-only: [CacheEvictionPolicy.maxAge]
+     * never deletes (stale tiles refresh in place via SWR). Both [CacheEvictionPolicy.maxEntries]
+     * (row count) and [CacheEvictionPolicy.maxBytes] (sum of `LENGTH(tile_data)`) drop oldest-inserted
+     * rows first (by `id`, the autoincrement PK), one row per tile so a tile is never split. No-op
+     * when read-only or unbounded.
      */
     suspend fun evictTiles(
         content: GpkgContent, policy: CacheEvictionPolicy,
@@ -334,28 +335,56 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (isReadOnly || policy.isUnbounded) return@withContext
         val escapedTable = content.tableName.replace("\"", "\"\"")
         val q = "\"$escapedTable\""
+        var deleted = false
 
         if (policy.maxEntries < Long.MAX_VALUE) {
             geoPackage.database.execSQL(
                 "DELETE FROM $q WHERE id IN (" +
-                        "SELECT id FROM $q " +
-                        "ORDER BY id ASC " +
+                        "SELECT id FROM $q ORDER BY id ASC " +
                         "LIMIT MAX(0, (SELECT COUNT(*) FROM $q) - ${policy.maxEntries})" +
                         ")"
             )
-            // Drop revalidation rows orphaned by the eviction above — by tpudt_id, so a tile row
-            // that no longer exists in the pyramid leaves no stale freshness row behind.
-            if (tileRevalidationDao.isTableExists) {
-                val escapedName = content.tableName.replace("'", "''")
-                val r = GpkgTileRevalidation.TABLE_NAME
-                geoPackage.database.execSQL(
-                    "DELETE FROM $r WHERE ${GpkgTileRevalidation.COLUMN_TPUDT_NAME} = '$escapedName' " +
-                            "AND ${GpkgTileRevalidation.COLUMN_TPUDT_ID} NOT IN " +
-                            "(SELECT ${GpkgTileUserData.ID} FROM $q)"
-                )
+            deleted = true
+        }
+
+        if (policy.maxBytes < Long.MAX_VALUE) {
+            val dao = getOrCreateTileUserDataDao(content.tableName)
+            val total = dao.queryRawValue("SELECT COALESCE(SUM(LENGTH(tile_data)), 0) FROM $q")
+            if (total > policy.maxBytes) {
+                // Walk oldest-first, collecting ids until enough bytes are freed (one row per tile).
+                // Lazy cursor + early break → touches only the rows it deletes.
+                val bytesToFree = total - policy.maxBytes
+                val ids = ArrayList<Long>()
+                var freed = 0L
+                val iterator = dao.queryRaw("SELECT id, LENGTH(tile_data) FROM $q ORDER BY id ASC")
+                    .closeableIterator()
+                try {
+                    while (freed < bytesToFree && iterator.hasNext()) {
+                        val row = iterator.next()
+                        ids.add(row[0].toLong())
+                        freed += row[1]?.toLongOrNull() ?: 0L
+                    }
+                } finally {
+                    iterator.close()
+                }
+                for (chunk in ids.chunked(500)) {
+                    geoPackage.database.execSQL("DELETE FROM $q WHERE id IN (${chunk.joinToString(",")})")
+                }
+                if (ids.isNotEmpty()) deleted = true
             }
         }
-        // maxBytes: same multi-column-cursor limitation as features. Use maxEntries as proxy.
+
+        // Drop revalidation rows orphaned by either eviction — by tpudt_id, so a tile row that no
+        // longer exists in the pyramid leaves no stale freshness row behind.
+        if (deleted && tileRevalidationDao.isTableExists) {
+            val escapedName = content.tableName.replace("'", "''")
+            val r = GpkgTileRevalidation.TABLE_NAME
+            geoPackage.database.execSQL(
+                "DELETE FROM $r WHERE ${GpkgTileRevalidation.COLUMN_TPUDT_NAME} = '$escapedName' " +
+                        "AND ${GpkgTileRevalidation.COLUMN_TPUDT_ID} NOT IN " +
+                        "(SELECT ${GpkgTileUserData.ID} FROM $q)"
+            )
+        }
     }
 
     /**
