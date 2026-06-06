@@ -25,7 +25,7 @@ pngj = "2.1.0"
 resources = "0.26.4"
 rules = "1.7.0"
 serialization = "1.11.0"
-geojson = "0.6.6"
+geojson = "0.7.0"
 uri-kmp = "0.0.21"
 vlcj = "4.12.1"
 javacv = "1.5.13"
@@ -93,7 +93,7 @@ ormlite-jdbc = { module = "com.j256.ormlite:ormlite-jdbc", version.ref = "ormlit
 desugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 pngj = { module = "ar.com.hjg:pngj", version.ref = "pngj" }
-geojson = { module = "io.data2viz.geojson:core", version.ref = "geojson" }
+geojson = { module = "org.maplibre.spatialk:geojson", version.ref = "geojson" }
 uri-kmp = { module = "com.eygraber:uri-kmp", version.ref = "uri-kmp" }
 vlcj = { module = "uk.co.caprica:vlcj", version.ref = "vlcj" }
 javacv-platform = { module = "org.bytedeco:javacv-platform", version.ref = "javacv" }

@@ -74,7 +74,6 @@ kotlin {
                 implementation(libs.kotlinx.serialization.xml)
                 api(libs.ktor.client.core)
                 implementation(libs.uri.kmp)
-                implementation(libs.pngj)
                 implementation(libs.geojson)
                 api(libs.moko.resources)
             }
@@ -100,6 +99,7 @@ kotlin {
             dependsOn(nonIosMain)
             dependencies {
                 implementation(libs.ktor.client.okhttp)
+                implementation(libs.pngj)
                 implementation(libs.geopackage.core.get().toString()) {
                     exclude(group = "com.j256.ormlite")
                 }

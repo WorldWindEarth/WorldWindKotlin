@@ -1,21 +1,18 @@
 package earth.worldwind.layer.source
 
 import earth.worldwind.formats.geojson.parseGeoJsonObject
-import io.data2viz.geojson.Feature
-import io.data2viz.geojson.FeatureCollection
-import io.data2viz.geojson.Geometry
-import io.data2viz.geojson.GeometryCollection
-import io.data2viz.geojson.LineString
-import io.data2viz.geojson.MultiLineString
-import io.data2viz.geojson.MultiPoint
-import io.data2viz.geojson.MultiPolygon
-import io.data2viz.geojson.Point
-import io.data2viz.geojson.Polygon
-import io.data2viz.geojson.Position
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
+import org.maplibre.spatialk.geojson.Feature
+import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.Geometry
+import org.maplibre.spatialk.geojson.GeometryCollection
+import org.maplibre.spatialk.geojson.LineString
+import org.maplibre.spatialk.geojson.MultiLineString
+import org.maplibre.spatialk.geojson.MultiPoint
+import org.maplibre.spatialk.geojson.MultiPolygon
+import org.maplibre.spatialk.geojson.Point
+import org.maplibre.spatialk.geojson.Polygon
+import org.maplibre.spatialk.geojson.Position
 
 /**
  * Shared GeoJSON → [CachedFeatureRow] conversion used by every [BulkFeatureSource] whose
@@ -32,14 +29,13 @@ import kotlinx.serialization.json.JsonPrimitive
  *  are wrapped as a property-less feature. Returns an empty list on parse failure. */
 internal fun parseGeoJsonAsFeatureRows(text: String): List<CachedFeatureRow> {
     val geoJsonObject = parseGeoJsonObject(text) ?: return emptyList()
-    val features = when (geoJsonObject) {
-        is FeatureCollection -> geoJsonObject.features.toList()
-        is Feature -> listOf(geoJsonObject)
-        is Geometry -> listOf(Feature(geoJsonObject))
-        else -> emptyList()
+    val features: List<Feature<*, *>> = when (geoJsonObject) {
+        is FeatureCollection<*, *> -> geoJsonObject.features
+        is Feature<*, *> -> listOf(geoJsonObject)
+        is Geometry -> listOf(Feature<Geometry, JsonObject?>(geometry = geoJsonObject, properties = null))
     }
     return features.mapNotNull { feature ->
-        feature.geometry.toCachedGeometry()?.let { geom ->
+        feature.geometry?.toCachedGeometry()?.let { geom ->
             CachedFeatureRow(geom, featurePropertiesJson(feature))
         }
     }
@@ -61,32 +57,18 @@ internal fun Geometry.toCachedGeometry(): CachedGeometry? = when (this) {
             CachedGeometry.Polygon(polyRings.map { ring -> CachedGeometry.LineString(ring.map { it.toCachedPoint() }) })
         }
     ).takeIf { it.polygons.isNotEmpty() }
-    is GeometryCollection -> CachedGeometry.GeometryCollection(geometries.mapNotNull { it.toCachedGeometry() })
+    is GeometryCollection<*> -> CachedGeometry.GeometryCollection(geometries.mapNotNull { it.toCachedGeometry() })
         .takeIf { it.geometries.isNotEmpty() }
-    else -> null
 }
 
 internal fun Position.toCachedPoint(): CachedGeometry.Point = CachedGeometry.Point(
-    x = getOrElse(0) { 0.0 },
-    y = getOrElse(1) { 0.0 },
-    z = if (size > 2) get(2) else null,
+    x = longitude,
+    y = latitude,
+    z = altitude,
 )
 
-/** Serialize the feature's `properties` map as a JSON string for [CachedFeatureRow.properties].
+/** Serialize the feature's `properties` as a JSON string for [CachedFeatureRow.properties].
  *  Returns `null` when the feature has no properties — [BulkFeatureLayer] treats it as an
  *  empty map. */
-internal fun featurePropertiesJson(feature: Feature): String? {
-    val props = feature.properties as? Map<*, *> ?: return null
-    return JsonObject(buildMap {
-        for ((k, v) in props) put(k.toString(), v.toJsonElement())
-    }).toString()
-}
-
-private fun Any?.toJsonElement(): JsonElement = when (this) {
-    null -> JsonNull
-    is String -> JsonPrimitive(this)
-    is Number -> JsonPrimitive(this)
-    is Boolean -> JsonPrimitive(this)
-    is JsonElement -> this
-    else -> JsonPrimitive(toString())
-}
+internal fun featurePropertiesJson(feature: Feature<*, *>): String? =
+    (feature.properties as? JsonObject)?.toString()
