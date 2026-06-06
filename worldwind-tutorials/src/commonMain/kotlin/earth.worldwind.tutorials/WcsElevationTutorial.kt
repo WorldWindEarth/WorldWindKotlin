@@ -35,14 +35,17 @@ class WcsElevationTutorial(
 
     override fun start() {
         super.start()
+        // Disable the globe's existing elevation up-front — BEFORE positionView moves the camera to
+        // Mt Rainier — so the base coverage doesn't render the mountain first and then reload a second
+        // time once the WCS coverage finishes loading asynchronously. (Disabling it inside the
+        // coroutine, after the synchronous positionView, made the terrain load twice on every platform.)
+        val elevationModel = engine.globe.elevationModel
+        elevationModel.forEach { it.isEnabled = false }
         cacheJob = scope.launch {
             try {
                 val resolved = layerLoader()
                 coverage = resolved
-                engine.globe.elevationModel.apply {
-                    forEach { c -> c.isEnabled = false }
-                    addCoverage(resolved)
-                }
+                elevationModel.addCoverage(resolved)
                 // Match WMS / WFS / MVT tutorials — async loader completion needs an
                 // explicit redraw to wake the renderer once the new coverage is wired.
                 WorldWind.requestRedraw()
@@ -50,6 +53,8 @@ class WcsElevationTutorial(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
+                // Restore the base elevation so the globe isn't left flat on a load failure.
+                elevationModel.forEach { it.isEnabled = true }
                 // attachCache validation on re-open (sector / matrix / data-type mismatch)
                 // surfaces here. Pre-3.0 callers got the same error via the synchronous
                 // setupElevationCoverageCache → silent failure on a fire-and-forget launch

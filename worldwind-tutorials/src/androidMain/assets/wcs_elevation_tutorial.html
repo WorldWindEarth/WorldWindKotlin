@@ -27,20 +27,23 @@
     GeoTIFF / BIL16 into a tile of floats).
 </p>
 <p>
-    The fragment builds a network-only <code>Wcs100ElevationCoverage</code> synchronously,
-    then calls <code>attachCache</code> from a coroutine. That extension opens the GPKG
-    coverage store sized to the coverage's <code>tileMatrixSet</code>, wraps the network
-    tile source in <code>CachedTileSource</code>, and swaps the live
-    <code>elevationSourceFactory</code> in-place — matching the same attach-pattern the
-    basic globe uses for Google Satellite + NASADEM.
+    The fragment builds a network-only <code>Wcs100ElevationCoverage</code>, then
+    <em>awaits</em> <code>attachCache</code> inside the loader before the coverage is
+    returned. That extension opens the GPKG coverage store sized to the coverage's
+    <code>tileMatrixSet</code>, wraps the network tile source in
+    <code>CachedTileSource</code>, and swaps the live <code>elevationSourceFactory</code>
+    in-place. Awaiting it — rather than firing it in a separate coroutine — means the
+    coverage is added <em>already cached</em>, so the terrain loads once instead of loading
+    from the network and then reloading after the swap. This matches the same attach-pattern
+    the basic globe uses for Google Satellite + NASADEM.
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
 class WcsElevationFragment : BasicGlobeFragment() {
     override fun createWorldWindow() = super.createWorldWindow().also {
         WcsElevationTutorial(it.engine, lifecycleScope, layerLoader = {
-            // Build the network-only coverage; `attachCache` swaps in a cached
-            // elevationSourceFactory once the GPKG coverage store opens.
+            // Await attachCache so the coverage is added already-cached and the terrain
+            // loads once (instead of network-loading first, then reloading after the swap).
             Wcs100ElevationCoverage(
                 serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,
                 coverageName = WcsElevationTutorial.COVERAGE_NAME,
@@ -48,9 +51,7 @@ class WcsElevationFragment : BasicGlobeFragment() {
                 sector = WcsElevationTutorial.BOUNDING_SECTOR,
                 resolution = WcsElevationTutorial.RESOLUTION,
             ).also { coverage ->
-                lifecycleScope.launch {
-                    coverage.attachCache(contentManager, "WCS_3DEP")
-                }
+                contentManager.attachCache(coverage, "WCS_3DEP")
             }
         }).start()
     }
@@ -67,13 +68,14 @@ class WcsElevationTutorial(
 
     override fun start() {
         super.start()
+        // Disable the base elevation up-front, before positionView moves the camera, so the
+        // terrain doesn't render with the base coverage and then reload once WCS finishes loading.
+        val elevationModel = engine.globe.elevationModel
+        elevationModel.forEach { it.isEnabled = false }
         cacheJob = scope.launch {
             val resolved = layerLoader()
             coverage = resolved
-            engine.globe.elevationModel.apply {
-                forEach { c -> c.isEnabled = false }
-                addCoverage(resolved)
-            }
+            elevationModel.addCoverage(resolved)
         }
         positionView()
     }
