@@ -7,6 +7,9 @@ import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.render.image.*
 import earth.worldwind.util.AbsentResourceList
+import earth.worldwind.util.RetrievalLane
+import earth.worldwind.util.RetrievalLanes
+import earth.worldwind.util.RetrievalPhase
 import earth.worldwind.util.Logger.DEBUG
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.WARN
@@ -50,19 +53,11 @@ actual open class RenderResourceCache(
      * Identifies requested resources that whose retrieval failed.
      */
     actual val absentResourceList = AbsentResourceList<Int>(3, 60.seconds)
-    /**
-     * List of remote URL retrievals currently in progress.
-     */
-    protected val remoteRetrievals = mutableSetOf<ImageSource>()
-    /**
-     * List of other local retrievals currently in progress.
-     */
-    protected val localRetrievals = mutableSetOf<ImageSource>()
+    protected val lanes = RetrievalLanes<ImageSource>()
 
     override fun clear() {
         super.clear()
-        remoteRetrievals.clear()
-        localRetrievals.clear()
+        lanes.clear()
         absentResourceList.clear()
         age = 0
     }
@@ -79,45 +74,99 @@ actual open class RenderResourceCache(
                 // Following type of image sources is already in memory, so a texture may be created and put into the cache immediately.
                 return createTexture(options, imageSource.asImage())?.also { put(imageSource, it, it.byteCount) }
             }
+            imageSource.isImageFactory -> {
+                // A cache-backed remote source (map tile, cached remote icon, any server-fetched
+                // texture wrapped for caching) retrieves in two phases: a cache-only read on the
+                // local lane, escalating to a network fetch on the remote lane only on a miss. Once
+                // the cache read misses, the source is marked so later frames skip straight to the
+                // network lane — that keeps a congested remote lane from re-saturating the local
+                // lane and starving local resources (see RetrievalLanes).
+                if (imageSource.asImageFactory() is ImageSource.NetworkBoundImageFactory) {
+                    when (lanes.planNetworkBound(imageSource, absentResourceList.isResourceAbsent(imageSource.hashCode()))) {
+                        RetrievalPhase.NONE -> {}
+                        RetrievalPhase.CACHE -> retrieveImageFactory(imageSource, cacheView(imageSource), options, RetrievalLane.LOCAL) {
+                            lanes.markChecked(imageSource)
+                            retrieveImageFactory(imageSource, imageSource, options, RetrievalLane.REMOTE)
+                        }
+                        RetrievalPhase.NETWORK -> retrieveImageFactory(imageSource, imageSource, options, RetrievalLane.REMOTE)
+                    }
+                    return null
+                }
+            }
         }
 
         // Retrieve image source from URL or local resource. Request the image source and return null to indicate that
         // the texture is not in memory. The image is added to the image retrieval cache upon successful retrieval. It's
         // then expected that a subsequent render frame will result in another call to retrieveTexture, in which case
-        // the image will be found in the image retrieval cache.
-        val currentRetrievals = if (imageSource.isUrl) remoteRetrievals else localRetrievals
-        val retrievalQueueSize = if (imageSource.isUrl) remoteRetrievalQueueSize else localRetrievalQueueSize
-        if (currentRetrievals.size < retrievalQueueSize && !currentRetrievals.contains(imageSource)
-            // Ignore retrieval of resources marked as absent
-            && !absentResourceList.isResourceAbsent(imageSource.hashCode())) {
-            when {
-                imageSource.isUrl -> retrieveRemoteImage(currentRetrievals, imageSource, options, imageSource.asUrl())
-                imageSource.isResource -> retrieveRemoteImage(
-                    currentRetrievals, imageSource, options, imageSource.asResource().fileUrl
-                )
-                imageSource.isImageFactory -> {
-                    currentRetrievals += imageSource
-                    mainScope.launch {
-                        try {
-                            val image = imageSource.asImageFactory().createImage()
-                            if (image != null) {
-                                // Apply image postprocessor (e.g. Mercator reprojection) before caching
-                                val processed = imageSource.postprocessor?.process(image) ?: image
-                                retrievalSucceeded(imageSource, options, processed)
-                            } else retrievalFailed(imageSource)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Throwable) {
-                            log(WARN, "Image retrieval failed ($imageSource): ${e.message}")
-                            retrievalFailed(imageSource)
-                        } finally {
-                            currentRetrievals -= imageSource
-                        }
-                    }
-                }
-            }
+        // the image will be found in the image retrieval cache. Remote URLs use the remote lane; local resources and
+        // plain (non-network) factories use the local lane. Each callee self-guards its lane budget + absent list.
+        when {
+            imageSource.isUrl -> retrieveRemoteImage(RetrievalLane.REMOTE, imageSource, options, imageSource.asUrl())
+            imageSource.isResource -> retrieveRemoteImage(RetrievalLane.LOCAL, imageSource, options, imageSource.asResource().fileUrl)
+            imageSource.isImageFactory -> retrieveImageFactory(imageSource, imageSource, options, RetrievalLane.LOCAL)
         }
         return null
+    }
+
+    /**
+     * A throwaway image source that decodes ONLY the local cache of a network-bound
+     * source (`null` on a miss, never touching the network). Decoded by the normal pipeline so
+     * the postprocessor (e.g. Mercator reprojection) still runs; the resulting texture is cached
+     * under the original [imageSource] key by [retrieveImageFactory].
+     */
+    protected open fun cacheView(imageSource: ImageSource): ImageSource {
+        val factory = imageSource.asImageFactory() as ImageSource.NetworkBoundImageFactory
+        return ImageSource.fromImageFactory(object : ImageSource.ImageFactory {
+            override suspend fun createImage() = factory.createCachedImage()
+        }).also { it.postprocessor = imageSource.postprocessor }
+    }
+
+    /**
+     * Launch a single image-factory retrieval on the chosen lane. [decodeSource] is what is
+     * actually decoded (a [cacheView] for a cache phase, otherwise [imageSource] itself);
+     * [imageSource] is always the canonical key for dedup, caching and the absent list. A
+     * non-null [onCacheMiss] marks this as a cache phase: a `null` result then means "cache
+     * miss" — it runs [onCacheMiss] after the local slot frees (escalating to the network) and
+     * is NOT marked absent. Only a genuine network / local failure marks the source absent.
+     */
+    protected open fun retrieveImageFactory(
+        imageSource: ImageSource,
+        decodeSource: ImageSource,
+        options: ImageOptions?,
+        lane: RetrievalLane,
+        onCacheMiss: (() -> Unit)? = null,
+    ) {
+        val queueSize = if (lane == RetrievalLane.REMOTE) remoteRetrievalQueueSize else localRetrievalQueueSize
+        if (!lanes.canReserve(lane, queueSize, imageSource)
+            || absentResourceList.isResourceAbsent(imageSource.hashCode())) return
+        lanes.reserve(lane, imageSource)
+        mainScope.launch {
+            var cacheMiss = false
+            try {
+                val image = decodeSource.asImageFactory().createImage()
+                when {
+                    image != null -> {
+                        // Apply image postprocessor (e.g. Mercator reprojection) before caching
+                        val processed = decodeSource.postprocessor?.process(image) ?: image
+                        retrievalSucceeded(imageSource, options, processed)
+                    }
+                    onCacheMiss != null -> cacheMiss = true // cache miss — escalate, do not mark absent
+                    else -> retrievalFailed(imageSource)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                if (onCacheMiss != null) cacheMiss = true else {
+                    log(WARN, "Image retrieval failed ($imageSource): ${e.message}")
+                    retrievalFailed(imageSource)
+                }
+            } finally {
+                lanes.release(lane, imageSource)
+            }
+            // Runs synchronously after the slot frees (JS is single-threaded), so the remote
+            // reservation can't race the local one.
+            if (cacheMiss) onCacheMiss?.invoke()
+        }
     }
 
     actual fun retrieveTextFile(fileResource: FileResource, result: (String) -> Unit) {
@@ -144,8 +193,11 @@ actual open class RenderResourceCache(
         assets.values().firstOrNull { it.rawPath == path }?.let { ImageSource.fromUrlString(it.originalPath) }
 
     protected open fun retrieveRemoteImage(
-        currentRetrievals: MutableSet<ImageSource>, imageSource: ImageSource, options: ImageOptions?, src: String
+        lane: RetrievalLane, imageSource: ImageSource, options: ImageOptions?, src: String
     ) {
+        val queueSize = if (lane == RetrievalLane.REMOTE) remoteRetrievalQueueSize else localRetrievalQueueSize
+        if (!lanes.canReserve(lane, queueSize, imageSource)
+            || absentResourceList.isResourceAbsent(imageSource.hashCode())) return
         val image = Image()
         var postprocessorExecuted = false
         image.onload = {
@@ -162,20 +214,20 @@ actual open class RenderResourceCache(
                     } catch (e: Throwable) {
                         log(WARN, "Image postprocessor failed ($imageSource): ${e.message}")
                         retrievalFailed(imageSource)
-                        currentRetrievals -= imageSource
+                        lanes.release(lane, imageSource)
                     }
                 }
             } else {
                 retrievalSucceeded(imageSource, options, image) // Consume original or processed image as retrieved
-                currentRetrievals -= imageSource
+                lanes.release(lane, imageSource)
             }
             if (postprocessor != null) URL.revokeObjectURL(image.src) // Revoke URL possibly created in postprocessor
         }
         image.onerror = { _, _, _, _, _ ->
             retrievalFailed(imageSource)
-            currentRetrievals -= imageSource
+            lanes.release(lane, imageSource)
         }
-        currentRetrievals += imageSource
+        lanes.reserve(lane, imageSource)
         image.crossOrigin = "anonymous"
         image.src = src
     }
@@ -223,12 +275,14 @@ actual open class RenderResourceCache(
         // Create texture and put it into cache.
         createTexture(options, image)?.let { put(source, it, it.byteCount) }
         absentResourceList.unmarkResourceAbsent(source.hashCode())
+        lanes.unmarkChecked(source) // re-check the cache if this source is re-requested after eviction
         WorldWind.requestRedraw()
         if (isLoggable(DEBUG)) log(DEBUG, "Image retrieval succeeded: $source")
     }
 
     protected open fun retrievalFailed(source: ImageSource) {
         absentResourceList.markResourceAbsent(source.hashCode())
+        lanes.unmarkChecked(source) // after the absent timeout, re-check the cache (a bulk download may have filled it)
         log(WARN, "Image retrieval failed: $source")
     }
 

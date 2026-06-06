@@ -234,6 +234,18 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
         suspend fun createImage(): BufferedImage?
     }
 
+    /**
+     * An [ImageFactory] whose bytes may come from a local cache OR the network. The render
+     * resource cache decodes it in two phases: [createCachedImage] on the local-retrieval
+     * lane (cache-only, `null` on a miss) then [createImage] on the remote lane only on a
+     * miss — keeping slow network fetches off the lane shared with placemark icons and
+     * cache-hit tiles.
+     */
+    interface NetworkBoundImageFactory : ImageFactory {
+        /** Cache-only decode; returns `null` on a local miss WITHOUT touching the network. */
+        suspend fun createCachedImage(): BufferedImage?
+    }
+
     protected open class LineStippleImageFactory(protected val factor: Int, protected val pattern: Short): ImageFactory {
         override suspend fun createImage(): BufferedImage {
             val pixels = if (factor <= 0) {

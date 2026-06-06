@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 
 package earth.worldwind.layer.cache
+import earth.worldwind.layer.source.TileBlob
 import earth.worldwind.layer.source.TileSource
 
 import earth.worldwind.render.image.ImageSource
@@ -16,15 +17,22 @@ actual fun buildTileSourceImageSource(
     source: TileSource, z: Int, x: Int, y: Int, imageFormat: String,
 ): ImageSource = ImageSource.fromImageFactory(TileSourceImageFactory(source, z, x, y, imageFormat))
 
-/** iOS [ImageSource.ImageFactory] decoding via `UIImage(data:)`. */
+/** iOS [ImageSource.NetworkBoundImageFactory] decoding via `UIImage(data:)`. The cache read
+ *  ([createCachedImage]) and the network fetch ([createImage]) are exposed separately so the
+ *  render cache can run them on the local vs remote retrieval lane respectively. */
 private class TileSourceImageFactory(
     private val source: TileSource,
     private val z: Int, private val x: Int, private val y: Int,
     @Suppress("unused") private val imageFormat: String,
-) : ImageSource.ImageFactory {
-    override suspend fun createImage(): UIImage? {
-        val blob = source.fetchTile(z, x, y) ?: return null
-        if (blob.isEmpty) return null
+) : ImageSource.NetworkBoundImageFactory {
+    /** Remote lane: cache-then-network fetch with write-through. */
+    override suspend fun createImage(): UIImage? = decode(source.fetchTile(z, x, y))
+
+    /** Local lane: cache-only read, `null` on a miss (never touches the network). */
+    override suspend fun createCachedImage(): UIImage? = decode(source.tryReadCachedTile(z, x, y))
+
+    private fun decode(blob: TileBlob?): UIImage? {
+        if (blob == null || blob.isEmpty) return null
         return blob.bytes.usePinned { pinned ->
             val data = NSData.create(bytes = pinned.addressOf(0), length = blob.bytes.size.toULong())
             UIImage.imageWithData(data)
