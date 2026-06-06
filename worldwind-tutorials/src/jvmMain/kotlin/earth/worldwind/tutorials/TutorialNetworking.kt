@@ -1,7 +1,6 @@
 package earth.worldwind.tutorials
 
 import earth.worldwind.util.http.httpClientCustomizer
-import okhttp3.OkHttpClient
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
@@ -25,11 +24,18 @@ fun installPermissiveSslForTutorials() {
         override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
     })
     val sslContext = SSLContext.getInstance("TLS").apply { init(null, trustAll, SecureRandom()) }
-    val okHttp = OkHttpClient.Builder()
-        .sslSocketFactory(sslContext.socketFactory, trustAll[0] as X509TrustManager)
-        .hostnameVerifier { _, _ -> true }
-        .build()
+    // Apply the trust-all SSL via the engine's per-client builder rather than a single shared
+    // `preconfigured` OkHttpClient. A shared client makes every DefaultHttpClient share one OkHttp
+    // dispatcher/executor; the bulk feature sources (WFS / Shapefile / GeoJSON) open a short-lived
+    // DefaultHttpClient and close it after fetching, and ktor's engine.close() shuts down that shared
+    // executor — so the next network fetch fails with "executor rejected". Configuring the builder
+    // gives each client its own dispatcher while still sharing the (stateless) SSLContext.
     httpClientCustomizer = {
-        engine { preconfigured = okHttp }
+        engine {
+            config {
+                sslSocketFactory(sslContext.socketFactory, trustAll[0] as X509TrustManager)
+                hostnameVerifier { _, _ -> true }
+            }
+        }
     }
 }

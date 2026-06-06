@@ -82,6 +82,9 @@ class CachedBulkFeatureSource(
                 "Cache write failed: ${e::class.simpleName}: ${e.message}")
         }
     }
+
+    /** Propagate close to the wrapped network source so it can release its HTTP client. */
+    override fun close() = inner?.close() ?: Unit
 }
 
 /**

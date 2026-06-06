@@ -6,6 +6,7 @@ import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.CachedGeometry
 import earth.worldwind.layer.source.parseGeoJsonAsFeatureRows
 import earth.worldwind.ogc.WfsLayerFactory
+import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.HttpClientConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
@@ -36,6 +37,13 @@ class WfsBulkFeatureSource(
     val clientConfig: HttpClientConfig<*>.() -> Unit = {},
 ) : BulkFeatureSource {
 
+    // One client per source (configured with clientConfig), created on first fetch and closed in
+    // close() — reused across the capabilities request and every GetFeature page, and across
+    // fetchAll calls, rather than opened/closed per request.
+    private val clientDelegate = lazy {
+        DefaultHttpClient(WfsLayerFactory.CONNECT_TIMEOUT_MS, WfsLayerFactory.REQUEST_TIMEOUT_MS, clientConfig)
+    }
+
     override suspend fun fetchAll(): Flow<CachedFeatureRow> {
         val rows = mutableListOf<CachedFeatureRow>()
         WfsLayerFactory.createLayer(
@@ -46,12 +54,16 @@ class WfsBulkFeatureSource(
             maxFeatures = maxFeatures,
             cqlFilter = cqlFilter,
             pageSize = pageSize,
-            clientConfig = clientConfig,
+            httpClient = clientDelegate.value,
             // Keep the in-memory RenderableLayer build cheap — we only care about the raw bytes.
             customLogicToApplyProperties = {},
             onResponseBody = { body, isGml -> rows += decode(body, isGml) },
         )
         return rows.asFlow()
+    }
+
+    override fun close() {
+        if (clientDelegate.isInitialized()) clientDelegate.value.close()
     }
 
     private fun decode(body: String, isGml: Boolean): List<CachedFeatureRow> = if (isGml) {

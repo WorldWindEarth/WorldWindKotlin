@@ -11,7 +11,6 @@ import earth.worldwind.shape.TriangleMesh
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.http.DefaultHttpClient
-import io.ktor.client.HttpClient
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.get
 import io.ktor.client.statement.readRawBytes
@@ -35,15 +34,21 @@ class ShapefileBulkFeatureSource(
     val shpUrl: String,
 ) : BulkFeatureSource {
 
+    // One client per source, created on first fetch and closed in close() — NOT a fresh client
+    // per fetchAll. Opening + closing a DefaultHttpClient per fetch churns OkHttp dispatchers /
+    // connection pools, and when a shared `httpClientCustomizer { engine { preconfigured = ... } }`
+    // client is installed, ktor's close() shuts down that shared executor and breaks every other
+    // source's request ("executor rejected").
+    private val clientDelegate = lazy { DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS) }
+    private val client get() = clientDelegate.value
+
     override suspend fun fetchAll(): Flow<CachedFeatureRow> {
         val baseUrl = stripShpExtension(shpUrl)
-        val sidecars = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
-            val shpBytes = httpClient.get(shpUrl) { expectSuccess = true }.readRawBytes()
-            val dbfBytes = fetchOptional(httpClient, "$baseUrl.dbf") ?: fetchOptional(httpClient, "$baseUrl.DBF")
-            val prjBytes = fetchOptional(httpClient, "$baseUrl.prj") ?: fetchOptional(httpClient, "$baseUrl.PRJ")
-            val cpgBytes = fetchOptional(httpClient, "$baseUrl.cpg") ?: fetchOptional(httpClient, "$baseUrl.CPG")
-            Sidecars(shpBytes, dbfBytes, prjBytes, cpgBytes)
-        }
+        val shpBytes = client.get(shpUrl) { expectSuccess = true }.readRawBytes()
+        val dbfBytes = fetchOptional("$baseUrl.dbf") ?: fetchOptional("$baseUrl.DBF")
+        val prjBytes = fetchOptional("$baseUrl.prj") ?: fetchOptional("$baseUrl.PRJ")
+        val cpgBytes = fetchOptional("$baseUrl.cpg") ?: fetchOptional("$baseUrl.CPG")
+        val sidecars = Sidecars(shpBytes, dbfBytes, prjBytes, cpgBytes)
         val prj = sidecars.prj?.let { runCatching { PrjFile(decodeUtf8OrLatin1(it)) }.getOrNull() }
         val cpgText = sidecars.cpg?.let { decodeUtf8OrLatin1(it) }
         val dbf = sidecars.dbf?.let { runCatching { DBaseFile(it, cpgText = cpgText) }.getOrNull() }
@@ -96,8 +101,12 @@ class ShapefileBulkFeatureSource(
         return JsonObject(map).toString()
     }
 
-    private suspend fun fetchOptional(httpClient: HttpClient, url: String): ByteArray? = try {
-        httpClient.get(url) { expectSuccess = true }.readRawBytes()
+    override fun close() {
+        if (clientDelegate.isInitialized()) client.close()
+    }
+
+    private suspend fun fetchOptional(url: String): ByteArray? = try {
+        client.get(url) { expectSuccess = true }.readRawBytes()
     } catch (_: Throwable) {
         null
     }

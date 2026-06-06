@@ -109,6 +109,10 @@ open class BulkFeatureLayer(
         addAllRenderables(incoming)
     }
 
+    /** Release the [source]'s resources (e.g. its reused HTTP client). Call when discarding the
+     *  layer so a network-backed source doesn't leak its client. Idempotent. */
+    open fun close() = source.close()
+
     private fun Renderable.applyAutoStyle(properties: LinkedHashMap<String, Any?>) {
         when (this) {
             is Path -> applyFeatureStyle(properties, defaultLineColor, defaultFillColor)
