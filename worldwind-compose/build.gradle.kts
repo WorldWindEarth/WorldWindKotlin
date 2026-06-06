@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -17,6 +18,16 @@ kotlin {
         }
     }
     js(IR) {
+        browser {
+            commonWebpackConfig {
+                cssSupport {
+                    enabled.set(true)
+                }
+            }
+        }
+    }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
         browser {
             commonWebpackConfig {
                 cssSupport {
@@ -62,6 +73,15 @@ kotlin {
         jsMain {
             dependencies {
                 implementation(libs.compose.html.core)
+            }
+        }
+        // Skia-canvas Compose/Web: cannot embed WebGL in its surface, so the wasmJs WorldWindow
+        // binding hosts the globe on a separate DOM canvas behind a transparent Compose surface.
+        wasmJsMain {
+            dependencies {
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.ui)
+                implementation(libs.kotlinx.browser)
             }
         }
         val iosArm64Main by getting

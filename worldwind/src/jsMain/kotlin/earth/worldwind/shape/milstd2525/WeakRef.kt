@@ -1,5 +1,6 @@
 package earth.worldwind.shape.milstd2525
 
-external class WeakRef<T>(element: T) {
-    fun deref(): T?
+/** js actual: the native JS `WeakRef` (object identity, true weak semantics). */
+actual external class WeakRef<T : Any> actual constructor(element: T) {
+    actual fun deref(): T?
 }

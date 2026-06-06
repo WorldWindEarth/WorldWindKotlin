@@ -1,0 +1,485 @@
+package earth.worldwind
+
+import earth.worldwind.frame.Frame
+import earth.worldwind.geom.Line
+import earth.worldwind.geom.Vec2
+import earth.worldwind.geom.Viewport
+import earth.worldwind.gesture.SelectDragDetector
+import earth.worldwind.render.RenderResourceCache
+import earth.worldwind.util.Logger.ERROR
+import earth.worldwind.util.Logger.INFO
+import earth.worldwind.util.Logger.log
+import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.eventListener
+import earth.worldwind.util.js.JsObjectWithConstructorName
+import earth.worldwind.util.kgl.createWebKgl
+import earth.worldwind.util.window.PrepareEventHandler
+import earth.worldwind.util.window.createDefaultPrepareEventHandler
+import kotlinx.coroutines.cancelChildren
+import org.khronos.webgl.WebGLContextAttributes
+import org.khronos.webgl.WebGLContextEvent
+import org.khronos.webgl.WebGLRenderingContext
+import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.TouchEvent
+import org.w3c.dom.events.Event
+import org.w3c.dom.events.MouseEvent
+import kotlin.js.JsAny
+import kotlin.js.js
+import kotlin.js.unsafeCast
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
+
+/**
+ * Represents a WorldWind window for an HTML canvas.
+ */
+open class WorldWindow(
+    /**
+     * The HTML canvas associated with this WorldWindow.
+     */
+    val canvas: HTMLCanvasElement,
+    /**
+     * Render resource cache
+     */
+    renderResourceCache: RenderResourceCache = RenderResourceCache(),
+    /**
+     * The adapter coverts child window event to parent window events.
+     */
+    private val prepareEvent: PrepareEventHandler = createDefaultPrepareEventHandler(canvas),
+) : WorldWind.EventListener {
+    /**
+     * Real current window where canvas located.
+     * Provides correct classes from the correct window for instancing and interaction.
+     */
+    protected val currentWindow get() = canvas.ownerDocument?.defaultView ?: error("Canvas isn't attached to a document")
+
+    /**
+     * WebGL context associated with the HTML canvas.
+     */
+    protected val gl = createContext(canvas)
+    /**
+     * Main WorldWind engine, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
+     */
+    open val engine = WorldWind(createWebKgl(gl), renderResourceCache)
+    /**
+     * List of registered event listeners for the specified event type on this WorldWindow's canvas.
+     */
+    protected val eventListeners = mutableMapOf<String, EventListenerEntry>()
+    /**
+     * The controller used to manipulate the globe.
+     */
+    var controller: WorldWindowController = BasicWorldWindowController(this)
+    /**
+     * The controller used to manipulate the globe with the keyboard.
+     */
+    open val keyboardControls = KeyboardControls(this)
+    /**
+     * Renderable selection and drag gestures detector. Assign [SelectDragDetector.callback] to handle events.
+     */
+    open val selectDragDetector = SelectDragDetector(this)
+    /**
+     * The list of callbacks to call immediately before and immediately after performing a redrawn. The callbacks
+     * have two arguments: this WorldWindow and the redraw stage, e.g., <code style='white-space:nowrap'>redrawCallback(worldWindow, stage);</code>.
+     * The stage will be either WorldWind.BEFORE_REDRAW or WorldWind.AFTER_REDRAW indicating whether the
+     * callback has been called either immediately before or immediately after a redrawn, respectively.
+     * Applications may add functions to this array or remove them.
+     */
+    val redrawCallbacks = mutableSetOf<(WorldWindow, RedrawStage)->Unit>()
+    protected val frame = Frame()
+    protected var redrawRequestId = 0
+    protected var isRedrawRequested = false
+
+    protected class EventListenerEntry(val callback: (Event) -> Unit) {
+        val listeners = mutableListOf<(Event) -> Unit>()
+    }
+
+    init {
+        // Suppress `click` events that came from a drag (movement > tap slop) so consumers of
+        // `addEventListener("click", ...)` don't fire on drag-end (e.g. releasing a Movable
+        // shape after a drag). Capture-phase + stopImmediatePropagation runs before the bubble
+        // listeners that `addEventListener` registers below.
+        var pressX = Double.NaN
+        var pressY = Double.NaN
+        val recordPress = { e: Event ->
+            when (e) {
+                is MouseEvent -> { pressX = e.clientX.toDouble(); pressY = e.clientY.toDouble() }
+                is TouchEvent -> e.changedTouches.item(0)?.let { pressX = it.clientX.toDouble(); pressY = it.clientY.toDouble() }
+            }
+        }
+        canvas.addEventListener("pointerdown", recordPress, true)
+        canvas.addEventListener("mousedown", recordPress, true)
+        canvas.addEventListener("touchstart", recordPress, true)
+        canvas.addEventListener("click", { e ->
+            if (e is MouseEvent && !pressX.isNaN()) {
+                val dx = e.clientX - pressX
+                val dy = e.clientY - pressY
+                pressX = Double.NaN // consume; subsequent clicks without a press are programmatic
+                if (dx * dx + dy * dy > CLICK_TAP_SLOP_SQUARED) e.stopImmediatePropagation()
+            }
+        }, true)
+
+        // Prevent the browser's default actions in response to mouse and touch events, which interfere with
+        // navigation. Register these event listeners  before any others to ensure that they're called last.
+        val preventDefaultListener = eventListener { e -> e.preventDefault() }
+        addEventListener("mousedown", preventDefaultListener)
+        addEventListener("touchstart", preventDefaultListener)
+        addEventListener("contextmenu", preventDefaultListener)
+        addEventListener("wheel", preventDefaultListener)
+
+        // Redirect various UI interactions to the appropriate handler.
+        val onGestureEvent = eventListener { e -> controller.handleEvent(prepareEvent(e)) }
+        if (currentWindow.navigator.maxTouchPoints == 0) {
+            // Prevent the browser's default actions in response to pointer events which interfere with navigation.
+            // This CSS style property is configured here to ensure that it's set for all applications.
+            canvas.style.setProperty("touch-action", "none")
+
+            addEventListener("pointerdown", onGestureEvent)
+            currentWindow.addEventListener("pointermove", onGestureEvent, false) // get pointermove events outside event target
+            currentWindow.addEventListener("pointercancel", onGestureEvent, false) // get pointercancel events outside event target
+            currentWindow.addEventListener("pointerup", onGestureEvent, false) // get pointerup events outside event target
+        } else {
+            addEventListener("mousedown", onGestureEvent)
+            currentWindow.addEventListener("mousemove", onGestureEvent, false) // get mousemove events outside event target
+            currentWindow.addEventListener("mouseup", onGestureEvent, false) // get mouseup events outside event target
+            addEventListener("touchstart", onGestureEvent)
+            addEventListener("touchmove", onGestureEvent)
+            addEventListener("touchend", onGestureEvent)
+            addEventListener("touchcancel", onGestureEvent)
+        }
+        addEventListener("wheel", onGestureEvent)
+
+        // Set up to handle WebGL context events.
+        // The event may arrive from another window. Forcing typecast to prevent class cast exception.
+        canvas.addEventListener("webglcontextlost",
+            { dirtyEvent ->
+                val event = dirtyEvent.unsafeCast<WebGLContextEvent>()
+                log(INFO, "WebGL context event: " + event.statusMessage)
+                // Inform WebGL that we handle context restoration, enabling the context restored event to be delivered.
+                event.preventDefault()
+                // Notify the draw context that the WebGL rendering context has been lost.
+                contextLost()
+            }, false)
+        // The event may arrive from another window. Forcing typecast to prevent class cast exception.
+        canvas.addEventListener("webglcontextrestored",
+            { dirtyEvent ->
+                val event = dirtyEvent.unsafeCast<WebGLContextEvent>()
+                log(INFO, "WebGL context event: " + event.statusMessage)
+                // Notify the draw context that the WebGL rendering context has been restored.
+                contextRestored()
+            }, false)
+
+        // Set up WebGL context and start rendering to the WebGL context in an animation frame loop.
+        this.contextRestored()
+    }
+
+    /**
+     * Registers an event listener for the specified event type on this WorldWindow's canvas. This function
+     * delegates the processing of events to the WorldWindow's canvas. For details on this function and its
+     * arguments, see the W3C [org.w3c.dom.events.EventTarget] documentation.
+     * @see <a href="https://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-EventTarget">EventTarget</a>
+     *
+     * When an event occurs, this calls the registered event listeners in order of reverse registration.
+     *
+     * @param type The event type to listen for.
+     * @param listener The [EventListener] to call when the event occurs.
+     */
+    fun addEventListener(type: String, listener: (Event) -> Unit) {
+        var entry = eventListeners[type]
+        if (entry == null) {
+            entry = EventListenerEntry { dirtyEvent ->
+                val event = prepareEvent(dirtyEvent)
+                // calls listeners in reverse registration order
+                entry?.listeners?.forEach{ l -> l(event) }
+            }.also { eventListeners[type] = it }
+        }
+
+        if (!entry.listeners.contains(listener)) { // suppress duplicate listeners
+            entry.listeners.add(0, listener) // insert the listener at the beginning of the list
+            // first listener added, add the event listener callback
+            if (entry.listeners.size == 1) canvas.addEventListener(type, entry.callback, false)
+        }
+    }
+
+    /**
+     * Removes an event listener for the specified event type from this WorldWindow's canvas. The listener must be
+     * the same object passed to addEventListener. Calling removeEventListener with arguments that do not identify a
+     * currently registered listener has no effect.
+     *
+     * @param type Indicates the event type the listener registered for.
+     * @param listener The listener to remove.
+     */
+    fun removeEventListener(type: String, listener: (Event) -> Unit) {
+        val entry = eventListeners[type] ?: return // no entry for the specified type
+        if (entry.listeners.remove(listener) && entry.listeners.isEmpty()) {
+            canvas.removeEventListener(type, entry.callback, false)
+        }
+    }
+
+    /**
+     * Removes resource ID from the missed resource list
+     */
+    
+    override fun unmarkResourceAbsent(resourceId: Int) {
+        engine.renderResourceCache.absentResourceList.unmarkResourceAbsent(resourceId)
+    }
+
+    /**
+     * Causes this WorldWindow to redraw itself at the next available opportunity. The redrawn occurs on the main
+     * thread at a time of the browser's discretion. Applications should call redraw after changing the World
+     * Window's state, but should not expect that change to be reflected on screen immediately after this function
+     * returns. This is the preferred method for requesting a redrawn of the WorldWindow.
+     */
+    override fun requestRedraw() { isRedrawRequested = true } // redraw during the next animation frame
+
+    /**
+     * Converts window coordinates to coordinates relative to this WorldWindow's canvas.
+     * @param x The X coordinate to convert.
+     * @param y The Y coordinate to convert.
+     * @returns The converted coordinates.
+     */
+    fun canvasCoordinates(x: Number, y: Number): Vec2 {
+        val bbox = canvas.getBoundingClientRect()
+        val xc = (x.toDouble() - (bbox.left + canvas.clientLeft)) * canvas.width / bbox.width
+        val yc = (y.toDouble() - (bbox.top + canvas.clientTop)) * canvas.height / bbox.height
+        return Vec2(xc, yc)
+    }
+
+    /**
+     * Requests the WorldWind objects displayed at a specified screen-coordinate point.
+     *
+     * If the point intersects the terrain, the returned list contains an object identifying the associated geographic
+     * position. This returns an empty list when nothing in the WorldWind scene intersects the specified point.
+     *
+     * @param pickPoint The point to examine in this WorldWindow's screen coordinates.
+     * @returns A list of picked WorldWind objects at the specified pick point.
+     */
+    fun pick(pickPoint: Vec2) = pickShapesInRegion(pickPoint.x, pickPoint.y)
+
+    /**
+     * Requests the WorldWind objects displayed within a specified screen-coordinate region. This returns all
+     * objects that intersect the specified region, regardless of whether an object is actually visible, and
+     * marks objects that are visible as on top.
+     *
+     * @param x      the X coordinate relative to this WorldWindow's canvas.
+     * @param y      the Y coordinate relative to this WorldWindow's canvas.
+     * @param width  the width in canvas pixels
+     * @param height the height in canvas pixels
+     * @param pickCenter picks top shape and terrain in rectangle center as priority
+     *
+     * @returns A list of visible WorldWind objects within the specified region.
+     */
+    fun pickShapesInRegion(
+        x: Double, y: Double, width: Double = 0.0, height: Double = 0.0, pickCenter: Boolean = true
+    ): PickedObjectList {
+        // Allocate a list in which to collect and return the picked objects.
+        val pickedObjects = PickedObjectList()
+
+        // Nothing can be picked if viewport is undefined.
+        val viewport = engine.viewport
+        if (viewport.isEmpty) return pickedObjects
+
+        // Determine pick viewport
+        val pickViewport = if (width != 0.0 && height != 0.0) Viewport(
+            floor(x).toInt(), viewport.height - ceil(y + height).toInt(), ceil(width).toInt(), ceil(height).toInt()
+        ) else Viewport(x.roundToInt() - 1, viewport.height - y.roundToInt() - 1, 3, 3)
+        if (!pickViewport.intersect(viewport)) return pickedObjects
+
+        // Prepare pick frame
+        frame.pickedObjects = pickedObjects
+        frame.pickViewport = pickViewport
+        if (pickCenter) {
+            // Compute the pick point in OpenGL screen coordinates, rounding to the nearest whole pixel. Nothing can be picked
+            // if pick point is outside the WorldWindow's viewport.
+            val px = pickViewport.x + pickViewport.width / 2.0
+            val py = pickViewport.y + pickViewport.height / 2.0
+            if (viewport.contains(px, py)) {
+                val pickRay = Line()
+                if (engine.rayThroughScreenPoint(px, viewport.height - py, pickRay)) {
+                    frame.pickPoint = Vec2(px, py)
+                    frame.pickRay = pickRay
+                }
+            }
+        }
+        frame.isPickMode = true
+        redrawFrame()
+
+        return pickedObjects
+    }
+
+    /**
+     * Notifies this draw context that the current WebGL rendering context has been lost. This function removes all
+     * cached WebGL resources and resets all properties tracking the current WebGL state.
+     */
+    protected open fun contextLost() {
+        // Stop the rendering animation frame loop, resuming only if the WebGL context is restored.
+        currentWindow.cancelAnimationFrame(redrawRequestId)
+
+        // Cancel any in-progress fling / pending VC repeats so the controller doesn't keep this
+        // window alive via the requestAnimationFrame retention chain.
+        controller.release()
+
+        // Cancel all async jobs but keep scope reusable
+        engine.renderResourceCache.mainScope.coroutineContext.cancelChildren()
+
+        // Clear the render resource cache; it's entries are now invalid.
+        engine.renderResourceCache.clear()
+
+        // Release this WorldWindow reference from WorldWind's global message service.
+        WorldWind.removeListener(this)
+
+        // Remove all cached WebGL resources, which are now invalid.
+        engine.reset()
+    }
+
+    /**
+     * Notifies this draw context that the current WebGL rendering context has been restored. This function prepares
+     * this draw context to resume rendering.
+     */
+    protected open fun contextRestored() {
+        // Remove all cached WebGL resources, which are now invalid.
+        engine.renderResourceCache.clear()
+
+        // Specify the default WorldWind OpenGL state.
+        engine.setupDrawContext()
+
+        // Enable WebGL depth texture extension to be able to use GL_DEPTH_COMPONENT texture format
+        gl.getExtension("WEBGL_depth_texture")
+
+        // Enable WebGL support for gl.UNSIGNED_INT types to WebGLRenderingContext.drawElements()
+        gl.getExtension("OES_element_index_uint")
+
+        // Enable WebGL anisotropic texture filter
+        gl.getExtension("EXT_texture_filter_anisotropic")
+        gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic")
+
+        // Extensions required by the omnidirectional sightline's MSM cube-map path. WebGL2
+        // makes the latter two implicitly available, but some implementations only honour the
+        // GLSL `#extension` directive after a `getExtension` call has touched them.
+        gl.getExtension("EXT_color_buffer_float")    // RGBA32F renderable as colour attachment
+        gl.getExtension("OES_texture_float_linear")  // GL_LINEAR filtering on float textures
+        gl.getExtension("OES_standard_derivatives")  // dFdx/dFdy in SightlineProgramCube
+        gl.getExtension("EXT_frag_depth")            // gl_FragDepthEXT in SightlineMomentsProgram
+
+        // Set up to receive broadcast messages from WorldWind's global message center.
+        WorldWind.addListener(this)
+
+        // Request redraw at least once.
+        requestRedraw()
+
+        // Resume the rendering animation frame loop until the WebGL context is lost.
+        animationFrameLoop()
+    }
+
+    protected open fun animationFrameLoop() {
+        // Render to the WebGL context as needed.
+        redrawIfNeeded()
+
+        // Continue the animation frame loop until the WebGL context is lost.
+        redrawRequestId = currentWindow.requestAnimationFrame { animationFrameLoop() }
+    }
+
+    protected open fun redrawIfNeeded() {
+        // Check if the drawing buffer needs to resize to match its screen size, which requires a redrawn.
+        resize()
+
+        // Redraw the WebGL drawing buffer only when necessary.
+        if (!isRedrawRequested) return
+        isRedrawRequested = false
+        redrawFrame()
+    }
+
+    protected open fun redrawFrame() {
+        val isPickMode = frame.isPickMode
+        try {
+            // Prepare to redraw and notify redraw callbacks that a redrawn is about to occur.
+            if (!isPickMode) callRedrawCallbacks(RedrawStage.BEFORE_REDRAW)
+            // Render frame. Propagate redraw requests submitted during rendering.
+            if (engine.renderFrame(frame) || isPickMode) requestRedraw()
+            // Redraw the WebGL drawing buffer.
+            engine.drawFrame(frame)
+        } catch (e: Exception) {
+            logMessage(
+                ERROR, "WorldWindow", "drawFrame", "Exception occurred during redrawing.\n$e"
+            )
+        } finally {
+            // Recycle each frame to be reused
+            frame.recycle()
+            // Notify redraw callbacks that a redrawn has completed.
+            if (!isPickMode) callRedrawCallbacks(RedrawStage.AFTER_REDRAW)
+        }
+    }
+
+    protected open fun resize() {
+        // Check if canvas size is changed
+        val densityFactor = currentWindow.devicePixelRatio.toFloat()
+        val width = (gl.canvas.clientWidth * densityFactor).roundToInt()
+        val height = (gl.canvas.clientHeight * densityFactor).roundToInt()
+
+        if (engine.viewport.isEmpty || gl.canvas.width != width || gl.canvas.height != height || engine.densityFactor != densityFactor) {
+            // Make the canvas drawing buffer size match its screen size.
+            gl.canvas.width = width
+            gl.canvas.height = height
+
+            // Set the WebGL viewport to match the canvas drawing buffer size.
+            engine.setupViewport(gl.drawingBufferWidth, gl.drawingBufferHeight, densityFactor)
+
+            // Cause this WorldWindow to redraw with the new size.
+            requestRedraw()
+        }
+    }
+
+    protected open fun callRedrawCallbacks(stage: RedrawStage) = redrawCallbacks.forEach {
+        try {
+            it(this, stage)
+        } catch (e: Exception) {
+            // Keep going. Execute the rest of the callbacks.
+            log(ERROR, "Exception calling redraw callback.\n$e")
+        }
+    }
+
+    companion object {
+        /** Squared tap-vs-drag threshold in CSS pixels for the click-after-drag suppressor in the init block. */
+        private const val CLICK_TAP_SLOP_SQUARED = 100.0
+
+        /**
+         * Creates the WebGL context for the canvas. Prefers WebGL2 (enables sized internal
+         * formats and the MSAA-resolve path that antialiases surface shapes) and falls back
+         * to WebGL1. The rest of the engine keeps the legacy [WebGLRenderingContext] type;
+         * [WebKgl] detects WebGL2 at runtime and routes multisample APIs accordingly.
+         */
+        protected fun createContext(canvas: HTMLCanvasElement): WebGLRenderingContext {
+            // Disable browser MSAA on the default framebuffer — it leaves seams between
+            // terrain tiles. Surface-shape AA comes from our own multisample FBO instead.
+            val glAttrs = WebGLContextAttributes(antialias = false)
+            // kxb's getContext returns the bare `RenderingContext?` marker (not a JsAny), so go
+            // through a raw js() accessor to keep the result as JsAny for the realm-safe probe below.
+            val context: JsAny? = domGetContext(canvas, "webgl2", glAttrs)
+                ?: domGetContext(canvas, "webgl", glAttrs)
+                ?: domGetContext(canvas, "experimental-webgl", glAttrs)
+            // Cross-window `instanceof` can fail, so identify the context by constructor name.
+            val ctorName = context?.unsafeCast<JsObjectWithConstructorName>()?.constructor?.name
+            require(ctorName == "WebGL2RenderingContext" || ctorName == "WebGLRenderingContext") {
+                logMessage(ERROR, "WorldWindow", "createContext", "webglNotSupported")
+            }
+            return context.unsafeCast<WebGLRenderingContext>()
+        }
+    }
+
+    enum class RedrawStage {
+        /**
+         * Indicates that a redrawn callback has been called immediately after a redrawn.
+         */
+        AFTER_REDRAW,
+        /**
+         * Indicates that a redrawn callback has been called immediately before a redrawn.
+         */
+        BEFORE_REDRAW;
+    }
+}
+
+// Top-level js() accessor (Kotlin/Wasm requires js() bodies at file scope). Returns the raw WebGL
+// context as JsAny because kxb's HTMLCanvasElement.getContext is typed to the non-JsAny marker
+// `RenderingContext?`, which can't feed the constructor-name probe in createContext.
+@Suppress("UNUSED_PARAMETER")
+private fun domGetContext(canvas: HTMLCanvasElement, contextId: String, attrs: WebGLContextAttributes): JsAny? =
+    js("canvas.getContext(contextId, attrs)")

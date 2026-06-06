@@ -1,10 +1,10 @@
 [versions]
 annotation = "1.10.0"
-kotlin-wrappers = "2026.5.6"
 appcompat = "1.7.1"
 activity-compose = "1.13.0"
-compose-multiplatform = "1.11.0"
+compose-multiplatform = "1.11.1"
 lifecycle-compose = "2.10.0"
+browser = "0.5.0"
 coroutines = "1.11.0"
 datetime = "0.8.0"
 desugar = "2.1.5"
@@ -13,10 +13,10 @@ junit = "1.3.0"
 ktor = "3.5.0"
 lwjgl = "3.4.1"
 material = "1.14.0"
-mil-sym-android = "2.10.3"
-mil-sym-java = "2.7.3"
-mil-sym-ts = "2.8.3"
-mockk = "1.14.9"
+mil-sym-android = "2.11.0"
+mil-sym-java = "2.8.0"
+mil-sym-ts = "2.9.0"
+mockk = "1.14.11"
 geopackage-core = "6.6.7"
 geopackage-android = "6.7.5"
 geopackage-java = "6.6.5"
@@ -49,13 +49,14 @@ compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", v
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
 compose-html-core = { module = "org.jetbrains.compose.html:html-core", version.ref = "compose-multiplatform" }
 
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "browser" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-serialization-xml = { module = "io.github.pdvrieze.xmlutil:serialization", version.ref = "xmlutil" }
-kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
@@ -102,6 +103,3 @@ javafx-graphics = { module = "org.openjfx:javafx-graphics", version.ref = "javaf
 javafx-media = { module = "org.openjfx:javafx-media", version.ref = "javafx" }
 javafx-swing = { module = "org.openjfx:javafx-swing", version.ref = "javafx" }
 webp-imageio = { module = "com.github.usefulness:webp-imageio", version.ref = "webp-imageio" }
-
-kotlin-wrappers-bom = { module = "org.jetbrains.kotlin-wrappers:kotlin-wrappers-bom", version.ref = "kotlin-wrappers" }
-kotlin-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser" }

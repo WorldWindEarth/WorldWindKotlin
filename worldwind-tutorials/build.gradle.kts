@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -21,6 +24,21 @@ kotlin {
     }
     js(IR) {
         binaries.executable()
+        browser {
+            commonWebpackConfig {
+                cssSupport {
+                    enabled.set(true)
+                }
+            }
+        }
+    }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        binaries.executable()
+        // Target-level opt-in so it also covers the shared webMain source set.
+        compilerOptions {
+            optIn.add("kotlin.js.ExperimentalWasmJsInterop")
+        }
         browser {
             commonWebpackConfig {
                 cssSupport {
@@ -58,26 +76,28 @@ kotlin {
             enable = true
         }
     }
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("nonIos") {
+                group("web") {
+                    withJs()
+                    withWasmJs()
+                }
+                group("jvmCommon") {
+                    withJvm()
+                    withCompilations { it.target.platformType == KotlinPlatformType.androidJvm }
+                }
+            }
+        }
+    }
     sourceSets {
         commonMain {
             dependencies {
                 implementation(project(":worldwind"))
             }
         }
-        // Mirrors the :worldwind module's source-set hierarchy. Tutorials that exercise
-        // MIL-STD-2525 live here so iOS doesn't try to compile a tutorial for a feature
-        // it doesn't support.
-        val nonIosMain by creating {
-            dependsOn(commonMain.get())
-        }
-        // Shared between JVM desktop and Android — tutorials that use JVM-only APIs
-        // (java.io.File, RandomAccessFile via DTED.read(file), …) but should still be
-        // accessible from Android fragments. Mirrors `:worldwind`'s `jvmCommonMain`.
-        val jvmCommonMain by creating {
-            dependsOn(nonIosMain)
-        }
         androidMain {
-            dependsOn(jvmCommonMain)
             dependencies {
                 implementation(libs.androidx.appcompat)
                 implementation(libs.kotlinx.coroutines.android)
@@ -85,7 +105,6 @@ kotlin {
             }
         }
         jvmMain {
-            dependsOn(jvmCommonMain)
             dependencies {
                 // Make Ktor's OkHttp engine + OkHttpClient types visible to the tutorial-only
                 // permissive-SSL hook (`installPermissiveSslForTutorials`). The engine module
@@ -114,20 +133,20 @@ kotlin {
                 implementation("org.openjfx:javafx-swing:$javafxVersion:$javafxPlatform")
             }
         }
-        jsMain {
-            dependsOn(nonIosMain)
+        getByName("webMain") {
+            // Source-set opt-in so the shared-metadata compile of webMain is covered too.
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
+            dependencies {
+                implementation(libs.kotlinx.browser)
+            }
         }
-        val iosX64Main by getting
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
-        val iosMain by creating {
-            dependsOn(commonMain.get())
-            iosX64Main.dependsOn(this)
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
-            // export() in the framework block requires the dependency to be visible as `api`
-            // on the consuming source set. commonMain declares it as `implementation`; iOS
-            // promotes it here so the Obj-C header re-exports :worldwind types.
+        jsMain {
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
+        }
+        wasmJsMain {
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
+        }
+        getByName("iosMain") {
             dependencies {
                 api(project(":worldwind"))
             }

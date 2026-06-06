@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WorldWind Compose Sample (Wasm)</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: black;
+        }
+        /* Skia-canvas Compose/Web cannot embed WebGL, so the globe runs on its own full-window
+           WebGL canvas (id "worldwind-canvas") inserted behind Compose's surface. Keep the Compose
+           canvas transparent so the globe shows through. */
+        canvas {
+            background: transparent !important;
+        }
+        /* Let pointer/touch/wheel events fall through the (UI-less) Compose surface to the globe so
+           pan/zoom/rotate work. An app that overlays interactive Compose UI would instead re-enable
+           pointer-events on its own controls rather than on the whole surface. */
+        body > canvas {
+            pointer-events: none;
+        }
+        #worldwind-canvas {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+<script src="worldwind-compose-samples.js"></script>
+</body>
+</html>

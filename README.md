@@ -4,6 +4,7 @@
 ![badge-ios](http://img.shields.io/badge/platform-ios-CDCDCD.svg?style=flat)
 ![badge-jvm](http://img.shields.io/badge/platform-jvm-DB413D.svg?style=flat)
 ![badge-js](http://img.shields.io/badge/platform-js-F8DB5D.svg?style=flat)
+![badge-wasm](http://img.shields.io/badge/platform-wasm-654FF0.svg?style=flat)
 
 # WorldWind Kotlin
 

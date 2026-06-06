@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -24,6 +27,21 @@ kotlin {
         }
     }
     js(IR) {
+        browser {
+            commonWebpackConfig {
+                cssSupport {
+                    enabled.set(true)
+                }
+            }
+        }
+    }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        // Opt in at the target level so it also covers the shared webMain files when they are
+        // compiled for wasm; the js compilation of webMain is unaffected.
+        compilerOptions {
+            optIn.add("kotlin.js.ExperimentalWasmJsInterop")
+        }
         browser {
             commonWebpackConfig {
                 cssSupport {
@@ -65,6 +83,21 @@ kotlin {
             consumerKeepRules.files.add(file("proguard-rules.pro"))
         }
     }
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("nonIos") {
+                group("web") {
+                    withJs()
+                    withWasmJs()
+                }
+                group("jvmCommon") {
+                    withJvm()
+                    withCompilations { it.target.platformType == KotlinPlatformType.androidJvm }
+                }
+            }
+        }
+    }
     sourceSets {
         commonMain {
             dependencies {
@@ -85,18 +118,20 @@ kotlin {
                 implementation(libs.moko.resources.test)
             }
         }
-        // Intermediate source set for everything-except-iOS. MIL-STD-2525 expects/abstracts
-        // live here so iOS doesn't have to provide no-op actuals — the iOS framework
-        // genuinely does not include MIL-STD-2525, and trying to use those types from iOS
-        // is a compile error.
-        val nonIosMain by creating {
-            dependsOn(commonMain.get())
+        getByName("webMain") {
+            // Opt in at the source-set level so the shared-metadata compilation (compileWebMainKotlinMetadata)
+            // is covered, not just the per-target compilations.
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
+            dependencies {
+                implementation(libs.kotlinx.browser)
+                // Shared by both browser targets (Ktor publishes js + wasmJs variants; the npm
+                // packages back the per-target MIL-STD-2525 @JsModule bindings).
+                implementation(libs.ktor.client.js)
+                implementation(npm("canvg", ">= 4.0.3"))
+                implementation(npm("@armyc2.c5isr.renderer/mil-sym-ts-web", libs.versions.mil.sym.ts.get()))
+            }
         }
-        val nonIosTest by creating {
-            dependsOn(commonTest.get())
-        }
-        val jvmCommonMain by creating {
-            dependsOn(nonIosMain)
+        getByName("jvmCommonMain") {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.pngj)
@@ -106,15 +141,13 @@ kotlin {
                 compileOnly(libs.ormlite.core)
             }
         }
-        val jvmCommonTest by creating {
-            dependsOn(nonIosTest)
+        getByName("jvmCommonTest") {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.mockk.jvm)
             }
         }
         jvmMain {
-            dependsOn(jvmCommonMain)
             dependencies {
                 implementation(libs.gluegen)
                 implementation(libs.jogl)
@@ -161,48 +194,30 @@ kotlin {
                 compileOnly("org.openjfx:javafx-swing:$javafxVersion:$javafxPlatform")
             }
         }
-        jvmTest {
-            dependsOn(jvmCommonTest)
-        }
         jsMain {
-            dependsOn(nonIosMain)
-            dependencies {
-                implementation(libs.ktor.client.js)
-                implementation(project.dependencies.platform(libs.kotlin.wrappers.bom))
-                implementation(libs.kotlin.browser)
-                implementation(npm("canvg", ">= 4.0.3"))
-                implementation(npm("@armyc2.c5isr.renderer/mil-sym-ts-web", libs.versions.mil.sym.ts.get()))
-            }
+            // Mirror webMain's opt-in (a dependent source set must declare all of its dependency's
+            // opt-ins); JsAny/js() interop is used in the shared webMain files.
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
         }
         jsTest {
-            dependsOn(nonIosTest)
             dependencies {
                 implementation(kotlin("test-js"))
             }
         }
-        val iosX64Main by getting
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
-        val iosMain by creating {
-            dependsOn(commonMain.get())
-            iosX64Main.dependsOn(this)
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
+        wasmJsMain {
+            languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
+        }
+        wasmJsTest {
+            dependencies {
+                implementation(kotlin("test-wasm-js"))
+            }
+        }
+        getByName("iosMain") {
             dependencies {
                 implementation(libs.ktor.client.darwin)
             }
         }
-        val iosX64Test by getting
-        val iosArm64Test by getting
-        val iosSimulatorArm64Test by getting
-        val iosTest by creating {
-            dependsOn(commonTest.get())
-            iosX64Test.dependsOn(this)
-            iosArm64Test.dependsOn(this)
-            iosSimulatorArm64Test.dependsOn(this)
-        }
         androidMain {
-            dependsOn(jvmCommonMain)
             dependencies {
                 implementation(libs.androidx.annotation)
                 implementation(libs.androidx.appcompat.resources)
@@ -211,9 +226,7 @@ kotlin {
                 implementation(libs.ormlite.android)
             }
         }
-        getByName("androidHostTest") {
-            dependsOn(jvmCommonTest)
-        }
+        // androidHostTest -> jvmCommonTest is wired automatically by the hierarchy template.
         getByName("androidDeviceTest") {
             dependencies {
                 implementation(kotlin("test-junit"))
