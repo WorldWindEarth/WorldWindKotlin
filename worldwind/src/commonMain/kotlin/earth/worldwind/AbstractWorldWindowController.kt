@@ -120,6 +120,9 @@ abstract class AbstractWorldWindowController {
         var lon = lookAt.position.longitude
 
         val mpp = engine.pixelSizeAtDistance(max(1.0, lookAt.range)) * gestureToViewportPixels
+        // A fling can keep ticking while the viewport height is 0 (layout transition / teardown),
+        // making mpp infinite; the radians math below would then produce NaN and crash Angle.
+        if (!mpp.isFinite()) return
         val forwardMeters = deltaPxY * mpp
         val sideMeters = -deltaPxX * mpp
         val globeRadius = engine.globe.getRadiusAt(lat, lon)
@@ -158,6 +161,8 @@ abstract class AbstractWorldWindowController {
      */
     protected open fun applyPanDelta2D(deltaPxX: Double, deltaPxY: Double) {
         val mpp = engine.pixelSizeAtDistance(max(1.0, lookAt.range)) * gestureToViewportPixels
+        // See applyPanDelta3D: a zero-height viewport makes mpp infinite, poisoning the result with NaN.
+        if (!mpp.isFinite()) return
         val forwardMeters = deltaPxY * mpp
         val sideMeters = -deltaPxX * mpp
 
