@@ -31,6 +31,7 @@ open class ImageDecoder(val context: Context): Closeable {
             imageSource.isResource -> decodeResource(imageSource.asResource(), imageOptions)
             imageSource.isFile -> decodeFile(imageSource.asFile(), imageOptions)
             imageSource.isUrl -> decodeUrl(imageSource.asUrl(), imageOptions)
+            imageSource.isZipEntry -> decodeZipEntry(imageSource.asZipEntry(), imageOptions)
             else -> decodeUnrecognized(imageSource)
         }?.let {
             // Apply bitmap transformation if required
@@ -49,8 +50,16 @@ open class ImageDecoder(val context: Context): Closeable {
                 bitmap
             }
 
-    protected open fun decodeFile(file: File, imageOptions: ImageOptions?): Bitmap? =
-        BitmapFactory.decodeFile(file.absolutePath, bitmapFactoryOptions(imageOptions))
+    protected open fun decodeFile(file: File, imageOptions: ImageOptions?): Bitmap? {
+        val options = bitmapFactoryOptions(imageOptions)
+        val cap = imageOptions?.maxDimension ?: 0
+        if (cap > 0) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            options.inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, cap)
+        }
+        return BitmapFactory.decodeFile(file.absolutePath, options)
+    }
 
     protected open suspend fun decodeUrl(url: URL, imageOptions: ImageOptions?): Bitmap? {
         val response = httpClient.get(url) {
@@ -62,8 +71,36 @@ open class ImageDecoder(val context: Context): Closeable {
         }
         return if (response.status == HttpStatusCode.OK) {
             val bytes = response.readRawBytes()
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bitmapFactoryOptions(imageOptions))
+            val options = bitmapFactoryOptions(imageOptions)
+            val cap = imageOptions?.maxDimension ?: 0
+            if (cap > 0) {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                options.inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, cap)
+            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         } else null // Result is not an image, access denied or server error
+    }
+
+    /** Decodes a texture straight out of an open [ZipFile][java.util.zip.ZipFile] entry (no extraction). */
+    protected open fun decodeZipEntry(ref: ZipEntryImageRef, imageOptions: ImageOptions?): Bitmap? {
+        val entry = ref.zip.getEntry(ref.entry) ?: return null
+        val options = bitmapFactoryOptions(imageOptions)
+        val cap = imageOptions?.maxDimension ?: 0
+        if (cap > 0) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            ref.zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, bounds) }
+            options.inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, cap)
+        }
+        return ref.zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, options) }
+    }
+
+    /** Largest power-of-two subsample factor keeping `max(width, height) <= maxDimension`. */
+    protected fun sampleSizeFor(width: Int, height: Int, maxDimension: Int): Int {
+        if (maxDimension <= 0 || width <= 0 || height <= 0) return 1
+        var sample = 1
+        while (maxOf(width, height) / sample > maxDimension) sample *= 2
+        return sample
     }
 
     protected open fun decodeUnrecognized(imageSource: ImageSource): Bitmap? {

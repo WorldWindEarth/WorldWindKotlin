@@ -51,11 +51,12 @@ open class ImageDecoder {
 
     open suspend fun decodeImage(imageSource: ImageSource, imageOptions: ImageOptions?): ImageData? =
         withContext(Dispatchers.Default) {
+            val cap = imageOptions?.maxDimension ?: 0
             val data: ImageData? = when {
-                imageSource.isResource -> decodeResource(imageSource.asResource())
-                imageSource.isUrl -> decodeUrl(imageSource.asUrl())
-                imageSource.isImageFactory -> decodeImageFactory(imageSource.asImageFactory())
-                imageSource.isUIImage -> decodeUIImage(imageSource.asUIImage())
+                imageSource.isResource -> decodeResource(imageSource.asResource(), cap)
+                imageSource.isUrl -> decodeUrl(imageSource.asUrl(), cap)
+                imageSource.isImageFactory -> decodeImageFactory(imageSource.asImageFactory(), cap)
+                imageSource.isUIImage -> decodeUIImage(imageSource.asUIImage(), cap)
                 else -> {
                     log(WARN, "Unrecognized image source '$imageSource'")
                     null
@@ -65,7 +66,7 @@ open class ImageDecoder {
             data?.let { imageSource.postprocessor?.process(it) ?: it }
         }
 
-    protected open suspend fun decodeUrl(url: String): ImageData? {
+    protected open suspend fun decodeUrl(url: String, maxDimension: Int = 0): ImageData? {
         return try {
             val response = httpClient.get(url) {
                 headers {
@@ -76,14 +77,14 @@ open class ImageDecoder {
                 }
             }
             val bytes = response.readRawBytes()
-            decodeBytes(bytes)
+            decodeBytes(bytes, maxDimension)
         } catch (e: Throwable) {
             log(WARN, "Image fetch failed for $url: ${e.message}")
             null
         }
     }
 
-    protected open fun decodeResource(resource: ImageResource): ImageData? {
+    protected open fun decodeResource(resource: ImageResource, maxDimension: Int = 0): ImageData? {
         // moko-resources 0.26.x iOS exposes `toUIImage(): UIImage?` which loads the asset
         // from the bundle (with whatever .car/asset-catalog magic moko applied at build
         // time). Wrap any failure as `null` so retrieval falls back through
@@ -94,7 +95,7 @@ open class ImageDecoder {
                 log(WARN, "ImageResource toUIImage returned null for $resource")
                 null
             } else {
-                decodeUIImage(uiImage)
+                decodeUIImage(uiImage, maxDimension)
             }
         } catch (e: Throwable) {
             log(WARN, "ImageResource decode failed: ${e.message}")
@@ -102,27 +103,27 @@ open class ImageDecoder {
         }
     }
 
-    protected open suspend fun decodeImageFactory(factory: ImageSource.ImageFactory): ImageData? {
+    protected open suspend fun decodeImageFactory(factory: ImageSource.ImageFactory, maxDimension: Int = 0): ImageData? {
         return try {
-            factory.createImage()?.let { decodeUIImage(it) }
+            factory.createImage()?.let { decodeUIImage(it, maxDimension) }
         } catch (e: Throwable) {
             log(WARN, "ImageFactory.createImage failed: ${e.message}")
             null
         }
     }
 
-    protected open fun decodeBytes(bytes: ByteArray): ImageData? {
+    protected open fun decodeBytes(bytes: ByteArray, maxDimension: Int = 0): ImageData? {
         if (bytes.isEmpty()) return null
         return bytes.usePinned { pinned ->
             val nsdata = NSData.dataWithBytes(pinned.addressOf(0), bytes.size.toULong())
-            decodeNSData(nsdata)
+            decodeNSData(nsdata, maxDimension)
         }
     }
 
     /** Convenience: decode raw image bytes (PNG, JPEG, etc.) into RGBA via UIImage + CGImage. */
-    protected open fun decodeNSData(data: NSData): ImageData? {
+    protected open fun decodeNSData(data: NSData, maxDimension: Int = 0): ImageData? {
         val uiImage = UIImage.imageWithData(data) ?: return null
-        return decodeUIImage(uiImage)
+        return decodeUIImage(uiImage, maxDimension)
     }
 
     /**
@@ -130,11 +131,20 @@ open class ImageDecoder {
      * into a RGBA8 `CGBitmapContext` whose backing store IS the returned [ByteArray] —
      * saves a copy versus reading back via `CGBitmapContextGetData`.
      */
-    protected open fun decodeUIImage(uiImage: UIImage): ImageData? {
+    protected open fun decodeUIImage(uiImage: UIImage, maxDimension: Int = 0): ImageData? {
         val cgImage = uiImage.CGImage ?: return null
-        val width = CGImageGetWidth(cgImage).toInt()
-        val height = CGImageGetHeight(cgImage).toInt()
-        if (width <= 0 || height <= 0) return null
+        val srcWidth = CGImageGetWidth(cgImage).toInt()
+        val srcHeight = CGImageGetHeight(cgImage).toInt()
+        if (srcWidth <= 0 || srcHeight <= 0) return null
+
+        // Downscale to the cap so the retained RGBA buffer stays bounded (CG scales on draw).
+        var width = srcWidth
+        var height = srcHeight
+        if (maxDimension > 0 && maxOf(srcWidth, srcHeight) > maxDimension) {
+            val scale = maxDimension.toDouble() / maxOf(srcWidth, srcHeight)
+            width = maxOf(1, (srcWidth * scale).toInt())
+            height = maxOf(1, (srcHeight * scale).toInt())
+        }
 
         val rowBytes = width * 4
         val out = ByteArray(rowBytes * height)

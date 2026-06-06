@@ -195,6 +195,10 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      * Indicates whether this image source is an [URL].
      */
     val isUrl get() = source is URL
+    /**
+     * Indicates whether this image source is a [ZipEntryImageRef] (a texture inside an open archive).
+     */
+    val isZipEntry get() = source is ZipEntryImageRef
 
     /**
      * @return the source Android or multi-platform resource identifier.
@@ -223,6 +227,11 @@ actual open class ImageSource protected constructor(source: Any): AbstractSource
      * @return the source [URL]. Call [isUrl] to determine whether the source is an [URL].
      */
     fun asUrl() = source as URL
+
+    /**
+     * @return the source [ZipEntryImageRef]. Call [isZipEntry] to determine whether the source is one.
+     */
+    fun asZipEntry() = source as ZipEntryImageRef
 
     override fun toString() = when (source) {
         is ImageResource -> "Resource: $source"

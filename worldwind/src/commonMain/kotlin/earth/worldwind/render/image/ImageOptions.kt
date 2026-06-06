@@ -32,4 +32,9 @@ open class ImageOptions @JvmOverloads constructor(
      * Initial height for image that has no dimensions (e.g. SVG image)
      */
     var initialHeight = 0
+    /**
+     * Caps the decoded image to this maximum width/height (downsampled at decode time when possible).
+     * `0` means uncapped. Used to bound memory for large textures such as photogrammetry atlases.
+     */
+    var maxDimension = 0
 }

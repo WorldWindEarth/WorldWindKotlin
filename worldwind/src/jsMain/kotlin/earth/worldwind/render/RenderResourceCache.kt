@@ -256,8 +256,17 @@ actual open class RenderResourceCache(
             height = options.initialHeight
         }
 
+        // Cap the texture to maxDimension (downscaled via canvas) to bound memory for large atlases
+        val cap = options?.maxDimension ?: 0
+        val capped = cap > 0 && maxOf(width, height) > cap
+        if (capped) {
+            val scale = cap.toDouble() / maxOf(width, height)
+            width = maxOf(1, (width * scale).toInt())
+            height = maxOf(1, (height * scale).toInt())
+        }
+
         // Create image texture and apply texture parameters
-        val resize = options?.wrapMode == WrapMode.REPEAT && !(isPowerOfTwo(width) && isPowerOfTwo(height))
+        val resize = capped || (options?.wrapMode == WrapMode.REPEAT && !(isPowerOfTwo(width) && isPowerOfTwo(height)))
         val texture = if (resize) resizeImage(image, width, height).let { ImageTexture(it, it.width, it.height) }
         else ImageTexture(image, width, height)
         if (options?.resamplingMode == ResamplingMode.NEAREST_NEIGHBOR) {

@@ -7,6 +7,7 @@ import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
@@ -26,10 +27,18 @@ class ColladaScene(
     position: Position,
     var dirPath: String,
     sceneCatalog: ColladaSceneCatalog,
-    val unitScale: Double = 1.0
-) : AbstractRenderable(), IRayIntersectable {
+    val unitScale: Double = 1.0,
+    upAxis: ColladaUpAxis = ColladaUpAxis.Y_UP
+) : AbstractRenderable(), IRayIntersectable, AutoCloseable {
     var position: Position = Position(position.latitude, position.longitude, position.altitude)
         set(value) { field.copy(value); invalidate() }
+    /**
+     * COLLADA `<up_axis>`. WorldWind's local frame is ENU (Z = up), so the model's declared up is
+     * rotated onto local +Z in [buildTransformationMatrix] — without this a [ColladaUpAxis.Y_UP]
+     * photogrammetry tile renders standing vertical instead of flat on the ground.
+     */
+    var upAxis: ColladaUpAxis = upAxis
+        set(value) { field = value; invalidate() }
     var altitudeMode = AltitudeMode.ABSOLUTE
         set(value) { field = value; invalidate() }
     var xRotation = 0.0
@@ -63,9 +72,27 @@ class ColladaScene(
             localBoundingRadius = -1.0 // depends on whether nodeWorldMatrix is applied
         }
     var useTexturePaths = true
+    /**
+     * Caps each texture's decoded width/height (downsampled at decode time). Default 2048 keeps
+     * photogrammetry atlases (e.g. 8192² = 256 MB decoded) within a mobile heap. Set 0 to disable.
+     */
+    var textureMaxDimension = 2048
     var nodesToHide = setOf<String>()
     var hideNodes = false
     var imageSourceFactory: ((String) -> ImageSource?)? = null
+    /**
+     * Cleanup hook invoked by [close], e.g. to close a KMZ archive whose entries back this scene's
+     * textures (see `loadColladaKmz`). Scenes that own such a resource must be [close]d when discarded.
+     */
+    var closeAction: (() -> Unit)? = null
+
+    /** Releases external resources held by this scene (idempotent). Textures stop loading afterwards. */
+    override fun close() {
+        closeAction?.invoke()
+        closeAction = null
+        imageSourceFactory = null // stop creating sources backed by the now-released resource (e.g. a closed KMZ)
+        imageSourceCache.clear()
+    }
 
     private val imageSourceCache = mutableMapOf<String, ImageSource?>()
     private val nodes: List<ColladaNode> = sceneCatalog.children
@@ -83,6 +110,12 @@ class ColladaScene(
     private var transformValid = false
     private var normalsRewritten = false
     private var cachedTransformedPoints: List<List<Vec3>>? = null
+    // Terrain-state signature the cached transform/points were built against. VE scales every altitude
+    // (incl. ABSOLUTE) in Globe.geographicToCartesian, so a VE change invalidates all modes; the elevation
+    // timestamp and globe state only move terrain-relative placements. See [checkTerrainState].
+    private var lastVE = 1.0
+    private var lastElevationTimestamp = 0L
+    private var lastGlobeState: Globe.State? = null
     // Local-space radius covering every vertex after node.worldMatrix. World radius adds
     // the user xyz-translation and scales by scale × unitScale. Invalidated when normals
     // are recomputed (rewriteBufferNormals expands indexed meshes) or localTransforms toggles.
@@ -119,12 +152,21 @@ class ColladaScene(
         for (child in node.children) flattenNode(child)
     }
 
-    private fun invalidate() {
+    /**
+     * Marks the cached world transform and ray-intersection geometry stale so they are rebuilt on the
+     * next render/pick. Assigning [position], [altitudeMode], the rotation/translation/scale properties
+     * already calls this; invoke it manually only after mutating one of them in place — e.g. correcting
+     * a KMZ model's altitude via `scene.position.altitude += offset; scene.invalidate()`. Terrain inputs
+     * (vertical exaggeration, and for terrain-relative modes the elevation timestamp / globe state) trigger
+     * it automatically via [checkTerrainState] so the model follows the resolved terrain.
+     */
+    fun invalidate() {
         transformValid = false
         cachedTransformedPoints = null
     }
 
     override fun doRender(rc: RenderContext) {
+        checkTerrainState(rc)
         rc.geographicToCartesian(position.latitude, position.longitude, position.altitude, altitudeMode, placePoint)
 
         if (computedNormals && !normalsRewritten) {
@@ -297,7 +339,10 @@ class ColladaScene(
                     val imageSource = imageSourceFactory?.let { factory ->
                         imageSourceCache.getOrPut(fullPath) { factory.invoke(fullPath) }
                     } ?: ImageSource.fromUrlString(fullPath)
-                    es.texture = rc.getTexture(imageSource, ImageOptions().apply { this.wrapMode = wrapMode })
+                    es.texture = rc.getTexture(imageSource, ImageOptions().apply {
+                        this.wrapMode = wrapMode
+                        this.maxDimension = textureMaxDimension
+                    })
                 }
             }
 
@@ -331,14 +376,53 @@ class ColladaScene(
         localBoundingRadius = sqrt(maxSquared)
     }
 
+    /**
+     * Invalidates the cached transform/picking geometry when the terrain inputs it was built against
+     * change — vertical exaggeration (scales every altitude, so all modes), and (terrain-relative modes
+     * only) the elevation-model timestamp and globe state. A settled scene keeps both caches, so we don't
+     * re-transform every vertex per frame; the model still follows elevation as it streams in.
+     */
+    private fun checkTerrainState(rc: RenderContext) {
+        val ve = rc.globe.verticalExaggeration
+        val timestamp = rc.elevationModelTimestamp
+        val globeState = rc.globeState
+        val isTerrainDependent = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
+        val terrainMoved = isTerrainDependent && (timestamp != lastElevationTimestamp || globeState != lastGlobeState)
+        if (ve != lastVE || terrainMoved) {
+            invalidate()
+            lastVE = ve
+            lastElevationTimestamp = timestamp
+            lastGlobeState = globeState
+        }
+    }
+
     private fun buildTransformationMatrix(rc: RenderContext) {
         rc.globe.geographicToCartesianTransform(position.latitude, position.longitude, position.altitude, transformationMatrix)
+        transformationMatrix.setTranslation(placePoint.x, placePoint.y, placePoint.z)
         transformationMatrix.multiplyByRotation(1.0, 0.0, 0.0, xRotation.degrees)
         transformationMatrix.multiplyByRotation(0.0, 1.0, 0.0, yRotation.degrees)
         transformationMatrix.multiplyByRotation(0.0, 0.0, 1.0, zRotation.degrees)
         val totalScale = scale * unitScale
         transformationMatrix.multiplyByScale(totalScale, totalScale, totalScale)
         transformationMatrix.multiplyByTranslation(xTranslation, yTranslation, zTranslation)
+        // COLLADA up-axis → WorldWind ENU (local Z = up): rotate the model's declared up onto +Z.
+        // Applied last so it wraps the fully node-assembled model.
+        //
+        // The COLLADA spec only defines the up-axis conversion (Y_UP→Z_UP = +90° about X); it assigns NO
+        // geographic meaning to the horizontal axes, so it can't say which way is north. The naive +90°X-only
+        // mapping lands the model's forward +Z on geographic South. For geo-referenced KMZ/KML models that
+        // facing is defined by KML (heading 0 → North-aligned) — the convention ATAK reproduces and that
+        // OpenDroneMap authors against. So Y_UP gets an extra 180° about up (forward → North); without it an
+        // ODM "_geo_rot" tile renders heading-flipped 180°. Cosmetic for bare, manually-placed .dae (facing is
+        // developer-chosen); override per model with zRotation if an asset follows the opposite convention.
+        when (upAxis) {
+            ColladaUpAxis.Z_UP -> {} // already Z-up
+            ColladaUpAxis.X_UP -> transformationMatrix.multiplyByRotation(0.0, 1.0, 0.0, (-90.0).degrees)
+            ColladaUpAxis.Y_UP -> {
+                transformationMatrix.multiplyByRotation(0.0, 0.0, 1.0, 180.0.degrees) // forward → North (KML facing)
+                transformationMatrix.multiplyByRotation(1.0, 0.0, 0.0, 90.0.degrees)  // Y-up → Z-up
+            }
+        }
 
         val rx = atan2(transformationMatrix.m[6], transformationMatrix.m[10]).radians
         val cosY = sqrt(transformationMatrix.m[6] * transformationMatrix.m[6] + transformationMatrix.m[10] * transformationMatrix.m[10])
@@ -350,7 +434,7 @@ class ColladaScene(
         normalTransformMatrix.multiplyByRotation(0.0, 0.0, -1.0, rz)
     }
 
-    override fun rayIntersections(ray: Line, globe: earth.worldwind.globe.Globe): Array<Intersection> {
+    override fun rayIntersections(ray: Line, globe: Globe): Array<Intersection> {
         val transformedPts = cachedTransformedPoints ?: buildTransformedPoints().also { cachedTransformedPoints = it }
         val positions = RayIntersector.computeIntersections(globe, ray, transformedPts, ray.origin)
         return positions.map { pos ->
