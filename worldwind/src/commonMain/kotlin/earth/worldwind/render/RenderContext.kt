@@ -10,6 +10,7 @@ import earth.worldwind.globe.terrain.Terrain
 import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.LayerList
+import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource
@@ -103,7 +104,7 @@ open class RenderContext {
      * at the end of render and propagated to [earth.worldwind.draw.DrawContext.shadowState]
      * for the draw phase.
      */
-    var shadowState: earth.worldwind.layer.shadow.ShadowState? = null
+    var shadowState: ShadowState? = null
     /**
      * `true` when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is present in [layers]
      * for this frame. Computed once at the start of [earth.worldwind.WorldWind.renderFrame]

@@ -3,6 +3,7 @@ package earth.worldwind.formats.shapefile
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
 import earth.worldwind.layer.RenderableLayer
+import earth.worldwind.render.Renderable
 import earth.worldwind.shape.Path
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.PlacemarkAttributes
@@ -142,7 +143,7 @@ object ShapefileLayerFactory {
 
     /**
      * Iterate [shapefile] records, run [shapeConfiguration] per record, and pass each resulting
-     * [earth.worldwind.render.Renderable] back through [consumer] alongside the originating
+     * [Renderable] back through [consumer] alongside the originating
      * record. The base [createLayer] entry points use this internally; bulk feature sources
      * (e.g. [earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource]) call it directly to
      * intercept each renderable + its DBF attributes for cache encoding without rebuilding the
@@ -151,7 +152,7 @@ object ShapefileLayerFactory {
     fun emitRecordRenderables(
         shapefile: Shapefile,
         shapeConfiguration: (ShapefileRecord) -> ShapefileShapeConfiguration? = { ShapefileShapeConfiguration() },
-        consumer: (record: ShapefileRecord, renderable: earth.worldwind.render.Renderable) -> Unit,
+        consumer: (record: ShapefileRecord, renderable: Renderable) -> Unit,
     ) {
         for (record in shapefile.records) {
             val config = shapeConfiguration(record) ?: continue
@@ -165,7 +166,7 @@ object ShapefileLayerFactory {
         }
     }
 
-    private fun addPlacemarks(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
+    private fun addPlacemarks(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (Renderable) -> Unit) {
         val placemarkAttributes = config.placemarkAttributes ?: PlacemarkAttributes()
         val label = config.name ?: deriveLabel(record)
         for (part in record.parts) {
@@ -184,7 +185,7 @@ object ShapefileLayerFactory {
         }
     }
 
-    private fun addPolyline(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
+    private fun addPolyline(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (Renderable) -> Unit) {
         val attributes = config.attributes ?: ShapeAttributes()
         for ((partIndex, part) in record.parts.withIndex()) {
             val positions = pointsToPositions(record, partIndex, part, config)
@@ -203,7 +204,7 @@ object ShapefileLayerFactory {
         }
     }
 
-    private fun addPolygon(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
+    private fun addPolygon(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (Renderable) -> Unit) {
         val attributes = config.attributes ?: ShapeAttributes()
 
         // Shapefile polygon parts use ring-winding to mark outer vs inner rings:
@@ -263,7 +264,7 @@ object ShapefileLayerFactory {
         emit()
     }
 
-    private fun addMultiPatch(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (earth.worldwind.render.Renderable) -> Unit) {
+    private fun addMultiPatch(record: ShapefileRecord, config: ShapefileShapeConfiguration, consumer: (Renderable) -> Unit) {
         val partTypes = record.partTypes ?: return
         val zValues = record.zValues
         val attributes = config.attributes ?: ShapeAttributes()
