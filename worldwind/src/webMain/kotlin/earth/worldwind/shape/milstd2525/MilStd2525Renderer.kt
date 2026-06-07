@@ -22,10 +22,10 @@ interface MilStd2525Renderer {
     /**
      * Render a point symbol: the rasterized [canvas][MilStd2525Symbol.canvas] plus the symbol-center and
      * symbol-bounds geometry the placemark needs for its image/label offsets. Null if the renderer
-     * produced nothing. Both maps may be empty.
+     * produced nothing. Both maps are optional — null is treated as empty.
      */
     fun renderSymbol(
-        symbolCode: String, modifiers: Map<String, String>, attributes: Map<String, String>,
+        symbolCode: String, modifiers: Map<String, String>? = null, attributes: Map<String, String>? = null,
     ): MilStd2525Symbol?
 
     /**
@@ -39,7 +39,7 @@ interface MilStd2525Renderer {
         controlPoints: List<Location>,
         pointULLon: Double, pointULLat: Double,
         scale: Double, densityFactor: Float,
-        modifiers: Map<String, String>, attributes: Map<String, String>,
+        modifiers: Map<String, String>? = null, attributes: Map<String, String>? = null,
     ): List<MilStd2525Shape>
 
     /** Apply the renderer's current label-font settings (family / size / weight) to [textAttributes]. */

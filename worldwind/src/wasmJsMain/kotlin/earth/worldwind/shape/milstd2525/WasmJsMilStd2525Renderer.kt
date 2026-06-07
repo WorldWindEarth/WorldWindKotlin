@@ -38,12 +38,12 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
     }
 
     override fun renderSymbol(
-        symbolCode: String, modifiers: Map<String, String>, attributes: Map<String, String>,
+        symbolCode: String, modifiers: Map<String, String>?, attributes: Map<String, String>?,
     ): MilStd2525Symbol? {
         val info = MilStdIconRenderer.getInstance().RenderSVG(
             symbolCode,
-            modifiers.mapKeys { Modifiers.getModifierKey(it.key) ?: "" }.toJsMap(),
-            attributes.toJsMap(),
+            modifiers?.mapKeys { Modifiers.getModifierKey(it.key) ?: "" }?.toJsMap() ?: newJsMap(),
+            attributes?.toJsMap() ?: newJsMap(),
         ) ?: return null
         val symbolBounds = info.getSymbolBounds()
         return MilStd2525Symbol(
@@ -57,12 +57,12 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
 
     override fun renderTacticalGraphic(
         symbolID: String, controlPoints: List<Location>, pointULLon: Double, pointULLat: Double,
-        scale: Double, densityFactor: Float, modifiers: Map<String, String>, attributes: Map<String, String>,
+        scale: Double, densityFactor: Float, modifiers: Map<String, String>?, attributes: Map<String, String>?,
     ): List<MilStd2525Shape> {
         val ipc = PointConverter3D(pointULLon, pointULLat, scale * 96.0 * densityFactor * 39.3700787)
         val points = controlPoints.map { Point2D(it.longitude.inDegrees, it.latitude.inDegrees) }.toTypedArray()
         val mss = MilStdSymbol(symbolID, null, points.toJsArray(), null)
-        modifiers.forEach { (key, value) ->
+        modifiers?.forEach { (key, value) ->
             when (val modifierKey = Modifiers.getModifierKey(key) ?: "") {
                 Modifiers.AM_DISTANCE, Modifiers.AN_AZIMUTH, Modifiers.X_ALTITUDE_DEPTH -> {
                     val elements = value.split(",")
@@ -71,10 +71,10 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
                 else -> mss.setModifier(modifierKey, value)
             }
         }
-        attributes[MilStdAttributes.AltitudeMode]?.let { mss.setAltitudeMode(it) }
-        DistanceUnit.parse(attributes[MilStdAttributes.AltitudeUnits])?.let { mss.setAltitudeUnit(it) }
-        DistanceUnit.parse(attributes[MilStdAttributes.DistanceUnits])?.let { mss.setDistanceUnit(it) }
-        attributes[MilStdAttributes.LineWidth]?.toFloatOrNull()?.let {
+        attributes?.get(MilStdAttributes.AltitudeMode)?.let { mss.setAltitudeMode(it) }
+        DistanceUnit.parse(attributes?.get(MilStdAttributes.AltitudeUnits))?.let { mss.setAltitudeUnit(it) }
+        DistanceUnit.parse(attributes?.get(MilStdAttributes.DistanceUnits))?.let { mss.setDistanceUnit(it) }
+        attributes?.get(MilStdAttributes.LineWidth)?.toFloatOrNull()?.let {
             mss.setLineWidth((it * densityFactor).roundToInt().toDouble())
         }
         clsRenderer.renderWithPolylines(mss, ipc, null as Rectangle?)

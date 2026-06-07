@@ -79,7 +79,7 @@ actual open class MilStd2525Placemark actual constructor(
         private val onRender: (x: Double, y: Double, w: Double, h: Double) -> Unit
     ) : ImageSource.ImageFactory {
         override suspend fun createImage() = MilStd2525.renderSymbol(
-            symbolCode, symbolModifiers ?: emptyMap(), symbolAttributes ?: emptyMap()
+            symbolCode, symbolModifiers, symbolAttributes
         )?.let {
             // Apply the computed image offset after the renderer has created the image. This is essential for proper
             // placement as the offset may change depending on the level of detail, for instance, the absence or

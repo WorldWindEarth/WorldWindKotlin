@@ -54,7 +54,7 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         // shapes (geo-converted); here we only turn those into WorldWind Renderables.
         val rendered = MilStd2525.renderTacticalGraphic(
             symbolID, controlPoints, pointULLon, pointULLat, scale, rc.densityFactor,
-            modifiers ?: emptyMap(), attributes ?: emptyMap()
+            modifiers, attributes
         )
         for (shape in rendered) when (shape) {
             is MilStd2525Polyline -> {

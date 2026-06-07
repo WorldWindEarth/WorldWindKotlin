@@ -14,13 +14,13 @@ actual object MilStd2525 {
 
     /** Render [symbolCode] to a canvas + offset geometry ([MilStd2525Symbol]), or null if nothing was produced. */
     fun renderSymbol(
-        symbolCode: String, modifiers: Map<String, String>, attributes: Map<String, String>
+        symbolCode: String, modifiers: Map<String, String>? = null, attributes: Map<String, String>? = null
     ): MilStd2525Symbol? = renderer.renderSymbol(symbolCode, modifiers, attributes)
 
     /** Render a multipoint tactical graphic to a list of target-agnostic [MilStd2525Shape]s. */
     fun renderTacticalGraphic(
         symbolID: String, controlPoints: List<Location>, pointULLon: Double, pointULLat: Double,
-        scale: Double, densityFactor: Float, modifiers: Map<String, String>, attributes: Map<String, String>
+        scale: Double, densityFactor: Float, modifiers: Map<String, String>? = null, attributes: Map<String, String>? = null
     ) = renderer.renderTacticalGraphic(
         symbolID, controlPoints, pointULLon, pointULLat, scale, densityFactor, modifiers, attributes
     )
