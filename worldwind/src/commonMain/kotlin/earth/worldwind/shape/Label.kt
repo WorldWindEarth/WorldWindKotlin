@@ -85,13 +85,19 @@ open class Label @JvmOverloads constructor(
      * Optional lambda to control current label visibility based on its attributes, frame render context and camera distance
      */
     var isVisible: ((Label, RenderContext, Double) -> Boolean)? = null
+    /**
+     * The amount of screen depth offset applied to this label's text during rendering. Values less than zero bias depth
+     * values toward the viewer, causing the text to appear above nearby terrain rather than being clipped by it. The
+     * offset is applied only while the label is within the horizon distance. Defaults to [DEFAULT_DEPTH_OFFSET].
+     */
+    var depthOffset = DEFAULT_DEPTH_OFFSET
 
     companion object {
         /**
          * The default amount of screen depth offset applied to the label's text during rendering. Values less than zero
          * bias depth values toward the viewer.
          */
-        protected const val DEFAULT_DEPTH_OFFSET = -0.1
+        const val DEFAULT_DEPTH_OFFSET = -0.003
 
         /**
          * The label's properties associated with the current render pass.
@@ -129,13 +135,13 @@ open class Label @JvmOverloads constructor(
         // Do not draw label if it does not pass external visibility check
         if (isVisible?.invoke(this, rc, sqrt(renderData.cameraDistanceSq)) == false) return
 
-        // Compute a screen depth offset appropriate for the current viewing parameters.
-        var depthOffset = 0.0
-        if (renderData.cameraDistanceSq < rc.horizonDistance * rc.horizonDistance) depthOffset = DEFAULT_DEPTH_OFFSET
+        // Compute a screen depth offset appropriate for the current viewing parameters. The configurable per-label
+        // depthOffset is applied only while the label is within the horizon distance; beyond it no offset is used.
+        val screenDepthOffset = if (renderData.cameraDistanceSq < rc.horizonDistance * rc.horizonDistance) depthOffset else 0.0
 
         // Project the label's model point to screen coordinates, using the screen depth offset to push the screen
         // point's z component closer to the eye point.
-        if (!rc.projectWithDepth(renderData.placePoint, depthOffset, renderData.screenPlacePoint)) return  // clipped by the near plane or the far plane
+        if (!rc.projectWithDepth(renderData.placePoint, screenDepthOffset, renderData.screenPlacePoint)) return  // clipped by the near plane or the far plane
 
         // Select the currently active attributes. Don't render anything if the attributes are unspecified.
         determineActiveAttributes(rc)
