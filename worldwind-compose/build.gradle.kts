@@ -17,7 +17,7 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-    js(IR) {
+    js {
         browser {
             commonWebpackConfig {
                 cssSupport {

@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
     kotlin("multiplatform")
@@ -22,13 +23,17 @@ kotlin {
             useJUnit()
         }
     }
-    js(IR) {
+    js {
         binaries.executable()
         browser {
             commonWebpackConfig {
                 cssSupport {
                     enabled.set(true)
                 }
+                // Pin the dev-server port so the browser origin stays stable across runs. The web
+                // cache is IndexedDB, which the browser partitions by origin (scheme+host+PORT); if
+                // webpack falls back 8080 -> 8081 the origin changes and the whole cache is lost.
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).copy(port = 8080)
             }
         }
     }
@@ -44,6 +49,9 @@ kotlin {
                 cssSupport {
                     enabled.set(true)
                 }
+                // Distinct fixed port from the js target so the two dev servers never collide and
+                // each keeps a stable origin (and thus a persistent IndexedDB cache) across runs.
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).copy(port = 8081)
             }
         }
     }
