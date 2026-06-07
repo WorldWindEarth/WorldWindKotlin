@@ -379,7 +379,7 @@ open class OsmBuildingsLayer(
     /**
      * Drop every just-revalidated tile from the in-memory [tiles] LRU so the next [processTile]
      * reloads the fresh rows the background refresh wrote to the cache. Render-thread only —
-     * [LruMemoryCache.remove] routes batched tiles through [entryRemoved] to free their GPU
+     * [LruMemoryCache.remove] routes batched tiles through `entryRemoved` to free their GPU
      * buffers, matching normal eviction.
      */
     private fun drainRevalidated() {

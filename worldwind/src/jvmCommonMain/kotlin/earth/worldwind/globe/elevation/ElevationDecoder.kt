@@ -41,7 +41,7 @@ open class ElevationDecoder: Closeable {
     }
 
     /**
-     * Fetch bytes through the [TileSourceElevationRef]'s [earth.worldwind.layer.cache.TileSource] then dispatch through
+     * Fetch bytes through the [TileSourceElevationRef]'s `earth.worldwind.layer.cache.TileSource` then dispatch through
      * the standard byte-stream decoder.
      *
      * **Specific Content-Type wins; requested format is the fallback.** A server response

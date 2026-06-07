@@ -415,7 +415,7 @@ private suspend fun ContentManager.openWcs201ElevationCoverage(
     return coverage.applyPersistedSector(entry)
 }
 
-/** Apply the gpkg's persisted bbox onto the coverage's [sector]. The coverage starts
+/** Apply the gpkg's persisted bbox onto the coverage's `sector`. The coverage starts
  *  with the tileMatrixSet's full sector by default; this narrows it to the actual
  *  cached-data extent (which bulk-download may have set below the matrix). */
 private fun TiledElevationCoverage.applyPersistedSector(entry: CacheEntry): TiledElevationCoverage =

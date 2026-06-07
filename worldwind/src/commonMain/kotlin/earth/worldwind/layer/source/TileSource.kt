@@ -25,7 +25,7 @@ data class TileBlob(
     /**
      * Epoch-millis the cached tile was written, for a stale-while-revalidate read. Set by a
      * cache store when freshness tracking is enabled (finite eviction `staleAfter`); `null` on
-     * network responses and on cache reads where freshness isn't tracked. [CachedTileSource]
+     * network responses and on cache reads where freshness isn't tracked. `CachedTileSource`
      * uses it to decide whether to kick a background refresh after serving the cached blob.
      */
     val cachedAt: Long? = null,
@@ -56,10 +56,10 @@ data class TileBlob(
 
 /**
  * A source of byte-encoded tiles indexed by slippy-map `(z, x, y)`. Implementations:
- *   * HTTP — wraps a URL template, performs conditional GET when [previousEtag] /
- *     [previousLastModified] are supplied (so a follow-up replay through a cache
+ *   * HTTP — wraps a URL template, performs conditional GET when `previousEtag` /
+ *     `previousLastModified` are supplied (so a follow-up replay through a cache
  *     decorator can revalidate cheaply).
- *   * Cache-decorated — wraps a network source plus a [TileStore]. Returns cached blobs
+ *   * Cache-decorated — wraps a network source plus a `TileStore`. Returns cached blobs
  *     on hit; on miss falls back to the inner network source.
  *   * Cache-only — returns `null` for any tile the cache doesn't have. Useful for
  *     replaying a GPKG offline.

@@ -3,7 +3,7 @@ package earth.worldwind.layer.cache
 /**
  * Cache identity for a tile / feature source — the key under which its bytes live in
  * the cache plus the path of the underlying [earth.worldwind.util.ContentManager]. Layer
- * extensions ([TiledImageLayer.cachedSourceInfo], [TiledElevationCoverage.cachedSourceInfo],
+ * extensions (`TiledImageLayer.cachedSourceInfo`, `TiledElevationCoverage.cachedSourceInfo`,
  * etc.) walk the layer's source chain and return this when the layer is wired through a
  * cache. `null` means "no cache wired" — the layer is network-only.
  */

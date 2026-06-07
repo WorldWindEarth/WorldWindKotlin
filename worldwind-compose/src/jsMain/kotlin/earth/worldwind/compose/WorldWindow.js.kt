@@ -11,7 +11,7 @@ import earth.worldwind.WorldWindow as PlatformWorldWindow
  *
  * Compose Multiplatform's Skia-backed Web target (`wasmJs`) cannot share its single underlying
  * `<canvas>` with WebGL, so this binding uses Compose HTML (DOM-based Compose) instead. Compose
- * HTML's element-attribute model is incompatible with Compose UI's [androidx.compose.ui.Modifier],
+ * HTML's element-attribute model is incompatible with Compose UI's `androidx.compose.ui.Modifier`,
  * which is why this overload accepts an [AttrsScope] builder rather than a `Modifier`.
  */
 @Composable

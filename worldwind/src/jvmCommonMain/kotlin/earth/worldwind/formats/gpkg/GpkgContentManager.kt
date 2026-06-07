@@ -77,7 +77,7 @@ class GpkgContentManager(
      * lookup that blocks on the IO dispatcher can resume *after* the gpkg is closed and
      * throw "attempt to re-open an already-closed object" deep in SQLite.
      *
-     * [SupervisorJob] so one read failing doesn't cancel siblings.
+     * `SupervisorJob` so one read failing doesn't cancel siblings.
      */
     private val managerJob = SupervisorJob()
     private val managerScope =
@@ -219,7 +219,7 @@ class GpkgContentManager(
 
     /**
      * Open the existing coverage content row (validating sector + reconciling storage
-     * layout) or create it on first use. Shared between [openCoverageStore] and
+     * layout) or create it on first use. Shared between `openCoverageStore` and
      * [createElevationSourceFactory].
      */
     private suspend fun openOrCreateCoverageContent(

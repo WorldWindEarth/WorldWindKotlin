@@ -2,7 +2,7 @@ package earth.worldwind.layer.cache
 
 /**
  * Storage backend for one elevation coverage's encoded tiles + their per-tile ancillary
- * (`scale`, `offset`) metadata. Per-platform implementations bind one [contentKey] to
+ * (`scale`, `offset`) metadata. Per-platform implementations bind one `contentKey` to
  * the underlying medium:
  *   - JS: IDB `coverage_tiles` blob store + `coverage_ancillary` keyed object store.
  *   - iOS: filesystem `${baseDirectory}/${contentKey}/${z}/${x}/${y}.bin` blob +

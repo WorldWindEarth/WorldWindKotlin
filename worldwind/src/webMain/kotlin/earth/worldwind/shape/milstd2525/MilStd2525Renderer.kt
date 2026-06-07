@@ -4,7 +4,7 @@ import earth.worldwind.geom.Location
 import earth.worldwind.shape.TextAttributes
 
 /**
- * Target-agnostic facade over the per-target mil-sym-ts ([C5Ren]) + canvg bindings, expressed in
+ * Target-agnostic facade over the per-target mil-sym-ts (`C5Ren`) + canvg bindings, expressed in
  * plain Kotlin / DOM types only, so the WorldWind-facing point-symbol code ([MilStd2525],
  * [MilStd2525Placemark]) can live in `webMain` while the generated `@JsModule` externs
  * (C5Ren / C5RenTypes / Canvg) stay per-target behind this seam.
@@ -52,5 +52,5 @@ interface MilStd2525Renderer {
     fun getUnfilledAttributes(symbolId: String): Map<String, String>
 }
 
-/** Per-target factory for the [MilStd2525Renderer] (js / wasmJs adapters over [C5Ren] + canvg). */
+/** Per-target factory for the [MilStd2525Renderer] (js / wasmJs adapters over `C5Ren` + canvg). */
 internal expect fun createMilStd2525Renderer(): MilStd2525Renderer

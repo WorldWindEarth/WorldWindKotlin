@@ -49,6 +49,8 @@ import kotlinx.coroutines.launch
 import org.w3c.dom.*
 import org.w3c.dom.events.MouseEvent
 
+// JS sees text().await() as String (so .toString() looks redundant), but wasmJs returns JsString and needs it.
+@Suppress("REDUNDANT_CALL_OF_CONVERSION_METHOD")
 fun main() {
     // Kotlin/Wasm instantiates the module asynchronously, so main() can run AFTER the window
     // `load` event has already fired — a freshly-registered window.onload would then never run

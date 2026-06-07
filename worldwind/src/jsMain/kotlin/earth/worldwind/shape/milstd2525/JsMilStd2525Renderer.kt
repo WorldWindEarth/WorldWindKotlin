@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
 internal actual fun createMilStd2525Renderer(): MilStd2525Renderer = JsMilStd2525Renderer
 
 /**
- * js adapter for [MilStd2525Renderer]. Delegates to the per-target mil-sym-ts ([C5Ren]) + canvg
+ * js adapter for [MilStd2525Renderer]. Delegates to the per-target mil-sym-ts (`C5Ren`) + canvg
  * bindings. On js the `int`/`number` aliases resolve to `Number`, so callers coerce via
  * `toInt()`/`toDouble()`; JS maps go through `kotlin.js.collections` views.
  */

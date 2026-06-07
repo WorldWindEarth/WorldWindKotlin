@@ -262,7 +262,6 @@ fun main() {
                             picker.showPick(engine, wwd!!.pickAsync(p.x, p.y).await().topPickedObject?.cartesianPoint)
                             wwd?.requestRedraw()
                         }
-                        Unit
                     }
                     name == "Geographic meshes" -> { e ->
                         if (geoMeshTutorial.isStarted) {

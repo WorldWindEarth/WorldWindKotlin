@@ -20,7 +20,7 @@ import kotlin.math.roundToInt
 internal actual fun createMilStd2525Renderer(): MilStd2525Renderer = WasmJsMilStd2525Renderer
 
 /**
- * wasmJs adapter for [MilStd2525Renderer]. Delegates to the per-target mil-sym-ts ([C5Ren]) + canvg
+ * wasmJs adapter for [MilStd2525Renderer]. Delegates to the per-target mil-sym-ts (`C5Ren`) + canvg
  * bindings, absorbing the JS-Map construction and `Number`/`Double` coercion so the interface stays
  * in plain Kotlin types. On wasm the `int`/`number` aliases already resolve to `Double`.
  */

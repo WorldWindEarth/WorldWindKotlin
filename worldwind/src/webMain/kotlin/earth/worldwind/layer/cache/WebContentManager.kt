@@ -589,11 +589,11 @@ class WebContentManager(
 }
 
 /**
- * Schema of the per-content web-service metadata row stored in [METADATA_STORE].
+ * Schema of the per-content web-service metadata row stored in `METADATA_STORE`.
  * Written via [newIdbWebServiceRecord] from `registerWebService`; read by `loadWebServiceInfo`,
  * `listEntries`, and `lastModifiedDate`.
  *
- * [dataType] is read-only and may be set by code paths outside `registerWebService` (it is
+ * `dataType` is read-only and may be set by code paths outside `registerWebService` (it is
  * legacy / advisory). All fields tolerate `null` because cross-version migrations may have
  * left older rows without the newer attributes.
  */

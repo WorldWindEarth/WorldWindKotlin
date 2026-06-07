@@ -6,7 +6,7 @@ import io.ktor.client.HttpClientConfig
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * [TileSource] for slippy-map raster servers — image tiles addressed by `(z, x, y)` via
+ * `TileSource` for slippy-map raster servers — image tiles addressed by `(z, x, y)` via
  * a URL template, the same pattern every major XYZ-tile provider uses (Google, OSM,
  * MapServer cgi-bin, Stamen, …). Supports the common template tokens `{z}`, `{x}`, `{y}`,
  * `{lang}`, `{rand=a,b,c}`, `{i}` (the WorldWind dialect — see [UrlTemplate]).

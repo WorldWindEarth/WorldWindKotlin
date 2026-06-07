@@ -415,7 +415,7 @@ class OsmBuildingsTile(
      * far coarser granularity than a building, so when this tile's DEM arrives every building's
      * sample moves together. One getElevation per building (cache lookup + bilinear; no projection,
      * no tessellation). A missed change only costs a slightly-late re-tessellation, never wrong
-     * output, and [refreshGeometry] / VE changes re-assemble unconditionally.
+     * output, and `refreshGeometry` / VE changes re-assemble unconditionally.
      */
     private fun computeGroundSignature(rc: RenderContext): Long {
         var sig = 1125899906842597L // large-prime seed
@@ -659,7 +659,7 @@ class OsmBuildingsTile(
          *
          * Per spec an outline is 2D-only once parts exist — parts must fully describe the
          * volume. In practice many contributors take a shortcut: they tag the outline as
-         * `building=*` with its own [height] (using the outline's polygon as the podium) and
+         * `building=*` with its own `height` (using the outline's polygon as the podium) and
          * model only the upper parts as `building:part=yes` with `min_height = podium_height`.
          * Strict filtering throws the podium away and the upper parts levitate. We therefore
          * KEEP an outline-with-height when every part it contains starts at or above its top

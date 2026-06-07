@@ -4,7 +4,7 @@ import earth.worldwind.layer.source.TileBlob
 /**
  * Persistent backing for [CachedTileSource] — read/write/evict tile blobs keyed by
  * `(z, x, y)`. The store is the cache; [CachedTileSource] is the cache-aware view that
- * combines a store with an underlying network [TileSource].
+ * combines a store with an underlying network `TileSource`.
  *
  * Implementations:
  *   * GeoPackage on JVM/Android (tiles table + `im_vector_tiles_mapbox` extension for MVT).

@@ -64,7 +64,7 @@ class GpkgCachedElevationSourceFactory(
     internal val isFloat: Boolean,
     internal val tileMatrixSet: TileMatrixSet,
     internal val elevationDecoder: ElevationDecoder = ElevationDecoder(),
-    /** Stale-while-revalidate threshold (reuses eviction `staleAfter`); [Duration.INFINITE] = off. */
+    /** Stale-while-revalidate threshold (reuses eviction `staleAfter`); `Duration.INFINITE` = off. */
     internal val staleAfter: Duration = Duration.INFINITE,
     /** Background scope for revalidation refreshes; fire-and-forget, outlives the read. */
     private val revalidationScope: CoroutineScope = GlobalScope,
@@ -287,7 +287,7 @@ open class GpkgCachedElevationDataFactory(
     }
 
     /**
-     * Background conditional revalidation for [maybeRevalidate]. Issues a conditional GET with the
+     * Background conditional revalidation for `maybeRevalidate`. Issues a conditional GET with the
      * stored [etag] / [lastModified]; on `304` (null blob) bumps only the freshness stamp and returns
      * `false` (bytes unchanged → no redraw); on `200` re-decodes, write-throughs with the fresh
      * validators, and returns `true`. Transport errors propagate to the caller's catch (no bump).

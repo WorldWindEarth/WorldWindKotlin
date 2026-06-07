@@ -181,7 +181,7 @@ open class WorldWindow(
      * When an event occurs, this calls the registered event listeners in order of reverse registration.
      *
      * @param type The event type to listen for.
-     * @param listener The [EventListener] to call when the event occurs.
+     * @param listener The `EventListener` to call when the event occurs.
      */
     fun addEventListener(type: String, listener: (Event) -> Unit) {
         var entry = eventListeners[type]
@@ -445,7 +445,7 @@ open class WorldWindow(
          * Creates the WebGL context for the canvas. Prefers WebGL2 (enables sized internal
          * formats and the MSAA-resolve path that antialiases surface shapes) and falls back
          * to WebGL1. The rest of the engine keeps the legacy [WebGLRenderingContext] type;
-         * [WebKgl] detects WebGL2 at runtime and routes multisample APIs accordingly.
+         * `WebKgl` detects WebGL2 at runtime and routes multisample APIs accordingly.
          */
         protected fun createContext(canvas: HTMLCanvasElement): WebGLRenderingContext {
             // Disable browser MSAA on the default framebuffer — it leaves seams between

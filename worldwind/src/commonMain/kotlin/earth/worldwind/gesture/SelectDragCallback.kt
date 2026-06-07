@@ -3,7 +3,7 @@ package earth.worldwind.gesture
 import earth.worldwind.geom.Position
 
 /**
- * User-input callbacks dispatched by [SelectDragDetector] for taps, drags and context gestures
+ * User-input callbacks dispatched by `SelectDragDetector` for taps, drags and context gestures
  * on the globe.
  *
  * The `userObject` parameter every recognised-object callback receives is the

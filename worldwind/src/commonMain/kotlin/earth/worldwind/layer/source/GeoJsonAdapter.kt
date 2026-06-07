@@ -68,7 +68,7 @@ internal fun Position.toCachedPoint(): CachedGeometry.Point = CachedGeometry.Poi
 )
 
 /** Serialize the feature's `properties` as a JSON string for [CachedFeatureRow.properties].
- *  Returns `null` when the feature has no properties — [BulkFeatureLayer] treats it as an
+ *  Returns `null` when the feature has no properties — `BulkFeatureLayer` treats it as an
  *  empty map. */
 internal fun featurePropertiesJson(feature: Feature<*, *>): String? =
     (feature.properties as? JsonObject)?.toString()

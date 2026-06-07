@@ -4,7 +4,7 @@ package earth.worldwind.layer.cache
  * Mixin for elevation source factories that can fetch one `(z, x, y)` tile through the
  * cache-then-network pipeline with cache write-through. Implemented by every cached
  * elevation factory — `GpkgCachedElevationSourceFactory` on JVM,
- * `CachedElevationSourceFactory` on JS / iOS — so [TiledElevationCoverage.launchBulkRetrieval]
+ * `CachedElevationSourceFactory` on JS / iOS — so `TiledElevationCoverage.launchBulkRetrieval`
  * can drive a bulk download without knowing the concrete factory type.
  *
  * The "(layer-level network source) + CachedTileSource" wiring that the pre-Option-B

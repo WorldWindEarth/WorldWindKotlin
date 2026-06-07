@@ -31,7 +31,7 @@ interface WebElevationCoverage : ElevationCoverage {
      * yet be stored as Int16 in the gpkg (or vice versa). The cache (when present)
      * records its actual `dataType` in `gpkg_2d_gridded_coverage_ancillary`; query
      * `ContentManager.findEntry(contentKey)?.metadata` and cast to
-     * [CacheEntry.isFloat] for the authoritative
+     * `CacheEntry.isFloat` for the authoritative
      * answer. This heuristic is a creation-time default for callers that don't pass an
      * explicit storage choice; it's also a useful UI hint when no cache exists yet.
      */

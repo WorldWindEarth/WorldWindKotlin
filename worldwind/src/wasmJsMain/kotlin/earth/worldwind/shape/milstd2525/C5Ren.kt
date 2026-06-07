@@ -565,7 +565,7 @@ external class Line2D : JsAny {
      * @return a clone of this instance.
      * @exception OutOfMemoryError
      * if there is not enough memory.
-     * @see java.lang.Cloneable
+     * Corresponds to `java.lang.Cloneable`.
      * @since 1.2
      */
     fun clone(): Line2D?
@@ -1423,7 +1423,7 @@ external class MilStdAttributes : JsAny {
          * The conversion factor and the label that you want all distances to display in. The conversion factor
          * is converting from meters. The default unit is meters.<br><br>
          *
-         * Must be in the form [conversionFactor],[label]. So for example converting to feet would be "3.28084,FT".
+         * Must be in the form `conversionFactor`,`label`. So for example converting to feet would be "3.28084,FT".
          * The helper class {@link DistanceUnit} can be used.
          */
         val DistanceUnits: String
@@ -1433,7 +1433,7 @@ external class MilStdAttributes : JsAny {
          * Conventionally, the conversion factor is converting from meters by default,
          * but other values could be passed, like "1,KM" to use an unaltered value in kilometers.<br><br>
          *
-         * Must be in the form [conversionFactor],[label]. So for example converting meters to feet would be "3.28084,FT".
+         * Must be in the form `conversionFactor`,`label`. So for example converting meters to feet would be "3.28084,FT".
          * The helper class {@link DistanceUnit} can be used.
          * Currently only effective for multi-point graphics.
          */
@@ -7069,9 +7069,9 @@ external class WebRenderer : JsAny {
          * Renders all MilStd 2525 multi-point symbols, creating MilStdSymbol that contains the
          * information needed to draw the symbol on the map.
          * DOES NOT support RADARC, CAKE, TRACK etc...
-         * ArrayList&lt;Point2D&gt; milStdSymbol.getSymbolShapes[index].getPolylines()
+         * ArrayList&lt;Point2D&gt; milStdSymbol.getSymbolShapes`index`.getPolylines()
          * and
-         * ShapeInfo = milStdSymbol.getModifierShapes[index].
+         * ShapeInfo = milStdSymbol.getModifierShapes`index`.
          *
          *
          * @param id

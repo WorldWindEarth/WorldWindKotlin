@@ -102,7 +102,7 @@ class HtmlVideoTexture(
 /**
  * Typed view of `HTMLVideoElement.requestVideoFrameCallback(cb)`. The callback receives
  * `(now, metadata)` — we don't use either; we just want the wakeup. Same `unsafeCast`
- * tag-only pattern as [VideoTexImage2DContext].
+ * tag-only pattern as `VideoTexImage2DContext`.
  */
 private external interface RequestVideoFrameCallbackHost : JsAny {
     val requestVideoFrameCallback: JsAny?

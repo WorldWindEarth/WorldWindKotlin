@@ -26,12 +26,12 @@ import kotlin.time.Duration.Companion.seconds
  * [BulkRetrievableElevationSourceFactory] — i.e. the coverage isn't cache-aware and
  * there's no cache to populate.
  *
- * Mirrors the [TiledImageLayer]-receiver [launchBulkRetrieval] for image tiles.
+ * Mirrors the `TiledImageLayer`-receiver [launchBulkRetrieval] for image tiles.
  *
  * @param sector world region to download — clipped to each matrix's coverage.
  * @param resolution range of angular pixel-resolutions to fetch. The finest matrix whose
- *   `pixelHeight` is ≥ [resolution.start] and the coarsest matrix whose `pixelHeight` is
- *   ≤ [resolution.endInclusive] bound the iteration; every matrix in between is included.
+ *   `pixelHeight` is ≥ `resolution.start` and the coarsest matrix whose `pixelHeight` is
+ *   ≤ `resolution.endInclusive` bound the iteration; every matrix in between is included.
  * @param scope coroutine scope; defaults to [GlobalScope] for a long-running background job.
  * @param overrideCache when `true`, every tile is re-downloaded from the network even if
  *   it's already in the cache. Mirrors the image-tile flag of the same name.

@@ -715,7 +715,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     /** Refresh the [GpkgContent] identifier + bbox to match the layer's current
      *  [LevelSet.sector] and [displayName]. The level-set sector is the in-memory
      *  source of truth for the layer's data extent; this call persists it back to gpkg
-     *  so the round-trip is safe — open via [tryRecoverLevelSet] copies the persisted
+     *  so the round-trip is safe — open via `tryRecoverLevelSet` copies the persisted
      *  bbox into the level-set sector; the next reopen writes the same value back.
      *  Bulk-download mutates the level-set sector before re-binding the cache, so the
      *  new extent lands on disk through the same write. */

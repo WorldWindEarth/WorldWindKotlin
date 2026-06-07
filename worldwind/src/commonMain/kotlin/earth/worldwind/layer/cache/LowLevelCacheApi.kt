@@ -10,10 +10,10 @@ package earth.worldwind.layer.cache
  *
  * The supported app-facing paths are:
  *   * Writing: build a layer with its OGC factory, then call
- *     [earth.worldwind.layer.cache.register].
- *   * Reading: [earth.worldwind.util.openLayer] / [earth.worldwind.util.openLayers] /
+ *     `earth.worldwind.layer.cache.register`.
+ *   * Reading: [earth.worldwind.util.openLayer] / `earth.worldwind.util.openLayers` /
  *     [earth.worldwind.util.openElevationCoverage] /
- *     [earth.worldwind.util.openElevationCoverages].
+ *     `earth.worldwind.util.openElevationCoverages`.
  *
  * Annotate with `@OptIn(LowLevelCacheApi::class)` to acknowledge the low-level use site.
  * The warning serves as a signal that the canonical path may be a better fit.

@@ -102,8 +102,7 @@ class AVPlayerVideoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engin
     private fun bundleText(name: String, ext: String): String? {
         val path = NSBundle.mainBundle.pathForResource(name, ext) ?: return null
         val data = NSData.dataWithContentsOfFile(path) ?: return null
-        @Suppress("USELESS_CAST")
-        return NSString.create(data, NSUTF8StringEncoding) as String?
+        return NSString.create(data, NSUTF8StringEncoding)?.toString()
     }
 }
 

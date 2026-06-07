@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import earth.worldwind.WorldWind
 
 /**
- * Holds engine state for a [WorldWindow] Composable so app code can configure layers, camera and
+ * Holds engine state for a `WorldWindow` Composable so app code can configure layers, camera and
  * interactions without depending on the platform-specific surface that hosts the engine.
  *
  * [requestRedraw] is safe to call from any thread — the host listener marshals to its UI thread.

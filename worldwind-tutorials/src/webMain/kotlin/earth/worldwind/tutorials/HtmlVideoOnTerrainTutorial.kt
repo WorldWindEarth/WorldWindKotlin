@@ -100,6 +100,8 @@ class HtmlVideoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
     override fun runAction(actionName: String) { inner?.runAction(actionName) }
 
+    // JS sees text().await() as String (so .toString() looks redundant), but wasmJs returns JsString and needs it.
+    @Suppress("REDUNDANT_CALL_OF_CONVERSION_METHOD")
     private suspend fun fetchText(url: String): String? = try {
         val response = window.fetch(url, emptyRequestInit()).await()
         response.text().await().toString()
