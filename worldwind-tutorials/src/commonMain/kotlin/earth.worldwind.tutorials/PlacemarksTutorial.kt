@@ -24,12 +24,36 @@ class PlacemarksTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
         // Create an image-based placemark of an aircraft above the ground with a leader-line to the surface.
         // This placemark demonstrates creation via a constructor and a convenient PlacemarkAttributes factory method.
-        // The image is scaled to 1.5 times its original size.
+        // The image is scaled to 1.5 times its original size. Default altitude mode is ABSOLUTE (height above ellipsoid).
         addRenderable(
             Placemark(Position.fromDegrees(34.260, -119.2, 5000.0)).apply {
                 attributes = PlacemarkAttributes.createWithImageAndLeader(ImageSource.fromResource(MR.images.aircraft_fixwing)).apply {
                     imageScale = 1.5
                 }
+            }
+        )
+
+        // Create a RELATIVE_TO_GROUND aircraft placemark to verify it drags like an ABSOLUTE one
+        // (holding its height above terrain) rather than snapping onto the terrain like CLAMP_TO_GROUND.
+        addRenderable(
+            Placemark(Position.fromDegrees(34.260, -119.15, 2000.0)).apply {
+                altitudeMode = AltitudeMode.RELATIVE_TO_GROUND
+                attributes = PlacemarkAttributes.createWithImageAndLeader(ImageSource.fromResource(MR.images.aircraft_fixwing)).apply {
+                    imageScale = 1.5
+                }
+                displayName = "Relative to ground"
+            }
+        )
+
+        // Create an ABOVE_SEA_LEVEL aircraft placemark to verify it drags like an ABSOLUTE one
+        // (holding its altitude above sea level) rather than snapping onto the terrain.
+        addRenderable(
+            Placemark(Position.fromDegrees(34.260, -119.1, 3000.0)).apply {
+                altitudeMode = AltitudeMode.ABOVE_SEA_LEVEL
+                attributes = PlacemarkAttributes.createWithImageAndLeader(ImageSource.fromResource(MR.images.aircraft_fixwing)).apply {
+                    imageScale = 1.5
+                }
+                displayName = "Above sea level"
             }
         )
 

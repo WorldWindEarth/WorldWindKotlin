@@ -89,14 +89,8 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
             wwd.engine.pickTerrainPosition(x, y, toPosition)
         } else {
             // Approach B — anchor tracking: raycast the cursor onto the surface the grab anchor
-            // lives on, then rotate that point into the reference's frame. ABSOLUTE shapes are
-            // pinned to a specific altitude regardless of terrain, so they always use the
-            // altitude-aware unproject. Everything else classifies as elevated when the grabbed
-            // surface sits meaningfully above the terrain at the reference's lat/lon — catches
-            // RELATIVE_TO_GROUND with altitude > 0 and the top face of extruded shapes. Ground-
-            // anchored picks fall back to terrain so the drag adapts to varying terrain.
             val mode = movable?.altitudeMode
-            val elevated = mode == AltitudeMode.ABSOLUTE ||
+            val elevated = mode != null && mode != AltitudeMode.CLAMP_TO_GROUND ||
                 grabAltitude > wwd.engine.globe.getElevation(
                     fromPosition.latitude, fromPosition.longitude
                 ) + ELEVATED_THRESHOLD
@@ -177,7 +171,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) {
         else shapePickPos ?: terrainPos
         if (movable != null && !isGroundClampedPoint && grabAnchor != null) {
             grabRotation = SphericalRotation(grabAnchor, movable.referencePosition)
-            grabAltitude = grabAnchor.altitude
+            grabAltitude = if (movable.isPointShape)
+                wwd.engine.globe.getAbsolutePosition(movable.referencePosition, movable.altitudeMode).altitude
+            else grabAnchor.altitude
         } else {
             grabRotation = null
             grabAltitude = 0.0
