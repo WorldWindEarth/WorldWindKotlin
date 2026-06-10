@@ -91,6 +91,10 @@ value class Angle private constructor(
         @JvmStatic val MINUTE = (1.0 / 60.0).degrees
         /** Represents an angle of 1 second  */
         @JvmStatic val SECOND = (1.0 / 3600.0).degrees
+        /** Precompiled [fromDMS] regexes — compiling these is expensive (ICU), so do it once, not per call. */
+        private val DMS_FORMAT = Regex("([-+]?\\d{1,3}[dD°\\s](\\s*\\d{1,2}['’\\s])?(\\s*\\d{1,2}[\"”\\s])?\\s*([NnSsEeWw])?\\s?)")
+        private val DMS_SYMBOLS = Regex("[Dd°'’\"”]")
+        private val DMS_WHITESPACE = Regex("\\s+")
         /**
          * Conversion factor for degrees to radians.
          */
@@ -441,14 +445,13 @@ value class Angle private constructor(
         fun fromDMS(dmsString: String): Angle {
             var dms = dmsString
             // Check for string format validity
-            val regex = Regex("([-+]?\\d{1,3}[dD°\\s](\\s*\\d{1,2}['’\\s])?(\\s*\\d{1,2}[\"”\\s])?\\s*([NnSsEeWw])?\\s?)")
-            require(regex.matches("$dms ")) {
+            require(DMS_FORMAT.matches("$dms ")) {
                 logMessage(ERROR, "Angle", "fromDMS", "invalidFormat")
             }
             // Replace degree, min and sec signs with space
-            dms = dms.replace("[Dd°'’\"”]".toRegex(), " ")
+            dms = dms.replace(DMS_SYMBOLS, " ")
             // Replace multiple spaces with single ones
-            dms = dms.replace("\\s+".toRegex(), " ")
+            dms = dms.replace(DMS_WHITESPACE, " ")
             dms = dms.trim { it <= ' ' }
 
             // Check for sign prefix and suffix
