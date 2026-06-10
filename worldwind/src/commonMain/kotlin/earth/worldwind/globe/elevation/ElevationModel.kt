@@ -4,11 +4,13 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage.Companion.MISSING_DATA
+import kotlin.time.Clock
 
 open class ElevationModel(): Iterable<ElevationCoverage> {
     protected val coverages = mutableListOf<ElevationCoverage>()
+    private var structureTimestamp = Clock.System.now().toEpochMilliseconds()
     val timestamp: Long get() {
-        var maxTimestamp = 0L
+        var maxTimestamp = structureTimestamp
         for (i in coverages.indices) {
             val timestamp = coverages[i].timestamp
             if (maxTimestamp < timestamp) maxTimestamp = timestamp
@@ -17,11 +19,19 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
     }
     val count get() = coverages.size
 
+    /** Make [timestamp] strictly increase past its current value so consumers invalidate their caches. */
+    private fun bumpStructureTimestamp() {
+        structureTimestamp = maxOf(Clock.System.now().toEpochMilliseconds(), timestamp + 1)
+    }
+
     constructor(model: ElevationModel): this() { addAllCoverages(model) }
 
     constructor(iterable: Iterable<ElevationCoverage>): this() { for (coverage in iterable) addCoverage(coverage) }
 
-    fun invalidate() = coverages.forEach { coverage -> coverage.clear() }
+    fun invalidate() {
+        coverages.forEach { coverage -> coverage.clear() }
+        bumpStructureTimestamp()
+    }
 
     fun getCoverageNamed(name: String) = coverages.firstOrNull { coverage -> coverage.displayName == name }
 
@@ -29,7 +39,8 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
         coverage.hasUserProperty(key) && coverage.getUserProperty(key) == value
     }
 
-    fun addCoverage(coverage: ElevationCoverage) = !coverages.contains(coverage) && coverages.add(coverage)
+    fun addCoverage(coverage: ElevationCoverage) =
+        (!coverages.contains(coverage) && coverages.add(coverage)).also { if (it) bumpStructureTimestamp() }
 
     fun addAllCoverages(model: ElevationModel): Boolean {
         val thatList = model.coverages
@@ -39,11 +50,18 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
         return changed
     }
 
-    fun removeCoverage(coverage: ElevationCoverage) = coverages.remove(coverage)
+    fun removeCoverage(coverage: ElevationCoverage) =
+        coverages.remove(coverage).also { if (it) bumpStructureTimestamp() }
 
-    fun removeAllCoverages(model: ElevationModel) = coverages.removeAll(model.coverages)
+    fun removeAllCoverages(model: ElevationModel) =
+        coverages.removeAll(model.coverages).also { if (it) bumpStructureTimestamp() }
 
-    fun clearCoverages() = coverages.clear()
+    fun clearCoverages() {
+        if (coverages.isNotEmpty()) {
+            coverages.clear()
+            bumpStructureTimestamp()
+        }
+    }
 
     override fun iterator() = coverages.iterator()
 
