@@ -1145,6 +1145,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             .where().eq(GpkgFeatureCoverage.COLUMN_TPUDT_NAME, content.tableName).query()
         if (tiles.isEmpty()) return@withContext
 
+        // Cheap over-budget guard: the walk below runs a spatial query + cursor materialization per coverage
+        // tile, so skip it when already within caps (common at startup). maxEntries = tile count; maxBytes = one SUM.
+        val overEntries = policy.maxEntries != Long.MAX_VALUE && tiles.size > policy.maxEntries
+        val overBytes = policy.maxBytes != Long.MAX_VALUE && readFeaturesDataSize(content.tableName) > policy.maxBytes
+        if (!overEntries && !overBytes) return@withContext
+
         // Walk newest→oldest, keeping the prefix that fits both caps. keptIds accumulates the kept
         // tiles' features (deduped), so byte accounting and the overlap-safe delete both reuse it.
         val keptIds = HashSet<Long>()

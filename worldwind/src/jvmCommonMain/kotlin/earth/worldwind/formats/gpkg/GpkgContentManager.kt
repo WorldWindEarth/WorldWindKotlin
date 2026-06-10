@@ -37,6 +37,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 import mil.nga.geopackage.extension.WebPExtension
@@ -132,6 +133,13 @@ class GpkgContentManager(
         }
     }
 
+    /** Run cache eviction off the store-open path — it can scan every cached tile, so blocking open on it
+     *  stalls layer init at startup. Fire it detached; the store is usable at once and trims shortly after. */
+    private fun deferEvict(policy: CachePolicy, evict: suspend () -> Unit) {
+        if (policy.isUnbounded || isReadOnly) return
+        managerScope.launch { runCatching { evict() } }
+    }
+
     // Pure file I/O — not gated on SQLite lifecycle, so it stays on Dispatchers.IO directly
     // and continues to work for callers polling file size after close (rare but harmless).
     override suspend fun contentSize(): Long = withContext(Dispatchers.IO) { File(pathName).length() }
@@ -163,9 +171,7 @@ class GpkgContentManager(
         val content = openOrCreateTileContent(
             contentKey, TILES, levelSet, imageFormat = imageFormat, displayName = displayName,
         )
-        GpkgTileStore(geoPackage, content, cachePolicy).also {
-            if (!cachePolicy.isUnbounded) runCatching { it.evict() }
-        }
+        GpkgTileStore(geoPackage, content, cachePolicy).also { store -> deferEvict(cachePolicy) { store.evict() } }
     }
 
     override suspend fun openVectorTileStore(
@@ -183,9 +189,7 @@ class GpkgContentManager(
         require(content.dataTypeName.equals(VECTOR_TILES, ignoreCase = true)) {
             "Content '$contentKey' is not a vector-tiles table (was '${content.dataTypeName}')"
         }
-        GpkgTileStore(geoPackage, content, cachePolicy).also {
-            if (!cachePolicy.isUnbounded) runCatching { it.evict() }
-        }
+        GpkgTileStore(geoPackage, content, cachePolicy).also { store -> deferEvict(cachePolicy) { store.evict() } }
     }
 
     override suspend fun createElevationSourceFactory(
@@ -205,7 +209,7 @@ class GpkgContentManager(
             INTEGER -> false
             else -> isFloat
         }
-        if (!cachePolicy.isUnbounded) runCatching { geoPackage.evictTiles(content, cachePolicy) }
+        deferEvict(cachePolicy) { geoPackage.evictTiles(content, cachePolicy) }
         GpkgCachedElevationSourceFactory(
             geoPackage = geoPackage,
             content = content,
@@ -273,9 +277,7 @@ class GpkgContentManager(
                 "Content '$contentKey' is not a features table (was '${existing.dataTypeName}')"
             }
         } ?: geoPackage.setupFeaturesContent(contentKey, displayName = displayName)
-        GpkgFeatureStore(geoPackage, content, cachePolicy).also {
-            if (!cachePolicy.isUnbounded) runCatching { it.evict() }
-        }
+        GpkgFeatureStore(geoPackage, content, cachePolicy).also { store -> deferEvict(cachePolicy) { store.evict() } }
     }
 
     // --- Web-service registry -------------------------------------------------------
