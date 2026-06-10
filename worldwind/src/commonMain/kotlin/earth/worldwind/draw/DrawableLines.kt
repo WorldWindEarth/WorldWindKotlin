@@ -1,6 +1,7 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.render.Color
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.Pool
@@ -54,6 +55,10 @@ open class DrawableLines protected constructor(): Drawable {
 
         // Disable texturing.
         program.enableTexture(false)
+
+        // Disable lighting/shadow: a preceding lit draw on the shared program would otherwise leak Lambert/shadow noise onto the leader's degenerate-normal line stencil.
+        program.enableLighting(false)
+        dc.applyShadowReceiverUniforms(program, applyShadow = false)
 
         // Ensure program is in triangles mode
         program.enableOneVertexMode(false)
