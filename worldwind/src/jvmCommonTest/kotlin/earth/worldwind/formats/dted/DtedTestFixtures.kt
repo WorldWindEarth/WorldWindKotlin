@@ -1,15 +1,8 @@
 package earth.worldwind.formats.dted
 
 /**
- * Synthesises a minimal MIL-PRF-89020B-compliant DTED file in memory for tests —
- * no real `.dt0/.dt1/.dt2` fixture required.
- *
- * Layout:
- *   UHL (80 bytes, "UHL" ID + DDDMMSSH lon/lat + width/height ASCII)
- *   DSI (648 bytes, "DSI" ID + classification + "DTEDn" series designator)
- *   ACC (2700 bytes, "ACC" ID only — accuracy fields are unused by the reader)
- *   width × per-column record (8-byte header + height int16 BE elev + 4-byte
- *   BE unsigned-byte-sum checksum)
+ * Synthesises a minimal MIL-PRF-89020B DTED file in memory for tests (no real `.dtX` fixture needed):
+ * UHL/DSI/ACC header (3428 bytes) + per-column records (8-byte header + height×int16 BE posts + 4-byte checksum).
  */
 internal fun synthDted(
     latSW: Int = 0,
@@ -51,8 +44,10 @@ internal fun synthDted(
         // header bytes 1..7 left as zero
         for (i in 0 until height) {
             val v = elevation(x, i).toInt()
-            bytes[off + DTED.REC_HEADER_SIZE + i * 2] = ((v shr 8) and 0xFF).toByte()
-            bytes[off + DTED.REC_HEADER_SIZE + i * 2 + 1] = (v and 0xFF).toByte()
+            // DTED stores elevations sign-magnitude (bit 15 = sign), not two's complement (MIL-PRF-89020B).
+            val enc = if (v < 0) (-v and 0x7FFF) or 0x8000 else v and 0x7FFF
+            bytes[off + DTED.REC_HEADER_SIZE + i * 2] = ((enc shr 8) and 0xFF).toByte()
+            bytes[off + DTED.REC_HEADER_SIZE + i * 2 + 1] = (enc and 0xFF).toByte()
         }
         // Checksum: sum of unsigned bytes across header + elevation payload.
         var sum = 0

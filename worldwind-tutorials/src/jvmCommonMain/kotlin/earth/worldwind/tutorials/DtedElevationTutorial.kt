@@ -5,7 +5,7 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.LookAt
 import earth.worldwind.geom.Position
-import earth.worldwind.globe.elevation.coverage.DtedElevationCoverage
+import earth.worldwind.globe.elevation.coverage.dted.DtedElevationCoverage
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage
 import java.io.File
 import kotlin.math.PI
@@ -38,7 +38,7 @@ class DtedElevationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
         val rootDir = if (customRoot != null) File(customRoot)
             else createSyntheticLibrary().also { syntheticDir = it }
 
-        val coverage = DtedElevationCoverage(rootDir).also { dtedCoverage = it }
+        val coverage = DtedElevationCoverage.create(rootDir)?.also { dtedCoverage = it } ?: return
         engine.globe.elevationModel.apply {
             forEach { existing ->
                 if (existing.isEnabled) {

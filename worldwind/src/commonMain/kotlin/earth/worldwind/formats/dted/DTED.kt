@@ -8,27 +8,13 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 
 /**
- * Cross-platform DTED (MIL-PRF-89020B) reader. Decodes the User Header Label (UHL),
- * Data Set Identification (DSI), and Accuracy (ACC) records to recover the tile's
- * geographic extent, then walks the per-column elevation records — validating the
- * MIL-spec 32-bit unsigned-byte-sum checksum on each — and assembles a row-major
- * elevation grid in the WorldWind convention (origin at the north-west corner,
- * row 0 = northernmost latitude, column 0 = westernmost longitude).
- *
- * DTED's null sentinel `-32767` and any value outside `[-12000, +9000]` (per
- * MIL-PRF-89020B §3.11.2 / §3.11.3) are normalised to [Short.MIN_VALUE] so callers
- * share the same missing-data convention used by the rest of the elevation
- * pipeline (PNG/BIL/GeoTIFF decoders).
- *
- * Three entry points cover the common needs:
- * - [DTED.parse] (or `DTED(bytes)` via [Companion.invoke]) — full parse from a byte array.
- * - [DTED.readMetadata] — UHL/DSI/ACC only (~3.4 KB) when you just need the sector / level.
- * - Platform-specific overloads (e.g. `DTED.read(file)` on JVM) stream column records
- *   from disk so peak memory stays at one record (~7 KB on .dt2) instead of ~26 MB.
+ * Cross-platform DTED (MIL-PRF-89020B) reader: decodes the UHL/DSI/ACC header and per-column elevation
+ * records into a row-major, NW-origin grid (row 0 = north, col 0 = west). The null sentinel `-32767` and
+ * out-of-`[-12000,+9000]` values normalise to [Short.MIN_VALUE]. Entry points: [parse] (full, in-memory),
+ * [readMetadata] (header only ~3.4 KB), and JVM `read(file)` overloads (streaming, ~7 KB peak vs ~26 MB).
  */
 class DTED internal constructor(
-    /** Geographic extent of the tile. DTED tiles always cover 1° × 1° with the
-     *  origin at the south-west corner. */
+    /** Geographic extent; DTED tiles are always 1°×1° with a SW-corner origin. */
     val sector: Sector,
     /** North-west corner (WorldWind's "origin" convention). */
     val origin: Location,
@@ -38,20 +24,16 @@ class DTED internal constructor(
     val height: Int,
     /** DTED series level (0, 1, or 2) when present in the DSI record. */
     val level: Int?,
-    /** Security classification ("Unclassified", "Restricted", "Confidential",
-     *  "Secret") when present in the UHL or DSI record. */
+    /** Security classification when present in the UHL or DSI record. */
     val classLevel: String?,
-    /** Elevation grid in row-major order, north-to-south, west-to-east.
-     *  Missing posts are [Short.MIN_VALUE]. */
+    /** Row-major grid, north→south / west→east; missing posts are [Short.MIN_VALUE]. */
     val elevations: ShortArray,
     /** Lowest valid elevation in metres, or `0.0` if the tile has no valid posts. */
     val minElevation: Double,
     /** Highest valid elevation in metres, or `0.0` if the tile has no valid posts. */
     val maxElevation: Double,
 ) {
-    /** Header-only view (sector, dimensions, level, classification). Returned by
-     *  [Companion.readMetadata] and useful for catalogue / indexing pipelines that
-     *  don't need the elevation grid. */
+    /** Header-only view (sector, dimensions, level, classification). */
     val metadata: Metadata get() = Metadata(sector, origin, width, height, level, classLevel)
 
     data class Metadata(
@@ -82,6 +64,17 @@ class DTED internal constructor(
         const val MIN_VALUE = -12000
         const val MAX_VALUE = 9000
 
+        /** Sentinel returned by [decodePost] for a NODATA / out-of-range elevation post. */
+        const val INVALID_POST = Int.MIN_VALUE
+
+        /** Decode a big-endian post from bytes [hi]/[lo]. DTED elevations are **sign-magnitude** (bit 15 =
+         *  sign), not two's complement; returns metres, or [INVALID_POST] for NODATA / out-of-range. */
+        fun decodePost(hi: Int, lo: Int): Int {
+            val u = ((hi and 0xFF) shl 8) or (lo and 0xFF)
+            val v = if (u and 0x8000 != 0) -(u and 0x7FFF) else u // sign-magnitude, not two's complement
+            return if (v != NODATA_VALUE && v in MIN_VALUE..MAX_VALUE) v else INVALID_POST
+        }
+
         /** Convenience: lets callers write `DTED(bytes)` instead of `DTED.parse(bytes)`. */
         operator fun invoke(bytes: ByteArray): DTED = parse(bytes)
 
@@ -110,8 +103,7 @@ class DTED internal constructor(
             )
         }
 
-        /** Parse only the UHL/DSI/ACC headers (~3.4 KB). The byte array may contain
-         *  the full file or just the first [DATA_OFFSET] bytes. */
+        /** Parse only the UHL/DSI/ACC headers (~3.4 KB); [bytes] may be the full file or just the header. */
         fun readMetadata(bytes: ByteArray): Metadata {
             require(bytes.size >= DATA_OFFSET) {
                 logMessage(ERROR, "DTED", "readMetadata", "DTED header truncated: ${bytes.size}")
@@ -119,8 +111,7 @@ class DTED internal constructor(
             return parseHeader(BinaryDataView(bytes))
         }
 
-        /** Parse the fixed 3428-byte header block sitting at the start of every DTED
-         *  file. Shared between [parse] and the platform-specific streaming readers. */
+        /** Parse the fixed 3428-byte header block; shared by [parse] and the streaming readers. */
         internal fun parseHeader(data: BinaryDataView): Metadata {
             checkRecordId(data, UHL_OFFSET, "UHL")
             val lon = readAngle(readAscii(data, UHL_OFFSET + 4, 8))
@@ -142,9 +133,22 @@ class DTED internal constructor(
             return Metadata(sector, origin, width, height, level, classLevel)
         }
 
-        /** Validate the per-record checksum and decode one column of latitude posts,
-         *  writing them into [out] in WorldWind row-major order (south→north flipped).
-         *  Shared between the byte-array and streaming reader paths. */
+        /** Parse only the UHL record (post counts + SW corner) the streaming readers need, skipping
+         *  DSI/ACC; [Metadata.level] is left 0 (unknown from the UHL alone). */
+        internal fun parseUhl(data: BinaryDataView): Metadata {
+            checkRecordId(data, UHL_OFFSET, "UHL")
+            val lon = readAngle(readAscii(data, UHL_OFFSET + 4, 8))
+                ?: error(logMessage(ERROR, "DTED", "parseUhl", "Invalid UHL longitude"))
+            val lat = readAngle(readAscii(data, UHL_OFFSET + 12, 8))
+                ?: error(logMessage(ERROR, "DTED", "parseUhl", "Invalid UHL latitude"))
+            val width = readAscii(data, UHL_OFFSET + 47, 4).trim().toInt()
+            val height = readAscii(data, UHL_OFFSET + 51, 4).trim().toInt()
+            val sector = Sector.fromDegrees(lat.inDegrees, lon.inDegrees, 1.0, 1.0)
+            val origin = Location.fromDegrees(lat.inDegrees + 1.0, lon.inDegrees)
+            return Metadata(sector, origin, width, height, 0, readClassLevel(readAscii(data, UHL_OFFSET + 32, 3)))
+        }
+
+        /** Validate the record checksum and decode one column into [out], flipping file south→north to WW rows. */
         internal fun decodeColumn(
             data: BinaryDataView, recordOffset: Int, columnIndex: Int,
             width: Int, height: Int, out: ShortArray,
@@ -162,18 +166,13 @@ class DTED internal constructor(
             )
             val elevStart = recordOffset + REC_HEADER_SIZE
             for (i in 0 until height) {
-                val raw = data.getInt16(elevStart + i * 2, littleEndian = false).toInt()
+                val v = decodePost(data.getUint8(elevStart + i * 2), data.getUint8(elevStart + i * 2 + 1))
                 val y = height - 1 - i // flip south→north (file) to north→south (WW)
-                out[y * width + columnIndex] = if (raw != NODATA_VALUE && raw in MIN_VALUE..MAX_VALUE) {
-                    raw.toShort()
-                } else {
-                    Short.MIN_VALUE
-                }
+                out[y * width + columnIndex] = if (v == INVALID_POST) Short.MIN_VALUE else v.toShort()
             }
         }
 
-        /** Linear scan of the decoded grid for non-null min/max. Returns `(0.0, 0.0)`
-         *  for a grid with no valid posts. */
+        /** Min/max over valid posts, or `(0.0, 0.0)` if the grid has none. */
         internal fun computeRange(elevations: ShortArray): Pair<Double, Double> {
             var min = Double.MAX_VALUE
             var max = -Double.MAX_VALUE
@@ -201,20 +200,19 @@ class DTED internal constructor(
         }
 
         private fun readAngle(raw: String): Angle? {
-            // DTED packs angles as DDDMMSSH / DDMMSSH (optionally with .S fractional
-            // seconds, which the spec doesn't actually use). Slice into D/M/S parts and
-            // hand "DD MM SS H" to the standard parser.
+            // DTED packs angles fixed-width as [D]DDMMSSH; parse the slices directly, not via the regex-compiling Angle.fromDMS.
             val s = raw.trim()
             val degLen = when (s.length) {
                 7, 9 -> 2 // DDMMSSH or DDMMSS.SH
                 8, 10 -> 3 // DDDMMSSH or DDDMMSS.SH
                 else -> return null
             }
-            val degrees = s.substring(0, degLen)
-            val minutes = s.substring(degLen, degLen + 2)
-            val seconds = s.substring(degLen + 2, degLen + 4)
-            val hemi = s.last()
-            return Angle.fromDMS("$degrees $minutes $seconds $hemi")
+            val deg = s.substring(0, degLen).toIntOrNull() ?: return null
+            val min = s.substring(degLen, degLen + 2).toIntOrNull() ?: return null
+            val sec = s.substring(degLen + 2, degLen + 4).toIntOrNull() ?: return null
+            if (min >= 60 || sec >= 60) return null
+            val sign = when (s.last()) { 'N', 'n', 'E', 'e' -> 1.0; 'S', 's', 'W', 'w' -> -1.0; else -> return null }
+            return Angle.fromDegrees(sign * (deg + min / 60.0 + sec / 3600.0))
         }
 
         private fun readLevel(raw: String): Int? {

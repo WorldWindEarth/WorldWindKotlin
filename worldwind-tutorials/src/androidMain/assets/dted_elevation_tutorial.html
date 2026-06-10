@@ -49,7 +49,7 @@ class DtedElevationTutorial(engine: WorldWind) : AbstractTutorial(engine) {
         val rootDir = if (customRoot != null) File(customRoot)
             else createSyntheticLibrary().also { syntheticDir = it }
 
-        val coverage = DtedElevationCoverage(rootDir).also { dtedCoverage = it }
+        val coverage = DtedElevationCoverage.create(rootDir)?.also { dtedCoverage = it } ?: return
         engine.globe.elevationModel.apply {
             forEach { if (it.isEnabled) it.isEnabled = false }
             addCoverage(coverage)
