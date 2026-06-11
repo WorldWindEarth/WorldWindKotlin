@@ -2,7 +2,7 @@ package earth.worldwind.formats.gltf
 
 import earth.worldwind.formats.BinaryDataView
 import earth.worldwind.geom.Matrix4
-import earth.worldwind.layer.ogc3d.Ogc3dDecoderRegistry
+import earth.worldwind.formats.gltf.GltfDecoderRegistry
 import earth.worldwind.util.Logger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -34,11 +34,11 @@ object GltfReader {
      */
     @OptIn(ExperimentalEncodingApi::class)
     fun parse(jsonText: String, binChunk: ByteArray?): GltfModel {
-        val doc = json.decodeFromString<G2Doc>(jsonText)
+        val docRaw = json.decodeFromString<G2Doc>(jsonText)
         // Decode every buffer. Buffer 0 in a GLB has no URI and resolves to the BIN chunk;
         // other buffers must carry a `data:` URI (the 3D Tiles content path doesn't fetch
         // external buffer files — that's an external-asset feature we deliberately skip).
-        val buffers: List<ByteArray> = doc.buffers.mapIndexed { idx, b ->
+        val initialBuffers: List<ByteArray> = docRaw.buffers.mapIndexed { idx, b ->
             when {
                 idx == 0 && (b.uri.isEmpty() || b.uri == "data:") && binChunk != null -> binChunk
                 b.uri.startsWith("data:") -> {
@@ -49,13 +49,21 @@ object GltfReader {
             }
         }
 
+        // EXT_meshopt_compression: decode every compressed bufferView once, appending the
+        // decoded bytes to a mutable buffers list, and rewrite each affected bufferView to
+        // point at the fresh buffer entry at offset 0. Downstream readers consume the
+        // rewritten G2Doc + extended buffers transparently. Without a registered decoder
+        // we log once + drop affected bufferViews to byteLength=0 so accessor reads short-
+        // circuit (the primitive then misses the affected attribute).
+        val (doc, buffers) = resolveMeshoptBufferViews(docRaw, initialBuffers)
+
         // Identify which image indices source a KTX2 / Basis-Universal payload via the
         // `KHR_texture_basisu` texture extension. These need transcoding through the
         // registered [Ktx2Decoder]; the regular PNG/JPG image-decode path can't read KTX2.
         val basisuImageIndices: Set<Int> = doc.textures
             .mapNotNull { it.extensions?.basisu?.source.takeIf { idx -> idx != null && idx >= 0 } }
             .toSet()
-        val ktx2Decoder = Ogc3dDecoderRegistry.ktx2Decoder
+        val ktx2Decoder = GltfDecoderRegistry.ktx2Decoder
         var ktx2SkipLogged = false
 
         // Decode embedded images. glTF images can reference either a bufferView (preferred
@@ -82,7 +90,7 @@ object GltfReader {
                         Logger.log(
                             Logger.WARN,
                             "GltfReader.parse: texture uses KHR_texture_basisu but no " +
-                                "Ogc3dDecoderRegistry.ktx2Decoder is registered; the texture " +
+                                "GltfDecoderRegistry.ktx2Decoder is registered; the texture " +
                                 "will be omitted (affected primitive renders untextured)",
                         )
                     }
@@ -149,7 +157,7 @@ object GltfReader {
         //      to (a) when the extension is absent OR the decoder is null AND the primitive
         //      keeps the regular accessors as a Draco fallback (typical for glTF assets that
         //      ship both for compatibility; Cesium tilesets usually omit the fallback).
-        val dracoDecoder = Ogc3dDecoderRegistry.dracoDecoder
+        val dracoDecoder = GltfDecoderRegistry.dracoDecoder
         var dracoSkipLogged = false
         val meshes: List<GltfMesh> = doc.meshes.map { mesh ->
             val prims = mesh.primitives.mapNotNull { prim ->
@@ -161,7 +169,7 @@ object GltfReader {
                             Logger.log(
                                 Logger.WARN,
                                 "GltfReader.parse: primitive uses KHR_draco_mesh_compression but " +
-                                    "no Ogc3dDecoderRegistry.dracoDecoder is registered; the primitive will be skipped"
+                                    "no GltfDecoderRegistry.dracoDecoder is registered; the primitive will be skipped"
                             )
                         }
                         // Try the regular accessors as a Draco fallback. Per spec the primitive
@@ -480,6 +488,107 @@ object GltfReader {
             else -> null to null
         }
     }
+
+    /**
+     * Decode every `EXT_meshopt_compression`-tagged bufferView once, ahead of any accessor
+     * reads. Returns a [Pair] of the rewritten document (with the meshopt bufferViews
+     * pointing at fresh decoded buffer entries) plus the extended buffer list.
+     *
+     * On any per-bufferView failure (no decoder, malformed extension, decoder threw) the
+     * affected bufferView is rewritten to byteLength=0 so accessor reads short-circuit
+     * cleanly; the affected primitive renders without that attribute rather than
+     * crashing the whole parse.
+     */
+    private fun resolveMeshoptBufferViews(
+        docIn: G2Doc,
+        buffersIn: List<ByteArray>,
+    ): Pair<G2Doc, List<ByteArray>> {
+        val anyMeshopt = docIn.bufferViews.any { it.extensions?.meshoptCompression != null }
+        if (!anyMeshopt) return docIn to buffersIn
+
+        val decoder = GltfDecoderRegistry.meshoptDecoder
+        val mutableBuffers = buffersIn.toMutableList()
+        var skipLogged = false
+
+        // Sentinel: buffer = -1 makes every reader's `buffers.getOrNull(bv.buffer)` return null,
+        // so the affected primitive degrades to "attribute absent" instead of crashing.
+        fun skip(bv: G2G2DocBufferView) = bv.copy(buffer = -1, byteOffset = 0, byteLength = 0)
+
+        val rewritten = docIn.bufferViews.map { bv ->
+            val ext = bv.extensions?.meshoptCompression ?: return@map bv
+            if (decoder == null) {
+                if (!skipLogged) {
+                    skipLogged = true
+                    Logger.log(
+                        Logger.WARN,
+                        "GltfReader.parse: bufferView uses EXT_meshopt_compression but no " +
+                            "GltfDecoderRegistry.meshoptDecoder is registered; affected " +
+                            "primitives render without these attributes",
+                    )
+                }
+                return@map skip(bv)
+            }
+            val mode = parseMeshoptMode(ext.mode) ?: run {
+                Logger.log(Logger.WARN, "GltfReader.parse: unknown EXT_meshopt_compression mode '${ext.mode}'; skipping")
+                return@map skip(bv)
+            }
+            if (!isKnownMeshoptFilter(ext.filter)) {
+                Logger.log(Logger.WARN, "GltfReader.parse: unknown EXT_meshopt_compression filter '${ext.filter}'; skipping")
+                return@map skip(bv)
+            }
+            val filter = parseMeshoptFilter(ext.filter)
+            val srcBuf = mutableBuffers.getOrNull(ext.buffer) ?: return@map skip(bv)
+            // Subtraction form, not `offset+length > size`: with signed 32-bit Ints the sum
+            // wraps to negative for adversarial inputs and silently passes a > check.
+            if (ext.byteOffset < 0 || ext.byteLength < 0 || ext.byteLength > srcBuf.size - ext.byteOffset) {
+                Logger.log(
+                    Logger.WARN,
+                    "GltfReader.parse: EXT_meshopt_compression byteOffset/byteLength out of " +
+                        "range for source buffer; skipping",
+                )
+                return@map skip(bv)
+            }
+            val compressed = srcBuf.sliceArray(ext.byteOffset until ext.byteOffset + ext.byteLength)
+            val decoded = runCatching {
+                decoder.decode(compressed, ext.count, ext.byteStride, mode, filter)
+            }.getOrElse { t ->
+                Logger.log(
+                    Logger.WARN,
+                    "GltfReader.parse: EXT_meshopt_compression decode failed for " +
+                        "count=${ext.count} stride=${ext.byteStride} mode=${ext.mode}: ${t.message}",
+                )
+                return@map skip(bv)
+            }
+            val newBufferIdx = mutableBuffers.size
+            mutableBuffers.add(decoded)
+            bv.copy(
+                buffer = newBufferIdx,
+                byteOffset = 0,
+                byteLength = decoded.size,
+                byteStride = ext.byteStride,
+            )
+        }
+        return docIn.copy(bufferViews = rewritten) to mutableBuffers.toList()
+    }
+
+    private fun parseMeshoptMode(raw: String): MeshoptDecoder.Mode? = when (raw.uppercase()) {
+        "ATTRIBUTES" -> MeshoptDecoder.Mode.ATTRIBUTES
+        "TRIANGLES"  -> MeshoptDecoder.Mode.TRIANGLES
+        "INDICES"    -> MeshoptDecoder.Mode.INDICES
+        else         -> null
+    }
+
+    /** null means "no filter" — covers both spec values "NONE" / "" and unknown strings.
+     *  Callers gate on [isKnownMeshoptFilter] first so unknown strings get a log + skip. */
+    private fun parseMeshoptFilter(raw: String): MeshoptDecoder.Filter? = when (raw.uppercase()) {
+        "OCTAHEDRAL"  -> MeshoptDecoder.Filter.OCTAHEDRAL
+        "QUATERNION"  -> MeshoptDecoder.Filter.QUATERNION
+        "EXPONENTIAL" -> MeshoptDecoder.Filter.EXPONENTIAL
+        else          -> null
+    }
+
+    private fun isKnownMeshoptFilter(raw: String): Boolean =
+        raw.uppercase() in setOf("OCTAHEDRAL", "QUATERNION", "EXPONENTIAL", "NONE", "")
 }
 
 // --- wire-format model (private) --------------------------------------------------------
@@ -568,6 +677,28 @@ internal data class G2G2DocBufferView(
     val byteOffset: Int = 0,
     val byteLength: Int = 0,
     val byteStride: Int = 0,
+    val extensions: G2DocBufferViewExtensions? = null,
+)
+
+@Serializable
+internal data class G2DocBufferViewExtensions(
+    @SerialName("EXT_meshopt_compression")
+    val meshoptCompression: G2DocMeshoptCompression? = null,
+)
+
+/** EXT_meshopt_compression bufferView extension — compressed source location + the
+ *  shape of the decoded output. See https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_meshopt_compression/README.md */
+@Serializable
+internal data class G2DocMeshoptCompression(
+    val buffer: Int = 0,
+    val byteOffset: Int = 0,
+    val byteLength: Int = 0,
+    val byteStride: Int = 0,
+    val count: Int = 0,
+    /** "ATTRIBUTES" / "TRIANGLES" / "INDICES" per spec. */
+    val mode: String = "",
+    /** "NONE" / "OCTAHEDRAL" / "QUATERNION" / "EXPONENTIAL"; absent = no filter. */
+    val filter: String = "NONE",
 )
 
 @Serializable
