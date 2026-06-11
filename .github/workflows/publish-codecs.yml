@@ -1,0 +1,240 @@
+name: Publish glTF codecs to Maven Central
+
+# Three KMP codec modules (Draco, KTX2, Meshopt) each ship per-platform native binaries:
+#  - JVM JAR bundles libXxx_bridge.{so,dylib,dll} as resources, one per host OS+arch
+#  - Android AAR bundles libXxx_bridge.so as jniLibs, one per ABI
+#  - iOS klib bundles libXxx_bridge.a + upstream static lib via cinterop
+#
+# Each host produces only its own binaries; a single publish job aggregates everything
+# and pushes signed artifacts to Sonatype OSSRH staging (then auto-closes the repo).
+#
+# Triggers:
+#  - manual dispatch (workflow_dispatch) — for cutting an ad-hoc release
+#  - push of a tag starting with `codecs-v` — for tagged releases
+#  - push to `master` — auto-release when `worldwind.codecsVersion` in
+#    gradle.properties advances past what's already on Maven Central; no-op when the
+#    version is unchanged (so a normal library-only master push doesn't fail here).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Stage to MavenLocal instead of Sonatype (skips signing + upload)
+        type: boolean
+        default: false
+  push:
+    branches:
+      - master
+    tags:
+      - 'codecs-v*'
+
+env:
+  WW_NDK_VERSION: '30.0.14904198'
+  WW_CMAKE_VERSION: '4.1.2'
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────────
+  # Resolve the version that this run would publish and decide whether to proceed.
+  # Tag pushes and manual dispatches always proceed. Master pushes proceed only when
+  # the configured `worldwind.codecsVersion` isn't yet on Maven Central — this is
+  # the "auto-release on version bump, no-op on unchanged" gate.
+  # ────────────────────────────────────────────────────────────────────────────────
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve codecs version + check Maven Central presence
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Tag push: trust the tag suffix as the intended version, always proceed.
+          if [[ "${{ github.ref }}" == refs/tags/codecs-v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/codecs-v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag-triggered publish for codecs v$VERSION."
+            exit 0
+          fi
+          # Manual dispatch: always proceed (gated by dry_run at publish time).
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION=$(grep "^worldwind.codecsVersion=" gradle.properties | cut -d= -f2)
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Manual dispatch for codecs v$VERSION (dry_run=${{ inputs.dry_run }})."
+            exit 0
+          fi
+          # Master push: only proceed when the configured version isn't on Central yet.
+          # Probe `worldwind-formats-gltf-draco` as the canonical artifact — the three
+          # format modules version + release together, so checking one is sufficient.
+          VERSION=$(grep "^worldwind.codecsVersion=" gradle.properties | cut -d= -f2)
+          URL="https://repo1.maven.org/maven2/earth/worldwind/worldwind-formats-gltf-draco/$VERSION/worldwind-formats-gltf-draco-$VERSION.pom"
+          if curl -sfL -o /dev/null "$URL"; then
+            echo "::notice::worldwind-formats-gltf-* v$VERSION already on Maven Central — skipping publish (bump worldwind.codecsVersion in gradle.properties to release a new version)."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::worldwind-formats-gltf-* v$VERSION not yet on Maven Central — proceeding with publish."
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ────────────────────────────────────────────────────────────────────────────────
+  # JVM host binaries — one matrix job per supported (os, arch). Each produces
+  # libXxx_bridge.{dylib,so,dll} for that host under build/generated/jvmNative/.
+  # ────────────────────────────────────────────────────────────────────────────────
+  build-jvm-native:
+    needs: check-version
+    if: needs.check-version.outputs.should_publish == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14         # arm64
+            classifier: macos-aarch64
+          - os: ubuntu-22.04
+            classifier: linux-x86_64
+          - os: windows-2022
+            classifier: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+      - name: Build JVM host bridges (Draco, KTX2, Meshopt)
+        shell: bash
+        run: |
+          ./gradlew \
+            :worldwind-formats-gltf-draco:buildDracoBridgeJvm \
+            :worldwind-formats-gltf-ktx2:buildKtx2BridgeJvm \
+            :worldwind-formats-gltf-meshopt:buildMeshoptBridgeJvm \
+            -Pworldwind.draco.buildJvmNative=true \
+            -Pworldwind.ktx2.buildJvmNative=true \
+            -Pworldwind.meshopt.buildJvmNative=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jvm-native-${{ matrix.classifier }}
+          path: |
+            worldwind-formats-gltf-draco/build/generated/jvmNative/
+            worldwind-formats-gltf-ktx2/build/generated/jvmNative/
+            worldwind-formats-gltf-meshopt/build/generated/jvmNative/
+          if-no-files-found: error
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────────────
+  # Android jniLibs — NDK + CMake do every ABI in one shot on Linux.
+  # ────────────────────────────────────────────────────────────────────────────────
+  build-android-native:
+    needs: check-version
+    if: needs.check-version.outputs.should_publish == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+      - name: Install pinned NDK + CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;${{ env.WW_NDK_VERSION }}" \
+            "cmake;${{ env.WW_CMAKE_VERSION }}"
+      - name: Build Android bridges (all 4 ABIs)
+        run: |
+          ./gradlew \
+            :worldwind-formats-gltf-draco:buildDracoBridge \
+            :worldwind-formats-gltf-ktx2:buildKtx2Bridge \
+            :worldwind-formats-gltf-meshopt:buildMeshoptBridge \
+            -Pworldwind.draco.buildAndroidNative=true \
+            -Pworldwind.ktx2.buildAndroidNative=true \
+            -Pworldwind.meshopt.buildAndroidNative=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-native
+          path: |
+            worldwind-formats-gltf-draco/build/jniLibs/
+            worldwind-formats-gltf-ktx2/build/jniLibs/
+            worldwind-formats-gltf-meshopt/build/jniLibs/
+          if-no-files-found: error
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────────────
+  # Final publish — on macOS so the iOS cinterop klibs can be built locally with
+  # CMake + Xcode CLT. Downloads every host's prebuilt binary, stages it into the
+  # right module/build paths, then runs publish with the staging flag set so the
+  # signing + upload tasks don't trigger a redundant local-host native rebuild.
+  # ────────────────────────────────────────────────────────────────────────────────
+  publish:
+    needs: [check-version, build-jvm-native, build-android-native]
+    if: needs.check-version.outputs.should_publish == 'true'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/artifacts
+      - name: Stage prebuilt JVM + Android binaries into module build dirs
+        shell: bash
+        run: |
+          # macOS runners ship bash 3.2 which lacks `globstar`; nullglob alone is enough
+          # here since the patterns below only use simple `*`, not `**`.
+          shopt -s nullglob
+          # Each artifact preserves the workspace-relative path layout, so a recursive
+          # rsync back to the repo root restores files at their original locations.
+          for d in ${{ runner.temp }}/artifacts/jvm-native-* ${{ runner.temp }}/artifacts/android-native; do
+            [ -d "$d" ] || continue
+            rsync -a "$d/" ./
+          done
+          echo "=== Staged JVM binaries ==="
+          ls -la worldwind-formats-gltf-*/build/generated/jvmNative/native/*/ 2>/dev/null || true
+          echo "=== Staged Android jniLibs ==="
+          ls -la worldwind-formats-gltf-*/build/jniLibs/*/ 2>/dev/null || true
+      - name: Verify all three JVM hosts present
+        shell: bash
+        run: |
+          set -e
+          for codec in draco ktx2 meshopt; do
+            base="worldwind-formats-gltf-$codec/build/generated/jvmNative/native"
+            for host in macos-aarch64 linux-x86_64 windows-x86_64; do
+              count=$(find "$base/$host" -type f 2>/dev/null | wc -l | tr -d ' ')
+              if [ "$count" = "0" ]; then
+                echo "::error::Missing $base/$host — at least one host matrix job failed silently."
+                exit 1
+              fi
+            done
+          done
+          echo "All host binaries present for every codec."
+      - name: Publish to Sonatype (or MavenLocal if dry-run)
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PRIVATE_PASSWORD: ${{ secrets.GPG_PRIVATE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        shell: bash
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            TARGET="publishToMavenLocal"
+          else
+            TARGET="publishToSonatype closeSonatypeStagingRepository"
+          fi
+          ./gradlew \
+            :worldwind-formats-gltf-draco:$TARGET \
+            :worldwind-formats-gltf-ktx2:$TARGET \
+            :worldwind-formats-gltf-meshopt:$TARGET \
+            -Pworldwind.publishingNativeStaging=true \
+            -Pworldwind.draco.buildIosNative=true \
+            -Pworldwind.ktx2.buildIosNative=true \
+            -Pworldwind.meshopt.buildIosNative=true \
+            --no-daemon

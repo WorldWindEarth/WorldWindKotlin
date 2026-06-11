@@ -19,6 +19,10 @@ plugins {
     id("org.jetbrains.dokka")
 }
 
+// Codec modules version independently of the main engine — bumped via
+// `worldwind.codecsVersion` in gradle.properties.
+version = providers.gradleProperty("worldwind.codecsVersion").get()
+
 val ndkVersion = "30.0.14904198"
 val cmakeVersion = "4.1.2"
 val androidApi = providers.gradleProperty("worldwind.minSdk").get().toInt()
@@ -311,10 +315,13 @@ val buildKtx2BridgeJvm by tasks.registering(Copy::class) {
 }
 
 afterEvaluate {
-    if (androidNativeOptIn || androidNdkInstalled) {
+    val skipLocalNativeBuild = providers.gradleProperty("worldwind.publishingNativeStaging").orNull == "true"
+    if (!skipLocalNativeBuild && (androidNativeOptIn || androidNdkInstalled)) {
         tasks.matching {
             it.name.startsWith("mergeAndroid") || it.name.startsWith("assemble") || it.name.startsWith("bundle")
         }.configureEach { dependsOn(buildKtx2Bridge) }
+    } else if (skipLocalNativeBuild) {
+        // staging mode handles Android via prebuilt jniLibs in build/jniLibs/
     } else {
         logger.lifecycle(
             "worldwind-formats-gltf-ktx2: NDK $ndkVersion + CMake $cmakeVersion not found — APK " +
@@ -322,14 +329,76 @@ afterEvaluate {
                 "set -Pworldwind.ktx2.buildAndroidNative=true."
         )
     }
-    if (jvmNativeOptIn || cmakeOnPath) {
+    if (!skipLocalNativeBuild && (jvmNativeOptIn || cmakeOnPath)) {
         tasks.named("jvmProcessResources") { dependsOn(buildKtx2BridgeJvm) }
         tasks.matching { it.name == "jvmJar" || it.name == "jvmSourcesJar" }
             .configureEach { dependsOn(buildKtx2BridgeJvm) }
+    } else if (skipLocalNativeBuild) {
+        logger.lifecycle("worldwind-formats-gltf-ktx2: publishing-native-staging mode — using prebuilt binaries from build/generated/jvmNative/.")
     } else {
         logger.lifecycle(
             "worldwind-formats-gltf-ktx2: cmake not found on PATH — JVM JAR will ship without " +
                 "native libktx_bridge. Install cmake or set -Pworldwind.ktx2.buildJvmNative=true."
         )
     }
+}
+
+val dokkaOutputDir = layout.buildDirectory.dir("dokka")
+val deleteDokkaOutputDir by tasks.registering(Delete::class) { delete(dokkaOutputDir) }
+val javadocJar = tasks.register<Jar>("javadocJar") {
+    dependsOn(deleteDokkaOutputDir, tasks.dokkaGeneratePublicationHtml)
+    archiveClassifier.set("javadoc")
+    from(dokkaOutputDir)
+}
+
+dokka {
+    moduleName.set("WorldWind Kotlin glTF KTX2")
+    pluginsConfiguration.html { footerMessage.set("(c) WorldWind Earth") }
+    dokkaPublications.html { outputDirectory.set(dokkaOutputDir) }
+}
+
+publishing {
+    publications {
+        withType<MavenPublication> {
+            artifact(javadocJar)
+            pom {
+                name.set("WorldWind Kotlin glTF KTX2 Codec")
+                description.set("KHR_texture_basisu (KTX2 / Basis Universal) decoder satellite for WorldWind Kotlin — JNI/cinterop binding around libktx. Registers with GltfDecoderRegistry on install.")
+                licenses {
+                    license {
+                        name.set("Apache License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0")
+                    }
+                }
+                url.set("https://worldwind.earth")
+                issueManagement {
+                    system.set("Github")
+                    url.set("https://github.com/WorldWindEarth/WorldWindKotlin/issues")
+                }
+                scm {
+                    connection.set("https://github.com/WorldWindEarth/WorldWindKotlin.git")
+                    url.set("https://github.com/WorldWindEarth/WorldWindKotlin")
+                }
+                developers {
+                    developer {
+                        name.set("Eugene Maksymenko")
+                        email.set("support@worldwind.earth")
+                    }
+                }
+            }
+        }
+    }
+}
+
+signing {
+    useInMemoryPgpKeys(
+        System.getenv("GPG_PRIVATE_KEY"),
+        System.getenv("GPG_PRIVATE_PASSWORD")
+    )
+    if (!System.getenv("GPG_PRIVATE_KEY").isNullOrBlank()) sign(publishing.publications)
+}
+
+tasks.withType<AbstractPublishToMaven>().configureEach {
+    val signingTasks = tasks.withType<Sign>()
+    mustRunAfter(signingTasks)
 }
