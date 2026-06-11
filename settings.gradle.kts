@@ -16,6 +16,7 @@ rootProject.name = "WorldWindKotlin"
 include(":worldwind")
 include(":worldwind-formats-gltf-draco")
 include(":worldwind-formats-gltf-ktx2")
+include(":worldwind-formats-gltf-meshopt")
 include(":worldwind-compose")
 include(":worldwind-compose-samples")
 include(":worldwind-compose-samples-android")

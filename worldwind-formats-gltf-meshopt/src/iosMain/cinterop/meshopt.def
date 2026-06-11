@@ -1,0 +1,4 @@
+package = earth.worldwind.formats.gltf.meshopt.cinterop
+headers = meshopt_bridge.h
+language = C
+staticLibraries = libmeshopt_bridge.a libmeshoptimizer.a
