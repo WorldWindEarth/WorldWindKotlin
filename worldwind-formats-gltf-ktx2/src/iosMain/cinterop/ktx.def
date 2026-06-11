@@ -1,0 +1,4 @@
+package = earth.worldwind.formats.gltf.ktx2.cinterop
+headers = ktx_bridge.h
+language = C
+staticLibraries = libktx_bridge.a libktx.a
