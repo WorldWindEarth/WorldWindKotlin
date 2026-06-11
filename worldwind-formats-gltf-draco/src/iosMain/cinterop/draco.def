@@ -1,0 +1,8 @@
+package = earth.worldwind.formats.gltf.draco.cinterop
+headers = draco_bridge.h
+language = C
+
+# Static library + libdraco get linked here per architecture. The Gradle config below sets
+# the actual paths via `libraryPaths.<target> = ...` because the per-architecture build
+# output directories are project-relative.
+staticLibraries = libdraco_bridge.a libdraco.a
