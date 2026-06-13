@@ -22,8 +22,12 @@ import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.formats.gltf.draco.installDracoDecoder
+import earth.worldwind.formats.gltf.ktx2.installKtx2Decoder
+import earth.worldwind.layer.ogc3d.content.spz.installDefaultSpzInflater
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
 import earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.attachCache
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
@@ -53,6 +57,13 @@ fun main() {
     installPermissiveSslForTutorials()
     SwingUtilities.invokeLater {
         val mainScope = MainScope()
+        // 3D Tiles codecs install once for the process. Draco + KTX2 loaders are suspend
+        // (JNI bridges) — fire-and-forget; the first .glb fetch lands long after start-up.
+        mainScope.launch {
+            installDracoDecoder()
+            installKtx2Decoder()
+        }
+        installDefaultSpzInflater()
         // Shared GeoPackage cache; per-layer rows namespaced by content key. Parent-dir
         // creation must happen BEFORE the GpkgContentManager constructor — `geoPackage` is
         // an eager `val` that opens the SQLite file synchronously, so a missing parent dir
@@ -126,6 +137,36 @@ fun main() {
                 "Triangle meshes" to triMeshTutorial,
                 "COLLADA" to colladaTutorial,
                 "GLTF" to gltfTutorial,
+                "OGC 3D Tiles" to Ogc3dTilesTutorial(
+                    engine,
+                    cacheProvider = { info ->
+                        contentManager.openBlobStore(
+                            contentKey = "ogc3d_tutorial",
+                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                            displayName = "OGC 3D Tiles tutorial cache",
+                        ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
+                    },
+                ),
+                "Google 3D Tiles" to Google3dTilesTutorial(
+                    engine,
+                    cacheProvider = { info ->
+                        contentManager.openBlobStore(
+                            contentKey = "google_3dtiles_tutorial",
+                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                            displayName = "Google Photorealistic 3D Tiles tutorial cache",
+                        ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
+                    },
+                ),
+                "Cesium Ion 3D Tiles" to CesiumIon3dTilesTutorial(
+                    engine,
+                    cacheProvider = { info ->
+                        contentManager.openBlobStore(
+                            contentKey = "cesium_ion_3dtiles_tutorial",
+                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                            displayName = "Cesium Ion 3D Tiles tutorial cache",
+                        ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
+                    },
+                ),
                 "OSM Buildings" to OsmBuildingsTutorial(engine, mainScope, layerLoader = {
                     OsmBuildingsLayer(useOsmColors = true).also {
                         contentManager.attachCache(it, "OsmBuildings")

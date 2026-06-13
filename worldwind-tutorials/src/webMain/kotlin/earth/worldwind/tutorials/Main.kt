@@ -6,6 +6,7 @@ import earth.worldwind.WorldWindow
 import earth.worldwind.geom.Line
 import earth.worldwind.gesture.SelectDragCallback
 import earth.worldwind.globe.elevation.coverage.BasicElevationCoverage
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.WebContentManager
 import earth.worldwind.layer.cache.attachCache
 import earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource
@@ -35,6 +36,10 @@ import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.formats.gltf.draco.installDracoDecoder
+import earth.worldwind.formats.gltf.ktx2.installKtx2Decoder
+import earth.worldwind.layer.ogc3d.content.spz.SpzGaussianLoader
+import earth.worldwind.layer.ogc3d.content.spz.installDefaultSpzInflater
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.shape.Movable
@@ -75,6 +80,16 @@ fun main() {
             )
         }
         val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main + mainExceptionHandler)
+        // 3D Tiles codecs install once for the process. Draco + KTX2 loaders are suspend
+        // (load WASM modules) — fire-and-forget; the first .glb fetch lands long after start-up.
+        mainScope.launch {
+            installDracoDecoder()
+            installKtx2Decoder()
+        }
+        installDefaultSpzInflater()
+        // Browser's `installDefaultSpzInflater` is a no-op (CompressionStream is async-only);
+        // wire pako's sync `ungzip` so SPZ tiles can decode on the render thread.
+        SpzGaussianLoader.inflater = PakoSpzInflater
         // Shared IndexedDB-backed cache for the JS target. Declared up here so it's
         // visible inside the `tutorials` map below — WMS / WMTS tutorial loaders
         // reference it for cache-aware factory mode.
@@ -132,6 +147,36 @@ fun main() {
                     wwd.requestRedraw()
                 }
             },
+            "OGC 3D Tiles" to Ogc3dTilesTutorial(
+                wwd.engine,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "ogc3d_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
+                        displayName = "OGC 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
+                },
+            ),
+            "Google 3D Tiles" to Google3dTilesTutorial(
+                wwd.engine,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "google_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
+                        displayName = "Google Photorealistic 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
+                },
+            ),
+            "Cesium Ion 3D Tiles" to CesiumIon3dTilesTutorial(
+                wwd.engine,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "cesium_ion_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
+                        displayName = "Cesium Ion 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
+                },
+            ),
             "OSM Buildings" to OsmBuildingsTutorial(wwd.engine, mainScope, layerLoader = {
                 OsmBuildingsLayer(useOsmColors = true).also {
                     contentManager.attachCache(it, "OsmBuildings")

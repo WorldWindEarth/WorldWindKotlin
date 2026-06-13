@@ -22,7 +22,10 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
 import earth.worldwind.WorldWindow
+import earth.worldwind.formats.gltf.draco.installDracoDecoder
+import earth.worldwind.formats.gltf.ktx2.installKtx2Decoder
 import earth.worldwind.frame.BasicFrameMetrics
+import earth.worldwind.layer.ogc3d.content.spz.installDefaultSpzInflater
 import earth.worldwind.globe.projection.MercatorProjection
 import earth.worldwind.globe.projection.Wgs84Projection
 import earth.worldwind.util.Logger
@@ -54,6 +57,14 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        // Install all 3D Tiles codecs once for the activity lifetime: Draco (glTF / pnts),
+        // KTX2 (KHR_texture_basisu), SPZ (Gaussian splats). meshopt registers via the
+        // module-internal default.
+        lifecycleScope.launch {
+            installDracoDecoder()
+            installKtx2Decoder()
+        }
+        installDefaultSpzInflater()
         onCreateDrawer()
         if (findViewById<FrameLayout>(R.id.code_container) != null) {
             // The code container view will be present only in the
@@ -340,6 +351,21 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 OsmBuildingsFragment::class.java,
                 "file:///android_asset/osm_buildings_tutorial.html",
                 R.string.title_osm_buildings
+            )
+            R.id.nav_ogc3d_tiles_activity -> loadTutorial(
+                Ogc3dTilesFragment::class.java,
+                "file:///android_asset/ogc3d_tiles_tutorial.html",
+                R.string.title_ogc3d_tiles
+            )
+            R.id.nav_google_3d_tiles_activity -> loadTutorial(
+                Google3dTilesFragment::class.java,
+                "file:///android_asset/google_3d_tiles_tutorial.html",
+                R.string.title_google_3d_tiles
+            )
+            R.id.nav_cesium_ion_3d_tiles_activity -> loadTutorial(
+                CesiumIon3dTilesFragment::class.java,
+                "file:///android_asset/cesium_ion_3d_tiles_tutorial.html",
+                R.string.title_cesium_ion_3d_tiles
             )
             R.id.nav_mvt_vector_tiles_activity -> loadTutorial(
                 MvtVectorTilesFragment::class.java,

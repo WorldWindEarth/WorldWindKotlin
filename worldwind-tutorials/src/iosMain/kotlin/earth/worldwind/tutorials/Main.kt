@@ -21,6 +21,10 @@ import earth.worldwind.layer.ViewControlsLayer
 import earth.worldwind.layer.WorldMapLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.buildings.OsmBuildingsLayer
+import earth.worldwind.formats.gltf.draco.installDracoDecoder
+import earth.worldwind.formats.gltf.ktx2.installKtx2Decoder
+import earth.worldwind.layer.ogc3d.content.spz.installDefaultSpzInflater
+import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.IosContentManager
 import earth.worldwind.layer.cache.attachCache
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
@@ -30,7 +34,6 @@ import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
 import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.ogc.Wcs100ElevationCoverage
-import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.ogc.WmsLayerFactory
 import earth.worldwind.ogc.WmtsLayerFactory
 import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
@@ -96,6 +99,14 @@ val contentManager: IosContentManager = IosContentManager()
 private val iosMainScope = MainScope()
 
 fun setupDefaultGlobe(engine: WorldWind) {
+    // 3D Tiles codecs install once for the process; all installers are idempotent so
+    // repeat WorldWindow construction is harmless.
+    iosMainScope.launch {
+        installDracoDecoder()
+        installKtx2Decoder()
+    }
+    installDefaultSpzInflater()
+
     // Base layers are added synchronously in their final positions but `isEnabled = false`
     // so the renderer issues no tile requests against the network-only factory. The launch
     // below opens the cache, swaps in the cached factory, then flips `isEnabled = true`.
@@ -168,6 +179,42 @@ object Tutorials {
         TutorialFactory("triangleMeshes", "Triangle meshes", ::TriangleMeshesTutorial),
         TutorialFactory("collada", "COLLADA", ::ColladaTutorial),
         TutorialFactory("gltf", "GLTF", ::GltfTutorial),
+        TutorialFactory("ogc3dtiles", "OGC 3D Tiles") { e ->
+            Ogc3dTilesTutorial(
+                e,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "ogc3d_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                        displayName = "OGC 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
+                },
+            )
+        },
+        TutorialFactory("googleOgc3dtiles", "Google 3D Tiles") { e ->
+            Google3dTilesTutorial(
+                e,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "google_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                        displayName = "Google Photorealistic 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
+                },
+            )
+        },
+        TutorialFactory("cesiumIonOgc3dtiles", "Cesium Ion 3D Tiles") { e ->
+            CesiumIon3dTilesTutorial(
+                e,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "cesium_ion_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                        displayName = "Cesium Ion 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
+                },
+            )
+        },
         TutorialFactory("osmBuildings", "OSM Buildings") { e ->
             OsmBuildingsTutorial(e, iosMainScope, layerLoader = {
                 OsmBuildingsLayer(useOsmColors = true).also {
