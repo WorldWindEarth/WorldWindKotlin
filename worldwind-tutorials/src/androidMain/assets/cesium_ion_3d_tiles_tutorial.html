@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Cesium Ion 3D Tiles Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Cesium Ion 3D Tiles Tutorial</h1>
+<p>
+    Streams a Cesium Ion-hosted 3D Tiles asset. <code>CesiumIonAuthProvider</code> attaches the
+    user's Ion access token, follows Ion's <code>assets/&lt;id&gt;/endpoint</code> redirect to the
+    real tileset URL, and reuses the short-lived per-asset access token returned by that redirect
+    on every subsequent tile fetch.
+</p>
+<p>
+    Paste your Cesium Ion access token into <code>CesiumIon3dTilesTutorial.cesiumIonAccessToken</code>
+    (generate one at <code>ion.cesium.com/tokens</code>). Override <code>cesiumIonAssetId</code> and
+    <code>cameraLookAt</code> to swap to any other Ion asset. The default is Aerometrex Melbourne
+    photogrammetry — a free public asset in the Ion Asset Depot.
+</p>
+<h2>Example</h2>
+<h3>CesiumIon3dTilesFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class CesiumIon3dTilesFragment : BasicGlobeFragment() {
+    private var tutorial: CesiumIon3dTilesTutorial? = null
+
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+        val ctx = requireContext().applicationContext
+        CesiumIon3dTilesTutorial(
+            wwd.engine,
+            cacheProvider = {
+                TutorialContentManagerHolder.get(ctx).openBlobStore(
+                    contentKey = "cesium_ion_3dtiles_tutorial",
+                    evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                    displayName = "Cesium Ion 3D Tiles tutorial cache",
+                )
+            },
+        ).also {
+            tutorial = it
+            it.start()
+        }
+        return wwd
+    }
+
+    override fun onDestroyView() {
+        tutorial?.stop()
+        tutorial = null
+        super.onDestroyView()
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

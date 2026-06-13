@@ -101,8 +101,12 @@ kotlin {
     }
     sourceSets {
         commonMain {
+            // Generated TutorialApiKeys.kt (build/ is gitignored, so it never gets committed).
+            kotlin.srcDir(layout.buildDirectory.dir("generated/source/apiKeys/commonMain/kotlin"))
             dependencies {
                 implementation(project(":worldwind"))
+                implementation(project(":worldwind-formats-gltf-draco"))
+                implementation(project(":worldwind-formats-gltf-ktx2"))
             }
         }
         androidMain {
@@ -139,6 +143,7 @@ kotlin {
                 implementation("org.openjfx:javafx-graphics:$javafxVersion:$javafxPlatform")
                 implementation("org.openjfx:javafx-media:$javafxVersion:$javafxPlatform")
                 implementation("org.openjfx:javafx-swing:$javafxVersion:$javafxPlatform")
+                implementation("org.openjfx:javafx-controls:$javafxVersion:$javafxPlatform")
             }
         }
         getByName("webMain") {
@@ -146,6 +151,8 @@ kotlin {
             languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
             dependencies {
                 implementation(libs.kotlinx.browser)
+                // Sync gzip for SPZ tiles (browser has no built-in sync gunzip).
+                implementation(npm("pako", "~2.1.0"))
             }
         }
         jsMain {
@@ -169,6 +176,39 @@ kotlin {
             }
         }
     }
+}
+
+// Writes TutorialApiKeys.kt from CESIUM_ION_TOKEN / GOOGLE_MAPS_API_KEY env (CI injects
+// from GitHub Secrets; empty → tutorials use placeholder fallback). Keys ship in the
+// public Pages bundle, so lock at provider: Google by HTTP referrer + Map Tiles API only;
+// Cesium Ion by asset scope + assets:read only. Rotate per release.
+val generateTutorialApiKeys by tasks.registering {
+    description = "Write TutorialApiKeys.kt from CESIUM_ION_TOKEN / GOOGLE_MAPS_API_KEY env vars."
+    val cesium = providers.environmentVariable("CESIUM_ION_TOKEN").orElse("")
+    val google = providers.environmentVariable("GOOGLE_MAPS_API_KEY").orElse("")
+    val outDir = layout.buildDirectory.dir("generated/source/apiKeys/commonMain/kotlin")
+    inputs.property("cesium", cesium)
+    inputs.property("google", google)
+    outputs.dir(outDir)
+    doLast {
+        val file = outDir.get().asFile.resolve("earth/worldwind/tutorials/TutorialApiKeys.kt")
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            package earth.worldwind.tutorials
+
+            /** Build-time API keys; empty → tutorial falls back to placeholder. */
+            internal object TutorialApiKeys {
+                const val CESIUM_ION = "${cesium.get()}"
+                const val GOOGLE_MAPS = "${google.get()}"
+            }
+            """.trimIndent() + "\n"
+        )
+    }
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask::class.java).configureEach {
+    dependsOn(generateTutorialApiKeys)
 }
 
 // Mirror :worldwind's non-mac-host workaround: moko-resources packs into a klib subdir

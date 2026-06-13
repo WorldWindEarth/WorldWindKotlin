@@ -29,7 +29,7 @@ geojson = "0.7.0"
 uri-kmp = "0.0.21"
 vlcj = "4.12.1"
 javacv = "1.5.13"
-javafx = "26.0.1"
+javafx = "21.0.5"
 xmlutil = "0.91.3"
 webp-imageio = "0.10.2"
 

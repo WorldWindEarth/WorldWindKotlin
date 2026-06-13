@@ -23,7 +23,22 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      # CESIUM_ION_TOKEN / GOOGLE_MAPS_API_KEY: baked into the public Pages bundle by
+      # generateTutorialApiKeys; lock at provider.
+      # Explicit module targets instead of the `build` aggregator: keeps the worldwind +
+      # worldwind-compose libraries (and their tests) the only thing validated against the
+      # `master` pre-publish gate, plus the tutorials JS bundle that ships to Pages. The
+      # codec modules build through publish-codecs.yml and are pulled into the tutorial JS
+      # bundle only via their Kotlin/JS NPM bindings — their native cmake chains never run
+      # here, regardless of whether cmake is on the runner.
+      env:
+        CESIUM_ION_TOKEN: ${{ secrets.CESIUM_ION_TOKEN }}
+        GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      run: |
+        ./gradlew \
+          :worldwind:build \
+          :worldwind-compose:build \
+          :worldwind-tutorials:jsBrowserDistribution
     - name: Deploy Tutorials to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:

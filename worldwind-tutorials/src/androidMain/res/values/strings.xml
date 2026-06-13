@@ -44,6 +44,9 @@
     <string name="title_collada">COLLADA Model</string>
     <string name="title_gltf">GLTF Model</string>
     <string name="title_osm_buildings">OSM Buildings</string>
+    <string name="title_ogc3d_tiles">OGC 3D Tiles</string>
+    <string name="title_google_3d_tiles">Google 3D Tiles</string>
+    <string name="title_cesium_ion_3d_tiles">Cesium Ion 3D Tiles</string>
     <string name="title_mvt_vector_tiles">Vector Tiles (MVT)</string>
 
     <string name="spacer" />
