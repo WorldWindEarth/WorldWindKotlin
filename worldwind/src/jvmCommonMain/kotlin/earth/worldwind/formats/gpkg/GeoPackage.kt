@@ -343,10 +343,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     /**
      * Evict image/elevation/vector tiles per [policy]. Capacity-only: [CachePolicy.staleAfter]
-     * never deletes (stale tiles refresh in place via SWR). Both [CachePolicy.maxEntries]
-     * (row count) and [CachePolicy.maxBytes] (sum of `LENGTH(tile_data)`) drop oldest-inserted
-     * rows first (by `id`, the autoincrement PK), one row per tile so a tile is never split. No-op
-     * when read-only or unbounded.
+     * never deletes (stale tiles refresh in place via SWR). [CachePolicy.maxEntries] (row count)
+     * drops oldest-inserted rows first (by `id`, the autoincrement PK), one row per tile so a tile
+     * is never split. No-op when read-only or unbounded.
      */
     suspend fun evictTiles(
         content: GpkgContent, policy: CachePolicy,
@@ -364,33 +363,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
                         ")"
             )
             deleted = true
-        }
-
-        if (policy.maxBytes < Long.MAX_VALUE) {
-            val dao = getOrCreateTileUserDataDao(content.tableName)
-            val total = dao.queryRawValue("SELECT COALESCE(SUM(LENGTH(tile_data)), 0) FROM $q")
-            if (total > policy.maxBytes) {
-                // Walk oldest-first, collecting ids until enough bytes are freed (one row per tile).
-                // Lazy cursor + early break → touches only the rows it deletes.
-                val bytesToFree = total - policy.maxBytes
-                val ids = ArrayList<Long>()
-                var freed = 0L
-                val iterator = dao.queryRaw("SELECT id, LENGTH(tile_data) FROM $q ORDER BY id ASC")
-                    .closeableIterator()
-                try {
-                    while (freed < bytesToFree && iterator.hasNext()) {
-                        val row = iterator.next()
-                        ids.add(row[0].toLong())
-                        freed += row[1]?.toLongOrNull() ?: 0L
-                    }
-                } finally {
-                    iterator.close()
-                }
-                for (chunk in ids.chunked(500)) {
-                    geoPackage.database.execSQL("DELETE FROM $q WHERE id IN (${chunk.joinToString(",")})")
-                }
-                if (ids.isNotEmpty()) deleted = true
-            }
         }
 
         // Drop revalidation rows orphaned by either eviction — by tpudt_id, so a tile row that no
@@ -1126,11 +1098,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * Evict from a features cache per [policy], driven by `ww_feature_coverage`:
      *  - [CachePolicy.staleAfter]: NOT a deletion trigger — stale tiles refresh in place (SWR).
      *  - [CachePolicy.maxEntries]: cap on cached coverage *tiles*.
-     *  - [CachePolicy.maxBytes]: cap on total feature bytes (`LENGTH(geom)+LENGTH(properties)`),
-     *    counting a tile-straddling feature once.
      *
-     * Both caps keep the newest coverage tiles (by id, so revalidation never changes the victim set)
-     * and evict the rest as WHOLE tiles — overlap-safe, so a feature shared with a retained tile
+     * Keeps the newest coverage tiles (by id, so revalidation never changes the victim set) and
+     * evicts the rest as WHOLE tiles — overlap-safe, so a feature shared with a retained tile
      * survives. No-op when read-only, unbounded, or there's no coverage table.
      */
     suspend fun evictFeatures(
@@ -1145,26 +1115,17 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             .where().eq(GpkgFeatureCoverage.COLUMN_TPUDT_NAME, content.tableName).query()
         if (tiles.isEmpty()) return@withContext
 
-        // Cheap over-budget guard: the walk below runs a spatial query + cursor materialization per coverage
-        // tile, so skip it when already within caps (common at startup). maxEntries = tile count; maxBytes = one SUM.
-        val overEntries = policy.maxEntries != Long.MAX_VALUE && tiles.size > policy.maxEntries
-        val overBytes = policy.maxBytes != Long.MAX_VALUE && readFeaturesDataSize(content.tableName) > policy.maxBytes
-        if (!overEntries && !overBytes) return@withContext
+        // Cheap over-budget guard: the walk below runs a spatial query + cursor materialization per
+        // coverage tile, so skip it when already within caps (common at startup).
+        if (policy.maxEntries == Long.MAX_VALUE || tiles.size <= policy.maxEntries) return@withContext
 
-        // Walk newest→oldest, keeping the prefix that fits both caps. keptIds accumulates the kept
-        // tiles' features (deduped), so byte accounting and the overlap-safe delete both reuse it.
+        // Walk newest→oldest, keeping the prefix that fits the entry cap. keptIds accumulates the
+        // kept tiles' features (deduped) for the overlap-safe delete below.
         val keptIds = HashSet<Long>()
-        var keptBytes = 0L
         var keepCount = 0
         for (tile in tiles) {
-            if (policy.maxEntries != Long.MAX_VALUE && keepCount >= policy.maxEntries) break
+            if (keepCount >= policy.maxEntries) break
             val ids = featureIdsForCoverage(content.tableName, tile)
-            if (policy.maxBytes != Long.MAX_VALUE) {
-                val newBytes = sumFeatureBytes(content.tableName, ids.filter { it !in keptIds })
-                // Always keep at least the newest tile, even if it alone exceeds the budget.
-                if (keepCount > 0 && keptBytes + newBytes > policy.maxBytes) break
-                keptBytes += newBytes
-            }
             keptIds.addAll(ids)
             keepCount++
         }
@@ -1188,20 +1149,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         return featureIdsInBoundingBox(geoPackage, tableName, b[0], b[1], b[2], b[3])
     }
 
-    /** Total stored byte size (`LENGTH(geom) + LENGTH(properties)`) of the given feature rows. */
-    private fun sumFeatureBytes(tableName: String, ids: Collection<Long>): Long {
-        if (ids.isEmpty()) return 0L
-        val q = "\"${tableName.replace("\"", "\"\"")}\""
-        var total = 0L
-        for (chunk in ids.chunked(500)) {
-            total += geoPackage.geometryColumnsDao.queryRawValue(
-                "SELECT COALESCE(SUM(LENGTH(\"$FEATURE_GEOM_COLUMN\") + " +
-                        "COALESCE(LENGTH(\"$FEATURE_PROPERTIES_COLUMN\"), 0)), 0) " +
-                        "FROM $q WHERE $FEATURE_ID_COLUMN IN (${chunk.joinToString(",")})"
-            )
-        }
-        return total
-    }
 
     /** Delete the given feature rows by id, chunked to stay within SQLite statement limits. */
     private fun deleteFeaturesByIds(tableName: String, ids: Collection<Long>) {

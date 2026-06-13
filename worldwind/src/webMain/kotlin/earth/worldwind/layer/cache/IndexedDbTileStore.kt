@@ -95,25 +95,20 @@ internal class IndexedDbTileStore(
     }
 
     /** Capacity eviction: drop tiles oldest-first (by `cachedAt`) until within
-     *  [CachePolicy.maxEntries] (tile count) and [CachePolicy.maxBytes]. One record per tile, so no
-     *  aggregation; staleAfter never deletes. */
+     *  [CachePolicy.maxEntries] (tile count). One record per tile; staleAfter never deletes. */
     override suspend fun evict(): Unit = idbSerializationLock.withLock {
         if (cachePolicy.isUnbounded) return@withLock
-        data class TileRec(val key: JsAny?, val cachedAt: Double, val bytes: Long)
+        data class TileRec(val key: JsAny?, val cachedAt: Double)
         val tiles = ArrayList<TileRec>()
         val readStore = db.transaction(storeName, "readonly").objectStore(storeName)
         idbWalkCursor(readStore.openCursor(boundFor(contentKey))) { cursor ->
             val record = cursor.value?.unsafeCast<IdbImageTileRecord>()
-            val len = record?.bytesOrNull()?.length?.toLong() ?: 0L
             val cachedAt = record?.cachedAt ?: 0.0
-            tiles.add(TileRec(cursor.key, cachedAt, len))
+            tiles.add(TileRec(cursor.key, cachedAt))
         }
         var keptCount = 0L
-        var keptBytes = 0L
-        val victims = tiles.sortedByDescending { it.cachedAt }.filter { tile ->
-            val overCount = keptCount >= cachePolicy.maxEntries
-            val overBytes = cachePolicy.maxBytes != Long.MAX_VALUE && keptBytes + tile.bytes > cachePolicy.maxBytes
-            if (overCount || overBytes) true else { keptCount++; keptBytes += tile.bytes; false }
+        val victims = tiles.sortedByDescending { it.cachedAt }.filter { _ ->
+            if (keptCount >= cachePolicy.maxEntries) true else { keptCount++; false }
         }
         if (victims.isEmpty()) return@withLock
         val writeTx = db.transaction(storeName, "readwrite")

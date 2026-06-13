@@ -91,13 +91,13 @@ class FileSystemFeatureStore(
     }
 
     /** Capacity eviction: drop whole per-tile files oldest-first (by mtime) until within
-     *  [CachePolicy.maxEntries] (tile count) and [CachePolicy.maxBytes]. `bulk.json` (an atomic
-     *  snapshot) is never touched. staleAfter never deletes. */
+     *  [CachePolicy.maxEntries] (tile count). `bulk.json` (an atomic snapshot) is never touched.
+     *  staleAfter never deletes. */
     override suspend fun evict(): Unit = withContext(Dispatchers.Default) {
         if (cachePolicy.isUnbounded) return@withContext
         val fm = NSFileManager.defaultManager
         val names = fm.contentsOfDirectoryAtPath(featuresRoot, null) ?: return@withContext
-        data class TileFile(val path: String, val mtime: Long, val size: Long)
+        data class TileFile(val path: String, val mtime: Long)
         val tiles = ArrayList<TileFile>()
         for (entry in names) {
             val name = entry as? String ?: continue
@@ -105,16 +105,12 @@ class FileSystemFeatureStore(
             val path = "$featuresRoot/$name"
             val attrs = fm.attributesOfItemAtPath(path, null) ?: continue
             val mtime = (attrs[NSFileModificationDate] as? NSDate)?.let { (it.timeIntervalSince1970 * 1000.0).toLong() } ?: 0L
-            val size = (attrs[NSFileSize] as? NSNumber)?.longLongValue ?: 0L
-            tiles.add(TileFile(path, mtime, size))
+            tiles.add(TileFile(path, mtime))
         }
         var keptCount = 0L
-        var keptBytes = 0L
         for (tile in tiles.sortedByDescending { it.mtime }) {
-            val overCount = keptCount >= cachePolicy.maxEntries
-            val overBytes = cachePolicy.maxBytes != Long.MAX_VALUE && keptBytes + tile.size > cachePolicy.maxBytes
-            if (overCount || overBytes) fm.removeItemAtPath(tile.path, null)
-            else { keptCount++; keptBytes += tile.size }
+            if (keptCount >= cachePolicy.maxEntries) fm.removeItemAtPath(tile.path, null)
+            else keptCount++
         }
     }
 

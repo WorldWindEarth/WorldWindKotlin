@@ -137,11 +137,11 @@ internal class IndexedDbFeatureStore(
     }
 
     /** Capacity eviction: drop whole tiles oldest-first (by `cachedAt`) until within
-     *  [CachePolicy.maxEntries] (tile count) and [CachePolicy.maxBytes]. Bulk rows (z == null) are
-     *  atomic snapshots and are never partially evicted. staleAfter never deletes. */
+     *  [CachePolicy.maxEntries] (tile count). Bulk rows (z == null) are atomic snapshots and are
+     *  never partially evicted. staleAfter never deletes. */
     override suspend fun evict() {
         if (cachePolicy.isUnbounded) return
-        data class TileAgg(val z: Int, val x: Int, val y: Int, var cachedAt: Double, var bytes: Long)
+        data class TileAgg(val z: Int, val x: Int, val y: Int, var cachedAt: Double)
         val readStore = db.transaction(FEATURES_STORE, "readonly").objectStore(FEATURES_STORE)
         val agg = HashMap<String, TileAgg>()
         idbWalkCursor(readStore.index(INDEX_BY_CONTENT).openCursor(contentKey.toJsString())) { cursor ->
@@ -150,20 +150,16 @@ internal class IndexedDbFeatureStore(
             if (zz != null) {
                 val xx = rec.x!!
                 val yy = rec.y!!
-                val size = ((rec.geometry?.length ?: 0) + (rec.properties?.length ?: 0)).toLong()
                 val cachedAt = rec.cachedAt ?: 0.0
                 val existing = agg["$zz/$xx/$yy"]
-                if (existing == null) agg["$zz/$xx/$yy"] = TileAgg(zz, xx, yy, cachedAt, size)
-                else { if (cachedAt > existing.cachedAt) existing.cachedAt = cachedAt; existing.bytes += size }
+                if (existing == null) agg["$zz/$xx/$yy"] = TileAgg(zz, xx, yy, cachedAt)
+                else if (cachedAt > existing.cachedAt) existing.cachedAt = cachedAt
             }
         }
-        // Keep newest tiles within both caps; the rest are victims.
+        // Keep newest tiles within the entry cap; the rest are victims.
         var keptCount = 0L
-        var keptBytes = 0L
-        val victims = agg.values.sortedByDescending { it.cachedAt }.filter { tile ->
-            val overCount = keptCount >= cachePolicy.maxEntries
-            val overBytes = cachePolicy.maxBytes != Long.MAX_VALUE && keptBytes + tile.bytes > cachePolicy.maxBytes
-            if (overCount || overBytes) true else { keptCount++; keptBytes += tile.bytes; false }
+        val victims = agg.values.sortedByDescending { it.cachedAt }.filter { _ ->
+            if (keptCount >= cachePolicy.maxEntries) true else { keptCount++; false }
         }
         if (victims.isEmpty()) return
         val writeTx = db.transaction(FEATURES_STORE, "readwrite")

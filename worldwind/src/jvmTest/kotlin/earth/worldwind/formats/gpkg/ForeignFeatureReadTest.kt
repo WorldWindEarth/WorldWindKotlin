@@ -317,55 +317,6 @@ class ForeignFeatureReadTest {
     }
 
     @Test
-    fun evictionHonorsMaxBytes() = runBlocking {
-        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
-        try {
-            val content = gpkg.setupFeaturesContent("osm")
-            // ~2 KB per feature (geometry + padded properties); maxBytes fits two.
-            val store = GpkgFeatureStore(gpkg, content, CachePolicy(maxBytes = 5000L))
-            val pad = "x".repeat(2000)
-            // Three non-overlapping z=2 tiles, written oldest → newest.
-            store.writeTile(2, 0, 0, flowOf(CachedFeatureRow(CachedGeometry.Point(-135.0, 75.0), """{"id":"way/1","pad":"$pad"}""")))
-            store.writeTile(2, 0, 3, flowOf(CachedFeatureRow(CachedGeometry.Point(-135.0, -75.0), """{"id":"way/2","pad":"$pad"}""")))
-            store.writeTile(2, 3, 3, flowOf(CachedFeatureRow(CachedGeometry.Point(135.0, -75.0), """{"id":"way/3","pad":"$pad"}""")))
-            assertEquals(3, store.readAll().toList().size)
-
-            store.evict() // maxBytes=5000 → keep the two newest tiles, evict the oldest
-
-            assertNull(store.readTile(2, 0, 0), "oldest tile evicted by byte budget")
-            assertNotNull(store.readTile(2, 0, 3))
-            assertNotNull(store.readTile(2, 3, 3))
-            assertEquals(2, store.readAll().toList().size, "only the two newest features fit the budget")
-        } finally {
-            gpkg.shutdown()
-        }
-    }
-
-    @Test
-    fun tileEvictionHonorsMaxBytes() = runBlocking {
-        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
-        try {
-            val world = Sector.fromDegrees(-90.0, -180.0, 180.0, 360.0)
-            val levelSet = LevelSet(world, world, Location.fromDegrees(90.0, 90.0), 3, 256, 256)
-            val content = gpkg.setupTilesContent("tiles", levelSet)
-
-            val blob = ByteArray(2000) // LENGTH(tile_data) = 2000 each
-            gpkg.writeTileUserData(content, 0, 0, 0, blob) // oldest (id 1)
-            gpkg.writeTileUserData(content, 1, 0, 0, blob)
-            gpkg.writeTileUserData(content, 1, 1, 0, blob) // newest
-            assertEquals(6000L, gpkg.readTilesDataSize("tiles"))
-
-            gpkg.evictTiles(content, CachePolicy(maxBytes = 5000L)) // fits two 2 KB tiles
-
-            assertEquals(4000L, gpkg.readTilesDataSize("tiles"), "evicted down to the byte budget")
-            assertNotNull(gpkg.readTileUserData(content, 1, 1, 0), "newest tile kept")
-            assertNull(gpkg.readTileUserData(content, 0, 0, 0), "oldest tile evicted")
-        } finally {
-            gpkg.shutdown()
-        }
-    }
-
-    @Test
     fun cachedSourceRendersBoundaryFeatureInExactlyOneTile() = runBlocking {
         val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
         try {
