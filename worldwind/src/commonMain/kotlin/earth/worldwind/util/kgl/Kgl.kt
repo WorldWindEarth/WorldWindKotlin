@@ -549,6 +549,11 @@ interface Kgl {
     fun depthFunc(func: Int)
     fun depthMask(mask: Boolean)
 
+    fun stencilFunc(func: Int, ref: Int, mask: Int)
+    fun stencilOp(fail: Int, zFail: Int, zPass: Int)
+    fun stencilMask(mask: Int)
+    fun clearStencil(s: Int)
+
     fun blendFunc(sFactor: Int, dFactor: Int)
 
     fun viewport(x: Int, y: Int, width: Int, height: Int)

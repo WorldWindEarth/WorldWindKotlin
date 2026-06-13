@@ -34,6 +34,15 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster {
 
     var content: MeshContent? = null
 
+    /** Set from `Tile3d.isFallback` at enqueue. Fallback tiles render only where stencil
+     *  != [stencilId] so they fill gaps without overlaying finer descendants. */
+    var isFallback: Boolean = false
+
+    /** Outermost-fallback subtree id (0 = no fallback ancestor → stencil bypassed;
+     *  1..255 = inside a fallback subtree). Non-fallback tiles write; fallback tiles
+     *  draw where stencil != this id. */
+    var stencilId: Int = 0
+
     val tileToWorld = Matrix4()
 
     var shadowMode: ShadowMode = ShadowMode.ENABLED
@@ -130,6 +139,8 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster {
         shadowMode = ShadowMode.ENABLED
         pickColor.set(0f, 0f, 0f, 1f)
         pickIdBase = 0
+        isFallback = false
+        stencilId = 0
         pool?.release(this)
         pool = null
     }
@@ -154,6 +165,12 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster {
             else program.loadPickColor(pickColor)
         }
 
+        // Cesium skip-LoD stencil masking: every tile in a fallback subtree shares one
+        // 7-bit [stencilId]. Fine tiles write their id; coarse fallback tiles draw only
+        // where the stencil hasn't been claimed. id 0 = no fallback ancestor → bypass.
+        val useStencil = useTileStencil(stencilId)
+        if (useStencil) applyTileStencilState(dc, isFallback, stencilId)
+
         try {
             dc.activeTextureUnit(GL_TEXTURE0)
             val textures = submeshTextures
@@ -174,6 +191,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster {
             dc.gl.disableVertexAttribArray(2)
             dc.gl.disableVertexAttribArray(3)
             dc.gl.disableVertexAttribArray(4)
+            if (useStencil) clearTileStencilState(dc)
         }
     }
 

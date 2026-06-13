@@ -213,6 +213,14 @@ class AndroidKgl : Kgl {
 
     override fun depthMask(mask: Boolean) = GLES20.glDepthMask(mask)
 
+    override fun stencilFunc(func: Int, ref: Int, mask: Int) = GLES20.glStencilFunc(func, ref, mask)
+
+    override fun stencilOp(fail: Int, zFail: Int, zPass: Int) = GLES20.glStencilOp(fail, zFail, zPass)
+
+    override fun stencilMask(mask: Int) = GLES20.glStencilMask(mask)
+
+    override fun clearStencil(s: Int) = GLES20.glClearStencil(s)
+
     override fun blendFunc(sFactor: Int, dFactor: Int) = GLES20.glBlendFunc(sFactor, dFactor)
 
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = GLES20.glColorMask(r, g, b, a)

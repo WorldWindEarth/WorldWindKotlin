@@ -878,6 +878,8 @@ open class Ogc3dTilesLayer(
         drawable.content = content
         drawable.program = Ogc3dTilesProgram.get(rc)
         drawable.shadowMode = shadowMode
+        drawable.isFallback = tile.isFallback
+        drawable.stencilId = tile.stencilId
         // Resolve from RR cache into the drawable's pooled arrays. touchCache earlier this
         // frame keeps these alive; nulls (rare LRU race) make drawSubmesh skip.
         drawable.ensureSubmeshArrays(submeshes.size)
@@ -953,8 +955,10 @@ open class Ogc3dTilesLayer(
             }
         }
 
-        val cameraDistanceSq = rc.cameraPoint.distanceToSquared(sphere.center)
-        rc.offerShapeDrawable(drawable, cameraDistanceSq)
+        // Sentinel sort key so all 3D-Tiles drawables tie in DrawableQueue → insertion
+        // order wins, preserving the [Traverser]-imposed non-fallback / fallback ordering
+        // that drives stencil masking.
+        rc.offerShapeDrawable(drawable, TILE_3D_SHAPE_SORT_SENTINEL)
     }
 
     /** pnts equivalent of [enqueueMeshDrawable]. */
@@ -974,6 +978,8 @@ open class Ogc3dTilesLayer(
         drawable.vertexBuffer = vbo
         drawable.program = Ogc3dTilesPointsProgram.get(rc)
         drawable.shadowMode = shadowMode
+        drawable.isFallback = tile.isFallback
+        drawable.stencilId = tile.stencilId
         drawable.basePointSize = pointSize
 
         // focalLengthPixels = h / (2·tan(fov/2)) — keeps on-screen point size uniform with distance.
@@ -1001,8 +1007,10 @@ open class Ogc3dTilesLayer(
             )
         }
 
-        val cameraDistanceSq = rc.cameraPoint.distanceToSquared(sphere.center)
-        rc.offerShapeDrawable(drawable, cameraDistanceSq)
+        // Sentinel sort key so all 3D-Tiles drawables tie in DrawableQueue → insertion
+        // order wins, preserving the [Traverser]-imposed non-fallback / fallback ordering
+        // that drives stencil masking.
+        rc.offerShapeDrawable(drawable, TILE_3D_SHAPE_SORT_SENTINEL)
     }
 
     /** Gaussian-splat equivalent of [enqueuePointCloudDrawable]. */
@@ -1060,8 +1068,8 @@ open class Ogc3dTilesLayer(
         val sphere = tile.worldBoundingSphere(rc.globe)
         drawable.setWorldBounds(sphere.center, sphere.radius)
 
-        val cameraDistanceSq = rc.cameraPoint.distanceToSquared(sphere.center)
-        rc.offerShapeDrawable(drawable, cameraDistanceSq)
+        // Back-to-front sort: depthMask is off, so cross-tile pixel order must follow distance.
+        rc.offerShapeDrawable(drawable, sphere.center.distanceToSquared(rc.cameraPoint))
     }
 
     /** Stop fetch coroutines + close the HTTP client. */
@@ -1099,6 +1107,12 @@ open class Ogc3dTilesLayer(
          *  than the parser produces, so the channel still drains while the render thread
          *  keeps ~12 ms per frame for actual drawing. */
         private const val MAX_UPLOADS_PER_FRAME: Int = 12
+
+        /** Shape-drawable sort key for 3D-Tiles content. Forces every tile to the same
+         *  far-distance bucket so DrawableQueue's sort ties on it; the insertion order
+         *  set by [Traverser] (non-fallback finest first, fallback coarsest first) then
+         *  wins, which is what the stencil masking depends on. */
+        private const val TILE_3D_SHAPE_SORT_SENTINEL: Double = 1e20
 
         /** Frames a gaussian tile can stay outside `requestedTiles` before [sweepEvictedGaussianTiles]
          *  reclaims it. ~1 s at 60 fps — long enough to absorb brief culling stutter and camera

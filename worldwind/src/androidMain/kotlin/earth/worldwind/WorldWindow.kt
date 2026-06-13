@@ -23,6 +23,7 @@ import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.SynchronizedPool
 import earth.worldwind.util.kgl.AndroidKgl
+import earth.worldwind.util.kgl.TranslucentEGLConfigChooser
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.runBlocking
@@ -38,7 +39,8 @@ import kotlin.math.roundToInt
  * Window is configured to display an ellipsoidal globe using the WGS 84 reference values.
  */
 open class WorldWindow @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null, configChooser: EGLConfigChooser? = null,
+    context: Context, attrs: AttributeSet? = null,
+    configChooser: EGLConfigChooser = TranslucentEGLConfigChooser(),
     renderResourceCache: RenderResourceCache = RenderResourceCache(context)
 ) : GLSurfaceView(context, attrs), FrameCallback, GLSurfaceView.Renderer, WorldWind.EventListener {
     /**

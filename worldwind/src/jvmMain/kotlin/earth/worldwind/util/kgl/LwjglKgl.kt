@@ -191,6 +191,14 @@ class LwjglKgl : Kgl {
 
     override fun depthMask(mask: Boolean) = GL33.glDepthMask(mask)
 
+    override fun stencilFunc(func: Int, ref: Int, mask: Int) = GL33.glStencilFunc(func, ref, mask)
+
+    override fun stencilOp(fail: Int, zFail: Int, zPass: Int) = GL33.glStencilOp(fail, zFail, zPass)
+
+    override fun stencilMask(mask: Int) = GL33.glStencilMask(mask)
+
+    override fun clearStencil(s: Int) = GL33.glClearStencil(s)
+
     override fun blendFunc(sFactor: Int, dFactor: Int) = GL33.glBlendFunc(sFactor, dFactor)
 
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = GL33.glColorMask(r, g, b, a)

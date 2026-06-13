@@ -156,6 +156,14 @@ internal fun PointCloudContent.isResourcesLoaded(rc: RenderContext): Boolean {
     return rc.renderResourceCache.containsKey(key)
 }
 
+/** Strict ready check for the traverser: only the post-sync state counts. Otherwise the
+ *  parent fallback gets dropped during the sync window and the area blinks empty. */
+internal fun PointCloudContent.isReadyForRefinement(rc: RenderContext): Boolean {
+    if (!firstSyncDone) return false
+    val key = vboKey ?: return false
+    return rc.renderResourceCache.containsKey(key)
+}
+
 internal fun PointCloudContent.touchCache(rc: RenderContext) {
     vboKey?.let { rc.renderResourceCache[it] }
 }

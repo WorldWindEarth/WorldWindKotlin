@@ -352,6 +352,9 @@ open class WorldWindow @JvmOverloads constructor(
 
     companion object {
         @JvmStatic
-        protected fun defaultCapabilities() = GLCapabilities(GLProfile.get(GLProfile.GL4ES3))
+        protected fun defaultCapabilities() = GLCapabilities(GLProfile.get(GLProfile.GL4ES3)).apply {
+            // 3D Tiles skip-LoD masking needs a stencil buffer; JOGL defaults to 0 bits.
+            stencilBits = 8
+        }
     }
 }

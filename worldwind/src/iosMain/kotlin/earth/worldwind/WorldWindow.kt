@@ -72,8 +72,8 @@ import platform.darwin.NSObject
 import earth.worldwind.gesture.GestureState
 import earth.worldwind.gesture.SelectDragDetector
 import platform.gles3.GL_COLOR_ATTACHMENT0
-import platform.gles3.GL_DEPTH_ATTACHMENT
-import platform.gles3.GL_DEPTH_COMPONENT24
+import platform.gles3.GL_DEPTH_STENCIL_ATTACHMENT
+import platform.gles3.GL_DEPTH24_STENCIL8
 import platform.gles3.GL_FRAMEBUFFER
 import platform.gles3.GL_RENDERBUFFER
 import platform.gles3.GL_RENDERBUFFER_HEIGHT
@@ -262,8 +262,9 @@ class WorldWindow @OverrideInit constructor(frame: CValue<CGRect>) : UIView(fram
         requestRedraw()
     }
 
-    /** Color renderbuffer is backed by the CAEAGLLayer's drawable; depth is a plain
-     *  GL_DEPTH_COMPONENT24 sized to match. */
+    /** Color renderbuffer is backed by the CAEAGLLayer's drawable; depth+stencil is a
+     *  packed GL_DEPTH24_STENCIL8 sized to match. Stencil bits are required by the 3D
+     *  Tiles skip-LoD mask. */
     private fun recreateFramebuffer(ctx: EAGLContext) {
         deleteRenderbuffer(colorRenderbuffer); colorRenderbuffer = 0u
         deleteRenderbuffer(depthRenderbuffer); depthRenderbuffer = 0u
@@ -299,9 +300,9 @@ class WorldWindow @OverrideInit constructor(frame: CValue<CGRect>) : UIView(fram
         )
 
         glBindRenderbuffer(GL_RENDERBUFFER.toUInt(), depthRenderbuffer)
-        glRenderbufferStorage(GL_RENDERBUFFER.toUInt(), GL_DEPTH_COMPONENT24.toUInt(), fbWidth, fbHeight)
+        glRenderbufferStorage(GL_RENDERBUFFER.toUInt(), GL_DEPTH24_STENCIL8.toUInt(), fbWidth, fbHeight)
         glFramebufferRenderbuffer(
-            GL_FRAMEBUFFER.toUInt(), GL_DEPTH_ATTACHMENT.toUInt(),
+            GL_FRAMEBUFFER.toUInt(), GL_DEPTH_STENCIL_ATTACHMENT.toUInt(),
             GL_RENDERBUFFER.toUInt(), depthRenderbuffer
         )
     }

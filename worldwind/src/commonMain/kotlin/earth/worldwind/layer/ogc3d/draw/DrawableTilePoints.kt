@@ -47,6 +47,13 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
 
     var program: Ogc3dTilesPointsProgram? = null
 
+    /** Set from `Tile3d.isFallback` at enqueue. Fallback tiles render only where stencil
+     *  != [stencilId] so they fill gaps without overlaying finer descendants. */
+    var isFallback: Boolean = false
+
+    /** Outermost-fallback subtree id (0 = no fallback ancestor → stencil bypassed). */
+    var stencilId: Int = 0
+
     /** Per-tile base point size in pixels at 1 m eye depth. Caller sets at enqueue time. */
     var basePointSize: Float = 1f
 
@@ -97,6 +104,8 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
         basePointSize = 1f
         focalLengthPixels = 1f
         pickColor.set(0f, 0f, 0f, 1f)
+        isFallback = false
+        stencilId = 0
         pool?.release(this)
         pool = null
     }
@@ -129,10 +138,14 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
         dc.gl.enableVertexAttribArray(1)
         dc.gl.vertexAttribPointer(1, 4, GL_FLOAT, false, PointCloudContent.VERTEX_STRIDE, PointCloudContent.COLOR_OFFSET)
 
+        val useStencil = useTileStencil(stencilId)
+        if (useStencil) applyTileStencilState(dc, isFallback, stencilId)
+
         try {
             dc.gl.drawArrays(GL_POINTS, 0, pointCount)
         } finally {
             dc.gl.disableVertexAttribArray(1)
+            if (useStencil) clearTileStencilState(dc)
         }
     }
 
