@@ -240,6 +240,14 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
 
     override fun depthMask(mask: Boolean) = gl.glDepthMask(mask)
 
+    override fun stencilFunc(func: Int, ref: Int, mask: Int) = gl.glStencilFunc(func, ref, mask)
+
+    override fun stencilOp(fail: Int, zFail: Int, zPass: Int) = gl.glStencilOp(fail, zFail, zPass)
+
+    override fun stencilMask(mask: Int) = gl.glStencilMask(mask)
+
+    override fun clearStencil(s: Int) = gl.glClearStencil(s)
+
     override fun blendFunc(sFactor: Int, dFactor: Int) = gl.glBlendFunc(sFactor, dFactor)
 
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = gl.glColorMask(r, g, b, a)

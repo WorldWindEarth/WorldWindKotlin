@@ -43,6 +43,7 @@ import platform.gles3.glBufferSubData
 import platform.gles3.glCheckFramebufferStatus
 import platform.gles3.glClear
 import platform.gles3.glClearColor
+import platform.gles3.glClearStencil
 import platform.gles3.glClientWaitSync
 import platform.gles3.glColorMask
 import platform.gles3.glCompileShader
@@ -91,6 +92,9 @@ import platform.gles3.glPolygonOffset
 import platform.gles3.glReadPixels
 import platform.gles3.glRenderbufferStorageMultisample
 import platform.gles3.glShaderSource
+import platform.gles3.glStencilFunc
+import platform.gles3.glStencilMask
+import platform.gles3.glStencilOp
 import platform.gles3.glTexImage2D
 import platform.gles3.glTexParameteri
 import platform.gles3.glTexSubImage2D
@@ -402,6 +406,10 @@ class IosKgl : Kgl {
     override fun polygonOffset(factor: Float, units: Float) { glPolygonOffset(factor, units) }
     override fun depthFunc(func: Int) { glDepthFunc(func.toUInt()) }
     override fun depthMask(mask: Boolean) { glDepthMask(if (mask) 1u else 0u) }
+    override fun stencilFunc(func: Int, ref: Int, mask: Int) { glStencilFunc(func.toUInt(), ref, mask.toUInt()) }
+    override fun stencilOp(fail: Int, zFail: Int, zPass: Int) { glStencilOp(fail.toUInt(), zFail.toUInt(), zPass.toUInt()) }
+    override fun stencilMask(mask: Int) { glStencilMask(mask.toUInt()) }
+    override fun clearStencil(s: Int) { glClearStencil(s) }
     override fun blendFunc(sFactor: Int, dFactor: Int) { glBlendFunc(sFactor.toUInt(), dFactor.toUInt()) }
     override fun viewport(x: Int, y: Int, width: Int, height: Int) { glViewport(x, y, width, height) }
     override fun clearColor(r: Float, g: Float, b: Float, a: Float) { glClearColor(r, g, b, a) }

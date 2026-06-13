@@ -159,7 +159,8 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
         // Premultiplied-alpha (rgb*a, a) over the frame default GL_ONE / GL_ONE_MINUS_SRC_ALPHA
         // blend. Depth READ stays on so opaque terrain still occludes; depth WRITE must be off —
         // splat fragments writing depth at the splat centre collapse back-to-front accumulation
-        // into black voids wherever splats stack.
+        // into black voids wherever splats stack. Cross-tile order is enforced by the layer's
+        // camera-distance sort key, so no stencil-LoD masking is needed.
         dc.gl.depthMask(false)
 
         try {

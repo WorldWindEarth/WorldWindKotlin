@@ -48,6 +48,15 @@ class Tile3d internal constructor(
     /** Bottom-up "children take over rendering" flag computed by the traverser. */
     var refines: Boolean = false
 
+    /** Set by the traverser when finer descendants are also in selection (skip-LoD).
+     *  Drives stencil masking in the draw path so fallback tiles fill only gaps. */
+    var isFallback: Boolean = false
+
+    /** Outermost-fallback subtree id (0 = no fallback ancestor → stencil bypassed;
+     *  1..255 = inside a fallback subtree). Non-fallback tiles write; fallback tiles
+     *  draw where stencil != this id. */
+    var stencilId: Int = 0
+
     enum class LoadState {
         UNLOADED,
         FETCHING,

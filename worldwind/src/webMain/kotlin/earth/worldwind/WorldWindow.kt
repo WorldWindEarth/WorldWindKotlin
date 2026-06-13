@@ -450,7 +450,9 @@ open class WorldWindow(
         protected fun createContext(canvas: HTMLCanvasElement): WebGLRenderingContext {
             // Disable browser MSAA on the default framebuffer — it leaves seams between
             // terrain tiles. Surface-shape AA comes from our own multisample FBO instead.
-            val glAttrs = WebGLContextAttributes(antialias = false)
+            // `stencil = true` requests an 8-bit stencil buffer used by 3D Tiles skip-LoD
+            // masking; browsers default this to false.
+            val glAttrs = WebGLContextAttributes(antialias = false, stencil = true)
             // kxb's getContext returns the bare `RenderingContext?` marker (not a JsAny), so go
             // through a raw js() accessor to keep the result as JsAny for the realm-safe probe below.
             val context: JsAny? = domGetContext(canvas, "webgl2", glAttrs)

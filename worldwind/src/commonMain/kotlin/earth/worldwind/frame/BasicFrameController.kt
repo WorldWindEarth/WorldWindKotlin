@@ -18,6 +18,7 @@ import earth.worldwind.util.kgl.GL_COLOR_BUFFER_BIT
 import earth.worldwind.util.kgl.GL_DEPTH_ATTACHMENT
 import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
 import earth.worldwind.util.kgl.GL_FLOAT
+import earth.worldwind.util.kgl.GL_STENCIL_BUFFER_BIT
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import earth.worldwind.util.kgl.GL_TRIANGLE_STRIP
 import earth.worldwind.util.kgl.KglFramebuffer
@@ -156,7 +157,7 @@ open class BasicFrameController: FrameController {
     }
 
     protected open fun clearFrame(dc: DrawContext) {
-        dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+        dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
     }
 
     protected open fun uploadBuffers(dc: DrawContext) {

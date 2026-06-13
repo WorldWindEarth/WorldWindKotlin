@@ -364,6 +364,14 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
 
     override fun depthMask(mask: Boolean) = gl.depthMask(mask)
 
+    override fun stencilFunc(func: Int, ref: Int, mask: Int) = gl.stencilFunc(func, ref, mask)
+
+    override fun stencilOp(fail: Int, zFail: Int, zPass: Int) = gl.stencilOp(fail, zFail, zPass)
+
+    override fun stencilMask(mask: Int) = gl.stencilMask(mask)
+
+    override fun clearStencil(s: Int) = gl.clearStencil(s)
+
     override fun blendFunc(sFactor: Int, dFactor: Int) = gl.blendFunc(sFactor, dFactor)
 
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = gl.colorMask(r, g, b, a)
