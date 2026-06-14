@@ -20,8 +20,12 @@ import earth.worldwind.util.LevelSet
 import earth.worldwind.util.LevelSetConfig
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.layer.cache.EvictionScheduler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -220,9 +224,13 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     val isShutdown get() = !connectionSource.isOpen("")
 
+    /** Mapbox-style per-put eviction scheduler shared by all GPKG-backed cache stores. */
+    private val evictionScheduler = EvictionScheduler()
+
     fun shutdown() = geoPackage.close().also {
         tileUserDataDao.clear()
         tileMatrixCache.clear()
+        evictionScheduler.shutdown()
     }
 
     suspend fun getContent(tableName: String): GpkgContent? = withContext(Dispatchers.IO) {
@@ -327,6 +335,39 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         tileUserData.id
     }
 
+    /** Per-put eviction trigger called after [writeTileUserData]. */
+    fun notifyTileInsert(content: GpkgContent, policy: CachePolicy) =
+        evictionScheduler.notifyInsert(
+            tableName = content.tableName,
+            policy = policy,
+            countRows = { rawRowCountOf(content.tableName) },
+            evict = { evictTiles(content, policy) },
+        )
+
+    /** Per-put eviction trigger called after [writeFeatureTile]; [insertedRows] accounts
+     *  for multi-row writes. Note: uid-upserts and bbox-replace can net zero new rows, so the
+     *  in-memory counter may overcount — eviction reads SQLite ground truth and no-ops harmlessly. */
+    fun notifyFeatureInsert(content: GpkgContent, policy: CachePolicy, insertedRows: Int) {
+        if (insertedRows <= 0) return
+        evictionScheduler.notifyInsert(
+            tableName = content.tableName,
+            policy = policy,
+            countRows = { rawRowCountOf(content.tableName) },
+            evict = { evictFeatures(content, policy) },
+            inserted = insertedRows.toLong(),
+        )
+    }
+
+    /** Per-put eviction trigger called after a successful blob upsert in [GpkgBlobStore]. */
+    fun notifyBlobInsert(
+        tableName: String, policy: CachePolicy,
+        countRows: suspend () -> Long, evict: suspend () -> Unit,
+    ) = evictionScheduler.notifyInsert(tableName, policy, countRows, evict)
+
+    private suspend fun rawRowCountOf(tableName: String): Long = withContext(Dispatchers.IO) {
+        geoPackage.database.count(tableName).toLong()
+    }
+
     /** The tile-user-data row `id` (tpudt_id) for `(z, x, y)`, or null if not cached. Selects only
      *  the id — never loads the tile blob — so the SWR freshness check stays cheap. */
     suspend fun readTileUserDataId(
@@ -355,14 +396,23 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val q = "\"$escapedTable\""
         var deleted = false
 
+        // Chunked DELETE with [yield] between chunks: holds the SQLite connection for
+        // ~50 ms per slice instead of locking it for the entire sweep. COUNT(*) once up
+        // front and track locally — re-counting every chunk costs ~30 ms each on large tables.
         if (policy.maxEntries < Long.MAX_VALUE) {
-            geoPackage.database.execSQL(
-                "DELETE FROM $q WHERE id IN (" +
-                        "SELECT id FROM $q ORDER BY id ASC " +
-                        "LIMIT MAX(0, (SELECT COUNT(*) FROM $q) - ${policy.maxEntries})" +
-                        ")"
-            )
-            deleted = true
+            val dao = getOrCreateTileUserDataDao(content.tableName)
+            var remaining = dao.countOf() - policy.maxEntries
+            while (remaining > 0 && currentCoroutineContext().isActive) {
+                val chunk = remaining.coerceAtMost(EVICT_CHUNK_ROWS)
+                geoPackage.database.execSQL(
+                    "DELETE FROM $q WHERE id IN (" +
+                            "SELECT id FROM $q ORDER BY id ASC LIMIT $chunk" +
+                            ")"
+                )
+                remaining -= chunk
+                deleted = true
+                yield()
+            }
         }
 
         // Drop revalidation rows orphaned by either eviction — by tpudt_id, so a tile row that no
@@ -1447,6 +1497,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     companion object {
+        /** Rows deleted per chunk during the chunked-DELETE evict loop. ~50 ms per chunk
+         *  on commodity Android storage — short enough that interleaving reads don't see
+         *  a noticeable connection-pool stall. */
+        internal const val EVICT_CHUNK_ROWS = 500L
+
         const val EPSG = "EPSG"
         const val EPSG_3857 = ProjectionConstants.EPSG_WEB_MERCATOR.toLong()
         const val EPSG_4326 = ProjectionConstants.EPSG_WORLD_GEODETIC_SYSTEM.toLong()

@@ -8,5 +8,12 @@ actual fun initConnection(pathName: String, readOnly: Boolean): ConnectionSource
     openDatabase(
         pathName, null,
         if (readOnly) OPEN_READONLY else OPEN_READWRITE or CREATE_IF_NECESSARY or ENABLE_WRITE_AHEAD_LOGGING
-    ).also { it.execSQL("PRAGMA synchronous = NORMAL") }
+    ).also {
+        if (!it.isReadOnly) {
+            // Android SQLiteDatabase exposes no opening-time API for these, so PRAGMA after open.
+            it.execSQL("PRAGMA synchronous = NORMAL")
+            it.execSQL("PRAGMA cache_size = -64000")
+            it.execSQL("PRAGMA wal_autocheckpoint = 1000")
+        }
+    }
 )

@@ -18,16 +18,10 @@ import kotlinx.coroutines.yield
 import kotlin.time.Instant
 
 /**
- * GeoPackage-backed [BlobStore] following the OGC 3D Tiles GeoPackage Extension shape:
- * one SQLite table per dataset (the [tableName]), registered in `gpkg_contents` with
- * `data_type='3d-tiles'` and in `gpkg_extensions` as `gpkg_3d_tiles`. The per-tile
- * schema is [GpkgBlobRow] — `tile_path` PK + `tile_data` BLOB + WorldWind-extended
- * metadata columns for conditional fetches and LRU eviction.
- *
- * Created by [earth.worldwind.formats.gpkg.GpkgContentManager.openBlobStore]; the manager
- * owns the [GeoPackage] handle, table lifecycle, AND the deferred eviction (mirrors the
- * `deferEvict` path used by every other GPKG store), so this class itself does no work in
- * construction — eviction runs detached on the manager scope after [openBlobStore] returns.
+ * GeoPackage-backed [BlobStore] following the OGC 3D Tiles GeoPackage Extension shape: one
+ * SQLite table per dataset, registered in `gpkg_contents` (`data_type='3d-tiles'`) and
+ * `gpkg_extensions` (`gpkg_3d_tiles`). Row schema is [GpkgBlobRow]; the table lifecycle
+ * is owned by [earth.worldwind.formats.gpkg.GpkgContentManager.openBlobStore].
  */
 class GpkgBlobStore internal constructor(
     private val geoPackage: GeoPackage,
@@ -69,6 +63,13 @@ class GpkgBlobStore internal constructor(
             this.responseUrl = responseUrl
         }
         dao.createOrUpdate(row)
+        // Per-put eviction trigger — async drain fires when the table crosses the overshoot budget.
+        geoPackage.notifyBlobInsert(
+            tableName = tableName,
+            policy = evictionPolicy,
+            countRows = { dao.countOf() },
+            evict = { evict() },
+        )
     }
 
     override suspend fun remove(uri: String): Unit = withContext(writeDispatcher) {
@@ -87,31 +88,25 @@ class GpkgBlobStore internal constructor(
         dao.queryRawValue("SELECT COALESCE(SUM(${GpkgBlobRow.COLUMN_SIZE_BYTES}), 0) FROM \"$escaped\"")
     }
 
-    /**
-     * Run the [evictionPolicy] sweep. Fired detached by [GpkgContentManager.openBlobStore]
-     * after construction and on demand by callers (matching the rest of the GPKG store
-     * machinery). DELETEs in [EVICT_CHUNK_ROWS]-sized batches with a [yield] between each
-     * so a 30 K-row trim doesn't lock the SQLite connection for tens of seconds.
-     */
+    /** Run the [evictionPolicy] sweep. Chunked DELETE + [yield] so a large trim doesn't
+     *  hold the SQLite connection for tens of seconds. staleAfter is refresh-only — only
+     *  [CachePolicy.maxEntries] evicts. */
     suspend fun evict(): Unit = withContext(writeDispatcher) {
-        if (geoPackage.isReadOnly || evictionPolicy.isUnbounded) return@withContext
-        if (evictionPolicy.maxEntries == Long.MAX_VALUE) return@withContext
+        if (geoPackage.isReadOnly || evictionPolicy.maxEntries == Long.MAX_VALUE) return@withContext
         val escaped = tableName.replace("\"", "\"\"")
         val q = "\"$escaped\""
-        // staleAfter NEVER deletes — stale blobs are refreshed in place by
-        // stale-while-revalidate, not removed. Only [CachePolicy.maxEntries] evicts.
         runCatching {
-            while (currentCoroutineContext().isActive) {
-                val current = dao.queryRawValue("SELECT COUNT(*) FROM $q")
-                val overflow = current - evictionPolicy.maxEntries
-                if (overflow <= 0) break
-                val chunk = overflow.coerceAtMost(EVICT_CHUNK_ROWS)
+            // COUNT(*) once and track locally — re-counting per chunk is ~30 ms each on large tables.
+            var remaining = dao.queryRawValue("SELECT COUNT(*) FROM $q") - evictionPolicy.maxEntries
+            while (remaining > 0 && currentCoroutineContext().isActive) {
+                val chunk = remaining.coerceAtMost(GeoPackage.EVICT_CHUNK_ROWS)
                 geoPackage.core.database.execSQL(
                     "DELETE FROM $q WHERE ${GpkgBlobRow.COLUMN_TILE_PATH} IN (" +
                         "SELECT ${GpkgBlobRow.COLUMN_TILE_PATH} FROM $q " +
                         "ORDER BY ${GpkgBlobRow.COLUMN_CACHED_AT} ASC LIMIT $chunk" +
                         ")"
                 )
+                remaining -= chunk
                 yield()
             }
         }.onFailure { t ->
@@ -120,12 +115,6 @@ class GpkgBlobStore internal constructor(
     }
 
     companion object {
-        /** Rows deleted per chunk during [evict]. Sized so each DELETE holds the SQLite
-         *  connection ≈ 30–60 ms — short enough that interleaving reads don't perceive
-         *  the eviction stall, large enough that the overall sweep doesn't pay round-trip
-         *  cost for every row. */
-        private const val EVICT_CHUNK_ROWS = 500L
-
         private fun getOrCreateDao(
             connectionSource: ConnectionSource,
             tableName: String,
