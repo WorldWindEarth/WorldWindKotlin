@@ -57,6 +57,8 @@ class GpkgTileStore(
         geoPackage.writeTileRevalidation(
             content, tpudtId, blob.etag, blob.lastModified, System.currentTimeMillis(),
         )
+        // Per-put eviction trigger — async drain fires when the table crosses the overshoot budget.
+        geoPackage.notifyTileInsert(content, cachePolicy)
     }
 
     override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) {

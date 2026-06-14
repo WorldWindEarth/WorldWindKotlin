@@ -71,6 +71,8 @@ class GpkgFeatureStore(
             row.geometry?.toSf()?.let { GpkgFeatureRow(it, row.properties, extractFeatureUid(row.properties)) }
         }
         geoPackage.writeFeatureTile(content, z, x, y, payload)
+        // Per-put eviction trigger; row count keeps multi-row inserts at the right rate.
+        geoPackage.notifyFeatureInsert(content, cachePolicy, payload.size)
     }
 
     override suspend fun deleteTile(z: Int, x: Int, y: Int) {
