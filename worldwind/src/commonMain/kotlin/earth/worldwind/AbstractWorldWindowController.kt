@@ -40,6 +40,22 @@ abstract class AbstractWorldWindowController {
     /** Trailing-window velocity tracker used to seed [fling] on gesture release. */
     val velocitySampler = ReleaseVelocitySampler()
 
+    /**
+     * When true, the pinch / rotate / wheel pivot anchor and 3D pan speed are resolved from the
+     * rendered depth buffer — i.e. the visible 3D Tiles / shape surface — instead of the terrain
+     * mesh or reference ellipsoid. This keeps gestures anchored to photogrammetry, buildings, or
+     * other tile geometry when no elevation coverage is loaded and the globe surface sits far below
+     * what is drawn. Off by default: each enabled gesture-begin costs one synchronous pick render.
+     * Platforms supply the actual depth via [pickSurfaceCartesian].
+     */
+    var depthAnchorEnabled = false
+
+    /** Eye-to-surface distance frozen at 3D-pan begin from the depth buffer; 0.0 means "fall back
+     *  to [lookAt].range". Drives pan pixel→meter scaling off the rendered surface so dragging over
+     *  tall 3D Tiles doesn't race ahead at the ellipsoid's larger range. */
+    private var panAnchorDistance = 0.0
+    private val panAnchorEye = Vec3()
+
     /** Inertial pan animator. Each platform's [createFlingScheduler] supplies the per-frame clock.
      *  The per-frame action dispatches by projection: 2D uses incremental projected-meters math,
      *  3D uses great-circle radians. Picking the right one matters because Mercator metersPerPixel
@@ -88,8 +104,46 @@ abstract class AbstractWorldWindowController {
         if (activeGestures++ == 0) {
             engine.cameraAsLookAt(beginLookAt)
             lookAt.copy(beginLookAt)
+            // Fresh interaction: drop any surface distance frozen by a previous pan so a pinch (or a
+            // pan that misses tile geometry) doesn't inherit a stale value. A subsequent pan-begin
+            // re-freezes it via capturePanAnchorDistance.
+            panAnchorDistance = 0.0
         }
     }
+
+    /**
+     * Platform hook: synchronously pick at the given GL-viewport pixel and return the depth-derived
+     * Cartesian point of the topmost rendered object (e.g. a 3D Tiles surface), or null when nothing
+     * depth-pickable was hit — empty sky, or plain terrain, both of which fall back to the
+     * terrain / ellipsoid anchor. Default returns null so platforms that don't wire picking keep the
+     * legacy ellipsoid-anchor behavior.
+     */
+    protected open fun pickSurfaceCartesian(viewportX: Double, viewportY: Double): Vec3? = null
+
+    /** Captures the shared pinch / rotate / wheel pivot anchor at a screen pixel, preferring the
+     *  rendered depth-buffer surface when [depthAnchorEnabled]; otherwise the terrain / ellipsoid. */
+    protected fun capturePivotAnchor(viewportX: Double, viewportY: Double) {
+        pivotAnchor.capture(
+            viewportX, viewportY,
+            if (depthAnchorEnabled) pickSurfaceCartesian(viewportX, viewportY) else null
+        )
+    }
+
+    /** Freezes the eye-to-surface distance used for 3D pan pixel→meter scaling. Reverts to
+     *  [lookAt].range unless [depthAnchorEnabled] and a depth-pickable surface was hit. */
+    protected fun capturePanAnchorDistance(viewportX: Double, viewportY: Double) {
+        panAnchorDistance = if (depthAnchorEnabled) {
+            pickSurfaceCartesian(viewportX, viewportY)?.let { surface ->
+                val eye = engine.globe.getAbsolutePosition(engine.camera.position, engine.camera.altitudeMode)
+                engine.globe.geographicToCartesian(eye.latitude, eye.longitude, eye.altitude, panAnchorEye)
+                surface.distanceTo(panAnchorEye)
+            } ?: 0.0
+        } else 0.0
+    }
+
+    /** Distance for pan pixel→meter scaling: the frozen rendered-surface distance when available,
+     *  else the camera range. */
+    private fun panSurfaceDistance() = if (panAnchorDistance > 0.0) panAnchorDistance else lookAt.range
 
     /**
      * Refreshes [beginLookAtPoint] from the current [beginLookAt]. 2D pan handlers must call this
@@ -119,7 +173,7 @@ abstract class AbstractWorldWindowController {
         var lat = lookAt.position.latitude
         var lon = lookAt.position.longitude
 
-        val mpp = engine.pixelSizeAtDistance(max(1.0, lookAt.range)) * gestureToViewportPixels
+        val mpp = engine.pixelSizeAtDistance(max(1.0, panSurfaceDistance())) * gestureToViewportPixels
         // A fling can keep ticking while the viewport height is 0 (layout transition / teardown),
         // making mpp infinite; the radians math below would then produce NaN and crash Angle.
         if (!mpp.isFinite()) return
@@ -160,7 +214,7 @@ abstract class AbstractWorldWindowController {
      * Mercator metersPerPixel away from the equator.
      */
     protected open fun applyPanDelta2D(deltaPxX: Double, deltaPxY: Double) {
-        val mpp = engine.pixelSizeAtDistance(max(1.0, lookAt.range)) * gestureToViewportPixels
+        val mpp = engine.pixelSizeAtDistance(max(1.0, panSurfaceDistance())) * gestureToViewportPixels
         // See applyPanDelta3D: a zero-height viewport makes mpp infinite, poisoning the result with NaN.
         if (!mpp.isFinite()) return
         val forwardMeters = deltaPxY * mpp

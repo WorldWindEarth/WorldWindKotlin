@@ -34,10 +34,20 @@ class PivotAnchorState(private val engine: WorldWind, private val lookAt: LookAt
         private set
 
     /** Snapshots the anchor and the current lookAt state. Returns false (and leaves the state
-     *  invalid, making [apply] a no-op) for off-globe screen points like the sky. */
-    fun capture(screenX: Double, screenY: Double): Boolean {
-        isValid = engine.pickTerrainPosition(screenX, screenY, anchorPos)
-                || engine.screenPointToGroundPosition(screenX, screenY, anchorPos)
+     *  invalid, making [apply] a no-op) for off-globe screen points like the sky.
+     *
+     *  [anchorCartesian], when non-null, is a pre-resolved Cartesian anchor from the rendered depth
+     *  buffer (e.g. a 3D Tiles surface) and takes precedence over the terrain / ellipsoid pick —
+     *  letting the pivot stay fixed on visible tile geometry even with no elevation coverage. When
+     *  null the original terrain-then-ellipsoid fallback applies. */
+    fun capture(screenX: Double, screenY: Double, anchorCartesian: Vec3? = null): Boolean {
+        isValid = if (anchorCartesian != null) {
+            engine.globe.cartesianToGeographic(anchorCartesian.x, anchorCartesian.y, anchorCartesian.z, anchorPos)
+            true
+        } else {
+            engine.pickTerrainPosition(screenX, screenY, anchorPos)
+                    || engine.screenPointToGroundPosition(screenX, screenY, anchorPos)
+        }
         if (!isValid) return false
         engine.globe.geographicToCartesian(
             anchorPos.latitude, anchorPos.longitude, anchorPos.altitude, anchorCart

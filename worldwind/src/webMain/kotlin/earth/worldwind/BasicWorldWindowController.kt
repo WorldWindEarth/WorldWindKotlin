@@ -52,6 +52,10 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
 
     override fun requestRedraw() = wwd.requestRedraw()
 
+    /** Depth-buffer surface point under the cursor via a synchronous pick; null over terrain/sky. */
+    override fun pickSurfaceCartesian(viewportX: Double, viewportY: Double) =
+        wwd.pick(Vec2(viewportX, viewportY)).topPickedObject?.cartesianPoint
+
     init {
         // Establish the dependencies between gesture recognizers. The pan, pinch and rotate gesture may recognize
         // simultaneously with each other.
@@ -180,6 +184,8 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
         when (state) {
             BEGAN -> {
                 gestureDidBegin()
+                val cp = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
+                capturePanAnchorDistance(cp.x, cp.y)
                 lastPoint.set(0.0, 0.0)
                 velocitySampler.reset()
                 lastPanEventMs = window.performance.now()
@@ -275,7 +281,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             BEGAN -> {
                 gestureDidBegin()
                 val cp = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
-                pivotAnchor.capture(cp.x, cp.y)
+                capturePivotAnchor(cp.x, cp.y)
             }
             CHANGED -> if (scale != 0.0) {
                 lookAt.range = beginLookAt.range / scale
@@ -296,7 +302,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
                 gestureDidBegin()
                 lastRotation = 0.0
                 val cp = wwd.canvasCoordinates(recognizer.clientX, recognizer.clientY)
-                pivotAnchor.capture(cp.x, cp.y)
+                capturePivotAnchor(cp.x, cp.y)
             }
             CHANGED -> {
                 // Update heading relative to its current value (not beginLookAt.heading) so a pan
@@ -342,7 +348,7 @@ open class BasicWorldWindowController(wwd: WorldWindow): WorldWindowController(w
             wwd.engine.cameraAsLookAt(lookAt)
             lastWheelEvent = timeStamp
             val cp = wwd.canvasCoordinates(event.clientX, event.clientY)
-            pivotAnchor.capture(cp.x, cp.y)
+            capturePivotAnchor(cp.x, cp.y)
         }
 
         // Normalize the wheel delta based on the wheel delta mode. This produces a roughly consistent delta across

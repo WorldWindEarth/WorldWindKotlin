@@ -41,6 +41,10 @@ open class BasicWorldWindowController(
 
     override fun cancelFling() = fling.cancel()
 
+    /** Depth-buffer surface point under the cursor via a synchronous pick; null over terrain/sky. */
+    override fun pickSurfaceCartesian(viewportX: Double, viewportY: Double) =
+        wwd.pick(viewportX, viewportY).topPickedObject?.cartesianPoint
+
     private fun stopVcRepeat() {
         vcRepeatTimer?.stop()
         vcRepeatTimer = null
@@ -97,6 +101,12 @@ open class BasicWorldWindowController(
                 lastDragNanos = System.nanoTime()
                 gestureDidBegin()
                 captureBeginLookAtPoint()
+                // Freeze the rendered-surface distance for left-button pan so panning over 3D Tiles
+                // tracks the visible geometry instead of the ellipsoid far below.
+                if (event.button == MouseEvent.BUTTON1) {
+                    val p = wwd.viewportCoordinates(event.x, event.y)
+                    capturePanAnchorDistance(p.x, p.y)
+                }
                 return true
             }
 
@@ -152,7 +162,7 @@ open class BasicWorldWindowController(
         if ((now - lastWheelEventNanos) / 1_000_000L > 500L) {
             wwd.engine.cameraAsLookAt(lookAt)
             val p = wwd.viewportCoordinates(event.x, event.y)
-            pivotAnchor.capture(p.x, p.y)
+            capturePivotAnchor(p.x, p.y)
         }
         lastWheelEventNanos = now
         lookAt.range *= scale

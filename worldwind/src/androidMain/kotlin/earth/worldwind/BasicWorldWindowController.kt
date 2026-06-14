@@ -37,6 +37,10 @@ open class BasicWorldWindowController(
 
     override fun cancelFling() = fling.cancel()
 
+    /** Depth-buffer surface point under the finger via a synchronous pick; null over terrain/sky. */
+    override fun pickSurfaceCartesian(viewportX: Double, viewportY: Double) =
+        wwd.pick(viewportX.toFloat(), viewportY.toFloat()).topPickedObject?.cartesianPoint
+
     protected val panRecognizer: GestureRecognizer = PanRecognizer().also {
         it.addListener(this)
         it.maxNumberOfPointers = 1 // Do not pan during tilt
@@ -164,6 +168,7 @@ open class BasicWorldWindowController(
         when (state) {
             BEGAN -> {
                 gestureDidBegin()
+                capturePanAnchorDistance(recognizer.x.toDouble(), recognizer.y.toDouble())
                 lastX = 0f
                 lastY = 0f
                 velocitySampler.reset()
@@ -241,7 +246,7 @@ open class BasicWorldWindowController(
         when (state) {
             BEGAN -> {
                 gestureDidBegin()
-                pivotAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
+                capturePivotAnchor(recognizer.x.toDouble(), recognizer.y.toDouble())
             }
             CHANGED -> if (scale != 0f) {
                 lookAt.range = beginLookAt.range / scale
@@ -260,7 +265,7 @@ open class BasicWorldWindowController(
             BEGAN -> {
                 gestureDidBegin()
                 lastRotation = 0f
-                pivotAnchor.capture(recognizer.x.toDouble(), recognizer.y.toDouble())
+                capturePivotAnchor(recognizer.x.toDouble(), recognizer.y.toDouble())
             }
             CHANGED -> {
                 val headingDegrees = lastRotation - rotation
