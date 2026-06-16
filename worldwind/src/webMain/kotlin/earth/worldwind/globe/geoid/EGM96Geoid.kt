@@ -24,7 +24,8 @@ actual open class EGM96Geoid actual constructor(
 
     actual override suspend fun loadData(offsetsFile: AssetResource) {
         retryIO {
-            deltas = int16ArrayOf(window.fetch(offsetsFile.originalPath, jso()).await().arrayBuffer().await())
+            val buf = window.fetch(offsetsFile.originalPath, jso()).await().arrayBuffer().await()
+            deltas = bigEndianInt16ArrayOf(buf)
         }
     }
 
@@ -35,6 +36,11 @@ actual open class EGM96Geoid actual constructor(
 // (e.g. cache) to null which the browser rejects at runtime — jso() builds an empty object that
 // lets fetch apply its real defaults.
 
-// View the offsets buffer as an Int16Array. Top-level js() helper (Kotlin/Wasm requires js()
-// bodies at file scope; the param binds by name).
-@Suppress("UNUSED_PARAMETER") private fun int16ArrayOf(buffer: ArrayBuffer): Int16Array = js("new Int16Array(buffer)")
+// EGM96 ships as INTEGER*2 unformatted Fortran direct-access — big-endian per the NGA spec;
+// JS typed-array views are platform-native (little-endian on x86/ARM), so the raw bytes must
+// be byte-swapped in place before being viewed as Int16. Top-level js() helper (Kotlin/Wasm
+// requires js() bodies at file scope; the param binds by name).
+@Suppress("UNUSED_PARAMETER")
+private fun bigEndianInt16ArrayOf(buffer: ArrayBuffer): Int16Array = js(
+    "(function(){const u=new Uint8Array(buffer);for(let i=0;i+1<u.length;i+=2){const t=u[i];u[i]=u[i+1];u[i+1]=t;}return new Int16Array(buffer);})()"
+)
