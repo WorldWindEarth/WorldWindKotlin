@@ -608,8 +608,10 @@ class WebContentManager(
 
         // Bump only when adding object stores AFTER a release — onupgradeneeded fires
         // only on version bump. Pre-release we keep this at 1 and add stores freely;
-        // the cache schema only freezes when the codebase ships.
-        private const val DB_VERSION = 1
+        // the cache schema only freezes when the codebase ships. 2: 2.0.3 added the
+        // 3D Tiles stores (BLOB_STORE_OGC3D + DATA_TYPE / DISPLAY_NAME / IS_FLOAT /
+        // COVERAGE_ANCILLARY) on top of the 2.0.2 baseline.
+        private const val DB_VERSION = 2
         private const val IMAGE_TILES_STORE = "image_tiles"
         private const val VECTOR_TILES_STORE = "vector_tiles"
         internal const val COVERAGE_TILES_STORE = "coverage_tiles"

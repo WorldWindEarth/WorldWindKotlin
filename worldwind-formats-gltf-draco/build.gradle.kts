@@ -64,7 +64,7 @@ val cmakeOnPath = providers.exec {
 // ──────────────────────────────────────────────────────────────────────────────────────
 // iOS cinterop helper — registers cmakeConfigureIos_<target> + cmakeBuildIos_<target>
 // Exec tasks, then attaches a cinterop binding that depends on the CMake build. Called
-// from each KotlinNativeTarget (iosX64 / iosArm64 / iosSimulatorArm64) below.
+// from each KotlinNativeTarget (iosArm64 / iosSimulatorArm64) below.
 // ──────────────────────────────────────────────────────────────────────────────────────
 
 fun KotlinNativeTarget.setupIosDracoCinterop(
@@ -145,7 +145,6 @@ kotlin {
     wasmJs {
         browser {}
     }
-    iosX64 { if (iosNativeOptIn) setupIosDracoCinterop("ios_x64", "iphonesimulator", "x86_64") }
     iosArm64 { if (iosNativeOptIn) setupIosDracoCinterop("ios_arm64", "iphoneos", "arm64") }
     iosSimulatorArm64 { if (iosNativeOptIn) setupIosDracoCinterop("ios_simulator_arm64", "iphonesimulator", "arm64") }
     @Suppress("UnstableApiUsage")
