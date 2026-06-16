@@ -45,12 +45,31 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         BRANCH: gh-pages
         FOLDER: worldwind-tutorials/build/dist/js/productionExecutable
-        CLEAN: true      
-    - name: Publish to Maven Central
+        CLEAN: true
+    - name: Check if worldwind.version is already on Maven Central
       if: github.ref == 'refs/heads/master'
+      id: check-version
+      shell: bash
+      run: |
+        set -euo pipefail
+        VERSION=$(grep "^worldwind.version=" gradle.properties | cut -d= -f2)
+        URL="https://repo1.maven.org/maven2/earth/worldwind/worldwind/$VERSION/worldwind-$VERSION.pom"
+        if curl -sfL -o /dev/null "$URL"; then
+          echo "::notice::worldwind v$VERSION already on Maven Central — skipping publish (bump worldwind.version in gradle.properties to release a new version)."
+          echo "should_publish=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "::notice::worldwind v$VERSION not yet on Maven Central — proceeding with publish."
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Publish to Maven Central
+      if: github.ref == 'refs/heads/master' && steps.check-version.outputs.should_publish == 'true'
       env:
         GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         GPG_PRIVATE_PASSWORD: ${{ secrets.GPG_PRIVATE_PASSWORD }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-      run: ./gradlew publishToSonatype closeSonatypeStagingRepository
+      run: |
+        ./gradlew \
+          :worldwind:publishToSonatype \
+          :worldwind-compose:publishToSonatype \
+          closeSonatypeStagingRepository

@@ -55,7 +55,7 @@ kotlin {
             }
         }
     }
-    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         target.binaries.framework {
             // The SwiftUI tutorials app embeds this static framework. Apps `import WorldWindTutorials`
             // and call into the registry / WorldWindow factory from Swift.

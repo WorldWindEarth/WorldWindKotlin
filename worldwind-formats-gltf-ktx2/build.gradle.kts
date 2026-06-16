@@ -123,7 +123,6 @@ kotlin {
     js { browser {} }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs { browser {} }
-    iosX64 { if (iosNativeOptIn) setupIosKtx2Cinterop("ios_x64", "iphonesimulator", "x86_64") }
     iosArm64 { if (iosNativeOptIn) setupIosKtx2Cinterop("ios_arm64", "iphoneos", "arm64") }
     iosSimulatorArm64 { if (iosNativeOptIn) setupIosKtx2Cinterop("ios_simulator_arm64", "iphonesimulator", "arm64") }
     @Suppress("UnstableApiUsage")

@@ -17,7 +17,7 @@ buildscript {
 
 allprojects {
     group = "earth.worldwind"
-    version = "2.0.2"
+    version = providers.gradleProperty("worldwind.version").get()
 
     repositories {
         google()
