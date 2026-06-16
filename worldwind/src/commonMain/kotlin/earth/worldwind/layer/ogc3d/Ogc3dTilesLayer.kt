@@ -161,6 +161,14 @@ open class Ogc3dTilesLayer(
      *  and cut blend-ROP fillrate. */
     var gaussianMinAlpha: Float = 0.01f
 
+    /** Strategy for restoring Gaussian tiles after a GL context loss (Android app resume
+     *  from background). [ContextLossRecovery.FAST_RESUME] (default) keeps each tile's
+     *  parsed CPU payload alive across the loss — typically <100 ms full restore at the
+     *  cost of ~2-3 MB / visible tile retained. [ContextLossRecovery.LOW_MEMORY] releases
+     *  parsed payloads on first sync, forcing a re-fetch + re-parse on resume — saves
+     *  ~60-90 MB for a busy scene but takes 0.5-2 s to restore. */
+    var contextLossRecovery: ContextLossRecovery = ContextLossRecovery.FAST_RESUME
+
     /** Optional Gaussian-splat decoder. Magic-bytes detection is per-codec, so payloads not
      *  matching b3dm/i3dm/cmpt/pnts/glTF/tileset.json are offered to this loader's
      *  [GaussianLoader.supports] check. */
@@ -295,6 +303,10 @@ open class Ogc3dTilesLayer(
                     occupiedBytes += content.gpuByteCount
                 } else {
                     // VBO evicted; CPU-side data is gone — re-fetch + re-decode.
+                    // FAST_RESUME keeps interleavedVertices alive across upload, so
+                    // isResourcesLoaded above stays true post-context-loss and the next
+                    // enqueuePointCloudDrawable re-uploads from CPU without re-fetching;
+                    // this `else` only fires in LOW_MEMORY mode or after a real cache eviction.
                     tile.content = null
                     tile.loadState = Tile3d.LoadState.UNLOADED
                     hasUnloadedRequests = true
@@ -304,7 +316,10 @@ open class Ogc3dTilesLayer(
                     // selected tiles would otherwise pin their parse-time CPU arrays
                     // indefinitely and report 0 gpuByteCount to the SSE-pressure feedback.
                     if (!content.firstSyncDone && content.centerArrayQ != null) {
-                        content.syncGaussianContentGpu(rc)
+                        content.syncGaussianContentGpu(
+                            rc,
+                            releaseAttribsBytes = contextLossRecovery == ContextLossRecovery.LOW_MEMORY,
+                        )
                     }
                     loadedGaussianTiles[tile] = frameCounter
                     if (content.isResourcesLoaded(rc)) {
@@ -345,28 +360,62 @@ open class Ogc3dTilesLayer(
     /** SSE-pressure feedback: bump every frame when over budget; relax at most once per
      *  [SSE_RELAX_INTERVAL] when under [SSE_RELAX_OCCUPANCY_FRACTION]. The interval gate
      *  prevents per-frame relax→fetch→overshoot oscillation at borderline working sets. */
-    /** On GL-context recreate, drop every loaded gaussian tile and purge its three RR-cache
-     *  entries before the first post-resume draw. Android's `RenderResourceCache.clear()` is
-     *  scheduled asynchronously by `destroyContext`, so without this the cache may still
-     *  hand the drawable a `BufferObject` whose `id` is a dead old-context GL name. Mesh /
-     *  points recover via the touch-loop `isResourcesLoaded` re-fetch path; only gaussian
-     *  keeps per-tile state on the layer that needs an explicit reset. */
+    /** On GL-context recreate, purge stale RR-cache entries before the first post-resume
+     *  draw. Android's `RenderResourceCache.clear()` is scheduled asynchronously by
+     *  `destroyContext`, so without this the cache may still hand a drawable a
+     *  `BufferObject` whose `id` is a dead old-context GL name.
+     *
+     *  Coverage per content type:
+     *  - **Gaussian**: explicit reset here (per-tile sort state is layer-pinned). In
+     *    [ContextLossRecovery.FAST_RESUME] mode the CPU payload survives and the next
+     *    frame re-uploads in place; in [ContextLossRecovery.LOW_MEMORY] mode the content
+     *    is dropped and re-fetched.
+     *  - **Point cloud**: handled in the touch-loop. FAST_RESUME keeps `interleavedVertices`
+     *    alive across upload and re-syncs on cache miss; LOW_MEMORY falls back to re-fetch.
+     *  - **Mesh**: always re-fetched. Keeping mesh CPU state alive would multiply working-set
+     *    RAM by ~5-50× (textures + interleaved vertex buffers dominate), so FAST_RESUME
+     *    doesn't extend here. */
     private fun invalidateOnContextLoss(rc: RenderContext) {
         if (rc.contextVersion <= lastSeenContextVersion) return
         lastSeenContextVersion = rc.contextVersion
         if (loadedGaussianTiles.isEmpty()) return
         val cache = rc.renderResourceCache
-        for ((tile, _) in loadedGaussianTiles) {
-            (tile.content as? GaussianContent)?.let { c ->
-                c.centersKey?.let { cache.remove(it) }
-                c.attribsKey?.let { cache.remove(it) }
-                c.sortIndicesKey?.let { cache.remove(it) }
-                c.releaseSortState()
+        when (contextLossRecovery) {
+            ContextLossRecovery.FAST_RESUME -> {
+                // Drop the GPU side only; the CPU payload (centerArrayQ, attribsBytes,
+                // sortIndexArray) stays alive so the next doRender's syncGaussianContentGpu
+                // re-uploads to the fresh context without re-fetching or re-parsing.
+                for ((tile, _) in loadedGaussianTiles) {
+                    val c = tile.content as? GaussianContent ?: continue
+                    c.centersKey?.let { cache.remove(it) }
+                    c.attribsKey?.let { cache.remove(it) }
+                    c.sortIndicesKey?.let { cache.remove(it) }
+                    // Force re-sync; clear upload-in-flight (any pending upload was on the
+                    // dead context); reset the resort-skip cache so the first post-resume
+                    // sort runs and re-uploads the EBO.
+                    c.firstSyncDone = false
+                    c.sortUploadInFlight = false
+                    c.lastSortForwardX = Float.NaN
+                    c.lastSortForwardY = Float.NaN
+                    c.lastSortForwardZ = Float.NaN
+                }
+                // Keep tile.content + tile.loadState + loadedGaussianTiles intact — the loop
+                // will detect !firstSyncDone next frame and re-upload in place.
             }
-            tile.content = null
-            tile.loadState = Tile3d.LoadState.UNLOADED
+            ContextLossRecovery.LOW_MEMORY -> {
+                for ((tile, _) in loadedGaussianTiles) {
+                    (tile.content as? GaussianContent)?.let { c ->
+                        c.centersKey?.let { cache.remove(it) }
+                        c.attribsKey?.let { cache.remove(it) }
+                        c.sortIndicesKey?.let { cache.remove(it) }
+                        c.releaseSortState()
+                    }
+                    tile.content = null
+                    tile.loadState = Tile3d.LoadState.UNLOADED
+                }
+                loadedGaussianTiles.clear()
+            }
         }
-        loadedGaussianTiles.clear()
     }
 
     /** Evict gaussian tiles unseen for [GAUSSIAN_EVICTION_GRACE_FRAMES] — `centerArrayQ` +
@@ -965,7 +1014,10 @@ open class Ogc3dTilesLayer(
     private fun enqueuePointCloudDrawable(
         rc: RenderContext, tile: Tile3d, content: PointCloudContent, uri: String,
     ) {
-        content.syncPointCloudContentGpu(rc)
+        content.syncPointCloudContentGpu(
+            rc,
+            releaseInterleavedVertices = contextLossRecovery == ContextLossRecovery.LOW_MEMORY,
+        )
         if (content.pointCount <= 0) return
         // Resolve the VBO fresh from the RR cache. Mirrors [enqueueMeshDrawable] /
         // [enqueueGaussianDrawable]: eviction surfaces as a null, draw skips, the touch loop
@@ -1017,7 +1069,10 @@ open class Ogc3dTilesLayer(
     private fun enqueueGaussianDrawable(
         rc: RenderContext, tile: Tile3d, content: GaussianContent, uri: String,
     ) {
-        content.syncGaussianContentGpu(rc)
+        content.syncGaussianContentGpu(
+            rc,
+            releaseAttribsBytes = contextLossRecovery == ContextLossRecovery.LOW_MEMORY,
+        )
         if (content.splatCount <= 0) return
         // Resolve fresh BufferObject refs from the RR cache into the drawable. Mirrors the
         // [enqueueMeshDrawable] pattern — eviction between frames (or partial within-frame
@@ -1119,4 +1174,15 @@ open class Ogc3dTilesLayer(
          *  oscillation, short enough to keep memory bounded. */
         private const val GAUSSIAN_EVICTION_GRACE_FRAMES: Long = 60
     }
+}
+
+/** Recovery strategy used by [Ogc3dTilesLayer.contextLossRecovery] when the GL context is
+ *  recreated (typically Android app resume from background). */
+enum class ContextLossRecovery {
+    /** Keep each Gaussian tile's parsed CPU payload (~2-3 MB / tile) alive across context
+     *  loss so resume only re-uploads GPU buffers. Near-instant restore. */
+    FAST_RESUME,
+    /** Release parsed payloads on first sync; resume re-fetches + re-parses every tile.
+     *  Memory-frugal but visibly slow (~0.5-2 s) on resume for busy scenes. */
+    LOW_MEMORY,
 }

@@ -273,7 +273,14 @@ internal fun GaussianContent.prepareGaussianContent(payload: GaussianPayload, co
  * `enqueueGaussianDrawable`). Sync is idempotent post-`firstSyncDone`: cache `get` returns
  * the existing entry, `offerGLBufferUpload` skips when the version matches.
  */
-internal fun GaussianContent.syncGaussianContentGpu(rc: RenderContext) {
+internal fun GaussianContent.syncGaussianContentGpu(
+    rc: RenderContext,
+    /** When true, null [attribsBytes] after upload — the GPU buffer is canonical and the CPU
+     *  copy is dead memory. When false, retain it so a later GL-context loss can re-upload
+     *  without re-fetching + re-parsing the payload. The layer drives this from its
+     *  [Ogc3dTilesLayer.contextLossRecovery] setting. */
+    releaseAttribsBytes: Boolean = true,
+) {
     val centersQ = this.centerArrayQ ?: return
     val centersKey = this.centersKey ?: return
     var totalBytes = 0
@@ -306,8 +313,9 @@ internal fun GaussianContent.syncGaussianContentGpu(rc: RenderContext) {
     gpuByteCount = totalBytes
 
     // Drop CPU refs the GL upload closure already owns. [centerArrayQ] + [sortIndexArray]
-    // stay alive for the background sort.
-    this.attribsBytes = null
+    // stay alive for the background sort. [attribsBytes] is kept iff the layer wants fast
+    // post-resume re-upload paths.
+    if (releaseAttribsBytes) this.attribsBytes = null
 }
 
 /** CPU-only release. Nulls the kept-alive sort state before `tile.content = null` so the

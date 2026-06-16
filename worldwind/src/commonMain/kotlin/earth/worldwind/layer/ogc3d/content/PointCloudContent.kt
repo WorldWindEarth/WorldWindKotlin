@@ -132,7 +132,15 @@ internal fun PointCloudContent.preparePointCloudContent(payload: PntsPayload, co
  * cloud layout: cache get-or-create, version-checked upload, store the resolved buffer in
  * [PointCloudContent.vertexBuffer].
  */
-internal fun PointCloudContent.syncPointCloudContentGpu(rc: RenderContext) {
+internal fun PointCloudContent.syncPointCloudContentGpu(
+    rc: RenderContext,
+    /** When true, null [interleavedVertices] and return the pool buffer after upload —
+     *  the GPU VBO is canonical and the CPU copy is dead memory. When false, retain the
+     *  array (and skip pool release) so a later GL-context loss can re-upload without
+     *  re-fetching + re-parsing. The layer drives this from its
+     *  [Ogc3dTilesLayer.contextLossRecovery] setting. */
+    releaseInterleavedVertices: Boolean = true,
+) {
     val interleaved = interleavedVertices ?: return
     val key = vboKey ?: return
     val totalBytes = pointCount * PointCloudContent.VERTEX_STRIDE
@@ -140,12 +148,15 @@ internal fun PointCloudContent.syncPointCloudContentGpu(rc: RenderContext) {
     rc.getBufferObject(key) { BufferObject(GL_ARRAY_BUFFER, totalBytes) }
     // Explicit byteCount because `interleaved` may be oversized (pool). onUploaded fires
     // exactly once — async after the GL write, or sync here when nothing was queued.
-    rc.offerGLBufferUpload(key, 1, onUploaded = { FloatArrayPool.release(interleaved) }) {
+    val onUploaded: (() -> Unit)? = if (releaseInterleavedVertices) ({
+        FloatArrayPool.release(interleaved)
+    }) else null
+    rc.offerGLBufferUpload(key, 1, onUploaded = onUploaded) {
         NumericArray.Floats(interleaved, totalBytes)
     }
     gpuByteCount = totalBytes
     firstSyncDone = true
-    interleavedVertices = null
+    if (releaseInterleavedVertices) interleavedVertices = null
 }
 
 /** Pre-first-sync tiles ([interleavedVertices] populated) count as loaded — sync runs
