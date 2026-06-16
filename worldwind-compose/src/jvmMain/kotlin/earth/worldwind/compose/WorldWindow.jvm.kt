@@ -9,7 +9,7 @@ import earth.worldwind.WorldWindow as PlatformWorldWindow
 
 /**
  * Hosts the WorldWind engine inside Compose for Desktop. Skia and JOGL share no GL context, so
- * the engine's `com.jogamp.opengl.awt.GLJPanel` is wrapped in a [SwingPanel].
+ * the engine's heavyweight `com.jogamp.opengl.awt.GLCanvas` is wrapped in a [SwingPanel].
  */
 @Composable
 fun WorldWindow(

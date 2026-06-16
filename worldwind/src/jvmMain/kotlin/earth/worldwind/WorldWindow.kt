@@ -4,7 +4,7 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLCapabilities
 import com.jogamp.opengl.GLEventListener
 import com.jogamp.opengl.GLProfile
-import com.jogamp.opengl.awt.GLJPanel
+import com.jogamp.opengl.awt.GLCanvas
 import earth.worldwind.frame.Frame
 import earth.worldwind.geom.Line
 import earth.worldwind.geom.Vec2
@@ -20,13 +20,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.runBlocking
 import java.awt.BorderLayout
+import java.awt.Component
 import java.awt.Toolkit
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
 import java.awt.event.MouseWheelEvent
 import java.util.LinkedList
-import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.math.ceil
@@ -39,7 +39,7 @@ import kotlin.math.roundToInt
  * reference values.
  *
  * @param renderResourceCache render resource cache shared with the engine lifecycle
- * @param capabilities OpenGL capabilities used to create the internal [GLJPanel]
+ * @param capabilities OpenGL capabilities used to create the internal [GLCanvas]
  * @param factory DSL block invoked during initialization to populate [WorldWind.layers]
  */
 open class WorldWindow @JvmOverloads constructor(
@@ -70,14 +70,12 @@ open class WorldWindow @JvmOverloads constructor(
     @Volatile
     protected var isWaitingForRedraw = false
 
-    /**
-     * Swing OpenGL panel that presents rendered frames. Exposed as a generic [JComponent] so
-     * consumers can attach focus or input listeners (e.g. [KeyboardControls]) without leaking
-     * the underlying JOGL type. WorldWindow does not inherit [GLJPanel] directly for the same
-     * reason.
-     */
-    val glPanel: JComponent = GLJPanel(capabilities)
-    private inline val glJPanel get() = glPanel as GLJPanel
+    /** Native heavyweight AWT canvas — draws straight to its window surface, skipping the
+     *  [com.jogamp.opengl.awt.GLJPanel] offscreen-FBO + `glReadPixels` + Java2D composite round-trip
+     *  that's a major bottleneck on macOS. Exposed as a plain [Component] so consumers can attach
+     *  focus / input listeners (e.g. [KeyboardControls]) without leaking the JOGL type. */
+    val glPanel: Component = GLCanvas(capabilities)
+    private inline val glCanvas get() = glPanel as GLCanvas
 
     /**
      * The controller used to manipulate the globe with the keyboard. Declared after [glPanel]
@@ -126,12 +124,9 @@ open class WorldWindow @JvmOverloads constructor(
 
         override fun reshape(drawable: GLAutoDrawable, x: Int, y: Int, width: Int, height: Int) {
             if (!::engine.isInitialized || width <= 0 || height <= 0) return
-            // Density factor = (GL surface pixels) / (Swing component points). On macOS
-            // Retina the GLJPanel reports a 2× larger surface than its component bounds;
-            // on Windows/Linux the ratio is 1.0 (unless explicit HiDPI). Toolkit.screenResolution
-            // doesn't reflect the per-window scale on Apple displays, which left mouse picks
-            // reading at half the correct framebuffer position. Falls back to the toolkit
-            // value when the component has zero size (very early in init).
+            // Density = (GL surface pixels) / (AWT component points). 2x on Retina, 1x elsewhere
+            // (unless explicit HiDPI). Toolkit.screenResolution is a coarse fallback for the
+            // pre-reshape window where componentWidth is still zero.
             val componentWidth = glPanel.width
             val density = if (componentWidth > 0) width.toFloat() / componentWidth
                 else Toolkit.getDefaultToolkit().screenResolution / 96f
@@ -168,7 +163,7 @@ open class WorldWindow @JvmOverloads constructor(
 
     init {
         add(glPanel, BorderLayout.CENTER)
-        glJPanel.addGLEventListener(glEventListener)
+        glCanvas.addGLEventListener(glEventListener)
         glPanel.addMouseListener(object : MouseAdapter() {
             override fun mousePressed(e: MouseEvent) = dispatchMouseEvent(e)
             override fun mouseReleased(e: MouseEvent) = dispatchMouseEvent(e)
@@ -319,7 +314,7 @@ open class WorldWindow @JvmOverloads constructor(
         val redrawRequired = engine.renderFrame(frame)
         if (redrawRequired) isWaitingForRedraw = false
         if (frame.isPickMode) pickQueue.offer(frame) else frameQueue.offer(frame)
-        glJPanel.display()
+        glCanvas.display()
         if (!frame.isPickMode && redrawRequired) doRequestRedraw()
     }
 
