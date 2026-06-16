@@ -86,17 +86,16 @@ class HtmlVideoOnTerrainTutorial(engine: WorldWind) : AbstractTutorial(engine) {
         try { video.pause() } catch (_: Throwable) { /* idempotent */ }
     }
 
-    // Surface the inner tutorial's UI actions to the JS tutorial host. The host reads
-    // `actions` synchronously right after `start()`, but `inner` is built inside a
-    // coroutine that may not have resolved yet, so we expose the static label list and
-    // forward `runAction` calls - they no-op until `inner` is ready.
+    // Surface the inner tutorial's UI actions to the JS host. It reads `actions`
+    // synchronously right after `start()`, before the coroutine builds `inner`, so we
+    // expose a static label list; `runAction` no-ops until `inner` is ready.
     //
-    // ACTION_TOGGLE_3D is intentionally hidden on JS while the 3D-projection path
-    // doesn't render correctly under WebGL (see docs/webgl-3d-projection-investigation.md
-    // for the full investigation log and remaining options). The toggle still works at
-    // the model level - re-add `VideoOnTerrainTutorial.ACTION_TOGGLE_3D` to this list
-    // once the WebGL issue is fixed, no other changes needed.
-    override val actions = arrayListOf<String>()
+    // ACTION_TOGGLE_3D was hidden on web because the 3D path rendered into a tiny patch
+    // (docs/webgl-3d-projection-investigation.md). Re-enabled to re-test it: the 3D path
+    // takes sensor altitude as `MSL + geoid.getOffset(...)`, and the old byte-swapped web
+    // geoid returned garbage, so the projection was built on a wrong altitude. If 3D still
+    // misrenders, the GPU-precision hypothesis stands - revert to `arrayListOf<String>()`.
+    override val actions = arrayListOf(VideoOnTerrainTutorial.ACTION_TOGGLE_3D)
 
     override fun runAction(actionName: String) { inner?.runAction(actionName) }
 
