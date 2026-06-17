@@ -145,6 +145,7 @@ class GpkgContentManager(
         when (content.dataTypeName.lowercase()) {
             TILES, VECTOR_TILES, COVERAGE -> geoPackage.readTilesDataSize(content.tableName)
             FEATURES -> geoPackage.readFeaturesDataSize(content.tableName)
+            OGC_3D_TILES -> geoPackage.read3DTilesDataSize(content.tableName)
             else -> 0L
         }
     }

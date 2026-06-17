@@ -304,6 +304,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (dao.isTableExists) dao.queryRawValue("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'") else 0L
     }
 
+    /** Total cached bytes in a 3D Tiles blob-store table. Reads the precomputed `size_bytes`
+     *  column instead of `LENGTH(tile_data)` so the scan stays in the row header and doesn't
+     *  touch every BLOB page. */
+    suspend fun read3DTilesDataSize(tableName: String): Long = withContext(Dispatchers.IO) {
+        val config = DatabaseTableConfig(GpkgBlobRow::class.java, tableName, null)
+        val dao = object : BaseDaoImpl<GpkgBlobRow, String>(connectionSource, config) {}
+        if (!dao.isTableExists) return@withContext 0L
+        dao.queryRawValue("SELECT COALESCE(SUM(${GpkgBlobRow.COLUMN_SIZE_BYTES}), 0) FROM '$tableName'")
+    }
+
     suspend fun readTileUserData(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int
     ): GpkgTileUserData? = withContext(Dispatchers.IO) {
