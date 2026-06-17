@@ -391,7 +391,7 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
 
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: ByteArray?
-    ) = gl.texImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.toInt8Array())
+    ) = gl.texImage2D(target, level, internalFormat, width, height, border, format, type, buffer?.asUint8Array())
 
     override fun texImage2D(
         target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, type: Int, buffer: FloatArray?
@@ -399,7 +399,7 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
 
     override fun texSubImage2D(
         target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, buffer: ByteArray?
-    ) = gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type, buffer?.toInt8Array())
+    ) = gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type, buffer?.asUint8Array())
 
     override fun texSubImage2D(
         target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
@@ -508,3 +508,7 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
 }
 
 internal actual fun createWebKgl(gl: WebGLRenderingContext): Kgl = WasmJsWebKgl(gl)
+
+// WebGL needs a Uint8Array (not Int8Array) for UNSIGNED_BYTE pixels, else INVALID_OPERATION →
+// silent white. Kotlin/Wasm ByteArray isn't a JS typed array: copy into JS memory, then view it.
+private fun ByteArray.asUint8Array(): Uint8Array = Uint8Array(toInt8Array().buffer)

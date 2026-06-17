@@ -6,6 +6,7 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
+import earth.worldwind.render.image.RgbaTexture
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
@@ -84,11 +85,15 @@ internal suspend fun prepareMeshPrep(
         // Eager texture decode off-thread; null falls back to baseColor-only rendering.
         val baseColorTexture: Texture? = run {
             val imgIdx = material?.baseColorTextureImageIndex ?: -1
-            if (imgIdx < 0 || texCoords == null) null
-            else {
-                val img = model.images.getOrNull(imgIdx)
-                if (img == null || img.bytes.isEmpty()) null
-                else runCatching { decodeTileTexture(img.bytes) }.getOrNull()
+            if (imgIdx < 0 || texCoords == null) return@run null
+            val img = model.images.getOrNull(imgIdx) ?: return@run null
+            when {
+                // KTX2 / KHR_texture_basisu: GltfReader transcoded to raw RGBA and cleared bytes.
+                img.decodedRgba != null ->
+                    runCatching { RgbaTexture(img.decodedRgba, img.decodedWidth, img.decodedHeight) }.getOrNull()
+                // JPEG / PNG: decode the encoded bytes via the platform image loader.
+                img.bytes.isNotEmpty() -> runCatching { decodeTileTexture(img.bytes) }.getOrNull()
+                else -> null
             }
         }
 

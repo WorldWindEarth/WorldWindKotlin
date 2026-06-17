@@ -80,12 +80,10 @@ fun main() {
             )
         }
         val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main + mainExceptionHandler)
-        // 3D Tiles codecs install once for the process. Draco + KTX2 loaders are suspend
-        // (load WASM modules) — fire-and-forget; the first .glb fetch lands long after start-up.
-        mainScope.launch {
-            installDracoDecoder()
-            installKtx2Decoder()
-        }
+        // 3D Tiles codecs install once for the process; separate launches so one codec's WASM
+        // load can't block the other. Suspend (load WASM) — the first .glb fetch lands far later.
+        mainScope.launch { installDracoDecoder() }
+        mainScope.launch { installKtx2Decoder() }
         installDefaultSpzInflater()
         // Browser's `installDefaultSpzInflater` is a no-op (CompressionStream is async-only);
         // wire pako's sync `ungzip` so SPZ tiles can decode on the render thread.
