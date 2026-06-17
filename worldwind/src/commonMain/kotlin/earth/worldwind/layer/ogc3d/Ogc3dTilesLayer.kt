@@ -13,6 +13,7 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.BoundingSphere
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Position
+import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import kotlin.math.abs
 import earth.worldwind.layer.AbstractLayer
@@ -228,6 +229,17 @@ open class Ogc3dTilesLayer(
     @Volatile private var rootFetching = false
     @Volatile private var rootFailed = false
 
+    /** Geographic lat/lon envelope of the root tile's bounding volume, populated on first
+     *  render after `tileset` parses. Null until then. Used for fly-to / zoom-to-extent — not
+     *  for culling. Computation is one-shot: altitude-offset shifts don't change the lat/lon
+     *  footprint meaningfully at any realistic offset. */
+    @Volatile private var cachedSector: Sector? = null
+
+    /** Geographic lat/lon envelope of the tileset's root bounding volume. `null` until the
+     *  root `tileset.json` has been fetched, parsed, and rendered at least once. Safe to read
+     *  from any thread. */
+    val sector: Sector? get() = cachedSector
+
     /** Working effective SSE, driven by the SSE-pressure feedback loop. @Volatile because
      *  the setter for [maxScreenSpaceError] can fire from any thread. */
     @Volatile private var memoryAdjustedSSE: Double = 16.0
@@ -257,6 +269,9 @@ open class Ogc3dTilesLayer(
         if (current == null) {
             ensureRootRequested()
             return
+        }
+        if (cachedSector == null) {
+            cachedSector = current.root.boundingVolume.worldBoundingSector(rc.globe, current.root.tileToWorld, Sector())
         }
         // Pick frames run with a 1×1 pickViewport so SSE collapses to ~0 for every tile —
         // re-traversing here would drop every sub-tileset wrapper below the SSE budget,

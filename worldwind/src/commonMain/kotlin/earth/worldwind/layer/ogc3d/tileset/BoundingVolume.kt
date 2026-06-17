@@ -2,9 +2,13 @@ package earth.worldwind.layer.ogc3d.tileset
 
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.BoundingSphere
+import earth.worldwind.geom.Ellipsoid
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Position
+import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
+import earth.worldwind.globe.projection.Wgs84Projection
 import kotlin.math.max
 import kotlin.math.sqrt
 
@@ -20,6 +24,13 @@ import kotlin.math.sqrt
 sealed interface BoundingVolume {
     /** Conservative world-space sphere used for frustum culling + nearest-point distance. */
     fun worldBoundingSphere(globe: Globe, tileToWorld: Matrix4, result: BoundingSphere): BoundingSphere
+
+    /**
+     * Geographic lat/lon envelope of this volume in world space. Used for fly-to / zoom-to-extent.
+     * Naive lat/lon union — datasets straddling the antimeridian get a too-wide envelope; that's
+     * acceptable for the fly-to use case (sector defines the camera framing, not culling). Returns
+     * an empty sector for degenerate (NaN/Inf) inputs. */
+    fun worldBoundingSector(globe: Globe, tileToWorld: Matrix4, result: Sector): Sector
 
     /**
      * Geographic region: west, south, east, north (radians) + minHeight, maxHeight (meters).
@@ -57,6 +68,19 @@ sealed interface BoundingVolume {
             }
             return result.set(center, sqrt(maxDistSq))
         }
+
+        /** Region is already geographic; tile.transform doesn't apply per spec, so just copy the
+         *  spec's radians into the sector directly. */
+        override fun worldBoundingSector(globe: Globe, tileToWorld: Matrix4, result: Sector): Sector {
+            if (!isFinite(west) || !isFinite(south) || !isFinite(east) || !isFinite(north)) {
+                return result.setEmpty()
+            }
+            result.minLatitude = south.radians
+            result.maxLatitude = north.radians
+            result.minLongitude = west.radians
+            result.maxLongitude = east.radians
+            return result
+        }
     }
 
     /**
@@ -91,6 +115,28 @@ sealed interface BoundingVolume {
             val radius = scale * sqrt(halfX * halfX + halfY * halfY + halfZ * halfZ)
             return result.set(center, radius)
         }
+
+        /** Project the 8 OBB corners through tileToWorld to ECEF, then to geographic, and union. */
+        override fun worldBoundingSector(globe: Globe, tileToWorld: Matrix4, result: Sector): Sector {
+            if (!isFinite(centerX) || !isFinite(centerY) || !isFinite(centerZ) ||
+                !isFinite(halfXx) || !isFinite(halfXy) || !isFinite(halfXz) ||
+                !isFinite(halfYx) || !isFinite(halfYy) || !isFinite(halfYz) ||
+                !isFinite(halfZx) || !isFinite(halfZy) || !isFinite(halfZz)
+            ) return result.setEmpty()
+            result.setEmpty()
+            val corner = Vec3()
+            val pos = Position()
+            for (sx in intArrayOf(-1, 1)) for (sy in intArrayOf(-1, 1)) for (sz in intArrayOf(-1, 1)) {
+                corner.set(
+                    centerX + sx * halfXx + sy * halfYx + sz * halfZx,
+                    centerY + sx * halfXy + sy * halfYy + sz * halfZy,
+                    centerZ + sx * halfXz + sy * halfYz + sz * halfZz,
+                ).multiplyByMatrix(tileToWorld)
+                cartesianToGeographicWgs84(corner.x, corner.y, corner.z, pos)
+                result.union(pos.latitude, pos.longitude)
+            }
+            return result
+        }
     }
 
     /**
@@ -108,9 +154,47 @@ sealed interface BoundingVolume {
             val scale = tileToWorldUniformScale(tileToWorld)
             return result.set(center, scale * radius)
         }
+
+        /** Walk ±worldRadius along each ECEF axis from the world-space sphere center, project,
+         *  union. Coarse but conservative — sufficient for fly-to framing. */
+        override fun worldBoundingSector(globe: Globe, tileToWorld: Matrix4, result: Sector): Sector {
+            if (!isFinite(centerX) || !isFinite(centerY) || !isFinite(centerZ) || !isFinite(radius)) {
+                return result.setEmpty()
+            }
+            val center = Vec3(centerX, centerY, centerZ).multiplyByMatrix(tileToWorld)
+            val worldRadius = tileToWorldUniformScale(tileToWorld) * radius
+            result.setEmpty()
+            val sample = Vec3()
+            val pos = Position()
+            for ((dx, dy, dz) in axisOffsets) {
+                sample.set(center.x + dx * worldRadius, center.y + dy * worldRadius, center.z + dz * worldRadius)
+                cartesianToGeographicWgs84(sample.x, sample.y, sample.z, pos)
+                result.union(pos.latitude, pos.longitude)
+            }
+            return result
+        }
     }
 
     companion object {
+        /** ECEF axis offsets for the 6-direction sphere envelope sample. */
+        private val axisOffsets = listOf(
+            Triple(1.0, 0.0, 0.0), Triple(-1.0, 0.0, 0.0),
+            Triple(0.0, 1.0, 0.0), Triple(0.0, -1.0, 0.0),
+            Triple(0.0, 0.0, 1.0), Triple(0.0, 0.0, -1.0),
+        )
+
+        /** Tileset bounding volumes live in the WGS84-permuted Cartesian frame baked in by
+         *  `standardEcefToWorldWindFrame`, regardless of whatever 2D projection (Mercator,
+         *  polar, sinusoidal …) the active renderer's [Globe] currently uses. Hold our own
+         *  Wgs84 projection so [worldBoundingSector] returns true geographic lat/lon and
+         *  doesn't accidentally read a sphere center as projection-plane meters. */
+        private val wgs84Projection = Wgs84Projection()
+
+        /** Wgs84-frame inverse: convert a corner produced by `multiplyByMatrix(tileToWorld)`
+         *  back to lat/lon, never going through [Globe.cartesianToGeographic]. */
+        internal fun cartesianToGeographicWgs84(x: Double, y: Double, z: Double, result: Position): Position =
+            wgs84Projection.cartesianToGeographic(Ellipsoid.WGS84, x, y, z, offset = 0.0, result)
+
         /** True when [v] is a real finite double (rejects NaN and ±Infinity). Inlined locally
          *  to keep the BoundingVolume file self-contained — there's no equivalent in Kotlin
          *  stdlib's commonMain (`Double.isFinite()` lives only on the JVM in older versions). */
