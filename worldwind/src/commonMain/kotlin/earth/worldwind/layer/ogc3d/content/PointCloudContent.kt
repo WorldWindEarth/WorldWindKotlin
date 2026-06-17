@@ -19,10 +19,10 @@ import kotlin.math.sqrt
  *
  * Lifecycle:
  *  1. [preparePointCloudContent] runs off the render thread on the parse coroutine,
- *     interleaves position + colour into [interleavedVertices], and computes the local
+ *     interleaves position + colour into `interleavedVertices`, and computes the local
  *     bounding sphere.
  *  2. [syncPointCloudContentGpu] runs each render frame, looking up the VBO from the cache
- *     and re-uploading [interleavedVertices] when the cache has dropped it. The CPU-side
+ *     and re-uploading `interleavedVertices` when the cache has dropped it. The CPU-side
  *     payload stays alive on the content for this re-upload path.
  *
  * 4x memory overhead vs packed uint8 RGBA, but the all-float layout means we reuse the
@@ -37,7 +37,7 @@ class PointCloudContent internal constructor(
      *  via the `onUploaded` callback on `offerGLBufferUpload`; null thereafter. */
     @Volatile internal var interleavedVertices: FloatArray? = null
 
-    /** Stable cache key for the VBO; populated together with [interleavedVertices]. */
+    /** Stable cache key for the VBO; populated together with `interleavedVertices`. */
     @Volatile internal var vboKey: PointCloudVboKey? = null
 
     // GPU [BufferObject] reference intentionally NOT cached on content. The drawable resolves
@@ -128,9 +128,9 @@ internal fun PointCloudContent.preparePointCloudContent(payload: PntsPayload, co
 }
 
 /**
- * Per-frame render-thread VBO sync. Mirrors [syncMeshContentGpu] for the single-VBO point
+ * Per-frame render-thread VBO sync. Mirrors `syncMeshContentGpu` for the single-VBO point
  * cloud layout: cache get-or-create, version-checked upload, store the resolved buffer in
- * [PointCloudContent.vertexBuffer].
+ * `PointCloudContent.vertexBuffer`.
  */
 internal fun PointCloudContent.syncPointCloudContentGpu(rc: RenderContext) {
     val interleaved = interleavedVertices ?: return
@@ -148,7 +148,7 @@ internal fun PointCloudContent.syncPointCloudContentGpu(rc: RenderContext) {
     interleavedVertices = null
 }
 
-/** Pre-first-sync tiles ([interleavedVertices] populated) count as loaded — sync runs
+/** Pre-first-sync tiles (`interleavedVertices` populated) count as loaded — sync runs
  *  from `enqueuePointCloudDrawable` *after* the layer's touch loop. */
 internal fun PointCloudContent.isResourcesLoaded(rc: RenderContext): Boolean {
     if (interleavedVertices != null) return true

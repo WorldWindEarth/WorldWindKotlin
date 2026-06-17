@@ -119,7 +119,7 @@ class Traverser(
 
     /** Assign each selected tile a stencil id identifying its outermost-fallback subtree.
      *  Tiles in the same fallback subtree get the same id; tiles with no fallback ancestor
-     *  in selection get id 0. Walks [result.selectedTiles] in insertion order so the same
+     *  in selection get id 0. Walks `result.selectedTiles` in insertion order so the same
      *  selection produces the same id mapping frame-over-frame.
      *
      *  Out of ids: once [MAX_STENCIL_ID] distinct subtrees have been numbered, remaining

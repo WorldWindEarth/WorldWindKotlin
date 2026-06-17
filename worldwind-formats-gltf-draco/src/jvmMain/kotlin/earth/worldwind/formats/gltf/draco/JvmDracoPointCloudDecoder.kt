@@ -10,7 +10,7 @@ import earth.worldwind.layer.ogc3d.DracoPointCloudDecoder
  *
  * Cesium / Google PNTS encoders use the standard Draco semantic attributes (POSITION,
  * COLOR), so the bridge's `GetNamedAttribute` lookups by semantic enum work without
- * needing the per-attribute unique-id fallback. The [attributeIds] parameter is provided
+ * needing the per-attribute unique-id fallback. The `attributeIds` parameter is provided
  * for future generic-attribute support and is currently informational.
  */
 internal object JvmDracoPointCloudDecoder : DracoPointCloudDecoder {

@@ -5,7 +5,7 @@ import kotlin.math.tan
 
 /**
  * Screen-space-error computation per the 3D Tiles 1.0 specification. SSE is the projected
- * size in pixels of a tile's [geometricError] meters at [cameraDistance]. A traversal step
+ * size in pixels of a tile's `geometricError` meters at `cameraDistance`. A traversal step
  * descends when SSE > target; otherwise it renders the current LOD.
  *
  * Formula:
@@ -21,7 +21,7 @@ object ScreenSpaceError {
      *   bounding volume, in meters
      * @param viewportHeightPixels viewport height in pixels
      * @param verticalFovRadians vertical field of view in radians
-     * @return projected pixel error. Returns [Double.POSITIVE_INFINITY] when [cameraDistance]
+     * @return projected pixel error. Returns [Double.POSITIVE_INFINITY] when `cameraDistance`
      *   is zero (camera inside the tile -> always refine).
      */
     fun compute(

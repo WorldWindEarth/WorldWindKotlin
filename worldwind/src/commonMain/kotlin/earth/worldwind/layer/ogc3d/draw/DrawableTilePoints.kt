@@ -158,7 +158,7 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
      * the ground, giving believable point-cloud shadows without a dedicated point-sprite
      * moments shader.
      *
-     * No-op when [shadowMode.castsShadows] is false or the VBO hasn't been uploaded yet.
+     * No-op when `shadowMode.castsShadows` is false or the VBO hasn't been uploaded yet.
      * Doesn't touch attribute 1 (colour) — moments shader only reads position.
      */
     override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {

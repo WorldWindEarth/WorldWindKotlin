@@ -20,7 +20,7 @@ import kotlin.time.Instant
  * [evict]. The first-touch sweep on construction brings a re-opened store into bounds
  * before the layer issues a single read.
  *
- * Records carry the same fields as the GeoPackage [GpkgBlobRow] (content_type, etag,
+ * Records carry the same fields as the GeoPackage `GpkgBlobRow` (content_type, etag,
  * last_modified, cached_at, size_bytes) so the [BlobStore] surface is uniform across
  * platforms; only the storage substrate differs.
  */
@@ -142,7 +142,7 @@ internal fun boundForBlob(contentKey: String): IDBKeyRange =
     )
 
 /**
- * Schema of one blob row. Parallel to [GpkgBlobRow] columns; same metadata travels through
+ * Schema of one blob row. Parallel to `GpkgBlobRow` columns; same metadata travels through
  * the [BlobEntry] envelope on read. Properties are `Double?` rather than `Number?` because
  * Kotlin/Wasm JS interop only allows external + primitive types.
  *

@@ -26,7 +26,7 @@ import earth.worldwind.util.kgl.KglUniformLocation
  * Deliberate scope limits:
  *  - **Per-splat solid colour**: reads RGBA straight from the codec output; no SH evaluation.
  *    The codec preserves higher-band SH coefficients on
- *    [earth.worldwind.layer.ogc3d.content.GaussianContent.sphericalHarmonics] for a
+ *    `earth.worldwind.layer.ogc3d.content.GaussianContent.sphericalHarmonics` for a
  *    view-dependent path on top of this one.
  *  - **No shadow / sightline receivers**: a typical Gaussian scene is self-shadowed; routing
  *    the GL_POINTS path through cascade receivers adds noise without much fidelity gain.

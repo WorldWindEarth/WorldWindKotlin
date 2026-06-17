@@ -57,7 +57,7 @@ class GaussianContent internal constructor(
 
     /** Int16-quantized centres (3 shorts per splat). The single source of truth for positions:
      *  uploaded to the GPU as GL_SHORT normalized=true and dequantized in the vertex shader
-     *  via [qPosCenter]/[qPosHalfRange], also used by the background sort. Halves persistent
+     *  via `qPosCenter`/`qPosHalfRange`, also used by the background sort. Halves persistent
      *  CPU+GPU footprint per splat vs a Float source (12 bytes → 6 bytes each). */
     @Volatile internal var centerArrayQ: ShortArray? = null
     /** Per-axis shader-side dequant: `worldLocal = vertexPosition * qPosHalfRange + qPosCenter`,
@@ -427,8 +427,8 @@ private fun bucketSortByViewZ(
 private const val SORT_BUCKETS = 256
 
 /** Interleaved per-splat vertex-attribute stride: scale(3xfloat=12) + rgba(4xbyte=4) +
- *  rotation(4xfloat=16) = 32 bytes. See [DrawableTileGaussian.draw] for the matching
- *  [vertexAttribPointer] offsets; the bit math that builds it is inlined into
+ *  rotation(4xfloat=16) = 32 bytes. See `DrawableTileGaussian.draw` for the matching
+ *  `vertexAttribPointer` offsets; the bit math that builds it is inlined into
  *  [prepareGaussianContent] to avoid extension-fn dispatch on the per-splat hot loop. */
 internal const val STRIDE_ATTRIBS = 32
 

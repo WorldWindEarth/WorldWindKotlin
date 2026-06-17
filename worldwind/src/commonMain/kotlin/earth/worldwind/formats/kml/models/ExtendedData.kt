@@ -5,7 +5,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
 
 /**
  * The ExtendedData element offers three techniques for adding custom data to a KML [Feature]
- * ([NetworkLink], [Placemark], [GroundOverlay], [PhotoOverlay], [ScreenOverlay], [Document], [Folder]).
+ * (`NetworkLink`, [Placemark], [GroundOverlay], `PhotoOverlay`, `ScreenOverlay`, [Document], [Folder]).
  *
  * These techniques are:
  * - Adding untyped data/value pairs using the <Data> element (basic)

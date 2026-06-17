@@ -90,7 +90,7 @@ internal class EvictionScheduler {
         }
     }
 
-    /** Cancel in-flight evictions on [GeoPackage] close. */
+    /** Cancel in-flight evictions on `GeoPackage` close. */
     fun shutdown() {
         if (shutdown) return
         shutdown = true

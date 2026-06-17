@@ -31,7 +31,7 @@ import kotlin.jvm.JvmStatic
  * around the tile.
  *
  * Implements [ShadowCaster] like [DrawableTilePoints]: emits one-pixel `GL_POINTS` into the
- * cascade moments framebuffer when [shadowMode.castsShadows]. The colour pass does not
+ * cascade moments framebuffer when `shadowMode.castsShadows`. The colour pass does not
  * apply incoming shadows — splats are usually self-shadowed already, the bookkeeping cost
  * outweighs the fidelity gain.
  */

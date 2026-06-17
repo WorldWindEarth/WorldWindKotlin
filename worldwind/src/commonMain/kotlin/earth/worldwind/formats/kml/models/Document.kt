@@ -13,7 +13,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
  * Note that shared styles are not inherited by the Features in the Document.
  *
  * Each Feature must explicitly reference the styles it uses in a [styleUrl] element.
- * For a Style that applies to a Document (such as [ListStyle]), the [Document] itself must explicitly reference
+ * For a Style that applies to a Document (such as `ListStyle`), the [Document] itself must explicitly reference
  * the [styleUrl]. For example:
  *
  * <Document>

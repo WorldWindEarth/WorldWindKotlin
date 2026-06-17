@@ -20,7 +20,7 @@ import earth.worldwind.formats.BinaryDataView
  * The format-specific payload (glTF for b3dm/i3dm, points binary for pnts) starts at the
  * end of the batch-table binary.
  *
- * Note: [cmpt] is the only container that has a *different* header layout — see
+ * Note: `cmpt` is the only container that has a *different* header layout — see
  * [CmptHeader].
  */
 class Ogc3dHeader internal constructor(

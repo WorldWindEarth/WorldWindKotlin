@@ -13,7 +13,7 @@ import nl.adaptivity.xmlutil.serialization.XmlPolyChildren
 abstract class Feature(
     /**
      * User-defined text displayed in the 3D viewer as the label for the object
-     * (for example, for a [Placemark], [Folder], or [NetworkLink]).
+     * (for example, for a [Placemark], [Folder], or `NetworkLink`).
      */
     @XmlElement
     val name: String? = null,
@@ -30,8 +30,8 @@ abstract class Feature(
 
     /**
      * Boolean value. Specifies whether a Document or Folder appears closed or open when first loaded into the
-     * Places panel. 0=collapsed (the default), 1=expanded. See also [ListStyle].
-     * This element applies only to [Document], [Folder], and [NetworkLink].
+     * Places panel. 0=collapsed (the default), 1=expanded. See also `ListStyle`.
+     * This element applies only to [Document], [Folder], and `NetworkLink`.
      */
     @XmlElement
     @Serializable(FlexibleBooleanSerializer::class)
@@ -97,12 +97,12 @@ abstract class Feature(
 
     /**
      * One or more [Style]s and [StyleMap]s can be defined to customize the appearance of any element derived from [Feature]
-     * or of the Geometry in a [Placemark]. (See [BalloonStyle], [ListStyle], [StyleSelector],
+     * or of the Geometry in a [Placemark]. (See `BalloonStyle`, `ListStyle`, [StyleSelector],
      * and the styles derived from [ColorStyle].) A style defined within a Feature is called an "inline style"
      * and applies only to the Feature that contains it. A style defined as the child of a [Document] is called
      * a "shared style." A shared style must have and id defined for it. This id is referenced by one or more Features
      * within the [Document]. In cases where a style element is defined both in a shared style and in an inline style
-     * for a [Feature]—that is, a [Folder], [GroundOverlay], [NetworkLink], [Placemark], or [ScreenOverlay]—the value for
+     * for a [Feature]—that is, a [Folder], [GroundOverlay], `NetworkLink`, [Placemark], or `ScreenOverlay`—the value for
      * the [Feature]'s inline style takes precedence over the value for the shared style.
      */
     @XmlPolyChildren(

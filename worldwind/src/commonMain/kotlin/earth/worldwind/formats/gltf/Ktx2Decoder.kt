@@ -9,7 +9,7 @@ package earth.worldwind.formats.gltf
  * real decoder ships as a native library per platform. Apps that need to render
  * KTX2-compressed 3D Tiles (Google Photorealistic 3D Tiles, many Cesium Ion photogrammetry
  * assets) wire in a platform-specific implementation by setting
- * [earth.worldwind.layer.ogc3d.GltfDecoderRegistry.ktx2Decoder] once at startup.
+ * `earth.worldwind.layer.ogc3d.GltfDecoderRegistry.ktx2Decoder` once at startup.
  *
  * Implementations are expected to be:
  *  - **Thread-safe**: GltfReader.parse is called from background coroutines, potentially

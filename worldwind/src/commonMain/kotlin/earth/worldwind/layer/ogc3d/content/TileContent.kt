@@ -12,7 +12,7 @@ import earth.worldwind.draw.DrawContext
  *  - Phase 4: [GaussianContent] skeleton for future Gaussian-splat codecs
  *
  * Implementations are responsible for tracking their own GPU footprint (so the
- * [earth.worldwind.layer.ogc3d.content.TileContentCache] LRU can charge them) and for
+ * `earth.worldwind.layer.ogc3d.content.TileContentCache` LRU can charge them) and for
  * releasing their GPU resources when evicted.
  */
 sealed interface TileContent {

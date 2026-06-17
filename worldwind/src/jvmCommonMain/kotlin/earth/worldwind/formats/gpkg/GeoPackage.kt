@@ -358,7 +358,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         )
     }
 
-    /** Per-put eviction trigger called after a successful blob upsert in [GpkgBlobStore]. */
+    /** Per-put eviction trigger called after a successful blob upsert in `GpkgBlobStore`. */
     fun notifyBlobInsert(
         tableName: String, policy: CachePolicy,
         countRows: suspend () -> Long, evict: suspend () -> Unit,

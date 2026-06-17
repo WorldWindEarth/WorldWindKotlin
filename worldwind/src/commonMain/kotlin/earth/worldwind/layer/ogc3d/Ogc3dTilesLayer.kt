@@ -193,7 +193,7 @@ open class Ogc3dTilesLayer(
     )
     private val traverser = Traverser()
 
-    /** Parse → render-thread handoff. Bounded so [send] suspends and propagates back-
+    /** Parse → render-thread handoff. Bounded so `send` suspends and propagates back-
      *  pressure to fetch; an unbounded queue would stockpile parsed mesh preps (each
      *  retaining a decoded Bitmap + vertex FloatArray) when GL upload can't keep up. */
     private val pendingMeshUploads = Channel<MeshUploadEntry>(capacity = MAX_UPLOADS_PER_FRAME * 2)

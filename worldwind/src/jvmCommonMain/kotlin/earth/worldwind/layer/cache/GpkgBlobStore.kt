@@ -88,7 +88,7 @@ class GpkgBlobStore internal constructor(
         dao.queryRawValue("SELECT COALESCE(SUM(${GpkgBlobRow.COLUMN_SIZE_BYTES}), 0) FROM \"$escaped\"")
     }
 
-    /** Run the [evictionPolicy] sweep. Chunked DELETE + [yield] so a large trim doesn't
+    /** Run the [evictionPolicy] sweep. Chunked DELETE + `yield` so a large trim doesn't
      *  hold the SQLite connection for tens of seconds. staleAfter is refresh-only — only
      *  [CachePolicy.maxEntries] evicts. */
     suspend fun evict(): Unit = withContext(writeDispatcher) {
