@@ -77,6 +77,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * OGC / Cesium 3D Tiles layer. Streams b3dm / i3dm / cmpt / pnts / glTF / Gaussian-splat
@@ -89,8 +91,8 @@ open class Ogc3dTilesLayer(
     /** URI-keyed blob cache. Defaults to network-only; pass a real [BlobStore] (typically
      *  `contentManager.openBlobStore(key)`) to persist payloads. */
     blobStore: BlobStore = NoOpBlobStore,
-    /** Hard cap on concurrent fetch + parse jobs. Gaussian-splat tilesets typically want a
-     *  smaller value (~4-8) since each parse holds tens of MB transient. */
+    /** Hard cap on concurrent fetch + parse jobs. Sized for mesh tilesets; splat parses
+     *  self-throttle via [gaussianParseConcurrency] regardless of this value. */
     fetchConcurrency: Int = 32,
 ) : AbstractLayer(displayName) {
     /** Cast + receive shadows by default. [ShadowMode.RECEIVE_ONLY] for unlit-from-above
@@ -168,6 +170,20 @@ open class Ogc3dTilesLayer(
      *  or swap for a different [GaussianLoader]. Payloads not matching
      *  b3dm/i3dm/cmpt/pnts/glTF/tileset.json are offered to [GaussianLoader.supports]. */
     var gaussianLoader: GaussianLoader? = GltfGaussianLoader()
+
+    /** Concurrent splat-parse cap. Each in-flight SPZ parse holds tens of MB transient
+     *  (compressed buffer + decoded position/scale/rot/SH FloatArrays before GPU upload), so
+     *  the general `fetchConcurrency` would peak at ~2 GB on a splat tileset. Mesh fetches
+     *  on the same layer keep `fetchConcurrency`'s budget — only the Gaussian branch gates
+     *  here. Setter rebinds the semaphore. */
+    var gaussianParseConcurrency: Int = 4
+        set(value) {
+            require(value >= 1) { "gaussianParseConcurrency must be >= 1, got $value" }
+            field = value
+            gaussianParseSemaphore = Semaphore(value)
+        }
+
+    private var gaussianParseSemaphore = Semaphore(gaussianParseConcurrency)
 
     /** 3D Tiles 1.0 declarative style; needs an [Ogc3dDecoderRegistry.tilesetStyleEvaluator]
      *  registered to do anything. Setter rebinds eagerly. */
@@ -675,7 +691,9 @@ open class Ogc3dTilesLayer(
                     // empty mesh geometry.
                     val loader = gaussianLoader
                     if (loader != null && loader.supports(bytes)) {
-                        attachGaussianContent(tile, parseGaussian(bytes, loader, uri))
+                        gaussianParseSemaphore.withPermit {
+                            attachGaussianContent(tile, parseGaussian(bytes, loader, uri))
+                        }
                     } else if (kind == ContentDispatcher.Kind.GLTF) {
                         enqueueMeshUpload(tile, parseGltfBinary(bytes, uri))
                     } else {
@@ -688,7 +706,9 @@ open class Ogc3dTilesLayer(
                     // No Gaussian codec has a settled magic — last-chance offer to the loader.
                     val loader = gaussianLoader
                     if (loader != null && loader.supports(bytes)) {
-                        attachGaussianContent(tile, parseGaussian(bytes, loader, uri))
+                        gaussianParseSemaphore.withPermit {
+                            attachGaussianContent(tile, parseGaussian(bytes, loader, uri))
+                        }
                     } else {
                         logMessage(
                             Logger.WARN, "Ogc3dTilesLayer", "handleContentFetched",

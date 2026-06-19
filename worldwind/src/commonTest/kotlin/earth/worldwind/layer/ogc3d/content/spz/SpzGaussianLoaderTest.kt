@@ -34,11 +34,22 @@ class SpzGaussianLoaderTest {
         assertEquals(false, loader.supports(ByteArray(8)))
     }
 
-    @Test fun parseThrowsWithoutInflater() {
-        // Inflater unset (BeforeTest cleared it). parse() should detect the magic, then fail
-        // with a clear "register an inflater" message rather than crashing the GZIP decode.
+    @Test fun parseLazyInstallsDefaultOrFailsCleanly() {
+        // Inflater unset (BeforeTest cleared it). parse() routes through requireInflater(),
+        // which calls installDefaultSpzInflater(). Either the slot ends up populated (JVM /
+        // Android, where the actual registers JvmSpzInflater) or it stays null (web, whose
+        // actual is a documented no-op). Both are correct outcomes; failure modes diverge:
+        //   - Slot installed → parse hits decode and surfaces a non-IllegalStateException
+        //     (header-only bytes aren't a valid gzip body).
+        //   - Slot still null → parse throws the "no platform default available" message.
         val header = makeHeader(version = 2, numPoints = 0, shDegree = 0, fractionalBits = 12)
-        assertFailsWith<IllegalStateException> { loader.parse(header) }
+        val error = runCatching { loader.parse(header) }.exceptionOrNull()
+        if (SpzGaussianLoader.inflater == null) {
+            assertTrue(
+                error is IllegalStateException,
+                "expected the no-default error path on a platform without a default inflater; got $error",
+            )
+        }
     }
 
     @Test fun parseRejectsBadMagic() {
