@@ -304,6 +304,25 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (dao.isTableExists) dao.queryRawValue("SELECT SUM(LENGTH(tile_data)) FROM '$tableName'") else 0L
     }
 
+    /** Idempotent create-if-missing for one 3D Tiles blob-store table. Schema borrowed from
+     *  [GpkgBlobRow]'s `@DatabaseField` annotations via ORMLite's SQL generator; execution
+     *  goes through NGA's own database handle so the [ContentsDao.verifyCreate] that runs
+     *  straight after sees the table — same connection-asymmetry the tiles path documents
+     *  at [setupTilesContent]. */
+    private fun create3DTilesUserDataTable(tableName: String) {
+        if (geoPackage.database.tableExists(tableName)) return
+        // DaoManager keys its cache by `(connectionSource, dataClass)` only — tableName is
+        // not part of the key. Without `registerDao`, [TableUtils.getCreateTableStatements]
+        // would return a previous blob store's cached DAO and emit CREATE TABLE for ITS
+        // tableName (the Farsight-table-name-when-creating-Google-Earth symptom).
+        val config = DatabaseTableConfig<GpkgBlobRow>(GpkgBlobRow::class.java, tableName, null)
+        val dao = object : BaseDaoImpl<GpkgBlobRow, String>(connectionSource, config) {}
+        DaoManager.registerDao(connectionSource, dao)
+        for (sql in TableUtils.getCreateTableStatements<GpkgBlobRow, String>(connectionSource, config)) {
+            geoPackage.database.execSQL(sql)
+        }
+    }
+
     /** Total cached bytes in a 3D Tiles blob-store table. Reads the precomputed `size_bytes`
      *  column instead of `LENGTH(tile_data)` so the scan stays in the row header and doesn't
      *  touch every BLOB page. */
@@ -1347,12 +1366,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             registerExtension(tableName, null, OGC_3D_TILES_EXTENSION)
             return@withContext existing
         }
-        // Data table must exist before the gpkg_contents row: NGA's verifyCreate rejects
-        // a content row whose target table isn't there. Idempotent on re-entry.
-        TableUtils.createTableIfNotExists(
-            connectionSource,
-            DatabaseTableConfig(GpkgBlobRow::class.java, tableName, null),
-        )
+        // Data table must exist before the gpkg_contents row — NGA's verifyCreate rejects
+        // it otherwise. Goes through NGA's database handle; see method KDoc for the why.
+        create3DTilesUserDataTable(tableName)
         val content = GpkgContent().also {
             it.tableName = tableName
             it.dataTypeName = OGC_3D_TILES

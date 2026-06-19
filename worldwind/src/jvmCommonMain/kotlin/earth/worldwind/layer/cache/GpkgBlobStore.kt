@@ -121,6 +121,9 @@ class GpkgBlobStore internal constructor(
         ): Dao<GpkgBlobRow, String> {
             val config = DatabaseTableConfig(GpkgBlobRow::class.java, tableName, null)
             val dao = object : BaseDaoImpl<GpkgBlobRow, String>(connectionSource, config) {}
+            // Both registries: classMap is what TableUtils.createTableIfNotExists reads
+            // (and it ignores tableName). See [GeoPackage.create3DTilesUserDataTable].
+            DaoManager.registerDao(connectionSource, dao)
             DaoManager.registerDaoWithTableConfig(connectionSource, dao)
             TableUtils.createTableIfNotExists(connectionSource, config)
             return dao
