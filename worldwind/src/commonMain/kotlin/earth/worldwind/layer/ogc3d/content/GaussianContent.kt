@@ -1,5 +1,6 @@
 package earth.worldwind.layer.ogc3d.content
 
+import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.BoundingSphere
 import earth.worldwind.geom.Vec3
@@ -10,6 +11,10 @@ import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import kotlin.concurrent.Volatile
 import kotlin.math.sqrt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * GPU-resident container for a single Gaussian-splat 3D Tiles tile. Sealed TileContent
@@ -26,10 +31,10 @@ import kotlin.math.sqrt
  *     from the cache and re-uploading the kept-alive payload when LRU eviction has
  *     dropped it. After the first sync the float CPU arrays are dropped; the int16
  *     centres + the sort indices stay alive to feed [resortByCamera].
- *  3. [resortByCamera] runs each render frame: bucket-sorts the splats against the live
- *     camera position and queues the indices for GL upload. Synchronous on the render
- *     thread with a per-frame budget (cap from the layer) + motion threshold so a
- *     stationary or slow camera pays nothing.
+ *  3. [resortByCamera] runs each render frame: launches the bucket sort on
+ *     [Dispatchers.Default] when the camera direction has moved past the angle gate, then
+ *     enqueues the resulting indices for GL upload on the next render frame. Stationary or
+ *     slow camera pays nothing; in-flight sorts block restart until the upload drains.
  *
  * A concrete Gaussian-splat codec ([earth.worldwind.layer.ogc3d.content.spz.SpzGaussianLoader])
  * produces a [GaussianPayload]; the built-in rasterizer
@@ -102,9 +107,16 @@ class GaussianContent internal constructor(
     @Volatile internal var lastSortForwardY: Float = Float.NaN
     @Volatile internal var lastSortForwardZ: Float = Float.NaN
 
-    /** Set while a GL upload of [sortIndexArray] is queued. Single-buffered: blocks the next
-     *  sort until the upload's `onUploaded` callback fires (otherwise we'd race the upload). */
-    @Volatile internal var sortUploadInFlight: Boolean = false
+    /** Set while a background sort coroutine is running OR while its GL upload is queued.
+     *  Single-buffered: a fresh resort can't start until both phases finish — the sort would
+     *  race the upload's reader, and the upload would lose the previous indices. */
+    @Volatile internal var sortJobInFlight: Boolean = false
+
+    /** Set by the background sort coroutine when [sortIndexArray] holds fresh indices and the
+     *  GPU upload still needs to be enqueued. Consumed on the next render frame by
+     *  [resortByCamera] — the offer must happen on the render thread (it mutates the cache +
+     *  upload queue, neither thread-safe). */
+    @Volatile internal var sortPending: Boolean = false
 
     /** 256-entry bucket-counts scratch reused across sorts. */
     @Volatile internal var sortBucketScratch: IntArray? = null
@@ -113,7 +125,8 @@ class GaussianContent internal constructor(
         internal set
 
     override fun release(dc: DrawContext) {
-        sortUploadInFlight = false
+        sortJobInFlight = false
+        sortPending = false
         attribsBytes = null; sortIndexArray = null
         centerArrayQ = null
         sortBucketScratch = null
@@ -316,13 +329,22 @@ internal fun GaussianContent.releaseSortState() {
     sortBucketScratch = null
     centerArrayQ = null
     sortIndexArray = null
-    sortUploadInFlight = false
+    sortJobInFlight = false
+    sortPending = false
 }
 
 /**
- * Per-frame view-aware bucket sort + GL upload. Synchronous on the render thread.
- * Single-buffered: a new sort can't start while the previous upload is in flight —
- * mutating `sortIndexArray` would corrupt the upload-queue payload.
+ * Per-frame view-aware bucket sort + GL upload. The sort runs on [gaussianSortScope]
+ * (Dispatchers.Default) — on the c4ds Android setup the engine's render phase is on the
+ * main UI thread, and a per-tile sort of ~100k splats was the single largest UI-thread
+ * cost (~7.7% / 842 ms over a 7 s profile). The GL upload offer still runs on the render
+ * thread the frame after the sort completes — [RenderContext.offerGLBufferUpload] mutates
+ * the cache + upload queue and is not thread-safe.
+ *
+ * Single-buffered via [sortJobInFlight]: a new sort can't start while a previous sort or
+ * its upload is unfinished — concurrent writes to [sortIndexArray] would corrupt the
+ * in-flight upload. Worst-case staleness on fast camera motion: two frames (one for the
+ * background sort, one for the upload) — sub-perceptual at typical viewing distances.
  *
  * [fx]/[fy]/[fz] is the tile-local forward-into-scene unit vector. The sort key is the
  * view-Z proxy `(P - C) · F` — same plane-distance metric the depth buffer uses, and the
@@ -333,7 +355,25 @@ internal fun GaussianContent.resortByCamera(
     rc: RenderContext, fx: Float, fy: Float, fz: Float,
 ) {
     val key = sortIndicesKey ?: return
-    if (sortUploadInFlight) return
+
+    // Drain a completed background sort first: enqueue its GPU upload on the render thread.
+    // Has to land here (not in the bg coroutine) because offerGLBufferUpload mutates
+    // renderResourceCache + uploadQueue, neither thread-safe. Stays sortJobInFlight until
+    // the upload's `onUploaded` callback fires.
+    if (sortPending) {
+        val indices = sortIndexArray
+        sortPending = false
+        if (indices == null) {
+            sortJobInFlight = false
+            return
+        }
+        rc.offerGLBufferUpload(key, sortVersion, onUploaded = { sortJobInFlight = false }) {
+            NumericArray.Ints(indices)
+        }
+        return
+    }
+
+    if (sortJobInFlight) return
 
     // View-direction threshold: forward rotated < ~0.2° (~12 arcmin) since the last sort
     // → order unchanged. Tight enough that worst-case staleness stays well below the
@@ -351,23 +391,37 @@ internal fun GaussianContent.resortByCamera(
     if (count <= 0) return
     val scratch = sortBucketScratch ?: IntArray(SORT_BUCKETS).also { sortBucketScratch = it }
 
-    // Fold the per-axis quant scale into the forward direction once, outside the hot loop.
-    // The quant offset and `-C · F` only shift the key by a constant; ordering is unchanged.
-    bucketSortByViewZ(
-        centersQ, indices, count,
-        fx * qScaleX, fy * qScaleY, fz * qScaleZ,
-        scratch,
-    )
+    // Update the angle gate + version synchronously so the next-frame guard sees the
+    // most-recent-requested direction (not the most-recently-completed one) and so the
+    // upload-queue version check on drain matches the sort that produced these indices.
     lastSortForwardX = fx
     lastSortForwardY = fy
     lastSortForwardZ = fz
+    sortVersion++
 
-    sortUploadInFlight = true
-    val nextVersion = ++sortVersion
-    rc.offerGLBufferUpload(key, nextVersion, onUploaded = { sortUploadInFlight = false }) {
-        NumericArray.Ints(indices)
+    // Fold the per-axis quant scale into the forward direction once, outside the hot loop.
+    // The quant offset and `-C · F` only shift the key by a constant; ordering is unchanged.
+    val fxs = fx * qScaleX
+    val fys = fy * qScaleY
+    val fzs = fz * qScaleZ
+
+    sortJobInFlight = true
+    gaussianSortScope.launch {
+        bucketSortByViewZ(centersQ, indices, count, fxs, fys, fzs, scratch)
+        sortPending = true
+        // c4ds Android renders on-demand. Nudge the engine so the next frame fires and
+        // the upload-offer drain path above gets a chance to run.
+        WorldWind.requestRedraw()
     }
 }
+
+/** Detached scope for off-thread Gaussian view-Z sorts. Each job is short-lived (a few ms
+ *  for ~100k splats), CPU-bound, and idempotent — no lifecycle coupling to layer / content
+ *  release is needed (the result lands in fields the next render frame either consumes or
+ *  ignores, and `release()` clears [GaussianContent.sortJobInFlight] +
+ *  [GaussianContent.sortPending] so a fresh content can restart). `Dispatchers.Default`'s
+ *  CPU-cores-bound pool naturally caps concurrency across many splat tiles. */
+private val gaussianSortScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 /** 256-bucket counting sort over the signed view-Z proxy, O(N) and cache-linear. Bucket 0
  *  = farthest, 255 = nearest; the EBO consumes indices in increasing order so the draw goes
