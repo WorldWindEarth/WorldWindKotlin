@@ -183,12 +183,17 @@ open class Ogc3dTilesLayer(
         parentScope = scope,
         maxConcurrent = fetchConcurrency,
         blobStore = blobStore,
-        // Queue already cancelled every dead-session fetch + cleared the session. Drop the
-        // parsed tree + reopen the root-fetch latch so the next render re-fetches root and
-        // rebuilds under the fresh session.
+        // Drop the parsed tree + reopen the root-fetch latch so the next render rebuilds
+        // under the fresh session. Reset the altitude-bake cache too: the next tileset
+        // arrives with un-baked tileToWorld matrices, so `rebakeAltitudeOffset` would
+        // otherwise short-circuit on a stale "already applied" delta and the new tiles
+        // would render at zero offset (Farsight 3D-mesh sinking through terrain).
         onAuthExpired = {
             tileset = null
             resetRootFetch()
+            appliedAltitudeTranslationWw.set(0.0, 0.0, 0.0)
+            altitudeOffsetDirty = true
+            cachedSector = null
             WorldWind.requestRedraw()
         },
     )
