@@ -10,6 +10,7 @@ import earth.worldwind.layer.ogc3d.content.STRIDE_ATTRIBS
 import earth.worldwind.layer.ogc3d.program.Ogc3dTilesGaussianProgram
 import earth.worldwind.layer.shadow.ShadowCaster
 import earth.worldwind.layer.shadow.ShadowMode
+import earth.worldwind.render.Color
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_FLOAT
@@ -64,6 +65,10 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
     /** See [earth.worldwind.layer.ogc3d.Ogc3dTilesLayer.gaussianMinAlpha]. */
     var minAlpha: Float = 0.01f
 
+    /** Unique pick-ID RGBA emitted by the pick-mode fragment shader on the splat core. Set
+     *  on pick frames in `enqueueGaussianDrawable` alongside the matching `offerPickedObject`. */
+    val pickColor = Color()
+
     private val worldBoundingCenter = Vec3()
     private var worldBoundingRadius = 0.0
 
@@ -112,6 +117,7 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
         focalLengthPixels = 1f
         splatSizeMultiplier = 1f
         minAlpha = 0.01f
+        pickColor.set(0f, 0f, 0f, 1f)
         pool?.release(this)
         pool = null
     }
@@ -126,6 +132,9 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
         val program = program ?: return
         if (!program.useProgram(dc)) return
 
+        val pickMode = dc.isPickMode
+        program.loadPickMode(pickMode)
+        if (pickMode) program.loadPickColor(pickColor)
         program.loadFocalLengthPixels(focalLengthPixels)
         program.loadSplatSizeMultiplier(splatSizeMultiplier)
         program.loadMinAlpha(minAlpha)
@@ -156,17 +165,18 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
         dc.gl.enableVertexAttribArray(2)
         dc.gl.enableVertexAttribArray(3)
 
-        // Premultiplied-alpha (rgb*a, a) over the frame default GL_ONE / GL_ONE_MINUS_SRC_ALPHA
-        // blend. Depth READ stays on so opaque terrain still occludes; depth WRITE must be off —
-        // splat fragments writing depth at the splat centre collapse back-to-front accumulation
-        // into black voids wherever splats stack. Cross-tile order is enforced by the layer's
-        // camera-distance sort key, so no stencil-LoD masking is needed.
-        dc.gl.depthMask(false)
+        // Color pass: depth WRITE off — a far-then-near splat at the same pixel would have
+        // its near contribution depth-rejected, collapsing back-to-front accumulation to
+        // black voids. Depth READ stays on so opaque terrain still occludes splats.
+        // Pick pass: depth WRITE on; fragment alpha-discards the Gaussian fringe so the pick
+        // framebuffer's depth ends up on the splat core (the visible surface) instead of the
+        // terrain behind it. Without this, depth-readback unproject lands on the ground.
+        if (!pickMode) dc.gl.depthMask(false)
 
         try {
             dc.gl.drawElements(GL_POINTS, splatCount, GL_UNSIGNED_INT, 0)
         } finally {
-            dc.gl.depthMask(true)
+            if (!pickMode) dc.gl.depthMask(true)
             dc.gl.disableVertexAttribArray(1)
             dc.gl.disableVertexAttribArray(2)
             dc.gl.disableVertexAttribArray(3)

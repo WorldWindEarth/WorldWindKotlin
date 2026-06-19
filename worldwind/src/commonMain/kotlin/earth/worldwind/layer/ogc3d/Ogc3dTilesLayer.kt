@@ -1110,6 +1110,19 @@ open class Ogc3dTilesLayer(
         val sphere = tile.worldBoundingSphere(rc.globe)
         drawable.setWorldBounds(sphere.center, sphere.radius)
 
+        if (rc.isPickMode) {
+            // Register the tile so resolvePick's color-readback decodes the pick-mode
+            // fragment's `pickColor` back to a PickedObject. Without this, splats colour the
+            // pick FBO but resolvePick falls through to terrain and the splat depth is ignored.
+            val pickedObjectId = rc.nextPickedObjectId()
+            PickedObject.identifierToUniqueColor(pickedObjectId, drawable.pickColor)
+            rc.offerPickedObject(
+                PickedObject.fromUserObject(
+                    pickedObjectId, tile, rc.currentLayer, useTerrainPosition = false
+                )
+            )
+        }
+
         // Back-to-front sort: depthMask is off, so cross-tile pixel order must follow distance.
         rc.offerShapeDrawable(drawable, sphere.center.distanceToSquared(rc.cameraPoint))
     }

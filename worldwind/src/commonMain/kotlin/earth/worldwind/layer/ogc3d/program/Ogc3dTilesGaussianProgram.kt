@@ -2,6 +2,7 @@ package earth.worldwind.layer.ogc3d.program
 
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.AbstractShaderProgram
 import earth.worldwind.util.kgl.GL_ALIASED_POINT_SIZE_RANGE
@@ -54,6 +55,8 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
     private var minAlphaId = KglUniformLocation.NONE
     private var qPosCenterId = KglUniformLocation.NONE
     private var qPosHalfRangeId = KglUniformLocation.NONE
+    private var pickModeId = KglUniformLocation.NONE
+    private var pickColorId = KglUniformLocation.NONE
 
     private val mvMatrix = Matrix4()
     private val projMatrix = Matrix4()
@@ -64,6 +67,8 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
     private var minAlpha = 0.01f
     private var qPosCenterX = 0f; private var qPosCenterY = 0f; private var qPosCenterZ = 0f
     private var qPosHalfRangeX = 0f; private var qPosHalfRangeY = 0f; private var qPosHalfRangeZ = 0f
+    private var pickMode = false
+    private var pickColorR = 0f; private var pickColorG = 0f; private var pickColorB = 0f; private var pickColorA = 1f
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
@@ -89,6 +94,10 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
         gl.uniform3f(qPosCenterId, qPosCenterX, qPosCenterY, qPosCenterZ)
         qPosHalfRangeId = gl.getUniformLocation(program, "qPosHalfRange")
         gl.uniform3f(qPosHalfRangeId, qPosHalfRangeX, qPosHalfRangeY, qPosHalfRangeZ)
+        pickModeId = gl.getUniformLocation(program, "pickMode")
+        gl.uniform1i(pickModeId, if (pickMode) 1 else 0)
+        pickColorId = gl.getUniformLocation(program, "pickColor")
+        gl.uniform4f(pickColorId, pickColorR, pickColorG, pickColorB, pickColorA)
     }
 
     /** Per-tile position dequant. Vertex shader computes
@@ -153,6 +162,26 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
         if (minAlpha != value) {
             minAlpha = value
             gl.uniform1f(minAlphaId, value)
+        }
+    }
+
+    /** When `true`, the fragment discards the Gaussian fringe (α<0.5) so depth writes only
+     *  on the splat core. Pick depth-readback then unprojects to the splat surface (e.g. a
+     *  building roof) instead of the terrain behind it. */
+    fun loadPickMode(value: Boolean) {
+        if (pickMode != value) {
+            pickMode = value
+            gl.uniform1i(pickModeId, if (value) 1 else 0)
+        }
+    }
+
+    /** Unique pick-ID RGBA emitted on the splat core when [loadPickMode] is `true`. */
+    fun loadPickColor(color: Color) {
+        if (pickColorR != color.red || pickColorG != color.green ||
+            pickColorB != color.blue || pickColorA != color.alpha) {
+            pickColorR = color.red; pickColorG = color.green
+            pickColorB = color.blue; pickColorA = color.alpha
+            gl.uniform4f(pickColorId, pickColorR, pickColorG, pickColorB, pickColorA)
         }
     }
 
@@ -281,6 +310,8 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
             #endif
 
             uniform float minAlpha;
+            uniform bool pickMode;
+            uniform vec4 pickColor;
 
             varying lowp vec4 splatColor;
             varying vec4 conicAndSize;
@@ -299,6 +330,16 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
                 float falloff = exp(-0.5 * mahal);
 
                 float a = splatColor.a * falloff;
+
+                if (pickMode) {
+                    /* Halo discarded so depth-write lands on the splat core. Pick-color
+                       output relies on alpha=1 + GL_ONE/GL_ONE_MINUS_SRC_ALPHA collapsing
+                       to src-replace, so the framebuffer holds the exact pick ID. */
+                    if (a < 0.5) discard;
+                    gl_FragColor = pickColor;
+                    return;
+                }
+
                 if (a < minAlpha) discard;
 
                 /* Premultiplied output. Caller must set blendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
