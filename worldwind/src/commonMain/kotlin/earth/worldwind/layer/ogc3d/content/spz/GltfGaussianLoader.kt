@@ -25,7 +25,7 @@ import kotlin.math.sqrt
  * SPZ decode → bake the primitive's glTF node transform (typically Y-up → Z-up + a
  * translation) into per-splat positions + orientation quaternions.
  */
-class GltfGaussianSplattingLoader(
+class GltfGaussianLoader(
     private val rawSpzLoader: SpzGaussianLoader = SpzGaussianLoader(options = SpzDecodeOptions.ANISOTROPIC),
 ) : GaussianLoader {
 
@@ -40,8 +40,7 @@ class GltfGaussianSplattingLoader(
         val binChunk = glb.binChunk
             ?: error("KHR_gaussian_splatting glTF needs a BIN chunk; got JSON-only payload")
         val (gzippedSpz, nodeMatrix) = extract(glb.jsonText, binChunk)
-        val inflater = SpzGaussianLoader.inflater
-            ?: error("SpzGaussianLoader.inflater not set — register a platform inflater at startup")
+        val inflater = SpzGaussianLoader.requireInflater()
         val raw = rawSpzLoader.parseUncompressedStream(inflater.inflate(gzippedSpz))
         return applyNodeMatrix(raw, nodeMatrix)
     }

@@ -43,8 +43,7 @@ class SpzGaussianLoader(
 
     override fun parse(bytes: ByteArray): GaussianPayload {
         require(supports(bytes)) { "not an SPZ payload" }
-        val inflater = inflater
-            ?: error("SpzGaussianLoader.inflater not set — register a platform inflater at startup")
+        val inflater = requireInflater()
         val (version, numPoints, shDegree, fractionalBits) = readHeader(bytes)
         val compressedSize = bytes.size - HEADER_SIZE
         val compressed = ByteArray(compressedSize).also { bytes.copyInto(it, 0, HEADER_SIZE, bytes.size) }
@@ -278,12 +277,21 @@ class SpzGaussianLoader(
         private val SH_REST_LUT: FloatArray = FloatArray(256) { (it - 127.5f) / 128f }
 
         /**
-         * Platform inflater registered at app startup. See [SpzInflater]. Null = no SPZ
-         * decompression support; [supports] still works, but [parse] throws on the first SPZ
-         * tile fetched.
+         * Platform inflater. Lazy-installed via [installDefaultSpzInflater] on first [parse]
+         * call when null; apps that want a custom inflater set this before the first SPZ
+         * tile is fetched. Platforms without a built-in gzip (none currently) would leave
+         * this null and have [parse] throw.
          */
         @Volatile
         var inflater: SpzInflater? = null
+
+        /** Lazy-install the platform default if no inflater is registered yet. Throws only
+         *  on platforms whose [installDefaultSpzInflater] actual is a no-op AND where the
+         *  app hasn't wired a custom [inflater]. */
+        internal fun requireInflater(): SpzInflater = inflater
+            ?: run { installDefaultSpzInflater(); inflater }
+            ?: error("SpzGaussianLoader.inflater not set — no platform default available; " +
+                "register a custom SpzInflater before the first SPZ tile is fetched")
 
         private fun ByteArray.readUInt32LE(offset: Int): Int =
             (this[offset].toInt() and 0xFF) or

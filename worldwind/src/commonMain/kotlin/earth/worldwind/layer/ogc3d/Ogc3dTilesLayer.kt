@@ -25,6 +25,7 @@ import earth.worldwind.layer.ogc3d.content.GaussianLoader
 import earth.worldwind.layer.ogc3d.content.MeshContent
 import earth.worldwind.layer.ogc3d.content.MeshContentPrep
 import earth.worldwind.layer.ogc3d.content.PointCloudContent
+import earth.worldwind.layer.ogc3d.content.spz.GltfGaussianLoader
 import earth.worldwind.layer.ogc3d.content.isResourcesLoaded
 import earth.worldwind.layer.ogc3d.content.prepareGaussianContent
 import earth.worldwind.layer.ogc3d.content.prepareMeshPrep
@@ -162,10 +163,11 @@ open class Ogc3dTilesLayer(
      *  and cut blend-ROP fillrate. */
     var gaussianMinAlpha: Float = 0.01f
 
-    /** Optional Gaussian-splat decoder. Magic-bytes detection is per-codec, so payloads not
-     *  matching b3dm/i3dm/cmpt/pnts/glTF/tileset.json are offered to this loader's
-     *  [GaussianLoader.supports] check. */
-    var gaussianLoader: GaussianLoader? = null
+    /** Gaussian-splat decoder. Defaults to [GltfGaussianLoader] (glb-wrapped SPZ via
+     *  `KHR_gaussian_splatting`, plus raw `.spz`). Set to `null` to disable splat decoding
+     *  or swap for a different [GaussianLoader]. Payloads not matching
+     *  b3dm/i3dm/cmpt/pnts/glTF/tileset.json are offered to [GaussianLoader.supports]. */
+    var gaussianLoader: GaussianLoader? = GltfGaussianLoader()
 
     /** 3D Tiles 1.0 declarative style; needs an [Ogc3dDecoderRegistry.tilesetStyleEvaluator]
      *  registered to do anything. Setter rebinds eagerly. */
