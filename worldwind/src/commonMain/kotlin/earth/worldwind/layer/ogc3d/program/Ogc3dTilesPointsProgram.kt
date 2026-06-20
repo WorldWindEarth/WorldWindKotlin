@@ -255,15 +255,11 @@ open class Ogc3dTilesPointsProgram(
     }
 
     companion object {
-        fun get(rc: RenderContext): Ogc3dTilesPointsProgram {
-            val s = rc.hasShadowLayer
-            val l = rc.hasActiveSightline
-            return when {
-                s && l -> rc.getShaderProgram { Ogc3dTilesPointsProgramBoth() }
-                s -> rc.getShaderProgram { Ogc3dTilesPointsProgramShadow() }
-                l -> rc.getShaderProgram { Ogc3dTilesPointsProgramSightline() }
-                else -> rc.getShaderProgram { Ogc3dTilesPointsProgram() }
-            }
+        /** Always include the sightline splice — same race rationale as [Ogc3dTilesProgram.get]. */
+        fun get(rc: RenderContext): Ogc3dTilesPointsProgram = if (rc.hasShadowLayer) {
+            rc.getShaderProgram { Ogc3dTilesPointsProgramBoth() }
+        } else {
+            rc.getShaderProgram { Ogc3dTilesPointsProgramSightline() }
         }
 
         private val VERTEX_SHADER: String = """

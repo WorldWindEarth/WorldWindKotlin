@@ -343,16 +343,16 @@ open class Ogc3dTilesProgram(
     }
 
     companion object {
-        /** Resolve the right variant for [rc] based on the active receivers. */
-        fun get(rc: RenderContext): Ogc3dTilesProgram {
-            val s = rc.hasShadowLayer
-            val l = rc.hasActiveSightline
-            return when {
-                s && l -> rc.getShaderProgram { Ogc3dTilesProgramBoth() }
-                s -> rc.getShaderProgram { Ogc3dTilesProgramShadow() }
-                l -> rc.getShaderProgram { Ogc3dTilesProgramSightline() }
-                else -> rc.getShaderProgram { Ogc3dTilesProgram() }
-            }
+        /** Always include the sightline splice. `hasActiveSightline` is set inside
+         *  `OmnidirectionalSightline.makeDrawable` during the render-traversal phase — the
+         *  same phase 3D-Tiles layers traverse — so its value at shader-pick time depends on
+         *  layer order. With the splice always present, `computeSightlineTint` early-outs to
+         *  `vec4(0.0)` when `applySightline == false`, so per-fragment cost when no sightline
+         *  is live is one uniform branch + no texture lookups. */
+        fun get(rc: RenderContext): Ogc3dTilesProgram = if (rc.hasShadowLayer) {
+            rc.getShaderProgram { Ogc3dTilesProgramBoth() }
+        } else {
+            rc.getShaderProgram { Ogc3dTilesProgramSightline() }
         }
 
         // GLSL — pure ASCII.
