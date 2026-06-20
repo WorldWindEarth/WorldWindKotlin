@@ -132,7 +132,7 @@ open class BasicFrameController: FrameController {
         // emitted once *per unit*, so we have to cover them all up front. Units in use:
         //   0       — diffuse textures (BasicShaderProgram et al.)
         //   1..3    — ShadowReceiver cascade samplers
-        //   4       — SightlineReceiver 2D moments (cube on unit 5 needs its own dummy
+        //   4       — Sightline receiver 2D moments (cube on unit 5 needs its own dummy
         //             and isn't covered here; the sightline path itself unbinds it when
         //             disabled, so the warning hasn't been observed for unit 5 yet).
         // Subsequent drawables that bind their own texture overwrite the default; units

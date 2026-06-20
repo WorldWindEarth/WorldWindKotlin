@@ -77,14 +77,6 @@ open class DrawableSightline protected constructor() : Drawable {
     private val sightlineView = Matrix4()
     private val matrix = Matrix4()
     private val cubeMapProjection = Matrix4()
-
-    /**
-     * Tracks which receiver shader is bound during the current colour pass: `false` when
-     * [drawSceneOcclusion] is active (directional [program]), `true` when [drawSceneOcclusionCube]
-     * is active ([programCube]). Read by [loadReceiverModelMatrix] so [SightlineReceiver]
-     * implementations don't have to know which path is in flight.
-     */
-    private var receiverPathIsCube = false
     /**
      * Per-face eye-to-world rotation for the omnidirectional sightline. Built to match the
      * OpenGL canonical cube-map face convention so the depth-pass output texels align with
@@ -465,41 +457,6 @@ open class DrawableSightline protected constructor() : Drawable {
     }
 
     /**
-     * Iterates the drawable queue and dispatches every [SightlineReceiver] to overlay the
-     * visibility colour onto its surface. Mirrors [drawShapesDepth] for the receiver pass:
-     * the active receiver shader ([program] or [programCube]) is already bound and the
-     * moments / cube-map sampler is already attached at unit 0. Implementations call
-     * [loadReceiverModelMatrix] to compose their model transform into the active shader.
-     */
-    protected open fun drawShapesColor(dc: DrawContext) {
-        val queue = dc.drawableQueue ?: return
-        for (i in 0 until queue.count) {
-            val drawable = queue.getDrawable(i)
-            if (drawable is SightlineReceiver) drawable.drawSightlineColor(dc, this)
-        }
-    }
-
-    /**
-     * Composes the active receiver shader's per-shape matrices for an arbitrary `modelMatrix`.
-     * Loads `dc.modelviewProjection × modelMatrix` into the receiver's mvpMatrix uniform, and
-     * `sightlineView × modelMatrix` into either [SightlineProgram.loadSightlineProjection]
-     * (directional path) or [SightlineProgramCube.loadSightlineLocalMatrix] (omnidirectional
-     * cube-map path). Picks the right shader off [receiverPathIsCube], so [SightlineReceiver]
-     * implementations don't need to branch.
-     */
-    fun loadReceiverModelMatrix(dc: DrawContext, modelMatrix: Matrix4) {
-        matrix.copy(dc.modelviewProjection)
-        matrix.multiplyByMatrix(modelMatrix)
-        if (receiverPathIsCube) programCube?.loadModelviewProjection(matrix)
-        else program?.loadModelviewProjection(matrix)
-
-        matrix.copy(sightlineView)
-        matrix.multiplyByMatrix(modelMatrix)
-        if (receiverPathIsCube) programCube?.loadSightlineLocalMatrix(matrix)
-        else program?.loadSightlineProjection(cubeMapProjection, matrix)
-    }
-
-    /**
      * Cube-map depth pass for the omnidirectional path. Each iteration of the loop attaches
      * the matching cube-map face to the FBO's colour attachment (`GL_COLOR_ATTACHMENT0`),
      * clears it to the d=1 sentinel, and rasterises the visible terrain (and 3D occluder
@@ -579,7 +536,6 @@ open class DrawableSightline protected constructor() : Drawable {
         // inv(centerTransform) once into [sightlineView], then per-tile compose translate.
         sightlineView.copy(centerTransform)
         sightlineView.invertOrthonormal()
-        receiverPathIsCube = true
 
         dc.activeTextureUnit(GL_TEXTURE0)
         val cubeTexture = dc.momentsCubeMapTexture
@@ -600,9 +556,6 @@ open class DrawableSightline protected constructor() : Drawable {
 
                 terrain.drawTriangles(dc)
             }
-            // Tint extra opaque receiver surfaces (3D-tile meshes etc.) with the cube-map
-            // receiver shader. Cube texture stays bound at unit 0 across the dispatch.
-            drawShapesColor(dc)
         } finally {
             // Unbind the cube map at the active unit to avoid feedback when the next frame's
             // depth pass attaches the cube map's faces to the FBO. [DrawContext.bindTexture]
@@ -618,7 +571,6 @@ open class DrawableSightline protected constructor() : Drawable {
         // uniforms live on the program object, they're still here when we re-bind. Only
         // per-tile MVP and SLP need reloading inside the loop below.
         if (!program.useProgram(dc)) return
-        receiverPathIsCube = false
         try {
             // Bind the moments colour attachment as the depth sampler. The shader still
             // calls the uniform `depthSampler` for legacy reasons but reads (M1, M2) from
@@ -647,10 +599,6 @@ open class DrawableSightline protected constructor() : Drawable {
                 // Draw the terrain as triangles.
                 terrain.drawTriangles(dc)
             }
-            // Tint extra opaque receiver surfaces (3D-tile meshes etc.) with the same shader
-            // and matrices the terrain pass just used. The moments sampler stays bound at
-            // unit 0, and the receiver's range / colour uniforms persist across draw calls.
-            drawShapesColor(dc)
         } finally {
             // Unbind moments texture to avoid feedback loop next frame.
             dc.defaultTexture.bindTexture(dc)
