@@ -31,7 +31,7 @@ open class DrawableSightline protected constructor() : Drawable {
      * Selects which phases this drawable runs. The sightline shapes enqueue two drawables per
      * frame: [RenderMode.DEPTH_ONLY] in BACKGROUND so the moments map and [DrawContext.sightlineState]
      * are populated before any embedded-receiver fragment shader runs (3D tiles need this), and
-     * [RenderMode.OVERLAY_ONLY] in SURFACE so terrain — and any [SightlineReceiver] that opted into
+     * [RenderMode.OVERLAY_ONLY] in SURFACE so terrain — and any sightline receiver that opted into
      * the overlay path — gets tinted after opaque receivers have rendered. [RenderMode.DEPTH_AND_OVERLAY]
      * preserves the legacy single-drawable path for callers that don't split the work.
      */
@@ -180,14 +180,13 @@ open class DrawableSightline protected constructor() : Drawable {
      * moments framebuffer / cube map are fully populated by the time receivers read this.
      */
     private fun publishSightlineState(dc: DrawContext) {
-        val state = dc.sightlineState ?: SightlineState().also { dc.sightlineState = it }
+        val state = SightlineState().also { dc.sightlineState = it }
         state.omnidirectional = omnidirectional
         state.range = range
         state.visibleColor.copy(visibleColor)
         state.occludedColor.copy(occludedColor)
         state.sightlineView.copy(centerTransform).invertOrthonormal()
         state.cubeMapProjection.copy(cubeMapProjection)
-        state.bumpFrameStamp()
     }
 
     /**

@@ -77,8 +77,9 @@ open class DrawContext(val gl: Kgl) {
      * shader can sample the moments map and self-shadow without an overlay re-rasterisation.
      */
     var sightlineState: SightlineState? = null
-    /** Frame stamp of the last sightline-moments rebind on units 4 / 5. See [shadowState]. */
-    var lastSightlineTextureBindStamp: Long = -1L
+    /** Identity of the [SightlineState] whose moments texture(s) are currently bound on
+     *  units 4 / 5. `null` after the cube/2D bindings are cleared on a no-sightline frame. */
+    var lastSightlineTextureBind: SightlineState? = null
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -432,7 +433,7 @@ open class DrawContext(val gl: Kgl) {
         shadowState = null
         lastShadowTextureBindStamp = -1L
         sightlineState = null
-        lastSightlineTextureBindStamp = -1L
+        lastSightlineTextureBind = null
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()

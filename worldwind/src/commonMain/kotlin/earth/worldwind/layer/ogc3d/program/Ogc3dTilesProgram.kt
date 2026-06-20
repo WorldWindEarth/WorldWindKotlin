@@ -7,6 +7,7 @@ import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.layer.sightline.SightlineReceiverGlsl
 import earth.worldwind.layer.sightline.SightlineReceiverProgram
+import earth.worldwind.layer.sightline.SightlineState
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.AbstractShaderProgram
@@ -94,7 +95,7 @@ open class Ogc3dTilesProgram(
     private val lightDirection = Vec3(0.0, 0.0, 1.0)
 
     override var shadowUploadStamp: Long = -1L
-    override var sightlineUploadStamp: Long = -1L
+    override var lastSightlineState: SightlineState? = null
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)

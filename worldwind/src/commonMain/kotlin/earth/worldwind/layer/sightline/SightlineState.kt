@@ -34,16 +34,4 @@ class SightlineState {
 
     /** Occluded (out-of-line-of-sight) tint color. Premultiplied by the receiver. */
     val occludedColor = Color(0f, 0f, 0f, 0f)
-
-    /**
-     * Frame stamp incremented each time [earth.worldwind.draw.DrawableSightline] re-populates this state.
-     * Receiver programs cache the stamp and skip uniform uploads when the stamp matches —
-     * GL uniforms persist across draws, so the second program-bind in the same frame
-     * doesn't need to re-load the matrices.
-     */
-    var frameStamp = 0L
-        private set
-
-    /** Bumps the frame stamp; call once per fully-populated frame. */
-    fun bumpFrameStamp() { frameStamp++ }
 }

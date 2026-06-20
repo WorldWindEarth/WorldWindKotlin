@@ -11,9 +11,10 @@ import earth.worldwind.util.kgl.GL_TEXTURE_CUBE_MAP
 import earth.worldwind.util.kgl.KglTexture
 
 /**
- * Contract for shader programs that splice in [SightlineReceiverGlsl]. Mirrors
- * [earth.worldwind.layer.shadow.ShadowReceiverProgram] - the same upload-stamp pattern
- * skips redundant uniform / texture rebinds within a frame.
+ * Contract for shader programs that splice in [SightlineReceiverGlsl]. Identity-keyed cache:
+ * [DrawableSightline] allocates a fresh [SightlineState] every frame, so receivers compare
+ * the new state instance against the last one they uploaded and skip the work when they match
+ * (covers the within-frame "second program-bind sees the same state" case).
  */
 interface SightlineReceiverProgram {
     fun loadSightlineEnabled(
@@ -26,7 +27,7 @@ interface SightlineReceiverProgram {
         occludedColor: Color,
     )
     fun loadSightlineDisabled()
-    var sightlineUploadStamp: Long
+    var lastSightlineState: SightlineState?
 }
 
 /**
@@ -38,12 +39,11 @@ fun DrawContext.applySightlineReceiverUniforms(program: SightlineReceiverProgram
     val state = sightlineState
     if (!applySightline || isPickMode || state == null) {
         program.loadSightlineDisabled()
-        program.sightlineUploadStamp = -1L
-        lastSightlineTextureBindStamp = -1L
+        program.lastSightlineState = null
+        lastSightlineTextureBind = null
         return
     }
-    val stamp = state.frameStamp
-    if (lastSightlineTextureBindStamp != stamp) {
+    if (lastSightlineTextureBind !== state) {
         if (state.omnidirectional) {
             // Cube path: bind cube moments at unit 5, ensure unit 4 has a benign 2D bind so
             // the unused sampler2D doesn't read undefined.
@@ -60,9 +60,9 @@ fun DrawContext.applySightlineReceiverUniforms(program: SightlineReceiverProgram
             gl.bindTexture(GL_TEXTURE_CUBE_MAP, KglTexture.NONE)
         }
         activeTextureUnit(GL_TEXTURE0)
-        lastSightlineTextureBindStamp = stamp
+        lastSightlineTextureBind = state
     }
-    if (program.sightlineUploadStamp != stamp) {
+    if (program.lastSightlineState !== state) {
         program.loadSightlineEnabled(
             state.omnidirectional,
             state.sightlineView,
@@ -72,6 +72,6 @@ fun DrawContext.applySightlineReceiverUniforms(program: SightlineReceiverProgram
             state.visibleColor,
             state.occludedColor,
         )
-        program.sightlineUploadStamp = stamp
+        program.lastSightlineState = state
     }
 }
