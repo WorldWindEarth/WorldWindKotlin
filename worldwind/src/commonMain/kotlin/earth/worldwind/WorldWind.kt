@@ -95,12 +95,6 @@ open class WorldWind @JvmOverloads constructor(
      */
     var farDistanceLimit = 0.0
     /**
-     * Force the terrain mesh to write depth even when nothing renders on top of it. Disable when
-     * a globe-coverage 3D-Tiles layer plays the role of the visible ground; tessellation still
-     * runs so RELATIVE_TO_GROUND placemarks, gestures, and terrain picking keep working.
-     */
-    var writeTerrainDepth: Boolean = true
-    /**
      * Context related to frame rendering phase
      */
     protected val rc = RenderContext()
@@ -507,7 +501,6 @@ open class WorldWind @JvmOverloads constructor(
         rc.globeState = globeState
         rc.elevationModelTimestamp = elevationTimestamp
         rc.contextVersion = dc.contextVersion
-        rc.writeTerrainDepth = writeTerrainDepth
 
         // Configure the frame's Cartesian modelview matrix and eye coordinate projection matrix.
         computeViewingTransform(frame.projection, frame.modelview)

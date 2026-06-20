@@ -89,10 +89,6 @@ open class Ogc3dTilesTutorial(
      *  (e.g. Google Photorealistic) where the 3D Tiles layer is the visible ground. */
     protected open val replaceBaseLayers: Boolean = false
 
-    /** Force-disable [WorldWind.writeTerrainDepth] while running so 3D-Tile content below
-     *  the ellipsoid surface (geoid offset) isn't depth-occluded by terrain. */
-    protected open val disableTerrainDepth: Boolean = true
-
     private var layer: Ogc3dTilesLayer? = null
 
     private var initScope: CoroutineScope = newInitScope()
@@ -105,10 +101,6 @@ open class Ogc3dTilesTutorial(
      *  side-effects from running this tutorial. */
     private var savedLayers: List<Layer> = emptyList()
 
-    /** Snapshot of [WorldWind.writeTerrainDepth] at [start]; restored in [stop]. Disabled while
-     *  running so the ±100 m ellipsoid-vs-geoid offset doesn't depth-occlude 3D-Tiles content. */
-    private var savedWriteTerrainDepth: Boolean = true
-
     /** Guards against a re-entrant [start] (lifecycle race calling start() twice without
      *  a [stop] between) overwriting the snapshots with the already-minimised scene. */
     private var running: Boolean = false
@@ -120,10 +112,6 @@ open class Ogc3dTilesTutorial(
         super.start()
         if (running) return
         running = true
-        if (disableTerrainDepth) {
-            savedWriteTerrainDepth = engine.writeTerrainDepth
-            engine.writeTerrainDepth = false
-        }
         if (replaceBaseLayers) {
             // Snapshot the existing scene so stop() can put everything back the way it was.
             savedLayers = engine.layers.toList()
@@ -200,9 +188,6 @@ open class Ogc3dTilesTutorial(
             engine.layers.clearLayers()
             for (l in savedLayers) engine.layers.addLayer(l)
             savedLayers = emptyList()
-        }
-        if (disableTerrainDepth) {
-            engine.writeTerrainDepth = savedWriteTerrainDepth
         }
     }
 

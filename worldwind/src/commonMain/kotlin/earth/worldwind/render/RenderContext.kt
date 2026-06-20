@@ -123,7 +123,6 @@ open class RenderContext {
      * which is populated later during the depth pass.
      */
     var hasActiveSightline: Boolean = false
-    var writeTerrainDepth: Boolean = false
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -179,7 +178,6 @@ open class RenderContext {
         shadowState = null
         hasShadowLayer = false
         hasActiveSightline = false
-        writeTerrainDepth = false
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()
