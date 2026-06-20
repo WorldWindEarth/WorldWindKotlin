@@ -3,6 +3,8 @@ package earth.worldwind.layer.ogc3d.draw
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShadow
+import earth.worldwind.draw.DrawableSightline
+import earth.worldwind.draw.SightlineOccluder
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowCaster
@@ -27,10 +29,12 @@ import earth.worldwind.util.kgl.GL_UNSIGNED_SHORT
 import kotlin.jvm.JvmStatic
 
 /**
- * Color-pass drawable for one mesh tile. Pool-recycled. Implements [ShadowCaster] so the
- * cascade depth pass picks it up automatically.
+ * Color-pass drawable for one mesh tile. Pool-recycled. [ShadowCaster] + [SightlineOccluder]
+ * gate on `shadowMode.castsShadows`. The sightline visibility tint is applied per-fragment by
+ * `Ogc3dTilesProgram`'s embedded `SightlineReceiverGlsl` splice; the SURFACE-grouped sightline
+ * overlay only tints terrain.
  */
-open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster {
+open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, SightlineOccluder {
 
     var content: MeshContent? = null
 
@@ -291,5 +295,33 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster {
             }
         }
     }
+
+    /** Sightline depth pass. Triangles only — lines/points alias on the moments cube. */
+    override fun drawSightlineDepth(dc: DrawContext, sightline: DrawableSightline) {
+        if (!shadowMode.castsShadows) return
+        val content = this.content ?: return
+        val submeshes = content.submeshes ?: return
+        val vertexBuffers = submeshVertexBuffers
+        val elementBuffers = submeshElementBuffers
+        for ((idx, submesh) in submeshes.withIndex()) {
+            val mode = submesh.mode
+            if (mode != GL_TRIANGLES && mode != GL_TRIANGLE_STRIP && mode != GL_TRIANGLE_FAN) continue
+            val vbo = vertexBuffers.getOrNull(idx) ?: continue
+            if (!vbo.bindBuffer(dc)) continue
+            val ebo = elementBuffers.getOrNull(idx)
+            ebo?.bindBuffer(dc)
+            submeshModelMatrix.copy(tileToWorld).multiplyByMatrix(submesh.worldMatrix)
+            sightline.loadOccluderMatrix(submeshModelMatrix)
+            dc.gl.enableVertexAttribArray(0)
+            dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
+            if (ebo != null) {
+                val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
+                dc.gl.drawElements(mode, submesh.elementCount, type, 0)
+            } else {
+                dc.gl.drawArrays(mode, 0, submesh.vertexCount)
+            }
+        }
+    }
+
 }
 
