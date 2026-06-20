@@ -1,6 +1,9 @@
+@file:OptIn(LowLevelCacheApi::class)
+
 package earth.worldwind.layer.ogc3d
 
 import earth.worldwind.layer.cache.CachePolicy
+import earth.worldwind.layer.cache.LowLevelCacheApi
 import earth.worldwind.layer.ogc3d.auth.NoAuthProvider
 import earth.worldwind.layer.ogc3d.auth.Ogc3dAuthCredentials
 import earth.worldwind.layer.ogc3d.auth.TilesetAuthProvider

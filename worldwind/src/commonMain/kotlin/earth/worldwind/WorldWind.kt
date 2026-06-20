@@ -560,6 +560,10 @@ open class WorldWind @JvmOverloads constructor(
         } else {
             frame.hasShadowState = false
         }
+        frame.hasGroundCoverageMask = rc.hasGroundCoverageMask
+        // Copy sectors so the GL thread reads stable values across the render / draw split.
+        frame.groundCoverageRegions.clear()
+        for (region in rc.groundCoverageRegions) frame.groundCoverageRegions.add(Sector(region))
 
         // Propagate redraw requests submitted during rendering.
         val isRedrawRequested = !pickMode && rc.isRedrawRequested
@@ -607,6 +611,9 @@ open class WorldWind @JvmOverloads constructor(
         dc.pickPoint = frame.pickPoint
         dc.depthToColorProgram = frame.depthToColorProgram
         dc.isPickMode = frame.isPickMode
+        dc.hasGroundCoverageMask = frame.hasGroundCoverageMask
+        dc.groundCoverageRegions.clear()
+        for (region in frame.groundCoverageRegions) dc.groundCoverageRegions.add(region)
 
         // Let the frame controller draw the frame.
         frameController.drawFrame(dc)

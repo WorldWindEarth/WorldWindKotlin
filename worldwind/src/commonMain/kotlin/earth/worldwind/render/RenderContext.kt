@@ -123,6 +123,13 @@ open class RenderContext {
      * which is populated later during the depth pass.
      */
     var hasActiveSightline: Boolean = false
+    /** Set by [earth.worldwind.layer.ogc3d.Ogc3dTilesLayer.doRender] when a mesh layer is
+     *  active this frame. Propagated to [DrawContext.hasGroundCoverageMask] via [Frame]. */
+    var hasGroundCoverageMask: Boolean = false
+    /** Per-frame coverage sectors published by 3D-Tile mesh layers — terrain tiles outside
+     *  every region skip the GROUND_COVERED_BIT stencil test so distant mountains still
+     *  occlude mesh content via depth test. */
+    val groundCoverageRegions = mutableListOf<Sector>()
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -178,6 +185,8 @@ open class RenderContext {
         shadowState = null
         hasShadowLayer = false
         hasActiveSightline = false
+        hasGroundCoverageMask = false
+        groundCoverageRegions.clear()
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()

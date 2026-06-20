@@ -96,6 +96,12 @@ open class DrawContext(val gl: Kgl) {
     /** Pick-only depth-to-color packer; null on regular frames. See [DepthToColorProgram]. */
     var depthToColorProgram: DepthToColorProgram? = null
     var isPickMode = false
+    /** `true` when at least one 3D-Tile mesh layer enqueued into [DrawableGroup.SURFACE] this
+     *  frame — terrain stencil-tests against GROUND_COVERED_BIT. Propagated from RC via Frame. */
+    var hasGroundCoverageMask = false
+    /** Per-frame snapshot of 3D-Tile mesh layer coverage sectors. Empty when
+     *  [hasGroundCoverageMask] is `false`; consumed by [BasicDrawableTerrain]. */
+    val groundCoverageRegions = mutableListOf<earth.worldwind.geom.Sector>()
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
     private var textureUnit = GL_TEXTURE0
@@ -449,6 +455,8 @@ open class DrawContext(val gl: Kgl) {
         pickPoint = null
         depthToColorProgram = null
         isPickMode = false
+        hasGroundCoverageMask = false
+        groundCoverageRegions.clear()
         scratchBuffer.fill(0)
         scratchList.clear()
         bufferPool.reset()
@@ -736,25 +744,19 @@ open class DrawContext(val gl: Kgl) {
             pickDepthReadbackFramebufferCache?.release(this)
         }
 
-        // Sized internal formats on WebGL2 / GLES3+ (WebGL2 leaves the FBO incomplete otherwise);
-        // unsized on WebGL1 / GLES2. DEPTH24 gives ~256x the precision of DEPTH16 across the
-        // depth range; on Earth-scale scenes 16-bit collapses everything beyond ~10 km from the
-        // camera into the top quantization step, so the depth-readback unprojection lands on
-        // the far clipping plane (antipode / under-ground). DEPTH24 pushes that horizon well
-        // past typical fly-around distances. WebGL1 / GLES2 falls back to driver-default
-        // precision via the unsized GL_DEPTH_COMPONENT.
+        // DEPTH24 + 8-bit stencil so applyTileStencilState's GROUND_COVERED_BIT survives the
+        // pick pass — without stencil, terrain overdraws 3D-Tile content in the pick FBO.
         val sized = gl.supportsSizedTextureFormats
         val colorIF = if (sized) GL_RGBA8 else GL_RGBA
-        val depthIF = if (sized) GL_DEPTH_COMPONENT24 else GL_DEPTH_COMPONENT
-        val depthType = if (sized) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
+        val depthIF = if (sized) GL_DEPTH24_STENCIL8 else GL_DEPTH_STENCIL
 
         pickFramebufferCache = Framebuffer().apply {
             val color = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, colorIF)
-            val depth = Texture(width, height, GL_DEPTH_COMPONENT, depthType, true, depthIF)
+            val depth = Texture(width, height, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, true, depthIF)
             depth.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             depth.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             attachTexture(this@DrawContext, color, GL_COLOR_ATTACHMENT0)
-            attachTexture(this@DrawContext, depth, GL_DEPTH_ATTACHMENT)
+            attachTexture(this@DrawContext, depth, GL_DEPTH_STENCIL_ATTACHMENT)
         }
         pickDepthReadbackFramebufferCache = Framebuffer().apply {
             val color = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, colorIF)

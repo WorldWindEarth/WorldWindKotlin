@@ -296,6 +296,10 @@ open class Ogc3dTilesLayer(
         if (cachedSector == null) {
             cachedSector = current.root.boundingVolume.worldBoundingSector(rc.globe, current.root.tileToWorld, Sector())
         }
+        // Publish coverage + flag so terrain stencil-tests against GROUND_COVERED_BIT only
+        // for tiles that intersect this layer's footprint.
+        cachedSector?.let { rc.groundCoverageRegions.add(it) }
+        rc.hasGroundCoverageMask = true
         // Pick frames run with a 1×1 pickViewport so SSE collapses to ~0 for every tile —
         // re-traversing here would drop every sub-tileset wrapper below the SSE budget,
         // reapInFlightFetches would cancel every in-flight wrapper fetch, and the next
@@ -997,10 +1001,11 @@ open class Ogc3dTilesLayer(
             }
         }
 
-        // Sentinel sort key so all 3D-Tiles drawables tie in DrawableQueue → insertion
-        // order wins, preserving the [Traverser]-imposed non-fallback / fallback ordering
-        // that drives stencil masking.
-        rc.offerShapeDrawable(drawable, TILE_3D_SHAPE_SORT_SENTINEL)
+        // SURFACE group with NEG_INFINITY sort key — mesh draws first in SURFACE, before
+        // terrain's depth-only quad (TERRAIN_DEPTH_SORT_KEY = -Double.MAX_VALUE), so its
+        // GROUND_COVERED_BIT stencil writes are in place when BasicDrawableTerrain reads
+        // them. See [DrawableGroup.SURFACE] for the within-group ordering convention.
+        rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
     }
 
     /** pnts equivalent of [enqueueMeshDrawable]. */
@@ -1049,10 +1054,9 @@ open class Ogc3dTilesLayer(
             )
         }
 
-        // Sentinel sort key so all 3D-Tiles drawables tie in DrawableQueue → insertion
-        // order wins, preserving the [Traverser]-imposed non-fallback / fallback ordering
-        // that drives stencil masking.
-        rc.offerShapeDrawable(drawable, TILE_3D_SHAPE_SORT_SENTINEL)
+        // SURFACE / NEG_INFINITY — same as mesh, so points write GROUND_COVERED_BIT before
+        // terrain reads it. See [DrawableGroup.SURFACE] for the ordering convention.
+        rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
     }
 
     /** Gaussian-splat equivalent of [enqueuePointCloudDrawable]. */

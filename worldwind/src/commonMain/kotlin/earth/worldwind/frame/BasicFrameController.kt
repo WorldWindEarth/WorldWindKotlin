@@ -15,7 +15,7 @@ import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.kgl.GL_COLOR_BUFFER_BIT
-import earth.worldwind.util.kgl.GL_DEPTH_ATTACHMENT
+import earth.worldwind.util.kgl.GL_DEPTH_STENCIL_ATTACHMENT
 import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
 import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_STENCIL_BUFFER_BIT
@@ -90,7 +90,7 @@ open class BasicFrameController: FrameController {
         drawable.color.set(0f, 0f, 0f, 0f)
         drawable.opacity = 1.0f // Just to be sure to reset opacity
         drawable.program = rc.getShaderProgram { BasicShaderProgram() }
-        rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
+        rc.offerSurfaceDrawable(drawable, TERRAIN_DEPTH_SORT_KEY)
     }
 
     protected open fun renderTerrainPickedObject(rc: RenderContext) {
@@ -104,7 +104,7 @@ open class BasicFrameController: FrameController {
         identifierToUniqueColor(pickedObjectId, drawable.color)
         drawable.opacity = 1.0f // Just to be sure to reset opacity
         drawable.program = rc.getShaderProgram { BasicShaderProgram() }
-        rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
+        rc.offerSurfaceDrawable(drawable, TERRAIN_DEPTH_SORT_KEY)
 
         // If the pick ray intersects the terrain, enqueue a picked object that associates the terrain drawable with its
         // picked object ID and the intersection position.
@@ -192,7 +192,7 @@ open class BasicFrameController: FrameController {
         dc.gl.clear(GL_COLOR_BUFFER_BIT)
 
         dc.activeTextureUnit(GL_TEXTURE0)
-        val depthTexture = dc.pickFramebuffer.getAttachedTexture(GL_DEPTH_ATTACHMENT)
+        val depthTexture = dc.pickFramebuffer.getAttachedTexture(GL_DEPTH_STENCIL_ATTACHMENT)
         if (!depthTexture.bindTexture(dc)) return
         // Pick FBO grows monotonically in ensurePickFramebuffer, so after a viewport shrink the
         // depth texture is bigger than the rendered region — clamp UV to the rendered portion.
@@ -311,5 +311,11 @@ open class BasicFrameController: FrameController {
          * to the terrain pick instead of producing a (probably wrong) shape-surface point.
          */
         private const val FAR_DEPTH_THRESHOLD = 0.9999f
+
+        /** SURFACE-group sort key for the terrain depth-only quad. `Double.NEGATIVE_INFINITY`
+         *  is reserved for 3D-Tile mesh content so it draws before terrain (its
+         *  GROUND_COVERED_BIT stencil writes must be in place when terrain reads them).
+         *  `-Double.MAX_VALUE` sorts immediately after — no other drawable uses it. */
+        const val TERRAIN_DEPTH_SORT_KEY = -Double.MAX_VALUE
     }
 }

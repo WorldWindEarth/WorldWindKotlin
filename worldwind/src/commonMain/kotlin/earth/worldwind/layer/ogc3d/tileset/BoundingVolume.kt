@@ -135,7 +135,7 @@ sealed interface BoundingVolume {
                 cartesianToGeographicWgs84(corner.x, corner.y, corner.z, pos)
                 result.union(pos.latitude, pos.longitude)
             }
-            return result
+            return expandIfWraps(result)
         }
     }
 
@@ -171,11 +171,20 @@ sealed interface BoundingVolume {
                 cartesianToGeographicWgs84(sample.x, sample.y, sample.z, pos)
                 result.union(pos.latitude, pos.longitude)
             }
-            return result
+            return expandIfWraps(result)
         }
     }
 
     companion object {
+        /** Globe-wrapping bounds (Google Photorealistic root box) — [Sector.union] doesn't
+         *  handle antimeridian wrap, so the corner-projection union misses polar caps and
+         *  the antimeridian zone. Promote to full sphere when span exceeds half the globe. */
+        private fun expandIfWraps(sector: Sector): Sector {
+            val latSpanDeg = sector.maxLatitude.inDegrees - sector.minLatitude.inDegrees
+            val lonSpanDeg = sector.maxLongitude.inDegrees - sector.minLongitude.inDegrees
+            return if (latSpanDeg >= 180.0 || lonSpanDeg >= 180.0) sector.setFullSphere() else sector
+        }
+
         /** ECEF axis offsets for the 6-direction sphere envelope sample. */
         private val axisOffsets = listOf(
             Triple(1.0, 0.0, 0.0), Triple(-1.0, 0.0, 0.0),

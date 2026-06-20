@@ -138,14 +138,15 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
         dc.gl.enableVertexAttribArray(1)
         dc.gl.vertexAttribPointer(1, 4, GL_FLOAT, false, PointCloudContent.VERTEX_STRIDE, PointCloudContent.COLOR_OFFSET)
 
-        val useStencil = useTileStencil(stencilId)
-        if (useStencil) applyTileStencilState(dc, isFallback, stencilId)
+        // Same stencil as mesh: writes GROUND_COVERED_BIT at each point pixel so terrain
+        // can't occlude points from DEM-error hills. Bits 0..6 hold the skip-LoD subtree id.
+        applyTileStencilState(dc, isFallback, stencilId)
 
         try {
             dc.gl.drawArrays(GL_POINTS, 0, pointCount)
         } finally {
             dc.gl.disableVertexAttribArray(1)
-            if (useStencil) clearTileStencilState(dc)
+            clearTileStencilState(dc)
         }
     }
 

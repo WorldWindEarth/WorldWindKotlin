@@ -169,11 +169,9 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             else program.loadPickColor(pickColor)
         }
 
-        // Cesium skip-LoD stencil masking: every tile in a fallback subtree shares one
-        // 7-bit [stencilId]. Fine tiles write their id; coarse fallback tiles draw only
-        // where the stencil hasn't been claimed. id 0 = no fallback ancestor → bypass.
-        val useStencil = useTileStencil(stencilId)
-        if (useStencil) applyTileStencilState(dc, isFallback, stencilId)
+        // Always-on stencil: writes GROUND_COVERED_BIT for terrain to skip; bits 0-6 hold
+        // the Cesium skip-LoD subtree id when [stencilId] > 0.
+        applyTileStencilState(dc, isFallback, stencilId)
 
         try {
             dc.activeTextureUnit(GL_TEXTURE0)
@@ -195,7 +193,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             dc.gl.disableVertexAttribArray(2)
             dc.gl.disableVertexAttribArray(3)
             dc.gl.disableVertexAttribArray(4)
-            if (useStencil) clearTileStencilState(dc)
+            clearTileStencilState(dc)
         }
     }
 

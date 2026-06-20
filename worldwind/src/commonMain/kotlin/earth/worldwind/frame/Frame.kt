@@ -35,6 +35,11 @@ open class Frame {
     val shadowState: ShadowState = ShadowState()
     /** `true` when [earth.worldwind.layer.shadow.ShadowLayer] populated [shadowState] this frame. */
     var hasShadowState: Boolean = false
+    /** Mirrors [earth.worldwind.render.RenderContext.hasGroundCoverageMask] for the draw phase. */
+    var hasGroundCoverageMask: Boolean = false
+    /** Snapshot of [earth.worldwind.render.RenderContext.groundCoverageRegions]; each entry
+     *  is a sector copy so the GL thread reads stable values across the render/draw split. */
+    val groundCoverageRegions = mutableListOf<earth.worldwind.geom.Sector>()
 //    val infiniteProjection = Matrix4()
     val uploadQueue = UploadQueue()
     val drawableQueue = DrawableQueue()
@@ -63,6 +68,8 @@ open class Frame {
         modelview.setToIdentity()
         lightDirection.set(0.0, 0.0, 1.0)
         hasShadowState = false
+        hasGroundCoverageMask = false
+        groundCoverageRegions.clear()
 //        infiniteProjection.setToIdentity()
         uploadQueue.clearUploads()
         drawableQueue.clearDrawables()

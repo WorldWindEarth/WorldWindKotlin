@@ -156,9 +156,10 @@ class Traverser(
     companion object {
         /** Descendants two refinement levels finer (1/4× GE) trigger the fallback flag. */
         private const val FALLBACK_GE_RATIO = 4.0
-        /** Stencil attachment is 8 bits → ids 1..255 are addressable; 0 means "no
-         *  fallback ancestor", reserved for the cheap fast-path. */
-        private const val MAX_STENCIL_ID = 255
+        /** Skip-LoD ids use stencil bits 0..6 (bit 7 reserved for GROUND_COVERED_BIT). 0 =
+         *  no fallback ancestor (fast-path); excess subtrees beyond 127 fall back to 0
+         *  (harmless overdraw — no skip-LoD masking). */
+        private const val MAX_STENCIL_ID = 127
     }
 
     private fun selectTiles(rc: RenderContext, root: Tile3d) {

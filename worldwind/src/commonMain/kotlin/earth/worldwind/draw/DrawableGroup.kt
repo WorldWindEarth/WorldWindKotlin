@@ -12,8 +12,13 @@ enum class DrawableGroup {
      */
     BACKGROUND,
     /**
-     * Indicating drawables displayed on the globe's surface. Surface drawables are
-     * displayed beneath shapes and screen drawables.
+     * Drawables displayed on the globe's surface, beneath shapes and screen drawables.
+     *
+     * Within this group the ordering convention is:
+     *  - `Double.NEGATIVE_INFINITY` — 3D-Tile mesh content (writes [GROUND_COVERED_BIT]
+     *    before terrain reads it).
+     *  - `-Double.MAX_VALUE` — terrain depth-only quad (immediately after mesh).
+     *  - Other zOrder values — terrain decals (imagery, surface shapes, etc.).
      */
     SURFACE,
     /**
