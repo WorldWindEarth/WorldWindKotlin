@@ -30,6 +30,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlin.math.PI
 import kotlin.time.Clock
 import kotlin.math.asinh
@@ -78,9 +80,9 @@ open class OsmBuildingsLayer(
     /**
      * When true, walls are coloured via [OsmColors.resolve] on each [OsmBuilding]'s tags (falling
      * back to [attributes]'s interior colour); top caps use `roof:colour` (falling back to the
-     * wall colour). Off by default for uniform-gray output. Works in both rendering modes.
+     * wall colour). On by default; set false for uniform-gray output. Works in both rendering modes.
      */
-    val useOsmColors: Boolean = false,
+    val useOsmColors: Boolean = true,
     /**
      * When true (default), every building in a tile is packed into one [OsmBuildingsTile] mesh
      * (~500× fewer GL buffers per tile). Set false to keep the legacy "one Polygon per building"
@@ -410,7 +412,7 @@ open class OsmBuildingsLayer(
             // the stall for cached tiles.
             val buildings = loadBuildings(key)
             if (useBatchedRendering) toTile(key, buildings) as Any
-            else buildings.flatMap(::toPolygons) as Any
+            else OsmBuildingsTile.filterRedundantOutlines(buildings).flatMap(::toPolygons) as Any
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -444,7 +446,43 @@ open class OsmBuildingsLayer(
         var nextRetryEpochMs: Long = 0L
     }
 
+    /**
+     * The render-config subset persisted into `WebServiceInfo.metadata` on cache attach and
+     * replayed on reopen, so a cached layer comes back with its original flags instead of bare
+     * constructor defaults (the white-buildings-on-reopen bug when [useOsmColors] was set).
+     * Only the `val` constructor params are carried; [attributes] / [shadowMode] are not.
+     * Defaults mirror the constructor so an absent field decodes to the same value.
+     */
+    @Serializable
+    data class CacheConfig(
+        val useOsmColors: Boolean = true,
+        val useBatchedRendering: Boolean = true,
+        val tileZoom: Int = 15,
+        val tileRadius: Int = 4,
+        val maxLoadedTiles: Int = 256,
+    )
+
     companion object {
+        // Tolerant of unknown keys so a config written by a newer build still decodes here.
+        private val cacheConfigJson = Json { ignoreUnknownKeys = true }
+
+        /** Serialize [layer]'s render config to the JSON string stored in `WebServiceInfo.metadata`. */
+        fun encodeCacheConfig(layer: OsmBuildingsLayer): String = cacheConfigJson.encodeToString(
+            CacheConfig.serializer(),
+            CacheConfig(
+                useOsmColors = layer.useOsmColors,
+                useBatchedRendering = layer.useBatchedRendering,
+                tileZoom = layer.tileZoom,
+                tileRadius = layer.tileRadius,
+                maxLoadedTiles = layer.maxLoadedTiles,
+            ),
+        )
+
+        /** Parse persisted render config; null / blank / unparseable metadata falls back to defaults. */
+        fun decodeCacheConfig(metadata: String?): CacheConfig = metadata?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { cacheConfigJson.decodeFromString(CacheConfig.serializer(), it) }.getOrNull() }
+            ?: CacheConfig()
+
         /**
          * Exponential backoff schedule (in ms) for failed tile fetches: 2 s, 5 s, 15 s, then
          * capped at 60 s. Conservative enough that a recovering Overpass mirror sees normal

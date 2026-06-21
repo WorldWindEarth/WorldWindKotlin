@@ -264,6 +264,7 @@ internal suspend fun ContentManager.attachOsmBuildingsLayerCache(
     registerWebService(contentKey, WebServiceInfo(
         type = OverpassBuildingsSource.SERVICE_TYPE,
         address = network.endpoint,
+        metadata = OsmBuildingsLayer.encodeCacheConfig(layer),
     ))
 }
 

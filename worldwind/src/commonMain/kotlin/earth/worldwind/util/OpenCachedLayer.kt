@@ -124,7 +124,7 @@ object CachedLayerRegistry {
             cm.openGeoJsonLayer(h, eviction)
         }
         register(features, OverpassBuildingsSource.SERVICE_TYPE) { cm, h, eviction ->
-            cm.openOsmBuildingsLayer(h, h.service!!.address, eviction)
+            cm.openOsmBuildingsLayer(h, h.service!!, eviction)
         }
     }
 
@@ -484,11 +484,20 @@ private suspend fun ContentManager.openGeoJsonLayer(
 }
 
 private suspend fun ContentManager.openOsmBuildingsLayer(
-    entry: CacheEntry, endpoint: String,
+    entry: CacheEntry, service: WebServiceInfo,
     cachePolicy: CachePolicy,
 ): OsmBuildingsLayer {
     val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
-    val network = OverpassBuildingsSource(endpoint)
+    val network = OverpassBuildingsSource(service.address)
     val source = CachedTiledFeatureSource(network, store)
-    return OsmBuildingsLayer(source = source, displayName = entry.displayName)
+    val config = OsmBuildingsLayer.decodeCacheConfig(service.metadata)
+    return OsmBuildingsLayer(
+        source = source,
+        tileZoom = config.tileZoom,
+        tileRadius = config.tileRadius,
+        maxLoadedTiles = config.maxLoadedTiles,
+        useOsmColors = config.useOsmColors,
+        useBatchedRendering = config.useBatchedRendering,
+        displayName = entry.displayName,
+    )
 }
