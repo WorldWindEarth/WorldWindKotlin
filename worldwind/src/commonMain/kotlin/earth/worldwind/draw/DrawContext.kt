@@ -273,6 +273,8 @@ open class DrawContext(val gl: Kgl) {
         val filter = if (bits == 32 && !gl.supportsFloatTextureLinear) GL_NEAREST else GL_LINEAR
         texture.setTexParameter(GL_TEXTURE_MIN_FILTER, filter)
         texture.setTexParameter(GL_TEXTURE_MAG_FILTER, filter)
+        texture.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        texture.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
         return texture
     }
 
