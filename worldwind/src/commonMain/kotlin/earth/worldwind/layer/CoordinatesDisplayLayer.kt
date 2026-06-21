@@ -98,6 +98,7 @@ class CoordinatesDisplayLayer : AbstractLayer("Coordinates") {
         drawable.opacity = rc.currentLayer.opacity
         drawable.texture = texture
         drawable.enableDepthTest = false
+        drawable.enableDepthWrite = false
         rc.offerScreenDrawable(drawable, 0.0)
     }
 

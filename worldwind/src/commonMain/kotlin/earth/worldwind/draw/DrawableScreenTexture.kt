@@ -16,6 +16,7 @@ open class DrawableScreenTexture protected constructor(): Drawable {
     val color = Color()
     var opacity = 1.0f
     var enableDepthTest = true
+    var enableDepthWrite = true
     var program: BasicShaderProgram? = null
     var texture: Texture? = null
     private var pool: Pool<DrawableScreenTexture>? = null
@@ -51,7 +52,7 @@ open class DrawableScreenTexture protected constructor(): Drawable {
         dc.activeTextureUnit(GL_TEXTURE0)
 
         // Disable writing to the depth buffer.
-        dc.gl.depthMask(false)
+        if (!enableDepthWrite) dc.gl.depthMask(false)
 
         // Use a unit square as the vertex point and vertex tex coord attributes.
         dc.gl.enableVertexAttribArray(1 /*vertexTexCoord*/) // only vertexPoint is enabled by default
@@ -70,7 +71,7 @@ open class DrawableScreenTexture protected constructor(): Drawable {
         }
 
         // Restore the default WorldWind OpenGL state.
-        dc.gl.depthMask(true)
+        if (!enableDepthWrite) dc.gl.depthMask(true)
         dc.gl.disableVertexAttribArray(1 /*vertexTexCoord*/) // only vertexPoint is enabled by default
     }
 

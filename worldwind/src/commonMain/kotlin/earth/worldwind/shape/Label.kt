@@ -97,7 +97,7 @@ open class Label @JvmOverloads constructor(
          * The default amount of screen depth offset applied to the label's text during rendering. Values less than zero
          * bias depth values toward the viewer.
          */
-        const val DEFAULT_DEPTH_OFFSET = -0.003
+        const val DEFAULT_DEPTH_OFFSET = -0.03
 
         /**
          * The label's properties associated with the current render pass.
@@ -226,6 +226,7 @@ open class Label @JvmOverloads constructor(
         drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.texture = texture
         drawable.enableDepthTest = activeAttributes.isDepthTest
+        drawable.enableDepthWrite = true
 
         // Enqueue a drawable for processing on the OpenGL thread.
         rc.offerShapeDrawable(drawable, renderData.cameraDistanceSq)

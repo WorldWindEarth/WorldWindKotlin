@@ -84,6 +84,7 @@ class WorldMapLayer : AbstractLayer("World Map") {
         drawable.opacity = rc.currentLayer.opacity
         drawable.texture = null
         drawable.enableDepthTest = false
+        drawable.enableDepthWrite = false
         rc.offerScreenDrawable(drawable, 0.0)
     }
 

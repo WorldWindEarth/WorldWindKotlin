@@ -415,6 +415,7 @@ open class Placemark @JvmOverloads constructor(
         drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.texture = activeTexture
         drawable.enableDepthTest = activeAttributes.isDepthTest
+        drawable.enableDepthWrite = true
     }
 
     /**
@@ -440,6 +441,7 @@ open class Placemark @JvmOverloads constructor(
         drawable.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawable.texture = labelTexture
         drawable.enableDepthTest = activeAttributes.labelAttributes.isDepthTest
+        drawable.enableDepthWrite = true
     }
 
     /**
