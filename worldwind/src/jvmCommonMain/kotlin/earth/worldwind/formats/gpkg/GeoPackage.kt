@@ -314,7 +314,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     /** Idempotent create-if-missing for one 3D Tiles blob-store table. Schema borrowed from
      *  [GpkgBlobRow]'s `@DatabaseField` annotations via ORMLite's SQL generator; execution
-     *  goes through NGA's own database handle so the [ContentsDao.verifyCreate] that runs
+     *  goes through NGA's own database handle so the `ContentsDao.verifyCreate` that runs
      *  straight after sees the table — same connection-asymmetry the tiles path documents
      *  at [setupTilesContent]. */
     private fun create3DTilesUserDataTable(tableName: String) {

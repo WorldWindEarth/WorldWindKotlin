@@ -341,8 +341,8 @@ internal fun GaussianContent.releaseSortState() {
  * thread the frame after the sort completes — [RenderContext.offerGLBufferUpload] mutates
  * the cache + upload queue and is not thread-safe.
  *
- * Single-buffered via [sortJobInFlight]: a new sort can't start while a previous sort or
- * its upload is unfinished — concurrent writes to [sortIndexArray] would corrupt the
+ * Single-buffered via [GaussianContent.sortJobInFlight]: a new sort can't start while a previous
+ * sort or its upload is unfinished — concurrent writes to [GaussianContent.sortIndexArray] would corrupt the
  * in-flight upload. Worst-case staleness on fast camera motion: two frames (one for the
  * background sort, one for the upload) — sub-perceptual at typical viewing distances.
  *

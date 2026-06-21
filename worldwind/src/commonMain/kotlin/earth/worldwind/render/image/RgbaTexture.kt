@@ -13,7 +13,7 @@ import earth.worldwind.util.math.isPowerOfTwo
 /**
  * Texture backed by a tightly-packed, top-row-first RGBA8 byte array — the output of the
  * KTX2 / Basis-Universal transcoder (`KHR_texture_basisu`), which has no platform image
- * object to wrap. Mirrors [ImageTexture]'s vertical flip and mipmap policy so basisu textures
+ * object to wrap. Mirrors `ImageTexture`'s vertical flip and mipmap policy so basisu textures
  * line up with glTF UVs exactly like the JPEG/PNG path, and premultiplies alpha to match the
  * engine's premultiplied blend (`GL_ONE`, `GL_ONE_MINUS_SRC_ALPHA`).
  *

@@ -124,7 +124,7 @@ open class RenderContext {
      */
     var hasActiveSightline: Boolean = false
     /** Set by [earth.worldwind.layer.ogc3d.Ogc3dTilesLayer.doRender] when a mesh layer is
-     *  active this frame. Propagated to [DrawContext.hasGroundCoverageMask] via [Frame]. */
+     *  active this frame. Propagated to [DrawContext.hasGroundCoverageMask] via [earth.worldwind.frame.Frame]. */
     var hasGroundCoverageMask: Boolean = false
     /** Per-frame coverage sectors published by 3D-Tile mesh layers — terrain tiles outside
      *  every region skip the GROUND_COVERED_BIT stencil test so distant mountains still

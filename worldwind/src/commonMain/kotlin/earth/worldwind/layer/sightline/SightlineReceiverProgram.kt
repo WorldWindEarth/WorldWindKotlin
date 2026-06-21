@@ -12,7 +12,7 @@ import earth.worldwind.util.kgl.KglTexture
 
 /**
  * Contract for shader programs that splice in [SightlineReceiverGlsl]. Identity-keyed cache:
- * [DrawableSightline] allocates a fresh [SightlineState] every frame, so receivers compare
+ * [earth.worldwind.draw.DrawableSightline] allocates a fresh [SightlineState] every frame, so receivers compare
  * the new state instance against the last one they uploaded and skip the work when they match
  * (covers the within-frame "second program-bind sees the same state" case).
  */
