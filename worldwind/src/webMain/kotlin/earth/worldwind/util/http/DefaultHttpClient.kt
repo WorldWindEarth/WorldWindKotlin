@@ -15,5 +15,6 @@ actual fun DefaultHttpClient(
     install(HttpTimeout) {
         connectTimeoutMillis = connectTimeout
         requestTimeoutMillis = requestTimeout
+        socketTimeoutMillis = requestTimeout
     }
 }
