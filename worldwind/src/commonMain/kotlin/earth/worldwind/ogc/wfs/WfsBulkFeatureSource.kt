@@ -6,8 +6,12 @@ import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.CachedGeometry
 import earth.worldwind.layer.source.parseGeoJsonAsFeatureRows
 import earth.worldwind.ogc.WfsLayerFactory
+import earth.worldwind.util.Logger.WARN
+import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.HttpClientConfig
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.serialization.json.JsonObject
@@ -46,20 +50,44 @@ class WfsBulkFeatureSource(
 
     override suspend fun fetchAll(): Flow<CachedFeatureRow> {
         val rows = mutableListOf<CachedFeatureRow>()
-        WfsLayerFactory.createLayer(
-            serviceAddress = serviceAddress,
-            typeName = layerName,
-            serviceMetadata = serviceMetadata,
-            sector = sector,
-            maxFeatures = maxFeatures,
-            cqlFilter = cqlFilter,
-            pageSize = pageSize,
-            httpClient = clientDelegate.value,
-            // Keep the in-memory RenderableLayer build cheap — we only care about the raw bytes.
-            customLogicToApplyProperties = {},
-            onResponseBody = { body, isGml -> rows += decode(body, isGml) },
-        )
-        return rows.asFlow()
+        var attempt = 1
+        while (true) {
+            try {
+                // Rows accumulate via onResponseBody; clear before each (re)try so a retry after a
+                // mid-stream failure doesn't duplicate the pages that already arrived.
+                rows.clear()
+                WfsLayerFactory.createLayer(
+                    serviceAddress = serviceAddress,
+                    typeName = layerName,
+                    serviceMetadata = serviceMetadata,
+                    sector = sector,
+                    maxFeatures = maxFeatures,
+                    cqlFilter = cqlFilter,
+                    pageSize = pageSize,
+                    httpClient = clientDelegate.value,
+                    // Keep the in-memory RenderableLayer build cheap — we only care about the raw bytes.
+                    customLogicToApplyProperties = {},
+                    onResponseBody = { body, isGml -> rows += decode(body, isGml) },
+                )
+                return rows.asFlow()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: WfsServiceException) {
+                throw e // server-reported error (unknown type / bad request) — a retry won't help
+            } catch (e: Exception) {
+                // Transient network failures (read/connect timeout, mid-stream connection drop) are
+                // common with slow or overloaded WFS servers; retry the whole fetch a few times with
+                // linear backoff before surfacing the failure.
+                if (attempt >= MAX_FETCH_ATTEMPTS) throw e
+                logMessage(
+                    WARN, "WfsBulkFeatureSource", "fetchAll",
+                    "Transient WFS fetch failure (attempt $attempt/$MAX_FETCH_ATTEMPTS), retrying: " +
+                            "${e::class.simpleName}: ${e.message}",
+                )
+                delay(RETRY_BACKOFF_MS * attempt)
+                attempt++
+            }
+        }
     }
 
     override fun close() {
@@ -98,5 +126,11 @@ class WfsBulkFeatureSource(
     companion object {
         /** Cache service-identity tag for WFS-backed feature layers. */
         const val SERVICE_TYPE = "WFS"
+
+        /** Total GetFeature attempts before a transient network failure is surfaced. */
+        private const val MAX_FETCH_ATTEMPTS = 3
+
+        /** Linear backoff base between retries (multiplied by the attempt number). */
+        private const val RETRY_BACKOFF_MS = 1500L
     }
 }
