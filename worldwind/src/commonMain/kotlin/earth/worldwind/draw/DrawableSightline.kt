@@ -154,11 +154,6 @@ open class DrawableSightline protected constructor() : Drawable {
     }
 
     override fun recycle() {
-        visibleColor.set(0f, 0f, 0f, 0f)
-        occludedColor.set(0f, 0f, 0f, 0f)
-        directionalFillPasses = 0
-        momentsBlurTexelSpacing = 2f
-        renderMode = RenderMode.DEPTH_AND_OVERLAY
         program = null
         programCube = null
         momentsProgram = null

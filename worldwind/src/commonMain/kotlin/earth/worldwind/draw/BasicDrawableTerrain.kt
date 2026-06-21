@@ -50,7 +50,8 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
         vertexHeights = null
         vertexTexCoords = null
         elements = null
-        boundingSphereRadius = 0.0
+        // Reset of the lazy memo (paired with [intersectsGroundCoverageComputed]) — not defensive;
+        // without it the next tile inherits the prior tile's coverage answer.
         intersectsGroundCoverage = false
         intersectsGroundCoverageComputed = false
         pool?.release(this)

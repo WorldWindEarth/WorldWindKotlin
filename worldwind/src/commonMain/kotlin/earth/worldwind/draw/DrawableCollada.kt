@@ -69,9 +69,6 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         vertexBuffer = null
         indexBuffer = null
         entities.clear()
-        boundingCenter.set(0.0, 0.0, 0.0)
-        boundingRadius = 0.0
-        shadowMode = ShadowMode.ENABLED
     }
 
     override fun draw(dc: DrawContext) {

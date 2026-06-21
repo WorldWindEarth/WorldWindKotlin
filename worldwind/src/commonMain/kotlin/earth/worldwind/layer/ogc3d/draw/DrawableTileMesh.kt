@@ -137,14 +137,6 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         submeshVertexBuffers.fill(null)
         submeshElementBuffers.fill(null)
         submeshBatchIdBuffers.fill(null)
-        tileToWorld.setToIdentity()
-        worldBoundingCenter.set(0.0, 0.0, 0.0)
-        worldBoundingRadius = 0.0
-        shadowMode = ShadowMode.ENABLED
-        pickColor.set(0f, 0f, 0f, 1f)
-        pickIdBase = 0
-        isFallback = false
-        stencilId = 0
         pool?.release(this)
         pool = null
     }

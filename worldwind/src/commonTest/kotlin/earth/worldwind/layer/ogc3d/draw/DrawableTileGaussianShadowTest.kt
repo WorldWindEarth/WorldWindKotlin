@@ -38,14 +38,16 @@ class DrawableTileGaussianShadowTest {
         assertEquals(0.0, drawable.shadowCasterRadius)
     }
 
-    @Test fun recycleClearsBounds() {
+    @Test fun recycleDoesNotResetPrimitiveState() {
+        // The engine deliberately does not reset primitives on recycle (perf): the enqueue path
+        // sets them fresh each use, so a re-obtained instance still carries the prior bounds.
         val drawable = DrawableTileGaussian.obtain(pool)
         drawable.shadowMode = ShadowMode.ENABLED
         drawable.setWorldBounds(Vec3(10.0, 20.0, 30.0), 5.0)
         drawable.recycle()
         val again = DrawableTileGaussian.obtain(pool)
-        assertNull(again.shadowCasterCenter)
-        assertEquals(0.0, again.shadowCasterRadius)
-        assertEquals(1f, again.splatSizeMultiplier)
+        val center = assertNotNull(again.shadowCasterCenter)
+        assertEquals(10.0, center.x)
+        assertEquals(5.0, again.shadowCasterRadius)
     }
 }

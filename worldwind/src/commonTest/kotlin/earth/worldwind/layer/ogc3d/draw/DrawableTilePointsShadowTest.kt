@@ -53,14 +53,16 @@ class DrawableTilePointsShadowTest {
         assertEquals(0.0, drawable.shadowCasterRadius)
     }
 
-    @Test fun recycleClearsBounds() {
+    @Test fun recycleDoesNotResetPrimitiveState() {
         val drawable = DrawableTilePoints.obtain(pool)
         drawable.shadowMode = ShadowMode.ENABLED
         drawable.setWorldBounds(Vec3(100.0, 200.0, 300.0), 50.0)
         drawable.recycle()
-        // Recycled instance returns to pool — re-obtaining gives back the same object with cleared state.
+        // The engine deliberately does not reset primitives on recycle (perf): the enqueue path sets
+        // them fresh each use, so the re-obtained instance still carries the prior bounds.
         val again = DrawableTilePoints.obtain(pool)
-        assertNull(again.shadowCasterCenter)
-        assertEquals(0.0, again.shadowCasterRadius)
+        val center = assertNotNull(again.shadowCasterCenter)
+        assertEquals(100.0, center.x)
+        assertEquals(50.0, again.shadowCasterRadius)
     }
 }

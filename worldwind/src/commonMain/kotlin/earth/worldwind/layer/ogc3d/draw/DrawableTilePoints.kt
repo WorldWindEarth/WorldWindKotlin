@@ -97,15 +97,6 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
         content = null
         vertexBuffer = null
         program = null
-        tileToWorld.setToIdentity()
-        worldBoundingCenter.set(0.0, 0.0, 0.0)
-        worldBoundingRadius = 0.0
-        shadowMode = ShadowMode.ENABLED
-        basePointSize = 1f
-        focalLengthPixels = 1f
-        pickColor.set(0f, 0f, 0f, 1f)
-        isFallback = false
-        stencilId = 0
         pool?.release(this)
         pool = null
     }

@@ -81,13 +81,6 @@ open class DrawableProjectedSurface protected constructor() : Drawable {
     override fun recycle() {
         program = null
         texture = null
-        imageProjection.setToIdentity()
-        texCoordMatrix.setToIdentity()
-        color.set(1f, 1f, 1f, 1f)
-        opacity = 1f
-        fadeMargin = 0f
-        offset = Globe.Offset.Center
-        sector.setEmpty()
         pool?.release(this)
         pool = null
     }

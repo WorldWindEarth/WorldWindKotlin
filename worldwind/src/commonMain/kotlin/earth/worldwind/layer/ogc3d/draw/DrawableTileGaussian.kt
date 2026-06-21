@@ -110,14 +110,6 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
         attribs = null
         sortIndices = null
         program = null
-        tileToWorld.setToIdentity()
-        worldBoundingCenter.set(0.0, 0.0, 0.0)
-        worldBoundingRadius = 0.0
-        shadowMode = ShadowMode.ENABLED
-        focalLengthPixels = 1f
-        splatSizeMultiplier = 1f
-        minAlpha = 0.01f
-        pickColor.set(0f, 0f, 0f, 1f)
         pool?.release(this)
         pool = null
     }
