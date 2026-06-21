@@ -133,6 +133,14 @@ expect fun insertCachedFeatures(
 expect fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String)
 
 /**
+ * Fully delete a features [tableName]: the user table together with its gpkg_geometry_columns row,
+ * gpkg_extensions rows and the NGA geometry-index tables (nga_geometry_index / nga_table_index).
+ * Delegates to NGA's GeoPackage.deleteTable — the tile-oriented [GeoPackage.deleteEntry] metadata
+ * cleanup does not cover feature content, so it must not be used to drop a features table.
+ */
+expect fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String)
+
+/**
  * Create the standard GeoPackage RTree spatial index (`gpkg_rtree_index` extension) on
  * [tableName]'s geometry column, so the features table is spatially queryable — by any external GIS
  * and by WorldWind's bounding-box reads. NGA wires the virtual table + sync triggers + the
@@ -596,20 +604,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         featureCoverageDao.createOrUpdate(row)
     }
 
-    /** Refresh only [GpkgFeatureCoverage.validatedAt] for the tile region `(z, x, y)` — the 304
-     *  path. Read-modify-write preserves the validators / [GpkgFeatureCoverage.isEmpty]. No-op when
-     *  the region has no coverage row yet. */
-    @Throws(IllegalStateException::class)
-    suspend fun bumpFeatureValidatedAt(
-        content: GpkgContent, z: Int, x: Int, y: Int, validatedAt: Long,
-    ) = withContext(writeDispatcher) {
-        if (isReadOnly) error("Feature coverage cannot be updated. GeoPackage is read-only!")
-        if (!featureCoverageDao.isTableExists) return@withContext
-        val row = queryFeatureCoverage(content.tableName, z, x, y) ?: return@withContext
-        row.validatedAt = validatedAt
-        featureCoverageDao.update(row)
-    }
-
     /** Drop every coverage row tied to [content]. Called when the content table is cleared. */
     @Throws(IllegalStateException::class)
     suspend fun clearFeatureCoverage(content: GpkgContent): Unit = withContext(writeDispatcher) {
@@ -985,25 +979,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content
     }
 
-    /** Refresh the [GpkgContent] identifier + bbox for a coverage table, mirroring the
-     *  round-trip safety of [updateTilesContent]. */
-    suspend fun updateGriddedCoverageContent(
-        tableName: String, sector: Sector, displayName: String?, content: GpkgContent,
-    ) = withContext(writeDispatcher) {
-        // Reopen of a read-only GeoPackage is pure-read; never attempt the metadata write.
-        if (isReadOnly) return@withContext
-        val srs = srsDao.queryForId(EPSG_4326)
-        val box = buildBoundingBox(sector, srs.id)
-        with(content) {
-            identifier = displayName ?: tableName
-            minX = box.minLongitude
-            minY = box.minLatitude
-            maxX = box.maxLongitude
-            maxY = box.maxLatitude
-        }
-        contentDao.update(content)
-    }
-
     @Throws(IllegalStateException::class)
     suspend fun setupTileMatrices(content: GpkgContent, tileMatrixSet: TileMatrixSet): Unit = withContext(writeDispatcher) {
         if (isReadOnly) error("Content ${content.tableName} cannot be updated. GeoPackage is read-only!")
@@ -1114,9 +1089,49 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         // No transaction wrap — see [setupTilesContent]. Migration ran in setupFeaturesContent;
         // the feature-row actuals probe getColumnIndex per call to skip last_modified when absent.
         truncateFeatureTable(geoPackage, content.tableName)
-        if (rows.isNotEmpty()) insertCachedFeatures(geoPackage, content.tableName, rows)
+        if (rows.isNotEmpty()) {
+            insertCachedFeatures(geoPackage, content.tableName, rows)
+            applyFeatureExtent(content, rows)
+        }
         content.lastChange = Date()
         contentDao.update(content)
+    }
+
+    /**
+     * Narrow [content]'s `gpkg_contents` bbox to the actual extent of [rows]. [setupFeaturesContent]
+     * seeds the bbox with world bounds (-180/-90..180/90); without this a feature layer always
+     * reports a full-globe sector. Geometries are stored in EPSG:4326 (the features-table SRS), so
+     * envelope X/Y map straight to lon/lat.
+     *
+     * Cost is a single in-memory pass over the already-loaded geometry envelopes — O(total
+     * vertices), negligible beside the network fetch + row insert, and never repeated per render
+     * (the sector is read back from this one `gpkg_contents` row at load time).
+     */
+    private fun applyFeatureExtent(content: GpkgContent, rows: List<Pair<Geometry, String?>>) {
+        var minX = Double.POSITIVE_INFINITY
+        var minY = Double.POSITIVE_INFINITY
+        var maxX = Double.NEGATIVE_INFINITY
+        var maxY = Double.NEGATIVE_INFINITY
+        var found = false
+        for ((geom, _) in rows) {
+            val env = runCatching { geom.envelope }.getOrNull() ?: continue
+            val eMinX = env.minX
+            val eMinY = env.minY
+            val eMaxX = env.maxX
+            val eMaxY = env.maxY
+            if (!eMinX.isFinite() || !eMinY.isFinite() || !eMaxX.isFinite() || !eMaxY.isFinite()) continue
+            if (eMinX < minX) minX = eMinX
+            if (eMinY < minY) minY = eMinY
+            if (eMaxX > maxX) maxX = eMaxX
+            if (eMaxY > maxY) maxY = eMaxY
+            found = true
+        }
+        if (!found) return
+        // Clamp to valid WGS84 ranges so a stray/garbage coordinate can't blow the sector up.
+        content.minX = minX.coerceIn(-180.0, 180.0)
+        content.minY = minY.coerceIn(-90.0, 90.0)
+        content.maxX = maxX.coerceIn(-180.0, 180.0)
+        content.maxY = maxY.coerceIn(-90.0, 90.0)
     }
 
     /** Read back features previously cached via [replaceCachedFeatures]. */
@@ -1254,6 +1269,21 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
+        if (content.dataTypeName.equals(FEATURES, ignoreCase = true)) {
+            // Features: empty the rows but keep the table and its gpkg_geometry_columns / index so
+            // the content stays a valid, re-fetchable features layer. The tile path below would drop
+            // the table and recreate it with a TILE schema, orphaning the feature metadata.
+            truncateFeatureTable(geoPackage, tableName)
+            clearFeatureCoverage(content)
+            return@withContext
+        }
+
+        if (content.dataTypeName.equals(OGC_3D_TILES, ignoreCase = true)) {
+            geoPackage.database.execSQL("DROP TABLE IF EXISTS '$tableName'")
+            create3DTilesUserDataTable(tableName)
+            return@withContext
+        }
+
         // Remove all tiles in specified content table and gridded tile data but keep the
         // table itself. Content row metadata (bbox, identifier, service config) stays —
         // clearing tiles isn't deletion; the content still exists with the same data
@@ -1279,6 +1309,21 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         if (!contentDao.isTableExists) return@withContext
         val content = contentDao.queryForId(tableName) ?: return@withContext
 
+        // WorldWind sidecar metadata NGA doesn't manage — clean for every data type.
+        if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
+        clearTileRevalidation(content)
+        clearFeatureCoverage(content)
+
+        if (content.dataTypeName.equals(FEATURES, ignoreCase = true)) {
+            // Features: NGA's deleteTable drops the user table together with its gpkg_geometry_columns
+            // row, gpkg_extensions rows, the nga_* geometry index and the gpkg_contents row. The tile
+            // path below only drops the user table + tile metadata, leaving geometry_columns / index
+            // orphaned — and gpkg_geometry_columns' PK on table_name then breaks re-creating the same
+            // features table.
+            deleteFeatureTable(geoPackage, tableName)
+            return@withContext
+        }
+
         // No transaction wrap — see [setupTilesContent].
         if (griddedTileDao.isTableExists) griddedTileDao.deleteBuilder().apply {
             where().eq(GpkgGriddedTile.COLUMN_TABLE_NAME, tableName)
@@ -1301,10 +1346,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             where().eq(GpkgExtension.COLUMN_TABLE_NAME, tableName)
         }.delete()
 
-        if (webServiceDao.isTableExists) webServiceDao.deleteById(tableName)
-
-        clearTileRevalidation(content)
-        clearFeatureCoverage(content)
         contentDao.delete(content)
     }
 
@@ -1316,8 +1357,6 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val srsId = content.srs?.id ?: return null
         return buildSector(minX, minY, maxX, maxY, srsId)
     }
-
-    fun getTileMatrix(content: GpkgContent, zoomLevel: Int) = tileMatrixCache[content.tableName]?.get(zoomLevel)
 
     protected open fun createWebServiceTable() {
         if (!webServiceDao.isTableExists) TableUtils.createTable(webServiceDao)

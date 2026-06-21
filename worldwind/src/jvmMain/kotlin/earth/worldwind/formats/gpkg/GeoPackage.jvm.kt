@@ -147,6 +147,10 @@ actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
     (geoPackage as GeoPackage).getFeatureDao(tableName).deleteAll()
 }
 
+actual fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
+    (geoPackage as GeoPackage).deleteTable(tableName)
+}
+
 actual fun createFeatureSpatialIndex(geoPackage: GeoPackageCore, tableName: String) {
     val gpkg = geoPackage as GeoPackage
     val featureDao = gpkg.getFeatureDao(tableName)
