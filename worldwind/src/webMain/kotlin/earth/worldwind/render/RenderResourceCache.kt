@@ -44,6 +44,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.js.JsAny
 import kotlin.js.unsafeCast
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 actual open class RenderResourceCache(
     capacity: Long = recommendedCapacity(), lowWater: Long = (capacity * 0.75).toLong()
@@ -65,9 +66,11 @@ actual open class RenderResourceCache(
      */
     actual val absentResourceList = AbsentResourceList<Int>(3, 60.seconds)
     protected val lanes = RetrievalLanes<ImageSource>()
+    protected val evictionQueue = ArrayDeque<RenderResource>()
 
     override fun clear() {
         super.clear()
+        evictionQueue.clear()
         lanes.clear()
         absentResourceList.clear()
         age = 0
@@ -75,8 +78,21 @@ actual open class RenderResourceCache(
 
     actual fun incAge() { ++age }
 
+    override fun entryRemoved(key: Any, oldValue: RenderResource, newValue: RenderResource?, evicted: Boolean) {
+        evictionQueue.addLast(oldValue)
+    }
+
     actual fun releaseEvictedResources(dc: DrawContext) {
-        // TODO Implement evicted resources management
+        val budgetMark = TimeSource.Monotonic.markNow()
+        while (budgetMark.elapsedNow() < MAX_EVICTION_TIME_PER_FRAME && evictionQueue.isNotEmpty()) {
+            val evicted = evictionQueue.removeFirst()
+            try {
+                evicted.release(dc)
+                if (isLoggable(DEBUG)) log(DEBUG, "Released render resource '$evicted'")
+            } catch (e: Exception) {
+                if (isLoggable(ERROR)) log(ERROR, "Exception releasing render resource '$evicted'", e)
+            }
+        }
     }
 
     actual fun retrieveTexture(imageSource: ImageSource, options: ImageOptions?): Texture? {

@@ -33,6 +33,7 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
 import javax.microedition.khronos.egl.EGLDisplay
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 actual open class RenderResourceCache @JvmOverloads constructor(
     val context: Context, capacity: Long = recommendedCapacity(context), lowWater: Long = (capacity * 0.75).toLong()
@@ -105,7 +106,8 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     actual fun incAge() { ++age }
 
     actual fun releaseEvictedResources(dc: DrawContext) {
-        while (true) {
+        val budgetMark = TimeSource.Monotonic.markNow()
+        while (budgetMark.elapsedNow() < MAX_EVICTION_TIME_PER_FRAME) {
             val evicted = evictionQueue.poll() ?: break
             try {
                 evicted.release(dc)

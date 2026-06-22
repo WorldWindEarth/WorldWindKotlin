@@ -28,6 +28,7 @@ import java.awt.image.BufferedImage
 import java.io.FileNotFoundException
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 actual open class RenderResourceCache @JvmOverloads constructor(
     capacity: Long = recommendedCapacity(),
@@ -73,7 +74,8 @@ actual open class RenderResourceCache @JvmOverloads constructor(
     }
 
     actual fun releaseEvictedResources(dc: DrawContext) {
-        while (true) {
+        val budgetMark = TimeSource.Monotonic.markNow()
+        while (budgetMark.elapsedNow() < MAX_EVICTION_TIME_PER_FRAME) {
             val evicted = evictionQueue.poll() ?: break
             try {
                 evicted.release(dc)

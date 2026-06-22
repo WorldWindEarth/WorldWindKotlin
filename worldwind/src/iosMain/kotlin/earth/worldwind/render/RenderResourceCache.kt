@@ -32,6 +32,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import earth.worldwind.render.image.ImageData
 import platform.UIKit.UIImage
 
@@ -80,7 +81,8 @@ actual open class RenderResourceCache(
     }
 
     actual fun releaseEvictedResources(dc: DrawContext) {
-        while (evictionQueue.isNotEmpty()) {
+        val budgetMark = TimeSource.Monotonic.markNow()
+        while (budgetMark.elapsedNow() < MAX_EVICTION_TIME_PER_FRAME && evictionQueue.isNotEmpty()) {
             val evicted = evictionQueue.removeFirst()
             try {
                 evicted.release(dc)
