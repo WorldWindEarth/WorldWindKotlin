@@ -33,10 +33,9 @@ open class BitmapTexture(
                 // Specify the OpenGL texture 2D object's base image data (level 0).
                 GLUtils.texImage2D(GL_TEXTURE_2D, 0 /*level*/, bitmap, 0 /*border*/)
 
-                // Generate mipmaps when the runtime supports them: always for POT dimensions,
-                // additionally for NPOT on GLES3+ (proxied by supportsSizedTextureFormats).
-                // GLES2 forbids mipmaps on NPOT and would leave the texture incomplete.
-                if ((isPowerOfTwo(bitmap.width) && isPowerOfTwo(bitmap.height)) || dc.gl.supportsSizedTextureFormats) {
+                // Generate mipmaps when the runtime supports them. Skip entirely when the caller opted out.
+                if (generateMipmaps &&
+                    (isPowerOfTwo(bitmap.width) && isPowerOfTwo(bitmap.height) || dc.gl.supportsSizedTextureFormats)) {
                     dc.gl.generateMipmap(GL_TEXTURE_2D)
                     hasMipMap = true
                 }

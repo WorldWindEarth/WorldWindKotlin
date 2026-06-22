@@ -39,11 +39,9 @@ open class ImageTexture(image: BufferedImage) : Texture(image.width, image.heigh
             dc.gl.texImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, format, type, pixels)
             dc.gl.pixelStorei(GL_UNPACK_ALIGNMENT, 0)
 
-            // Generate mipmaps when the runtime supports them: always for POT dimensions (every
-            // GL profile), additionally for NPOT on GLES3+/WebGL2/desktop GL (proxied by
-            // supportsSizedTextureFormats). Skipping on GLES2/WebGL1 NPOT avoids the spec's
-            // incomplete-texture trap.
-            if ((isPowerOfTwo(width) && isPowerOfTwo(height)) || dc.gl.supportsSizedTextureFormats) {
+            // Generate mipmaps when the runtime supports them. Skip entirely when the caller opted out.
+            if (generateMipmaps &&
+                (isPowerOfTwo(width) && isPowerOfTwo(height) || dc.gl.supportsSizedTextureFormats)) {
                 dc.gl.generateMipmap(GL_TEXTURE_2D)
                 hasMipMap = true
             }

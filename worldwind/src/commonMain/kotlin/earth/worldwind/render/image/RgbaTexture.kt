@@ -40,8 +40,9 @@ open class RgbaTexture(rgba: ByteArray, width: Int, height: Int) : Texture(width
             dc.gl.texImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, pixels)
             dc.gl.pixelStorei(GL_UNPACK_ALIGNMENT, 0)
 
-            // POT always; NPOT only on GLES3+/WebGL2/desktop GL (else incomplete on GLES2/WebGL1).
-            if ((isPowerOfTwo(width) && isPowerOfTwo(height)) || dc.gl.supportsSizedTextureFormats) {
+            // Generate mipmaps when the runtime supports them. Skip entirely when the caller opted out.
+            if (generateMipmaps &&
+                (isPowerOfTwo(width) && isPowerOfTwo(height) || dc.gl.supportsSizedTextureFormats)) {
                 dc.gl.generateMipmap(GL_TEXTURE_2D)
                 hasMipMap = true
             }

@@ -40,8 +40,9 @@ open class ImageTexture(image: ImageData) : Texture(image.width, image.height, G
             dc.gl.texImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, pixels)
             dc.gl.pixelStorei(GL_UNPACK_ALIGNMENT, 4)
 
-            // Generate mipmaps on POT or sized-format-capable runtimes (iOS GLES3 always is).
-            if ((isPowerOfTwo(width) && isPowerOfTwo(height)) || dc.gl.supportsSizedTextureFormats) {
+            // Generate mipmaps when the runtime supports them. Skip entirely when the caller opted out.
+            if (generateMipmaps &&
+                (isPowerOfTwo(width) && isPowerOfTwo(height) || dc.gl.supportsSizedTextureFormats)) {
                 dc.gl.generateMipmap(GL_TEXTURE_2D)
                 hasMipMap = true
             }

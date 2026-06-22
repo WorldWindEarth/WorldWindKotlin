@@ -94,7 +94,7 @@ internal suspend fun prepareMeshPrep(
                 // JPEG / PNG: decode the encoded bytes via the platform image loader.
                 img.bytes.isNotEmpty() -> runCatching { decodeTileTexture(img.bytes) }.getOrNull()
                 else -> null
-            }
+            }?.also { it.generateMipmaps = false }
         }
 
         // Per-feature picking requires uniform batch id per primitive — GLES2 has no `flat`

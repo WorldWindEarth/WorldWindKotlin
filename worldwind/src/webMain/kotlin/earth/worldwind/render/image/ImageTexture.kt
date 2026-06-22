@@ -38,11 +38,9 @@ open class ImageTexture(image: TexImageSource, width: Int, height: Int) : Textur
             (dc.gl as WebKgl).texImage2D(GL_TEXTURE_2D, 0, format, format, type, image)
             dc.gl.pixelStorei(UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0)
 
-            // Generate mipmaps when the runtime supports them: always for POT dimensions,
-            // additionally for NPOT on WebGL2 (proxied by supportsSizedTextureFormats).
-            // WebGL1 forbids mipmaps on NPOT textures and would leave the texture
-            // incomplete - so skip there.
-            if ((isPowerOfTwo(width) && isPowerOfTwo(height)) || dc.gl.supportsSizedTextureFormats) {
+            // Generate mipmaps when the runtime supports them. Skip entirely when the caller opted out.
+            if (generateMipmaps &&
+                (isPowerOfTwo(width) && isPowerOfTwo(height) || dc.gl.supportsSizedTextureFormats)) {
                 dc.gl.generateMipmap(GL_TEXTURE_2D)
                 hasMipMap = true
             }

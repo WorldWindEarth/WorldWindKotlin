@@ -77,6 +77,8 @@ open class Texture(
     protected var name = KglTexture.NONE
     protected var parameters: MutableMap<Int, Int>? = null
     protected open val hasMipMap = false
+    /** Caller opt-out for mipmap generation. */
+    var generateMipmaps = true
     private var pickMode = false
 
     fun getTexParameter(name: Int) = parameters?.get(name) ?: 0
