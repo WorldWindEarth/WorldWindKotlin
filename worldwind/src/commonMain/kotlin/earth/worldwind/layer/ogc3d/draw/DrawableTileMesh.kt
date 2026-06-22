@@ -19,6 +19,7 @@ import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
+import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_FLOAT
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import earth.worldwind.util.kgl.GL_TRIANGLES
@@ -59,16 +60,8 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
     var submeshTextures: Array<Texture?> = EMPTY_TEXTURE_ARRAY
         private set
 
-    /** Resolved at enqueue; null entries → submesh draw skipped. */
-    var submeshVertexBuffers: Array<BufferObject?> = EMPTY_BUFFER_ARRAY
-        private set
-
-    /** Null entries for non-indexed primitives or after eviction. */
-    var submeshElementBuffers: Array<BufferObject?> = EMPTY_BUFFER_ARRAY
-        private set
-
-    /** Null entries when the primitive has no `_BATCHID` — submesh falls back to tile-level pick. */
-    var submeshBatchIdBuffers: Array<BufferObject?> = EMPTY_BUFFER_ARRAY
+    /** Combined VBO+EBO+batchIds buffer per submesh. Null entry → submesh draw skipped. */
+    var submeshBuffers: Array<BufferObject?> = EMPTY_BUFFER_ARRAY
         private set
 
     /** Pick color for tile-level pick mode. Batch-level pick uses [pickIdBase] instead. */
@@ -101,23 +94,19 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         }
     }
 
-    /** Resize the four submesh arrays to hold at least [n] entries and null-clear the
-     *  active range. Grows by power-of-two so consecutive enqueues of the same drawable
-     *  for similar tile shapes avoid re-allocation entirely. */
+    /** Resize the submesh arrays to hold at least [n] entries and null-clear the active
+     *  range. Grows by power-of-two so consecutive enqueues for similar tile shapes avoid
+     *  re-allocation. */
     fun ensureSubmeshArrays(n: Int) {
         if (submeshTextures.size < n) {
             val cap = n.coerceAtLeast(8)
             submeshTextures = arrayOfNulls(cap)
-            submeshVertexBuffers = arrayOfNulls(cap)
-            submeshElementBuffers = arrayOfNulls(cap)
-            submeshBatchIdBuffers = arrayOfNulls(cap)
+            submeshBuffers = arrayOfNulls(cap)
             return
         }
         for (i in 0 until n) {
             submeshTextures[i] = null
-            submeshVertexBuffers[i] = null
-            submeshElementBuffers[i] = null
-            submeshBatchIdBuffers[i] = null
+            submeshBuffers[i] = null
         }
     }
 
@@ -130,13 +119,11 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
     override fun recycle() {
         content = null
         program = null
-        // Drop references but keep the array buffers — next obtain() reuses them via
+        // Drop references but keep the array storage — next obtain() reuses them via
         // ensureSubmeshArrays. Without this, drawables in the pool pin textures/buffers
         // alive and block RR-cache eviction.
         submeshTextures.fill(null)
-        submeshVertexBuffers.fill(null)
-        submeshElementBuffers.fill(null)
-        submeshBatchIdBuffers.fill(null)
+        submeshBuffers.fill(null)
         pool?.release(this)
         pool = null
     }
@@ -168,16 +155,18 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         try {
             dc.activeTextureUnit(GL_TEXTURE0)
             val textures = submeshTextures
-            val vertexBuffers = submeshVertexBuffers
-            val elementBuffers = submeshElementBuffers
-            val batchIdBuffers = submeshBatchIdBuffers
-            for ((idx, submesh) in submeshes.withIndex()) {
+            val buffers = submeshBuffers
+            val texCount = textures.size
+            val bufCount = buffers.size
+            val n = submeshes.size
+            // Indexed for-loop instead of withIndex() — withIndex() allocates an
+            // IndexedValue per submesh, which at globe scale (hundreds of tiles) shows
+            // up as 250+ ArrayList.iterator samples per second in the trace.
+            for (idx in 0 until n) {
                 drawSubmesh(
-                    dc, program, submesh,
-                    vertexBuffer = vertexBuffers.getOrNull(idx),
-                    elementBuffer = elementBuffers.getOrNull(idx),
-                    texture = textures.getOrNull(idx),
-                    batchIdBuffer = batchIdBuffers.getOrNull(idx),
+                    dc, program, submeshes[idx],
+                    buffer = if (idx < bufCount) buffers[idx] else null,
+                    texture = if (idx < texCount) textures[idx] else null,
                 )
             }
         } finally {
@@ -193,13 +182,13 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         dc: DrawContext,
         program: Ogc3dTilesProgram,
         submesh: MeshSubmesh,
-        vertexBuffer: BufferObject?,
-        elementBuffer: BufferObject?,
+        buffer: BufferObject?,
         texture: Texture?,
-        batchIdBuffer: BufferObject?,
     ) {
-        if (vertexBuffer?.bindBuffer(dc) != true) return
-        elementBuffer?.bindBuffer(dc)
+        // Bind once to GL_ARRAY_BUFFER for vertex attribs + batchIds (all share the combined
+        // buffer's storage). Element binding to GL_ELEMENT_ARRAY_BUFFER happens below only
+        // if the submesh is indexed.
+        if (buffer?.bindBuffer(dc) != true) return
 
         submeshModelMatrix.copy(tileToWorld).multiplyByMatrix(submesh.worldMatrix)
         program.loadModelMatrix(submeshModelMatrix)
@@ -242,16 +231,19 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         } else {
             dc.gl.disableVertexAttribArray(3)
         }
-        if (batchIdBuffer?.bindBuffer(dc) == true) {
+        if (submesh.batchIdOffset >= 0) {
             dc.gl.enableVertexAttribArray(4)
-            dc.gl.vertexAttribPointer(4, 1, GL_UNSIGNED_SHORT, false, 0, 0)
+            dc.gl.vertexAttribPointer(4, 1, GL_UNSIGNED_SHORT, false, 0, submesh.batchIdOffset)
         } else {
             dc.gl.disableVertexAttribArray(4)
         }
 
-        if (elementBuffer != null) {
+        // Element buffer shares storage with the vertex buffer — bind same id to a
+        // different target. drawArrays branch when the primitive has no indices.
+        if (submesh.elementCount > 0) {
+            buffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)
             val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
-            dc.gl.drawElements(submesh.mode, submesh.elementCount, type, 0)
+            dc.gl.drawElements(submesh.mode, submesh.elementCount, type, submesh.elementOffset)
         } else {
             dc.gl.drawArrays(submesh.mode, 0, submesh.vertexCount)
         }
@@ -264,22 +256,23 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         if (!shadowMode.castsShadows) return
         val content = this.content ?: return
         val submeshes = content.submeshes ?: return
-        val vertexBuffers = submeshVertexBuffers
-        val elementBuffers = submeshElementBuffers
-        for ((idx, submesh) in submeshes.withIndex()) {
+        val buffers = submeshBuffers
+        val bufCount = buffers.size
+        val n = submeshes.size
+        for (idx in 0 until n) {
+            val submesh = submeshes[idx]
             val mode = submesh.mode
             if (mode != GL_TRIANGLES && mode != GL_TRIANGLE_STRIP && mode != GL_TRIANGLE_FAN) continue
-            val vbo = vertexBuffers.getOrNull(idx) ?: continue
-            if (!vbo.bindBuffer(dc)) continue
-            val ebo = elementBuffers.getOrNull(idx)
-            ebo?.bindBuffer(dc)
+            val buffer = (if (idx < bufCount) buffers[idx] else null) ?: continue
+            if (!buffer.bindBuffer(dc)) continue
             submeshModelMatrix.copy(tileToWorld).multiplyByMatrix(submesh.worldMatrix)
             shadow.loadCasterMatrix(submeshModelMatrix)
             dc.gl.enableVertexAttribArray(0)
             dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
-            if (ebo != null) {
+            if (submesh.elementCount > 0) {
+                buffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)
                 val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
-                dc.gl.drawElements(mode, submesh.elementCount, type, 0)
+                dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
             } else {
                 dc.gl.drawArrays(mode, 0, submesh.vertexCount)
             }
@@ -291,22 +284,23 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         if (!shadowMode.castsShadows) return
         val content = this.content ?: return
         val submeshes = content.submeshes ?: return
-        val vertexBuffers = submeshVertexBuffers
-        val elementBuffers = submeshElementBuffers
-        for ((idx, submesh) in submeshes.withIndex()) {
+        val buffers = submeshBuffers
+        val bufCount = buffers.size
+        val n = submeshes.size
+        for (idx in 0 until n) {
+            val submesh = submeshes[idx]
             val mode = submesh.mode
             if (mode != GL_TRIANGLES && mode != GL_TRIANGLE_STRIP && mode != GL_TRIANGLE_FAN) continue
-            val vbo = vertexBuffers.getOrNull(idx) ?: continue
-            if (!vbo.bindBuffer(dc)) continue
-            val ebo = elementBuffers.getOrNull(idx)
-            ebo?.bindBuffer(dc)
+            val buffer = (if (idx < bufCount) buffers[idx] else null) ?: continue
+            if (!buffer.bindBuffer(dc)) continue
             submeshModelMatrix.copy(tileToWorld).multiplyByMatrix(submesh.worldMatrix)
             sightline.loadOccluderMatrix(submeshModelMatrix)
             dc.gl.enableVertexAttribArray(0)
             dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
-            if (ebo != null) {
+            if (submesh.elementCount > 0) {
+                buffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)
                 val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
-                dc.gl.drawElements(mode, submesh.elementCount, type, 0)
+                dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
             } else {
                 dc.gl.drawArrays(mode, 0, submesh.vertexCount)
             }

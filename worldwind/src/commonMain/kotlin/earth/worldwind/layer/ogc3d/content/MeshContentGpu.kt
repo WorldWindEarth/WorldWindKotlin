@@ -7,9 +7,10 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.RgbaTexture
+import earth.worldwind.util.ByteArrayPool
+import earth.worldwind.util.FloatArrayPool
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
-import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import kotlin.math.sqrt
 
 /** Off-thread mesh prep: interleave attributes, copy indices, decode textures, compute the
@@ -39,7 +40,9 @@ internal suspend fun prepareMeshPrep(
         val components = 3 + (if (normals != null) 3 else 0) +
             (if (texCoords != null) 2 else 0) + colorComponents
         val vertexStride = components * 4
-        val interleaved = FloatArray(vertexCount * components)
+        // Pool-borrowed; released right after pack so the float scratch never enters LOS.
+        val interleavedFloatCount = vertexCount * components
+        val interleaved = FloatArrayPool.acquire(interleavedFloatCount)
 
         // Fused interleave + bounding-sphere walk; samples every Nth vertex for the radius.
         val sphereStride = ((vertexCount + SPHERE_SAMPLE_TARGET - 1) / SPHERE_SAMPLE_TARGET).coerceAtLeast(1)
@@ -106,13 +109,32 @@ internal suspend fun prepareMeshPrep(
             for (i in 1 until ids.size) if (ids[i] != first) { uniform = false; break }
             if (uniform) ids else null
         }
+        // Pack vertices + indices + batchIds into a single contiguous ByteArray in native
+        // (ARM little-endian) layout. One BufferObject per primitive instead of three →
+        // one driver `mmap64` instead of three at upload time. Texture stays separate.
+        val vertexBytes = interleavedFloatCount * 4
+        val indexBytes = primitive.indicesShort?.let { it.size * 2 }
+            ?: primitive.indicesInt?.let { it.size * 4 } ?: 0
+        val batchIdBytes = batchIds?.let { it.size * 2 } ?: 0
+        // Borrow from ByteArrayPool — released back in [uploadMeshContent] after GL upload.
+        // The array may be larger than [combinedByteCount]; only the used prefix is uploaded.
+        val combinedByteCount = vertexBytes + indexBytes + batchIdBytes
+        val combinedBytes = ByteArrayPool.acquire(combinedByteCount)
+        packFloatsLE(combinedBytes, 0, interleaved, interleavedFloatCount)
+        FloatArrayPool.release(interleaved)
+        primitive.indicesShort?.let { packShortsLE(combinedBytes, vertexBytes, it) }
+        primitive.indicesInt?.let { packIntsLE(combinedBytes, vertexBytes, it) }
+        batchIds?.let { packShortsLE(combinedBytes, vertexBytes + indexBytes, it) }
+        val elementOffset = vertexBytes
+        val batchIdOffset = if (batchIds != null) vertexBytes + indexBytes else -1
+
         primitives.add(
             PrimitivePrep(
                 worldMatrix = Matrix4().copy(instance.worldMatrix),
-                interleavedVertices = interleaved,
-                indicesShort = primitive.indicesShort,
-                indicesInt = primitive.indicesInt,
-                batchIds = batchIds,
+                combinedBytes = combinedBytes,
+                combinedByteCount = combinedByteCount,
+                elementOffset = elementOffset,
+                batchIdOffset = batchIdOffset,
                 vertexCount = vertexCount,
                 elementCount = primitive.indicesShort?.size ?: primitive.indicesInt?.size ?: 0,
                 vertexStride = vertexStride,
@@ -142,46 +164,33 @@ internal suspend fun prepareMeshPrep(
     return MeshContentPrep(contentUri = contentUri, primitives = primitives)
 }
 
-/** Render-thread upload: install prep's buffers + texture into the RR cache. Idempotent.
- *  Tracks every key it puts into the cache; if a later put / NumericArray allocation throws,
- *  rolls them back so partial state doesn't sit in the cache untethered from any MeshContent. */
+/** Render-thread upload: install prep's combined buffer + texture into the RR cache.
+ *  Idempotent. Tracks every key it puts into the cache; rolls them back on failure so
+ *  partial state doesn't sit in the cache untethered from any MeshContent. */
 internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: RenderContext) {
     if (target.submeshes != null) return
 
     val submeshes = ArrayList<MeshSubmesh>(prep.primitives.size)
     var totalBytes = 0
-    val rollbackKeys = ArrayList<Any>(prep.primitives.size * 3)
+    val rollbackKeys = ArrayList<Any>(prep.primitives.size * 2)
 
     try {
         for (prim in prep.primitives) {
-            val vboKey = "${prep.contentUri}/${prim.instanceIdx}/vbo"
-            val vertexBytes = prim.interleavedVertices.size * 4
-            rc.getBufferObject(vboKey) { BufferObject(GL_ARRAY_BUFFER, vertexBytes) }
-            rollbackKeys.add(vboKey)
-            rc.offerGLBufferUpload(vboKey, 1) { NumericArray.Floats(prim.interleavedVertices) }
-            totalBytes += vertexBytes
-
-            val eboKey: Any? = when {
-                prim.indicesShort != null -> {
-                    val key = "${prep.contentUri}/${prim.instanceIdx}/ebo"
-                    val bytes = prim.indicesShort.size * 2
-                    rc.getBufferObject(key) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, bytes) }
-                    rollbackKeys.add(key)
-                    rc.offerGLBufferUpload(key, 1) { NumericArray.Shorts(prim.indicesShort) }
-                    totalBytes += bytes
-                    key
-                }
-                prim.indicesInt != null -> {
-                    val key = "${prep.contentUri}/${prim.instanceIdx}/ebo"
-                    val bytes = prim.indicesInt.size * 4
-                    rc.getBufferObject(key) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, bytes) }
-                    rollbackKeys.add(key)
-                    rc.offerGLBufferUpload(key, 1) { NumericArray.Ints(prim.indicesInt) }
-                    totalBytes += bytes
-                    key
-                }
-                else -> null
-            }
+            // One BufferObject per primitive holding vertices + indices + batchIds. Bind
+            // it to GL_ARRAY_BUFFER for vertex attribs and to GL_ELEMENT_ARRAY_BUFFER for
+            // drawElements via [BufferObject.bindBufferAs]; same storage, two targets.
+            val bufferKey = "${prep.contentUri}/${prim.instanceIdx}/buf"
+            val bufferBytes = prim.combinedByteCount
+            rc.getBufferObject(bufferKey) { BufferObject(GL_ARRAY_BUFFER, bufferBytes) }
+            rollbackKeys.add(bufferKey)
+            // Release the pool-borrowed array after the GL write — `onUploaded` fires
+            // whether the upload actually happened or was skipped (version up-to-date).
+            val combined = prim.combinedBytes
+            rc.offerGLBufferUpload(
+                bufferKey, 1,
+                onUploaded = { ByteArrayPool.release(combined) },
+            ) { NumericArray.Bytes(combined, bufferBytes) }
+            totalBytes += bufferBytes
 
             val textureKey: Any? = prim.baseColorTexture?.let { texture ->
                 val key = "${prep.contentUri}/${prim.instanceIdx}/tex"
@@ -191,23 +200,13 @@ internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: R
                 key
             }
 
-            val batchIdKey: Any? = prim.batchIds?.let { batchIds ->
-                val key = "${prep.contentUri}/${prim.instanceIdx}/batch"
-                val bytes = batchIds.size * 2
-                rc.getBufferObject(key) { BufferObject(GL_ARRAY_BUFFER, bytes) }
-                rollbackKeys.add(key)
-                rc.offerGLBufferUpload(key, 1) { NumericArray.Shorts(batchIds) }
-                totalBytes += bytes
-                key
-            }
-
             submeshes.add(
                 MeshSubmesh(
                     worldMatrix = prim.worldMatrix,
-                    vboKey = vboKey,
-                    eboKey = eboKey,
+                    bufferKey = bufferKey,
                     baseColorTextureKey = textureKey,
-                    batchIdKey = batchIdKey,
+                    elementOffset = prim.elementOffset,
+                    batchIdOffset = prim.batchIdOffset,
                     vertexCount = prim.vertexCount,
                     elementCount = prim.elementCount,
                     vertexStride = prim.vertexStride,
@@ -224,11 +223,9 @@ internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: R
                     doubleSided = prim.doubleSided,
                     mode = prim.mode,
                 ).apply {
-                    // Resolve once; per-frame enqueueMeshDrawable reads these direct, no HashMap.
-                    vbo = rc.renderResourceCache[vboKey] as? BufferObject
-                    ebo = eboKey?.let { rc.renderResourceCache[it] as? BufferObject }
+                    // Resolve refs once; per-frame enqueueMeshDrawable reads these direct.
+                    buffer = rc.renderResourceCache[bufferKey] as? BufferObject
                     baseColorTexture = textureKey?.let { rc.renderResourceCache[it] as? Texture }
-                    batchIdBuffer = batchIdKey?.let { rc.renderResourceCache[it] as? BufferObject }
                 }
             )
         }
@@ -241,6 +238,43 @@ internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: R
     }
 }
 
+/** Little-endian bulk pack helpers. ARM Android is little-endian so the resulting bytes
+ *  match what `glVertexAttribPointer(..., GL_FLOAT, ...)` etc. expect to read from the
+ *  bound GL buffer — no driver-side byte-swap. */
+private fun packFloatsLE(dst: ByteArray, dstOffset: Int, src: FloatArray, srcLength: Int = src.size) {
+    var o = dstOffset
+    for (i in 0 until srcLength) {
+        val bits = src[i].toRawBits()
+        dst[o] = bits.toByte()
+        dst[o + 1] = (bits ushr 8).toByte()
+        dst[o + 2] = (bits ushr 16).toByte()
+        dst[o + 3] = (bits ushr 24).toByte()
+        o += 4
+    }
+}
+
+private fun packShortsLE(dst: ByteArray, dstOffset: Int, src: ShortArray) {
+    var o = dstOffset
+    for (i in src.indices) {
+        val v = src[i].toInt()
+        dst[o] = v.toByte()
+        dst[o + 1] = (v ushr 8).toByte()
+        o += 2
+    }
+}
+
+private fun packIntsLE(dst: ByteArray, dstOffset: Int, src: IntArray) {
+    var o = dstOffset
+    for (i in src.indices) {
+        val v = src[i]
+        dst[o] = v.toByte()
+        dst[o + 1] = (v ushr 8).toByte()
+        dst[o + 2] = (v ushr 16).toByte()
+        dst[o + 3] = (v ushr 24).toByte()
+        o += 4
+    }
+}
+
 /** Parse → render-thread handoff. Owns prep arrays + decoded textures until upload. */
 internal class MeshContentPrep(
     val contentUri: String,
@@ -249,10 +283,19 @@ internal class MeshContentPrep(
 
 internal class PrimitivePrep(
     val worldMatrix: Matrix4,
-    val interleavedVertices: FloatArray,
-    val indicesShort: ShortArray?,
-    val indicesInt: IntArray?,
-    val batchIds: ShortArray?,
+    /** Single contiguous buffer: vertices (interleaved) | indices | batchIds. Native
+     *  (little-endian) layout — uploaded as-is into one [BufferObject]. Pool-borrowed
+     *  via [earth.worldwind.util.ByteArrayPool]; the array may be longer than
+     *  [combinedByteCount] (only that prefix is uploaded), and the upload path releases
+     *  it back to the pool after the GL write completes. */
+    val combinedBytes: ByteArray,
+    /** Actual payload length in [combinedBytes] (it may be longer due to pool oversize). */
+    val combinedByteCount: Int,
+    /** Byte offset of the index section. Used both as `glDrawElements` offset and as the
+     *  end of the vertex region. */
+    val elementOffset: Int,
+    /** Byte offset of the batchId section, or -1 when absent. */
+    val batchIdOffset: Int,
     val vertexCount: Int,
     val elementCount: Int,
     val vertexStride: Int,

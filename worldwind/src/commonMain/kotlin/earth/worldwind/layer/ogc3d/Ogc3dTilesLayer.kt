@@ -947,14 +947,14 @@ open class Ogc3dTilesLayer(
         // bindBuffer/bindTexture returns false → drawSubmesh skips, same as the prior cache-miss path.
         drawable.ensureSubmeshArrays(submeshes.size)
         val textures = drawable.submeshTextures
-        val vbos = drawable.submeshVertexBuffers
-        val ebos = drawable.submeshElementBuffers
-        val batchIdBuffers = drawable.submeshBatchIdBuffers
-        for ((idx, submesh) in submeshes.withIndex()) {
-            vbos[idx] = submesh.vbo
-            ebos[idx] = submesh.ebo
+        val buffers = drawable.submeshBuffers
+        // Indexed for-loop: withIndex() allocates an IndexedValue per submesh, hot at globe
+        // scale where the same loop runs for hundreds of visible tiles per frame.
+        val n = submeshes.size
+        for (idx in 0 until n) {
+            val submesh = submeshes[idx]
+            buffers[idx] = submesh.buffer
             textures[idx] = submesh.baseColorTexture
-            batchIdBuffers[idx] = submesh.batchIdBuffer
         }
 
         // Composition per spec: tileToWorld * RTC_CENTER * yUpToZUp. Raw glTF
@@ -984,8 +984,8 @@ open class Ogc3dTilesLayer(
             // partial coverage would let the non-batched submeshes' disabled vertexBatchId
             // attribute default to zero, painting every fragment with batch 0's pick color
             // and falsely resolving every click on those submeshes to BatchedFeature(0).
-            // batchIdBuffers may be over-sized (pooled); only check the [0..submeshes.size) slots.
-            val allBatchIds = (0 until submeshes.size).all { batchIdBuffers[it] != null }
+            // batchIdOffset >= 0 means the submesh's combined buffer has a batchId section.
+            val allBatchIds = submeshes.all { it.batchIdOffset >= 0 }
             if (batchTable != null && batchLength > 0 && allBatchIds) {
                 val base = rc.nextPickedObjectId()
                 drawable.pickIdBase = base

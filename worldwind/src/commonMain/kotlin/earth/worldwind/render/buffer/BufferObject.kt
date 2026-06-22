@@ -21,6 +21,14 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
         return id.isValid()
     }
 
+    /** Bind this buffer to a target other than [target]. Same buffer storage, different
+     *  binding point — used by callers that pack vertices + indices (+ batchIds) into a
+     *  single buffer and bind it to both `GL_ARRAY_BUFFER` and `GL_ELEMENT_ARRAY_BUFFER`. */
+    open fun bindBufferAs(dc: DrawContext, otherTarget: Int): Boolean {
+        if (id.isValid()) dc.bindBuffer(otherTarget, id)
+        return id.isValid()
+    }
+
     open fun loadBuffer(dc: DrawContext, array: NumericArray) {
         val currentBuffer = dc.currentBuffer(target)
         try {

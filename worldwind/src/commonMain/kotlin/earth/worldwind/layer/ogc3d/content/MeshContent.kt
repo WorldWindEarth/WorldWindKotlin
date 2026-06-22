@@ -60,23 +60,26 @@ class MeshContent internal constructor(
     }
 }
 
-/** Per-glTF-primitive draw descriptor. RR-cache keys + draw metadata only. */
+/** Per-glTF-primitive draw descriptor. Holds a single RR-cache key for the combined
+ *  vertices+indices+batchIds buffer plus a separate texture key. Draw metadata only. */
 class MeshSubmesh internal constructor(
     val worldMatrix: Matrix4,
-    val vboKey: Any,
-    /** Null for non-indexed primitives. */
-    val eboKey: Any?,
+    /** Combined buffer: vertices | indices | batchIds. Bound to GL_ARRAY_BUFFER for the
+     *  vertex attribs and to GL_ELEMENT_ARRAY_BUFFER for `drawElements` (via
+     *  [BufferObject.bindBufferAs]). Single mmap per primitive instead of three. */
+    val bufferKey: Any,
     /** Null when the material has no texture or the decoder failed. */
     val baseColorTextureKey: Any?,
-    /** Null when the primitive has no `_BATCHID` — falls back to tile-level picking. */
-    val batchIdKey: Any?,
-    /** RR-cache refs resolved once by [uploadMeshContent]; lets the per-frame drawable
-     *  enqueue skip 4 HashMap lookups per submesh. Cache still owns lifetime — post-
-     *  eviction bindBuffer/bindTexture returns false and the drawable skips. */
-    var vbo: BufferObject? = null,
-    var ebo: BufferObject? = null,
+    /** Byte offset of the index section within the combined buffer. Passed to
+     *  `glDrawElements` as the `indices` argument when an EBO is bound. */
+    val elementOffset: Int,
+    /** Byte offset of the batchId section, or -1 when the primitive has no `_BATCHID`. */
+    val batchIdOffset: Int,
+    /** RR-cache refs resolved once by [uploadMeshContent]; per-frame drawable enqueue
+     *  reads them direct — no HashMap.getNode. Cache still owns lifetime; post-eviction
+     *  the GL handles invalidate and bindBuffer/bindTexture returns false. */
+    var buffer: BufferObject? = null,
     var baseColorTexture: Texture? = null,
-    var batchIdBuffer: BufferObject? = null,
     val vertexCount: Int,
     val elementCount: Int,
     val vertexStride: Int,
@@ -98,18 +101,11 @@ class MeshSubmesh internal constructor(
     val mode: Int,
 ) {
     fun touchCache(rc: RenderContext) {
-        rc.renderResourceCache[vboKey]
-        eboKey?.let { rc.renderResourceCache[it] }
+        rc.renderResourceCache[bufferKey]
         baseColorTextureKey?.let { rc.renderResourceCache[it] }
-        batchIdKey?.let { rc.renderResourceCache[it] }
     }
 
-    /** True iff VBO + EBO (if indexed) are still RR-cache-resident. Texture is optional
-     *  (untextured photogrammetry tilesets use per-vertex COLOR_0 instead). Batch-id is
-     *  optional (per-feature picking gracefully falls back to tile-level when absent). */
-    fun areBuffersLoaded(rc: RenderContext): Boolean {
-        if (!rc.renderResourceCache.containsKey(vboKey)) return false
-        if (eboKey != null && !rc.renderResourceCache.containsKey(eboKey)) return false
-        return true
-    }
+    /** True iff the combined buffer is still RR-cache-resident. Texture is optional —
+     *  untextured photogrammetry tilesets use per-vertex COLOR_0 instead. */
+    fun areBuffersLoaded(rc: RenderContext): Boolean = rc.renderResourceCache.containsKey(bufferKey)
 }
