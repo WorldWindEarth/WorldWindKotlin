@@ -379,9 +379,39 @@ open class Ogc3dTilesLayer(
         lastSelectedTiles.addAll(result.selectedTiles)
         for (tile in result.selectedTiles) enqueueDrawable(rc, tile)
 
+        // Stamp touched tiles for the cold-subtree sweep.
+        val now = frameCounter
+        for (tile in result.selectedTiles) tile.lastSelectedFrame = now
+        for (tile in result.requestedTiles) tile.lastSelectedFrame = now
+        if (now % TILE_TREE_SWEEP_FRAMES == 0L) {
+            tileset?.let { evictColdSubtrees(it.root, now, TILE_TREE_EVICT_THRESHOLD_FRAMES) }
+        }
+
         // Sustain the load loop via rc.requestRedraw — WorldWind.requestRedraw() from inside
         // doRender is dropped by WorldWindow's isWaitingForRedraw gate.
         if (hasUnloadedRequests || inFlightFetches.isNotEmpty()) rc.requestRedraw()
+    }
+
+    /** Post-order walk returning subtree max [Tile3d.lastSelectedFrame]. Evicts every
+     *  `.json`-grafted node whose subtree is cold for [thresholdFrames]+ — restores the
+     *  wrapper URI for on-demand re-fetch. O(N) over the tree. */
+    private fun evictColdSubtrees(root: Tile3d, now: Long, thresholdFrames: Long): Long {
+        var maxFrame = root.lastSelectedFrame
+        for (child in root.children) {
+            val childMax = evictColdSubtrees(child, now, thresholdFrames)
+            if (childMax > maxFrame) maxFrame = childMax
+        }
+        val graftUri = root.graftedFromUri
+        if (graftUri != null && maxFrame < now - thresholdFrames) {
+            root.children = emptyList()
+            root.contentUri = graftUri
+            root.graftedFromUri = null
+            root.content = null
+            root.loadState = Tile3d.LoadState.UNLOADED
+            root.invalidateWorldBoundingSphere()
+            return root.lastSelectedFrame  // descendants gone; only our own freshness propagates up
+        }
+        return maxFrame
     }
 
     /** SSE-pressure feedback: bump every frame when over budget; relax at most once per
@@ -837,10 +867,9 @@ open class Ogc3dTilesLayer(
             parent.loadState = Tile3d.LoadState.FAILED
             return
         }
-        // Graft the sub-tileset root in, then null out contentUri so the traverser sees this
-        // node as a transparent intermediate (its job — fetching the sub-tileset — is done).
-        // Without this, isResourcesLoaded() returns false for the wrapper (URI non-null, no
-        // mesh content), parents stall at the wrapper level, and refinement never descends.
+        // Graft the sub-tileset root in; null contentUri so the traverser refines through.
+        // graftedFromUri preserves the original .json URI for the eviction sweep to restore.
+        parent.graftedFromUri = parent.contentUri
         parent.children = listOf(subTileset.root)
         parent.contentUri = null
         parent.loadState = Tile3d.LoadState.LOADED
@@ -1205,5 +1234,11 @@ open class Ogc3dTilesLayer(
          *  reclaims it. ~1 s at 60 fps — long enough to absorb brief culling stutter and camera
          *  oscillation, short enough to keep memory bounded. */
         private const val GAUSSIAN_EVICTION_GRACE_FRAMES: Long = 60
+
+        /** Sweep interval for cold-subtree eviction. ~2 s at 60 fps. */
+        private const val TILE_TREE_SWEEP_FRAMES: Long = 120
+
+        /** `.json`-grafted subtrees idle this many frames (~10 s at 60 fps) get evicted. */
+        private const val TILE_TREE_EVICT_THRESHOLD_FRAMES: Long = 600
     }
 }

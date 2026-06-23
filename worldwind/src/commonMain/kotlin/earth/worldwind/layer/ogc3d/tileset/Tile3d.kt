@@ -62,6 +62,13 @@ class Tile3d internal constructor(
      *  showed up as `Double.valueOf` 271 samples on the main thread at globe scale. */
     var traversalDistance: Double = 0.0
 
+    /** Last frame this tile participated in traversal — read by the layer's cold-subtree sweep. */
+    @Volatile var lastSelectedFrame: Long = 0L
+
+    /** Original `.json` URI when [children] were grafted from an external tileset; null otherwise.
+     *  Preserved so the sweep can restore the wrapper for re-fetch when the subtree is evicted. */
+    @Volatile var graftedFromUri: String? = null
+
     enum class LoadState {
         UNLOADED,
         FETCHING,
