@@ -223,7 +223,13 @@ internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: R
                     alphaCutoff = prim.alphaCutoff,
                     doubleSided = prim.doubleSided,
                     mode = prim.mode,
-                )
+                ).apply {
+                    // Resolve once; per-frame enqueueMeshDrawable reads these direct, no HashMap.
+                    vbo = rc.renderResourceCache[vboKey] as? BufferObject
+                    ebo = eboKey?.let { rc.renderResourceCache[it] as? BufferObject }
+                    baseColorTexture = textureKey?.let { rc.renderResourceCache[it] as? Texture }
+                    batchIdBuffer = batchIdKey?.let { rc.renderResourceCache[it] as? BufferObject }
+                }
             )
         }
 

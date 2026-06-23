@@ -926,19 +926,18 @@ open class Ogc3dTilesLayer(
         drawable.shadowMode = shadowMode
         drawable.isFallback = tile.isFallback
         drawable.stencilId = tile.stencilId
-        // Resolve from RR cache into the drawable's pooled arrays. touchCache earlier this
-        // frame keeps these alive; nulls (rare LRU race) make drawSubmesh skip.
+        // Refs resolved once in uploadMeshContent — no per-frame HashMap.getNode. Post-eviction
+        // bindBuffer/bindTexture returns false → drawSubmesh skips, same as the prior cache-miss path.
         drawable.ensureSubmeshArrays(submeshes.size)
-        val cache = rc.renderResourceCache
         val textures = drawable.submeshTextures
         val vbos = drawable.submeshVertexBuffers
         val ebos = drawable.submeshElementBuffers
         val batchIdBuffers = drawable.submeshBatchIdBuffers
         for ((idx, submesh) in submeshes.withIndex()) {
-            vbos[idx] = cache[submesh.vboKey] as? BufferObject
-            submesh.eboKey?.let { ebos[idx] = cache[it] as? BufferObject }
-            submesh.baseColorTextureKey?.let { textures[idx] = cache[it] as? Texture }
-            submesh.batchIdKey?.let { batchIdBuffers[idx] = cache[it] as? BufferObject }
+            vbos[idx] = submesh.vbo
+            ebos[idx] = submesh.ebo
+            textures[idx] = submesh.baseColorTexture
+            batchIdBuffers[idx] = submesh.batchIdBuffer
         }
 
         // Composition per spec: tileToWorld * RTC_CENTER * yUpToZUp. Raw glTF

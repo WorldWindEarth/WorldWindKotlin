@@ -5,6 +5,8 @@ import earth.worldwind.formats.ogc3d.BatchTable
 import earth.worldwind.geom.BoundingSphere
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.RenderContext
+import earth.worldwind.render.Texture
+import earth.worldwind.render.buffer.BufferObject
 import kotlin.concurrent.Volatile
 
 /**
@@ -68,6 +70,13 @@ class MeshSubmesh internal constructor(
     val baseColorTextureKey: Any?,
     /** Null when the primitive has no `_BATCHID` — falls back to tile-level picking. */
     val batchIdKey: Any?,
+    /** RR-cache refs resolved once by [uploadMeshContent]; lets the per-frame drawable
+     *  enqueue skip 4 HashMap lookups per submesh. Cache still owns lifetime — post-
+     *  eviction bindBuffer/bindTexture returns false and the drawable skips. */
+    var vbo: BufferObject? = null,
+    var ebo: BufferObject? = null,
+    var baseColorTexture: Texture? = null,
+    var batchIdBuffer: BufferObject? = null,
     val vertexCount: Int,
     val elementCount: Int,
     val vertexStride: Int,
