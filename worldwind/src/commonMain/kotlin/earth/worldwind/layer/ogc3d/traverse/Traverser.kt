@@ -32,15 +32,21 @@ class Traverser(
 
     private val result = Result()
     private val traverseStack = ArrayDeque<TraversalEntry>()
+    /** Reusable [TraversalEntry] pool. Each traversal allocated one entry per visible child
+     *  (~500-2000 per frame at globe scale) — measurable LOS pressure. The stack pops in
+     *  LIFO order, so released entries are immediately available to the next push. */
+    private val entryPool = ArrayDeque<TraversalEntry>(256)
     private val emptyTraverseStack = ArrayDeque<Tile3d>()
-    private val sortDistances = HashMap<Tile3d, Double>(256)
     /** Parent map built incrementally as selectTiles pushes children; markFallbacks and
      *  assignStencilIds walk UP via it in O(N×depth) instead of DFS'ing the whole tree. */
     private val parentMap = HashMap<Tile3d, Tile3d?>(512)
     private val minDescendantGE = HashMap<Tile3d, Double>(64)
     private val outermostFallbackIdMap = HashMap<Tile3d, Int>(8)
+    /** Distance-first then coarser-first. Reads [Tile3d.traversalDistance] populated below;
+     *  the field-based path avoids `HashMap<Tile3d, Double>` boxing that dominated the
+     *  main-thread profile at globe scale. */
     private val distanceFirstComparator = Comparator<Tile3d> { a, b ->
-        val d = sortDistances.getValue(a).compareTo(sortDistances.getValue(b))
+        val d = a.traversalDistance.compareTo(b.traversalDistance)
         if (d != 0) d else b.geometricError.compareTo(a.geometricError)
     }
     /** Reused membership set for markFallbacks + assignStencilIds. Cleared and refilled
@@ -58,7 +64,20 @@ class Traverser(
         else b.geometricError.compareTo(a.geometricError)
     }
 
-    private class TraversalEntry(val tile: Tile3d, val parent: Tile3d?)
+    private class TraversalEntry {
+        lateinit var tile: Tile3d
+        var parent: Tile3d? = null
+    }
+    private fun acquireEntry(tile: Tile3d, parent: Tile3d?): TraversalEntry {
+        val e = if (entryPool.isEmpty()) TraversalEntry() else entryPool.removeLast()
+        e.tile = tile; e.parent = parent
+        return e
+    }
+    private fun releaseEntry(e: TraversalEntry) {
+        // Clear refs so the pooled entry doesn't keep tiles reachable for GC.
+        e.parent = null
+        entryPool.addLast(e)
+    }
 
     /** OR-mode side channel: `traverseChildren` writes whether any visible child was not yet
      *  loaded so `selectTiles` can decide if the parent enters selection as a fallback. */
@@ -74,14 +93,19 @@ class Traverser(
         try {
             selectTiles(rc, tileset.root)
         } finally {
-            traverseStack.clear()
+            // Drain any leftover entries (selectTiles can throw mid-iteration) back to the pool.
+            while (traverseStack.isNotEmpty()) releaseEntry(traverseStack.removeLast())
             emptyTraverseStack.clear()
         }
-        // Fetch closest+shallowest first. Cache distances so the comparator does HashMap
-        // lookups instead of recomputing sqrt N log N times.
-        sortDistances.clear()
-        for (tile in result.requestedTiles) sortDistances[tile] = cameraDistance(rc, tile)
-        result.requestedTiles.sortWith(distanceFirstComparator)
+        // Fetch closest+shallowest first. Stash distance on each tile so the comparator can
+        // read the primitive field — `HashMap<Tile3d, Double>` here boxed every distance
+        // and showed up as `Double.valueOf` 271 samples on the main thread at globe scale.
+        val requested = result.requestedTiles
+        for (i in requested.indices) {
+            val tile = requested[i]
+            tile.traversalDistance = cameraDistance(rc, tile)
+        }
+        requested.sortWith(distanceFirstComparator)
         selectedSet.clear()
         selectedSet.addAll(result.selectedTiles)
         markFallbacks(selectedSet)
@@ -163,10 +187,12 @@ class Traverser(
     }
 
     private fun selectTiles(rc: RenderContext, root: Tile3d) {
-        traverseStack.addLast(TraversalEntry(root, null))
+        traverseStack.addLast(acquireEntry(root, null))
         while (traverseStack.isNotEmpty()) {
             val entry = traverseStack.removeLast()
             val tile = entry.tile
+            val entryParent = entry.parent
+            releaseEntry(entry)
             if (!intersectsFrustum(rc, tile)) {
                 tile.refines = false
                 continue
@@ -177,12 +203,12 @@ class Traverser(
                 continue
             }
 
-            val parentRefine = entry.parent?.refines ?: true
+            val parentRefine = entryParent?.refines ?: true
             // When the parent has nothing to draw (wrapper without renderable content, or
             // mesh-content tile not loaded yet), treat it as "refine through" so loaded
             // children still draw at their own LOD — otherwise one mid-fetch lateral sibling
             // drags the whole cohort to a non-renderable ancestor and the area goes blank.
-            val parentCanFallback = entry.parent?.let { isRenderableContent(it) } ?: false
+            val parentCanFallback = entryParent?.let { isRenderableContent(it) } ?: false
             val effectiveParentRefine = parentRefine || !parentCanFallback
             // Reset before each cohort so an upstream sibling's value doesn't leak through a
             // leaf tile that never enters traverseChildren.
@@ -248,7 +274,7 @@ class Traverser(
             parentMap[child] = tile
             val visible = intersectsFrustum(rc, child)
             if (visible) {
-                traverseStack.addLast(TraversalEntry(child, tile))
+                traverseStack.addLast(acquireEntry(child, tile))
                 anyChildVisible = true
             } else if (checkRefines && !skipLevelOfDetail) {
                 loadTile(rc, child, cameraDistance(rc, child))
