@@ -10,6 +10,7 @@ import earth.worldwind.globe.terrain.Terrain
 import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.LayerList
+import kotlin.concurrent.Volatile
 import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
@@ -81,6 +82,10 @@ open class RenderContext {
     var lookAtPosition: Position? = null
     var globeState: Globe.State? = null
     var elevationModelTimestamp = 0L
+    /** Wall-time nanos of the previous GL-thread frame (set by [earth.worldwind.WorldWind.drawFrame]).
+     *  Generic GL-pressure signal for producers that emit GL-bound work and want to throttle when
+     *  the GL thread ran long. */
+    @Volatile var lastGLFrameWorkNanos: Long = 0L
     /**
      * Mirrors [earth.worldwind.draw.DrawContext.contextVersion] for this frame. Renderables
      * that own GPU handles outside [RenderResourceCache] can compare this against a cached

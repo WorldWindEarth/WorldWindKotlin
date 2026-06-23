@@ -24,6 +24,7 @@ import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 import kotlin.math.*
+import kotlin.time.TimeSource
 
 /**
  * Main WorldWind model, containing globe, terrain, renderable layers, camera, viewport and frame rendering logic.
@@ -582,6 +583,10 @@ open class WorldWind @JvmOverloads constructor(
         val pickMode = frame.isPickMode
         if (!pickMode) frameMetrics?.beginDrawing(dc)
 
+        // Wall-time the whole GL frame into rc.lastGLFrameWorkNanos for GL-bound producers
+        // to throttle against. Pick frames skip — different work profile would skew the EWMA.
+        val drawStart = if (pickMode) null else TimeSource.Monotonic.markNow()
+
         // Set up the draw context according to the frame's current state.
         dc.eyePoint.copy(frame.modelview.extractEyePoint(dc.eyePoint))
         dc.viewport.copy(frame.viewport)
@@ -623,6 +628,9 @@ open class WorldWind @JvmOverloads constructor(
 
         // Release resources evicted during the previous frame.
         renderResourceCache.releaseEvictedResources(dc)
+
+        // Snapshot upload stall for next frame's render-thread throttle feedback.
+        if (drawStart != null) rc.lastGLFrameWorkNanos = drawStart.elapsedNow().inWholeNanoseconds
 
         // Mark the end of a frame draw.
         if (!pickMode) frameMetrics?.endDrawing(dc)

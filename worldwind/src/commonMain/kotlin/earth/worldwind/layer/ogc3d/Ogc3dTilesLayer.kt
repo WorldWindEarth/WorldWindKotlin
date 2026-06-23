@@ -220,7 +220,7 @@ open class Ogc3dTilesLayer(
     /** Parse → render-thread handoff. Bounded so `send` suspends and propagates back-
      *  pressure to fetch; an unbounded queue would stockpile parsed mesh preps (each
      *  retaining a decoded Bitmap + vertex FloatArray) when GL upload can't keep up. */
-    private val pendingMeshUploads = Channel<MeshUploadEntry>(capacity = MAX_UPLOADS_PER_FRAME * 2)
+    private val pendingMeshUploads = Channel<MeshUploadEntry>(capacity = PENDING_UPLOAD_CHANNEL_CAPACITY)
 
     /** Tile → in-flight fetch [Job]. Walked each frame so fetches whose tile is no longer
      *  traversed get cancelled, freeing the permit for the new selection. */
@@ -444,16 +444,27 @@ open class Ogc3dTilesLayer(
         }
     }
 
-    /** Install parsed mesh content into the RR cache. Capped at [MAX_UPLOADS_PER_FRAME];
-     *  leftovers drain next frame via `requestRedraw`. Freshly-cached textures are routed
-     *  to a background-group drawable so their Bitmaps get GL-uploaded + recycled this
-     *  same frame instead of lingering in native heap until the tile happens to draw. */
+    /** Install parsed mesh content into the RR cache, capped by an EWMA-adapted cap that
+     *  targets [TARGET_GL_FRAME_WORK_MS] of total GL-thread frame work — measured via
+     *  [RenderContext.lastGLFrameWorkNanos]. Settles at ~1 tile/frame on slow Mali, ~5+
+     *  on fast Apple / desktop. Freshly-cached textures route to a background-group
+     *  drawable so their Bitmaps get GL-uploaded + recycled this same frame. */
     private fun drainPendingMeshUploads(rc: RenderContext) {
+        val lastFrameMs = rc.lastGLFrameWorkNanos / 1_000_000.0
+        ewmaGLFrameWorkMs = lastFrameMs * EWMA_ALPHA + ewmaGLFrameWorkMs * (1.0 - EWMA_ALPHA)
+        adaptiveInstallCap = when {
+            ewmaGLFrameWorkMs > TARGET_GL_FRAME_WORK_MS * 1.5 ->
+                maxOf(adaptiveInstallCap - 1, MIN_INSTALL_CAP)
+            ewmaGLFrameWorkMs < TARGET_GL_FRAME_WORK_MS * 0.5 ->
+                minOf(adaptiveInstallCap + 1, MAX_INSTALL_CAP)
+            else -> adaptiveInstallCap
+        }
         var loadedAny = false
+        var stoppedAtBudget = false
         var uploaded = 0
         // Lazy-init — most frames upload nothing and shouldn't pay for an ArrayList.
         var newlyUploadedTextures: ArrayList<Texture>? = null
-        while (uploaded < MAX_UPLOADS_PER_FRAME) {
+        while (uploaded < adaptiveInstallCap) {
             val entry = pendingMeshUploads.tryReceive().getOrNull() ?: break
             uploaded++
             // One bad upload mustn't abort the frame — per-tile catch, FAIL the tile, keep draining.
@@ -465,7 +476,7 @@ open class Ogc3dTilesLayer(
                     sub.baseColorTextureKey?.let { key ->
                         (rc.renderResourceCache[key] as? Texture)?.let { tex ->
                             val list = newlyUploadedTextures
-                                ?: ArrayList<Texture>(MAX_UPLOADS_PER_FRAME * 4).also { newlyUploadedTextures = it }
+                                ?: ArrayList<Texture>(8).also { newlyUploadedTextures = it }
                             list.add(tex)
                         }
                     }
@@ -479,18 +490,24 @@ open class Ogc3dTilesLayer(
                 )
             }
         }
+        if (uploaded >= adaptiveInstallCap) stoppedAtBudget = true
         newlyUploadedTextures?.let { rc.offerBackgroundDrawable(TextureEagerBindDrawable(it)) }
-        // Redraw if we installed new content this frame OR if we hit the per-frame cap and
-        // there are likely more pending — without the latter, an idle camera could leave
-        // the channel sitting with hundreds of un-installed uploads.
-        if (loadedAny || uploaded >= MAX_UPLOADS_PER_FRAME) rc.requestRedraw()
+        // Redraw if we installed new content this frame OR if we hit the cap with
+        // entries still pending — without the latter, an idle camera could leave the
+        // channel sitting with un-installed uploads.
+        if (loadedAny || stoppedAtBudget) rc.requestRedraw()
     }
+
+    // Adaptive throttling state — read + written only on the render thread, so plain vars.
+    private var ewmaGLFrameWorkMs: Double = 0.0
+    private var adaptiveInstallCap: Int = INITIAL_INSTALL_CAP
 
     /** Force-binds freshly-cached textures so their first [Texture.allocTexImage] runs
      *  this frame, recycling the CPU-side Bitmap that would otherwise sit in Android
      *  native heap until the tile happens to draw. */
     private class TextureEagerBindDrawable(private val textures: List<Texture>) : Drawable {
         override fun draw(dc: DrawContext) {
+            // GL cost is captured by the WorldWind.drawFrame whole-frame measurement.
             for (texture in textures) texture.bindTexture(dc)
         }
         override fun recycle() {}
@@ -1159,12 +1176,24 @@ open class Ogc3dTilesLayer(
          *  walk SSE back to floor in a couple seconds after the load wave settles. */
         private val SSE_RELAX_INTERVAL = 500.milliseconds
 
-        /** Max GPU mesh uploads per frame. Above this, the render thread starves itself.
-         *  At ~250 fetches/sec with all-tile-at-once draining, uploads ate the entire frame
-         *  budget and FPS fell to 1-2. 12 uploads/frame × 60 fps = 720 uploads/sec, more
-         *  than the parser produces, so the channel still drains while the render thread
-         *  keeps ~12 ms per frame for actual drawing. */
-        private const val MAX_UPLOADS_PER_FRAME: Int = 12
+        /** Target total GL-thread frame-work ms (= [RenderContext.lastGLFrameWorkNanos]).
+         *  Sub-vsync (16.7 ms) so install bursts don't push next frame over budget. */
+        private const val TARGET_GL_FRAME_WORK_MS: Double = 12.0
+
+        /** EWMA smoothing factor. 0.3 reacts in ~3 frames while damping single-frame
+         *  spikes (GC pauses etc.). */
+        private const val EWMA_ALPHA: Double = 0.3
+
+        /** Install-cap bounds and starting value before the first measurement lands. */
+        private const val INITIAL_INSTALL_CAP: Int = 2
+        private const val MIN_INSTALL_CAP: Int = 1
+        private const val MAX_INSTALL_CAP: Int = 8
+
+        /** Pending-upload channel capacity. Back-pressures parsers when uploads can't keep
+         *  up. Each in-flight prep retains a decoded bitmap + combined-vertex bytes (~5 MB
+         *  CPU memory for Photoreal); 4 in-flight keeps Android native-heap headroom even
+         *  with a busy parser pool. Higher values trigger OOM at globe scale. */
+        private const val PENDING_UPLOAD_CHANNEL_CAPACITY: Int = 4
 
         /** Shape-drawable sort key for 3D-Tiles content. Forces every tile to the same
          *  far-distance bucket so DrawableQueue's sort ties on it; the insertion order
