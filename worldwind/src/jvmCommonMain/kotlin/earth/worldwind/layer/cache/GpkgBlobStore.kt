@@ -52,17 +52,25 @@ class GpkgBlobStore internal constructor(
         responseUrl: String?,
     ): Unit = withContext(writeDispatcher) {
         if (geoPackage.isReadOnly) return@withContext
-        val row = GpkgBlobRow().apply {
-            this.tilePath = uri
-            this.tileData = bytes
-            this.contentType = contentType
-            this.etag = etag
-            this.lastModified = lastModified?.toEpochMilliseconds()
-            this.cachedAt = System.currentTimeMillis()
-            this.sizeBytes = bytes.size.toLong()
-            this.responseUrl = responseUrl
+        // Single-statement INSERT OR REPLACE — one writer-lock acquisition instead of
+        // ORMLite createOrUpdate's SELECT-then-INSERT-or-UPDATE pair.
+        val args: Array<Any?> = arrayOf(
+            uri,
+            bytes,
+            contentType,
+            etag,
+            lastModified?.toEpochMilliseconds(),
+            System.currentTimeMillis(),
+            bytes.size.toLong(),
+            responseUrl,
+        )
+        val connectionSource = geoPackage.core.database.connectionSource
+        val connection = connectionSource.getReadWriteConnection(tableName)
+        try {
+            connection.insert(insertOrReplaceSql, args, insertOrReplaceArgTypes, null)
+        } finally {
+            connectionSource.releaseConnection(connection)
         }
-        dao.createOrUpdate(row)
         // Per-put eviction trigger — async drain fires when the table crosses the overshoot budget.
         geoPackage.notifyBlobInsert(
             tableName = tableName,
@@ -70,6 +78,32 @@ class GpkgBlobStore internal constructor(
             countRows = { dao.countOf() },
             evict = { evict() },
         )
+    }
+
+    /** Column order matches [GpkgBlobRow] @DatabaseField declaration order so the lazy
+     *  [insertOrReplaceArgTypes] aligns with the placeholder list. */
+    private val insertOrReplaceSql: String by lazy {
+        val escaped = tableName.replace("\"", "\"\"")
+        "INSERT OR REPLACE INTO \"$escaped\" " +
+            "(${GpkgBlobRow.COLUMN_TILE_PATH}, ${GpkgBlobRow.COLUMN_TILE_DATA}, " +
+            "${GpkgBlobRow.COLUMN_CONTENT_TYPE}, ${GpkgBlobRow.COLUMN_ETAG}, " +
+            "${GpkgBlobRow.COLUMN_LAST_MODIFIED}, ${GpkgBlobRow.COLUMN_CACHED_AT}, " +
+            "${GpkgBlobRow.COLUMN_SIZE_BYTES}, ${GpkgBlobRow.COLUMN_RESPONSE_URL}) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    }
+
+    /** FieldType[] in the SAME column order as [insertOrReplaceSql] — built by column-name lookup.
+     *  ORMLite's `tableInfo.fieldTypes` is in its own (alphabetical) order, NOT declaration order, so
+     *  binding `args` against it raw mis-pairs every column (e.g. the String `tile_path` against the
+     *  LONG `cached_at` → `ClassCastException: String cannot be cast to Number`), throwing on every put. */
+    private val insertOrReplaceArgTypes by lazy {
+        val byName = dao.tableInfo.fieldTypes.associateBy { it.columnName }
+        arrayOf(
+            GpkgBlobRow.COLUMN_TILE_PATH, GpkgBlobRow.COLUMN_TILE_DATA,
+            GpkgBlobRow.COLUMN_CONTENT_TYPE, GpkgBlobRow.COLUMN_ETAG,
+            GpkgBlobRow.COLUMN_LAST_MODIFIED, GpkgBlobRow.COLUMN_CACHED_AT,
+            GpkgBlobRow.COLUMN_SIZE_BYTES, GpkgBlobRow.COLUMN_RESPONSE_URL,
+        ).map { byName.getValue(it) }.toTypedArray()
     }
 
     override suspend fun remove(uri: String): Unit = withContext(writeDispatcher) {

@@ -44,7 +44,6 @@ import earth.worldwind.layer.ogc3d.program.Ogc3dTilesGaussianProgram
 import earth.worldwind.layer.ogc3d.program.Ogc3dTilesPointsProgram
 import earth.worldwind.layer.ogc3d.program.Ogc3dTilesProgram
 import earth.worldwind.PickedObject
-import earth.worldwind.layer.ogc3d.auth.GoogleTilesAuthProvider
 import earth.worldwind.layer.ogc3d.stream.ContentDispatcher
 import earth.worldwind.layer.ogc3d.stream.HttpStatusException
 import earth.worldwind.layer.ogc3d.stream.TileContentRequest
@@ -91,9 +90,12 @@ open class Ogc3dTilesLayer(
     /** URI-keyed blob cache. Defaults to network-only; pass a real [BlobStore] (typically
      *  `contentManager.openBlobStore(key)`) to persist payloads. */
     blobStore: BlobStore = NoOpBlobStore,
-    /** Hard cap on concurrent fetch + parse jobs. Sized for mesh tilesets; splat parses
-     *  self-throttle via [gaussianParseConcurrency] regardless of this value. */
-    fetchConcurrency: Int = 32,
+    /** Hard cap on concurrent fetch + parse jobs. Conservative default sized for the
+     *  install pipeline's natural throughput (~60-80 installs/sec on a fast GL stack);
+     *  higher caps just queue parsed bitmaps that get cancelled before install. Consumers
+     *  on known high-end devices can opt up to 16-32. Splat parses self-throttle via
+     *  [gaussianParseConcurrency] regardless. */
+    fetchConcurrency: Int = 8,
 ) : AbstractLayer(displayName) {
     /** Cast + receive shadows by default. [ShadowMode.RECEIVE_ONLY] for unlit-from-above
      *  datasets; [ShadowMode.DISABLED] to skip the integration. */
@@ -151,12 +153,6 @@ open class Ogc3dTilesLayer(
     /** Base pnts point size in pixels (size-attenuated by the shader). Matches CesiumJS'
      *  default; bump for sparse datasets where 1-px points are hard to see. */
     var pointSize: Float = 1f
-
-    /** Opt into Google Photorealistic 3D Tiles quirks for raw `.glb` content: transpose the
-     *  upper 3×3 of every glTF primitive's worldMatrix back into column-vector form, then
-     *  skip the Y-up→Z-up rotation (content already aligned). Auto-enabled when the source
-     *  uses [GoogleTilesAuthProvider]; override explicitly otherwise. */
-    var googlePhotorealistic3dTilesMode: Boolean = source.authProvider is GoogleTilesAuthProvider
 
     /** Global multiplier on Gaussian-splat projected size. */
     var splatSizeMultiplier: Float = 1f
@@ -221,6 +217,8 @@ open class Ogc3dTilesLayer(
      *  pressure to fetch; an unbounded queue would stockpile parsed mesh preps (each
      *  retaining a decoded Bitmap + vertex FloatArray) when GL upload can't keep up. */
     private val pendingMeshUploads = Channel<MeshUploadEntry>(capacity = PENDING_UPLOAD_CHANNEL_CAPACITY)
+    /** Best-effort depth gauge for the bounded upload queue; drifts under cancellation. */
+    @Volatile private var pendingUploadDepth: Int = 0
 
     /** Tile → in-flight fetch [Job]. Walked each frame so fetches whose tile is no longer
      *  traversed get cancelled, freeing the permit for the new selection. */
@@ -475,11 +473,13 @@ open class Ogc3dTilesLayer(
     }
 
     /** Install parsed mesh content into the RR cache, capped by an EWMA-adapted cap that
-     *  targets [TARGET_GL_FRAME_WORK_MS] of total GL-thread frame work — measured via
-     *  [RenderContext.lastGLFrameWorkNanos]. Settles at ~1 tile/frame on slow Mali, ~5+
-     *  on fast Apple / desktop. Freshly-cached textures route to a background-group
-     *  drawable so their Bitmaps get GL-uploaded + recycled this same frame. */
+     *  targets [TARGET_GL_FRAME_WORK_MS] of GL-thread upload work per frame — measured via
+     *  [RenderContext.lastGLFrameWorkNanos]. Same target produces ~1 tile/frame on slow
+     *  Mali, ~5+ tiles/frame on fast Apple / desktop. Leftovers drain next frame via
+     *  `requestRedraw`. Freshly-cached textures route to a background-group drawable so
+     *  their Bitmaps get GL-uploaded + recycled this same frame. */
     private fun drainPendingMeshUploads(rc: RenderContext) {
+        // EWMA-smoothed feedback from last frame's GL-thread upload stall.
         val lastFrameMs = rc.lastGLFrameWorkNanos / 1_000_000.0
         ewmaGLFrameWorkMs = lastFrameMs * EWMA_ALPHA + ewmaGLFrameWorkMs * (1.0 - EWMA_ALPHA)
         adaptiveInstallCap = when {
@@ -497,6 +497,7 @@ open class Ogc3dTilesLayer(
         while (uploaded < adaptiveInstallCap) {
             val entry = pendingMeshUploads.tryReceive().getOrNull() ?: break
             uploaded++
+            pendingUploadDepth--
             // One bad upload mustn't abort the frame — per-tile catch, FAIL the tile, keep draining.
             try {
                 uploadMeshContent(entry.prep, entry.shell, rc)
@@ -537,7 +538,8 @@ open class Ogc3dTilesLayer(
      *  native heap until the tile happens to draw. */
     private class TextureEagerBindDrawable(private val textures: List<Texture>) : Drawable {
         override fun draw(dc: DrawContext) {
-            // GL cost is captured by the WorldWind.drawFrame whole-frame measurement.
+            // GL cost is captured by the WorldWind.drawFrame whole-frame wall-time measurement
+            // — no per-drawable self-timing needed.
             for (texture in textures) texture.bindTexture(dc)
         }
         override fun recycle() {}
@@ -679,10 +681,20 @@ open class Ogc3dTilesLayer(
         val uri = tile.contentUri ?: return
         if (tile.loadState != Tile3d.LoadState.UNLOADED) return
         tile.loadState = Tile3d.LoadState.FETCHING
+        // Cesium-style "progressive resolution": coarser parents win over finer children
+        // (parent always available as fallback render — no holes during refinement). At
+        // same level, closer-to-camera wins. Sub-tileset .json wrappers pinned to the
+        // top so structure resolves before any content tile competes.
+        val priority = if (uri.endsWith(".json", ignoreCase = true)) {
+            Double.POSITIVE_INFINITY
+        } else {
+            // GE weight (100×) keeps coarseness dominant; distance breaks ties at the same level.
+            tile.geometricError * 100.0 - tile.traversalDistance
+        }
         val request = TileContentRequest(
             tile = tile,
             contentUri = uri,
-            priority = tile.geometricError,
+            priority = priority,
         )
         val job = fetchQueue.fetchContent(
             request = request,
@@ -933,6 +945,7 @@ open class Ogc3dTilesLayer(
     /** Hand a parsed mesh to the render thread for RR-cache upload. Suspends on a full
      *  bounded queue, holding the fetch permit — the back-pressure path. */
     private suspend fun enqueueMeshUpload(tile: Tile3d, parsed: ParsedMesh) {
+        pendingUploadDepth++
         pendingMeshUploads.send(MeshUploadEntry(tile, parsed.shell, parsed.prep))
         WorldWind.requestRedraw()
     }

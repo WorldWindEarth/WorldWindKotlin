@@ -22,10 +22,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlin.concurrent.Volatile
 
 /**
@@ -53,7 +55,7 @@ class TileFetchQueue(
     /** Orchestrates recovery; a child of [job] but never of an epoch, so it survives the
      *  epoch cancellation it performs. */
     private val controlScope = CoroutineScope(baseContext)
-    private val semaphore = Semaphore(maxConcurrent)
+    private val permits = PrioritySemaphore(maxConcurrent)
     private val client: HttpClient by lazy { DefaultHttpClient() }
     @Volatile private var isShutdown: Boolean = false
 
@@ -70,6 +72,36 @@ class TileFetchQueue(
      *  their child URLs, so skip the cache read for them (still write) and re-pull live;
      *  heavy .glb content stays cached. Set on first recovery, cleared next cold start. */
     @Volatile private var bypassTilesetCacheRead: Boolean = false
+
+    /** Bounded fire-and-forget queue feeding one drain coroutine. Cache writes run there
+     *  (single writer to SQLite, no inter-coroutine contention) so the permit pool never
+     *  blocks on the SQLite write lock. Overflow drops; bytes still feed install. */
+    private val cacheWriteQueue: Channel<CacheWriteRequest> =
+        Channel(capacity = CACHE_WRITE_QUEUE_CAPACITY)
+
+    init {
+        // No NonCancellable: on shutdown the for-loop's receive throws and the drain exits;
+        // pending writes drop (best-effort cache, fine to lose).
+        controlScope.launch {
+            for (req in cacheWriteQueue) {
+                runCatching {
+                    blobStore.put(
+                        uri = req.uri,
+                        bytes = req.bytes,
+                        contentType = req.contentType,
+                        etag = req.etag,
+                    )
+                }
+            }
+        }
+    }
+
+    private data class CacheWriteRequest(
+        val uri: String,
+        val bytes: ByteArray,
+        val contentType: String?,
+        val etag: String?,
+    )
 
     /** Fetch a tileset.json (root or external); supports auth-provider redirects. */
     fun fetchTileset(
@@ -109,7 +141,8 @@ class TileFetchQueue(
                 val contentType: String?
                 val etag: String?
                 val status: HttpStatusCode
-                semaphore.withPermit {
+                permits.acquire(TILESET_FETCH_PRIORITY)
+                try {
                     val authed = source.authProvider.rewriteRequest(currentUrl, mutableMapOf())
                     val response: HttpResponse = client.get(authed.url) {
                         authed.headers.forEach { (k, v) -> header(k, v) }
@@ -119,6 +152,8 @@ class TileFetchQueue(
                     contentType = response.headers[HttpHeaders.ContentType]
                     etag = response.headers[HttpHeaders.ETag]
                     status = response.status
+                } finally {
+                    permits.release()
                 }
                 // Non-2xx bodies must NOT be cached — would poison BlobStore permanently.
                 if (!status.isSuccess()) {
@@ -171,6 +206,10 @@ class TileFetchQueue(
 
     companion object {
         const val MAX_REDIRECT_HOPS = 5
+
+        /** Caps transient memory at ~32 MB (each pending request pins ~50-500 KB of bytes);
+         *  on overflow [fetchContent] drops the cache write and the tile re-fetches next time. */
+        private const val CACHE_WRITE_QUEUE_CAPACITY: Int = 64
     }
 
     /** Fetch a tile content payload. Returns raw bytes for [ContentDispatcher] to route. */
@@ -182,9 +221,14 @@ class TileFetchQueue(
         val launchEpoch = epoch
         return epochScope.launch {
         if (request.cancelled) return@launch
+        // Bytes survive the inner finally so the cache-write enqueue runs post-permit.
+        var fetchedBytesForCache: ByteArray? = null
+        var fetchedContentTypeForCache: String? = null
+        var fetchedEtagForCache: String? = null
         try {
             val cacheKey = stableCacheKey(request.contentUri)
-            semaphore.withPermit {
+            permits.acquire(request.priority)
+            try {
                 if (request.cancelled) return@launch
                 val cached = safeBlobStoreGet(blobStore, cacheKey)
                 // A nested subtree tileset.json arrives as tile content (kind TILESET_JSON).
@@ -205,22 +249,27 @@ class TileFetchQueue(
                 val contentType = response.headers[HttpHeaders.ContentType]
                 val etag = response.headers[HttpHeaders.ETag]
                 val status = response.status
-                if (request.cancelled) return@launch
                 if (!status.isSuccess()) {
                     if (source.authProvider.isAuthRejection(status.value)) recoverSession(launchEpoch, request.contentUri)
                     onFailure(HttpStatusException(status.value, status.description, request.contentUri))
                     return@launch
                 }
-                runCatching {
-                    blobStore.put(
-                        uri = cacheKey,
-                        bytes = bytes,
-                        contentType = contentType,
-                        etag = etag,
-                    )
-                }
-                onSuccess(bytes)
+                // Stash for the post-permit cache-write enqueue; permit releases in the
+                // inner finally so the next high-priority fetch can start its HTTP.
+                fetchedBytesForCache = bytes
+                fetchedContentTypeForCache = contentType
+                fetchedEtagForCache = etag
+            } finally {
+                permits.release()
             }
+            // Permit released — non-blocking trySend then onSuccess. Cache hit/failure paths
+            // already return@launch'd above so [fetchedBytesForCache] is non-null here.
+            val bytes = fetchedBytesForCache!!
+            cacheWriteQueue.trySend(
+                CacheWriteRequest(cacheKey, bytes, fetchedContentTypeForCache, fetchedEtagForCache)
+            )
+            if (request.cancelled) return@launch
+            onSuccess(bytes)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (t: Throwable) {
@@ -287,6 +336,82 @@ class TileFetchQueue(
         job.cancel()
         client.close()
     }
+}
+
+/** Tileset.json fetches outrank tile content — without the root/sub-tileset metadata the
+ *  per-tile priorities can't be computed, so they jump every waiting tile-content request. */
+private const val TILESET_FETCH_PRIORITY: Double = Double.POSITIVE_INFINITY
+
+/** Priority-ordered permit pool. [acquire] suspends until a permit is free; when multiple
+ *  acquirers are waiting, [release] wakes the one with the highest [priority] (= largest
+ *  Double value). Replaces `kotlinx.coroutines.sync.Semaphore` which is FIFO — under fast
+ *  pan with hundreds of queued tile-fetch requests, FIFO leaves the camera-relevant tile
+ *  buried behind 6+ seconds of stale-prior-frame requests. No in-flight cancellation:
+ *  this just reorders the WAIT line, not the running set. Cesium 3D Tiles uses the same
+ *  pattern in `Cesium.RequestScheduler.update()`.
+ *
+ *  Implementation: linear-insert + head-pop sorted list of waiters; O(N) per acquire,
+ *  O(1) per release. For N up to ~1000 (observed at globe scale) the linear insert is
+ *  microseconds — far cheaper than the multi-second queue stall it eliminates. */
+private class PrioritySemaphore(private val maxPermits: Int) {
+    private val mutex = Mutex()
+    @Volatile private var available: Int = maxPermits
+    private val waiters = ArrayDeque<Waiter>()
+
+    private class Waiter(val priority: Double, val deferred: CompletableDeferred<Unit>)
+
+    suspend fun acquire(priority: Double) {
+        // Fast path or register-and-wait, decided under the mutex.
+        val waiter: Waiter? = mutex.withLock {
+            if (available > 0) {
+                available--
+                null
+            } else {
+                Waiter(priority, CompletableDeferred()).also { w ->
+                    // Sorted descending by priority: head = highest.
+                    var i = 0
+                    while (i < waiters.size && waiters[i].priority >= priority) i++
+                    waiters.add(i, w)
+                }
+            }
+        }
+        if (waiter == null) return  // fast path: got a permit immediately
+        try {
+            waiter.deferred.await()
+        } catch (e: CancellationException) {
+            // NonCancellable so we can clean up even though we ARE the cancelled coroutine.
+            // If `waiters.remove` returns false, [release] already popped us off and delivered
+            // the permit (its `deferred.complete` ran in the window between our cancel and our
+            // resume) — we never claimed it, so hand it on to the next waiter via [release].
+            // Without this, every cancel-during-wakeup leaks one permit; a fling-pan session
+            // drains the pool and stalls every future fetch.
+            withContext(NonCancellable) {
+                val wokenButCancelled = mutex.withLock { !waiters.remove(waiter) }
+                if (wokenButCancelled) release()
+            }
+            throw e
+        }
+    }
+
+    /** Must be cancellation-safe — callers invoke from `finally` blocks of fetches that
+     *  may already be cancelled. A bare `mutex.withLock` would throw immediately under
+     *  the cancelled context, leaking the permit; running under `NonCancellable` lets the
+     *  brief atomic update always finish. */
+    suspend fun release() = withContext(NonCancellable) {
+        // Loop in case the head waiter was cancelled between acquire-suspend and now —
+        // skip dead waiters and either wake a live one or return the permit to the pool.
+        while (true) {
+            val woken = mutex.withLock {
+                if (waiters.isEmpty()) {
+                    available++
+                    null
+                } else waiters.removeFirst()
+            } ?: return@withContext
+            if (woken.deferred.complete(Unit)) return@withContext
+        }
+    }
+
+    fun availablePermits(): Int = available
 }
 
 /** Non-2xx HTTP response. Distinct from IO errors so callers can decide retry policy. */

@@ -79,10 +79,9 @@ open class Ogc3dTilesTutorial(
     /** Soft GPU-byte budget for the 3D Tiles working set. Drives the SSE-pressure feedback. */
     protected open val maxMemoryFootprintBytes: Long = Ogc3dTilesLayer.DEFAULT_MAX_MEMORY_FOOTPRINT_BYTES
 
-    /** Per-host concurrent fetch + parse cap. Default 32 is fine for cheap meshes but
-     *  thrashes for SPZ where each in-flight parse holds ~70 MB transient (inflate body +
-     *  decode FloatArrays). Gaussian tutorials should override to 2-4. */
-    protected open val fetchConcurrency: Int = 32
+    /** Matches the install pipeline's sustained rate under the adaptive throttle. Gaussian
+     *  tutorials should override to 2-4 — each SPZ parse holds ~70 MB transient. */
+    protected open val fetchConcurrency: Int = 8
 
     /** Replace base imagery + terrain with a minimal sky/UI setup. Default false keeps
      *  the existing scene as a backdrop; override to true for globe-coverage photogrammetry
