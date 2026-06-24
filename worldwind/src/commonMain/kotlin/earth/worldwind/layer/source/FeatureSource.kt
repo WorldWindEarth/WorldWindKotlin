@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.Flow
  */
 interface BulkFeatureSource {
     suspend fun fetchAll(): Flow<CachedFeatureRow>
+
+    /** Read only the rows intersecting [sector]. The default ignores [sector] and returns
+     *  [fetchAll] — a plain network source has no spatial index. A cache-backed source overrides
+     *  it to serve viewport reads from a spatially-indexed store. */
+    suspend fun readBySector(sector: Sector): Flow<CachedFeatureRow> = fetchAll()
+
     /** Release any resources held by the source (HTTP client, etc.). Idempotent default no-op. */
     fun close() {}
 }

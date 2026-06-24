@@ -1,5 +1,6 @@
 package earth.worldwind.layer.source
 
+import earth.worldwind.geom.Sector
 import earth.worldwind.layer.BulkFeatureLayer
 import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.cache.CachedBulkFeatureSource
@@ -96,8 +97,8 @@ private class InMemoryFeatureStore : FeatureStore {
         rows.toList().also { bulkRows.addAll(it) }
     }
 
-    override suspend fun readTile(z: Int, x: Int, y: Int) = throw UnsupportedOperationException()
-    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>) =
+    override suspend fun readTile(z: Int, x: Int, y: Int, sector: Sector?) = throw UnsupportedOperationException()
+    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>, sector: Sector?) =
         throw UnsupportedOperationException()
     override suspend fun deleteTile(z: Int, x: Int, y: Int) = throw UnsupportedOperationException()
 

@@ -232,6 +232,7 @@ fun main() {
                 contentManager.attachCache(layer, "WFS_Cities")
                 layer
             }),
+            "WFS Auto-Refresh" to WfsAutoRefreshTutorial(wwd.engine, mainScope),
             "Shapefile Layer" to ShapefileLayerTutorial(wwd.engine, mainScope, layerLoader = {
                 val layer = BulkFeatureLayer(
                     source = ShapefileBulkFeatureSource(ShapefileLayerTutorial.SHP_URL),

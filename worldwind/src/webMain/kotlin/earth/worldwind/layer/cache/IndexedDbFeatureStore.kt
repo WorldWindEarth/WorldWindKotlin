@@ -1,5 +1,6 @@
 package earth.worldwind.layer.cache
 
+import earth.worldwind.geom.Sector
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.CachedGeometry
 import earth.worldwind.util.js.jso
@@ -69,7 +70,9 @@ internal class IndexedDbFeatureStore(
         idbAwaitTransaction(tx)
     }
 
-    override suspend fun readTile(z: Int, x: Int, y: Int): Flow<CachedFeatureRow>? {
+    // sector is unused: features are keyed by (z,x,y) tile, not a spatial bbox, so there's no
+    // geographic-vs-slippy mismatch to correct here (unlike the RTree-backed GeoPackage store).
+    override suspend fun readTile(z: Int, x: Int, y: Int, sector: Sector?): Flow<CachedFeatureRow>? {
         val tx = db.transaction(FEATURES_STORE, "readonly")
         val store = tx.objectStore(FEATURES_STORE)
         val req = store.index(INDEX_BY_TILE).getAll(tileKey(contentKey, z, x, y))
@@ -86,7 +89,7 @@ internal class IndexedDbFeatureStore(
             .asFlow()
     }
 
-    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>) {
+    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>, sector: Sector?) {
         val materialised = rows.toList()
         val tx = db.transaction(FEATURES_STORE, "readwrite")
         val store = tx.objectStore(FEATURES_STORE)

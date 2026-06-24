@@ -79,7 +79,6 @@ class MvtBatchedPolygonTile(
     private val data = mutableMapOf<Globe.State?, TileData>()
     private val boundingBox = BoundingBox()
     private var bufferDataVersion = 0
-    private val scratchPoint = Vec3()
     private val tessCoords = DoubleArray(3)
     private val vertices = FloatList()
     // Bucket key: high 32 bits = signed Int zOrder, low 32 bits = colorPacked. Sorting features
@@ -344,7 +343,10 @@ class MvtBatchedPolygonTile(
             tileData.featureElementRanges = IntArray(0)
             return
         }
-        globe.geographicToCartesian(anchor.latitude, anchor.longitude, 0.0, vertexOrigin)
+        // Degrees (lon, lat) to match the surface compositor's texture-space MVP — it maps
+        // geographic degrees to the terrain-tile texture; per-vertex floats are degree deltas.
+        // (ECEF metres would project millions of units outside the texture → no fill rasterised.)
+        vertexOrigin.set(anchor.longitude.inDegrees, anchor.latitude.inDegrees, 0.0)
         tileData.vertexOrigin.copy(vertexOrigin)
 
         // Stable sort by zOrder ascending; ties keep the MVT server's intra-layer order. Build
@@ -386,8 +388,9 @@ class MvtBatchedPolygonTile(
         tileData.colorRanges = ranges
         tileData.featureElementRanges = flat
 
-        boundingBox.setToPoints(tileData.vertexArray, tileData.vertexArray.size, VERTEX_STRIDE)
-        boundingBox.translate(tileData.vertexOrigin.x, tileData.vertexOrigin.y, tileData.vertexOrigin.z)
+        // Compositor frustum-tests against boundingSector, not boundingBox (degree-space verts
+        // have no meaningful ECEF box). Match MvtBatchedLineTile / Path's surface branch.
+        boundingBox.setToUnitBox()
 
         // Drop the working buffers — they pin ~the same memory as the final arrays.
         vertices.shrink()
@@ -489,13 +492,12 @@ class MvtBatchedPolygonTile(
     private fun ringCount(ring: List<Position>): Int = ring.size
 
     private fun pushLocalVertex(globe: Globe, latitude: Angle, longitude: Angle): Int {
-        // Altitude 0 — surface compositor reprojects to terrain. Pure ellipsoid math is
-        // off-thread safe.
-        globe.geographicToCartesian(latitude, longitude, 0.0, scratchPoint)
+        // Degree deltas from the tile's degree-space [vertexOrigin] — the surface compositor
+        // reprojects (lon°, lat°) onto the terrain. Altitude 0; off-thread safe (no globe math).
         val idx = vertices.size / VERTEX_STRIDE
-        vertices.add((scratchPoint.x - vertexOrigin.x).toFloat())
-        vertices.add((scratchPoint.y - vertexOrigin.y).toFloat())
-        vertices.add((scratchPoint.z - vertexOrigin.z).toFloat())
+        vertices.add((longitude.inDegrees - vertexOrigin.x).toFloat())
+        vertices.add((latitude.inDegrees - vertexOrigin.y).toFloat())
+        vertices.add(0f)
         return idx
     }
 

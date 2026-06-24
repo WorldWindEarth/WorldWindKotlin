@@ -58,16 +58,23 @@ internal object OsmBuildingCodec {
     }
 
     private fun CachedGeometry.LineString.toPositions(altitude: Double): List<Position> {
-        val result = ArrayList<Position>(points.size)
-        for (p in points) result += Position.fromDegrees(p.y, p.x, p.z ?: altitude)
+        val result = ArrayList<Position>(size)
+        for (i in 0 until size) result += Position.fromDegrees(yAt(i), xAt(i), zAt(i) ?: altitude)
         // GPKG rings include the closing vertex; OsmBuilding rings don't.
         if (result.size >= 2 && result.first() == result.last()) result.removeAt(result.lastIndex)
         return result
     }
 
-    private fun List<Position>.toLineString(): CachedGeometry.LineString = CachedGeometry.LineString(
-        map { CachedGeometry.Point(it.longitude.inDegrees, it.latitude.inDegrees, it.altitude) }
-    )
+    private fun List<Position>.toLineString(): CachedGeometry.LineString {
+        val xy = DoubleArray(size * 2)
+        val z = DoubleArray(size)
+        for (i in indices) {
+            val p = this[i]
+            xy[i * 2] = p.longitude.inDegrees; xy[i * 2 + 1] = p.latitude.inDegrees
+            z[i] = p.altitude
+        }
+        return CachedGeometry.LineString(xy, z)
+    }
 
     @Serializable
     private data class BuildingJson(

@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
 package earth.worldwind.layer.cache
+import earth.worldwind.geom.Sector
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.CachedGeometry
 
@@ -68,7 +69,8 @@ class FileSystemFeatureStore(
         writeUtf8(bulkPath(), text)
     }
 
-    override suspend fun readTile(z: Int, x: Int, y: Int): Flow<CachedFeatureRow>? = withContext(Dispatchers.Default) {
+    // sector is unused — tiles are keyed per (z, x, y) on disk, no spatial bbox query.
+    override suspend fun readTile(z: Int, x: Int, y: Int, sector: Sector?): Flow<CachedFeatureRow>? = withContext(Dispatchers.Default) {
         val path = tilePath(z, x, y)
         if (!NSFileManager.defaultManager.fileExistsAtPath(path)) return@withContext null
         val text = readUtf8(path) ?: return@withContext null
@@ -77,7 +79,7 @@ class FileSystemFeatureStore(
         if (list.isEmpty()) emptyFlow() else list.asFlow()
     }
 
-    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>): Unit = withContext(Dispatchers.Default) {
+    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>, sector: Sector?): Unit = withContext(Dispatchers.Default) {
         val materialised = rows.toList()
         writeUtf8(tilePath(z, x, y), JSON.encodeToString(rowListSerializer, materialised))
     }

@@ -18,6 +18,18 @@
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_wfs_layer"/>
         <item
+            android:id="@+id/nav_wfs_auto_refresh_activity"
+            android:icon="@android:drawable/ic_menu_mapmode"
+            android:title="@string/title_wfs_auto_refresh"/>
+        <item
+            android:id="@+id/nav_wfs_cached_activity"
+            android:icon="@android:drawable/ic_menu_mapmode"
+            android:title="@string/title_wfs_cached"/>
+        <item
+            android:id="@+id/nav_wfs_water_tiled_activity"
+            android:icon="@android:drawable/ic_menu_mapmode"
+            android:title="@string/title_wfs_water_tiled"/>
+        <item
             android:id="@+id/nav_shapefile_layer_activity"
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_shapefile_layer"/>

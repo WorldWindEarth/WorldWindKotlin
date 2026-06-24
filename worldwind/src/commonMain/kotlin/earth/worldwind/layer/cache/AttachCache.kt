@@ -25,7 +25,9 @@ import earth.worldwind.ogc.WmsTileSource
 import earth.worldwind.ogc.WmtsImageLayer
 import earth.worldwind.ogc.WmtsTileSource
 import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
+import earth.worldwind.ogc.wfs.WfsTiledFeatureSource
 import earth.worldwind.layer.BulkFeatureLayer
+import earth.worldwind.layer.TiledFeatureLayer
 import earth.worldwind.shape.TiledSurfaceImage
 import earth.worldwind.util.ContentManager
 import earth.worldwind.geom.Location
@@ -83,6 +85,7 @@ suspend fun ContentManager.attachCache(
     is MvtVectorLayer -> attachMvtVectorLayerCache(layer, contentKey, cachePolicy)
     is BulkFeatureLayer -> attachBulkFeatureLayerCache(layer, contentKey, cachePolicy)
     is OsmBuildingsLayer -> attachOsmBuildingsLayerCache(layer, contentKey, cachePolicy)
+    is TiledFeatureLayer -> attachTiledFeatureLayerCache(layer, contentKey, cachePolicy)
     else -> error("ContentManager.attachCache: unsupported VectorLayer subtype ${layer::class.simpleName}")
 }
 
@@ -265,6 +268,25 @@ internal suspend fun ContentManager.attachOsmBuildingsLayerCache(
         type = OverpassBuildingsSource.SERVICE_TYPE,
         address = network.endpoint,
         metadata = OsmBuildingsLayer.encodeCacheConfig(layer),
+    ))
+}
+
+internal suspend fun ContentManager.attachTiledFeatureLayerCache(
+    layer: TiledFeatureLayer, contentKey: String,
+    cachePolicy: CachePolicy,
+) {
+    // Peel the upstream source off an already-cache-attached layer so we re-wrap the bare source.
+    val current = layer.source
+    val network = (current as? CachedTiledFeatureSource)?.networkSource as? WfsTiledFeatureSource
+        ?: current as? WfsTiledFeatureSource
+        ?: error("TiledFeatureLayer wraps a non-WFS tiled source: ${current::class.simpleName}")
+    val store = openFeatureStore(contentKey, cachePolicy, displayName = layer.displayName)
+    layer.source = CachedTiledFeatureSource(network, store)
+    registerWebService(contentKey, WebServiceInfo(
+        type = WfsTiledFeatureSource.SERVICE_TYPE,
+        address = network.serviceAddress,
+        layerName = network.typeName,
+        metadata = network.serviceMetadata,
     ))
 }
 

@@ -44,8 +44,8 @@ class GeoJsonBulkFeatureSourceTest {
         ).fetchAll().toList()
         assertEquals(1, rows.size)
         val line = rows[0].geometry as CachedGeometry.LineString
-        assertEquals(3, line.points.size)
-        assertEquals(2.0, line.points[2].x)
+        assertEquals(3, line.size)
+        assertEquals(2.0, line.xAt(2))
     }
 
     @Test
@@ -58,7 +58,7 @@ class GeoJsonBulkFeatureSourceTest {
         ).fetchAll().toList()
         val polygon = rows[0].geometry as CachedGeometry.Polygon
         assertEquals(2, polygon.rings.size, "outer + 1 hole")
-        assertEquals(5, polygon.rings[0].points.size, "outer ring with closing vertex")
+        assertEquals(5, polygon.rings[0].size, "outer ring with closing vertex")
     }
 
     @Test

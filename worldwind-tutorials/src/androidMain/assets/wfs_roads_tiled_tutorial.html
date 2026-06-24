@@ -1,0 +1,55 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WFS Roads (Tiled Cache) Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>WFS Roads (Tiled Cache) Tutorial</h1>
+<p>
+    Demonstrates Strategy 2 — tiled cache-through — over a dense GLOBAL WFS line layer
+    (<code>ne:ne_10m_roads</code>, ~57k features worldwide) that must NOT be fetched whole. Each tile's
+    GetFeature returns the full, unclipped geometry of every road that intersects it, so whole roads
+    render — the tile only bounds the fetch. Many features per tile exercises the batched line/outline
+    path; major highways are drawn brighter and thicker than minor roads.</p>
+<p>
+    <code>WfsTiledFeatureSource</code> issues one GetFeature per slippy-map tile (bounded by the
+    tile's BBOX, capped at <code>maxFeaturesPerTile</code>). <code>TiledFeatureLayer</code> drives
+    tile selection from the viewport (centre-spiral, LRU) and renders generic features via
+    <code>FeatureRenderer</code>. <code>contentManager.attachCache(layer, key)</code> wraps the
+    source in <code>CachedTiledFeatureSource</code> over a GeoPackage store, so each tile is cached
+    on first fetch and served from the local RTree on revisit — both memory and network stay
+    bounded, and visited areas work offline. A coarser level floor (<code>levelOffset = 2</code>)
+    keeps the layer visible across a wider range of camera tilt than the polygon demo.
+</p>
+<h2>Example</h2>
+<h3>WfsRoadsTiledFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class WfsRoadsTiledFragment : BasicGlobeFragment() {
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        WfsAutoRefreshTutorial(it.engine, lifecycleScope, layerProvider = {
+            val layer = TiledFeatureLayer(
+                source = WfsTiledFeatureSource(
+                    serviceAddress = WfsAutoRefreshTutorial.SERVICE_ADDRESS,
+                    typeName = WfsAutoRefreshTutorial.ROADS_TYPE_NAME,                 // ne:ne_10m_roads
+                    maxFeaturesPerTile = WfsAutoRefreshTutorial.ROADS_MAX_FEATURES_PER_TILE,
+                ),
+                levelOffset = WfsAutoRefreshTutorial.ROADS_LEVEL_OFFSET,
+                displayName = WfsAutoRefreshTutorial.ROADS_DISPLAY_NAME,
+                customLogicToApplyProperties = WfsAutoRefreshTutorial.roadsStyling,
+            ).apply { isPickEnabled = false }
+            contentManager.attachCache(layer, "WFS_Roads")
+            layer
+        }).start()
+    }
+}
+    </textarea>
+</div>
+</body>
+</html>

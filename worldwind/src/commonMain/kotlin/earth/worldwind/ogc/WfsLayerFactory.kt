@@ -12,6 +12,7 @@ import earth.worldwind.ogc.wfs.WfsFeatureType
 import earth.worldwind.ogc.wfs.WfsGmlReader
 import earth.worldwind.ogc.wfs.WfsServiceException
 import earth.worldwind.util.Logger.ERROR
+import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.Logger.makeMessage
 import earth.worldwind.util.http.DefaultHttpClient
@@ -132,6 +133,7 @@ object WfsLayerFactory {
         sector: Sector? = null,
         maxFeatures: Int? = null,
         cqlFilter: String? = null,
+        sortBy: String? = null,
         customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
         pageSize: Int? = null,
         clientConfig: HttpClientConfig<*>.() -> Unit = {},
@@ -152,7 +154,7 @@ object WfsLayerFactory {
         val client = httpClient ?: DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS, clientConfig)
         try {
             val resolved = resolveFeatureType(serviceAddress, typeName, serviceMetadata, client)
-            val baseParams = buildGetFeatureParams(resolved, typeName, sector, maxFeatures, cqlFilter)
+            val baseParams = buildGetFeatureParams(resolved, typeName, sector, maxFeatures, cqlFilter, sortBy)
             val finalName = displayName ?: resolved.displayName
             val paginating = pageSize != null && resolved.version == VERSION_20
 
@@ -250,6 +252,7 @@ object WfsLayerFactory {
         sector: Sector?,
         maxFeatures: Int?,
         cqlFilter: String?,
+        sortBy: String? = null,
     ): LinkedHashMap<String, String> {
         val params = LinkedHashMap<String, String>()
         params["SERVICE"] = SERVICE
@@ -264,6 +267,9 @@ object WfsLayerFactory {
         }
         maxFeatures?.let { params[resolved.countParam] = it.toString() }
         cqlFilter?.takeIf { it.isNotBlank() }?.let { params["CQL_FILTER"] = it }
+        // A stable sort key makes STARTINDEX paging non-overlapping/non-skipping (WFS has no default
+        // order). Typically the feature-id property; omit for single-request (unpaged) fetches.
+        sortBy?.takeIf { it.isNotBlank() }?.let { params["SORTBY"] = it }
         return params
     }
 
@@ -305,6 +311,24 @@ object WfsLayerFactory {
     )
 
     /** Try WFS 2.0 first, fall back to 1.1.0 if 2.0 parsing or feature-type lookup fails. */
+    /**
+     * Fetch the service's GetCapabilities document once (trying WFS 2.0.0 then 1.1.0). Callers that
+     * issue many requests against one service — e.g. [earth.worldwind.ogc.wfs.WfsTiledFeatureSource]
+     * fetching per tile — should retrieve this ONCE and pass it as `serviceMetadata` to [createLayer],
+     * so the (large) capabilities document isn't re-downloaded for every request (which can overwhelm
+     * a server into timing the capabilities request out). Null if neither version could be retrieved.
+     */
+    suspend fun retrieveServiceMetadata(serviceAddress: String, httpClient: HttpClient): String? {
+        val v20 = runCatching { retrieveCapabilities(serviceAddress, VERSION_20, httpClient) }
+        v20.getOrNull()?.let { return it }
+        v20.exceptionOrNull()?.let { logMessage(WARN, "WfsLayerFactory", "retrieveServiceMetadata",
+            "GetCapabilities 2.0.0 failed: ${it::class.simpleName}: ${it.message}") }
+        val v11 = runCatching { retrieveCapabilities(serviceAddress, VERSION_11, httpClient) }
+        v11.exceptionOrNull()?.let { logMessage(WARN, "WfsLayerFactory", "retrieveServiceMetadata",
+            "GetCapabilities 1.1.0 failed: ${it::class.simpleName}: ${it.message}") }
+        return v11.getOrNull()
+    }
+
     private suspend fun resolveFeatureType(
         serviceAddress: String,
         typeName: String,

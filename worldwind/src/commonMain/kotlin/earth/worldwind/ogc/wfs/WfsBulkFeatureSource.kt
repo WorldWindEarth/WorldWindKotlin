@@ -3,8 +3,6 @@ package earth.worldwind.ogc.wfs
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.source.BulkFeatureSource
 import earth.worldwind.layer.source.CachedFeatureRow
-import earth.worldwind.layer.source.CachedGeometry
-import earth.worldwind.layer.source.parseGeoJsonAsFeatureRows
 import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
@@ -14,9 +12,6 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import earth.worldwind.geom.Position
 
 /**
  * [BulkFeatureSource] that fetches features from an OGC WFS endpoint. Delegates to
@@ -67,7 +62,7 @@ class WfsBulkFeatureSource(
                     httpClient = clientDelegate.value,
                     // Keep the in-memory RenderableLayer build cheap — we only care about the raw bytes.
                     customLogicToApplyProperties = {},
-                    onResponseBody = { body, isGml -> rows += decode(body, isGml) },
+                    onResponseBody = { body, isGml -> rows += WfsFeatureDecoder.decode(body, isGml) },
                 )
                 return rows.asFlow()
             } catch (e: CancellationException) {
@@ -93,35 +88,6 @@ class WfsBulkFeatureSource(
     override fun close() {
         if (clientDelegate.isInitialized()) clientDelegate.value.close()
     }
-
-    private fun decode(body: String, isGml: Boolean): List<CachedFeatureRow> = if (isGml) {
-        WfsGmlReader.parseFeatureRecords(body).map { record ->
-            CachedFeatureRow(record.geometry.toCached(), propertiesToJson(record.properties))
-        }
-    } else {
-        parseGeoJsonAsFeatureRows(WfsLayerFactory.sanitizeGeoJson(body))
-    }
-
-    private fun WfsGmlReader.GmlGeometry.toCached(): CachedGeometry = when (this) {
-        is WfsGmlReader.GmlGeometry.PointGeom -> position.toCachedPoint(is3D)
-        is WfsGmlReader.GmlGeometry.LineGeom -> CachedGeometry.LineString(positions.map { it.toCachedPoint(is3D) })
-        is WfsGmlReader.GmlGeometry.PolygonGeom -> CachedGeometry.Polygon(
-            buildList {
-                add(CachedGeometry.LineString(exterior.map { it.toCachedPoint(is3D) }))
-                for (interior in interiors) add(CachedGeometry.LineString(interior.map { it.toCachedPoint(is3D) }))
-            }
-        )
-    }
-
-    // Keep the altitude only when the source coordinates were 3D — including a legitimate
-    // 0.0 (sea level). A 2D geometry yields z = null so it clamps to ground rather than being
-    // treated as absolute-altitude-0. (Was `altitude.takeIf { it != 0.0 }`, which wrongly
-    // demoted a genuine 3D-at-sea-level vertex to 2D.)
-    private fun Position.toCachedPoint(is3D: Boolean): CachedGeometry.Point =
-        CachedGeometry.Point(longitude.inDegrees, latitude.inDegrees, altitude.takeIf { is3D })
-
-    private fun propertiesToJson(props: Map<String, String>): String =
-        JsonObject(props.mapValues { JsonPrimitive(it.value) }).toString()
 
     companion object {
         /** Cache service-identity tag for WFS-backed feature layers. */

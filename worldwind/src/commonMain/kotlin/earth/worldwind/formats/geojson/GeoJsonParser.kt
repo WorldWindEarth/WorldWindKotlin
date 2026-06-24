@@ -56,7 +56,8 @@ private fun parseFeature(obj: JsonObject?): Feature<Geometry, JsonObject?>? {
     if (obj == null) return null
     val geometry = parseGeometry(obj["geometry"] as? JsonObject) ?: return null
     val properties = obj["properties"] as? JsonObject
-    return Feature(geometry = geometry, properties = properties)
+    val id = obj["id"] as? JsonPrimitive
+    return Feature(geometry = geometry, properties = properties, id = id)
 }
 
 private fun parseGeometry(obj: JsonObject?): Geometry? {

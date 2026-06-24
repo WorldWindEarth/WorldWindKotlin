@@ -74,12 +74,12 @@ class ShapefileBulkFeatureSource(
                 val p = renderable.position
                 CachedGeometry.Point(p.longitude.inDegrees, p.latitude.inDegrees, p.altitude.takeIf { hasZ })
             }
-            is Path -> CachedGeometry.LineString(renderable.positions.map {
+            is Path -> CachedGeometry.LineString.of(renderable.positions.map {
                 CachedGeometry.Point(it.longitude.inDegrees, it.latitude.inDegrees, it.altitude.takeIf { hasZ })
             })
             is Polygon -> {
                 val rings = (0 until renderable.boundaryCount).map { i ->
-                    CachedGeometry.LineString(renderable.getBoundary(i).map {
+                    CachedGeometry.LineString.of(renderable.getBoundary(i).map {
                         CachedGeometry.Point(it.longitude.inDegrees, it.latitude.inDegrees, it.altitude.takeIf { hasZ })
                     })
                 }

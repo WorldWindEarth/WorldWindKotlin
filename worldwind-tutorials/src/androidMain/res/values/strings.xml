@@ -36,6 +36,9 @@
     <string name="title_wms_layer">WMS Layer</string>
     <string name="title_wmts_layer">WMTS Layer</string>
     <string name="title_wfs_layer">WFS Layer</string>
+    <string name="title_wfs_auto_refresh">WFS Auto-Refresh</string>
+    <string name="title_wfs_cached">WFS Cached (viewport)</string>
+    <string name="title_wfs_water_tiled">WFS Roads (tiled)</string>
     <string name="title_shapefile_layer">Shapefile Layer</string>
     <string name="title_wcs_elevation_coverage">WCS Elevation Coverage</string>
     <string name="title_dted_elevation">DTED Elevation (local)</string>

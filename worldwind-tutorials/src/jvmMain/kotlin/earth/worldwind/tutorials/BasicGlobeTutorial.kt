@@ -40,7 +40,9 @@ import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.formats.gpkg.GpkgContentManager
 import earth.worldwind.ogc.wfs.WfsBulkFeatureSource
+import earth.worldwind.ogc.wfs.WfsTiledFeatureSource
 import earth.worldwind.layer.BulkFeatureLayer
+import earth.worldwind.layer.TiledFeatureLayer
 import earth.worldwind.shape.Movable
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -225,6 +227,53 @@ fun main() {
                         customLogicToApplyProperties = WfsLayerTutorial.populationStyling,
                     )
                     contentManager.attachCache(layer, "WFS_Cities")
+                    layer
+                }),
+                "WFS Auto-Refresh" to WfsAutoRefreshTutorial(engine, mainScope),
+                "WFS Cached (viewport)" to WfsAutoRefreshTutorial(engine, mainScope, layerProvider = {
+                    // Strategy 1: download once into a GeoPackage, then read each viewport from its RTree.
+                    val layer = BulkFeatureLayer(
+                        source = WfsBulkFeatureSource(
+                            serviceAddress = WfsAutoRefreshTutorial.SERVICE_ADDRESS,
+                            layerName = WfsAutoRefreshTutorial.TYPE_NAME,
+                        ),
+                        displayName = WfsAutoRefreshTutorial.DISPLAY_NAME,
+                        customLogicToApplyProperties = WfsAutoRefreshTutorial.countryStyling,
+                    ).apply {
+                        isPickEnabled = false
+                        autoRefreshViewport = true
+                    }
+                    contentManager.attachCache(layer, "WFS_Countries")
+                    layer
+                }),
+                "WFS Roads (tiled)" to WfsAutoRefreshTutorial(engine, mainScope,
+                    cameraLatitude = WfsAutoRefreshTutorial.ROADS_CAMERA_LAT,
+                    cameraLongitude = WfsAutoRefreshTutorial.ROADS_CAMERA_LON,
+                    cameraAltitude = WfsAutoRefreshTutorial.ROADS_CAMERA_ALT,
+                    layerProvider = {
+                    // Strategy 2: per-tile BBOX GetFeature, each tile cached in the GeoPackage and
+                    // read cache-first on revisit. Suits ne:ne_10m_roads (dense global lines, too large
+                    // to fetch whole) — exercises the batched line/outline path with many features per tile.
+                    val layer = TiledFeatureLayer(
+                        source = WfsTiledFeatureSource(
+                            serviceAddress = WfsAutoRefreshTutorial.SERVICE_ADDRESS,
+                            typeName = WfsAutoRefreshTutorial.ROADS_TYPE_NAME,
+                            maxFeaturesPerTile = WfsAutoRefreshTutorial.ROADS_MAX_FEATURES_PER_TILE,
+                        ),
+                        levelOffset = WfsAutoRefreshTutorial.ROADS_LEVEL_OFFSET,
+                        // useBatchedRendering defaults true: per-tile batched line outlines (one VBO/EBO per tile).
+                        displayName = WfsAutoRefreshTutorial.ROADS_DISPLAY_NAME,
+                        customLogicToApplyProperties = WfsAutoRefreshTutorial.roadsStyling,
+                        // Road LINES: never draw a coarser ancestor — its lines would show through the
+                        // finer tiles (both resolutions at once). Keep only the finest loaded tiles; cells
+                        // still loading stay blank for a moment rather than showing doubled roads.
+                        coarseAncestorFallback = false,
+                    ).apply {
+                        isPickEnabled = false
+                        // Shrink each tile's line VBO (the GPU-memory driver) by simplifying harder.
+                        simplifyTolerancePixels = WfsAutoRefreshTutorial.ROADS_SIMPLIFY_PX
+                    }
+                    contentManager.attachCache(layer, "WFS_Roads")
                     layer
                 }),
                 "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope, layerLoader = {

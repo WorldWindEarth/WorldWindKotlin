@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WFS Cached (Viewport) Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>WFS Cached (Viewport) Tutorial</h1>
+<p>
+    Demonstrates Strategy 1 — download-once cache — over a bounded WFS polygon layer
+    (<code>opengeo:countries</code>).</p>
+<p>
+    <code>contentManager.attachCache(layer, key)</code> wraps the <code>WfsBulkFeatureSource</code>
+    in a <code>CachedBulkFeatureSource</code> over a GeoPackage store. On the first viewport read the
+    whole layer is downloaded once into the store (built with an RTree spatial index); thereafter
+    <code>autoRefreshViewport</code> serves each pan/zoom as a BBOX query from the local index, so RAM
+    holds only the visible features and the layer works offline. Use this for bounded, fairly static
+    layers; a layer too large to download whole should use the tiled cache-through tutorial instead.
+</p>
+<h2>Example</h2>
+<h3>WfsCachedViewportFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class WfsCachedViewportFragment : BasicGlobeFragment() {
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        WfsAutoRefreshTutorial(it.engine, lifecycleScope, layerProvider = {
+            val layer = BulkFeatureLayer(
+                source = WfsBulkFeatureSource(
+                    serviceAddress = WfsAutoRefreshTutorial.SERVICE_ADDRESS,
+                    layerName = WfsAutoRefreshTutorial.TYPE_NAME,        // opengeo:countries
+                ),
+                displayName = WfsAutoRefreshTutorial.DISPLAY_NAME,
+                customLogicToApplyProperties = WfsAutoRefreshTutorial.countryStyling,
+            ).apply {
+                isPickEnabled = false
+                autoRefreshViewport = true                              // per-viewport cache reads
+            }
+            contentManager.attachCache(layer, "WFS_Countries")          // CachedBulkFeatureSource + GeoPackage
+            layer
+        }).start()
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

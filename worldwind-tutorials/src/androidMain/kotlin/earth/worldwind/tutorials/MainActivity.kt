@@ -402,6 +402,21 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/wfs_layer_tutorial.html",
                 R.string.title_wfs_layer
             )
+            R.id.nav_wfs_auto_refresh_activity -> loadTutorial(
+                WfsAutoRefreshLayerFragment::class.java,
+                "file:///android_asset/wfs_auto_refresh_tutorial.html",
+                R.string.title_wfs_auto_refresh
+            )
+            R.id.nav_wfs_cached_activity -> loadTutorial(
+                WfsCachedViewportFragment::class.java,
+                "file:///android_asset/wfs_cached_viewport_tutorial.html",
+                R.string.title_wfs_cached
+            )
+            R.id.nav_wfs_water_tiled_activity -> loadTutorial(
+                WfsRoadsTiledFragment::class.java,
+                "file:///android_asset/wfs_roads_tiled_tutorial.html",
+                R.string.title_wfs_water_tiled
+            )
             R.id.nav_shapefile_layer_activity -> loadTutorial(
                 ShapefileLayerFragment::class.java,
                 "file:///android_asset/shapefile_layer_tutorial.html",

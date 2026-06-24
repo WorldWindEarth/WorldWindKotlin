@@ -27,13 +27,20 @@ internal fun Geometry.toCached(): CachedGeometry? = when (this) {
     else -> null
 }
 
-private fun LineString.toCachedLineString(): CachedGeometry.LineString =
-    CachedGeometry.LineString(points.map { CachedGeometry.Point(it.x, it.y, it.z) })
+private fun LineString.toCachedLineString(): CachedGeometry.LineString {
+    val pts = points.orEmpty()
+    val xy = DoubleArray(pts.size * 2)
+    val z = if (pts.any { it.z != null }) DoubleArray(pts.size) else null
+    for (i in pts.indices) {
+        val p = pts[i]
+        xy[i * 2] = p.x; xy[i * 2 + 1] = p.y
+        if (z != null) z[i] = p.z ?: 0.0
+    }
+    return CachedGeometry.LineString(xy, z)
+}
 
 private fun Polygon.toCachedPolygon(): CachedGeometry.Polygon = CachedGeometry.Polygon(
-    rings.orEmpty().map { ring ->
-        CachedGeometry.LineString(ring.points.map { CachedGeometry.Point(it.x, it.y, it.z) })
-    }
+    rings.orEmpty().map { ring -> ring.toCachedLineString() }
 )
 
 /** [CachedGeometry] → mil.nga.sf adapter, used when round-tripping through the GPKG. */
@@ -55,8 +62,8 @@ internal fun CachedGeometry.toSf(): Geometry = when (this) {
     }
 }
 
-private fun CachedGeometry.LineString.toSfLineString(): LineString = LineString(hasZ, false).also { ls ->
-    for (p in points) ls.addPoint(Point(p.x, p.y, p.z))
+private fun CachedGeometry.LineString.toSfLineString(): LineString = LineString(is3D, false).also { ls ->
+    for (i in 0 until size) ls.addPoint(Point(xAt(i), yAt(i), zAt(i)))
 }
 
 private fun CachedGeometry.Polygon.toSfPolygon(): Polygon = Polygon(hasZ, false).also { poly ->
@@ -66,7 +73,7 @@ private fun CachedGeometry.Polygon.toSfPolygon(): Polygon = Polygon(hasZ, false)
 /** Whether any vertex carries a Z (altitude). Drives the mil.nga.sf `hasZ` dimension flag. */
 private val CachedGeometry.hasZ: Boolean get() = when (this) {
     is CachedGeometry.Point -> z != null
-    is CachedGeometry.LineString -> points.any { it.z != null }
+    is CachedGeometry.LineString -> is3D
     is CachedGeometry.Polygon -> rings.any { it.hasZ }
     is CachedGeometry.MultiPolygon -> polygons.any { it.hasZ }
     is CachedGeometry.MultiPoint -> points.any { it.z != null }

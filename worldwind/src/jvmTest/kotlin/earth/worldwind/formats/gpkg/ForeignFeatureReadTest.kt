@@ -324,7 +324,7 @@ class ForeignFeatureReadTest {
             val store = GpkgFeatureStore(gpkg, content)
             // A polygon straddling lon=0 (the boundary between tiles (1,0,0) and (1,1,0)); its
             // envelope center is at lon=-2.5 → owned by the western tile.
-            val ring = CachedGeometry.LineString(listOf(
+            val ring = CachedGeometry.LineString.of(listOf(
                 CachedGeometry.Point(-10.0, 40.0), CachedGeometry.Point(5.0, 40.0),
                 CachedGeometry.Point(5.0, 50.0), CachedGeometry.Point(-10.0, 50.0),
             ))

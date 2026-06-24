@@ -1,29 +1,16 @@
 package earth.worldwind.layer
 
 import earth.worldwind.geom.AltitudeMode
-import earth.worldwind.geom.Position
 import earth.worldwind.layer.source.BulkFeatureSource
 import earth.worldwind.layer.source.CachedFeatureRow
-import earth.worldwind.layer.source.CachedGeometry
 import earth.worldwind.layer.source.DEFAULT_DENSITY
 import earth.worldwind.layer.source.DEFAULT_LABEL_VISIBILITY_THRESHOLD
-import earth.worldwind.layer.source.NAME_ALIASES
-import earth.worldwind.layer.source.applyFeatureStyle
 import earth.worldwind.render.Color
+import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
-import earth.worldwind.shape.Label
-import earth.worldwind.shape.Path
-import earth.worldwind.shape.PathType
-import earth.worldwind.shape.Placemark
-import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.ShapeAttributes
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.JsonElement
 
 /**
  * Vector-feature layer driven by a [BulkFeatureSource]. The source delivers
@@ -96,129 +83,58 @@ open class BulkFeatureLayer(
      * [autoApplyStyle], then run [customLogicToApplyProperties].
      */
     open suspend fun load() {
-        val incoming = ArrayList<Renderable>()
-        source.fetchAll().collect { row ->
-            val properties = parseProperties(row.properties)
-            for (renderable in row.toRenderables(properties)) {
-                if (autoApplyStyle) renderable.applyAutoStyle(properties)
-                renderable.customLogicToApplyProperties(properties)
-                incoming += renderable
-            }
-        }
+        val incoming = buildRenderables(source.fetchAll())
         clearRenderables()
         addAllRenderables(incoming)
     }
 
-    /** Release the [source]'s resources (e.g. its reused HTTP client). Call when discarding the
-     *  layer so a network-backed source doesn't leak its client. Idempotent. */
-    open fun close() = source.close()
+    /**
+     * When `true`, each frame reads only the visible viewport via [BulkFeatureSource.readBySector]
+     * instead of loading everything via [load]. Pair with a cache-backed [source]
+     * (`CachedBulkFeatureSource` over a GeoPackage store): downloaded once, then every pan/zoom is
+     * a BBOX query off its spatial index so RAM holds only visible features. A plain network source
+     * has no index — its default `readBySector` falls back to `fetchAll`, so memory isn't bounded.
+     */
+    var autoRefreshViewport = false
+    /** Debounce after the viewport settles before reading, when [autoRefreshViewport] is on. */
+    var autoRefreshDebounceMillis: Long
+        get() = driver.debounceMillis
+        set(value) { driver.debounceMillis = value }
+    /** Fraction the visible sector is padded by on each side before reading (hysteresis). */
+    var autoRefreshMargin: Double
+        get() = driver.margin
+        set(value) { driver.margin = value }
 
-    private fun Renderable.applyAutoStyle(properties: LinkedHashMap<String, Any?>) {
-        when (this) {
-            is Path -> applyFeatureStyle(properties, defaultLineColor, defaultFillColor)
-            is Polygon -> applyFeatureStyle(properties, defaultLineColor, defaultFillColor)
-            is Placemark -> applyFeatureStyle(properties, density)
-            is Label -> applyFeatureStyle(properties)
+    private val driver = ViewportRefreshDriver()
+
+    override fun doRender(rc: RenderContext) {
+        // Skip pick mode — its tiny cursor frustum isn't the visible extent.
+        if (autoRefreshViewport && !rc.isPickMode) {
+            driver.onRender(
+                rc.terrain.sector,
+                apply = { clearRenderables(); addAllRenderables(it) },
+                fetch = { buildRenderables(source.readBySector(it)) },
+            )
         }
+        super.doRender(rc)
     }
 
-    private fun CachedFeatureRow.toRenderables(props: LinkedHashMap<String, Any?>): List<Renderable> =
-        geometry?.let { renderablesFor(it, props) } ?: emptyList()
-
-    // Multi* / GeometryCollection fan out to N renderables that share the one properties map;
-    // GeometryCollection recurses so nested collections are handled too.
-    private fun renderablesFor(g: CachedGeometry, props: LinkedHashMap<String, Any?>): List<Renderable> =
-        when (g) {
-            is CachedGeometry.Point -> listOf(pointRenderable(g, props))
-            is CachedGeometry.LineString -> listOf(g.toPath())
-            is CachedGeometry.Polygon -> listOfNotNull(g.toPolygon())
-            is CachedGeometry.MultiPolygon -> g.polygons.mapNotNull { it.toPolygon() }
-            is CachedGeometry.MultiPoint -> g.points.map { pointRenderable(it, props) }
-            is CachedGeometry.MultiLineString -> g.lines.map { it.toPath() }
-            is CachedGeometry.GeometryCollection -> g.geometries.flatMap { renderablesFor(it, props) }
-        }
-
-    private fun CachedGeometry.LineString.toPath(): Path {
-        val positions = toPositions()
-        val path = shapeAttributes?.let { Path(positions, it) } ?: Path(positions)
-        return path.apply {
-            altitudeMode = altitudeModeFor(this@toPath.is3D)
-            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
-            pathType = PathType.LINEAR
-        }
+    /** Collect [rows] into styled renderables — shared by [load] and the viewport path. */
+    private suspend fun buildRenderables(rows: Flow<CachedFeatureRow>): ArrayList<Renderable> {
+        val renderer = FeatureRenderer(
+            shapeAttributes, autoApplyStyle, defaultLineColor, defaultFillColor,
+            density, labelVisibilityThreshold, defaultAltitudeMode, customLogicToApplyProperties,
+        )
+        val out = ArrayList<Renderable>()
+        rows.collect { row -> out += renderer.build(row) }
+        return out
     }
 
-    // [Polygon]'s primary constructor takes (positions, attributes). Build with the outer
-    // ring first, then `addBoundary` for each hole. Calling the no-arg `Polygon()` falls
-    // back to default ShapeAttributes (white fill / black outline) — avoid that path.
-    private fun CachedGeometry.Polygon.toPolygon(): Polygon? {
-        val outer = rings.firstOrNull()?.toPositions() ?: return null
-        val polygon = shapeAttributes?.let { Polygon(outer, it) } ?: Polygon(outer)
-        return polygon.apply {
-            for (i in 1 until rings.size) addBoundary(rings[i].toPositions())
-            altitudeMode = altitudeModeFor(this@toPolygon.is3D)
-            isFollowTerrain = altitudeMode == AltitudeMode.CLAMP_TO_GROUND
-            pathType = PathType.LINEAR
-        }
+    /** Release the [source]'s resources (e.g. its reused HTTP client) and stop auto-refresh. Call
+     *  when discarding the layer so a network-backed source doesn't leak its client. Idempotent. */
+    open fun close() {
+        driver.cancel()
+        source.close()
     }
 
-    private fun pointRenderable(p: CachedGeometry.Point, props: LinkedHashMap<String, Any?>): Renderable {
-        val position = Position.fromDegrees(p.y, p.x, p.z ?: 0.0)
-        val name = NAME_ALIASES.firstNotNullOfOrNull { props[it] as? String }
-        val icon = props["icon"] as? String
-        // null OR zero z means "ground" (clamp); non-zero means absolute altitude unless
-        // the layer has [defaultAltitudeMode] override.
-        val altMode = altitudeModeFor(is3D = (p.z ?: 0.0) != 0.0)
-        // `name` without `icon` becomes a Label, otherwise a Placemark — the Label form gets
-        // the layer's [labelVisibilityThreshold] applied so callers can hide labels at
-        // distance without writing per-feature logic.
-        return if (icon.isNullOrBlank() && !name.isNullOrBlank()) {
-            Label(position, name).apply {
-                altitudeMode = altMode
-                if (labelVisibilityThreshold != 0.0) visibilityThreshold = labelVisibilityThreshold
-            }
-        } else {
-            Placemark(position, label = name).apply { altitudeMode = altMode }
-        }
-    }
-
-    private fun altitudeModeFor(is3D: Boolean): AltitudeMode =
-        defaultAltitudeMode ?: if (is3D) AltitudeMode.ABSOLUTE else AltitudeMode.CLAMP_TO_GROUND
-
-    private fun CachedGeometry.LineString.toPositions(): List<Position> =
-        points.map { Position.fromDegrees(it.y, it.x, it.z ?: 0.0) }
-
-    // `z = null` is the cache-boundary sentinel for "2D geometry, clamp to ground"; `z != null`
-    // (including legitimate `z = 0.0` — sea-level buoys, sea-floor points) is honoured as a
-    // real altitude. Bulk feature sources are responsible for filling z correctly per format
-    // (e.g. [earth.worldwind.formats.shapefile.ShapefileBulkFeatureSource] consults
-    // `shapefile.shapeType.isZ`).
-    private val CachedGeometry.LineString.is3D: Boolean get() = points.any { it.z != null }
-    private val CachedGeometry.Polygon.is3D: Boolean get() = rings.any { it.is3D }
-
-    private fun parseProperties(text: String?): LinkedHashMap<String, Any?> {
-        if (text == null) return LinkedHashMap()
-        val obj = runCatching { JSON.parseToJsonElement(text) }.getOrNull() as? JsonObject ?: return LinkedHashMap()
-        val result = LinkedHashMap<String, Any?>(obj.size)
-        obj.forEach { (k, v) -> result[k] = jsonValueToAny(v) }
-        return result
-    }
-
-    private fun jsonValueToAny(element: JsonElement): Any? = when (element) {
-        is JsonNull -> null
-        is JsonPrimitive -> when {
-            element.isString -> element.content
-            else -> element.content.toDoubleOrNull() ?: element.content.toLongOrNull() ?: element.content
-        }
-        is JsonObject -> {
-            val map = LinkedHashMap<String, Any?>(element.size)
-            element.forEach { (k, v) -> map[k] = jsonValueToAny(v) }
-            map
-        }
-        is JsonArray -> element.map { jsonValueToAny(it) }
-    }
-
-    companion object {
-        private val JSON = Json { ignoreUnknownKeys = true; isLenient = true }
-    }
 }

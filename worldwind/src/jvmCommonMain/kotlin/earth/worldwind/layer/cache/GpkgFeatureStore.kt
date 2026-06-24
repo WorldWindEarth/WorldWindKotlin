@@ -4,13 +4,18 @@ import earth.worldwind.layer.source.CachedGeometry
 
 import earth.worldwind.formats.gpkg.GeoPackage
 import earth.worldwind.formats.gpkg.GpkgContent
+import earth.worldwind.geom.Sector
 import earth.worldwind.formats.gpkg.GpkgFeatureRow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -41,7 +46,19 @@ class GpkgFeatureStore(
             val cached = geom.toCached() ?: continue
             emit(CachedFeatureRow(cached, props))
         }
-    }
+    }.flowOn(dbDispatcher)
+
+    override suspend fun readBySector(sector: Sector): Flow<CachedFeatureRow> = flow {
+        val rows = geoPackage.readFeaturesInBbox(
+            content,
+            sector.minLongitude.inDegrees, sector.minLatitude.inDegrees,
+            sector.maxLongitude.inDegrees, sector.maxLatitude.inDegrees,
+        )
+        for ((geom, props) in rows) {
+            val cached = geom.toCached() ?: continue
+            emit(CachedFeatureRow(cached, props))
+        }
+    }.flowOn(dbDispatcher)
 
     override suspend fun replaceAll(rows: Flow<CachedFeatureRow>) {
         val payload = mutableListOf<Pair<Geometry, String?>>()
@@ -49,34 +66,39 @@ class GpkgFeatureStore(
             val geom = row.geometry?.toSf() ?: return@collect
             payload += geom to row.properties
         }
-        geoPackage.replaceCachedFeatures(content, payload)
+        withContext(dbDispatcher) { geoPackage.replaceCachedFeatures(content, payload) }
     }
 
-    override suspend fun readTile(z: Int, x: Int, y: Int): Flow<CachedFeatureRow>? {
-        // Coverage — not the features themselves — records whether the tile was fetched: absent row
-        // = miss (null), is_empty = negative cache. A present, non-empty tile serves its bbox of features.
-        val coverage = geoPackage.readFeatureCoverage(content, z, x, y) ?: return null
-        if (coverage.isEmpty) return emptyFlow()
-        return geoPackage.readFeatureTile(content, z, x, y).asSequence()
-            .mapNotNull { (geom, props) -> geom.toCached()?.let { CachedFeatureRow(it, props) } }
-            .asFlow()
-    }
+    override suspend fun readTile(z: Int, x: Int, y: Int, sector: Sector?): Flow<CachedFeatureRow>? =
+        withContext(dbDispatcher) {
+            // Coverage — not the features themselves — records whether the tile was fetched: absent row
+            // = miss (null), is_empty = negative cache. A present, non-empty tile serves its bbox of features.
+            val coverage = geoPackage.readFeatureCoverage(content, z, x, y) ?: return@withContext null
+            if (coverage.isEmpty) return@withContext emptyFlow()
+            // readFeatureTile materializes the rows on dbDispatcher; the toCached conversion stays lazy
+            // (runs in the collector's context) so only the SQLite work is serialized here.
+            geoPackage.readFeatureTile(content, z, x, y, sector).asSequence()
+                .mapNotNull { (geom, props) -> geom.toCached()?.let { CachedFeatureRow(it, props) } }
+                .asFlow()
+        }
 
     override suspend fun readTileLastModified(z: Int, x: Int, y: Int): Long? =
-        geoPackage.readFeatureCoverage(content, z, x, y)?.validatedAt
+        withContext(dbDispatcher) { geoPackage.readFeatureCoverage(content, z, x, y)?.validatedAt }
 
-    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>) {
+    override suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>, sector: Sector?) {
         // Empty flow → empty payload → writeFeatureTile clears the region + records is_empty coverage.
         val payload = rows.toList().mapNotNull { row ->
             row.geometry?.toSf()?.let { GpkgFeatureRow(it, row.properties, extractFeatureUid(row.properties)) }
         }
-        geoPackage.writeFeatureTile(content, z, x, y, payload)
-        // Per-put eviction trigger; row count keeps multi-row inserts at the right rate.
-        geoPackage.notifyFeatureInsert(content, cachePolicy, payload.size)
+        withContext(dbDispatcher) {
+            geoPackage.writeFeatureTile(content, z, x, y, payload, sector)
+            // Per-put eviction trigger; row count keeps multi-row inserts at the right rate.
+            geoPackage.notifyFeatureInsert(content, cachePolicy, payload.size)
+        }
     }
 
     override suspend fun deleteTile(z: Int, x: Int, y: Int) {
-        geoPackage.writeFeatureTile(content, z, x, y, emptyList())
+        withContext(dbDispatcher) { geoPackage.writeFeatureTile(content, z, x, y, emptyList()) }
     }
 
     /** The stable natural key for upsert/dedup — the OSM-style `id` field in the [properties] JSON
@@ -89,8 +111,21 @@ class GpkgFeatureStore(
 
     override suspend fun evict() {
         if (cachePolicy.isUnbounded || geoPackage.isReadOnly) return
-        geoPackage.evictFeatures(content, cachePolicy)
+        withContext(dbDispatcher) { geoPackage.evictFeatures(content, cachePolicy) }
     }
 
-    override suspend fun sizeBytes(): Long = geoPackage.readFeaturesDataSize(content.tableName)
+    override suspend fun sizeBytes(): Long =
+        withContext(dbDispatcher) { geoPackage.readFeaturesDataSize(content.tableName) }
+
+    private companion object {
+        /**
+         * One thread for ALL GeoPackage feature I/O. SQLite is single-writer, and running reads +
+         * writes concurrently from the fetch pool ([Dispatchers.Default]) produced a WAL-checkpoint +
+         * connection-pool + mil.nga.geopackage-monitor lock convoy that blocked the dispatcher for
+         * ~35 s in profiling, starving tile decode. Serialising removes the contention outright and
+         * keeps blocking SQLite off the CPU dispatcher (so decode/tessellation keep their threads).
+         */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        private val dbDispatcher = Dispatchers.IO.limitedParallelism(1)
+    }
 }

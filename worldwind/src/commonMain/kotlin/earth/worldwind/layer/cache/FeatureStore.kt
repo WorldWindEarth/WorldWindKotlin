@@ -1,6 +1,7 @@
 package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.CachedFeatureRow
 
+import earth.worldwind.geom.Sector
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -20,13 +21,20 @@ interface FeatureStore {
     /** Read every bulk row (`(z, x, y)` IS NULL) in insertion order. */
     suspend fun readAll(): Flow<CachedFeatureRow>
 
+    /** Read only the bulk rows whose geometry intersects [sector]. The default ignores [sector]
+     *  and returns [readAll] — correct but unbounded; a spatially-indexed store (GeoPackage RTree)
+     *  overrides it to serve viewport reads without loading the whole table. */
+    suspend fun readBySector(sector: Sector): Flow<CachedFeatureRow> = readAll()
+
     /** Atomically replace every bulk row with the supplied flow. Existing tile-addressed
      *  rows are left untouched. */
     suspend fun replaceAll(rows: Flow<CachedFeatureRow>)
 
     /** Read rows for one tile, or `null` if the tile is absent (cache miss).
-     *  An empty flow distinguishes "tile cached with zero rows" from "tile not cached". */
-    suspend fun readTile(z: Int, x: Int, y: Int): Flow<CachedFeatureRow>?
+     *  An empty flow distinguishes "tile cached with zero rows" from "tile not cached".
+     *  [sector] is the tile's true geographic bounds for the spatial query; null → derive
+     *  Web-Mercator slippy bounds from `(z, x, y)` (back-compat for slippy-keyed tiles). */
+    suspend fun readTile(z: Int, x: Int, y: Int, sector: Sector? = null): Flow<CachedFeatureRow>?
 
     /** Epoch-millis the tile at `(z, x, y)` was last written, for stale-while-revalidate.
      *  Default `null` = freshness isn't tracked (the store opts out of SWR — its tiles are
@@ -34,8 +42,9 @@ interface FeatureStore {
     suspend fun readTileLastModified(z: Int, x: Int, y: Int): Long? = null
 
     /** Atomically replace rows for one tile. Pass an empty flow to record "tile has no
-     *  features" — that's the negative cache for ocean / empty Overpass responses. */
-    suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>)
+     *  features" — that's the negative cache for ocean / empty Overpass responses.
+     *  [sector] is the tile's true geographic bounds (null → slippy bounds from `(z, x, y)`). */
+    suspend fun writeTile(z: Int, x: Int, y: Int, rows: Flow<CachedFeatureRow>, sector: Sector? = null)
 
     /** Drop a tile entry from the store. */
     suspend fun deleteTile(z: Int, x: Int, y: Int)

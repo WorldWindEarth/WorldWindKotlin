@@ -281,6 +281,9 @@ object Tutorials {
                 layer
             })
         },
+        TutorialFactory("wfsAutoRefresh", "WFS Auto-Refresh") { e ->
+            WfsAutoRefreshTutorial(e, iosMainScope)
+        },
         TutorialFactory("shapefileLayer", "Shapefile Layer") { e ->
             ShapefileLayerTutorial(e, iosMainScope, layerLoader = {
                 val layer = BulkFeatureLayer(

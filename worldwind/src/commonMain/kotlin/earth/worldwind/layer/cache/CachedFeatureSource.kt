@@ -10,6 +10,8 @@ import earth.worldwind.util.Logger.logMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -50,6 +52,20 @@ class CachedBulkFeatureSource(
 
     override val cacheInfo: CachedSourceInfo?
         get() = (store as? CachedSourceInfoProvider)?.cacheInfo
+
+    /** Serialises the one-time store population so concurrent viewport reads don't double-download. */
+    private val populateMutex = Mutex()
+
+    /** Populate the [store] once from [inner] (a full download), then serve only the rows
+     *  intersecting [sector] from its spatial index — offline and viewport-bounded thereafter. An
+     *  already-populated store (e.g. a prior session) skips the download. */
+    override suspend fun readBySector(sector: Sector): Flow<CachedFeatureRow> {
+        if (!isCacheOnly && store.sizeBytes() == 0L) populateMutex.withLock {
+            val source = inner
+            if (source != null && store.sizeBytes() == 0L) store.replaceAll(source.fetchAll())
+        }
+        return store.readBySector(sector)
+    }
 
     override suspend fun fetchAll(): Flow<CachedFeatureRow> = flow {
         if (store.sizeBytes() > 0) {
@@ -123,10 +139,10 @@ class CachedTiledFeatureSource(
         get() = (store as? CachedSourceInfoProvider)?.cacheInfo
 
     override suspend fun tryReadCachedTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? =
-        store.readTile(z, x, y)?.also { maybeRevalidate(z, x, y, sector) }?.filter { it.ownedBy(sector) }
+        store.readTile(z, x, y, sector)?.also { maybeRevalidate(z, x, y, sector) }?.filter { it.ownedBy(sector) }
 
     override suspend fun fetchTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? {
-        store.readTile(z, x, y)?.let { maybeRevalidate(z, x, y, sector); return it.filter { row -> row.ownedBy(sector) } }
+        store.readTile(z, x, y, sector)?.let { maybeRevalidate(z, x, y, sector); return it.filter { row -> row.ownedBy(sector) } }
         if (isCacheOnly) return null
         val fetched = try {
             inner?.fetchTile(z, x, y, sector)
@@ -146,13 +162,17 @@ class CachedTiledFeatureSource(
                 accumulator += row
                 if (row.ownedBy(sector)) emit(row)
             }
-            try {
-                store.writeTile(z, x, y, accumulator.asFlow())
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                logMessage(WARN, "CachedTiledFeatureSource", "fetchTile",
-                    "Cache write failed for ($z,$x,$y): ${e::class.simpleName}: ${e.message}")
+            // NonCancellable: once the whole tile is fetched, persist it atomically even if the layer
+            // aborts this tile mid-write (abort-on-view-change). A cancelled write can interrupt
+            // writeFeatureTile between clearing the region and inserting rows, leaving a "covered but
+            // empty" coverage record that the next read serves as a (wrong) negative-cache hit.
+            withContext(NonCancellable) {
+                try {
+                    store.writeTile(z, x, y, accumulator.asFlow(), sector)
+                } catch (e: Throwable) {
+                    logMessage(WARN, "CachedTiledFeatureSource", "fetchTile",
+                        "Cache write failed for ($z,$x,$y): ${e::class.simpleName}: ${e.message}")
+                }
             }
         }
     }
@@ -189,7 +209,7 @@ class CachedTiledFeatureSource(
                 val fresh = network.fetchTile(z, x, y, sector)?.toList() ?: return@launch
                 // Never blank: an empty refresh keeps the existing rows — replacement only.
                 if (fresh.isEmpty()) return@launch
-                store.writeTile(z, x, y, fresh.asFlow())
+                store.writeTile(z, x, y, fresh.asFlow(), sector)
                 onTileRevalidated?.invoke(z, x, y)
             } catch (e: CancellationException) {
                 throw e

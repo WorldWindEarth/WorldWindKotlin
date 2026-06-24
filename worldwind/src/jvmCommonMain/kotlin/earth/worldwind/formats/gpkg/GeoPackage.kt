@@ -1143,10 +1143,19 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      *  store has no per-tile rows, so this returns every feature intersecting the tile bounds;
      *  `ww_feature_coverage` is what records whether the tile was actually fetched. */
     suspend fun readFeatureTile(
-        content: GpkgContent, z: Int, x: Int, y: Int,
+        content: GpkgContent, z: Int, x: Int, y: Int, sector: Sector? = null,
     ): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
-        val b = slippyTileBounds(z, x, y)
+        // Tile's true bounds for the spatial query; null → slippy bounds (slippy-keyed tiles).
+        val b = sector?.toBboxDegrees() ?: slippyTileBounds(z, x, y)
         readFeaturesInBoundingBox(geoPackage, content.tableName, b[0], b[1], b[2], b[3])
+    }
+
+    /** Read every flat-store feature intersecting the geographic bbox (degrees, EPSG:4326) via the
+     *  RTree spatial index — the arbitrary-viewport counterpart to [readFeatureTile]. */
+    suspend fun readFeaturesInBbox(
+        content: GpkgContent, minX: Double, minY: Double, maxX: Double, maxY: Double,
+    ): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
+        readFeaturesInBoundingBox(geoPackage, content.tableName, minX, minY, maxX, maxY)
     }
 
     /**
@@ -1157,10 +1166,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      */
     @Throws(IllegalStateException::class)
     suspend fun writeFeatureTile(
-        content: GpkgContent, z: Int, x: Int, y: Int, rows: List<GpkgFeatureRow>,
+        content: GpkgContent, z: Int, x: Int, y: Int, rows: List<GpkgFeatureRow>, sector: Sector? = null,
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Feature tile ${content.tableName}/$z/$x/$y cannot be saved. GeoPackage is read-only!")
-        val b = slippyTileBounds(z, x, y)
+        // Tile's true bounds for the spatial clear/query; null → slippy bounds (slippy-keyed tiles).
+        val b = sector?.toBboxDegrees() ?: slippyTileBounds(z, x, y)
         val upsertByUid = rows.isNotEmpty() && rows.all { it.uid != null }
         writeFeatureTileFlat(geoPackage, content.tableName, b[0], b[1], b[2], b[3], rows, upsertByUid)
         // On a uid-keyed re-fetch, drop features this tile OWNS (envelope-center inside it, matching
@@ -1187,6 +1197,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val south = atan(sinh(PI * (1 - 2 * (y + 1).toDouble() / n))) * 180.0 / PI
         return doubleArrayOf(west, south, east, north)
     }
+
+    /** A [Sector]'s bounds as `[west, south, east, north]` degrees — matches [slippyTileBounds]. */
+    private fun Sector.toBboxDegrees() = doubleArrayOf(
+        minLongitude.inDegrees, minLatitude.inDegrees, maxLongitude.inDegrees, maxLatitude.inDegrees,
+    )
 
     /**
      * Evict from a features cache per [policy], driven by `ww_feature_coverage`:
