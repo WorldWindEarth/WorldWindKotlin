@@ -222,15 +222,10 @@ open class Path @JvmOverloads constructor(
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth + if (isSurfaceShape) 0.5f else 0f
-        // Draw each sub-path chain separately to avoid the spurious connecting triangle that GL_TRIANGLE_STRIP
-        // produces at the junction between antimeridian-split chains when drawn as one continuous strip.
-        val chainStarts = currentData.outlineChainStarts
-        val chainCount = chainStarts.size
-        for (ci in 0 until chainCount) {
-            val start = chainStarts[ci]
-            val end = if (ci + 1 < chainCount) chainStarts[ci + 1] else currentData.outlineElements.size
-            val count = end - start
-            if (count > 0) drawState.drawElements(GL_TRIANGLE_STRIP, count, GL_UNSIGNED_INT, start * Int.SIZE_BYTES)
+        // One GL_TRIANGLES call for all sub-paths (expandOutlineStripsToTriangles already broke the
+        // strips apart), so any number of antimeridian crossings still draws as a single prim.
+        if (currentData.outlineElements.size > 0) {
+            drawState.drawElements(GL_TRIANGLES, currentData.outlineElements.size, GL_UNSIGNED_INT, 0)
         }
 
         // Configure the drawable to display the shape's extruded verticals.
@@ -381,6 +376,8 @@ open class Path @JvmOverloads constructor(
             addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
             addVertex(rc, begin.latitude, begin.longitude, begin.altitude, intermediate = true, addIndices = false)
         }
+
+        expandOutlineStripsToTriangles()
 
         currentData.refreshVertexArray = false
 
@@ -536,6 +533,38 @@ open class Path @JvmOverloads constructor(
             addVertex(rc, pos.latitude, pos.longitude, pos.altitude, intermediate = true, addIndices = true)
             t += dt
         }
+    }
+
+    /**
+     * Rewrite the outline index buffer from per-sub-path triangle strips into independent
+     * GL_TRIANGLES, so the whole outline draws in one call (no spurious connecting band between
+     * sub-paths). Cull-face is off for the outline, so a strip `[i0..iN]` and the triangle set
+     * `{(i_k, i_k+1, i_k+2)}` cover identical pixels — a provably-equivalent regrouping of the same
+     * vertices and miter dummies; only the index grouping changes.
+     */
+    protected open fun expandOutlineStripsToTriangles() = with(currentData) {
+        val starts = outlineChainStarts
+        if (starts.size == 0) return@with
+        val tri = IntList(outlineElements.size * 3)
+        for (ci in 0 until starts.size) {
+            val start = starts[ci]
+            val end = if (ci + 1 < starts.size) starts[ci + 1] else outlineElements.size
+            var k = start
+            var even = true
+            while (k + 2 < end) {
+                // Match GL_TRIANGLE_STRIP winding (odd triangles swap the first two indices) — the
+                // thick-line shader extrudes from vertex order, so wrong winding = zero-width (dashes).
+                if (even) {
+                    tri.add(outlineElements[k]); tri.add(outlineElements[k + 1]); tri.add(outlineElements[k + 2])
+                } else {
+                    tri.add(outlineElements[k + 1]); tri.add(outlineElements[k]); tri.add(outlineElements[k + 2])
+                }
+                k++; even = !even
+            }
+        }
+        outlineElements.clear()
+        for (i in 0 until tri.size) outlineElements.add(tri[i])
+        starts.clear()
     }
 
     protected open fun addVertex(

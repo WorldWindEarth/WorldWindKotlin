@@ -128,7 +128,6 @@ open class Polygon @JvmOverloads constructor(
         val sideElements = IntList()
         val baseElements = IntList()
         val outlineElements = IntList()
-        val outlineChainStarts = IntList()
         val verticalElements = IntList()
         val vertexBufferKey = Any()
         val elementBufferKey = Any()
@@ -459,13 +458,10 @@ open class Polygon @JvmOverloads constructor(
         drawState.color.copy(if (rc.isPickMode) pickColor else activeAttributes.outlineColor)
         drawState.opacity = if (rc.isPickMode) 1f else rc.currentLayer.opacity
         drawState.lineWidth = activeAttributes.outlineWidth
-        val chainStarts = currentData.outlineChainStarts
-        val chainCount = chainStarts.size
-        for (ci in 0 until chainCount) {
-            val start = chainStarts[ci]
-            val end = if (ci + 1 < chainCount) chainStarts[ci + 1] else currentData.outlineElements.size
-            val count = end - start
-            if (count > 0) drawState.drawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, start * Int.SIZE_BYTES)
+        // One contiguous GL_TRIANGLES range for all rings (per-ring breaks are baked into the
+        // geometry during assembly), so the outline draws in a single prim regardless of hole count.
+        if (currentData.outlineElements.size > 0) {
+            drawState.drawElements(GL_TRIANGLES, currentData.outlineElements.size, GL_UNSIGNED_INT, 0)
         }
 
         // Configure the drawable to display the shape's extruded verticals.
@@ -578,7 +574,6 @@ open class Polygon @JvmOverloads constructor(
             FloatArray(lineVertexCount * OUTLINE_LINE_SEGMENT_STRIDE)
         }
         currentData.outlineElements.clear()
-        currentData.outlineChainStarts.clear()
         currentData.verticalElements.clear()
 
         // Get reference point altitude
@@ -646,7 +641,6 @@ open class Polygon @JvmOverloads constructor(
                 var beginAltitude = begin.altitude + currentData.savedRefAlt
                 calcPoint(rc, begin.latitude, begin.longitude, beginAltitude, isAbsolute = isPlainAssembly)
                 addVertex(rc, begin.latitude, begin.longitude, beginAltitude, type = VERTEX_ORIGINAL)
-                currentData.outlineChainStarts.add(currentData.outlineElements.size)
                 addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = true, addIndices = true)
                 addLineVertex(rc, begin.latitude, begin.longitude, beginAltitude, isIntermediate = false, addIndices = true)
 
@@ -760,7 +754,6 @@ open class Polygon @JvmOverloads constructor(
                     calcPoint(rc, loc.latitude, loc.longitude, alt, isAbsolute = isPlainAssembly)
                     if (!chainStarted) {
                         // Start a new chain with a duplicate "before-first" dummy.
-                        currentData.outlineChainStarts.add(currentData.outlineElements.size)
                         addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = true, addIndices = true)
                         addLineVertex(rc, loc.latitude, loc.longitude, alt, isIntermediate = !isOrig, addIndices = true)
                         chainStarted = true
@@ -785,7 +778,6 @@ open class Polygon @JvmOverloads constructor(
             val firstAlt = altOf(first)
             val firstIsOrig = isOriginalAt(0)
             calcPoint(rc, first.latitude, first.longitude, firstAlt, isAbsolute = isPlainAssembly)
-            currentData.outlineChainStarts.add(currentData.outlineElements.size)
             addLineVertex(rc, first.latitude, first.longitude, firstAlt, isIntermediate = true, addIndices = true)
             addLineVertex(rc, first.latitude, first.longitude, firstAlt, isIntermediate = !firstIsOrig, addIndices = true)
 

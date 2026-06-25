@@ -140,7 +140,7 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         val framebuffer = dc.scratchFramebuffer
         // Render into MSAA when available (GLES3+/GL3+/WebGL2), then resolve into the
         // single-sample texture below. `null` means single-sample fallback (WebGL1).
-        val multisampleFramebuffer = dc.multisampleFramebuffer
+        val multisampleFramebuffer = if (dc.isPickMode) null else dc.multisampleFramebuffer
         val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
         val texture = if (!useCache) colorAttachment
         else Texture(colorAttachment.width, colorAttachment.height, GL_RGBA, GL_UNSIGNED_BYTE, true)
