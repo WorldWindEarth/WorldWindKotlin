@@ -8,6 +8,9 @@ import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.shape.TextAttributes
 import earth.worldwind.render.image.ImageSource
 
+/** Null-safe feature-dependence test: a null paint expression contributes nothing. */
+private fun MvtExpression<*>?.refsFeature(): Boolean = this?.referencesFeatureData() ?: false
+
 /**
  * One declarative rule in an [MvtRuleBasedStyle]. Matches features by source layer name,
  * optional [filter] over properties, and tile-zoom range, then resolves zoom-interpolated
@@ -161,6 +164,8 @@ class MvtStyleRule(
          * overflow, producing a multi-line label. Default unset = no wrapping.
          */
         val textMaxWidth: MvtExpression<Float>? = null,
+        /** Mapbox `text-transform: uppercase` — render the label in all caps (country/region convention). */
+        val textUppercase: Boolean = false,
         // ----- Icon paint -----
         /**
          * Mapbox-style `icon-image` — name of the icon to look up in the layer's sprite
@@ -182,6 +187,34 @@ class MvtStyleRule(
          */
         val iconAnchor: MvtExpression<String>? = null,
     ) {
+
+        /**
+         * True iff any of this paint's zoom/expression-driven outputs vary per feature within a
+         * single tile — i.e. some expression references feature data (`get`/`has`/feature-state/
+         * geometry-type/line-progress). Computed once (lazily) by walking every paint expression's
+         * tree; constant literals and `["zoom"]` interpolations don't count (zoom is fixed within a
+         * tile). When false, [MvtVectorLayer] resolves this rule's paint ONCE per tile and reuses
+         * the result for every matching feature.
+         *
+         * Note: this is a property of the *paint expressions* only. The genuinely per-feature
+         * inputs that [MvtVectorLayer] always handles per feature regardless — the [textField]
+         * property lookup, icon `{property}` template substitution, and line-gradient sampling —
+         * are NOT covered by the per-tile paint cache; they stay per feature even when this is
+         * false. The icon `iconImage` *expression* (sans template) and all shape/text style
+         * outputs are covered.
+         */
+        val isFeatureDependent: Boolean by lazy {
+            fillColor.refsFeature() || fillOpacity.refsFeature() ||
+                fillExtrusionHeight.refsFeature() || fillExtrusionBase.refsFeature() ||
+                lineColor.refsFeature() || lineWidth.refsFeature() || lineOpacity.refsFeature() ||
+                lineCasingColor.refsFeature() || lineCasingWidth.refsFeature() ||
+                lineGradient.refsFeature() ||
+                textColor.refsFeature() || textSize.refsFeature() ||
+                textHaloColor.refsFeature() || textHaloWidth.refsFeature() ||
+                textMaxWidth.refsFeature() ||
+                iconImage.refsFeature() || iconSize.refsFeature() ||
+                iconOffset.refsFeature() || iconAnchor.refsFeature()
+        }
 
         /** True when this rule has at least one shape paint property set. */
         val hasShape: Boolean get() = fillColor != null || (lineColor != null && lineWidth != null)
@@ -281,8 +314,9 @@ class MvtStyleRule(
         ): LabelSpec? {
             if (textField == null) return null
             val raw = properties[textField] ?: return null
-            val rawText = raw.toString().trim()
-            if (rawText.isEmpty()) return null
+            val rawText0 = raw.toString().trim()
+            if (rawText0.isEmpty()) return null
+            val rawText = if (textUppercase) rawText0.uppercase() else rawText0
             val ctx = MvtExpression.EvalContext(zoom.toDouble(), properties, featureState, geometryType)
             // Resolve all PaintSpec fields up front — references inside `apply { }` would
             // shadow against TextAttributes' properties of the same names (e.g. `textColor`
@@ -311,7 +345,10 @@ class MvtStyleRule(
                     isOutlineEnabled = false
                 }
             }
-            return LabelSpec(text, attrs, sizePx)
+            // Measure the exact rendered width once, here (off the render thread), so the cross-tile
+            // collision pass uses real glyph advances instead of a char-count estimate. For LINE-placed
+            // (curved) labels this is unused by the collider but harmless.
+            return LabelSpec(text, attrs, sizePx, resolvedFont.measureText(text))
         }
 
         /**
@@ -430,11 +467,8 @@ class MvtStyleRule(
                 if (maxWidthPx <= 0f || ' ' !in text) return text
                 val words = text.split(' ').filter { it.isNotEmpty() }
                 if (words.isEmpty()) return text
-                // Fallback em estimate when font.measureText returns 0 — happens on test
-                // host stubs where the underlying text-shaper is not available (Android unit
-                // tests with isReturnDefaultValues, headless JVM with no AWT graphics env).
-                // Prefer the explicit sizePx; if absent, scale to maxWidthPx so wrapping
-                // still produces sensible break points instead of degenerating to one line.
+                // Fallback em estimate when font.measureText returns 0 (test stubs with no text-shaper):
+                // prefer explicit sizePx, else scale to maxWidthPx so wrapping still finds break points.
                 val fallbackEm: Float = if (sizePx > 0f) sizePx else maxWidthPx * 0.1f
                 val measureWord: (String) -> Float = if (useApproximateMetrics) {
                     { w -> w.length * sizePx * 0.55f }
@@ -504,7 +538,7 @@ class MvtStyleRule(
      * size its screen-space bbox — [earth.worldwind.render.Font] is an `expect class` and
      * doesn't expose its size in commonMain, so we keep it separate.
      */
-    class LabelSpec(val text: String, val attributes: TextAttributes, val pixelSize: Int)
+    class LabelSpec(val text: String, val attributes: TextAttributes, val pixelSize: Int, val width: Float = 0f)
 
     /**
      * Where the label sits on the feature it labels.
@@ -531,7 +565,46 @@ class MvtStyleRule(
  * Use the [mvtStyle] DSL to author one of these declaratively, or pass a pre-built list of
  * rules to the constructor.
  */
-class MvtRuleBasedStyle(val rules: List<MvtStyleRule>) : MvtStyle {
+class MvtRuleBasedStyle(
+    val rules: List<MvtStyleRule>,
+    override val backgroundColor: Color? = null,
+) : MvtStyle {
+
+    /**
+     * Single-pass shape+text resolution for one feature. Walks [rules] ONCE by index (no
+     * iterator allocation), evaluating each rule's [MvtStyleRule.matches] at most once, and
+     * captures into [out] the FIRST matching rule whose paint [hasShape] and (independently)
+     * the FIRST whose paint [hasText]. Early-exits once both are found. Byte-identical to two
+     * separate `firstMatching(...) { it.paint.hasShape }` / `{ it.paint.hasText }` calls, but
+     * without re-walking the list or re-running `matches` twice per rule.
+     *
+     * Reuses the caller-supplied [out] holder so no allocation occurs in the hot per-feature path.
+     */
+    fun firstShapeAndText(
+        layerName: String,
+        geometryType: MvtGeometryType,
+        zoom: Int,
+        properties: Map<String, Any?>,
+        out: ShapeTextRules,
+    ) {
+        out.shape = null
+        out.text = null
+        var needShape = true
+        var needText = true
+        for (i in rules.indices) {
+            val r = rules[i]
+            if (!r.matches(layerName, geometryType, zoom, properties)) continue
+            if (needShape && r.paint.hasShape) { out.shape = r; needShape = false }
+            if (needText && r.paint.hasText) { out.text = r; needText = false }
+            if (!needShape && !needText) return
+        }
+    }
+
+    /** Mutable holder for [firstShapeAndText] results; reused across features to avoid allocation. */
+    class ShapeTextRules {
+        var shape: MvtStyleRule? = null
+        var text: MvtStyleRule? = null
+    }
 
     /** Zoom-blind callers resolve at zoom 0; use the zoom-aware overload for proper interpolation. */
     override fun styleFor(
@@ -557,26 +630,17 @@ class MvtRuleBasedStyle(val rules: List<MvtStyleRule>) : MvtStyle {
         properties: Map<String, Any?>,
     ): Int = firstMatching(layerName, geometryType, zoom = Int.MAX_VALUE / 2, properties)?.zOrder ?: 0
 
+    // Indexed walk — no `firstOrNull {}` iterator/lambda allocation (per-feature hot path).
     fun firstMatching(
         layerName: String,
         geometryType: MvtGeometryType,
         zoom: Int,
         properties: Map<String, Any?>,
-    ): MvtStyleRule? = rules.firstOrNull { it.matches(layerName, geometryType, zoom, properties) }
-
-    /**
-     * First rule whose [MvtStyleRule.matches] is true AND which also satisfies [predicate].
-     * Lets one feature carry both a shape paint (matched by one rule) and a text paint
-     * (matched by another) — useful for roads whose stroke and label come from distinct
-     * style entries.
-     */
-    fun firstMatching(
-        layerName: String,
-        geometryType: MvtGeometryType,
-        zoom: Int,
-        properties: Map<String, Any?>,
-        predicate: (MvtStyleRule) -> Boolean,
-    ): MvtStyleRule? = rules.firstOrNull {
-        predicate(it) && it.matches(layerName, geometryType, zoom, properties)
+    ): MvtStyleRule? {
+        for (i in rules.indices) {
+            val r = rules[i]
+            if (r.matches(layerName, geometryType, zoom, properties)) return r
+        }
+        return null
     }
 }

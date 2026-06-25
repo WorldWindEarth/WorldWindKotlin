@@ -23,19 +23,25 @@ sealed class MvtFilter {
      */
     abstract fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType? = null): Boolean
 
-    /** True when `properties[key] == value`. Type-equality follows Kotlin's `==`. */
+    /** True when `properties[key] == value` (Mapbox loose-equality: number-vs-number by primitive). */
     class Eq(val key: String, val value: Any?) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = properties[key] == value
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean =
+            looseEq(properties[key], value)
     }
 
-    /** True when `properties[key]` is in [values]. */
+    /**
+     * True when `properties[key]` is in [values]. The membership test is a Set hash lookup —
+     * both the property value and the members are already boxed references, so this allocates
+     * nothing; numeric members are compared by their existing identity/equality (unchanged).
+     */
     class In(val key: String, val values: Set<Any?>) : MvtFilter() {
         override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = properties[key] in values
     }
 
     /** Negation of [Eq]. */
     class NotEq(val key: String, val value: Any?) : MvtFilter() {
-        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean = properties[key] != value
+        override fun matches(properties: Map<String, Any?>, geomType: MvtGeometryType?): Boolean =
+            !looseEq(properties[key], value)
     }
 
     /** True when [key] is present in the map (regardless of value, including null). */
@@ -108,6 +114,18 @@ sealed class MvtFilter {
     }
 
     companion object {
+        /**
+         * Mapbox loose-equality used by [Eq]/[NotEq]. Mirrors [MvtExpression.looseEquals]:
+         * when both operands are [Number], compare by [Number.toDouble] using primitive
+         * `Double`s (no boxing, no `Number.equals` widening allocation); otherwise structural
+         * `==`. String-vs-number, string-keyed, boolean, and enum comparisons take the `==`
+         * branch and behave exactly as before.
+         */
+        internal fun looseEq(a: Any?, b: Any?): Boolean {
+            if (a is Number && b is Number) return a.toDouble() == b.toDouble()
+            return a == b
+        }
+
         fun eq(key: String, value: Any?): MvtFilter = Eq(key, value)
         fun notEq(key: String, value: Any?): MvtFilter = NotEq(key, value)
         fun `in`(key: String, vararg values: Any?): MvtFilter = In(key, values.toSet())

@@ -32,7 +32,14 @@ object MvtCurvedTextPlacer {
         val y: Float,
         /** Tangent angle in radians, measured clockwise from +X (screen east). */
         val angleRad: Float,
+        /** Index of the polyline segment this glyph sits on (segment [segIndex]→[segIndex]+1). */
+        val segIndex: Int,
+        /** Interpolation parameter in [0,1] within [segIndex]'s segment — lets the caller recover the
+         *  glyph's exact geographic anchor by interpolating the source waypoints (NOT snapping to one). */
+        val segU: Float,
     )
+
+    private class CurveSample(val x: Float, val y: Float, val ang: Float, val seg: Int, val u: Float)
 
     class GlyphRun(
         val glyphs: List<GlyphPlacement>,
@@ -75,14 +82,15 @@ object MvtCurvedTextPlacer {
         }
         if (total < textWidth) return emptyList()
 
-        // Compute the number of labels that fit at `textWidth + repeatGapPx` per cycle, then
-        // distribute leftover length as equal padding at each end so the labels are visually
-        // centred. For a single-fit line this collapses to the same centred placement; for a
-        // long line it packs N labels with matched margins at both ends.
+        // Centre the run on the polyline's middle waypoint (cum[n/2], a fixed geo point), not the screen
+        // arc-length midpoint (total/2) — total/2 foreshortens under heading rotation/tilt and slides the name.
+        // For a 2-point line there's no interior waypoint (cum[n/2] would be the end vertex), so use
+        // the segment midpoint — itself a fixed geo point.
         val cycle = textWidth + repeatGapPx
         val maxLabels = ((total + repeatGapPx) / cycle).toInt().coerceAtLeast(1)
         val occupied = maxLabels * cycle - repeatGapPx
-        var cursor = (total - occupied).coerceAtLeast(0f) * 0.5f
+        val centerArc = if (n > 2) cum[n / 2] else total * 0.5f
+        var cursor = (centerArc - occupied * 0.5f).coerceIn(0f, (total - occupied).coerceAtLeast(0f))
         val runs = mutableListOf<GlyphRun>()
         while (cursor + textWidth <= total) {
             val glyphs = ArrayList<GlyphPlacement>(text.length)
@@ -92,9 +100,9 @@ object MvtCurvedTextPlacer {
                 val w = charWidths[ci]
                 // Glyph anchor sits at its left-edge along the curve. Sample the curve at
                 // that arc length; angle from the segment containing that point.
-                val (sx, sy, ang) = sampleCurve(polyline, cum, glyphCursor + w * 0.5f)
-                glyphs += GlyphPlacement(text[ci], sx, sy, ang)
-                sumX += sx; sumY += sy
+                val s = sampleCurve(polyline, cum, glyphCursor + w * 0.5f)
+                glyphs += GlyphPlacement(text[ci], s.x, s.y, s.ang, s.seg, s.u)
+                sumX += s.x; sumY += s.y
                 glyphCursor += w
             }
             runs += GlyphRun(
@@ -113,7 +121,7 @@ object MvtCurvedTextPlacer {
      */
     private fun sampleCurve(
         polyline: List<Vec2>, cum: FloatArray, t: Float,
-    ): Triple<Float, Float, Float> {
+    ): CurveSample {
         val total = cum.last()
         val clamped = t.coerceIn(0f, total)
         // Binary search for the segment whose cumulative-length window contains [clamped].
@@ -134,7 +142,7 @@ object MvtCurvedTextPlacer {
         val x = ax + (bx - ax) * u
         val y = ay + (by - ay) * u
         val angle = atan2(by - ay, bx - ax)
-        return Triple(x, y, angle)
+        return CurveSample(x, y, angle, lo, u)
     }
 
     /**

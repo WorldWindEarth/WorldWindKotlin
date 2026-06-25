@@ -40,10 +40,8 @@ import earth.worldwind.render.FontWeight
  * Backed by the [mvtStyle] DSL — start here when reading how to author your own.
  */
 
-// Palette and kind-sets MUST appear before [OpenTopoMapRules]. Kotlin initializes top-level
-// vals in DECLARATION ORDER within a file — if these were defined after the rule list,
-// they'd be `null` at the moment `mvtStyle { ... }` ran and every fill/lineColor would
-// resolve to a null Color, NPE-ing on the first `.alpha` read at tile assembly.
+// Palette and kind-sets MUST precede [OpenTopoMapRules]: top-level vals init in declaration order,
+// so defining them after the rule list would leave every fill/lineColor null (NPE at tile assembly).
 private val WATER = Color(0.70f, 0.85f, 0.96f)
 private val FOREST = Color(0.75f, 0.85f, 0.69f)
 private val GRASS = Color(0.82f, 0.86f, 0.69f)
@@ -62,16 +60,14 @@ private val TRACK_BROWN = Color(0.65f, 0.45f, 0.20f)
 private val PATH_BROWN = Color(0.55f, 0.35f, 0.18f)
 private val RAIL_BLACK = Color(0.2f, 0.2f, 0.2f)
 private val BOUNDARY = Color(0.55f, 0.42f, 0.62f)
-// Label palette — white text, black halo. Inverted from the usual print-map convention
-// because the tutorial composites vector tiles over satellite imagery; light backgrounds
-// (snow, cloud, sky) appear unpredictably and white-on-black reads more reliably across
-// the whole range. Halo width stays small (~10% of font size) so the dark ring doesn't
-// dominate the glyph strokes; bold weight on every label preserves stroke visibility.
-// LABEL_TEXT_DIM is a slight off-white reserved for hamlet/suburb labels — visible but
-// hierarchically below city/town/village.
-private val LABEL_TEXT = Color(1f, 1f, 1f, 1f)
-private val LABEL_TEXT_DIM = Color(0.85f, 0.85f, 0.87f, 1f)
-private val LABEL_HALO = Color(0f, 0f, 0f, 1f)
+// Water labels (rivers/lakes/seas) — a dark water-blue ink, the OSM/Mapbox convention for hydronyms.
+private val WATER_LABEL = Color(0.13f, 0.34f, 0.56f, 1f)
+// Label palette — exact OpenTopoMap values: black ink, soft 80% white halo.
+private val LABEL_TEXT = Color(0f, 0f, 0f, 1f)
+// Minor places (hamlet/suburb, region/state) — a medium gray (#555) so they read as subordinate to the
+// black major labels. Mapbox/OSM-carto desaturate minor labels for hierarchy; this was pure black (a bug).
+private val LABEL_TEXT_DIM = Color(0.33f, 0.33f, 0.33f, 1f)
+private val LABEL_HALO = Color(1f, 1f, 1f, 0.8f)
 private const val LABEL_HALO_W_LARGE = 2f
 private const val LABEL_HALO_W_SMALL = 1.5f
 
@@ -81,6 +77,9 @@ private val URBAN_KINDS: Set<Any?> = setOf("residential", "commercial", "industr
 private val PARK_KINDS: Set<Any?> = setOf("park", "garden", "playground", "recreation_ground")
 
 val OpenTopoMapRules: MvtRuleBasedStyle = mvtStyle {
+
+    // Cream page base — fills the gaps MVT has no polygon for (bare rock, streets, highway corridors).
+    background = OpenTopoMapMvtStyle.BACKGROUND_REFERENCE
 
     // ---- Background / land ----
     // Subclass rules first — they paint with their own palette. The generic `land` /
@@ -276,23 +275,37 @@ val OpenTopoMapRules: MvtRuleBasedStyle = mvtStyle {
     }
 
     // ---- Place labels (Stage 4a) ----
-    // Shortbread's `place_labels` carries (kind, name, …) — kinds run continent → country →
-    // state → city → town → village → hamlet → suburb. Zoom-grade so country-level views
-    // show only major cities while city-level views also reveal towns and villages.
-    //
-    // Sizes / zoom-ranges / weights track OpenTopoMap's Mapnik style. The print original is
-    // sized in points (~1.33 px at 96 DPI); we multiply by ~1.6 for retina-density mobile,
-    // round to even pixels, and keep OpenTopoMap's zoom envelopes for relative hierarchy.
+    // Shortbread `place_labels` (kind, name); zoom-graded continent → … → suburb. Sizes/zoom envelopes
+    // track OpenTopoMap's Mapnik style, scaled ~1.6x for retina-density mobile and rounded to even px.
     //   Reference: github.com/der-stefan/OpenTopoMap/blob/master/mapnik/opentopomap.xml
-    //   TextSymbolizer entries for `country`, `town`, `city`, `village`, `hamlet`, `suburb`.
+    // National capitals (kind=capital) — one size step above plain cities; must precede the city rule
+    // so firstMatching picks it for kind=capital.
     rule("place_labels") {
-        filter = "kind" eq "city"
-        minZoom = 6
+        filter = "kind" eq "capital"
+        minZoom = 3
         zOrder = MvtStyle.Z_LABEL
         paint {
             text("name") {
                 color(LABEL_TEXT)
-                size = MvtZoomInterp.floats(6 to 16f, 10 to 22f, 14 to 26f)
+                size = MvtZoomInterp.floats(4 to 15f, 9 to 18f, 14 to 21f) // capital — bumped over city
+                halo(LABEL_HALO, LABEL_HALO_W_LARGE)
+                fontWeight = FontWeight.BOLD
+            }
+        }
+    }
+    rule("place_labels") {
+        // Regular cities AND regional admin centers (kind=state_capital) — NOT kind=city, but ranked as
+        // cities. At country/continental zoom the layer carries only capital + state_capital (no city),
+        // so this must include state_capital or every admin center vanishes when zoomed out.
+        filter = "kind" isIn setOf("city", "state_capital")
+        // Build from the coarse zooms (Shortbread carries the major places down here) so a zoomed-out
+        // view has candidates at all. Was 6, which hid every admin center when out.
+        minZoom = 3
+        zOrder = MvtStyle.Z_LABEL
+        paint {
+            text("name") {
+                color(LABEL_TEXT)
+                size = MvtZoomInterp.floats(4 to 13f, 9 to 16f, 14 to 18f) // city/state_capital, mobile scale
                 halo(LABEL_HALO, LABEL_HALO_W_LARGE)
                 fontWeight = FontWeight.BOLD
             }
@@ -305,7 +318,7 @@ val OpenTopoMapRules: MvtRuleBasedStyle = mvtStyle {
         paint {
             text("name") {
                 color(LABEL_TEXT)
-                size = MvtZoomInterp.floats(8 to 14f, 13 to 18f, 16 to 22f)
+                size = MvtZoomInterp.floats(8 to 12f, 13 to 14f, 16 to 16f) // town, mobile scale
                 halo(LABEL_HALO, LABEL_HALO_W_LARGE)
                 fontWeight = FontWeight.BOLD
             }
@@ -319,7 +332,7 @@ val OpenTopoMapRules: MvtRuleBasedStyle = mvtStyle {
         paint {
             text("name") {
                 color(LABEL_TEXT)
-                size = MvtZoomInterp.floats(12 to 11f, 14 to 14f, 16 to 17f)
+                size = MvtZoomInterp.floats(12 to 11f, 14 to 12f, 16 to 14f) // village, mobile scale
                 halo(LABEL_HALO, LABEL_HALO_W_SMALL)
                 fontWeight = FontWeight.BOLD
             }
@@ -332,72 +345,104 @@ val OpenTopoMapRules: MvtRuleBasedStyle = mvtStyle {
         paint {
             text("name") {
                 color(LABEL_TEXT_DIM)
-                size = MvtZoomInterp.floats(14 to 10f, 16 to 12f, 18 to 14f)
+                size = MvtZoomInterp.floats(14 to 10f, 16 to 11f, 18 to 12f) // hamlet/suburb, mobile scale
                 halo(LABEL_HALO, LABEL_HALO_W_SMALL)
                 fontWeight = FontWeight.BOLD
             }
         }
     }
 
-    // Road names — single label per LINESTRING placed at the midpoint, rotated along the
-    // local tangent (Mapbox's `symbol-placement: line-center` equivalent). Layered by class
-    // so each tier only enters when its roads become visually prominent:
-    //   - motorway/trunk    from z=14  (city overview — main arterials only)
-    //   - primary           from z=13
-    //   - secondary         from z=15  (street-detail zoom)
-    rule("streets") {
+    // Road names — curved along the road via per-glyph LINE placement, layered by class (motorway/trunk
+    // z14, primary z13, secondary z15). Names live in `street_labels` (name/ref), not `streets` geometry.
+    rule("street_labels") {
         filter = MvtFilter.all(
-            "kind" isIn setOf("motorway", "trunk"),
-            MvtFilter.has("name"),
-        )
-        geometryType = MvtGeometryType.LINESTRING
-        minZoom = 14
-        zOrder = MvtStyle.Z_LABEL - 1  // beneath place labels but above non-road labels
-        paint {
-            text("name") {
-                placement = MvtStyleRule.LabelPlacement.LINE
-                color(LABEL_TEXT)
-                size = MvtZoomInterp.floats(14 to 12f, 17 to 16f)
-                halo(LABEL_HALO, LABEL_HALO_W_SMALL)
-                fontWeight = FontWeight.BOLD
-            }
-        }
-    }
-
-    rule("streets") {
-        filter = MvtFilter.all(
-            "kind" isIn setOf("primary", "primary_link"),
+            "kind" isIn setOf("motorway", "trunk", "primary", "primary_link"),
             MvtFilter.has("name"),
         )
         geometryType = MvtGeometryType.LINESTRING
         minZoom = 13
+        zOrder = MvtStyle.Z_LABEL - 1
+        paint {
+            text("name") {
+                placement = MvtStyleRule.LabelPlacement.LINE
+                color(LABEL_TEXT)
+                size = MvtZoomInterp.floats(13 to 12f, 17 to 15f)
+                halo(LABEL_HALO, LABEL_HALO_W_SMALL)
+                fontWeight = FontWeight.BOLD
+            }
+        }
+    }
+    rule("street_labels") {
+        filter = MvtFilter.all(
+            "kind" isIn setOf(
+                "secondary", "secondary_link", "tertiary", "residential",
+                "living_street", "unclassified", "pedestrian",
+            ),
+            MvtFilter.has("name"),
+        )
+        geometryType = MvtGeometryType.LINESTRING
+        minZoom = 15
         zOrder = MvtStyle.Z_LABEL - 2
         paint {
             text("name") {
                 placement = MvtStyleRule.LabelPlacement.LINE
                 color(LABEL_TEXT)
-                size = MvtZoomInterp.floats(13 to 11f, 17 to 15f)
+                size = MvtZoomInterp.floats(15 to 11f, 17 to 13f)
                 halo(LABEL_HALO, LABEL_HALO_W_SMALL)
                 fontWeight = FontWeight.BOLD
             }
         }
     }
-
-    rule("streets") {
-        filter = MvtFilter.all(
-            "kind" isIn setOf("secondary", "secondary_link"),
-            MvtFilter.has("name"),
-        )
+    // River / canal names — `water_lines_labels` (LINESTRINGs), curved along the watercourse.
+    rule("water_lines_labels") {
+        filter = MvtFilter.has("name")
         geometryType = MvtGeometryType.LINESTRING
-        minZoom = 15
+        minZoom = 12
         zOrder = MvtStyle.Z_LABEL - 3
         paint {
             text("name") {
                 placement = MvtStyleRule.LabelPlacement.LINE
-                color(LABEL_TEXT)
-                size = MvtZoomInterp.floats(15 to 10f, 17 to 14f)
+                color(WATER_LABEL)
+                size = MvtZoomInterp.floats(12 to 11f, 16 to 14f)
                 halo(LABEL_HALO, LABEL_HALO_W_SMALL)
-                fontWeight = FontWeight.BOLD
+            }
+        }
+    }
+    // Building / house numbers — `addresses` layer (POINT, `housenumber`). z14 is the source's deepest
+    // tile; the per-label minzoom (16, see placeMinZoom) holds them to building zoom so the ~3800/tile
+    // don't flood until the camera is in close.
+    rule("addresses") {
+        filter = MvtFilter.has("housenumber")
+        minZoom = 14
+        zOrder = MvtStyle.Z_LABEL - 4
+        paint {
+            text("housenumber") {
+                color(LABEL_TEXT_DIM)
+                size = MvtZoomInterp.floats(14 to 13f, 17 to 16f)
+                halo(LABEL_HALO, LABEL_HALO_W_SMALL)
+            }
+        }
+    }
+    // Lake / sea / large-river polygon names — `water_polygons_labels` (POINT at the centroid).
+    rule("water_polygons_labels") {
+        // Only name SUBSTANTIAL water bodies. Fountains (and tiny ponds) are kind=water with no
+        // distinguishing tag, so they can't be filtered by kind — but they're tiny, so a way_area
+        // floor drops the city-centre fountain-label swarm while keeping lakes/rivers/seas. way_area
+        // is Web-Mercator m²; keep named water that omits it too (very large clipped polygons do).
+        filter = MvtFilter.all(
+            MvtFilter.has("name"),
+            MvtFilter.any(
+                MvtFilter.not(MvtFilter.has("way_area")),
+                MvtFilter.numericGte("way_area", 1000.0),
+            ),
+        )
+        minZoom = 8
+        zOrder = MvtStyle.Z_LABEL - 3
+        paint {
+            text("name") {
+                color(WATER_LABEL)
+                size = MvtZoomInterp.floats(8 to 11f, 13 to 15f)
+                halo(LABEL_HALO, LABEL_HALO_W_SMALL)
             }
         }
     }
@@ -412,11 +457,11 @@ val OpenTopoMapRules: MvtRuleBasedStyle = mvtStyle {
         paint {
             text("name") {
                 color(LABEL_TEXT)
-                // Sized to read at globe zoom without overpowering. Country labels would
-                // otherwise span 30+ px at z=2 which looks oversized on a far-out camera.
-                size = MvtZoomInterp.floats(2 to 14f, 5 to 20f, 8 to 26f)
+                // Country: mobile scale, kept modest so it annotates without dominating the city names.
+                size = MvtZoomInterp.floats(2 to 12f, 5 to 14f, 8 to 16f)
                 halo(LABEL_HALO, LABEL_HALO_W_LARGE)
                 fontWeight = FontWeight.BOLD
+                uppercase = true // Mapbox/OSM render country names in all caps
             }
         }
     }
@@ -432,7 +477,7 @@ val OpenTopoMapRules: MvtRuleBasedStyle = mvtStyle {
         paint {
             text("name") {
                 color(LABEL_TEXT_DIM)
-                size = MvtZoomInterp.floats(4 to 12f, 8 to 16f)
+                size = MvtZoomInterp.floats(4 to 11f, 8 to 13f) // region/state, mobile scale
                 halo(LABEL_HALO, LABEL_HALO_W_SMALL)
                 fontWeight = FontWeight.BOLD
             }

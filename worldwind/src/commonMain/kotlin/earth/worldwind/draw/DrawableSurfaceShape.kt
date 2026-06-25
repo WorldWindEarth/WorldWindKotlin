@@ -124,17 +124,35 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         }
         if (scratchList.isEmpty()) return null // Nothing to draw
 
-        var hash = 0
-        val useCache = !dc.isPickMode && !isDynamic // Use single color attachment in pick mode and for dynamic shapes
-        if (useCache) {
-            // Calculate a texture cache key for this terrain tile and shapes batch
-            hash = terrainSector.hashCode()
-            for (idx in scratchList.indices) hash = 31 * hash + scratchList[idx].textureHash()
-
-            // Use cached texture
-            val cachedTexture = dc.texturesCache[hash]
-            if (cachedTexture != null) return cachedTexture
+        // Whether every intersecting shape's geometry buffer has uploaded (a not-yet-uploaded shape is
+        // skipped by the draw loop below, leaving the base layer showing through where it should paint).
+        var allBuffersLoaded = true
+        for (idx in scratchList.indices) {
+            val ds = scratchList[idx].drawState
+            if (ds.vertexBuffer?.isLoaded() == false || ds.elementBuffer?.isLoaded() == false) {
+                allBuffersLoaded = false; break
+            }
         }
+
+        // Per-terrain-tile RTT cache, keyed by the tile (sector + globe offset), NOT by tile+shapes, and
+        // bounded by bytes ([DrawContext.surfaceShapeTiles]). A tile reuses its last fully-composited
+        // texture while its shapes reassemble — retain-last-good, the draping analog of MapLibre's
+        // findLoadedParent — so a pan never flashes the base layer through, and the cache holds one texture
+        // per visible tile instead of churning a new 4 MB texture per shape-set change (which filled the
+        // old count-bounded cache and OOM'd).
+        val useCache = !dc.isPickMode && !isDynamic
+        val tileKey = 31 * terrainSector.hashCode() + terrain.offset.ordinal
+        var contentHash = 0
+        if (useCache) {
+            for (idx in scratchList.indices) contentHash = 31 * contentHash + scratchList[idx].textureHash()
+            dc.surfaceShapeTiles[tileKey]?.let { cached ->
+                if (cached.contentHash == contentHash) return cached.texture // up to date for this tile
+                if (!allBuffersLoaded) return cached.texture                 // reassembling → keep last good
+            }
+        }
+        // Only a complete render (all buffers uploaded) yields a storable texture; pick / dynamic / partial
+        // renders go through the shared scratch attachment and are not cached.
+        val cacheable = useCache && allBuffersLoaded
 
         // Redraw shapes to texture and put in cache if required
         val framebuffer = dc.scratchFramebuffer
@@ -142,14 +160,14 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
         // single-sample texture below. `null` means single-sample fallback (WebGL1).
         val multisampleFramebuffer = if (dc.isPickMode) null else dc.multisampleFramebuffer
         val colorAttachment = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-        val texture = if (!useCache) colorAttachment
+        val texture = if (!cacheable) colorAttachment
         else Texture(colorAttachment.width, colorAttachment.height, GL_RGBA, GL_UNSIGNED_BYTE, true)
         // Restore the caller's binding after the offscreen pass, not always NONE — pick mode
         // expects the pick FBO to remain bound between drawables.
         val previousFramebuffer = dc.currentFramebuffer
         try {
             // Attach the cache texture as the resolve target before binding the draw FBO.
-            if (useCache) framebuffer.attachTexture(dc, texture, GL_COLOR_ATTACHMENT0)
+            if (cacheable) framebuffer.attachTexture(dc, texture, GL_COLOR_ATTACHMENT0)
             val drawFramebuffer = multisampleFramebuffer ?: framebuffer
             if (!drawFramebuffer.bindFramebuffer(dc)) return null // framebuffer failed to bind
 
@@ -249,9 +267,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             // Resolve MSAA into the single-sample texture the terrain sampler reads from.
             // No-op on the WebGL1 fallback (we already drew into `framebuffer` directly).
             multisampleFramebuffer?.resolveTo(dc, framebuffer)
-            if (useCache) dc.texturesCache.put(hash, texture, 1)
+            if (cacheable) dc.surfaceShapeTiles.put(tileKey, SurfaceTileTexture(texture, contentHash), texture.byteCount)
         } finally {
-            if (useCache) framebuffer.attachTexture(dc, colorAttachment, GL_COLOR_ATTACHMENT0)
+            if (cacheable) framebuffer.attachTexture(dc, colorAttachment, GL_COLOR_ATTACHMENT0)
             dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.enable(GL_DEPTH_TEST)

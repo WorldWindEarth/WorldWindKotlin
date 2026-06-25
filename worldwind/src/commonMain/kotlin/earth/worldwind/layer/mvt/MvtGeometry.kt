@@ -1,6 +1,8 @@
 package earth.worldwind.layer.mvt
 
 import earth.worldwind.geom.Position
+import earth.worldwind.util.IntList
+import earth.worldwind.util.RingSimplifier
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.sinh
@@ -34,13 +36,33 @@ import kotlin.math.sqrt
  */
 object MvtGeometry {
 
+    /**
+     * Per-tile reused scratch for the decode hot path. One instance per tile (decoded on a single
+     * worker thread), threaded through the decode entry points so the inner loops allocate nothing
+     * per feature or per ring. NOT thread-safe — one instance per concurrent tile assembly.
+     */
+    class Scratch {
+        var zigzag = IntArray(0)
+        val ringX = IntList()
+        val ringY = IntList()
+        val kept = IntList()
+        val dpStack = IntList()
+        val rawOuter = IntList()    // raw tile-coord outline [x,y,x,y,…] of the current exterior, for hole tests
+        private var keep = BooleanArray(0)
+        /** Reusable BooleanArray >= [n], reset to false over [0, n). */
+        fun keepBuf(n: Int): BooleanArray {
+            if (keep.size < n) keep = BooleanArray(n) else keep.fill(false, 0, n)
+            return keep
+        }
+    }
+
     /** Inflate a POINT feature's geometry into one [Position] per point. Empty on malformed input. */
-    fun decodePoints(feature: MvtFeature, z: Int, x: Int, y: Int, extent: Int): List<Position> {
+    fun decodePoints(feature: MvtFeature, z: Int, x: Int, y: Int, extent: Int, scratch: Scratch): List<Position> {
         if (feature.type != MvtGeometryType.POINT) return emptyList()
         val out = ArrayList<Position>()
         var cursorX = 0
         var cursorY = 0
-        walkCommands(feature.geometry) { id, count, params, offset ->
+        walkCommands(feature.geometry, scratch) { id, count, params, offset ->
             if (id != CMD_MOVE_TO) return@walkCommands
             // POINT's "count" can exceed 1: each (dx, dy) is an independent point with the
             // cursor advancing through all of them.
@@ -53,33 +75,64 @@ object MvtGeometry {
         return out
     }
 
-    /** Inflate a LINESTRING feature into one or more polylines (each MoveTo starts a new one). */
-    fun decodeLines(feature: MvtFeature, z: Int, x: Int, y: Int, extent: Int): List<List<Position>> {
+    /** Inflate a LINESTRING feature into polylines (each MoveTo starts a new one), each a flat
+     *  interleaved `[lon°, lat°, …]` degree array — no per-vertex [Position]; altitude dropped. */
+    fun decodeLines(feature: MvtFeature, z: Int, x: Int, y: Int, extent: Int, simplify: Boolean = true, scratch: Scratch): List<DoubleArray> {
         if (feature.type != MvtGeometryType.LINESTRING) return emptyList()
-        val lines = ArrayList<MutableList<Position>>()
-        var current: MutableList<Position>? = null
+        val lines = ArrayList<DoubleArray>()
+        // Buffer the current line as raw tile coords (no boxing) so RDP runs before unproject; reused per MoveTo.
+        val lineX = scratch.ringX.also { it.clear() }
+        val lineY = scratch.ringY.also { it.clear() }
+        val kept = scratch.kept
+        val nz = (1 shl z).toDouble()
         var cursorX = 0
         var cursorY = 0
-        walkCommands(feature.geometry) { id, count, params, offset ->
+        // RDP-simplify the buffered open polyline in tile coords, then emit survivors as flat lon/lat.
+        fun flushLine() {
+            val rawN = lineX.size
+            if (rawN < 2) return
+            kept.clear()
+            if (rawN < 3 || !simplify) {
+                // <3 verts: RDP is a no-op (both endpoints always kept); pass through unchanged.
+                for (i in 0 until rawN) kept.add(i)
+            } else {
+                // Open polyline: keep survivors in order, no closing edge / area handling.
+                val keep = scratch.keepBuf(rawN)
+                simplifyRing(lineX, lineY, rawN, keep, scratch.dpStack)
+                for (i in 0 until rawN) if (keep[i]) kept.add(i)
+            }
+            val n = kept.size
+            // Unproject each kept tile coord to flat [lon°, lat°] (inlines unproject's math).
+            val flat = DoubleArray(n * 2)
+            for (i in 0 until n) {
+                val a = kept[i]
+                val tx = x.toDouble() + lineX[a].toDouble() / extent
+                val ty = y.toDouble() + lineY[a].toDouble() / extent
+                flat[i * 2] = tx / nz * 360.0 - 180.0
+                flat[i * 2 + 1] = atan(sinh(PI * (1 - 2 * ty / nz))) * 180.0 / PI
+            }
+            lines += flat
+        }
+        walkCommands(feature.geometry, scratch) { id, count, params, offset ->
             when (id) {
                 CMD_MOVE_TO -> {
+                    flushLine()
                     cursorX += params[offset]
                     cursorY += params[offset + 1]
-                    val started = ArrayList<Position>()
-                    started += unproject(z, x, y, extent, cursorX, cursorY)
-                    current = started
-                    lines += started
+                    lineX.clear(); lineY.clear()
+                    lineX.add(cursorX); lineY.add(cursorY)
                 }
                 CMD_LINE_TO -> {
-                    val line = current ?: return@walkCommands
+                    if (lineX.size == 0) return@walkCommands
                     for (i in 0 until count) {
                         cursorX += params[offset + 2 * i]
                         cursorY += params[offset + 2 * i + 1]
-                        line += unproject(z, x, y, extent, cursorX, cursorY)
+                        lineX.add(cursorX); lineY.add(cursorY)
                     }
                 }
             }
         }
+        flushLine() // emit the final buffered line
         return lines
     }
 
@@ -91,59 +144,110 @@ object MvtGeometry {
      * The MVT-positive-area test produces CCW outer rings after Y inversion to north-up,
      * matching WorldWind's [earth.worldwind.shape.Polygon] tessellator expectation.
      */
-    fun decodePolygons(feature: MvtFeature, z: Int, x: Int, y: Int, extent: Int): List<PolygonRings> {
+    fun decodePolygons(feature: MvtFeature, z: Int, x: Int, y: Int, extent: Int, simplify: Boolean = true, scratch: Scratch): List<PolygonRings> {
         if (feature.type != MvtGeometryType.POLYGON) return emptyList()
         val polygons = ArrayList<PolygonRings>()
-        var ringTileX: ArrayList<Int>? = null
-        var ringTileY: ArrayList<Int>? = null
-        var ringLatLon: ArrayList<Position>? = null
+        // Accumulate the current ring as raw tile coords (no Position/boxing); the flat lon/lat
+        // array is built once per ring at ClosePath. ringX/ringY are reused across rings.
+        val ringX = scratch.ringX.also { it.clear() }
+        val ringY = scratch.ringY.also { it.clear() }
+        scratch.rawOuter.clear()
+        val kept = scratch.kept
+        var inRing = false
+        val nz = (1 shl z).toDouble()
         var cursorX = 0
         var cursorY = 0
-        walkCommands(feature.geometry) { id, count, params, offset ->
+        walkCommands(feature.geometry, scratch) { id, count, params, offset ->
             when (id) {
                 CMD_MOVE_TO -> {
                     cursorX += params[offset]
                     cursorY += params[offset + 1]
-                    ringTileX = arrayListOf(cursorX)
-                    ringTileY = arrayListOf(cursorY)
-                    ringLatLon = arrayListOf(unproject(z, x, y, extent, cursorX, cursorY))
+                    ringX.clear(); ringY.clear()
+                    ringX.add(cursorX); ringY.add(cursorY)
+                    inRing = true
                 }
                 CMD_LINE_TO -> {
-                    val tx = ringTileX ?: return@walkCommands
-                    val ty = ringTileY ?: return@walkCommands
-                    val ll = ringLatLon ?: return@walkCommands
+                    if (!inRing) return@walkCommands
                     for (i in 0 until count) {
                         cursorX += params[offset + 2 * i]
                         cursorY += params[offset + 2 * i + 1]
-                        tx += cursorX
-                        ty += cursorY
-                        ll += unproject(z, x, y, extent, cursorX, cursorY)
+                        ringX.add(cursorX); ringY.add(cursorY)
                     }
                 }
                 CMD_CLOSE_PATH -> {
-                    val tx = ringTileX
-                    val ty = ringTileY
-                    val ll = ringLatLon
-                    if (tx == null || ty == null || ll == null) return@walkCommands
-                    ringTileX = null; ringTileY = null; ringLatLon = null
-                    if (ll.size < 3) return@walkCommands
-                    // Tile-space signed area (Shoelace): positive ⇒ exterior (spec §4.3.3.3),
-                    // negative ⇒ interior hole. Constant factor doesn't matter, only sign.
+                    if (!inRing) return@walkCommands
+                    inRing = false
+                    val rawN = ringX.size
+                    if (rawN < 3) return@walkCommands
+                    // Signed area on the RAW ring (tile coords): positive ⇒ exterior, negative ⇒ hole-candidate.
                     var area = 0.0
-                    for (i in tx.indices) {
-                        val j = (i + 1) % tx.size
-                        area += tx[i].toDouble() * ty[j] - tx[j].toDouble() * ty[i]
+                    for (i in 0 until rawN) {
+                        val b = if (i + 1 == rawN) 0 else i + 1
+                        area += ringX[i].toDouble() * ringY[b] - ringX[b].toDouble() * ringY[i]
+                    }
+                    // Simplify for the emitted RENDER geometry only.
+                    kept.clear()
+                    if (rawN < 4 || !simplify) {
+                        for (i in 0 until rawN) kept.add(i)
+                    } else {
+                        val keep = scratch.keepBuf(rawN)
+                        simplifyRing(ringX, ringY, rawN, keep, scratch.dpStack)
+                        for (i in 0 until rawN) if (keep[i]) kept.add(i)
+                    }
+                    val n = kept.size
+                    if (n < 3) return@walkCommands
+                    val flat = DoubleArray(n * 2)
+                    for (i in 0 until n) {
+                        val a = kept[i]
+                        val tx = x.toDouble() + ringX[a].toDouble() / extent
+                        val ty = y.toDouble() + ringY[a].toDouble() / extent
+                        flat[i * 2] = tx / nz * 360.0 - 180.0
+                        flat[i * 2 + 1] = atan(sinh(PI * (1 - 2 * ty / nz))) * 180.0 / PI
                     }
                     if (area > 0.0) {
-                        polygons += PolygonRings(ll, mutableListOf())
+                        polygons += PolygonRings(flat, mutableListOf())
+                        snapshotRawOuter(scratch.rawOuter, ringX, ringY, rawN)
                     } else {
-                        // A hole with no preceding exterior is malformed input; silently drop.
-                        polygons.lastOrNull()?.holes?.add(ll)
+                        // Hole vs. separate landmass decided on RAW tile coords against the RAW current
+                        // exterior — the simplified outline is far too coarse at globe scale and would
+                        // swallow offshore islands (Ireland, Greenland) as fake holes.
+                        val cur = polygons.lastOrNull()
+                        if (cur != null && scratch.rawOuter.size >= 6 && rawCentroidInsideTile(scratch.rawOuter, ringX, ringY, rawN)) {
+                            cur.holes.add(flat)
+                        } else {
+                            polygons += PolygonRings(flat, mutableListOf())
+                            snapshotRawOuter(scratch.rawOuter, ringX, ringY, rawN)
+                        }
                     }
                 }
             }
         }
         return polygons
+    }
+
+    /** Copy the n-vertex raw tile-coord ring [xs]/[ys] into [dst] as interleaved [x,y,…]. */
+    private fun snapshotRawOuter(dst: IntList, xs: IntList, ys: IntList, n: Int) {
+        dst.clear()
+        for (i in 0 until n) { dst.add(xs[i]); dst.add(ys[i]) }
+    }
+
+    /** True if the centroid of the n-vertex raw ring [xs]/[ys] lies inside the interleaved tile-coord
+     *  ring [outer] (ray casting). Tells a real hole (centroid inside its exterior) from a separately
+     *  wound foreign ring (offshore island) at full resolution. */
+    private fun rawCentroidInsideTile(outer: IntList, xs: IntList, ys: IntList, n: Int): Boolean {
+        var cx = 0.0; var cy = 0.0
+        for (i in 0 until n) { cx += xs[i]; cy += ys[i] }
+        cx /= n; cy /= n
+        val m = outer.size / 2
+        var inside = false
+        var j = m - 1
+        for (i in 0 until m) {
+            val xi = outer[i * 2].toDouble(); val yi = outer[i * 2 + 1].toDouble()
+            val xj = outer[j * 2].toDouble(); val yj = outer[j * 2 + 1].toDouble()
+            if ((yi > cy) != (yj > cy) && cx < (xj - xi) * (cy - yi) / (yj - yi) + xi) inside = !inside
+            j = i
+        }
+        return inside
     }
 
     /**
@@ -168,6 +272,18 @@ object MvtGeometry {
     private const val CMD_LINE_TO = 2
     private const val CMD_CLOSE_PATH = 7
 
+    /** ~1 px at extent 4096 rendered ~512 px; compared against its square (8*8 = 64) for sqrt-free RDP. */
+    private const val SIMPLIFY_TOLERANCE_UNITS = 8
+
+    /** Simplification of a ring/line in integer tile coords; marks survivors in [keep] (size [n]).
+     *  Delegates to the shared [RingSimplifier] (global Douglas–Peucker) with a fixed tile-unit
+     *  tolerance — correct at every zoom because MVT tile coords are always extent-relative.
+     *  [stack] is the per-tile reusable explicit-recursion buffer. */
+    private fun simplifyRing(xs: IntList, ys: IntList, n: Int, keep: BooleanArray, stack: IntList) {
+        val tolSq = (SIMPLIFY_TOLERANCE_UNITS * SIMPLIFY_TOLERANCE_UNITS).toDouble()
+        RingSimplifier.simplify(n, tolSq, keep, stack, xAt = { xs[it].toDouble() }, yAt = { ys[it].toDouble() })
+    }
+
     /**
      * Walk a command stream, invoking [block] once per command with the decoded `id`, `count`,
      * a zig-zag-decoded parameter array, and the offset of that command's parameters.
@@ -176,12 +292,16 @@ object MvtGeometry {
      */
     private inline fun walkCommands(
         stream: IntArray,
+        scratch: Scratch,
         block: (id: Int, count: Int, params: IntArray, offset: Int) -> Unit,
     ) {
         if (stream.isEmpty()) return
-        val params = stream.copyOf()
+        if (scratch.zigzag.size < stream.size) scratch.zigzag = IntArray(stream.size)
+        val params = scratch.zigzag
+        stream.copyInto(params, 0, 0, stream.size)
+        val len = stream.size
         var i = 0
-        while (i < params.size) {
+        while (i < len) {
             val cmd = params[i++]
             val id = cmd and 0x7
             val count = cmd ushr 3
@@ -204,7 +324,9 @@ object MvtGeometry {
     }
 
     /** A polygon's outer ring with zero or more inner holes, in lat/lon. */
-    data class PolygonRings(val outer: List<Position>, val holes: MutableList<List<Position>>)
+    /** Rings as flat interleaved `[lon°, lat°, …]` degree arrays — avoids a [Position] object per
+     *  vertex (thousands per dense tile) and feeds earcut / [MvtBatchedPolygonTile] directly. */
+    class PolygonRings(val outer: DoubleArray, val holes: MutableList<DoubleArray>)
 
     /**
      * Result of [labelAnchorForLine]: where to place a line label and how to orient it.

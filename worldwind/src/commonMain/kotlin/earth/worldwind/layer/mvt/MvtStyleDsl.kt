@@ -41,6 +41,9 @@ fun mvtStyle(block: MvtStyleBuilder.() -> Unit): MvtRuleBasedStyle =
 class MvtStyleBuilder {
     private val rules = mutableListOf<MvtStyleRule>()
 
+    /** Solid base color drawn under all fills (the Mapbox `background` layer). Null = none. */
+    var background: Color? = null
+
     /**
      * Declare one rule targeting [sourceLayer]. Configure inside the lambda — at minimum
      * call [MvtRuleBuilder.paint] with a fill or line.
@@ -50,7 +53,7 @@ class MvtStyleBuilder {
         rules += b.build()
     }
 
-    fun build(): MvtRuleBasedStyle = MvtRuleBasedStyle(rules.toList())
+    fun build(): MvtRuleBasedStyle = MvtRuleBasedStyle(rules.toList(), background)
 }
 
 @MvtStyleDsl
@@ -182,6 +185,7 @@ class MvtPaintBuilder {
         fontWeight = b.fontWeight
         textPlacement = b.placement
         textMaxWidth = b.maxWidth
+        textUppercase = b.uppercase
     }
 
     /**
@@ -208,6 +212,7 @@ class MvtPaintBuilder {
     // Threaded through to PaintSpec via build(); declared here so build() can read.
     private var textPlacement: MvtStyleRule.LabelPlacement = MvtStyleRule.LabelPlacement.POINT
     private var textMaxWidth: MvtExpression<Float>? = null
+    private var textUppercase: Boolean = false
     // Icon paint
     private var iconImage: MvtExpression<String>? = null
     private var iconSize: MvtExpression<Float>? = null
@@ -236,6 +241,7 @@ class MvtPaintBuilder {
         fontWeight = fontWeight,
         textPlacement = textPlacement,
         textMaxWidth = textMaxWidth,
+        textUppercase = textUppercase,
         iconImage = iconImage,
         iconSize = iconSize,
         iconOffset = iconOffset,
@@ -271,6 +277,8 @@ class MvtTextBuilder {
     var placement: MvtStyleRule.LabelPlacement = MvtStyleRule.LabelPlacement.POINT
     /** Mapbox `text-max-width` (em units). Unset = no word-wrap. */
     var maxWidth: MvtExpression<Float>? = null
+    /** Mapbox `text-transform: uppercase` — render in all caps (country/region convention). */
+    var uppercase: Boolean = false
 
     /** Constant-color shorthand for [color]. */
     fun color(c: Color) { color = MvtZoomInterp.constant(c) }

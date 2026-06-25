@@ -18,6 +18,10 @@ import earth.worldwind.util.LruMemoryCache
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.*
 
+/** A composited surface-shape RTT texture plus the shape-set content hash it was rendered for, so a
+ *  terrain tile can keep reusing its last complete texture until its shapes change AND finish uploading. */
+class SurfaceTileTexture(val texture: Texture, val contentHash: Int)
+
 open class DrawContext(val gl: Kgl) {
     companion object {
         /**
@@ -26,6 +30,10 @@ open class DrawContext(val gl: Kgl) {
          * framebuffer (see [MSAA_SAMPLES]); the texture itself stays at the historical 1024.
          */
         const val SCRATCH_FRAMEBUFFER_SIZE = 1024
+        /** Byte budget for [surfaceShapeTiles] (composited surface-shape RTT textures, ~5 MB each at
+         *  1024² RGBA+mip). Bounds GPU memory regardless of how many terrain tiles are panned through;
+         *  sized to hold a typical visible terrain-tile set plus a pan margin. */
+        const val SURFACE_SHAPE_CACHE_BYTES = 192L * 1024L * 1024L
         /**
          * Sample count for the multisample framebuffer. 4× MSAA is broadly supported across
          * desktop GL 3+ and OpenGL ES 3.0+ (Android API 18+). Effective sample count is
@@ -434,6 +442,18 @@ open class DrawContext(val gl: Kgl) {
             oldValue.release(this@DrawContext)
         }
     }
+    /**
+     * Per-terrain-tile composited surface-shape RTT textures, keyed by tile (sector + globe offset),
+     * bounded by [SURFACE_SHAPE_CACHE_BYTES]. Keyed by tile — NOT tile+shapes — so [DrawableSurfaceShape]
+     * reuses a tile's last fully-composited texture while its shapes reassemble (retain-last-good), avoiding
+     * both the base-layer flash on pan and the per-frame hash churn that filled the count-bounded
+     * [texturesCache] with 5 MB textures and OOM'd. Releases the GL texture on eviction or in-place replace.
+     */
+    val surfaceShapeTiles = object : LruMemoryCache<Any, SurfaceTileTexture>(SURFACE_SHAPE_CACHE_BYTES) {
+        override fun entryRemoved(key: Any, oldValue: SurfaceTileTexture, newValue: SurfaceTileTexture?, evicted: Boolean) {
+            if (newValue?.texture !== oldValue.texture) oldValue.texture.release(this@DrawContext)
+        }
+    }
 
     fun reset() {
         eyePoint.set(0.0, 0.0, 0.0)
@@ -503,6 +523,7 @@ open class DrawContext(val gl: Kgl) {
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
         texturesCache.clear()
+        surfaceShapeTiles.clear()
     }
 
     fun uploadBuffers() = uploadQueue?.processUploads(this)

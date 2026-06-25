@@ -35,10 +35,15 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         paint.textSize = attributes.font.size
         paint.strokeWidth = attributes.outlineWidth
         paint.getTextBounds(text, 0, text.length, scratchBounds)
+        // Horizontal extent from the glyphs' tight box, but vertical extent from the FONT metrics
+        // (constant ascent/descent) so every label shares one baseline — else descenders ride high.
+        val fm = paint.fontMetrics
+        val ascentPx = ceil(-fm.top)
+        val descentPx = ceil(fm.bottom)
         var x = -scratchBounds.left + 1f
-        var y = -scratchBounds.top + 1f
+        var y = ascentPx + 1f // baseline at the constant ascent from the top
         var width = scratchBounds.width() + 2
-        var height = scratchBounds.height() + 2
+        var height = (ascentPx + descentPx).toInt() + 2
         if (attributes.isOutlineEnabled) {
             val strokeWidth2 = ceil(paint.strokeWidth * 0.5f).toInt()
             x += strokeWidth2
