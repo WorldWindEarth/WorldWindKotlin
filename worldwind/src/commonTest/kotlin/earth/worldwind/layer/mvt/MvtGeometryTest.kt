@@ -23,14 +23,14 @@ class MvtGeometryTest {
             cmd(7, 0),                                              // ClosePath
         )
         val feature = MvtFeature(id = 1, type = MvtGeometryType.POLYGON, tags = intArrayOf(), geometry = geometry)
-        val rings = MvtGeometry.decodePolygons(feature, z = 0, x = 0, y = 0, extent = 4096)
+        val rings = MvtGeometry.decodePolygons(feature, z = 0, x = 0, y = 0, extent = 4096, scratch = MvtGeometry.Scratch())
         assertEquals(1, rings.size)
-        val outer = rings.single().outer
-        assertEquals(4, outer.size)
+        val outer = rings.single().outer // flat interleaved [lon°, lat°, …]
+        assertEquals(8, outer.size) // 4 vertices × 2 components
         // The square spans 1024..3072 of 4096 in tile-x ⇒ -90°..+90° lon. y likewise but
         // y is inverted by Mercator so the LAT range varies non-linearly; we don't assert
         // exact lats here, just bounding correctness.
-        val lons = outer.map { it.longitude.inDegrees }
+        val lons = (0 until outer.size step 2).map { outer[it] }
         assertTrue(lons.all { it in -90.0..90.0 }, "outer ring longitudes within tile bounds, got $lons")
     }
 
@@ -43,16 +43,16 @@ class MvtGeometryTest {
             cmd(1, 1), zz(10), zz(10),
             cmd(2, 3), zz(100), zz(0), zz(0), zz(100), zz(-100), zz(0),
             cmd(7, 0),
-            // Inner ring — needs OPPOSITE winding to be detected as a hole. From the outer's
-            // closing point, MoveTo back into the interior at (40,40). Delta from cursor.
-            // Cursor after outer's close is at last MoveTo position (10,10)? No — ClosePath
-            // doesn't update the cursor; it stays at the last LineTo position (10, 10).
-            cmd(1, 1), zz(30), zz(30),                                    // MoveTo (40, 40)
+            // Inner ring — opposite winding (hole). ClosePath doesn't move the cursor, so it stays at
+            // the outer's last LineTo (10, 110). Delta (30, -70) lands the MoveTo at (40, 40), genuinely
+            // INSIDE the outer (decode now verifies a negative ring is contained before treating it as a
+            // hole — a ring outside the outer is a separate polygon, not a hole).
+            cmd(1, 1), zz(30), zz(-70),                                   // MoveTo (40, 40), inside outer
             cmd(2, 3), zz(0), zz(20), zz(20), zz(0), zz(0), zz(-20),      // CCW in tile space
             cmd(7, 0),
         )
         val feature = MvtFeature(id = 2, type = MvtGeometryType.POLYGON, tags = intArrayOf(), geometry = geometry)
-        val rings = MvtGeometry.decodePolygons(feature, z = 0, x = 0, y = 0, extent = 4096)
+        val rings = MvtGeometry.decodePolygons(feature, z = 0, x = 0, y = 0, extent = 4096, scratch = MvtGeometry.Scratch())
         assertEquals(1, rings.size, "one polygon with one hole")
         assertEquals(1, rings.single().holes.size, "the hole was attached to its enclosing exterior")
     }
@@ -64,10 +64,10 @@ class MvtGeometryTest {
             cmd(1, 1), zz(80), zz(90),  cmd(2, 1), zz(10), zz(0),         // line 2 (delta from end of line 1)
         )
         val feature = MvtFeature(id = 3, type = MvtGeometryType.LINESTRING, tags = intArrayOf(), geometry = geometry)
-        val lines = MvtGeometry.decodeLines(feature, z = 0, x = 0, y = 0, extent = 4096)
+        val lines = MvtGeometry.decodeLines(feature, z = 0, x = 0, y = 0, extent = 4096, scratch = MvtGeometry.Scratch())
         assertEquals(2, lines.size)
-        assertEquals(2, lines[0].size)
-        assertEquals(2, lines[1].size)
+        assertEquals(2, lines[0].size / 2) // flat [lon°, lat°, …] → 2 verts
+        assertEquals(2, lines[1].size / 2)
     }
 
     @Test fun decodesMultiPoint() {
@@ -81,7 +81,7 @@ class MvtGeometryTest {
             zz(-5), zz(-15),
         )
         val feature = MvtFeature(id = 4, type = MvtGeometryType.POINT, tags = intArrayOf(), geometry = geometry)
-        val pts = MvtGeometry.decodePoints(feature, z = 0, x = 0, y = 0, extent = 4096)
+        val pts = MvtGeometry.decodePoints(feature, z = 0, x = 0, y = 0, extent = 4096, scratch = MvtGeometry.Scratch())
         assertEquals(3, pts.size)
     }
 

@@ -17,6 +17,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.ShapeAttributes
+import earth.worldwind.util.FloatList
 import earth.worldwind.util.IntList
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
@@ -28,7 +29,6 @@ import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_TRIANGLES
 import earth.worldwind.util.kgl.GL_UNSIGNED_INT
-import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -748,37 +748,5 @@ class OsmBuildingsTile(
             }
             return inside
         }
-    }
-}
-
-/**
- * Primitive-Float dynamic list. Mirrors [IntList] for hot vertex accumulation where boxing each
- * `Float` would dominate assembly time on dense tiles.
- */
-private class FloatList(initialCapacity: Int = 64) {
-    private var data: FloatArray = FloatArray(max(initialCapacity, 0))
-    var size: Int = 0
-        private set
-
-    operator fun get(index: Int): Float = data[index]
-
-    fun add(value: Float) {
-        if (size == data.size) grow(size + 1)
-        data[size++] = value
-    }
-
-    fun clear() { size = 0 }
-
-    fun shrink() {
-        data = FloatArray(0)
-        size = 0
-    }
-
-    fun toFloatArray(): FloatArray = data.copyOf(size)
-
-    private fun grow(minCapacity: Int) {
-        val current = data.size
-        val target = max(minCapacity, current + max(current shr 1, 64))
-        data = data.copyOf(target)
     }
 }

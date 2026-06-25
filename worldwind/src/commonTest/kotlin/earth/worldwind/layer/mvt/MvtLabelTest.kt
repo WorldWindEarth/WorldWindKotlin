@@ -123,24 +123,30 @@ class MvtLabelTest {
     }
 
     @Test fun openTopoMapLabelsRendersCityAtLowZoom() {
-        // city minZoom is now 6 (raised from 4 to match OpenTopoMap's TextSymbolizer
-        // envelope). Test at z=6 = first frame where it should appear.
-        val rule = OpenTopoMapRules.firstMatching(
+        // City rule minZoom is 3 so capitals/big cities are built at the coarse zooms a zoomed-out
+        // view fetches; the label collider's importance-ordered collision + budget then decide what
+        // paints (no separate per-place zoom gate). Cities must match across the coarse zoom range.
+        for (z in intArrayOf(3, 5, 6)) {
+            val rule = OpenTopoMapRules.firstMatching(
+                "place_labels", MvtGeometryType.POINT, zoom = z,
+                properties = mapOf("kind" to "city", "name" to "Vienna"),
+            )
+            assertNotNull(rule, "city should match at z=$z (rule's minZoom is 3)")
+            assertTrue(rule.paint.hasText)
+        }
+        val label = OpenTopoMapRules.firstMatching(
             "place_labels", MvtGeometryType.POINT, zoom = 6,
             properties = mapOf("kind" to "city", "name" to "Vienna"),
-        )
-        assertNotNull(rule, "city should match at z=6 (rule's minZoom)")
-        assertTrue(rule.paint.hasText)
-        val label = rule.paint.buildText(6, mapOf("name" to "Vienna"))!!
+        )!!.paint.buildText(6, mapOf("name" to "Vienna"))!!
         assertEquals("Vienna", label.text)
         // Halo is enabled in OpenTopoMap label style.
         assertTrue(label.attributes.isOutlineEnabled)
-        // Below minZoom: no match.
-        val z5 = OpenTopoMapRules.firstMatching(
-            "place_labels", MvtGeometryType.POINT, zoom = 5,
+        // Below the city rule minZoom (3): no match.
+        val z2 = OpenTopoMapRules.firstMatching(
+            "place_labels", MvtGeometryType.POINT, zoom = 2,
             properties = mapOf("kind" to "city", "name" to "Vienna"),
         )
-        assertEquals(null, z5, "city at z=5 should fall below new minZoom")
+        assertEquals(null, z2, "city at z=2 should fall below the rule minZoom (3)")
     }
 
     @Test fun openTopoMapLabelsHidesVillageAtCountryZoom() {

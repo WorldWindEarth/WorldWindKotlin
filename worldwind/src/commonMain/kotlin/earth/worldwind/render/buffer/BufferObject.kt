@@ -21,6 +21,10 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
         return id.isValid()
     }
 
+    /** True once the GL buffer object exists and has been uploaded (so [bindBuffer] will succeed).
+     *  A non-null but not-yet-loaded buffer means an upload is still queued. */
+    fun isLoaded(): Boolean = id.isValid()
+
     /** Bind this buffer to a target other than [target]. Same buffer storage, different
      *  binding point — used by callers that pack vertices + indices (+ batchIds) into a
      *  single buffer and bind it to both `GL_ARRAY_BUFFER` and `GL_ELEMENT_ARRAY_BUFFER`. */

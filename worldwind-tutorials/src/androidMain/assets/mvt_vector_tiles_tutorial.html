@@ -55,7 +55,6 @@ class MvtVectorTilesFragment : BasicGlobeFragment() {
                 source = cached,
                 minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
                 maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
-                tileRadius = MvtVectorTilesTutorial.TILE_RADIUS,
                 style = OpenTopoMapRules,
             )
         }).also {
@@ -115,7 +114,6 @@ class MvtVectorTilesTutorial(
         const val URL_TEMPLATE = "https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}"
         const val MIN_ZOOM = 2
         const val MAX_ZOOM = 14
-        const val TILE_RADIUS = 3
 
         /** Web-Mercator slippy-map LevelSet for max zoom 22, 256 px tiles. */
         fun buildMvtLevelSet(): LevelSet = LevelSet(
@@ -132,7 +130,6 @@ class MvtVectorTilesTutorial(
             source = UrlTemplateMvtTileSource(urlTemplate = URL_TEMPLATE),
             minZoom = MIN_ZOOM,
             maxZoom = MAX_ZOOM,
-            tileRadius = TILE_RADIUS,
             style = OpenTopoMapRules,
         )
     }

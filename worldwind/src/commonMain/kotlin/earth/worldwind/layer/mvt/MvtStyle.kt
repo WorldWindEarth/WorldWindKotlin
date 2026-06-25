@@ -45,11 +45,17 @@ fun interface MvtStyle {
         properties: Map<String, Any?>,
     ): Int = 0
 
+    /** Solid base under every fill — the Mapbox `background` layer. Fills gaps MVT has no polygon
+     *  for (bare rock, street interiors, highway corridors); null (default) shows whatever is
+     *  beneath the layer. See [Z_BACKGROUND]. */
+    val backgroundColor: Color? get() = null
+
     companion object {
         // Canonical z-order bands. Spacing in tens leaves room for per-class adjustments
         // ([Z_ROAD_MOTORWAY] sits above [Z_ROAD_MINOR] without colliding with [Z_BUILDING]).
         // Apply to whichever MvtStyle wants explicit ordering; the layer just sorts ascending.
-        const val Z_BACKGROUND = -10
+        // [backgroundColor] fill: above imagery (zOrder 0) to cover the basemap, below [Z_WATER] so fills paint over it.
+        const val Z_BACKGROUND = 5
         const val Z_WATER = 10
         const val Z_LANDCOVER = 20
         const val Z_LANDUSE = 25

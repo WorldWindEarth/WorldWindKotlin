@@ -1,5 +1,7 @@
 package earth.worldwind.layer.mvt
 
+import earth.worldwind.util.IntList
+
 /**
  * Decode the bytes of a Mapbox Vector Tile (MVT v2.1) into an [MvtTile]. Geometry stays in
  * tile-local extent coordinates; conversion to lat/lon is [MvtGeometry]'s job.
@@ -43,11 +45,15 @@ object MvtDecoder {
         val keys = mutableListOf<String>()
         val values = mutableListOf<Any?>()
         val features = mutableListOf<MvtFeature>()
+        // Reused across this layer's features (see readFeature) so per-feature tag/geometry
+        // accumulation doesn't re-allocate the backing int[] each time.
+        val tagsScratch = IntList()
+        val geomScratch = IntList()
         while (reader.pos < limit) {
             val tag = reader.readVarint().toInt()
             when (tag ushr 3) {
                 1 -> name = reader.readString()
-                2 -> features += readFeature(reader)
+                2 -> features += readFeature(reader, tagsScratch, geomScratch)
                 3 -> keys += reader.readString()
                 4 -> values += readValue(reader)
                 5 -> extent = reader.readInt()
@@ -58,27 +64,30 @@ object MvtDecoder {
         return MvtLayer(name, version, extent, keys, values, features)
     }
 
-    private fun readFeature(reader: ProtobufReader): MvtFeature {
+    private fun readFeature(reader: ProtobufReader, tagsScratch: IntList, geomScratch: IntList): MvtFeature {
         val limit = reader.readDelimitedLimit()
         var id = 0L
         var type = MvtGeometryType.UNKNOWN
-        // Lazy-allocate; some features have no tags or geometry.
-        var tags: ArrayList<Int>? = null
-        var geometry: ArrayList<Int>? = null
+        // Accumulate packed varints into primitive IntLists (not ArrayList<Int>) so nothing is
+        // boxed — geometry alone is hundreds of ints per polygon. The scratch lists are reused
+        // across the layer's features, so the backing int[] grows once to the layer's max and
+        // stays instead of re-allocating per feature; only the retained toIntArray() copies remain.
+        tagsScratch.clear()
+        geomScratch.clear()
         while (reader.pos < limit) {
             val tag = reader.readVarint().toInt()
             when (tag ushr 3) {
                 1 -> id = reader.readLong()
-                2 -> appendPackedUInt32(reader, tag, tags ?: ArrayList<Int>().also { tags = it })
+                2 -> appendPackedUInt32(reader, tag, tagsScratch)
                 3 -> type = decodeGeomType(reader.readInt())
-                4 -> appendPackedUInt32(reader, tag, geometry ?: ArrayList<Int>().also { geometry = it })
+                4 -> appendPackedUInt32(reader, tag, geomScratch)
                 else -> reader.skipValue(tag)
             }
         }
         return MvtFeature(
             id, type,
-            tags?.toIntArray() ?: EMPTY_INTS,
-            geometry?.toIntArray() ?: EMPTY_INTS,
+            if (tagsScratch.size > 0) tagsScratch.toIntArray() else EMPTY_INTS,
+            if (geomScratch.size > 0) geomScratch.toIntArray() else EMPTY_INTS,
         )
     }
 
@@ -109,12 +118,12 @@ object MvtDecoder {
      * MVT spec mandates packed for `tags` and `geometry`, but real-world tile producers have
      * been caught emitting them non-packed; accepting both costs one wire-type check.
      */
-    private fun appendPackedUInt32(reader: ProtobufReader, tag: Int, out: ArrayList<Int>) {
+    private fun appendPackedUInt32(reader: ProtobufReader, tag: Int, out: IntList) {
         if ((tag and 0x7) == 2) {
             val limit = reader.readDelimitedLimit()
-            while (reader.pos < limit) out += reader.readInt()
+            while (reader.pos < limit) out.add(reader.readInt())
         } else {
-            out += reader.readInt()
+            out.add(reader.readInt())
         }
     }
 

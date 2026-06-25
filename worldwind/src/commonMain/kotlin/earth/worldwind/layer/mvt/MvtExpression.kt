@@ -51,6 +51,58 @@ sealed class MvtExpression<out T> {
 
     abstract fun evaluate(ctx: EvalContext): T?
 
+    /**
+     * True when this expression (or any sub-expression) reads per-feature data — i.e. its
+     * result can differ between two features in the same tile at the same zoom. That means a
+     * reference to a feature property ([Get] / [Has]), the feature's dynamic state
+     * ([FeatureState]), its geometry type ([GeometryType]), or its line-progress parameter
+     * ([LineProgress]).
+     *
+     * Constant literals and `["zoom"]`-driven interpolations are NOT feature-dependent: within
+     * one tile zoom is constant, so a zoom-only expression evaluates identically for every
+     * feature. Walked once at style-build time (cached in [MvtStyleRule.PaintSpec]); the per-
+     * tile paint cache reuses one resolved result across all features matching a clean rule.
+     */
+    fun referencesFeatureData(): Boolean = when (this) {
+        // Feature-dependent leaves.
+        is Get, is Has, is FeatureState, GeometryType, LineProgress -> true
+        // Zoom + literals: constant within a tile.
+        Zoom -> false
+        is Literal<*> -> false
+        // Composite nodes: feature-dependent iff any child is.
+        is Eq -> a.referencesFeatureData() || b.referencesFeatureData()
+        is Neq -> a.referencesFeatureData() || b.referencesFeatureData()
+        is Lt -> a.referencesFeatureData() || b.referencesFeatureData()
+        is Lte -> a.referencesFeatureData() || b.referencesFeatureData()
+        is Gt -> a.referencesFeatureData() || b.referencesFeatureData()
+        is Gte -> a.referencesFeatureData() || b.referencesFeatureData()
+        is AllOf -> children.any { it.referencesFeatureData() }
+        is AnyOf -> children.any { it.referencesFeatureData() }
+        is Not -> child.referencesFeatureData()
+        is Add -> operands.any { it.referencesFeatureData() }
+        is Sub -> operands.any { it.referencesFeatureData() }
+        is Mul -> operands.any { it.referencesFeatureData() }
+        is Div -> a.referencesFeatureData() || b.referencesFeatureData()
+        is Case<*> -> default.referencesFeatureData() ||
+            branches.any { it.condition.referencesFeatureData() || it.value.referencesFeatureData() }
+        is Match<*> -> input.referencesFeatureData() || default.referencesFeatureData() ||
+            branches.any { it.value.referencesFeatureData() }
+        is Step<*> -> input.referencesFeatureData() || base.referencesFeatureData() ||
+            stops.any { it.second.referencesFeatureData() }
+        is Interpolate<*> -> input.referencesFeatureData() || stops.any { it.second.referencesFeatureData() }
+        is Rgb -> r.referencesFeatureData() || g.referencesFeatureData() || b.referencesFeatureData()
+        is Rgba -> r.referencesFeatureData() || g.referencesFeatureData() ||
+            b.referencesFeatureData() || a.referencesFeatureData()
+        is Concat -> parts.any { it.referencesFeatureData() }
+        is Downcase -> child.referencesFeatureData()
+        is Upcase -> child.referencesFeatureData()
+        is Length -> child.referencesFeatureData()
+        is ToNumber -> child.referencesFeatureData()
+        is ToString -> child.referencesFeatureData()
+        is ToColor -> child.referencesFeatureData()
+        is ToBoolean -> child.referencesFeatureData()
+    }
+
     // ---- Literals & sources ----------------------------------------------------
 
     class Literal<T>(val value: T) : MvtExpression<T>() {

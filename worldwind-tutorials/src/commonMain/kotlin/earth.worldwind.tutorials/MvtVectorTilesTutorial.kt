@@ -56,11 +56,8 @@ class MvtVectorTilesTutorial(
                 val layer = layerLoader()
                 mvt = layer
                 engine.layers.addLayer(layer)
-                // Force a redraw post-addLayer so doRender fires on the new layer
-                // instance. Without this, the layer can sit dormant when the previous
-                // redraw (triggered by cameraFromLookAt) lands before the addLayer
-                // — observed on second-time tutorial selection where the cached
-                // layerLoader returns faster than the camera-driven frame.
+                // Force a redraw post-addLayer so doRender fires on the new layer — else it can sit
+                // dormant when the camera-driven redraw landed before addLayer (fast cached layerLoader).
                 WorldWind.requestRedraw()
                 Logger.log(Logger.INFO, "MVT layer loaded")
             } catch (e: CancellationException) {
@@ -100,12 +97,14 @@ class MvtVectorTilesTutorial(
     }
 
     companion object {
-        /** Versatiles' public CDN. OpenMapTiles v3 schema, no API key. */
-        const val URL_TEMPLATE = "https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}"
+        /** OpenStreetMap's official vector tiles (Shortbread schema, no API key). z0–14. */
+        const val URL_TEMPLATE = "https://vector.openstreetmap.org/shortbread_v1/{z}/{x}/{y}.mvt"
         const val USER_AGENT = "WorldWindKotlin-Tutorials"
-        const val MIN_ZOOM = 2
+        const val MIN_ZOOM = 0
+        // Versatiles' osm tileset tops out at z14 (z15+ return HTTP 404). The camera still zooms past it —
+        // the layer overzooms (renders z14 tiles magnified), so building-level detail + house numbers
+        // appear when zoomed in close. For true z15+ vector detail a deeper source would be needed.
         const val MAX_ZOOM = 14
-        const val TILE_RADIUS = 3
         /** Rule-based OpenTopoMap palette with zoom-interpolated widths and labels. Swap for
          *  [earth.worldwind.layer.mvt.OpenTopoMapMvtStyle] for the imperative-DSL reference
          *  impl without zoom interpolation. */
@@ -120,7 +119,6 @@ class MvtVectorTilesTutorial(
             ),
             minZoom = MIN_ZOOM,
             maxZoom = MAX_ZOOM,
-            tileRadius = TILE_RADIUS,
             style = STYLE,
         )
 

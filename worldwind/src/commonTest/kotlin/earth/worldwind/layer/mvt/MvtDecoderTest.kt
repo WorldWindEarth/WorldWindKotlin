@@ -85,7 +85,7 @@ class MvtDecoderTest {
         // Feature's geometry was MoveTo(1) with ZZ(5)=10, ZZ(7)=14 → tile-local (5, 7).
         val tile = MvtDecoder.decode(fixture)
         val feature = tile.layers.single().features.single()
-        val pts = MvtGeometry.decodePoints(feature, z = 0, x = 0, y = 0, extent = 4096)
+        val pts = MvtGeometry.decodePoints(feature, z = 0, x = 0, y = 0, extent = 4096, scratch = MvtGeometry.Scratch())
         assertEquals(1, pts.size)
         val p = pts.single()
         // Tile (0,0,0) covers the whole world. (5, 7) of 4096 is tiny — lon ≈ -180 + (5/4096)*360

@@ -4,7 +4,6 @@ import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawShapeState
 import earth.worldwind.draw.DrawableSurfaceShape
 import earth.worldwind.geom.BoundingBox
-import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
@@ -15,6 +14,7 @@ import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.shape.AbstractShape
 import earth.worldwind.shape.ShapeAttributes
+import earth.worldwind.util.FloatList
 import earth.worldwind.util.IntList
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
@@ -63,12 +63,10 @@ class MvtBatchedLineTile(
      */
     var widthScale: Float = 1f
 
-    /**
-     * One polyline feature pre-resolved into a position list, attributes, and z-order.
-     * [MvtVectorLayer] builds these off-thread during the tile fetch.
-     */
+    /** One polyline feature pre-resolved into flat `[lon°, lat°, …]` degree coords, attributes, and
+     *  z-order; [MvtVectorLayer] builds these off-thread during the tile fetch. */
     data class BatchLineFeature(
-        val positions: List<Position>,
+        var coords: DoubleArray,  // flat [lon°, lat°, …]; emptied after assembly (VBO holds it; pick uses pickPayload)
         val attributes: ShapeAttributes,
         val zOrder: Int = 0,
         /**
@@ -78,7 +76,8 @@ class MvtBatchedLineTile(
         val pickPayload: MvtPickedFeature? = null,
     )
 
-    private val data = mutableMapOf<Globe.State?, TileData>()
+    // One TileData: line geometry is degree-space (globe-independent), assembled once and reused.
+    private val tileData = TileData()
     private val boundingBox = BoundingBox()
     private var bufferDataVersion = 0
     // Working buffers, cleared/grown across assembleGeometry calls.
@@ -131,20 +130,20 @@ class MvtBatchedLineTile(
      * runtime can invalidate and rebuild.
      */
     fun assemble(globeState: Globe.State?) {
-        val tileData = data.getOrPut(globeState) { TileData() }
         if (tileData.refreshGeometry) {
             assembleGeometry(tileData)
             tileData.refreshGeometry = false
+            freeSourceCoords()
         }
     }
 
     override fun doRender(rc: RenderContext) {
-        val tileData = data.getOrPut(rc.globeState) { TileData() }
         if (tileData.refreshGeometry) {
             assembleGeometry(tileData)
             tileData.refreshGeometry = false
+            freeSourceCoords()
         }
-        if (tileData.vertexArray.isEmpty() || tileData.lineRanges.isEmpty()) return
+        if (tileData.refreshGeometry || tileData.vertexArray.isEmpty()) return
 
         if (rc.isPickMode) {
             emitPickDrawables(rc, tileData)
@@ -310,7 +309,7 @@ class MvtBatchedLineTile(
         // Anchor in degrees at the first feature's first waypoint. Surface shapes' vertex
         // origin is (longitudeDeg, latitudeDeg, altitude); per-vertex floats are deltas in
         // the same units. The compositor expects this layout for surface-path shaders.
-        val anchor = features.firstOrNull { it.positions.size >= 2 }?.positions?.get(0)
+        val anchor = features.firstOrNull { it.coords.size >= 4 }?.coords
         if (anchor == null) {
             tileData.vertexArray = FloatArray(0)
             tileData.elementArray = IntArray(0)
@@ -318,9 +317,8 @@ class MvtBatchedLineTile(
             tileData.featureElementRanges = IntArray(0)
             return
         }
-        tileData.vertexOrigin.set(
-            anchor.longitude.inDegrees, anchor.latitude.inDegrees, anchor.altitude,
-        )
+        // Anchor at the first feature's first waypoint: coords[0] = lon°, coords[1] = lat°, alt = 0.
+        tileData.vertexOrigin.set(anchor[0], anchor[1], 0.0)
 
         // Sort indices by zOrder while remembering original positions — the pick render path
         // indexes featureElementRanges by original feature index.
@@ -333,9 +331,10 @@ class MvtBatchedLineTile(
         // bucket. `Float.toRawBits` gives exact equality on identical literals; ImageSource
         // identity equality is the bucket discriminator for stipple.
         val groups = LinkedHashMap<BucketKey, MutableList<Int>>()
-        for (origIdx in sortedIndices) {
+        for (si in sortedIndices.indices) {
+            val origIdx = sortedIndices[si]
             val feature = features[origIdx]
-            if (feature.positions.size < 2) continue
+            if (feature.coords.size < 4) continue
             val attrs = feature.attributes
             val colorPacked = packColor(attrs.outlineColor)
             val key = BucketKey(
@@ -357,14 +356,15 @@ class MvtBatchedLineTile(
             val groupLineWidth = first.outlineWidth
             val rangeStart = elementsScratch.size
             var lastIdx = -1
-            for (origIdx in memberIndices) {
+            for (mi in memberIndices.indices) {
+                val origIdx = memberIndices[mi]
                 if (lastIdx >= 0) {
                     val firstNewIdx = vertices.size / VERTEX_STRIDE
                     elementsScratch.add(lastIdx)
                     elementsScratch.add(firstNewIdx)
                 }
                 val featureStart = elementsScratch.size
-                emitPolyline(features[origIdx].positions, tileData.vertexOrigin, elementsScratch)
+                emitPolyline(features[origIdx].coords, tileData.vertexOrigin, elementsScratch)
                 featureRanges[origIdx * 2] = featureStart
                 featureRanges[origIdx * 2 + 1] = elementsScratch.size - featureStart
                 lastIdx = elementsScratch[elementsScratch.size - 1]
@@ -417,34 +417,32 @@ class MvtBatchedLineTile(
      *     rejects drawElements that reference past-end vertices.
      */
     private fun emitPolyline(
-        positions: List<Position>, vertexOrigin: Vec3, outElements: IntList,
+        coords: DoubleArray, vertexOrigin: Vec3, outElements: IntList,
     ) {
-        val n = positions.size
-        // Leading dummy at positions[0], with indices (matches Path's pattern).
-        val first = positions[0]
-        addLogicalVertex(first, vertexOrigin, addIndices = true, outElements)
+        val n = coords.size / 2  // flat [lon°, lat°, …]: two doubles per waypoint
+        // Leading dummy at waypoint 0, with indices (matches Path's pattern).
+        addLogicalVertex(coords[0], coords[1], vertexOrigin, addIndices = true, outElements)
         // Real waypoints, each with indices.
         for (i in 0 until n) {
-            addLogicalVertex(positions[i], vertexOrigin, addIndices = true, outElements)
+            addLogicalVertex(coords[i * 2], coords[i * 2 + 1], vertexOrigin, addIndices = true, outElements)
         }
-        // Two trailing dummies at positions[n-1], NO indices — padding for the shader's
+        // Two trailing dummies at the last waypoint, NO indices — padding for the shader's
         // 2-slot lookahead.
-        val last = positions[n - 1]
-        addLogicalVertex(last, vertexOrigin, addIndices = false, outElements)
-        addLogicalVertex(last, vertexOrigin, addIndices = false, outElements)
+        val lastLon = coords[(n - 1) * 2]
+        val lastLat = coords[(n - 1) * 2 + 1]
+        addLogicalVertex(lastLon, lastLat, vertexOrigin, addIndices = false, outElements)
+        addLogicalVertex(lastLon, lastLat, vertexOrigin, addIndices = false, outElements)
     }
 
-    /**
-     * Add one logical waypoint to the VBO: 4 corner vertices (UL, LL, UR, LR), each 5 floats.
-     * When [addIndices] is true, also emits 4 index entries into [outElements] referencing the
-     * just-written corners as a contiguous strip slice.
-     */
+    /** Add one logical waypoint (lon°, lat°; surface altitude 0) to the VBO: 4 corner vertices (UL, LL,
+     *  UR, LR), each 5 floats. When [addIndices], also emits 4 index entries into [outElements] referencing
+     *  the just-written corners as a contiguous strip slice. */
     private fun addLogicalVertex(
-        pos: Position, origin: Vec3, addIndices: Boolean, outElements: IntList,
+        lonDeg: Double, latDeg: Double, origin: Vec3, addIndices: Boolean, outElements: IntList,
     ) {
-        val x = (pos.longitude.inDegrees - origin.x).toFloat()
-        val y = (pos.latitude.inDegrees - origin.y).toFloat()
-        val z = (pos.altitude - origin.z).toFloat()
+        val x = (lonDeg - origin.x).toFloat()
+        val y = (latDeg - origin.y).toFloat()
+        val z = (0.0 - origin.z).toFloat()
         // texCoord1d would normally be cumulative line length (used only for textured outlines;
         // our solid lines ignore it). Setting 0 across all corners matches Path's behaviour for
         // untextured outline paint.
@@ -464,25 +462,15 @@ class MvtBatchedLineTile(
         }
     }
 
-    /** See [MvtBatchedPolygonTile.releaseGlobeStatesExcept]. */
-    fun releaseGlobeStatesExcept(rc: RenderContext, keepState: Globe.State?) {
-        val it = data.entries.iterator()
-        while (it.hasNext()) {
-            val entry = it.next()
-            if (entry.key != keepState) {
-                rc.renderResourceCache.remove(entry.value.vertexBufferKey)
-                rc.renderResourceCache.remove(entry.value.elementBufferKey)
-                it.remove()
-            }
-        }
-    }
-
     /** Drop this tile's GL buffer entries from the render-resource cache. */
     fun releaseRenderResources(rc: RenderContext) {
-        for (td in data.values) {
-            rc.renderResourceCache.remove(td.vertexBufferKey)
-            rc.renderResourceCache.remove(td.elementBufferKey)
-        }
+        rc.renderResourceCache.remove(tileData.vertexBufferKey)
+        rc.renderResourceCache.remove(tileData.elementBufferKey)
+    }
+
+    // VBO is built; per-feature coord arrays are dead weight, safe to drop (globe-independent, never re-assembled); pick path keeps pickPayload.
+    private fun freeSourceCoords() {
+        for (fi in features.indices) features[fi].coords = DoubleArray(0)
     }
 
     companion object {

@@ -41,18 +41,32 @@ data class MvtFeature(
     val geometry: IntArray,
 ) {
     /** Inflate [tags] against the parent layer's key/value dictionaries. */
-    fun toProperties(layer: MvtLayer): Map<String, Any?> {
-        if (tags.isEmpty()) return emptyMap()
-        val out = LinkedHashMap<String, Any?>(tags.size / 2)
-        var i = 0
-        while (i + 1 < tags.size) {
-            val k = tags[i]
-            val v = tags[i + 1]
-            if (k in layer.keys.indices && v in layer.values.indices) {
-                out[layer.keys[k]] = layer.values[v]
-            }
-            i += 2
-        }
-        return out
+    fun toProperties(layer: MvtLayer): Map<String, Any?> = inflateMvtProperties(tags, layer.keys, layer.values)
+}
+
+/** Shared tag→property inflation, letting the pick path defer it (hold raw [tags] + dicts, inflate on demand) instead of retaining a built map per feature. */
+internal fun inflateMvtProperties(tags: IntArray, keys: List<String>, values: List<Any?>): Map<String, Any?> {
+    if (tags.isEmpty()) return emptyMap()
+    val out = LinkedHashMap<String, Any?>(tags.size / 2)
+    var i = 0
+    while (i + 1 < tags.size) {
+        val k = tags[i]
+        val v = tags[i + 1]
+        if (k in keys.indices && v in values.indices) out[keys[k]] = values[v]
+        i += 2
+    }
+    return out
+}
+
+/** Like [inflateMvtProperties] but fills [dst] (cleared first), so a caller can reuse one map per
+ *  tile instead of allocating per feature. */
+internal fun inflateMvtPropertiesInto(tags: IntArray, keys: List<String>, values: List<Any?>, dst: MutableMap<String, Any?>) {
+    dst.clear()
+    var i = 0
+    while (i + 1 < tags.size) {
+        val k = tags[i]
+        val v = tags[i + 1]
+        if (k in keys.indices && v in values.indices) dst[keys[k]] = values[v]
+        i += 2
     }
 }

@@ -16,8 +16,10 @@ class MvtPickedFeatureTest {
         val feature = MvtPickedFeature(
             layerName = "streets",
             geometryType = MvtGeometryType.LINESTRING,
-            properties = mapOf("kind" to "motorway", "name" to "I-280"),
             tile = tile,
+            tags = intArrayOf(0, 0, 1, 1),
+            keys = listOf("kind", "name"),
+            values = listOf("motorway", "I-280"),
         )
         val po = PickedObject.fromUserObject(
             identifier = 42, userObject = feature, layer = null, useTerrainPosition = true,
@@ -48,11 +50,11 @@ class MvtPickedFeatureTest {
         // Callers that don't opt into picking shouldn't pay any cost — pickPayload is null.
         val attrs = ShapeAttributes()
         val poly = MvtBatchedPolygonTile.BatchFeature(
-            outer = emptyList(), holes = emptyList(), attributes = attrs, zOrder = 0,
+            outer = DoubleArray(0), holes = emptyList(), attributes = attrs, zOrder = 0,
         )
         assertNull(poly.pickPayload)
         val line = MvtBatchedLineTile.BatchLineFeature(
-            positions = emptyList(), attributes = attrs, zOrder = 0,
+            coords = DoubleArray(0), attributes = attrs, zOrder = 0,
         )
         assertNull(line.pickPayload)
     }
@@ -65,8 +67,10 @@ class MvtPickedFeatureTest {
         val feature = MvtPickedFeature(
             layerName = "place_labels",
             geometryType = MvtGeometryType.POINT,
-            properties = mapOf("name" to null, "kind" to "village"),
             tile = MvtVectorLayer.TileKey(10, 5, 7),
+            tags = intArrayOf(0, 0, 1, 1),
+            keys = listOf("name", "kind"),
+            values = listOf(null, "village"),
         )
         assertNotNull(feature.properties.containsKey("name"))
         assertNull(feature.properties["name"])

@@ -84,12 +84,19 @@ object MvtMapboxStyleLoader {
         val layers = (root["layers"] as? JsonArray)
             ?: throw MvtStyleParseException("Style document has no `layers` array")
         val rules = ArrayList<MvtStyleRule>(layers.size)
+        var background: Color? = null
         for (layerEl in layers) {
             val layer = layerEl.jsonObject
+            // Capture the `background` layer's color (constant form) — fills gaps MVT has no polygon for.
+            if (layer["type"]?.jsonPrimitive?.contentOrNull == "background") {
+                (layer["paint"] as? JsonObject)?.get("background-color")?.jsonPrimitive?.contentOrNull
+                    ?.let(::parseColor)?.let { background = it }
+                continue
+            }
             val rule = parseLayer(layer) ?: continue
             rules += rule
         }
-        return MvtRuleBasedStyle(rules)
+        return MvtRuleBasedStyle(rules, background)
     }
 
     private fun parseLayer(layer: JsonObject): MvtStyleRule? {

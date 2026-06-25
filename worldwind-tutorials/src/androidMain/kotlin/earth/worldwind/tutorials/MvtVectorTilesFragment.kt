@@ -17,7 +17,6 @@ class MvtVectorTilesFragment : BasicGlobeFragment() {
                 source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
                 minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
                 maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
-                tileRadius = MvtVectorTilesTutorial.TILE_RADIUS,
                 style = OpenTopoMapRules,
             )
             contentManager.attachCache(layer, "MVT_Versatiles")
