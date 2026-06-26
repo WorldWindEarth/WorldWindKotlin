@@ -29,8 +29,11 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     protected var globeOffset: Globe.Offset? = null
     var sortOrder = 0.0
         protected set
-    private var pointBufferKey = "TerrainTile.points.default" // This key will be replaced on prepare of each tile
-    private var heightBufferKey = "TerrainTile.heights.default" // Use the same height buffer for all tiles by default
+    // Stable per-tile keys so the cached BufferObject is reused; re-uploads go via version bump.
+    private val pointBufferKey = "TerrainTile.points.$tileKey"
+    private val heightBufferKey = "TerrainTile.heights.$tileKey"
+    private var pointBufferVersion = 0
+    private var heightBufferVersion = 0
 
     public override val heightLimits get() = super.heightLimits
 
@@ -75,25 +78,26 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
 
     fun getHeightBuffer(rc: RenderContext) : BufferObject {
         val buffer = rc.getBufferObject(heightBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(heightBufferKey, 1) { NumericArray.Floats(heights) }
+        rc.offerGLBufferUpload(heightBufferKey, heightBufferVersion) { NumericArray.Floats(heights) }
         return buffer
     }
 
     fun getPointBuffer(rc: RenderContext) : BufferObject {
         val buffer = rc.getBufferObject(pointBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(pointBufferKey, 1) { NumericArray.Floats(points) }
+        rc.offerGLBufferUpload(pointBufferKey, pointBufferVersion) { NumericArray.Floats(points) }
         return buffer
     }
 
     protected open fun updateHeightBufferKey() {
-        heightBufferKey = "TerrainTile.heights.$tileKey.${bufferSequence++}"
+        heightBufferVersion = (++bufferSequence).toInt()
     }
 
     protected open fun updatePointBufferKey() {
-        pointBufferKey = "TerrainTile.points.$tileKey.${bufferSequence++}"
+        pointBufferVersion = (++bufferSequence).toInt()
     }
 
     companion object {
-        private var bufferSequence = 0L // Must be static to avoid cache collisions when a tile instance is re-created
+        // Global monotonic counter — a re-created tile's first upload still beats its predecessor's cached version.
+        private var bufferSequence = 0L
     }
 }
