@@ -6,12 +6,15 @@ import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.CacheReadableElevationSourceFactory
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.globe.elevation.ElevationSourceFactory
+import earth.worldwind.globe.elevation.coverage.ElevationImage
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
@@ -117,8 +120,12 @@ class CachedElevationSourceFactory(
         ElevationSource.fromUnrecognized(CachedElevationRef(this, tileMatrix.ordinal, column, row))
 
     // Tile axis mapping mirrors createElevationSource: z = matrix ordinal, x = column, y = row.
-    override suspend fun readCachedTileArray(tileMatrix: TileMatrix, row: Int, column: Int): ShortArray? =
-        readCachedTile(tileMatrix.ordinal, column, row)
+    // Decode + the ElevationImage min/max/missing scan run off the render thread so the caller
+    // resumes on the main thread with a ready image and pays a single coroutine switch per tile.
+    override suspend fun readCachedTileImage(tileMatrix: TileMatrix, row: Int, column: Int): ElevationImage? =
+        withContext(Dispatchers.Default) {
+            readCachedTile(tileMatrix.ordinal, column, row)?.let { ElevationImage(it) }
+        }
 
     /**
      * Bulk-download path: by default skip already-cached tiles, otherwise force a network

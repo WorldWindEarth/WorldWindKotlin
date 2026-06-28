@@ -39,7 +39,7 @@ actual open class TiledElevationCoverage actual constructor(
                     log(WARN, "Coverage retrieval size mismatch '$source' — got ${decoded.size} shorts, expected $expected")
                     retrievalFailed(key, source)
                 }
-                else -> retrievalSucceeded(key, source, decoded)
+                else -> retrievalSucceeded(key, source, buildImage(decoded))
             }
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -48,8 +48,8 @@ actual open class TiledElevationCoverage actual constructor(
         }
     }
 
-    protected open fun retrievalSucceeded(key: Long, source: ElevationSource, value: ShortArray) {
-        retrievalSucceeded(key, value)
+    protected open fun retrievalSucceeded(key: Long, source: ElevationSource, image: ElevationImage) {
+        retrievalSucceeded(key, image)
         if (isLoggable(DEBUG)) log(DEBUG, "Coverage retrieval succeeded '$source'")
     }
 

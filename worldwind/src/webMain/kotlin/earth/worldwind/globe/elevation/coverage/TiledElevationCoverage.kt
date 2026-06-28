@@ -50,7 +50,7 @@ actual open class TiledElevationCoverage actual constructor(
                     shorts.size != expected -> retrievalFailed(
                         key, "CachedElevation size mismatch — got ${shorts.size} shorts, expected $expected"
                     )
-                    else -> retrievalSucceeded(key, shorts)
+                    else -> retrievalSucceeded(key, buildImage(shorts))
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -78,7 +78,7 @@ actual open class TiledElevationCoverage actual constructor(
                     pixels.size != expected -> retrievalFailed(
                         key, "Elevation tile-source size mismatch — got ${pixels.size} shorts, expected $expected"
                     )
-                    else -> retrievalSucceeded(key, pixels)
+                    else -> retrievalSucceeded(key, buildImage(pixels))
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -126,7 +126,7 @@ actual open class TiledElevationCoverage actual constructor(
                         }
                     }
                     if (pixels != null) {
-                        retrievalSucceeded(key, pixels, "Elevation retrieval succeeded: $url")
+                        retrievalSucceeded(key, buildImage(pixels), "Elevation retrieval succeeded: $url")
                     } else {
                         retrievalFailed(key, message ?: "Elevations retrieval failed: $url")
                     }
@@ -192,8 +192,8 @@ actual open class TiledElevationCoverage actual constructor(
         if (value == Float.MAX_VALUE) Short.MIN_VALUE else value.roundToInt().toShort()
     }
 
-    protected open fun retrievalSucceeded(key: Long, value: ShortArray, message: String) {
-        retrievalSucceeded(key, value)
+    protected open fun retrievalSucceeded(key: Long, image: ElevationImage, message: String) {
+        retrievalSucceeded(key, image)
         if (isLoggable(DEBUG)) log(DEBUG, message)
     }
 

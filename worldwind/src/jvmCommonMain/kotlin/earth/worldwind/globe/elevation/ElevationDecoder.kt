@@ -80,7 +80,7 @@ open class ElevationDecoder: Closeable {
     }
 
     /** Public [decodeBuffer] for cache-only readers that fetch their own [Buffer] (e.g.
-     *  `GpkgCachedElevationSourceFactory.readCachedTileArray`) and need the same
+     *  `GpkgCachedElevationSourceFactory.readCachedTileImage`) and need the same
      *  `Buffer -> ShortArray` conversion the standard decode path applies. */
     fun bufferToShortArray(buffer: Buffer?): ShortArray? = decodeBuffer(buffer)
 

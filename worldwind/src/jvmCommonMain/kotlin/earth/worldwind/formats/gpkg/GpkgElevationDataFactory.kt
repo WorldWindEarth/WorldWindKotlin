@@ -6,6 +6,7 @@ import earth.worldwind.globe.elevation.CacheReadableElevationSourceFactory
 import earth.worldwind.globe.elevation.ElevationDecoder
 import earth.worldwind.globe.elevation.ElevationSource
 import earth.worldwind.globe.elevation.ElevationSourceFactory
+import earth.worldwind.globe.elevation.coverage.ElevationImage
 import earth.worldwind.layer.cache.BulkRetrievableElevationSourceFactory
 import earth.worldwind.layer.cache.CachedSourceInfo
 import earth.worldwind.layer.cache.CachedSourceInfoProvider
@@ -23,6 +24,8 @@ import earth.worldwind.layer.source.TileBlob
 import kotlin.math.round
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -125,11 +128,14 @@ class GpkgCachedElevationSourceFactory(
             .fetchElevationDataIgnoringCacheOnly(overrideCache = overrideCache) != null
 
     // Tile axis mapping mirrors createElevationSource: z = matrix ordinal, x = column, y = row.
-    override suspend fun readCachedTileArray(tileMatrix: TileMatrix, row: Int, column: Int): ShortArray? {
-        val buffer = GpkgCachedElevationDataFactory(this, tileMatrix.ordinal, column, row)
-            .fetchCachedElevationData() ?: return null
-        return elevationDecoder.bufferToShortArray(buffer)
-    }
+    // Decode + the ElevationImage min/max/missing scan run on IO so the render thread resumes with a
+    // ready image; fetchCachedElevationData's inner IO dispatch collapses to a no-op under this one.
+    override suspend fun readCachedTileImage(tileMatrix: TileMatrix, row: Int, column: Int): ElevationImage? =
+        withContext(Dispatchers.IO) {
+            val buffer = GpkgCachedElevationDataFactory(this@GpkgCachedElevationSourceFactory, tileMatrix.ordinal, column, row)
+                .fetchCachedElevationData() ?: return@withContext null
+            elevationDecoder.bufferToShortArray(buffer)?.let { ElevationImage(it) }
+        }
 
     /**
      * When `true`, the factory never calls [networkSource] — cache hits are served as
@@ -234,14 +240,15 @@ open class GpkgCachedElevationDataFactory(
     }
 
     /** Read from gpkg + ancillary metadata; return `null` if no row exists. */
-    protected open suspend fun readFromCache(): Buffer? {
+    // Decode on IO: the cache-only lane bypasses decodeElevation's IO dispatch, so the PNG/TIFF decode would otherwise run on the render/main thread.
+    protected open suspend fun readFromCache(): Buffer? = withContext(Dispatchers.IO) {
         val tileUserData = parent.geoPackage.readTileUserData(parent.content, zoomLevel, tileColumn, tileRow)
-            ?: return null
+            ?: return@withContext null
         val bytes = tileUserData.tileData
-        if (bytes.isEmpty()) return null
+        if (bytes.isEmpty()) return@withContext null
         val griddedTile = parent.geoPackage.readGriddedTile(parent.content, tileUserData)
         val griddedCoverage = parent.geoPackage.getGriddedCoverage(parent.content)
-        return if (parent.isFloat) {
+        if (parent.isFloat) {
             parent.elevationDecoder.decodeTiff(bytes)
         } else {
             parent.elevationDecoder.decodePng(
