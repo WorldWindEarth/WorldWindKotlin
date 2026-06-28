@@ -434,6 +434,8 @@ class JsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
     // MSAA framebuffers and sized internal formats are both WebGL2-core / WebGL1-absent.
     override val supportsMultisampleFBO get() = isWebGL2
     override val supportsSizedTextureFormats get() = isWebGL2
+    // Both WebGL1 and WebGL2 forbid binding one buffer to two targets; never shared.
+    override val supportsSharedElementArrayBuffer get() = false
 
     // [WorldWindow.create] activates the extension at context creation; this query just
     // reports whether the browser has it. See [Kgl.supportsFloatTextureLinear].

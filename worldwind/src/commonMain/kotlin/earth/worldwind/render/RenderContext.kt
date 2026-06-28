@@ -93,6 +93,10 @@ open class RenderContext {
      * and reset their stale references.
      */
     var contextVersion: Long = 0L
+    /** Mirrors [earth.worldwind.util.kgl.Kgl.supportsSharedElementArrayBuffer] for this frame's
+     *  GL context — render-thread upload paths (no GL `Kgl` in reach) read it to decide whether
+     *  index data shares the vertex buffer or needs its own EBO. See `uploadMeshContent`. */
+    var supportsSharedElementArrayBuffer: Boolean = true
     var cameraPoint = Vec3()
     /**
      * World-space (Cartesian) unit vector pointing **toward** the light source. Populated each

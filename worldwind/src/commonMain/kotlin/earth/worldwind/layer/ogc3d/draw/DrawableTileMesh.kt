@@ -238,12 +238,14 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             dc.gl.disableVertexAttribArray(4)
         }
 
-        // Element buffer shares storage with the vertex buffer — bind same id to a
-        // different target. drawArrays branch when the primitive has no indices.
+        // Indexed: bind the EBO (dedicated on WebGL, else the combined buffer) and drawElements;
+        // drawArrays otherwise. Skip a drawElements whose EBO was evicted, restoring cull state.
         if (submesh.elementCount > 0) {
-            buffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)
-            val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
-            dc.gl.drawElements(submesh.mode, submesh.elementCount, type, submesh.elementOffset)
+            val elementBuffer = submesh.elementBuffer ?: buffer
+            if (elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) {
+                val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
+                dc.gl.drawElements(submesh.mode, submesh.elementCount, type, submesh.elementOffset)
+            }
         } else {
             dc.gl.drawArrays(submesh.mode, 0, submesh.vertexCount)
         }
@@ -270,7 +272,8 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             dc.gl.enableVertexAttribArray(0)
             dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
             if (submesh.elementCount > 0) {
-                buffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)
+                val elementBuffer = submesh.elementBuffer ?: buffer
+                if (!elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) continue
                 val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
                 dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
             } else {
@@ -298,7 +301,8 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             dc.gl.enableVertexAttribArray(0)
             dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
             if (submesh.elementCount > 0) {
-                buffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)
+                val elementBuffer = submesh.elementBuffer ?: buffer
+                if (!elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) continue
                 val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
                 dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
             } else {

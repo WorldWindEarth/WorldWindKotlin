@@ -644,6 +644,14 @@ interface Kgl {
      * Always `true` on desktop GL3+; Android / iOS / WebGL query the extension at runtime.
      */
     val supportsFloatTextureLinear: Boolean get() = true
+    /**
+     * `true` when one buffer object may be bound to both `GL_ARRAY_BUFFER` and
+     * `GL_ELEMENT_ARRAY_BUFFER` over its lifetime. Desktop GL / GLES / iOS allow it, so the 3D
+     * Tiles path packs vertices + indices into one buffer bound to both (one `mmap`/primitive).
+     * WebGL forbids rebinding a buffer to a second target, so there callers keep indices in a
+     * dedicated `GL_ELEMENT_ARRAY_BUFFER`. `true` here; the WebGL backends override to `false`.
+     */
+    val supportsSharedElementArrayBuffer: Boolean get() = true
     fun createRenderbuffer(): KglRenderbuffer
     fun deleteRenderbuffer(renderbuffer: KglRenderbuffer)
     fun bindRenderbuffer(target: Int, renderbuffer: KglRenderbuffer)
