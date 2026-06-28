@@ -7,7 +7,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.readRawBytes
+import io.ktor.utils.io.discard
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -57,19 +59,21 @@ abstract class HttpTileSource(
             if (previousLastModified != null) header("If-Modified-Since", previousLastModified)
         }
         val status = response.status.value
+        if (status in 200..299) {
+            val bytes = response.readRawBytes()
+            return if (bytes.isEmpty()) TileBlob.EMPTY
+            else TileBlob(
+                bytes = bytes,
+                etag = response.headers["ETag"],
+                lastModified = response.headers["Last-Modified"],
+                // Strip the charset / boundary parameter so consumers can match on the
+                // base MIME (`application/bil16` rather than `application/bil16; charset=binary`).
+                contentType = response.headers["Content-Type"]?.substringBefore(';')?.trim(),
+            )
+        }
+        // Drain the non-2xx body so ktor releases the pooled connection (the branches below return/throw without reading it, leaking the call until GC); discard() allocates nothing, a 304 has no body, and keeping the connection poolable avoids an SSL re-handshake.
+        response.bodyAsChannel().discard()
         return when (status) {
-            in 200..299 -> {
-                val bytes = response.readRawBytes()
-                if (bytes.isEmpty()) TileBlob.EMPTY
-                else TileBlob(
-                    bytes = bytes,
-                    etag = response.headers["ETag"],
-                    lastModified = response.headers["Last-Modified"],
-                    // Strip the charset / boundary parameter so consumers can match on the
-                    // base MIME (`application/bil16` rather than `application/bil16; charset=binary`).
-                    contentType = response.headers["Content-Type"]?.substringBefore(';')?.trim(),
-                )
-            }
             304 -> null
             404 -> TileBlob.EMPTY
             else -> error("$errorContext fetch failed: HTTP $status for $url")
