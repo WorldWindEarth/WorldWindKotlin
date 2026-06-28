@@ -502,6 +502,7 @@ open class WorldWind @JvmOverloads constructor(
         rc.globeState = globeState
         rc.elevationModelTimestamp = elevationTimestamp
         rc.contextVersion = dc.contextVersion
+        rc.supportsSharedElementArrayBuffer = dc.gl.supportsSharedElementArrayBuffer
 
         // Configure the frame's Cartesian modelview matrix and eye coordinate projection matrix.
         computeViewingTransform(frame.projection, frame.modelview)

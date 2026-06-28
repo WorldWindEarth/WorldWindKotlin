@@ -11,6 +11,8 @@ import earth.worldwind.util.ByteArrayPool
 import earth.worldwind.util.FloatArrayPool
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
+import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.sqrt
 
 /** Off-thread mesh prep: interleave attributes, copy indices, decode textures, compute the
@@ -94,8 +96,16 @@ internal suspend fun prepareMeshPrep(
                 // KTX2 / KHR_texture_basisu: GltfReader transcoded to raw RGBA and cleared bytes.
                 img.decodedRgba != null ->
                     runCatching { RgbaTexture(img.decodedRgba, img.decodedWidth, img.decodedHeight) }.getOrNull()
-                // JPEG / PNG: decode the encoded bytes via the platform image loader.
-                img.bytes.isNotEmpty() -> runCatching { decodeTileTexture(img.bytes) }.getOrNull()
+                // JPEG / PNG: decode the encoded bytes via the platform image loader. Let coroutine
+                // cancellation propagate — `runCatching`/getOrNull would swallow it, turning a
+                // cancelled fetch into a textureless (permanently white) primitive that still installs.
+                img.bytes.isNotEmpty() -> try {
+                    decodeTileTexture(img.bytes)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    null
+                }
                 else -> null
             }?.also { it.generateMipmaps = false }
         }
@@ -133,6 +143,7 @@ internal suspend fun prepareMeshPrep(
                 worldMatrix = Matrix4().copy(instance.worldMatrix),
                 combinedBytes = combinedBytes,
                 combinedByteCount = combinedByteCount,
+                indexByteCount = indexBytes,
                 elementOffset = elementOffset,
                 batchIdOffset = batchIdOffset,
                 vertexCount = vertexCount,
@@ -174,23 +185,40 @@ internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: R
     var totalBytes = 0
     val rollbackKeys = ArrayList<Any>(prep.primitives.size * 2)
 
+    // WebGL forbids binding one buffer to both targets, so indices need their own buffer there;
+    // elsewhere the combined buffer doubles as the EBO. See Kgl.supportsSharedElementArrayBuffer.
+    val splitElementBuffer = !rc.supportsSharedElementArrayBuffer
+
     try {
         for (prim in prep.primitives) {
-            // One BufferObject per primitive holding vertices + indices + batchIds. Bind
-            // it to GL_ARRAY_BUFFER for vertex attribs and to GL_ELEMENT_ARRAY_BUFFER for
-            // drawElements via [BufferObject.bindBufferAs]; same storage, two targets.
+            // One BufferObject per primitive: vertices + indices + batchIds. Bound to
+            // GL_ARRAY_BUFFER for attribs and (shared path) GL_ELEMENT_ARRAY_BUFFER for indices.
             val bufferKey = "${prep.contentUri}/${prim.instanceIdx}/buf"
             val bufferBytes = prim.combinedByteCount
             rc.getBufferObject(bufferKey) { BufferObject(GL_ARRAY_BUFFER, bufferBytes) }
             rollbackKeys.add(bufferKey)
-            // Release the pool-borrowed array after the GL write — `onUploaded` fires
-            // whether the upload actually happened or was skipped (version up-to-date).
             val combined = prim.combinedBytes
+            // Copy the index slice before scheduling the array upload — `combined` returns to the
+            // pool when that upload's onUploaded fires. Split path + indexed only.
+            val splitIndexBytes = if (splitElementBuffer && prim.indexByteCount > 0) {
+                combined.copyOfRange(prim.elementOffset, prim.elementOffset + prim.indexByteCount)
+            } else null
+            // Release the pool array after the GL write; onUploaded fires even when skipped.
             rc.offerGLBufferUpload(
                 bufferKey, 1,
                 onUploaded = { ByteArrayPool.release(combined) },
             ) { NumericArray.Bytes(combined, bufferBytes) }
             totalBytes += bufferBytes
+
+            // Split path: dedicated EBO holding just the indices, drawn at offset 0.
+            val elementBufferKey: Any? = splitIndexBytes?.let { idx ->
+                val key = "${prep.contentUri}/${prim.instanceIdx}/ebo"
+                rc.getBufferObject(key) { BufferObject(GL_ELEMENT_ARRAY_BUFFER, idx.size) }
+                rollbackKeys.add(key)
+                rc.offerGLBufferUpload(key, 1) { NumericArray.Bytes(idx, idx.size) }
+                totalBytes += idx.size
+                key
+            }
 
             val textureKey: Any? = prim.baseColorTexture?.let { texture ->
                 val key = "${prep.contentUri}/${prim.instanceIdx}/tex"
@@ -204,8 +232,10 @@ internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: R
                 MeshSubmesh(
                     worldMatrix = prim.worldMatrix,
                     bufferKey = bufferKey,
+                    elementBufferKey = elementBufferKey,
                     baseColorTextureKey = textureKey,
-                    elementOffset = prim.elementOffset,
+                    // Split: dedicated EBO, offset 0. Shared: into the combined buffer's index section.
+                    elementOffset = if (elementBufferKey != null) 0 else prim.elementOffset,
                     batchIdOffset = prim.batchIdOffset,
                     vertexCount = prim.vertexCount,
                     elementCount = prim.elementCount,
@@ -225,6 +255,7 @@ internal fun uploadMeshContent(prep: MeshContentPrep, target: MeshContent, rc: R
                 ).apply {
                     // Resolve refs once; per-frame enqueueMeshDrawable reads these direct.
                     buffer = rc.renderResourceCache[bufferKey] as? BufferObject
+                    elementBuffer = elementBufferKey?.let { rc.renderResourceCache[it] as? BufferObject }
                     baseColorTexture = textureKey?.let { rc.renderResourceCache[it] as? Texture }
                 }
             )
@@ -291,6 +322,8 @@ internal class PrimitivePrep(
     val combinedBytes: ByteArray,
     /** Actual payload length in [combinedBytes] (it may be longer due to pool oversize). */
     val combinedByteCount: Int,
+    /** Length in bytes of the index section within [combinedBytes]; 0 when non-indexed. */
+    val indexByteCount: Int,
     /** Byte offset of the index section. Used both as `glDrawElements` offset and as the
      *  end of the vertex region. */
     val elementOffset: Int,
