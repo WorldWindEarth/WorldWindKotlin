@@ -59,7 +59,7 @@ actual open class TiledElevationCoverage actual constructor(
                     shorts.size != expected -> retrievalFailed(
                         key, "CachedElevation size mismatch — got ${shorts.size} shorts, expected $expected"
                     )
-                    else -> retrievalSucceeded(key, shorts)
+                    else -> retrievalSucceeded(key, buildImage(shorts))
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -90,14 +90,14 @@ actual open class TiledElevationCoverage actual constructor(
                     if (serverType == null || serverType.equals("application/octet-stream", ignoreCase = true))
                         raw.outputFormat
                     else serverType
-                val pixels = withContext(Dispatchers.Default) { decodeBytes(blob.bytes, format) }
+                val image = withContext(Dispatchers.Default) { decodeBytes(blob.bytes, format)?.let { ElevationImage(it) } }
                 val expected = tileMatrix.tileWidth * tileMatrix.tileHeight
                 when {
-                    pixels == null -> retrievalFailed(key, "Elevation tile decode produced no values for ($key)")
-                    pixels.size != expected -> retrievalFailed(
-                        key, "Elevation tile-source size mismatch — got ${pixels.size} shorts, expected $expected"
+                    image == null -> retrievalFailed(key, "Elevation tile decode produced no values for ($key)")
+                    image.array.size != expected -> retrievalFailed(
+                        key, "Elevation tile-source size mismatch — got ${image.array.size} shorts, expected $expected"
                     )
-                    else -> retrievalSucceeded(key, pixels)
+                    else -> retrievalSucceeded(key, image)
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -119,10 +119,10 @@ actual open class TiledElevationCoverage actual constructor(
             }
             val bytes = response.readRawBytes()
             val contentType = response.contentType()?.toString().orEmpty()
-            val pixels = withContext(Dispatchers.Default) { decodeBytes(bytes, contentType) }
-            if (pixels != null) {
+            val image = withContext(Dispatchers.Default) { decodeBytes(bytes, contentType)?.let { ElevationImage(it) } }
+            if (image != null) {
                 if (isLoggable(DEBUG)) log(DEBUG, "Elevation retrieval succeeded: $url")
-                retrievalSucceeded(key, pixels)
+                retrievalSucceeded(key, image)
             } else {
                 retrievalFailed(key, "Elevation decode produced no values: $url")
             }

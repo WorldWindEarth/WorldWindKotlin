@@ -20,9 +20,11 @@ import earth.worldwind.util.SynchronizedList
 import earth.worldwind.util.format.format
 import earth.worldwind.util.math.fract
 import earth.worldwind.util.math.mod
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
@@ -332,12 +334,12 @@ abstract class AbstractTiledElevationCoverage(
                         lanes.reserve(RetrievalLane.LOCAL, key)
                         mainScope.launch {
                             try {
-                                val cached = cacheFactory!!.readCachedTileArray(tileMatrix, row, column)
-                                if (cached != null) retrievalSucceeded(key, cached) else cacheMissed(key)
+                                val cached = cacheFactory!!.readCachedTileImage(tileMatrix, row, column)
+                                if (cached != null) retrievalSucceeded(key, cached) else cacheMissed(key, tileMatrix, row, column)
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Throwable) {
-                                cacheMissed(key)
+                                cacheMissed(key, tileMatrix, row, column)
                             } finally {
                                 lanes.release(RetrievalLane.LOCAL, key)
                             }
@@ -345,18 +347,7 @@ abstract class AbstractTiledElevationCoverage(
                     }
                     // Phase 2: network retrieval — cache miss already confirmed, or the factory
                     // isn't cache-backed. Throttled by [retrievalQueueSize].
-                    RetrievalPhase.NETWORK -> if (lanes.canReserve(RetrievalLane.REMOTE, retrievalQueueSize, key)) {
-                        lanes.reserve(RetrievalLane.REMOTE, key)
-                        mainScope.launch {
-                            try {
-                                retrieveTileArray(key, tileMatrix, row, column)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Throwable) {
-                                retrievalFailed(key)
-                            }
-                        }
-                    }
+                    RetrievalPhase.NETWORK -> launchNetworkRetrieve(key, tileMatrix, row, column)
                 }
             }
             null
@@ -365,8 +356,31 @@ abstract class AbstractTiledElevationCoverage(
 
     protected abstract suspend fun retrieveTileArray(key: Long, tileMatrix: TileMatrix, row: Int, column: Int)
 
-    protected fun retrievalSucceeded(key: Long, value: ShortArray) {
-        val image = ElevationImage(value) // scans min/max/missing once, here, instead of per height-limit query
+    /** Phase 2: launch the throttled network retrieve for one tile, if the network lane has budget. */
+    private fun launchNetworkRetrieve(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
+        if (lanes.canReserve(RetrievalLane.REMOTE, retrievalQueueSize, key)) {
+            lanes.reserve(RetrievalLane.REMOTE, key)
+            mainScope.launch {
+                try {
+                    retrieveTileArray(key, tileMatrix, row, column)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    retrievalFailed(key)
+                }
+            }
+        }
+    }
+
+    /**
+     * Builds the tile image (full-grid min/max/missing scan) off the render thread. The decode itself
+     * already runs off-thread, but its continuation resumes on Main; a startup burst of completed tiles
+     * would otherwise stack ~1 ms/tile of scanning onto the render-critical main thread. Call this from
+     * the retrieval coroutine, then hand the ready image to [retrievalSucceeded] (cheap, Main-thread).
+     */
+    protected suspend fun buildImage(value: ShortArray) = withContext(Dispatchers.Default) { ElevationImage(value) }
+
+    protected fun retrievalSucceeded(key: Long, image: ElevationImage) {
         coverageCache.put(key, image, image.sizeInBytes)
         absentResourceList.unmarkResourceAbsent(key)
         lanes.release(RetrievalLane.REMOTE, key) // no-op on the cache-hit path (key was on the local lane)
@@ -380,15 +394,10 @@ abstract class AbstractTiledElevationCoverage(
         lanes.release(RetrievalLane.REMOTE, key)
     }
 
-    /** Records a cache-only read miss. The timestamp bump trips the tessellator's
-     *  heightTimestamp gate so [earth.worldwind.globe.terrain.TerrainTile.prepare]
-     *  actually re-runs `getElevationGrid` → [fetchTileArray] next frame and starts
-     *  Phase 2. Without the bump the redraw fires but the gate skips the grid query
-     *  and terrain stays flat until the camera moves. */
-    protected fun cacheMissed(key: Long) {
+    /** Records a cache-only read miss and starts Phase 2 directly; skips the global timestamp bump that would re-sample every terrain tile's height grid each frame (retrievalSucceeded's later bump+redraw shows the tile). */
+    protected fun cacheMissed(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
         lanes.markChecked(key)
-        updateTimestamp()
-        WorldWind.requestRedraw()
+        launchNetworkRetrieve(key, tileMatrix, row, column)
     }
 
     protected open fun readHeightGrid(
