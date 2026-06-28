@@ -150,6 +150,8 @@ class CachedTileSource(
         if (staleAfter == Duration.INFINITE) return
         val cachedAt = cached.cachedAt ?: return
         if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
+        // No ETag or Last-Modified means no validator, so the server can't answer 304 and every revalidation re-downloads + re-tessellates forever (GC storm); treat such tiles as fresh — restart the window, skip the GET.
+        if (cached.etag == null && cached.lastModified == null) { store.bumpValidatedAt(z, x, y); return }
         val key = tileKey(z, x, y)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
         revalidationScope.launch {
@@ -161,6 +163,9 @@ class CachedTileSource(
                     // 304 Not Modified — bytes still current. Bump the freshness stamp so we don't
                     // re-request until the next staleAfter window, and leave the tile (and its texture)
                     // untouched: no onTileRevalidated, no redraw.
+                    store.bumpValidatedAt(z, x, y)
+                } else if (cached.bytes.contentEquals(fresh.bytes)) {
+                    // 200 but byte-identical — server ignored our conditional headers; treat as not-modified (bump freshness, keep the tessellation) to avoid re-tessellating every tile forever.
                     store.bumpValidatedAt(z, x, y)
                 } else {
                     store.writeTile(z, x, y, fresh)

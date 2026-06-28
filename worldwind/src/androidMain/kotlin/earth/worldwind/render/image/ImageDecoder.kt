@@ -13,6 +13,7 @@ import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.discard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.Closeable
@@ -79,7 +80,11 @@ open class ImageDecoder(val context: Context): Closeable {
                 options.inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, cap)
             }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-        } else null // Result is not an image, access denied or server error
+        } else {
+            // Drain the non-OK body so ktor releases the call
+            response.bodyAsChannel().discard()
+            null
+        }
     }
 
     /** Decodes a texture straight out of an open [ZipFile][java.util.zip.ZipFile] entry (no extraction). */
