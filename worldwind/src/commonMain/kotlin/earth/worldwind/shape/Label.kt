@@ -10,6 +10,7 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.BasicShaderProgram
 import kotlin.jvm.JvmOverloads
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -137,7 +138,9 @@ open class Label @JvmOverloads constructor(
 
         // Compute a screen depth offset appropriate for the current viewing parameters. The configurable per-label
         // depthOffset is applied only while the label is within the horizon distance; beyond it no offset is used.
-        val screenDepthOffset = if (renderData.cameraDistanceSq < rc.horizonDistance * rc.horizonDistance) depthOffset else 0.0
+        val absTilt = abs(rc.camera.tilt.inDegrees)
+        val screenDepthOffset = if (renderData.cameraDistanceSq < rc.horizonDistance * rc.horizonDistance && absTilt <= 90)
+            (1 - absTilt / 90) * depthOffset else 0.0
 
         // Project the label's model point to screen coordinates, using the screen depth offset to push the screen
         // point's z component closer to the eye point.
