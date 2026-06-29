@@ -40,10 +40,21 @@ fun DrawContext.applySightlineReceiverUniforms(program: SightlineReceiverProgram
     if (!applySightline || isPickMode || state == null) {
         program.loadSightlineDisabled()
         program.lastSightlineState = null
+        // Bind benign 2D + cube textures so the never-sampled unit-4/5 samplers don't trip macOS's
+        // empty-unit validator. Deduped — bound once per frame.
+        if (!sightlineBenignBound) {
+            activeTextureUnit(GL_TEXTURE4)
+            defaultTexture.bindTexture(this)
+            activeTextureUnit(GL_TEXTURE5)
+            defaultCubeTexture.bindTexture(this)
+            activeTextureUnit(GL_TEXTURE0)
+            sightlineBenignBound = true
+        }
         lastSightlineTextureBind = null
         return
     }
     if (lastSightlineTextureBind !== state) {
+        sightlineBenignBound = false
         if (state.omnidirectional) {
             // Cube path: bind cube moments at unit 5, ensure unit 4 has a benign 2D bind so
             // the unused sampler2D doesn't read undefined.

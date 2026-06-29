@@ -88,6 +88,9 @@ open class DrawContext(val gl: Kgl) {
     /** Identity of the [SightlineState] whose moments texture(s) are currently bound on
      *  units 4 / 5. `null` after the cube/2D bindings are cleared on a no-sightline frame. */
     var lastSightlineTextureBind: SightlineState? = null
+    /** Whether benign 2D/cube textures are bound on units 4 / 5 this frame so the no-sightline path's
+     *  never-sampled samplers don't trip macOS's empty-unit validator. Reset per frame. */
+    var sightlineBenignBound = false
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -129,6 +132,7 @@ open class DrawContext(val gl: Kgl) {
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
     private var defaultTextureCache: Texture? = null
+    private var defaultCubeTextureCache: Texture? = null
     private var scratchBuffer = ByteArray(4)
     private val pixelArray = ByteArray(4)
     private var bufferPool = BufferPool(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW)
@@ -429,6 +433,12 @@ open class DrawContext(val gl: Kgl) {
     val defaultTexture get() = defaultTextureCache ?: Texture(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, false).also {
         defaultTextureCache = it
     }
+    /** 1x1 RGBA cube-map (six faces) for binding to an empty `samplerCube` slot, the cube counterpart
+     *  to [defaultTexture]. Lazily allocated and cached. */
+    val defaultCubeTexture get() = defaultCubeTextureCache
+        ?: Texture(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, false, target = GL_TEXTURE_CUBE_MAP).also {
+            defaultCubeTextureCache = it
+        }
     /**
      * Returns a scratch list suitable for accumulating entries during drawing. The list is cleared before each frame,
      * otherwise its contents are undefined.
@@ -462,6 +472,7 @@ open class DrawContext(val gl: Kgl) {
         lastShadowTextureBindStamp = -1L
         sightlineState = null
         lastSightlineTextureBind = null
+        sightlineBenignBound = false
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()
@@ -502,6 +513,7 @@ open class DrawContext(val gl: Kgl) {
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
         defaultTextureCache?.release(this)
+        defaultCubeTextureCache?.release(this)
         framebuffer = KglFramebuffer.NONE
         program = KglProgram.NONE
         textureUnit = GL_TEXTURE0
@@ -520,6 +532,7 @@ open class DrawContext(val gl: Kgl) {
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null
         defaultTextureCache = null
+        defaultCubeTextureCache = null
         textures.fill(KglTexture.NONE)
         bufferPool.contextLost()
         texturesCache.clear()
