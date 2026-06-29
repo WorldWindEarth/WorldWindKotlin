@@ -22,6 +22,7 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.layer.cache.EvictionScheduler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -86,6 +87,10 @@ expect class FeatureStyle {
     fun getIcon(): IconRow?
 }
 
+/** Feature read-handle pool size; 0 falls back to reading on the shared handle (Android, whose
+ *  framework SQLite already pools connections under WAL). See [GeoPackage.withReadHandle]. */
+internal expect val READ_HANDLE_COUNT: Int
+
 expect fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPackageCore
 expect fun createCoverageData(
     geoPackage: GeoPackageCore, tableName: String, identifier: String?, contentsBoundingBox: BoundingBox?,
@@ -139,6 +144,10 @@ expect fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String)
  * cleanup does not cover feature content, so it must not be used to drop a features table.
  */
 expect fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String)
+
+/** Release any per-handle feature-read resources cached by the platform read path (e.g. the Android
+ *  per-table FeatureTableIndex cache) so a closed handle isn't pinned. Called from [GeoPackage.shutdown]. */
+expect fun releaseFeatureReadResources(geoPackage: GeoPackageCore)
 
 /**
  * Create the standard GeoPackage RTree spatial index (`gpkg_rtree_index` extension) on
@@ -223,10 +232,32 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val tileMatrixCache = mutableMapOf<String, Map<Int, GpkgTileMatrix>>()
     private val writeDispatcher = Dispatchers.IO.limitedParallelism(1) // Single thread dispatcher
 
+    // Lazy pool of extra read-only NGA handles (own connection each) for parallel feature reads.
+    // Read-only is key: NGA registers the RTree ST_* functions only when writable, so these skip
+    // that per-read work and the create_function race concurrent reads hit on one connection.
+    private val readHandlePoolLazy = lazy {
+        Channel<GeoPackageCore>(READ_HANDLE_COUNT).also { ch ->
+            repeat(READ_HANDLE_COUNT) { ch.trySend(openOrCreateGeoPackage(pathName, isReadOnly = true)) }
+        }
+    }
+
     init {
         // On a writable open, migrate the legacy gpkg_web_service table off the reserved gpkg_ prefix.
         if (!isReadOnly) runCatching { migrateLegacyWebServiceTable() }.onFailure {
             logMessage(WARN, "GeoPackage", "init", "Legacy web-service table migration skipped: ${it.message}")
+        }
+    }
+
+    /** Run feature-read [block] on a borrowed read-only handle (own connection, concurrent under WAL);
+     *  with no pool (count 0) it runs on the shared handle via [Dispatchers.IO], the prior behavior. */
+    private suspend fun <R> withReadHandle(block: (GeoPackageCore) -> R): R {
+        if (READ_HANDLE_COUNT <= 0) return withContext(Dispatchers.IO) { block(geoPackage) }
+        val pool = readHandlePoolLazy.value
+        val handle = pool.receive()
+        return try {
+            withContext(Dispatchers.IO) { block(handle) }
+        } finally {
+            pool.send(handle)
         }
     }
 
@@ -236,6 +267,14 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     private val evictionScheduler = EvictionScheduler()
 
     fun shutdown() = geoPackage.close().also {
+        releaseFeatureReadResources(geoPackage)
+        if (readHandlePoolLazy.isInitialized()) readHandlePoolLazy.value.let { pool ->
+            pool.close()
+            while (true) {
+                val r = pool.tryReceive()
+                if (r.isSuccess) r.getOrNull()?.let { releaseFeatureReadResources(it); it.close() } else break
+            }
+        }
         tileUserDataDao.clear()
         tileMatrixCache.clear()
         evictionScheduler.shutdown()
@@ -1135,8 +1174,8 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /** Read back features previously cached via [replaceCachedFeatures]. */
-    suspend fun readCachedFeatures(content: GpkgContent): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
-        readCachedFeaturesWithProperties(geoPackage, content.tableName)
+    suspend fun readCachedFeatures(content: GpkgContent): List<Pair<Geometry, String?>> = withReadHandle {
+        readCachedFeaturesWithProperties(it, content.tableName)
     }
 
     /** Read the cached features in tile `(z, x, y)`'s region via the RTree bbox query. The flat
@@ -1144,18 +1183,18 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      *  `ww_feature_coverage` is what records whether the tile was actually fetched. */
     suspend fun readFeatureTile(
         content: GpkgContent, z: Int, x: Int, y: Int, sector: Sector? = null,
-    ): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
+    ): List<Pair<Geometry, String?>> {
         // Tile's true bounds for the spatial query; null → slippy bounds (slippy-keyed tiles).
         val b = sector?.toBboxDegrees() ?: slippyTileBounds(z, x, y)
-        readFeaturesInBoundingBox(geoPackage, content.tableName, b[0], b[1], b[2], b[3])
+        return withReadHandle { readFeaturesInBoundingBox(it, content.tableName, b[0], b[1], b[2], b[3]) }
     }
 
     /** Read every flat-store feature intersecting the geographic bbox (degrees, EPSG:4326) via the
      *  RTree spatial index — the arbitrary-viewport counterpart to [readFeatureTile]. */
     suspend fun readFeaturesInBbox(
         content: GpkgContent, minX: Double, minY: Double, maxX: Double, maxY: Double,
-    ): List<Pair<Geometry, String?>> = withContext(Dispatchers.IO) {
-        readFeaturesInBoundingBox(geoPackage, content.tableName, minX, minY, maxX, maxY)
+    ): List<Pair<Geometry, String?>> = withReadHandle {
+        readFeaturesInBoundingBox(it, content.tableName, minX, minY, maxX, maxY)
     }
 
     /**

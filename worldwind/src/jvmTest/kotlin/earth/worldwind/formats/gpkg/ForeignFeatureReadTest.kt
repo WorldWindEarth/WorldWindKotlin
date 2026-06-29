@@ -17,6 +17,9 @@ import earth.worldwind.layer.source.CachedGeometry
 import earth.worldwind.layer.source.TileBlob
 import earth.worldwind.layer.source.TileSource
 import mil.nga.geopackage.validate.GeoPackageValidate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
@@ -40,6 +43,10 @@ import mil.nga.geopackage.geom.GeoPackageGeometryData
 import mil.nga.sf.GeometryType
 import mil.nga.sf.Point
 import java.io.File
+import java.util.logging.Handler
+import java.util.logging.Level
+import java.util.logging.LogRecord
+import java.util.logging.Logger as JulLogger
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -209,6 +216,58 @@ class ForeignFeatureReadTest {
             assertEquals(2, readFeaturesInBoundingBox(gpkg.core, "bbox", -180.0, -90.0, 180.0, 90.0).size)
             // A window covering neither returns nothing.
             assertEquals(0, readFeaturesInBoundingBox(gpkg.core, "bbox", -10.0, -10.0, -5.0, -5.0).size)
+        } finally {
+            gpkg.shutdown()
+        }
+    }
+
+    @Test
+    fun concurrentBboxReadsDoNotRaceRTreeFunctions() = runBlocking {
+        // Reproduces the WFS viewport-autorefresh race: parallel reads on one NGA connection raced
+        // getFeatureDao's ST_* registration. The read-handle pool isolates each read on its own
+        // read-only connection. Fails (SEVERE logs) without the pool; clean with it.
+        val gpkg = GeoPackage(file.absolutePath, isReadOnly = false)
+        try {
+            val content = gpkg.setupFeaturesContent("concurrent")
+            // Seed enough features that each read holds its RTree cursor open long enough to overlap
+            // another read's getFeatureDao ST_* registration (uid rows so re-writes upsert, not wipe).
+            val seed = (0 until 500).map { i ->
+                GpkgFeatureRow(Point(-179.0 + i * 0.7, -40.0 + i % 80), """{"i":$i}""", uid = "f/$i")
+            }
+            gpkg.writeFeatureTile(content, 0, 0, 0, seed)
+
+            // Capture NGA's "Failed to create function" SEVERE logs: the read still returns correct
+            // rows (the bbox query never calls ST_*), so only the log records reveal the race.
+            val rtreeLog = JulLogger.getLogger("mil.nga.geopackage.extension.rtree.RTreeIndexExtension")
+            val priorLevel = rtreeLog.level
+            rtreeLog.level = Level.ALL
+            val createFnFailures = java.util.Collections.synchronizedList(mutableListOf<String>())
+            val handler = object : Handler() {
+                override fun publish(r: LogRecord) {
+                    if (r.level == Level.SEVERE && r.message?.contains("create function", ignoreCase = true) == true)
+                        createFnFailures.add(r.message)
+                }
+                override fun flush() {}
+                override fun close() {}
+            }
+            rtreeLog.addHandler(handler)
+            try {
+                // A continuous writer interleaved with many concurrent readers — the autorefresh shape.
+                val writer = async(Dispatchers.IO) {
+                    repeat(30) { gpkg.writeFeatureTile(content, 0, 0, 0, seed) }
+                }
+                val results = (0 until 64).map {
+                    async(Dispatchers.IO) {
+                        gpkg.readFeaturesInBbox(content, -180.0, -90.0, 180.0, 90.0).size
+                    }
+                }.awaitAll()
+                writer.await()
+                assertTrue(results.all { it == 500 }, "expected all reads to return 500, got ${results.distinct()}")
+            } finally {
+                rtreeLog.removeHandler(handler)
+                rtreeLog.level = priorLevel
+            }
+            assertTrue(createFnFailures.isEmpty(), "RTree create_function race: ${createFnFailures.size} SEVERE logs")
         } finally {
             gpkg.shutdown()
         }

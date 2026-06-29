@@ -25,10 +25,18 @@ actual typealias StyleRow = mil.nga.geopackage.extension.nga.style.StyleRow
 actual typealias IconRow = mil.nga.geopackage.extension.nga.style.IconRow
 actual typealias FeatureStyle = mil.nga.geopackage.extension.nga.style.FeatureStyle
 
+// JVM's GeoPackageManager opens a fresh connection per call, so a pool of read handles gives true
+// concurrent feature reads.
+internal actual val READ_HANDLE_COUNT = 4
+
 actual fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPackageCore {
     var file = File(pathName)
     if (!isReadOnly && !file.exists()) file = GeoPackageManager.create(file, false)
-    return GeoPackageManager.open(!isReadOnly, file)
+    return GeoPackageManager.open(!isReadOnly, file).also {
+        // WAL so the read-handle pool's read-only connections read concurrently with the writer
+        // (mirrors Android's manager.isSqliteWriteAheadLogging). Persisted in the db header on first set.
+        if (!isReadOnly) runCatching { it.database.execSQL("PRAGMA journal_mode=WAL") }
+    }
 }
 
 actual fun createCoverageData(
@@ -150,6 +158,9 @@ actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
 actual fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
     (geoPackage as GeoPackage).deleteTable(tableName)
 }
+
+/** No-op on JVM: the read path uses the OGC RTree extension per query and caches nothing per handle. */
+actual fun releaseFeatureReadResources(geoPackage: GeoPackageCore) {}
 
 actual fun createFeatureSpatialIndex(geoPackage: GeoPackageCore, tableName: String) {
     val gpkg = geoPackage as GeoPackage
