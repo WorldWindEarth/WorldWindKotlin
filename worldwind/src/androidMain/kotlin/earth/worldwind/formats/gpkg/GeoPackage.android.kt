@@ -14,7 +14,10 @@ import mil.nga.geopackage.db.GeoPackageDatabase
 import mil.nga.geopackage.db.GeoPackageTableCreator
 import mil.nga.geopackage.extension.coverage.GriddedCoverageDataType
 import mil.nga.geopackage.extension.nga.index.FeatureTableIndex
+import mil.nga.geopackage.features.user.FeatureDao
 import mil.nga.geopackage.features.user.FeatureRow
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentHashMap
 import mil.nga.geopackage.geom.GeoPackageGeometryData
 import mil.nga.geopackage.tiles.user.TileTableMetadata
 import mil.nga.sf.Geometry
@@ -25,6 +28,10 @@ actual typealias CoverageData<TImage> = mil.nga.geopackage.extension.coverage.Co
 actual typealias StyleRow = mil.nga.geopackage.extension.nga.style.StyleRow
 actual typealias IconRow = mil.nga.geopackage.extension.nga.style.IconRow
 actual typealias FeatureStyle = mil.nga.geopackage.extension.nga.style.FeatureStyle
+
+// No pool: GeoPackageFactory caches one handle per name (a pool would alias the same connection),
+// and the framework SQLiteDatabase already pools connections under WAL (enabled below).
+internal actual val READ_HANDLE_COUNT = 0
 
 actual fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPackageCore {
     val manager = GeoPackageFactory.getManager(null)
@@ -53,12 +60,45 @@ actual fun createCoverageData(
     if (isFloat) GriddedCoverageDataType.FLOAT else GriddedCoverageDataType.INTEGER
 )
 
+// Per-handle, per-table NGA FeatureTableIndex cache. Building a FeatureTableIndex (and its FeatureDao)
+// per read re-probes index/table metadata — a sqlite_master + nga_table_index query storm that
+// accumulates native CursorWindows and leaks RSS to OOM under sustained panning. The index queries
+// nga_geometry_index live, so it stays correct across feature writes; only a table DROP invalidates it.
+private class FeatureHandle(val index: FeatureTableIndex, val dao: FeatureDao)
+// Separate caches so the read index (used concurrently on Dispatchers.IO, guarded by synchronized) is
+// never the same object the write index mutates. All writes run on the single-threaded writeDispatcher,
+// so the write handle needs no extra locking; the two sets only share the underlying SQLite tables,
+// which the framework SQLiteDatabase serializes under WAL.
+// Bounded per-(handle, table) pool of read indices. Rebuilding a FeatureTableIndex per read re-probes
+// table metadata (a sqlite_master/nga_table_index storm that leaked native CursorWindows → OOM); a
+// SINGLE shared index would instead serialize every concurrent read on one monitor (heavy lock
+// contention). A small pool gives both: reuse (no storm/leak) AND parallel reads — each borrows its
+// own handle, no cross-thread lock. Overflow past the pool builds a transient handle that's GC'd.
+private const val READ_INDEX_POOL = 8
+private val readPools = ConcurrentHashMap<GeoPackage, ConcurrentHashMap<String, ArrayBlockingQueue<FeatureHandle>>>()
+
+private fun GeoPackage.readPool(tableName: String): ArrayBlockingQueue<FeatureHandle> =
+    readPools.getOrPut(this) { ConcurrentHashMap() }
+        .getOrPut(tableName) { ArrayBlockingQueue(READ_INDEX_POOL) }
+
+private inline fun <R> GeoPackage.withReadIndex(tableName: String, block: (FeatureHandle) -> R): R {
+    val pool = readPool(tableName)
+    val handle = pool.poll() ?: getFeatureDao(tableName).let { FeatureHandle(FeatureTableIndex(this, it), it) }
+    try { return block(handle) } finally { pool.offer(handle) } // offer drops on overflow (extra GC'd)
+}
+
+/** Drop all pooled read indices for a handle being closed (else the static pool pins the closed
+ *  GeoPackage + its DAOs across open/close cycles). Called from [GeoPackage.shutdown]. */
+actual fun releaseFeatureReadResources(geoPackage: GeoPackageCore) {
+    readPools.remove(geoPackage as GeoPackage)
+}
+
 actual fun readCachedFeaturesWithProperties(
     geoPackage: GeoPackageCore, tableName: String,
 ): List<Pair<Geometry, String?>> {
-    val gpkg = geoPackage as GeoPackage
-    val plan = gpkg.featurePropertyPlan(tableName)
-    return gpkg.getFeatureDao(tableName).queryForAll().use { cursor ->
+    val featureDao = (geoPackage as GeoPackage).getFeatureDao(tableName)
+    val plan = featurePropertyPlan(featureDao)
+    return featureDao.queryForAll().use { cursor ->
         cursor.mapNotNull { it.toGeomAndProps(plan) }
     }
 }
@@ -67,21 +107,20 @@ actual fun readFeaturesInBoundingBox(
     geoPackage: GeoPackageCore, tableName: String,
     minX: Double, minY: Double, maxX: Double, maxY: Double,
 ): List<Pair<Geometry, String?>> {
-    val gpkg = geoPackage as GeoPackage
-    val featureDao = gpkg.getFeatureDao(tableName)
-    val plan = gpkg.featurePropertyPlan(tableName)
-    // NGA Geometry Index Extension (nga_geometry_index) — the SQLite-version-agnostic NGA index
-    // (see createFeatureSpatialIndex). queryFeatures returns the matching feature rows directly.
-    return FeatureTableIndex(gpkg, featureDao).queryFeatures(BoundingBox(minX, minY, maxX, maxY))
-        .use { cursor -> cursor.mapNotNull { it.toGeomAndProps(plan) } }
+    // Borrow a pooled index (see readPools). queryFeatures issues the NGA Geometry Index Extension
+    // (nga_geometry_index) query and returns the matching feature rows.
+    return (geoPackage as GeoPackage).withReadIndex(tableName) { h ->
+        val plan = featurePropertyPlan(h.dao)
+        h.index.queryFeatures(BoundingBox(minX, minY, maxX, maxY))
+            .use { cursor -> cursor.mapNotNull { it.toGeomAndProps(plan) } }
+    }
 }
 
 /** WorldWind-private feature-cache columns, excluded when synthesizing properties from a foreign table. */
 private val WW_FEATURE_PRIVATE_COLUMNS = setOf(FEATURE_UID_COLUMN, FEATURE_PROPERTIES_COLUMN)
 
 /** See the jvm actual's [featurePropertyPlan]: WorldWind cache vs foreign-table property handling. */
-private fun GeoPackage.featurePropertyPlan(tableName: String): Pair<Boolean, List<String>> {
-    val featureDao = getFeatureDao(tableName)
+private fun featurePropertyPlan(featureDao: FeatureDao): Pair<Boolean, List<String>> {
     val table = featureDao.table
     val hasWwProperties = runCatching { table.getColumnIndex(FEATURE_PROPERTIES_COLUMN) }.isSuccess
     val attrColumns = if (hasWwProperties) emptyList() else table.columnNames.filter {
@@ -139,7 +178,9 @@ actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
 }
 
 actual fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
-    (geoPackage as GeoPackage).deleteTable(tableName)
+    val gpkg = geoPackage as GeoPackage
+    readPools[gpkg]?.remove(tableName) // pooled indices bound to the dropped table are now stale
+    gpkg.deleteTable(tableName)
 }
 
 actual fun createFeatureSpatialIndex(geoPackage: GeoPackageCore, tableName: String) {
@@ -217,11 +258,10 @@ actual fun featureIdsInBoundingBox(
     geoPackage: GeoPackageCore, tableName: String,
     minX: Double, minY: Double, maxX: Double, maxY: Double,
 ): List<Long> {
-    val gpkg = geoPackage as GeoPackage
-    val featureDao = gpkg.getFeatureDao(tableName)
-    // NGA Geometry Index Extension query (see readFeaturesInBoundingBox).
-    return FeatureTableIndex(gpkg, featureDao).queryFeatures(BoundingBox(minX, minY, maxX, maxY))
-        .use { cursor -> cursor.map { it.id } }
+    // Borrow a pooled index (see readPools / readFeaturesInBoundingBox).
+    return (geoPackage as GeoPackage).withReadIndex(tableName) { h ->
+        h.index.queryFeatures(BoundingBox(minX, minY, maxX, maxY)).use { cursor -> cursor.map { it.id } }
+    }
 }
 
 actual fun deleteVanishedOwnedFeatures(
