@@ -265,6 +265,15 @@ dependencies {
 // `--module-path ... --add-modules ...` args this task computes into the run config's
 // "VM options" field.
 // ---------------------------------------------------------------------------
+// Export sun.awt to silence JOGL's "AppContextInfo(Bug 1004)" reflection spam on JDK 9+.
+// Matched by name, not tasks.named: KGP registers jvmRun in afterEvaluate, after this body runs.
+tasks.matching { it.name == "jvmRun" }.configureEach {
+    (this as JavaExec).jvmArgs(
+        "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED",
+        "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
+    )
+}
+
 tasks.register<JavaExec>("runJvmTutorials") {
     group = "application"
     description = "Run the JVM Swing tutorials with JavaFX configured on the module path."
@@ -272,6 +281,11 @@ tasks.register<JavaExec>("runJvmTutorials") {
     val mainCompilation = kotlin.jvm().compilations.getByName("main")
     classpath = mainCompilation.runtimeDependencyFiles + mainCompilation.output.allOutputs
     dependsOn(mainCompilation.compileTaskProvider)
+    // Same JOGL sun.awt export as the jvmRun task above.
+    jvmArgs(
+        "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED",
+        "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
+    )
 
     doFirst {
         // Pull JavaFX JARs out of the resolved runtime classpath and route them onto the
