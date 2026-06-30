@@ -17,6 +17,7 @@ import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.util.FloatList
 import earth.worldwind.util.IntList
 import earth.worldwind.util.NumericArray
+import earth.worldwind.util.traceSection
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_TRIANGLE_STRIP
@@ -146,7 +147,7 @@ class MvtBatchedLineTile(
         if (tileData.refreshGeometry || tileData.vertexArray.isEmpty()) return
 
         if (rc.isPickMode) {
-            emitPickDrawables(rc, tileData)
+            traceSection("Mvt.pick") { emitPickDrawables(rc, tileData) }
             return
         }
 

@@ -7,6 +7,10 @@ import earth.worldwind.layer.ogc3d.auth.TilesetAuthProvider
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.PrioritySemaphore
+import earth.worldwind.util.traceAsyncBegin
+import earth.worldwind.util.traceAsyncEnd
+import earth.worldwind.util.traceCounter
+import earth.worldwind.util.traceSection
 import earth.worldwind.util.http.DefaultHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -71,6 +75,15 @@ class TileFetchQueue(
      *  heavy .glb content stays cached. Set on first recovery, cleared next cold start. */
     @Volatile private var bypassTilesetCacheRead: Boolean = false
 
+    // Diagnostic counters — Volatile for cross-thread visibility; minor races acceptable.
+    @Volatile private var cacheHitCount: Long = 0
+    @Volatile private var cacheMissCount: Long = 0
+    @Volatile private var cancelledInQueueCount: Long = 0
+    @Volatile private var cancelledHoldingPermitCount: Long = 0
+    @Volatile private var cacheWriteDroppedCount: Long = 0
+    @Volatile private var cacheWriteEnqueuedCount: Long = 0
+    @Volatile private var cacheWriteDrainedCount: Long = 0
+
     /** Bounded fire-and-forget queue feeding one drain coroutine. Cache writes run there
      *  (single writer to SQLite, no inter-coroutine contention) so the permit pool never
      *  blocks on the SQLite write lock. Overflow drops; bytes still feed install. */
@@ -82,14 +95,21 @@ class TileFetchQueue(
         // pending writes drop (best-effort cache, fine to lose).
         controlScope.launch {
             for (req in cacheWriteQueue) {
-                runCatching {
-                    blobStore.put(
-                        uri = req.uri,
-                        bytes = req.bytes,
-                        contentType = req.contentType,
-                        etag = req.etag,
-                    )
+                // coerceAtLeast(0) shields the diagnostic counter from producer/consumer races.
+                cacheWriteEnqueuedCount = (cacheWriteEnqueuedCount - 1).coerceAtLeast(0)
+                traceCounter("tiles.cacheWriteQueueDepth", cacheWriteEnqueuedCount)
+                traceSection("Tile.cacheWrite[${req.bytes.size}]") {
+                    runCatching {
+                        blobStore.put(
+                            uri = req.uri,
+                            bytes = req.bytes,
+                            contentType = req.contentType,
+                            etag = req.etag,
+                        )
+                    }
                 }
+                cacheWriteDrainedCount++
+                traceCounter("tiles.cacheWriteDrained", cacheWriteDrainedCount)
             }
         }
     }
@@ -118,7 +138,7 @@ class TileFetchQueue(
             // etc.) must not poison the tile — treat them as cache miss and fall through
             // to the network path. Without this, one IDB hiccup permanently FAILs the
             // tile, the traverser sees a FAILED root, and descent into children stops.
-            val cached = if (cacheable && !bypassTilesetCacheRead) safeBlobStoreGet(blobStore, cacheKey) else null
+            val cached = if (cacheable && !bypassTilesetCacheRead) traceSection("Tileset.cacheRead") { safeBlobStoreGet(blobStore, cacheKey) } else null
             if (cached != null) {
                 // Replay the captured response URL (carries the session token in its
                 // query string) and the body itself through observeTilesetResponse so
@@ -142,10 +162,12 @@ class TileFetchQueue(
                 permits.acquire(TILESET_FETCH_PRIORITY)
                 try {
                     val authed = source.authProvider.rewriteRequest(currentUrl, mutableMapOf())
-                    val response: HttpResponse = client.get(authed.url) {
-                        authed.headers.forEach { (k, v) -> header(k, v) }
+                    val response: HttpResponse = traceSection("Tileset.netGet") {
+                        client.get(authed.url) {
+                            authed.headers.forEach { (k, v) -> header(k, v) }
+                        }
                     }
-                    body = response.bodyAsText()
+                    body = traceSection("Tileset.netRead") { response.bodyAsText() }
                     finalUrl = response.call.request.url.toString()
                     contentType = response.headers[HttpHeaders.ContentType]
                     etag = response.headers[HttpHeaders.ETag]
@@ -176,14 +198,16 @@ class TileFetchQueue(
                 // responseUrl so cache hits can replay it through observeTilesetResponse
                 // and recover any session token embedded in the URL's query string.
                 if (currentUrl == url && cacheable) {
-                    runCatching {
-                        blobStore.put(
-                            uri = cacheKey,
-                            bytes = body.encodeToByteArray(),
-                            contentType = contentType,
-                            etag = etag,
-                            responseUrl = finalUrl,
-                        )
+                    traceSection("Tileset.cacheWrite[${body.length}]") {
+                        runCatching {
+                            blobStore.put(
+                                uri = cacheKey,
+                                bytes = body.encodeToByteArray(),
+                                contentType = contentType,
+                                etag = etag,
+                                responseUrl = finalUrl,
+                            )
+                        }
                     }
                 }
                 onSuccess(finalUrl, body)
@@ -217,18 +241,36 @@ class TileFetchQueue(
         onFailure: (Throwable) -> Unit,
     ): Job {
         val launchEpoch = epoch
+        val cookie = request.contentUri.hashCode()
+        traceAsyncBegin("Tile.queue", cookie)
         return epochScope.launch {
-        if (request.cancelled) return@launch
+        if (request.cancelled) { traceAsyncEnd("Tile.queue", cookie); return@launch }
+        // Track cancellation site so we can close Tile.queue and bucket the cancellation.
+        var queueEnded = false
+        var acquired = false
+        var cacheHit = false
         // Bytes survive the inner finally so the cache-write enqueue runs post-permit.
         var fetchedBytesForCache: ByteArray? = null
         var fetchedContentTypeForCache: String? = null
         var fetchedEtagForCache: String? = null
         try {
             val cacheKey = stableCacheKey(request.contentUri)
-            permits.acquire(request.priority)
             try {
-                if (request.cancelled) return@launch
-                val cached = safeBlobStoreGet(blobStore, cacheKey)
+                permits.acquire(request.priority)
+                acquired = true
+            } catch (e: CancellationException) {
+                if (!queueEnded) { traceAsyncEnd("Tile.queue", cookie); queueEnded = true }
+                cancelledInQueueCount++
+                traceCounter("tiles.cancelled_in_queue", cancelledInQueueCount)
+                throw e
+            }
+            try {
+                traceAsyncEnd("Tile.queue", cookie); queueEnded = true
+                traceAsyncBegin("Tile.permitHold", cookie)
+                traceCounter("tiles.permits.inUse", (maxConcurrent - permits.availablePermits()).toLong())
+                traceAsyncBegin("Tile.http", cookie)
+                if (request.cancelled) { traceAsyncEnd("Tile.http", cookie); return@launch }
+                val cached = traceSection("Tile.cacheRead") { safeBlobStoreGet(blobStore, cacheKey) }
                 // A nested subtree tileset.json arrives as tile content (kind TILESET_JSON).
                 // During recovery its cached body would replay a stale session= and re-poison
                 // the fresh one, so refetch those from the network; heavy .glb content still
@@ -236,17 +278,26 @@ class TileFetchQueue(
                 val replayPoison = bypassTilesetCacheRead && cached != null &&
                     ContentDispatcher.detect(cached.bytes) == ContentDispatcher.Kind.TILESET_JSON
                 if (cached != null && !replayPoison) {
+                    traceAsyncEnd("Tile.http", cookie)
+                    cacheHit = true
+                    cacheHitCount++
+                    traceCounter("tiles.cache_hits", cacheHitCount)
                     onSuccess(cached.bytes)
                     return@launch
                 }
+                cacheMissCount++
+                traceCounter("tiles.cache_misses", cacheMissCount)
                 val authed = source.authProvider.rewriteRequest(request.contentUri, mutableMapOf())
-                val response: HttpResponse = client.get(authed.url) {
-                    authed.headers.forEach { (k, v) -> header(k, v) }
+                val response: HttpResponse = traceSection("Tile.netGet") {
+                    client.get(authed.url) {
+                        authed.headers.forEach { (k, v) -> header(k, v) }
+                    }
                 }
-                val bytes = response.readRawBytes()
+                val bytes = traceSection("Tile.netRead") { response.readRawBytes() }
                 val contentType = response.headers[HttpHeaders.ContentType]
                 val etag = response.headers[HttpHeaders.ETag]
                 val status = response.status
+                traceAsyncEnd("Tile.http", cookie)
                 if (!status.isSuccess()) {
                     if (source.authProvider.isAuthRejection(status.value)) recoverSession(launchEpoch, request.contentUri)
                     onFailure(HttpStatusException(status.value, status.description, request.contentUri))
@@ -258,17 +309,31 @@ class TileFetchQueue(
                 fetchedContentTypeForCache = contentType
                 fetchedEtagForCache = etag
             } finally {
+                traceAsyncEnd("Tile.permitHold", cookie)
                 permits.release()
             }
+            traceCounter("tiles.permits.inUse", (maxConcurrent - permits.availablePermits()).toLong())
             // Permit released — non-blocking trySend then onSuccess. Cache hit/failure paths
             // already return@launch'd above so [fetchedBytesForCache] is non-null here.
             val bytes = fetchedBytesForCache!!
-            cacheWriteQueue.trySend(
+            val sent = cacheWriteQueue.trySend(
                 CacheWriteRequest(cacheKey, bytes, fetchedContentTypeForCache, fetchedEtagForCache)
-            )
+            ).isSuccess
+            if (sent) {
+                cacheWriteEnqueuedCount++
+                traceCounter("tiles.cacheWriteQueueDepth", cacheWriteEnqueuedCount)
+            } else {
+                cacheWriteDroppedCount++
+                traceCounter("tiles.cacheWriteDropped", cacheWriteDroppedCount)
+            }
             if (request.cancelled) return@launch
             onSuccess(bytes)
         } catch (cancelled: CancellationException) {
+            // Cancelled-with-permit wastes permit time; cancelled-in-queue (above) is cheap.
+            if (acquired && !cacheHit) {
+                cancelledHoldingPermitCount++
+                traceCounter("tiles.cancelled_holding_permit", cancelledHoldingPermitCount)
+            }
             throw cancelled
         } catch (t: Throwable) {
             logMessage(

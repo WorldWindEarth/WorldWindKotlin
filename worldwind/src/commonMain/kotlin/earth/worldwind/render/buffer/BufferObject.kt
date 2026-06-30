@@ -37,11 +37,11 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
         val currentBuffer = dc.currentBuffer(target)
         try {
             // Create the OpenGL buffer object.
-            if (!id.isValid()) createBufferObject(dc)
+            if (!id.isValid()) earth.worldwind.util.traceSection("Buf.create") { createBufferObject(dc) }
             // Make the OpenGL buffer object bound to the specified target.
             dc.bindBuffer(target, id)
             // Load the current NIO buffer as the OpenGL buffer object's data.
-            loadBufferObjectData(dc, array)
+            earth.worldwind.util.traceSection("Buf.data[${array.byteCount}]") { loadBufferObjectData(dc, array) }
         } catch (e: Exception) {
             // The NIO buffer could not be used as buffer data for an OpenGL buffer object. Delete the buffer object
             // to ensure that calls to bindBuffer fail.

@@ -18,6 +18,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.Logger
+import earth.worldwind.util.traceCounter
 import earth.worldwind.util.SynchronizedList
 import earth.worldwind.util.kgl.*
 import kotlinx.datetime.TimeZone
@@ -55,6 +56,8 @@ open class WorldWind @JvmOverloads constructor(
      */
     var frameMetrics: FrameMetrics? = null
 ) {
+    // Perfetto: previous frame's render timestamp, for the frame.interval.us budget counter.
+    private var lastFrameMark: TimeSource.Monotonic.ValueTimeMark? = null
     /**
      * List of renderable object layers to be displayed by this WorldWind.
      */
@@ -466,7 +469,13 @@ open class WorldWind @JvmOverloads constructor(
     open fun renderFrame(frame: Frame): Boolean {
         // Mark the beginning of a frame render.
         val pickMode = frame.isPickMode
-        if (!pickMode) frameMetrics?.beginRendering(rc)
+        if (!pickMode) {
+            frameMetrics?.beginRendering(rc)
+            // Perfetto frame-budget counter: wall-clock interval between consecutive frame renders (60fps = 16667us).
+            val now = TimeSource.Monotonic.markNow()
+            lastFrameMark?.let { traceCounter("frame.interval.us", (now - it).inWholeMicroseconds) }
+            lastFrameMark = now
+        }
 
         // Snapshot collision-relevant globe state once; reused by the rc assignments below to avoid
         // re-allocating Globe.State and re-walking elevation coverages later in this frame.

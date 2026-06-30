@@ -41,7 +41,9 @@ open class UploadQueue internal constructor() {
                 next.array?.let { array ->
                     next.buffer?.let { buffer ->
                         if (buffer.version < next.version) {
-                            buffer.loadBuffer(dc, array)
+                            earth.worldwind.util.traceSection("buf.upload[${array.byteCount}]") {
+                                buffer.loadBuffer(dc, array)
+                            }
                             buffer.version = next.version
                         }
                     }

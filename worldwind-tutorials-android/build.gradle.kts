@@ -25,6 +25,17 @@ android {
             isMinifyEnabled = true
             setProguardFiles(listOf(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"))
         }
+        // Release-grade build (debuggable=false → no JNI-trampoline / method-hook overhead, full JIT
+        // inlining = real performance) but installable + profileable for simpleperf/Perfetto. Signed
+        // with the debug key so it installs without a release keystore; minify off so trace symbols
+        // stay readable. THIS is the build to profile, not `debug`. Build: installProfileable.
+        create("profileable") {
+            initWith(getByName("release"))
+            isMinifyEnabled = false
+            isProfileable = true
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+        }
     }
 
     compileOptions {
