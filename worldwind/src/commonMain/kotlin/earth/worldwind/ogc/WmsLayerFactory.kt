@@ -27,7 +27,7 @@ object WmsLayerFactory {
     private const val VERSION = "1.3.0"
     private const val DEFAULT_WMS_NUM_LEVELS = 20
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
-    private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
+    private val xml = XML.v1 { policy { ignoreUnknownChildren() } }
 
     /**
      * Create a WMS tiled image layer (cache-agnostic).

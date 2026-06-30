@@ -78,7 +78,7 @@ object WfsLayerFactory {
         "GML3",
         "GML2",
     )
-    private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
+    private val xml = XML.v1 { policy { ignoreUnknownChildren() } }
     private val exceptionReportRegex = Regex("<(?:\\w+:)?ExceptionReport\\b")
     private val exceptionCodeRegex = Regex("""exceptionCode\s*=\s*["']([^"']+)["']""")
     private val locatorRegex = Regex("""\blocator\s*=\s*["']([^"']+)["']""")

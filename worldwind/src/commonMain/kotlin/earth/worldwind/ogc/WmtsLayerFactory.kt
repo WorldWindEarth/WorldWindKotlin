@@ -34,7 +34,7 @@ object WmtsLayerFactory {
     private const val STYLE_TEMPLATE = "{style}"
     private const val TILE_MATRIX_SET_TEMPLATE = "{TileMatrixSet}"
     private val compatibleImageFormats = listOf("image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp")
-    private val xml = XML { defaultPolicy { ignoreUnknownChildren() } }
+    private val xml = XML.v1 { policy { ignoreUnknownChildren() } }
 
     /**
      * Create a WMTS tiled image layer (cache-agnostic).

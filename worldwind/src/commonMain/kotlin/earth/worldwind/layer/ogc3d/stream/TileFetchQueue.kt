@@ -262,7 +262,7 @@ class TileFetchQueue(
             }
             // Permit released — non-blocking trySend then onSuccess. Cache hit/failure paths
             // already return@launch'd above so [fetchedBytesForCache] is non-null here.
-            val bytes = fetchedBytesForCache!!
+            val bytes = fetchedBytesForCache
             cacheWriteQueue.trySend(
                 CacheWriteRequest(cacheKey, bytes, fetchedContentTypeForCache, fetchedEtagForCache)
             )

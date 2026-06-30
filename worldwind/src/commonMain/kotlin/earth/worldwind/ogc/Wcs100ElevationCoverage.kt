@@ -56,7 +56,7 @@ class Wcs100ElevationCoverage(
         fun buildTileMatrixSet(sector: Sector, resolution: Angle): TileMatrixSet =
             fromTilePyramid(sector, if (sector.isFullSphere) 2 else 1, 1, 256, 256, resolution)
 
-        private val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
+        private val xml = XML.v1(serializersModule) { policy { ignoreUnknownChildren() } }
 
         /**
          * Attempts to retrieve a Web Coverage Service (WCS) capabilities

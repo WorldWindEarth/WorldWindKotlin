@@ -52,8 +52,8 @@ class KML {
         }
     }
 
-    private val xml = XML(module) {
-        defaultPolicy {
+    private val xml = XML.v1(module) {
+        policy {
             pedantic = true
             autoPolymorphic = false
             encodeDefault = XmlSerializationPolicy.XmlEncodeDefault.NEVER

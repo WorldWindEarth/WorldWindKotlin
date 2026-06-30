@@ -44,18 +44,18 @@ data class WmsLayer(
     @XmlElement
     @XmlSerialName("MinScaleDenominator", WMS_NAMESPACE, WMS_PREFIX)
     private val _minScaleDenominator: Double? = null,
-    // Properties of the Layer attributes
-    @XmlSerialName("queryable", WMS_NAMESPACE, WMS_PREFIX)
+    // Layer attributes are unqualified (no namespace) per the XML standard
+    @XmlSerialName("queryable")
     val isQueryable: Boolean = false,
-    @XmlSerialName("cascaded", WMS_NAMESPACE, WMS_PREFIX)
+    @XmlSerialName("cascaded")
     private val _cascaded: Int? = null,
-    @XmlSerialName("opaque", WMS_NAMESPACE, WMS_PREFIX)
+    @XmlSerialName("opaque")
     val isOpaque: Boolean = false,
-    @XmlSerialName("noSubsets", WMS_NAMESPACE, WMS_PREFIX)
+    @XmlSerialName("noSubsets")
     val isNoSubsets: Boolean = false,
-    @XmlSerialName("fixedWidth", WMS_NAMESPACE, WMS_PREFIX)
+    @XmlSerialName("fixedWidth")
     private val _fixedWidth: Int? = null,
-    @XmlSerialName("fixedHeight", WMS_NAMESPACE, WMS_PREFIX)
+    @XmlSerialName("fixedHeight")
     private val _fixedHeight: Int? = null,
 ) {
     val namedLayers: List<WmsLayer> get() = (name?.let { listOf(this) } ?: emptyList()) + layers.flatMap { layer -> layer.namedLayers }

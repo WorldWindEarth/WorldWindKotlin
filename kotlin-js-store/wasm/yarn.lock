@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@armyc2.c5isr.renderer/mil-sym-ts-web@2.9.0":
-  version "2.9.0"
-  resolved "https://registry.yarnpkg.com/@armyc2.c5isr.renderer/mil-sym-ts-web/-/mil-sym-ts-web-2.9.0.tgz#f0410842a2f6037c44df480298a3fa484d6ca0f0"
-  integrity sha512-okLsahsL9pRlQ3v9E+Gt3sLwmfyk0dIAYIC++8KtldLCKCAkVRITTUvJ5k09GaM5yxdtTNjkeFcCyS6h2OXDyg==
+"@armyc2.c5isr.renderer/mil-sym-ts-web@2.9.1":
+  version "2.9.1"
+  resolved "https://registry.yarnpkg.com/@armyc2.c5isr.renderer/mil-sym-ts-web/-/mil-sym-ts-web-2.9.1.tgz#7c7096d8fdd0e75e6ca4f18f2f66bc689e4a12f6"
+  integrity sha512-dFlI7i8hwpjPvc3TxWe9GnkkNH6T3zGI/pE6cQMSSWwNkvANtR5XDF9ZvGNlxJtYblsQsaEGIf1czptwKMRhbg==
 
 "@js-joda/core@3.2.0":
   version "3.2.0"
@@ -323,7 +323,7 @@ util-deprecate@^1.0.2:
   resolved "https://registry.yarnpkg.com/util-deprecate/-/util-deprecate-1.0.2.tgz#450d4dc9fa70de732762fbd2d4a28981419a0ccf"
   integrity sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==
 
-ws@8.18.3:
-  version "8.18.3"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-8.18.3.tgz#b56b88abffde62791c639170400c93dcb0c95472"
-  integrity sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==
+ws@8.20.1:
+  version "8.20.1"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-8.20.1.tgz#91a9ae2b312ccf98e0a85ec499b48cef45ab0ddb"
+  integrity sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==

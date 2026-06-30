@@ -78,7 +78,7 @@ open class Wcs201ElevationCoverage private constructor(
         private const val VERSION = "2.0.1"
         const val SERVICE_TYPE = "$SERVICE $VERSION"
 
-        private val xml = XML(serializersModule) { defaultPolicy { ignoreUnknownChildren() } }
+        private val xml = XML.v1(serializersModule) { policy { ignoreUnknownChildren() } }
 
         /**
          * Attempts to retrieve a Web Coverage Service (WCS) capabilities
