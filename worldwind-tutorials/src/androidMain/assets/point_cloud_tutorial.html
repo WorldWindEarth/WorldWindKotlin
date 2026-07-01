@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Point Cloud (LAS/LAZ) Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Point Cloud (LAS/LAZ) Tutorial</h1>
+<p>
+    Loads a standalone LiDAR point cloud with <code>PointCloudLayer</code> and renders it as
+    size-attenuated <code>GL_POINTS</code> splats. The sample is the public Autzen Stadium scan
+    (~694k RGB points, point format 3, compressed <code>.laz</code>). Compressed
+    <code>.laz</code> decoding is enabled by installing
+    <code>LasDecoderRegistry.lazDecoder = LaszipDecoder()</code>; plain <code>.las</code> needs
+    no decoder.
+</p>
+<p>
+    The file is genuinely georeferenced (EPSG:26910, NAD83 UTM 10N), which the loader auto-detects,
+    so the cloud lands on its real location and real elevation with no projection hook. It rests on
+    the globe's terrain (elevation is enabled on start) and overlays the matching satellite imagery
+    &mdash; that overlay is the correctness check.
+</p>
+<h2>Example</h2>
+<h3>PointCloudFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class PointCloudFragment : BasicGlobeFragment() {
+    private var tutorial: PointCloudTutorial? = null
+
+    override fun createWorldWindow(): WorldWindow {
+        val wwd = super.createWorldWindow()
+        PointCloudTutorial(wwd.engine).also {
+            tutorial = it
+            it.start()
+        }
+        return wwd
+    }
+
+    override fun onDestroyView() {
+        tutorial?.stop()
+        tutorial = null
+        super.onDestroyView()
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

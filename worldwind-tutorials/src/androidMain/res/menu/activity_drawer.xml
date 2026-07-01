@@ -150,6 +150,10 @@
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_cesium_ion_3d_tiles"/>
         <item
+            android:id="@+id/nav_point_cloud_activity"
+            android:icon="@android:drawable/ic_menu_mapmode"
+            android:title="@string/title_point_cloud"/>
+        <item
             android:id="@+id/nav_mvt_vector_tiles_activity"
             android:icon="@android:drawable/ic_menu_mapmode"
             android:title="@string/title_mvt_vector_tiles"/>

@@ -367,6 +367,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/cesium_ion_3d_tiles_tutorial.html",
                 R.string.title_cesium_ion_3d_tiles
             )
+            R.id.nav_point_cloud_activity -> loadTutorial(
+                PointCloudFragment::class.java,
+                "file:///android_asset/point_cloud_tutorial.html",
+                R.string.title_point_cloud
+            )
             R.id.nav_mvt_vector_tiles_activity -> loadTutorial(
                 MvtVectorTilesFragment::class.java,
                 "file:///android_asset/mvt_vector_tiles_tutorial.html",

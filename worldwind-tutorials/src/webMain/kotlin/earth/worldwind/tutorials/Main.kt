@@ -175,6 +175,7 @@ fun main() {
                     ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
                 },
             ),
+            "Point Cloud (LAS/LAZ)" to PointCloudTutorial(wwd.engine),
             "OSM Buildings" to OsmBuildingsTutorial(wwd.engine, mainScope, layerLoader = {
                 OsmBuildingsLayer(useOsmColors = true).also {
                     contentManager.attachCache(it, "OsmBuildings")

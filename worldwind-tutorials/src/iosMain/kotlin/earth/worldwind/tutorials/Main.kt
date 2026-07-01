@@ -215,6 +215,7 @@ object Tutorials {
                 },
             )
         },
+        TutorialFactory("pointCloud", "Point Cloud (LAS/LAZ)", ::PointCloudTutorial),
         TutorialFactory("osmBuildings", "OSM Buildings") { e ->
             OsmBuildingsTutorial(e, iosMainScope, layerLoader = {
                 OsmBuildingsLayer(useOsmColors = true).also {
