@@ -4,12 +4,14 @@ import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
 import earth.worldwind.formats.gltf.GlbReader
+import earth.worldwind.formats.gltf.GltfModel
 import earth.worldwind.formats.gltf.GltfReader
 import earth.worldwind.formats.ogc3d.B3dmLoader
 import earth.worldwind.formats.ogc3d.CmptLoader
 import earth.worldwind.formats.ogc3d.I3dmLoader
 import earth.worldwind.formats.ogc3d.PntsLoader
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.globe.Globe
 import earth.worldwind.geom.BoundingSphere
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Position
@@ -46,6 +48,8 @@ import earth.worldwind.layer.ogc3d.program.Ogc3dTilesProgram
 import earth.worldwind.PickedObject
 import earth.worldwind.layer.ogc3d.stream.ContentDispatcher
 import earth.worldwind.layer.ogc3d.stream.HttpStatusException
+import earth.worldwind.layer.ogc3d.stream.HttpTileByteSource
+import earth.worldwind.layer.ogc3d.stream.TileByteSource
 import earth.worldwind.layer.ogc3d.stream.TileContentRequest
 import earth.worldwind.layer.ogc3d.stream.TileFetchQueue
 import earth.worldwind.layer.ogc3d.style.BoundStyle
@@ -96,6 +100,9 @@ open class Ogc3dTilesLayer(
      *  on known high-end devices can opt up to 16-32. Splat parses self-throttle via
      *  [gaussianParseConcurrency] regardless. */
     fetchConcurrency: Int = 8,
+    /** Byte transport for all fetches. Default is HTTP; an
+     *  [earth.worldwind.layer.ogc3d.stream.ArchiveTileByteSource] serves a local SLPK in place. */
+    byteSource: TileByteSource = HttpTileByteSource(),
 ) : AbstractLayer(displayName) {
     /** Cast + receive shadows by default. [ShadowMode.RECEIVE_ONLY] for unlit-from-above
      *  datasets; [ShadowMode.DISABLED] to skip the integration. */
@@ -197,6 +204,7 @@ open class Ogc3dTilesLayer(
         parentScope = scope,
         maxConcurrent = fetchConcurrency,
         blobStore = blobStore,
+        byteSource = byteSource,
         // Drop the parsed tree + reopen the root-fetch latch so the next render rebuilds
         // under the fresh session. Reset the altitude-bake cache too: the next tileset
         // arrives with un-baked tileToWorld matrices, so `rebakeAltitudeOffset` would
@@ -285,7 +293,12 @@ open class Ogc3dTilesLayer(
     private val tmpAnchorEcef = Vec3()
     private val tmpAnchorPosition = Position()
 
+    /** Globe captured each render so [parseRootDocument] (off-thread) can reach geographic↔Cartesian
+     *  without a [RenderContext]. Null before the first frame. */
+    @Volatile protected var lastGlobe: Globe? = null
+
     override fun doRender(rc: RenderContext) {
+        lastGlobe = rc.globe
         val current = tileset
         if (current == null) {
             ensureRootRequested()
@@ -634,20 +647,20 @@ open class Ogc3dTilesLayer(
         rootFetching = true
         fetchQueue.fetchTileset(
             url = source.rootUri,
+            // onSuccess is suspend so the parse runs inside the epoch coroutine — session recovery's
+            // cancelAndJoin then waits for it, so a parse under an expired session can't win the race.
             onSuccess = { responseUrl, body ->
                 try {
-                    val parsed = TilesetParser.parse(
-                        body, responseUrl, source.authProvider,
-                        parentTransform = standardEcefToWorldWindFrame,
-                    )
-                    tileset = parsed
+                    tileset = parseRootDocument(responseUrl, body)
                     WorldWind.requestRedraw()
+                } catch (c: CancellationException) {
+                    throw c
                 } catch (t: Throwable) {
                     val preview = body.take(200).replace('\n', ' ')
                     logMessage(
                         Logger.ERROR, "Ogc3dTilesLayer", "ensureRootRequested",
-                        "failed to parse tileset.json for ${source.displayName}; " +
-                            "URL ${source.rootUri} returned non-JSON body (first 200 chars): $preview",
+                        "failed to parse root document for ${source.displayName}; " +
+                            "URL ${source.rootUri} returned unparseable body (first 200 chars): $preview",
                         t,
                     )
                     rootFailed = true
@@ -662,6 +675,19 @@ open class Ogc3dTilesLayer(
             }
         )
     }
+
+    /** Parse the root document into a [Tileset]. Default: a 3D Tiles `tileset.json`. Overridable so
+     *  an I3S/SLPK layer can build the tree from `3dSceneLayer.json` + node pages instead. Suspends
+     *  inside the fetch queue's epoch coroutine so session recovery can cancel/await it. */
+    protected open suspend fun parseRootDocument(responseUrl: String, body: String): Tileset =
+        TilesetParser.parse(
+            body, responseUrl, source.authProvider,
+            parentTransform = standardEcefToWorldWindFrame,
+        )
+
+    /** Decode tile content with no 3D-Tiles magic-byte signature (e.g. I3S geometry `.bin`); return
+     *  true when handled (default: none). May suspend; build the mesh via [decodeAndEnqueueMesh]. */
+    protected open suspend fun decodeCustomContent(tile: Tile3d, bytes: ByteArray, uri: String): Boolean = false
 
     /** Reset the permanent-failure latch so the next render retries the root fetch. */
     fun resetRootFetch() {
@@ -766,18 +792,21 @@ open class Ogc3dTilesLayer(
                 ContentDispatcher.Kind.TILESET_JSON ->
                     attachExternalTileset(tile, bytes.decodeToString())
                 else -> {
-                    // No Gaussian codec has a settled magic — last-chance offer to the loader.
                     val loader = gaussianLoader
-                    if (loader != null && loader.supports(bytes)) {
-                        gaussianParseSemaphore.withPermit {
+                    when {
+                        // Source-specific content with no 3D-Tiles magic (e.g. I3S geometry .bin).
+                        decodeCustomContent(tile, bytes, uri) -> {}
+                        // No Gaussian codec has a settled magic — last-chance offer to the loader.
+                        loader != null && loader.supports(bytes) -> gaussianParseSemaphore.withPermit {
                             attachGaussianContent(tile, parseGaussian(bytes, loader, uri))
                         }
-                    } else {
-                        logMessage(
-                            Logger.WARN, "Ogc3dTilesLayer", "handleContentFetched",
-                            "unrecognised content kind $kind for ${tile.contentUri}; ${bytes.size} bytes"
-                        )
-                        tile.loadState = Tile3d.LoadState.FAILED
+                        else -> {
+                            logMessage(
+                                Logger.WARN, "Ogc3dTilesLayer", "handleContentFetched",
+                                "unrecognised content kind $kind for ${tile.contentUri}; ${bytes.size} bytes"
+                            )
+                            tile.loadState = Tile3d.LoadState.FAILED
+                        }
                     }
                 }
             }
@@ -948,6 +977,17 @@ open class Ogc3dTilesLayer(
         pendingUploadDepth++
         pendingMeshUploads.send(MeshUploadEntry(tile, parsed.shell, parsed.prep))
         WorldWind.requestRedraw()
+    }
+
+    /** Build a [MeshContent] from a decoded [GltfModel] and hand it to the render-thread upload queue —
+     *  the entry point a [decodeCustomContent] override uses. [contentUri] keys RR-cache buffers;
+     *  [skipYUpToZUp] suppresses the glTF Y-up→Z-up rotation. */
+    protected suspend fun decodeAndEnqueueMesh(
+        tile: Tile3d, model: GltfModel, contentUri: String, skipYUpToZUp: Boolean,
+    ) {
+        val shell = MeshContent(rtcCenter = null, skipYUpToZUp = skipYUpToZUp)
+        val prep = prepareMeshPrep(model, contentUri, shell)
+        enqueueMeshUpload(tile, ParsedMesh(shell, prep))
     }
 
     private val scratchEffectiveTransform = Matrix4()

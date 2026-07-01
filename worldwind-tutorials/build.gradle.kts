@@ -286,6 +286,11 @@ tasks.register<JavaExec>("runJvmTutorials") {
         "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED",
         "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
     )
+    // Forward the SLPK dataset path to the app JVM so `-Dworldwind.slpk.path=…` reaches SlpkTutorial.
+    System.getProperty("worldwind.slpk.path")?.let { systemProperty("worldwind.slpk.path", it) }
+    // Forward the 3D Tiles archive path + initial-tutorial override to the app JVM.
+    System.getProperty("worldwind.3dtiles.path")?.let { systemProperty("worldwind.3dtiles.path", it) }
+    System.getProperty("worldwind.tutorial")?.let { systemProperty("worldwind.tutorial", it) }
 
     doFirst {
         // Pull JavaFX JARs out of the resolved runtime classpath and route them onto the
@@ -302,4 +307,41 @@ tasks.register<JavaExec>("runJvmTutorials") {
             )
         }
     }
+}
+
+// Standalone SLPK viewer — no JavaFX (so it runs on any JDK the engine supports, unlike the full
+// tutorials app whose video tutorials pin a newer-JDK JavaFX build). Usage:
+//   ./gradlew :worldwind-tutorials:runSlpk -Dworldwind.slpk.path=/abs/path/dataset.slpk
+tasks.register<JavaExec>("runSlpk") {
+    group = "application"
+    description = "Run the standalone SLPK (I3S) viewer on a local .slpk file."
+    mainClass.set("earth.worldwind.tutorials.SlpkMainKt")
+    val mainCompilation = kotlin.jvm().compilations.getByName("main")
+    classpath = mainCompilation.runtimeDependencyFiles + mainCompilation.output.allOutputs
+    dependsOn(mainCompilation.compileTaskProvider)
+    jvmArgs(
+        "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED",
+        "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
+    )
+    System.getProperties().stringPropertyNames()
+        .filter { it.startsWith("worldwind.slpk.") }
+        .forEach { systemProperty(it, System.getProperty(it)) }
+}
+
+// Standalone 3D Tiles Archive viewer (.3tz / .3dtiles) — no JavaFX, same rationale as runSlpk. Usage:
+//   ./gradlew :worldwind-tutorials:runArchive3dTiles -Dworldwind.3dtiles.path=/abs/path/dataset.3tz
+tasks.register<JavaExec>("runArchive3dTiles") {
+    group = "application"
+    description = "Run the standalone 3D Tiles Archive viewer on a local .3tz / .3dtiles file."
+    mainClass.set("earth.worldwind.tutorials.Archive3dTilesMainKt")
+    val mainCompilation = kotlin.jvm().compilations.getByName("main")
+    classpath = mainCompilation.runtimeDependencyFiles + mainCompilation.output.allOutputs
+    dependsOn(mainCompilation.compileTaskProvider)
+    jvmArgs(
+        "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED",
+        "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
+    )
+    System.getProperties().stringPropertyNames()
+        .filter { it.startsWith("worldwind.3dtiles.") }
+        .forEach { systemProperty(it, System.getProperty(it)) }
 }

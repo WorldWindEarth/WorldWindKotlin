@@ -7,16 +7,6 @@ import earth.worldwind.layer.ogc3d.auth.TilesetAuthProvider
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.PrioritySemaphore
-import earth.worldwind.util.http.DefaultHttpClient
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
-import io.ktor.client.statement.readRawBytes
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -43,6 +33,8 @@ class TileFetchQueue(
     private val maxConcurrent: Int = 32,
     /** URI-keyed persistent cache. Default no-op = network-only. */
     private val blobStore: BlobStore = NoOpBlobStore,
+    /** Byte transport. Default is HTTP; an [ArchiveTileByteSource] serves a local SLPK in place. */
+    private val byteSource: TileByteSource = HttpTileByteSource(),
     /** Fired during session recovery, after every in-flight old-session fetch has been
      *  cancelled and the auth provider's session state cleared. The layer drops its parsed
      *  tree so the next render re-fetches root and rebuilds under the fresh session. */
@@ -54,7 +46,6 @@ class TileFetchQueue(
      *  epoch cancellation it performs. */
     private val controlScope = CoroutineScope(baseContext)
     private val permits = PrioritySemaphore(maxConcurrent)
-    private val client: HttpClient by lazy { DefaultHttpClient() }
     @Volatile private var isShutdown: Boolean = false
 
     /** Every fetch runs in the current epoch's scope. A session rejection cancels the whole
@@ -104,7 +95,7 @@ class TileFetchQueue(
     /** Fetch a tileset.json (root or external); supports auth-provider redirects. */
     fun fetchTileset(
         url: String,
-        onSuccess: (responseUrl: String, body: String) -> Unit,
+        onSuccess: suspend (responseUrl: String, body: String) -> Unit,
         onFailure: (Throwable) -> Unit,
     ): Job {
         val launchEpoch = epoch
@@ -138,27 +129,24 @@ class TileFetchQueue(
                 val body: String
                 val contentType: String?
                 val etag: String?
-                val status: HttpStatusCode
+                val response: TileByteResponse
                 permits.acquire(TILESET_FETCH_PRIORITY)
                 try {
                     val authed = source.authProvider.rewriteRequest(currentUrl, mutableMapOf())
-                    val response: HttpResponse = client.get(authed.url) {
-                        authed.headers.forEach { (k, v) -> header(k, v) }
-                    }
-                    body = response.bodyAsText()
-                    finalUrl = response.call.request.url.toString()
-                    contentType = response.headers[HttpHeaders.ContentType]
-                    etag = response.headers[HttpHeaders.ETag]
-                    status = response.status
+                    response = byteSource.get(authed.url, authed.headers)
                 } finally {
                     permits.release()
                 }
+                finalUrl = response.finalUrl
+                body = response.bytes.decodeToString()
+                contentType = response.contentType
+                etag = response.etag
                 // Non-2xx bodies must NOT be cached — would poison BlobStore permanently.
-                if (!status.isSuccess()) {
+                if (!response.isSuccess) {
                     // A subtree tileset.json can be rejected first (Google delivers refinement
                     // as nested tilesets), so recover the session here too — not just on content.
-                    if (source.authProvider.isAuthRejection(status.value)) recoverSession(launchEpoch, finalUrl)
-                    onFailure(HttpStatusException(status.value, status.description, finalUrl))
+                    if (source.authProvider.isAuthRejection(response.statusCode)) recoverSession(launchEpoch, finalUrl)
+                    onFailure(HttpStatusException(response.statusCode, response.statusMessage ?: "", finalUrl))
                     return@launch
                 }
                 source.authProvider.observeTilesetResponse(url, finalUrl, body)
@@ -240,23 +228,17 @@ class TileFetchQueue(
                     return@launch
                 }
                 val authed = source.authProvider.rewriteRequest(request.contentUri, mutableMapOf())
-                val response: HttpResponse = client.get(authed.url) {
-                    authed.headers.forEach { (k, v) -> header(k, v) }
-                }
-                val bytes = response.readRawBytes()
-                val contentType = response.headers[HttpHeaders.ContentType]
-                val etag = response.headers[HttpHeaders.ETag]
-                val status = response.status
-                if (!status.isSuccess()) {
-                    if (source.authProvider.isAuthRejection(status.value)) recoverSession(launchEpoch, request.contentUri)
-                    onFailure(HttpStatusException(status.value, status.description, request.contentUri))
+                val response = byteSource.get(authed.url, authed.headers)
+                if (!response.isSuccess) {
+                    if (source.authProvider.isAuthRejection(response.statusCode)) recoverSession(launchEpoch, request.contentUri)
+                    onFailure(HttpStatusException(response.statusCode, response.statusMessage ?: "", request.contentUri))
                     return@launch
                 }
                 // Stash for the post-permit cache-write enqueue; permit releases in the
                 // inner finally so the next high-priority fetch can start its HTTP.
-                fetchedBytesForCache = bytes
-                fetchedContentTypeForCache = contentType
-                fetchedEtagForCache = etag
+                fetchedBytesForCache = response.bytes
+                fetchedContentTypeForCache = response.contentType
+                fetchedEtagForCache = response.etag
             } finally {
                 permits.release()
             }
@@ -327,12 +309,12 @@ class TileFetchQueue(
         null
     }
 
-    /** Cancel in-flight requests + close the HTTP client. Idempotent. */
+    /** Cancel in-flight requests + close the byte source (HTTP client / SLPK archive). Idempotent. */
     fun shutdown() {
         if (isShutdown) return
         isShutdown = true
         job.cancel()
-        client.close()
+        byteSource.close()
     }
 }
 
