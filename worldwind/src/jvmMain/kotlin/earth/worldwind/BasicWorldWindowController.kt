@@ -35,6 +35,9 @@ open class BasicWorldWindowController(
     /** JVM gesture coords are in Swing pixels; the GL viewport is in physical pixels. */
     override val gestureToViewportPixels get() = engine.densityFactor.toDouble()
 
+    /** Tap/fling slop as squared pixels: 5 dp scaled by density so it's the same physical size on any display. */
+    private val tapSlopSq get() = (TAP_SLOP_DP * engine.densityFactor).let { (it * it).toDouble() }
+
     override fun createFlingScheduler(): FrameScheduler = SwingTimerScheduler()
 
     override fun requestRedraw() = wwd.requestRedraw()
@@ -124,13 +127,14 @@ open class BasicWorldWindowController(
                 val dx = event.x - beginX; val dy = event.y - beginY
                 isDragging = false
                 activeButton = MouseEvent.NOBUTTON
-                if (prevButton == MouseEvent.BUTTON1 && event.id == MouseEvent.MOUSE_RELEASED) {
+                // Fling only past the tap slop; else a jittery fast click flings on high instantaneous velocity.
+                if (prevButton == MouseEvent.BUTTON1 && event.id == MouseEvent.MOUSE_RELEASED && dx * dx + dy * dy >= tapSlopSq) {
                     val (vx, vy) = velocitySampler.computeReleaseVelocity()
                     fling.start(vx, vy)
                 }
                 gestureDidEnd()
                 // Tap detection: short left-click navigates the minimap
-                if (event.id == MouseEvent.MOUSE_RELEASED && prevButton == MouseEvent.BUTTON1 && dx * dx + dy * dy < 25) {
+                if (event.id == MouseEvent.MOUSE_RELEASED && prevButton == MouseEvent.BUTTON1 && dx * dx + dy * dy < tapSlopSq) {
                     val p = wwd.viewportCoordinates(event.x, event.y)
                     worldMapLayer?.handleClick(p.x, p.y, wwd.engine.viewport.height, wwd.engine)
                 }
@@ -228,5 +232,10 @@ open class BasicWorldWindowController(
             timer?.stop()
             timer = null
         }
+    }
+
+    companion object {
+        /** Max travel (density-independent px) a left-click may drift and still count as a tap rather than a pan/fling. */
+        private const val TAP_SLOP_DP = 5f
     }
 }
