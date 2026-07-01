@@ -169,6 +169,8 @@ fun main() {
                         ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
                     },
                 ),
+                "ArcGIS SLPK (local)" to SlpkTutorial(engine),
+                "3D Tiles Archive (local)" to Ogc3dTilesArchiveTutorial(engine),
                 "Point Cloud (LAS/LAZ)" to PointCloudTutorial(engine),
                 "OSM Buildings" to OsmBuildingsTutorial(engine, mainScope, layerLoader = {
                     OsmBuildingsLayer(useOsmColors = true).also {
@@ -396,10 +398,17 @@ fun main() {
             tutorials.keys.forEach { tutorialCombo.addItem(it) }
             projections.keys.forEach { projectionCombo.addItem(it) }
 
+            // Initial tutorial: override with -Dworldwind.tutorial="<menu name>", else the first entry.
+            // Set the combo selection BEFORE wiring the listeners so it doesn't double-fire start().
+            val initialTutorial = System.getProperty("worldwind.tutorial")?.takeIf(tutorials::containsKey)
+                ?: tutorials.keys.first()
+            tutorialCombo.selectedItem = initialTutorial
+            projectionCombo.selectedItem = projections.keys.first()
+
             tutorialCombo.addActionListener { selectTutorial(tutorialCombo.selectedItem as String) }
             projectionCombo.addActionListener { selectProjection(projectionCombo.selectedItem as String) }
 
-            selectTutorial(tutorials.keys.first())
+            selectTutorial(initialTutorial)
             selectProjection(projections.keys.first())
         }
 
