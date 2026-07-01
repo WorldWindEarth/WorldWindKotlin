@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- 3D models & formats group: Material "view_in_ar". -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M3,4c-0.55,0 -1,0.45 -1,1v3h2V6h2V4H3zM20,4h-4v2h2v2h2V5c0,-0.55 -0.45,-1 -1,-1zM18,18h-2v2h4c0.55,0 1,-0.45 1,-1v-3h-2v2zM4,16H2v3c0,0.55 0.45,1 1,1h4v-2H4v-2zM12,7.42l4,2.31v4.54l-4,2.31 -4,-2.31L8,9.73l4,-2.31M12,5.11L6,8.58v6.93l6,3.47 6,-3.47L18,8.58l-6,-3.47z" />
+</vector>

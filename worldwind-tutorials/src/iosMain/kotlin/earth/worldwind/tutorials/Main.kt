@@ -163,13 +163,17 @@ object Tutorials {
         val factory: (WorldWind) -> AbstractTutorial,
     )
 
-    // Order mirrors :worldwind-tutorials JS Main.kt for consistency across platforms. The
-    // iOS port skips MilStd2525 (lives in nonIosMain) and uses AVPlayerVideoOnTerrainTutorial
-    // in the "Video on terrain" slot.
+    // Grouped by theme (globe → shapes → maps → 3D), mirroring the JS/JVM Main.kt order for
+    // consistency across platforms. The iOS port skips MilStd2525 (lives in nonIosMain) and uses
+    // AVPlayerVideoOnTerrainTutorial in the "Video on terrain" slot.
     private val factories: List<TutorialFactory> = listOf(
+        // Globe & navigation
         TutorialFactory("basic", "Basic globe", ::BasicTutorial),
+        TutorialFactory("showTessellation", "Show tessellation", ::ShowTessellationTutorial),
         TutorialFactory("cameraView", "Set camera view", ::CameraViewTutorial),
         TutorialFactory("lookAtView", "Set \"look at\" view", ::LookAtViewTutorial),
+        // Shapes & placemarks
+        TutorialFactory("labels", "Labels", ::LabelsTutorial),
         TutorialFactory("placemarks", "Placemarks", ::PlacemarksTutorial),
         TutorialFactory("paths", "Paths", ::PathsTutorial),
         TutorialFactory("polygons", "Polygons", ::PolygonsTutorial),
@@ -177,74 +181,19 @@ object Tutorials {
         TutorialFactory("ellipsoids", "Ellipsoids", ::EllipsoidsTutorial),
         TutorialFactory("geographicMeshes", "Geographic meshes", ::GeographicMeshesTutorial),
         TutorialFactory("triangleMeshes", "Triangle meshes", ::TriangleMeshesTutorial),
-        TutorialFactory("collada", "COLLADA", ::ColladaTutorial),
-        TutorialFactory("gltf", "GLTF", ::GltfTutorial),
-        TutorialFactory("ogc3dtiles", "OGC 3D Tiles") { e ->
-            Ogc3dTilesTutorial(
-                e,
-                cacheProvider = { info ->
-                    contentManager.openBlobStore(
-                        contentKey = "ogc3d_tutorial",
-                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
-                        displayName = "OGC 3D Tiles tutorial cache",
-                    ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
-                },
-            )
-        },
-        TutorialFactory("googleOgc3dtiles", "Google 3D Tiles") { e ->
-            Google3dTilesTutorial(
-                e,
-                cacheProvider = { info ->
-                    contentManager.openBlobStore(
-                        contentKey = "google_3dtiles_tutorial",
-                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
-                        displayName = "Google Photorealistic 3D Tiles tutorial cache",
-                    ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
-                },
-            )
-        },
-        TutorialFactory("cesiumIonOgc3dtiles", "Cesium Ion 3D Tiles") { e ->
-            CesiumIon3dTilesTutorial(
-                e,
-                cacheProvider = { info ->
-                    contentManager.openBlobStore(
-                        contentKey = "cesium_ion_3dtiles_tutorial",
-                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
-                        displayName = "Cesium Ion 3D Tiles tutorial cache",
-                    ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
-                },
-            )
-        },
-        TutorialFactory("pointCloud", "Point Cloud (LAS/LAZ)", ::PointCloudTutorial),
-        TutorialFactory("osmBuildings", "OSM Buildings") { e ->
-            OsmBuildingsTutorial(e, iosMainScope, layerLoader = {
-                OsmBuildingsLayer(useOsmColors = true).also {
-                    contentManager.attachCache(it, "OsmBuildings")
-                }
-            })
-        },
-        TutorialFactory("mvtVectorTiles", "Vector Tiles (MVT)") { e ->
-            MvtVectorTilesTutorial(e, iosMainScope, layerLoader = {
-                val layer = MvtVectorLayer(
-                    source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
-                    minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
-                    maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
-                    style = OpenTopoMapRules,
-                )
-                contentManager.attachCache(layer, "MVT_Versatiles")
-                layer
-            })
-        },
         TutorialFactory("dashAndFill", "Dash and fill", ::ShapesDashAndFillTutorial),
-        TutorialFactory("labels", "Labels", ::LabelsTutorial),
-        TutorialFactory("sightline", "Real-time sightline", ::SightlineTutorial),
-        TutorialFactory("viewshedSightline", "Viewshed sightline", ::ViewshedSightlineTutorial),
-        TutorialFactory("surfaceImage", "Surface image", ::SurfaceImageTutorial),
-        TutorialFactory("photoOnTerrain", "Photo on terrain", ::PhotoOnTerrainTutorial),
-        TutorialFactory("videoOnTerrain", "Video on terrain", ::AVPlayerVideoOnTerrainTutorial),
-        TutorialFactory("showTessellation", "Show tessellation", ::ShowTessellationTutorial),
+        // Graticules
         TutorialFactory("mgrsGraticule", "MGRS Graticule", ::MGRSGraticuleTutorial),
         TutorialFactory("gkGraticule", "Gauss-Kruger Graticule", ::GKGraticuleTutorial),
+        // Sightlines
+        TutorialFactory("sightline", "Real-time sightline", ::SightlineTutorial),
+        TutorialFactory("viewshedSightline", "Viewshed sightline", ::ViewshedSightlineTutorial),
+        // Surface & media overlays
+        TutorialFactory("surfaceImage", "Surface image", ::SurfaceImageTutorial),
+        TutorialFactory("nitfImagery", "NITF Imagery", ::NitfImageryTutorial),
+        TutorialFactory("photoOnTerrain", "Photo on terrain", ::PhotoOnTerrainTutorial),
+        TutorialFactory("videoOnTerrain", "Video on terrain", ::AVPlayerVideoOnTerrainTutorial),
+        // Maps & OGC web services
         TutorialFactory("wmsLayer", "WMS Layer") { e ->
             WmsLayerTutorial(e, iosMainScope, layerLoader = {
                 val key = "WMS_NeoTemperature"
@@ -284,6 +233,18 @@ object Tutorials {
         TutorialFactory("wfsAutoRefresh", "WFS Auto-Refresh") { e ->
             WfsAutoRefreshTutorial(e, iosMainScope)
         },
+        TutorialFactory("mvtVectorTiles", "Vector Tiles (MVT)") { e ->
+            MvtVectorTilesTutorial(e, iosMainScope, layerLoader = {
+                val layer = MvtVectorLayer(
+                    source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
+                    minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
+                    maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
+                    style = OpenTopoMapRules,
+                )
+                contentManager.attachCache(layer, "MVT_Versatiles")
+                layer
+            })
+        },
         TutorialFactory("shapefileLayer", "Shapefile Layer") { e ->
             ShapefileLayerTutorial(e, iosMainScope, layerLoader = {
                 val layer = BulkFeatureLayer(
@@ -303,6 +264,7 @@ object Tutorials {
                 MR.assets.kml_sample_kml.readText()
             }
         },
+        // Elevation
         TutorialFactory("wcsElevation", "WCS Elevation") { e ->
             WcsElevationTutorial(e, iosMainScope, layerLoader = {
                 Wcs100ElevationCoverage(
@@ -314,8 +276,55 @@ object Tutorials {
                 ).also { contentManager.attachCache(it, "WCS_3DEP") }
             })
         },
-        TutorialFactory("nitfImagery", "NITF Imagery", ::NitfImageryTutorial),
         TutorialFactory("elevationHeatmap", "Elevation Heatmap", ::ElevationHeatmapTutorial),
+        // 3D models & formats
+        TutorialFactory("collada", "COLLADA", ::ColladaTutorial),
+        TutorialFactory("gltf", "GLTF", ::GltfTutorial),
+        TutorialFactory("osmBuildings", "OSM Buildings") { e ->
+            OsmBuildingsTutorial(e, iosMainScope, layerLoader = {
+                OsmBuildingsLayer(useOsmColors = true).also {
+                    contentManager.attachCache(it, "OsmBuildings")
+                }
+            })
+        },
+        // 3D Tiles & point clouds
+        TutorialFactory("ogc3dtiles", "OGC 3D Tiles") { e ->
+            Ogc3dTilesTutorial(
+                e,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "ogc3d_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                        displayName = "OGC 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
+                },
+            )
+        },
+        TutorialFactory("googleOgc3dtiles", "Google 3D Tiles") { e ->
+            Google3dTilesTutorial(
+                e,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "google_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                        displayName = "Google Photorealistic 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
+                },
+            )
+        },
+        TutorialFactory("cesiumIonOgc3dtiles", "Cesium Ion 3D Tiles") { e ->
+            CesiumIon3dTilesTutorial(
+                e,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "cesium_ion_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                        displayName = "Cesium Ion 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
+                },
+            )
+        },
+        TutorialFactory("pointCloud", "Point Cloud (LAS/LAZ)", ::PointCloudTutorial),
     )
 
     val all: List<TutorialEntry> = factories.map { TutorialEntry(it.id, it.title) }

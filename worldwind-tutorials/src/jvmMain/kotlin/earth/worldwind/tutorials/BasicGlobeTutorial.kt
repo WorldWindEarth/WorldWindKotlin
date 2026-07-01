@@ -127,9 +127,13 @@ fun main() {
             val triMeshTutorial = TriangleMeshesTutorial(engine)
 
             val tutorials = linkedMapOf(
+                // Globe & navigation
                 "Basic globe" to BasicTutorial(engine),
+                "Show tessellation" to ShowTessellationTutorial(engine),
                 "Set camera view" to CameraViewTutorial(engine),
                 "Set \"look at\" view" to LookAtViewTutorial(engine),
+                // Shapes & placemarks
+                "Labels" to LabelsTutorial(engine),
                 "Placemarks" to PlacemarksTutorial(engine),
                 "Paths" to PathsTutorial(engine),
                 "Polygons" to PolygonsTutorial(engine),
@@ -137,70 +141,23 @@ fun main() {
                 "Ellipsoids" to EllipsoidsTutorial(engine),
                 "Geographic meshes" to geoMeshTutorial,
                 "Triangle meshes" to triMeshTutorial,
-                "COLLADA" to colladaTutorial,
-                "GLTF" to gltfTutorial,
-                "OGC 3D Tiles" to Ogc3dTilesTutorial(
-                    engine,
-                    cacheProvider = { info ->
-                        contentManager.openBlobStore(
-                            contentKey = "ogc3d_tutorial",
-                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
-                            displayName = "OGC 3D Tiles tutorial cache",
-                        ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
-                    },
-                ),
-                "Google 3D Tiles" to Google3dTilesTutorial(
-                    engine,
-                    cacheProvider = { info ->
-                        contentManager.openBlobStore(
-                            contentKey = "google_3dtiles_tutorial",
-                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
-                            displayName = "Google Photorealistic 3D Tiles tutorial cache",
-                        ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
-                    },
-                ),
-                "Cesium Ion 3D Tiles" to CesiumIon3dTilesTutorial(
-                    engine,
-                    cacheProvider = { info ->
-                        contentManager.openBlobStore(
-                            contentKey = "cesium_ion_3dtiles_tutorial",
-                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
-                            displayName = "Cesium Ion 3D Tiles tutorial cache",
-                        ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
-                    },
-                ),
-                "ArcGIS SLPK (local)" to SlpkTutorial(engine),
-                "3D Tiles Archive (local)" to Ogc3dTilesArchiveTutorial(engine),
-                "Point Cloud (LAS/LAZ)" to PointCloudTutorial(engine),
-                "OSM Buildings" to OsmBuildingsTutorial(engine, mainScope, layerLoader = {
-                    OsmBuildingsLayer(useOsmColors = true).also {
-                        contentManager.attachCache(it, "OsmBuildings")
-                    }
-                }),
-                "Vector Tiles (MVT)" to MvtVectorTilesTutorial(engine, mainScope, layerLoader = {
-                    val layer = MvtVectorLayer(
-                        source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
-                        minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
-                        maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
-                        style = OpenTopoMapRules,
-                    )
-                    contentManager.attachCache(layer, "MVT_Versatiles")
-                    layer
-                }),
                 "Dash and fill" to ShapesDashAndFillTutorial(engine),
-                "Labels" to LabelsTutorial(engine),
+                "MilStd2525 graphics" to MilStd2525Tutorial(engine),
+                // Graticules
+                "MGRS Graticule" to MGRSGraticuleTutorial(engine),
+                "Gauss-Kruger Graticule" to GKGraticuleTutorial(engine),
+                // Sightlines
                 "Real-time sightline" to SightlineTutorial(engine),
                 "Viewshed sightline" to ViewshedSightlineTutorial(engine),
+                // Surface & media overlays
                 "Surface image" to SurfaceImageTutorial(engine),
+                "NITF Imagery" to NitfImageryTutorial(engine),
                 "Photo on terrain" to PhotoOnTerrainTutorial(engine),
                 "Video on terrain (VLCJ)" to VlcjVideoOnTerrainTutorial(engine),
                 "Video on terrain (JavaCV)" to JavaCvVideoOnTerrainTutorial(engine),
                 "Video on terrain (FFmpeg)" to FFmpegVideoOnTerrainTutorial(engine),
                 "Video on terrain (JavaFX)" to JavaFxVideoOnTerrainTutorial(engine),
-                "MilStd2525 graphics" to MilStd2525Tutorial(engine),
-                "Show tessellation" to ShowTessellationTutorial(engine),
-                "MGRS Graticule" to MGRSGraticuleTutorial(engine),
-                "Gauss-Kruger Graticule" to GKGraticuleTutorial(engine),
+                // Maps & OGC web services
                 "WMS Layer" to WmsLayerTutorial(engine, mainScope, layerLoader = {
                     val key = "WMS_NeoTemperature"
                     WmsLayerFactory.createLayer(
@@ -278,6 +235,16 @@ fun main() {
                     contentManager.attachCache(layer, "WFS_Roads")
                     layer
                 }),
+                "Vector Tiles (MVT)" to MvtVectorTilesTutorial(engine, mainScope, layerLoader = {
+                    val layer = MvtVectorLayer(
+                        source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
+                        minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
+                        maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
+                        style = OpenTopoMapRules,
+                    )
+                    contentManager.attachCache(layer, "MVT_Versatiles")
+                    layer
+                }),
                 "Shapefile Layer" to ShapefileLayerTutorial(engine, mainScope, layerLoader = {
                     val layer = BulkFeatureLayer(
                         source = ShapefileBulkFeatureSource(ShapefileLayerTutorial.SHP_URL),
@@ -293,6 +260,7 @@ fun main() {
                 "KML" to KmlTutorial(engine, mainScope, density = Toolkit.getDefaultToolkit().screenResolution / 96f) {
                     MR.assets.kml_sample_kml.readText()
                 },
+                // Elevation
                 "WCS Elevation" to WcsElevationTutorial(engine, mainScope, layerLoader = {
                     Wcs100ElevationCoverage(
                         serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,
@@ -302,12 +270,54 @@ fun main() {
                         resolution = WcsElevationTutorial.RESOLUTION,
                     ).also { contentManager.attachCache(it, "WCS_3DEP") }
                 }),
+                "DTED Elevation (local)" to DtedElevationTutorial(engine),
                 "GeoPackage (bundled)" to GeoPackageTutorial(engine, mainScope) {
                     SharedStagedGeoPackage.path()
                 },
-                "DTED Elevation (local)" to DtedElevationTutorial(engine),
-                "NITF Imagery" to NitfImageryTutorial(engine),
                 "Elevation Heatmap" to ElevationHeatmapTutorial(engine),
+                // 3D models & formats
+                "COLLADA" to colladaTutorial,
+                "GLTF" to gltfTutorial,
+                "OSM Buildings" to OsmBuildingsTutorial(engine, mainScope, layerLoader = {
+                    OsmBuildingsLayer(useOsmColors = true).also {
+                        contentManager.attachCache(it, "OsmBuildings")
+                    }
+                }),
+                // 3D Tiles & point clouds
+                "OGC 3D Tiles" to Ogc3dTilesTutorial(
+                    engine,
+                    cacheProvider = { info ->
+                        contentManager.openBlobStore(
+                            contentKey = "ogc3d_tutorial",
+                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                            displayName = "OGC 3D Tiles tutorial cache",
+                        ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
+                    },
+                ),
+                "Google 3D Tiles" to Google3dTilesTutorial(
+                    engine,
+                    cacheProvider = { info ->
+                        contentManager.openBlobStore(
+                            contentKey = "google_3dtiles_tutorial",
+                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                            displayName = "Google Photorealistic 3D Tiles tutorial cache",
+                        ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
+                    },
+                ),
+                "Cesium Ion 3D Tiles" to CesiumIon3dTilesTutorial(
+                    engine,
+                    cacheProvider = { info ->
+                        contentManager.openBlobStore(
+                            contentKey = "cesium_ion_3dtiles_tutorial",
+                            evictionPolicy = CachePolicy(maxEntries = 32_000L),
+                            displayName = "Cesium Ion 3D Tiles tutorial cache",
+                        ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
+                    },
+                ),
+                "ArcGIS SLPK (local)" to SlpkTutorial(engine),
+                "3D Tiles Archive (.3tz)" to Ogc3dTilesArchiveTutorial(engine) { SharedStagedArchive.tz() },
+                "3D Tiles Archive (.3dtiles)" to Ogc3dTilesArchiveTutorial(engine) { SharedStagedArchive.sqlite() },
+                "Point Cloud (LAS/LAZ)" to PointCloudTutorial(engine),
             )
 
             val projections = linkedMapOf(

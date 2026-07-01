@@ -117,9 +117,13 @@ fun main() {
         }
 
         val tutorials = mapOf(
+            // Globe & navigation
             "Basic globe" to BasicTutorial(wwd.engine),
+            "Show tessellation" to ShowTessellationTutorial(wwd.engine),
             "Set camera view" to CameraViewTutorial(wwd.engine),
             "Set \"look at\" view" to LookAtViewTutorial(wwd.engine),
+            // Shapes & placemarks
+            "Labels" to LabelsTutorial(wwd.engine),
             "Placemarks" to PlacemarksTutorial(wwd.engine),
             "Paths" to PathsTutorial(wwd.engine).also { installDepthPicker(it.picker) },
             "Polygons" to PolygonsTutorial(wwd.engine).also { installDepthPicker(it.picker) },
@@ -131,77 +135,20 @@ fun main() {
             "Triangle meshes" to TriangleMeshesTutorial(wwd.engine).also {
                 installRayPicker({ it.isStarted }) { ray -> it.pickMesh(ray, wwd.engine.globe) }
             },
-            "COLLADA" to ColladaTutorial(wwd.engine).also { tutorial ->
-                mainScope.launch {
-                    tutorial.setupScene()
-                    wwd.requestRedraw()
-                }
-                installRayPicker({ tutorial.isStarted }) { ray -> tutorial.pickScene(ray, wwd.engine.globe) }
-            },
-            "GLTF" to GltfTutorial(wwd.engine).also { tutorial ->
-                installDepthPicker(tutorial.picker)
-                mainScope.launch {
-                    tutorial.setupScene()
-                    wwd.requestRedraw()
-                }
-            },
-            "OGC 3D Tiles" to Ogc3dTilesTutorial(
-                wwd.engine,
-                cacheProvider = { info ->
-                    contentManager.openBlobStore(
-                        contentKey = "ogc3d_tutorial",
-                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
-                        displayName = "OGC 3D Tiles tutorial cache",
-                    ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
-                },
-            ),
-            "Google 3D Tiles" to Google3dTilesTutorial(
-                wwd.engine,
-                cacheProvider = { info ->
-                    contentManager.openBlobStore(
-                        contentKey = "google_3dtiles_tutorial",
-                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
-                        displayName = "Google Photorealistic 3D Tiles tutorial cache",
-                    ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
-                },
-            ),
-            "Cesium Ion 3D Tiles" to CesiumIon3dTilesTutorial(
-                wwd.engine,
-                cacheProvider = { info ->
-                    contentManager.openBlobStore(
-                        contentKey = "cesium_ion_3dtiles_tutorial",
-                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
-                        displayName = "Cesium Ion 3D Tiles tutorial cache",
-                    ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
-                },
-            ),
-            "Point Cloud (LAS/LAZ)" to PointCloudTutorial(wwd.engine),
-            "OSM Buildings" to OsmBuildingsTutorial(wwd.engine, mainScope, layerLoader = {
-                OsmBuildingsLayer(useOsmColors = true).also {
-                    contentManager.attachCache(it, "OsmBuildings")
-                }
-            }),
-            "Vector Tiles (MVT)" to MvtVectorTilesTutorial(wwd.engine, mainScope, layerLoader = {
-                val layer = MvtVectorLayer(
-                    source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
-                    minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
-                    maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
-                    style = OpenTopoMapRules,
-                )
-                contentManager.attachCache(layer, "MVT_Versatiles")
-                layer
-            }),
             "Dash and fill" to ShapesDashAndFillTutorial(wwd.engine),
-            "Labels" to LabelsTutorial(wwd.engine),
-            "Real-time sightline" to SightlineTutorial(wwd.engine),
-            "Viewshed sightline" to ViewshedSightlineTutorial(wwd.engine),
-            "Surface image" to SurfaceImageTutorial(wwd.engine),
-            "Photo on terrain" to PhotoOnTerrainTutorial(wwd.engine),
-            "Video on terrain" to HtmlVideoOnTerrainTutorial(wwd.engine),
             "MilStd2525 graphics" to MilStd2525Tutorial(wwd.engine),
-            "Show tessellation" to ShowTessellationTutorial(wwd.engine),
+            // Graticules
             "MGRS Graticule" to MGRSGraticuleTutorial(wwd.engine),
             "Gauss-Kruger Graticule" to GKGraticuleTutorial(wwd.engine),
+            // Sightlines
+            "Real-time sightline" to SightlineTutorial(wwd.engine),
+            "Viewshed sightline" to ViewshedSightlineTutorial(wwd.engine),
+            // Surface & media overlays
+            "Surface image" to SurfaceImageTutorial(wwd.engine),
+            "NITF Imagery" to NitfImageryTutorial(wwd.engine),
+            "Photo on terrain" to PhotoOnTerrainTutorial(wwd.engine),
+            "Video on terrain" to HtmlVideoOnTerrainTutorial(wwd.engine),
+            // Maps & OGC web services
             "WMS Layer" to WmsLayerTutorial(wwd.engine, mainScope, layerLoader = {
                 val key = "WMS_NeoTemperature"
                 WmsLayerFactory.createLayer(
@@ -233,6 +180,16 @@ fun main() {
                 layer
             }),
             "WFS Auto-Refresh" to WfsAutoRefreshTutorial(wwd.engine, mainScope),
+            "Vector Tiles (MVT)" to MvtVectorTilesTutorial(wwd.engine, mainScope, layerLoader = {
+                val layer = MvtVectorLayer(
+                    source = UrlTemplateMvtTileSource(MvtVectorTilesTutorial.URL_TEMPLATE),
+                    minZoom = MvtVectorTilesTutorial.MIN_ZOOM,
+                    maxZoom = MvtVectorTilesTutorial.MAX_ZOOM,
+                    style = OpenTopoMapRules,
+                )
+                contentManager.attachCache(layer, "MVT_Versatiles")
+                layer
+            }),
             "Shapefile Layer" to ShapefileLayerTutorial(wwd.engine, mainScope, layerLoader = {
                 val layer = BulkFeatureLayer(
                     source = ShapefileBulkFeatureSource(ShapefileLayerTutorial.SHP_URL),
@@ -248,6 +205,7 @@ fun main() {
             "KML" to KmlTutorial(wwd.engine, mainScope, density = window.devicePixelRatio.toFloat()) {
                 window.fetch(MR.assets.kml_sample_kml.originalPath, emptyRequestInit()).await().text().await().toString()
             },
+            // Elevation
             "WCS Elevation" to WcsElevationTutorial(wwd.engine, mainScope, layerLoader = {
                 Wcs100ElevationCoverage(
                     serviceAddress = WcsElevationTutorial.SERVICE_ADDRESS,
@@ -257,8 +215,59 @@ fun main() {
                     resolution = WcsElevationTutorial.RESOLUTION,
                 ).also { contentManager.attachCache(it, "WCS_3DEP") }
             }),
-            "NITF Imagery" to NitfImageryTutorial(wwd.engine),
             "Elevation Heatmap" to ElevationHeatmapTutorial(wwd.engine),
+            // 3D models & formats
+            "COLLADA" to ColladaTutorial(wwd.engine).also { tutorial ->
+                mainScope.launch {
+                    tutorial.setupScene()
+                    wwd.requestRedraw()
+                }
+                installRayPicker({ tutorial.isStarted }) { ray -> tutorial.pickScene(ray, wwd.engine.globe) }
+            },
+            "GLTF" to GltfTutorial(wwd.engine).also { tutorial ->
+                installDepthPicker(tutorial.picker)
+                mainScope.launch {
+                    tutorial.setupScene()
+                    wwd.requestRedraw()
+                }
+            },
+            "OSM Buildings" to OsmBuildingsTutorial(wwd.engine, mainScope, layerLoader = {
+                OsmBuildingsLayer(useOsmColors = true).also {
+                    contentManager.attachCache(it, "OsmBuildings")
+                }
+            }),
+            // 3D Tiles & point clouds
+            "OGC 3D Tiles" to Ogc3dTilesTutorial(
+                wwd.engine,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "ogc3d_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
+                        displayName = "OGC 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("ogc3d_tutorial", info) }
+                },
+            ),
+            "Google 3D Tiles" to Google3dTilesTutorial(
+                wwd.engine,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "google_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
+                        displayName = "Google Photorealistic 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("google_3dtiles_tutorial", info) }
+                },
+            ),
+            "Cesium Ion 3D Tiles" to CesiumIon3dTilesTutorial(
+                wwd.engine,
+                cacheProvider = { info ->
+                    contentManager.openBlobStore(
+                        contentKey = "cesium_ion_3dtiles_tutorial",
+                        evictionPolicy = CachePolicy(maxEntries = 16_000L),
+                        displayName = "Cesium Ion 3D Tiles tutorial cache",
+                    ).also { contentManager.registerWebService("cesium_ion_3dtiles_tutorial", info) }
+                },
+            ),
+            "Point Cloud (LAS/LAZ)" to PointCloudTutorial(wwd.engine),
         )
         val projections = mapOf(
             "WGS84 Projection" to Wgs84Projection(),

@@ -1,189 +1,206 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <group android:checkableBehavior="single">
+        <!-- Globe & navigation -->
         <item
             android:id="@+id/nav_basic_globe_activity"
-            android:icon="@drawable/ic_menu_home"
+            android:icon="@drawable/ic_tut_globe"
             android:title="@string/title_basic_globe"/>
         <item
-            android:id="@+id/nav_wms_layer_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_wms_layer"/>
-        <item
-            android:id="@+id/nav_wmts_layer_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_wmts_layer"/>
-        <item
-            android:id="@+id/nav_wfs_layer_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_wfs_layer"/>
-        <item
-            android:id="@+id/nav_wfs_auto_refresh_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_wfs_auto_refresh"/>
-        <item
-            android:id="@+id/nav_wfs_cached_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_wfs_cached"/>
-        <item
-            android:id="@+id/nav_wfs_water_tiled_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_wfs_water_tiled"/>
-        <item
-            android:id="@+id/nav_shapefile_layer_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_shapefile_layer"/>
-        <item
-            android:id="@+id/nav_geojson_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_geojson"/>
-        <item
-            android:id="@+id/nav_kml_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_kml"/>
-        <item
-            android:id="@+id/nav_wcs_elevation_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_wcs_elevation_coverage"/>
-        <item
-            android:id="@+id/nav_dted_elevation_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_dted_elevation"/>
-        <item
-            android:id="@+id/nav_nitf_imagery_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_nitf_imagery"/>
-        <item
-            android:id="@+id/nav_elevation_heatmap_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_elevation_heatmap"/>
-        <item
-            android:id="@+id/nav_geopackage_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_geopackage"/>
-        <item
-            android:id="@+id/nav_surface_image_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_surface_image"/>
-        <item
-            android:id="@+id/nav_photo_on_terrain_activity"
-            android:icon="@android:drawable/ic_menu_gallery"
-            android:title="@string/title_photo_on_terrain"/>
-        <item
-            android:id="@+id/nav_video_on_terrain_activity"
-            android:icon="@android:drawable/ic_menu_slideshow"
-            android:title="@string/title_video_on_terrain"/>
-        <item
-            android:id="@+id/nav_omnidirectional_sightline_activity"
-            android:icon="@android:drawable/ic_menu_gallery"
-            android:title="@string/title_omni_sightline"/>
-        <item
-            android:id="@+id/nav_viewshed_sightline_activity"
-            android:icon="@android:drawable/ic_menu_gallery"
-            android:title="@string/title_viewshed_sightline"/>
+            android:id="@+id/nav_show_tessellation_activity"
+            android:icon="@drawable/ic_tut_globe"
+            android:title="@string/title_show_tessellation"/>
         <item
             android:id="@+id/nav_camera_view_activity"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_tut_globe"
             android:title="@string/title_camera_view"/>
         <item
             android:id="@+id/nav_look_at_view_activity"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_tut_globe"
             android:title="@string/title_look_at_view"/>
         <item
+            android:id="@+id/nav_camera_control_activity"
+            android:icon="@drawable/ic_tut_globe"
+            android:title="@string/title_camera_controls"/>
+        <item
             android:id="@+id/nav_navigator_event_activity"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_tut_globe"
             android:title="@string/title_navigator_event"/>
+
+        <!-- Shapes & placemarks -->
+        <item
+            android:id="@+id/nav_labels_activity"
+            android:icon="@drawable/ic_tut_shapes"
+            android:title="@string/title_labels"/>
         <item
             android:id="@+id/nav_placemarks_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_placemarks"/>
         <item
             android:id="@+id/nav_placemarks_picking_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_placemarks_picking"/>
         <item
             android:id="@+id/nav_paths_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_paths"/>
         <item
             android:id="@+id/nav_polygons_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_polygons"/>
         <item
             android:id="@+id/nav_ellipse_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_ellipses"/>
         <item
             android:id="@+id/nav_ellipsoid_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_ellipsoids"/>
         <item
             android:id="@+id/nav_geographic_meshes_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_geographic_meshes"/>
         <item
             android:id="@+id/nav_triangle_meshes_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_triangle_meshes"/>
         <item
-            android:id="@+id/nav_collada_activity"
-            android:icon="@android:drawable/ic_menu_gallery"
-            android:title="@string/title_collada"/>
-        <item
-            android:id="@+id/nav_gltf_activity"
-            android:icon="@android:drawable/ic_menu_gallery"
-            android:title="@string/title_gltf"/>
-        <item
-            android:id="@+id/nav_osm_buildings_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_osm_buildings"/>
-        <item
-            android:id="@+id/nav_ogc3d_tiles_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_ogc3d_tiles"/>
-        <item
-            android:id="@+id/nav_google_3d_tiles_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_google_3d_tiles"/>
-        <item
-            android:id="@+id/nav_cesium_ion_3d_tiles_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_cesium_ion_3d_tiles"/>
-        <item
-            android:id="@+id/nav_point_cloud_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_point_cloud"/>
-        <item
-            android:id="@+id/nav_mvt_vector_tiles_activity"
-            android:icon="@android:drawable/ic_menu_mapmode"
-            android:title="@string/title_mvt_vector_tiles"/>
-        <item
-            android:id="@+id/nav_labels_activity"
-            android:icon="@android:drawable/ic_menu_edit"
-            android:title="@string/title_labels"/>
-        <item
             android:id="@+id/nav_shapes_dash_and_fill"
-            android:icon="@android:drawable/ic_menu_edit"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_shapes_dash_and_fill"/>
         <item
             android:id="@+id/nav_milstd2525_activity"
-            android:icon="@android:drawable/ic_menu_myplaces"
+            android:icon="@drawable/ic_tut_shapes"
             android:title="@string/title_milstd2525"/>
-        <item
-            android:id="@+id/nav_camera_control_activity"
-            android:icon="@android:drawable/ic_menu_camera"
-            android:title="@string/title_camera_controls"/>
-        <item
-            android:id="@+id/nav_show_tessellation_activity"
-            android:icon="@android:drawable/ic_menu_manage"
-            android:title="@string/title_show_tessellation"/>
+
+        <!-- Graticules -->
         <item
             android:id="@+id/nav_mgrs_graticule_activity"
-            android:icon="@android:drawable/ic_menu_manage"
+            android:icon="@drawable/ic_tut_grid"
             android:title="@string/title_mgrs_graticule"/>
         <item
             android:id="@+id/nav_gk_graticule_activity"
-            android:icon="@android:drawable/ic_menu_manage"
+            android:icon="@drawable/ic_tut_grid"
             android:title="@string/title_gk_graticule"/>
+
+        <!-- Sightlines -->
+        <item
+            android:id="@+id/nav_omnidirectional_sightline_activity"
+            android:icon="@drawable/ic_tut_visibility"
+            android:title="@string/title_omni_sightline"/>
+        <item
+            android:id="@+id/nav_viewshed_sightline_activity"
+            android:icon="@drawable/ic_tut_visibility"
+            android:title="@string/title_viewshed_sightline"/>
+
+        <!-- Surface & media overlays -->
+        <item
+            android:id="@+id/nav_surface_image_activity"
+            android:icon="@drawable/ic_tut_image"
+            android:title="@string/title_surface_image"/>
+        <item
+            android:id="@+id/nav_nitf_imagery_activity"
+            android:icon="@drawable/ic_tut_image"
+            android:title="@string/title_nitf_imagery"/>
+        <item
+            android:id="@+id/nav_photo_on_terrain_activity"
+            android:icon="@drawable/ic_tut_image"
+            android:title="@string/title_photo_on_terrain"/>
+        <item
+            android:id="@+id/nav_video_on_terrain_activity"
+            android:icon="@drawable/ic_tut_video"
+            android:title="@string/title_video_on_terrain"/>
+
+        <!-- Maps & OGC web services -->
+        <item
+            android:id="@+id/nav_wms_layer_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_wms_layer"/>
+        <item
+            android:id="@+id/nav_wmts_layer_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_wmts_layer"/>
+        <item
+            android:id="@+id/nav_wfs_layer_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_wfs_layer"/>
+        <item
+            android:id="@+id/nav_wfs_auto_refresh_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_wfs_auto_refresh"/>
+        <item
+            android:id="@+id/nav_wfs_cached_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_wfs_cached"/>
+        <item
+            android:id="@+id/nav_wfs_water_tiled_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_wfs_water_tiled"/>
+        <item
+            android:id="@+id/nav_mvt_vector_tiles_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_mvt_vector_tiles"/>
+        <item
+            android:id="@+id/nav_shapefile_layer_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_shapefile_layer"/>
+        <item
+            android:id="@+id/nav_geojson_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_geojson"/>
+        <item
+            android:id="@+id/nav_kml_activity"
+            android:icon="@drawable/ic_tut_layers"
+            android:title="@string/title_kml"/>
+
+        <!-- Elevation -->
+        <item
+            android:id="@+id/nav_wcs_elevation_activity"
+            android:icon="@drawable/ic_tut_terrain"
+            android:title="@string/title_wcs_elevation_coverage"/>
+        <item
+            android:id="@+id/nav_dted_elevation_activity"
+            android:icon="@drawable/ic_tut_terrain"
+            android:title="@string/title_dted_elevation"/>
+        <item
+            android:id="@+id/nav_geopackage_activity"
+            android:icon="@drawable/ic_tut_terrain"
+            android:title="@string/title_geopackage"/>
+        <item
+            android:id="@+id/nav_elevation_heatmap_activity"
+            android:icon="@drawable/ic_tut_terrain"
+            android:title="@string/title_elevation_heatmap"/>
+
+        <!-- 3D models & formats -->
+        <item
+            android:id="@+id/nav_collada_activity"
+            android:icon="@drawable/ic_tut_model"
+            android:title="@string/title_collada"/>
+        <item
+            android:id="@+id/nav_gltf_activity"
+            android:icon="@drawable/ic_tut_model"
+            android:title="@string/title_gltf"/>
+        <item
+            android:id="@+id/nav_osm_buildings_activity"
+            android:icon="@drawable/ic_tut_model"
+            android:title="@string/title_osm_buildings"/>
+
+        <!-- 3D Tiles & point clouds -->
+        <item
+            android:id="@+id/nav_ogc3d_tiles_activity"
+            android:icon="@drawable/ic_tut_scatter"
+            android:title="@string/title_ogc3d_tiles"/>
+        <item
+            android:id="@+id/nav_google_3d_tiles_activity"
+            android:icon="@drawable/ic_tut_scatter"
+            android:title="@string/title_google_3d_tiles"/>
+        <item
+            android:id="@+id/nav_cesium_ion_3d_tiles_activity"
+            android:icon="@drawable/ic_tut_scatter"
+            android:title="@string/title_cesium_ion_3d_tiles"/>
+        <item
+            android:id="@+id/nav_point_cloud_activity"
+            android:icon="@drawable/ic_tut_scatter"
+            android:title="@string/title_point_cloud"/>
     </group>
 </menu>
