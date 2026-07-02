@@ -141,6 +141,44 @@ class CachedTiledFeatureSource(
     override suspend fun tryReadCachedTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? =
         store.readTile(z, x, y, sector)?.also { maybeRevalidate(z, x, y, sector) }?.filter { it.ownedBy(sector) }
 
+    /**
+     * Bulk-download counterpart to [fetchTile] — used by "save a region for offline use" flows.
+     * Ignores [isCacheOnly] (bulk always allows network) and writes the FULL fetch through to
+     * [store]. The write-through happens when the returned flow is collected, so the caller must
+     * drain it. Returns `null` when there's nothing to fetch (no rows / no network source).
+     *
+     * Unlike [fetchTile], transport errors are NOT swallowed to `null`: they surface during
+     * collection so the bulk-retrieval loop can retry with backoff instead of recording a
+     * permanent miss.
+     *
+     * @param overrideCache when `true`, re-fetch from the network even if the tile is cached.
+     */
+    suspend fun bulkFetchTile(
+        z: Int, x: Int, y: Int, sector: Sector, overrideCache: Boolean = false,
+    ): Flow<CachedFeatureRow>? {
+        if (!overrideCache) store.readTile(z, x, y, sector)?.let { return it }
+        val fetched = (inner ?: return null).fetchTile(z, x, y, sector) ?: return null
+        return flow {
+            val accumulator = mutableListOf<CachedFeatureRow>()
+            fetched.collect { row ->
+                accumulator += row
+                emit(row)
+            }
+            // NonCancellable: persist atomically even if the caller aborts mid-write, so a cancelled
+            // write can't leave a "covered but empty" record that later reads as a negative-cache hit.
+            withContext(NonCancellable) {
+                try {
+                    store.writeTile(z, x, y, accumulator.asFlow(), sector)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    logMessage(WARN, "CachedTiledFeatureSource", "bulkFetchTile",
+                        "Cache write failed for ($z,$x,$y): ${e::class.simpleName}: ${e.message}")
+                }
+            }
+        }
+    }
+
     override suspend fun fetchTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? {
         store.readTile(z, x, y, sector)?.let { maybeRevalidate(z, x, y, sector); return it.filter { row -> row.ownedBy(sector) } }
         if (isCacheOnly) return null
