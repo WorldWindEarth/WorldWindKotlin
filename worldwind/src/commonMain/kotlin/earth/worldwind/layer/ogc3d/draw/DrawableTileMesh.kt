@@ -73,8 +73,13 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
     private val worldBoundingCenter = Vec3()
     private var worldBoundingRadius = 0.0
 
-    override val shadowCasterCenter: Vec3? get() = if (worldBoundingRadius > 0.0) worldBoundingCenter else null
-    override val shadowCasterRadius: Double get() = worldBoundingRadius
+    // Suppressed (null / 0) when the layer disabled casting via [ShadowMode.castsShadows] = false, so a
+    // non-casting mesh stays out of the per-cascade cull and footprint, matching Points/Gaussian (the
+    // depth pass itself already early-returns on !castsShadows).
+    override val shadowCasterCenter: Vec3?
+        get() = if (shadowMode.castsShadows && worldBoundingRadius > 0.0) worldBoundingCenter else null
+    override val shadowCasterRadius: Double
+        get() = if (shadowMode.castsShadows) worldBoundingRadius else 0.0
 
     private var pool: Pool<DrawableTileMesh>? = null
 

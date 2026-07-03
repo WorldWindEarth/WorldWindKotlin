@@ -3,7 +3,6 @@ import earth.worldwind.layer.source.TileBlob
 
 import earth.worldwind.formats.gpkg.GeoPackage
 import earth.worldwind.formats.gpkg.GpkgContent
-import kotlin.time.Duration
 
 /**
  * GeoPackage-backed [TileStore]. One instance binds to one tile-pyramid table — works for
@@ -34,7 +33,7 @@ class GpkgTileStore(
         // tile row's id) so the SWR refresh can issue a conditional GET (ETag / Last-Modified) and
         // so `validatedAt` drives staleness. The tile row is already loaded, so its id is free;
         // skipped entirely when staleAfter is INFINITE.
-        val tracked = cachePolicy.staleAfter != Duration.INFINITE
+        val tracked = cachePolicy.tracksFreshness
         val reval = if (tracked) geoPackage.readTileRevalidation(content, row.id) else null
         return TileBlob(
             bytes = row.tileData,

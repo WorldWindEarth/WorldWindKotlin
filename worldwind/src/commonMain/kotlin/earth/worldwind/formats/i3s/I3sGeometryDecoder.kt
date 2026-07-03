@@ -146,11 +146,7 @@ object I3sGeometryDecoder {
         I3sValueType.UINT8 -> view.getUint8(offset).toLong()
         I3sValueType.UINT16 -> view.getUint16(offset, littleEndian = true).toLong()
         I3sValueType.UINT32 -> view.getUint32(offset, littleEndian = true)
-        I3sValueType.UINT64 -> {
-            val low = view.getUint32(offset, littleEndian = true)
-            val high = view.getUint32(offset + 4, littleEndian = true)
-            (high shl 32) or low
-        }
+        I3sValueType.UINT64 -> view.getInt64(offset, littleEndian = true)
         I3sValueType.FLOAT32 -> view.getFloat32(offset, littleEndian = true).toLong()
     }
 

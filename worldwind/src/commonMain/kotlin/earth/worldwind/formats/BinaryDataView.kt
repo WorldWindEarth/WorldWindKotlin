@@ -42,12 +42,13 @@ class BinaryDataView(private val bytes: ByteArray) {
 
     fun getFloat32(offset: Int, littleEndian: Boolean): Float = Float.fromBits(getInt32(offset, littleEndian))
 
-    fun getFloat64(offset: Int, littleEndian: Boolean): Double {
+    fun getInt64(offset: Int, littleEndian: Boolean): Long {
         val low = getInt32(offset, littleEndian).toLong() and 0xFFFFFFFFL
         val high = getInt32(offset + 4, littleEndian).toLong() and 0xFFFFFFFFL
-        val bits = if (littleEndian) (high shl 32) or low else (low shl 32) or high
-        return Double.fromBits(bits)
+        return if (littleEndian) (high shl 32) or low else (low shl 32) or high
     }
+
+    fun getFloat64(offset: Int, littleEndian: Boolean): Double = Double.fromBits(getInt64(offset, littleEndian))
 
     fun setInt8(offset: Int, value: Byte) { bytes[offset] = value }
 

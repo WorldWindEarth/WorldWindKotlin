@@ -444,6 +444,17 @@ class WebContentManager(
         )
     }
 
+    /** Per-content last-modified stamp from the metadata record, or `null` when unset — mirrors the
+     *  value [listEntries] surfaces so [findEntry] reports the same timestamp for a single lookup. */
+    private suspend fun contentKeyLastModified(contentKey: String): Instant? {
+        val db = db()
+        val tx = db.transaction(METADATA_STORE, "readonly")
+        val store = tx.objectStore(METADATA_STORE)
+        val record = idbAwait(store.get(contentKey.toJsString()))?.unsafeCast<IdbWebServiceRecord>() ?: return null
+        val ms = record.lastModifiedMs?.toLong() ?: 0L
+        return if (ms > 0L) Instant.fromEpochMilliseconds(ms) else null
+    }
+
     override suspend fun listEntries(): List<CacheEntry> {
         // NOT wrapped in idbSerializationLock: the enrichment pass below calls readIsFloat(), which
         // takes the (non-reentrant) lock itself — wrapping here would deadlock. The metadata cursor
@@ -511,18 +522,10 @@ class WebContentManager(
             dataType = dataType,
             service = info,
             boundingSector = null,
-            lastModified = null,
+            lastModified = contentKeyLastModified(contentKey),
             displayName = readDisplayName(contentKey) ?: contentKey,
             isFloat = dataType == CacheEntry.DataType.COVERAGE && readIsFloat(contentKey) == true,
         )
-    }
-
-    private fun serviceTypeToDataType(type: String?): CacheEntry.DataType = when (type) {
-        "WCS 1.0.0" -> CacheEntry.DataType.COVERAGE
-        "MVT" -> CacheEntry.DataType.VECTOR_TILES
-        "WFS", "Shapefile", "OsmBuildings" -> CacheEntry.DataType.FEATURES
-        "3DTiles" -> CacheEntry.DataType.OGC_3D_TILES
-        else -> CacheEntry.DataType.TILES
     }
 
     override suspend fun setDisplayName(contentKey: String, displayName: String) = idbSerializationLock.withLock {

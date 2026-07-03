@@ -20,7 +20,6 @@ import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.timeIntervalSince1970
 import platform.Foundation.writeToFile
 import platform.posix.memcpy
-import kotlin.time.Duration
 
 /**
  * Filesystem-backed [TileStore] for iOS. One root directory per content key under
@@ -59,7 +58,7 @@ class FileSystemTileStore(
         val (etag, lastModified) = readMeta(z, x, y)
         // Surface write time (the tile file's mtime) only when freshness tracking is on
         // (finite staleAfter), to drive stale-while-revalidate in CachedTileSource / elevation factory.
-        val cachedAt = if (cachePolicy.staleAfter != Duration.INFINITE) fileModifiedMillis(path) else null
+        val cachedAt = if (cachePolicy.tracksFreshness) fileModifiedMillis(path) else null
         TileBlob(bytes, etag, lastModified, cachedAt = cachedAt)
     }
 

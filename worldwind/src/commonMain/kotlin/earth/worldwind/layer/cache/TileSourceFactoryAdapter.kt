@@ -39,7 +39,7 @@ class TileSourceFactoryAdapter(
 
     init {
         (source as? RevalidatingSource)?.onTileRevalidated = { z, x, y ->
-            pendingRevalidations.add(packKey(z, x, y))
+            pendingRevalidations.add(tileKey(z, x, y))
             WorldWind.requestRedraw()
         }
     }
@@ -52,13 +52,10 @@ class TileSourceFactoryAdapter(
         val out = ArrayList<ImageSource>()
         while (pendingRevalidations.isNotEmpty()) {
             val key = pendingRevalidations.removeAt(0)
-            out += buildTileSourceImageSource(source, (key shr 48).toInt(), (key shr 24 and 0xFFFFFF).toInt(), (key and 0xFFFFFF).toInt(), imageFormat)
+            out += buildTileSourceImageSource(source, tileKeyZ(key), tileKeyX(key), tileKeyY(key), imageFormat)
         }
         return out
     }
-
-    private fun packKey(z: Int, x: Int, y: Int): Long =
-        (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
 
     override fun createTile(sector: Sector, level: Level, row: Int, column: Int): Tile {
         val tile = if (sector is MercatorSector) {

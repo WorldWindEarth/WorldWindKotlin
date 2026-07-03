@@ -73,7 +73,7 @@ class CachedElevationSourceFactory(
     private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cached: CachedTile) {
         if (isCacheOnly || networkSource == null || staleAfter == Duration.INFINITE || cached.cachedAt == null) return
         if (Clock.System.now().toEpochMilliseconds() - cached.cachedAt <= staleAfter.inWholeMilliseconds) return
-        val key = (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
+        val key = tileKey(z, x, y)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return
         revalidationScope.launch {
             try {

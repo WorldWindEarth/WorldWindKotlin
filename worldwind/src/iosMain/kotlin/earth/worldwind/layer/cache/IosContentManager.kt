@@ -356,14 +356,6 @@ class IosContentManager(
     private fun metaPathFor(contentKey: String): String = "$pathName/$contentKey/_web_service.json"
     private fun dataTypePathFor(contentKey: String): String = "$pathName/$contentKey/_data_type.txt"
 
-    private fun serviceTypeToDataType(type: String?): CacheEntry.DataType = when (type) {
-        "WCS 1.0.0", "WCS 2.0.1" -> CacheEntry.DataType.COVERAGE
-        "MVT" -> CacheEntry.DataType.VECTOR_TILES
-        "WFS", "Shapefile", "OsmBuildings" -> CacheEntry.DataType.FEATURES
-        "3DTiles" -> CacheEntry.DataType.OGC_3D_TILES
-        else -> CacheEntry.DataType.TILES
-    }
-
     /** [WebServiceInfo] isn't `@Serializable`; this surrogate is. */
     @Serializable
     private data class WebServiceInfoSurrogate(

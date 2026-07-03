@@ -58,6 +58,7 @@ import earth.worldwind.layer.ogc3d.tileset.GltfUpAxis
 import earth.worldwind.layer.ogc3d.tileset.Tile3d
 import earth.worldwind.layer.ogc3d.tileset.Tileset
 import earth.worldwind.layer.ogc3d.tileset.TilesetParser
+import earth.worldwind.layer.ogc3d.traverse.ScreenSpaceError
 import earth.worldwind.layer.ogc3d.traverse.Traverser
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
@@ -67,7 +68,6 @@ import earth.worldwind.util.Logger.logMessage
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
-import kotlin.math.tan
 import kotlin.concurrent.Volatile
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
@@ -1127,10 +1127,8 @@ open class Ogc3dTilesLayer(
         drawable.stencilId = tile.stencilId
         drawable.basePointSize = pointSize
 
-        // focalLengthPixels = h / (2·tan(fov/2)) — keeps on-screen point size uniform with distance.
-        val fovRad = rc.camera.fieldOfView.inRadians
-        val focal = (rc.viewport.height / (2.0 * tan(fovRad * 0.5))).toFloat()
-        drawable.focalLengthPixels = if (focal.isFinite() && focal > 0f) focal else 1f
+        // Keeps on-screen point size uniform with distance.
+        drawable.focalLengthPixels = ScreenSpaceError.focalLengthPixels(rc)
 
         // pnts are Z-up per 3D Tiles 1.0 §3.4.7 — no yUpToZUp, only RTC composition.
         scratchEffectiveTransform.copy(tile.tileToWorld)
@@ -1184,9 +1182,7 @@ open class Ogc3dTilesLayer(
         drawable.splatSizeMultiplier = splatSizeMultiplier
         drawable.minAlpha = gaussianMinAlpha
 
-        val fovRad = rc.camera.fieldOfView.inRadians
-        val focal = (rc.viewport.height / (2.0 * tan(fovRad * 0.5))).toFloat()
-        drawable.focalLengthPixels = if (focal.isFinite() && focal > 0f) focal else 1f
+        drawable.focalLengthPixels = ScreenSpaceError.focalLengthPixels(rc)
 
         scratchEffectiveTransform.copy(tile.tileToWorld)
         content.rtcCenter?.let { rtc ->

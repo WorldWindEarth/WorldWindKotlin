@@ -109,14 +109,13 @@ internal class IndexedDbBlobStore(
         // Two-pass: first walk collects (key, sizeBytes, cachedAtMs); second pass deletes the
         // oldest until each bound is satisfied. Avoids per-cursor delete recomputing totals on
         // every iteration, which got expensive on stores with thousands of entries.
-        data class Row(val key: JsAny?, val sizeBytes: Long, val cachedAtMs: Long)
+        data class Row(val key: JsAny?, val cachedAtMs: Long)
         val rows = mutableListOf<Row>()
         val req = store.openCursor(boundForBlob(contentKey))
         idbWalkCursor(req) { cursor ->
             val rec = cursor.value?.unsafeCast<IdbBlobRecord>() ?: return@idbWalkCursor
-            val sz = rec.sizeBytes?.toLong() ?: rec.bytesOrNull()?.length?.toLong() ?: 0L
             val cachedAt = rec.cachedAtMs?.toLong() ?: 0L
-            rows.add(Row(cursor.key, sz, cachedAt))
+            rows.add(Row(cursor.key, cachedAt))
         }
         rows.sortBy { it.cachedAtMs }
 

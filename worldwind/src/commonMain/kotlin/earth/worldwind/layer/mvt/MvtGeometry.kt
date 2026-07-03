@@ -1,11 +1,10 @@
 package earth.worldwind.layer.mvt
 
 import earth.worldwind.geom.Position
+import earth.worldwind.layer.mercator.SlippyTiles
 import earth.worldwind.util.IntList
 import earth.worldwind.util.RingSimplifier
 import kotlin.math.PI
-import kotlin.math.atan
-import kotlin.math.sinh
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sqrt
@@ -108,8 +107,8 @@ object MvtGeometry {
                 val a = kept[i]
                 val tx = x.toDouble() + lineX[a].toDouble() / extent
                 val ty = y.toDouble() + lineY[a].toDouble() / extent
-                flat[i * 2] = tx / nz * 360.0 - 180.0
-                flat[i * 2 + 1] = atan(sinh(PI * (1 - 2 * ty / nz))) * 180.0 / PI
+                flat[i * 2] = SlippyTiles.tileXToLonDegrees(tx, nz)
+                flat[i * 2 + 1] = SlippyTiles.tileYToLatDegrees(ty, nz)
             }
             lines += flat
         }
@@ -201,8 +200,8 @@ object MvtGeometry {
                         val a = kept[i]
                         val tx = x.toDouble() + ringX[a].toDouble() / extent
                         val ty = y.toDouble() + ringY[a].toDouble() / extent
-                        flat[i * 2] = tx / nz * 360.0 - 180.0
-                        flat[i * 2 + 1] = atan(sinh(PI * (1 - 2 * ty / nz))) * 180.0 / PI
+                        flat[i * 2] = SlippyTiles.tileXToLonDegrees(tx, nz)
+                        flat[i * 2 + 1] = SlippyTiles.tileYToLatDegrees(ty, nz)
                     }
                     if (area > 0.0) {
                         polygons += PolygonRings(flat, mutableListOf())
@@ -263,8 +262,8 @@ object MvtGeometry {
         val n = (1 shl z).toDouble()
         val tx = x.toDouble() + px.toDouble() / extent
         val ty = y.toDouble() + py.toDouble() / extent
-        val lonDeg = tx / n * 360.0 - 180.0
-        val latDeg = atan(sinh(PI * (1 - 2 * ty / n))) * 180.0 / PI
+        val lonDeg = SlippyTiles.tileXToLonDegrees(tx, n)
+        val latDeg = SlippyTiles.tileYToLatDegrees(ty, n)
         return Position.fromDegrees(latDeg, lonDeg, 0.0)
     }
 

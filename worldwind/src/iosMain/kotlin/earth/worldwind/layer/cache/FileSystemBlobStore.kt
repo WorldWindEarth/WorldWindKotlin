@@ -124,7 +124,7 @@ internal class FileSystemBlobStore(
         if (evictionPolicy.isUnbounded) return@withContext
         val fm = NSFileManager.defaultManager
         val enumerator = fm.enumeratorAtPath(blobsDir) ?: return@withContext
-        data class Row(val hash: String, val sizeBytes: Long, val cachedAtMs: Long)
+        data class Row(val hash: String, val cachedAtMs: Long)
         val rows = mutableListOf<Row>()
         while (true) {
             val name = enumerator.nextObject() as? String ?: break
@@ -134,7 +134,7 @@ internal class FileSystemBlobStore(
             val metaBytes = NSData.dataWithContentsOfFile(metaPath)?.toByteArray() ?: continue
             val meta = runCatching { json.decodeFromString<BlobMetaJson>(metaBytes.decodeToString()) }
                 .getOrNull() ?: continue
-            rows.add(Row(hash, meta.sizeBytes, meta.cachedAtMs))
+            rows.add(Row(hash, meta.cachedAtMs))
         }
         rows.sortBy { it.cachedAtMs }
 

@@ -16,6 +16,7 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.Logger.makeMessage
 import earth.worldwind.util.http.DefaultHttpClient
+import earth.worldwind.util.http.HttpDefaults
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.*
@@ -45,13 +46,6 @@ object WfsLayerFactory {
     private const val SERVICE = "WFS"
     private const val VERSION_20 = "2.0.0"
     private const val VERSION_11 = "1.1.0"
-    /**
-     * Per-request timeouts. WFS capability documents are commonly large (tens or
-     * hundreds of feature types) and GetFeature responses can be even larger, so the
-     * defaults are more generous than the platform [DefaultHttpClient] defaults.
-     */
-    internal const val CONNECT_TIMEOUT_MS = 10_000L
-    internal const val REQUEST_TIMEOUT_MS = 120_000L
     /** When a GetFeature URL grows past this length the factory switches from GET to a
      *  form-encoded POST. 2000 chars is conservative — many servers (and proxies) cap
      *  GET URLs around 2048. CQL filters and long type-name lists are common offenders. */
@@ -151,7 +145,7 @@ object WfsLayerFactory {
         // bulk source does, to reuse it across fetches); otherwise we own one and close it here.
         // Never open+close a client per request: with a shared `preconfigured` engine, ktor's
         // close() shuts down the shared executor and the next request fails with "executor rejected".
-        val client = httpClient ?: DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS, clientConfig)
+        val client = httpClient ?: DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS, clientConfig)
         try {
             val resolved = resolveFeatureType(serviceAddress, typeName, serviceMetadata, client)
             val baseParams = buildGetFeatureParams(resolved, typeName, sector, maxFeatures, cqlFilter, sortBy)
@@ -418,7 +412,7 @@ object WfsLayerFactory {
      * @return WFS 2.0.0 service capabilities
      */
     suspend fun getCapabilities(serviceAddress: String, clientConfig: HttpClientConfig<*>.() -> Unit = {}) =
-        DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS, clientConfig).use { httpClient ->
+        DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS, clientConfig).use { httpClient ->
             decodeWfs20Capabilities(retrieveCapabilities(serviceAddress, VERSION_20, httpClient))
         }
 

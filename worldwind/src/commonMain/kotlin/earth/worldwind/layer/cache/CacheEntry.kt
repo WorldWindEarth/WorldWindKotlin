@@ -33,6 +33,19 @@ data class CacheEntry(
 }
 
 /**
+ * Maps a persisted [WebServiceInfo.type] discriminator to its cache [CacheEntry.DataType].
+ * Shared by every platform ContentManager so the mapping — and the set of recognised WCS
+ * versions — lives in exactly one place. An unrecognised type falls back to [CacheEntry.DataType.TILES].
+ */
+internal fun serviceTypeToDataType(type: String?): CacheEntry.DataType = when (type) {
+    "WCS 1.0.0", "WCS 2.0.1" -> CacheEntry.DataType.COVERAGE
+    "MVT" -> CacheEntry.DataType.VECTOR_TILES
+    "WFS", "Shapefile", "OsmBuildings" -> CacheEntry.DataType.FEATURES
+    "3DTiles" -> CacheEntry.DataType.OGC_3D_TILES
+    else -> CacheEntry.DataType.TILES
+}
+
+/**
  * Persisted web-service metadata for a cached layer. Stored in the GeoPackage
  * `gpkg_web_service` extension table so a layer can be reconstructed without contacting
  * the originating server — capabilities XML / JSON in [metadata] survives across launches.

@@ -52,8 +52,13 @@ internal class FileSystemElevationBackend(
         lastModified: String?,
     ) {
         tileStore.writeTile(z, x, y, TileBlob(bytes = bytes, etag = etag, lastModified = lastModified))
+        // Keep the parallel ancillary sidecar in sync: write (scale, offset) when non-default, and
+        // delete any prior sidecar when default — otherwise a tile re-encoded with default packing
+        // would read a stale (scale, offset) from a leftover file and mis-decode the elevations.
         if (tileScale != 1f || tileOffset != 0f) {
             writeAncillary(z, x, y, tileScale, tileOffset)
+        } else {
+            deleteAncillary(z, x, y)
         }
     }
 
@@ -80,6 +85,14 @@ internal class FileSystemElevationBackend(
             bytes.toNsData().writeToFile(ancillaryPath(z, x, y), atomically = true)
             Unit
         }
+
+    private suspend fun deleteAncillary(z: Int, x: Int, y: Int) = withContext(Dispatchers.Default) {
+        val path = ancillaryPath(z, x, y)
+        if (NSFileManager.defaultManager.fileExistsAtPath(path)) {
+            NSFileManager.defaultManager.removeItemAtPath(path, null)
+        }
+        Unit
+    }
 
     private fun ancillaryPath(z: Int, x: Int, y: Int): String =
         "$contentRoot/$z/$x/$y.ancillary"

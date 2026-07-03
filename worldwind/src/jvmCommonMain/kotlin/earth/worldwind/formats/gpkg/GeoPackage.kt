@@ -11,6 +11,7 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.layer.cache.CachePolicy
 import earth.worldwind.layer.mercator.MercatorSector
+import earth.worldwind.layer.mercator.SlippyTiles
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.Path
@@ -33,7 +34,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.PI
 import kotlin.math.atan
-import kotlin.math.sinh
 import mil.nga.color.Color
 import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackageCore
@@ -1227,15 +1227,9 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /** Slippy (Web-Mercator) tile `(z, x, y)` → geographic bounds `[west, south, east, north]` in
-     *  degrees (EPSG:4326, the feature geometry SRS) — the inverse of OsmBuildingsLayer.tileToSector. */
-    private fun slippyTileBounds(z: Int, x: Int, y: Int): DoubleArray {
-        val n = 1 shl z
-        val west = x.toDouble() / n * 360.0 - 180.0
-        val east = (x + 1).toDouble() / n * 360.0 - 180.0
-        val north = atan(sinh(PI * (1 - 2 * y.toDouble() / n))) * 180.0 / PI
-        val south = atan(sinh(PI * (1 - 2 * (y + 1).toDouble() / n))) * 180.0 / PI
-        return doubleArrayOf(west, south, east, north)
-    }
+     *  degrees (EPSG:4326, the feature geometry SRS), via the shared [SlippyTiles] projection math. */
+    private fun slippyTileBounds(z: Int, x: Int, y: Int): DoubleArray =
+        SlippyTiles.tileToSector(z, x, y).toBboxDegrees()
 
     /** A [Sector]'s bounds as `[west, south, east, north]` degrees — matches [slippyTileBounds]. */
     private fun Sector.toBboxDegrees() = doubleArrayOf(

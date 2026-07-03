@@ -12,6 +12,7 @@ import earth.worldwind.layer.cache.CachedSourceInfo
 import earth.worldwind.layer.cache.CachedSourceInfoProvider
 import earth.worldwind.layer.cache.OfflineToggleable
 import earth.worldwind.layer.cache.RevalidatingSource
+import earth.worldwind.layer.cache.tileKey
 import earth.worldwind.layer.source.TileSource
 import earth.worldwind.formats.gpkg.GeoPackage
 import earth.worldwind.formats.gpkg.GpkgContent
@@ -101,7 +102,7 @@ class GpkgCachedElevationSourceFactory(
         val reval = geoPackage.readTileRevalidation(content, tpudtId)
         val cachedAt = reval?.validatedAt ?: 0L
         if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
-        val key = (zoomLevel.toLong() shl 48) or (tileColumn.toLong() and 0xFFFFFF shl 24) or (tileRow.toLong() and 0xFFFFFF)
+        val key = tileKey(zoomLevel, tileColumn, tileRow)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return
         revalidationScope.launch {
             try {

@@ -45,4 +45,15 @@ object ScreenSpaceError {
         viewportHeightPixels = rc.viewport.height.toDouble(),
         verticalFovRadians = rc.camera.fieldOfView.inRadians,
     )
+
+    /**
+     * Focal length in pixels — `viewportHeight / (2·tan(fov / 2))` — the projection scale that keeps a
+     * world-space point/splat radius mapping to a constant on-screen size with distance. Shares the same
+     * `2·tan(fov / 2)` denominator as [compute]. Falls back to `1` for a degenerate (non-finite or
+     * non-positive) viewport / FOV so callers never divide by zero.
+     */
+    fun focalLengthPixels(rc: RenderContext): Float {
+        val focal = (rc.viewport.height / (2.0 * tan(rc.camera.fieldOfView.inRadians * 0.5))).toFloat()
+        return if (focal.isFinite() && focal > 0f) focal else 1f
+    }
 }

@@ -1,6 +1,7 @@
 package earth.worldwind.layer.ogc3d
 
 import earth.worldwind.formats.archive.ZipFileArchive
+import earth.worldwind.formats.mimeForExtension
 import earth.worldwind.formats.i3s.I3sGeometryDecoder
 import earth.worldwind.formats.i3s.I3sVertexMapper
 import earth.worldwind.formats.i3s.SlpkArchive
@@ -99,11 +100,8 @@ class SlpkLayer private constructor(
         if (marker < 0) return null
         val texPath = uri.substring(marker + 3)
         val texBytes = archive.readEntry(texPath) ?: return null
-        val mime = when (texPath.substringAfterLast('.', "").lowercase()) {
-            "png" -> "image/png"
-            "ktx2" -> "image/ktx2"
-            else -> "image/jpeg"
-        }
+        // Texture streams are jpg / png / ktx2 (dds where present); default an unrecognised type to JPEG.
+        val mime = mimeForExtension(texPath) ?: "image/jpeg"
         return I3sGeometryDecoder.I3sTexture(texBytes, mime)
     }
 

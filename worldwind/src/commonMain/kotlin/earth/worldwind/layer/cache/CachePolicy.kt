@@ -39,6 +39,10 @@ data class CachePolicy(
     val isUnbounded: Boolean get() =
         maxEntries == Long.MAX_VALUE && staleAfter == Duration.INFINITE
 
+    /** Whether write-time freshness is tracked — i.e. [staleAfter] gates stale-while-revalidate.
+     *  When false the cache never revalidates and stores skip stamping/reading the freshness time. */
+    val tracksFreshness: Boolean get() = staleAfter != Duration.INFINITE
+
     companion object {
         val UNBOUNDED = CachePolicy()
     }

@@ -64,7 +64,7 @@ class LasHeader private constructor(
             // LAS 1.4 moved the authoritative count to a 64-bit field; formats 6–10 zero the
             // legacy field, so prefer the 64-bit value whenever the extended header is present.
             val pointCount = if ((versionMajor > 1 || versionMinor >= 4) && bytes.size >= 255) {
-                val extended = v.getFloat64Bits(247)
+                val extended = v.getInt64(247, littleEndian = true)
                 if (extended != 0L) extended else legacyCount
             } else legacyCount
 
@@ -85,14 +85,6 @@ class LasHeader private constructor(
                 numVlrs = numVlrs,
                 headerSize = headerSize,
             )
-        }
-
-        /** 64-bit little-endian read for the 1.4 extended point count (BinaryDataView exposes
-         *  only signed 32-bit getters; the count comfortably fits in a positive Long). */
-        private fun BinaryDataView.getFloat64Bits(offset: Int): Long {
-            val low = getUint32(offset, littleEndian = true)
-            val high = getUint32(offset + 4, littleEndian = true)
-            return (high shl 32) or low
         }
     }
 }

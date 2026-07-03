@@ -181,8 +181,4 @@ class CachedTileSource(
             }
         }
     }
-
-    /** Packs (z,x,y) into one Long for the in-flight-revalidation set (x/y < 2^24, z < 2^16). */
-    private fun tileKey(z: Int, x: Int, y: Int): Long =
-        (z.toLong() shl 48) or (x.toLong() and 0xFFFFFF shl 24) or (y.toLong() and 0xFFFFFF)
 }

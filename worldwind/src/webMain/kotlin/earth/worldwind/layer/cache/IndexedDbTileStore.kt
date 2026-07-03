@@ -15,7 +15,6 @@ import kotlin.js.toJsNumber
 import kotlin.js.toJsString
 import kotlin.js.unsafeCast
 import kotlin.time.Clock
-import kotlin.time.Duration
 
 /** Global serialisation lock for all IndexedDB operations on the JS target. Chrome's IDB
  *  engine can deadlock when many readonly transactions on the same store are opened
@@ -46,7 +45,7 @@ internal class IndexedDbTileStore(
     override suspend fun readTile(z: Int, x: Int, y: Int): TileBlob? = idbSerializationLock.withLock {
         val tx = db.transaction(storeName, "readonly")
         val store = tx.objectStore(storeName)
-        val record = idbAwait(store.get(compositeKey(z, x, y)))?.unsafeCast<IdbImageTileRecord>() ?: return@withLock null
+        val record = idbAwait(store.get(tileKey(contentKey, z, x, y)))?.unsafeCast<IdbImageTileRecord>() ?: return@withLock null
         // [IdbImageTileRecord.bytes] is typed non-null, but defend against a malformed row
         // (corrupted write, hand-rolled fixture, future schema) where the field is missing —
         // the [sizeBytes] cursor walk below applies the same fallback. Treat a missing or
@@ -59,7 +58,7 @@ internal class IndexedDbTileStore(
             lastModified = record.lastModified,
             // Surface write time only when freshness tracking is on (finite staleAfter), to drive
             // stale-while-revalidate in CachedTileSource / the elevation factory.
-            cachedAt = if (cachePolicy.staleAfter != Duration.INFINITE) record.cachedAt?.toLong() else null,
+            cachedAt = if (cachePolicy.tracksFreshness) record.cachedAt?.toLong() else null,
         )
     }
 
@@ -70,14 +69,14 @@ internal class IndexedDbTileStore(
             blob.bytes.toUint8Array(), blob.etag, blob.lastModified,
             cachedAt = Clock.System.now().toEpochMilliseconds().toDouble(),
         )
-        store.put(record, compositeKey(z, x, y))
+        store.put(record, tileKey(contentKey, z, x, y))
         idbAwaitTransaction(tx)
     }
 
     override suspend fun deleteTile(z: Int, x: Int, y: Int) = idbSerializationLock.withLock {
         val tx = db.transaction(storeName, "readwrite")
         val store = tx.objectStore(storeName)
-        store.delete(compositeKey(z, x, y))
+        store.delete(tileKey(contentKey, z, x, y))
         idbAwaitTransaction(tx)
     }
 
@@ -86,11 +85,11 @@ internal class IndexedDbTileStore(
     // read-then-write tx would risk dropping the put(). The serialization lock makes the gap safe.
     override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int): Unit = idbSerializationLock.withLock {
         val readTx = db.transaction(storeName, "readonly")
-        val record = idbAwait(readTx.objectStore(storeName).get(compositeKey(z, x, y)))
+        val record = idbAwait(readTx.objectStore(storeName).get(tileKey(contentKey, z, x, y)))
             ?.unsafeCast<IdbImageTileRecord>() ?: return@withLock
         record.cachedAt = Clock.System.now().toEpochMilliseconds().toDouble()
         val writeTx = db.transaction(storeName, "readwrite")
-        writeTx.objectStore(storeName).put(record, compositeKey(z, x, y))
+        writeTx.objectStore(storeName).put(record, tileKey(contentKey, z, x, y))
         idbAwaitTransaction(writeTx)
     }
 
@@ -130,8 +129,6 @@ internal class IndexedDbTileStore(
         total
     }
 
-    private fun compositeKey(z: Int, x: Int, y: Int) =
-        jsKeyArray(contentKey.toJsString(), z.toJsNumber(), x.toJsNumber(), y.toJsNumber())
 }
 
 /**

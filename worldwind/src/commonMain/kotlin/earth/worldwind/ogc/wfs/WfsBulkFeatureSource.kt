@@ -7,6 +7,7 @@ import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.http.DefaultHttpClient
+import earth.worldwind.util.http.HttpDefaults
 import io.ktor.client.HttpClientConfig
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
@@ -40,7 +41,7 @@ class WfsBulkFeatureSource(
     // close() — reused across the capabilities request and every GetFeature page, and across
     // fetchAll calls, rather than opened/closed per request.
     private val clientDelegate = lazy {
-        DefaultHttpClient(WfsLayerFactory.CONNECT_TIMEOUT_MS, WfsLayerFactory.REQUEST_TIMEOUT_MS, clientConfig)
+        DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS, clientConfig)
     }
 
     override suspend fun fetchAll(): Flow<CachedFeatureRow> {

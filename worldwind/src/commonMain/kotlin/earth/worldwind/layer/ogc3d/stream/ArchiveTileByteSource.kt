@@ -1,6 +1,7 @@
 package earth.worldwind.layer.ogc3d.stream
 
 import earth.worldwind.formats.archive.ReadOnlyArchive
+import earth.worldwind.formats.mimeForExtension
 
 /**
  * [TileByteSource] that serves tile bytes from an open [ReadOnlyArchive] instead of the network —
@@ -32,7 +33,7 @@ class ArchiveTileByteSource(
             statusCode = TileByteResponse.STATUS_OK,
             bytes = bytes,
             finalUrl = uri,
-            contentType = contentTypeFor(path),
+            contentType = mimeForExtension(path),
         )
     }
 
@@ -53,17 +54,6 @@ class ArchiveTileByteSource(
         }
         val suffix = path.indexOfFirst { it == '?' || it == '#' }
         return if (suffix >= 0) path.substring(0, suffix) else path
-    }
-
-    /** Coarse extension -> MIME. Advisory only; [ContentDispatcher] still routes on magic bytes. */
-    private fun contentTypeFor(path: String): String? = when (path.substringAfterLast('.', "").lowercase()) {
-        "json" -> "application/json"
-        "bin" -> "application/octet-stream"
-        "jpg", "jpeg" -> "image/jpeg"
-        "png" -> "image/png"
-        "ktx2" -> "image/ktx2"
-        "dds" -> "image/vnd.ms-dds"
-        else -> null
     }
 
     companion object {

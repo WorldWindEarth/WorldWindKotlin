@@ -39,13 +39,23 @@ object SlippyTiles {
     fun lonLatToTile(lonDegrees: Double, latDegrees: Double, zoom: Int): Pair<Int, Int> =
         lonToTileX(lonDegrees, zoom) to latToTileY(latDegrees, zoom)
 
+    /** Longitude (degrees) at fractional slippy column [tileX] (integer tile + in-tile fraction),
+     *  where [tilesPerAxis] `= 2^zoom`. Split out so per-vertex unprojection (e.g. MVT geometry)
+     *  shares the same projection as [tileToSector] while hoisting `tilesPerAxis` out of its loop. */
+    fun tileXToLonDegrees(tileX: Double, tilesPerAxis: Double): Double =
+        tileX / tilesPerAxis * 360.0 - 180.0
+
+    /** Latitude (degrees, row 0 = north) at fractional slippy row [tileY], where [tilesPerAxis] `= 2^zoom`. */
+    fun tileYToLatDegrees(tileY: Double, tilesPerAxis: Double): Double =
+        atan(sinh(PI * (1 - 2 * tileY / tilesPerAxis))) * 180.0 / PI
+
     /** Geographic bounds of slippy tile `(zoom, x, y)` (y slippy, 0 = north). */
     fun tileToSector(zoom: Int, x: Int, y: Int): Sector {
-        val n = 1 shl zoom
-        val west = x.toDouble() / n * 360.0 - 180.0
-        val east = (x + 1).toDouble() / n * 360.0 - 180.0
-        val north = atan(sinh(PI * (1 - 2 * y.toDouble() / n))) * 180.0 / PI
-        val south = atan(sinh(PI * (1 - 2 * (y + 1).toDouble() / n))) * 180.0 / PI
+        val n = (1 shl zoom).toDouble()
+        val west = tileXToLonDegrees(x.toDouble(), n)
+        val east = tileXToLonDegrees((x + 1).toDouble(), n)
+        val north = tileYToLatDegrees(y.toDouble(), n)
+        val south = tileYToLatDegrees((y + 1).toDouble(), n)
         return Sector.fromDegrees(south, west, north - south, east - west)
     }
 

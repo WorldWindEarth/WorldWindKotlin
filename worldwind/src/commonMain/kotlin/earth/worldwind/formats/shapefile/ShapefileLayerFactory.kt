@@ -13,6 +13,7 @@ import earth.worldwind.shape.TriangleMesh
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.http.DefaultHttpClient
+import earth.worldwind.util.http.HttpDefaults
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -61,10 +62,6 @@ data class ShapefileShapeConfiguration(
  *  * Polygon / PolygonZ / PolygonM → one [Polygon] per record (parts as boundaries)
  */
 object ShapefileLayerFactory {
-    /** Per-request timeouts. Shapefiles can be tens of MB; the sidecars are small. */
-    private const val CONNECT_TIMEOUT_MS = 10_000L
-    private const val REQUEST_TIMEOUT_MS = 120_000L
-
     /** Property keys searched (in order) for a label name when the configuration
      *  callback doesn't supply one. Mirrors WebWorldWind's `name | Name | NAME` lookup. */
     private val nameKeys = listOf("name", "Name", "NAME")
@@ -86,7 +83,7 @@ object ShapefileLayerFactory {
     ): RenderableLayer {
         require(shpUrl.isNotEmpty()) { "shpUrl must not be empty" }
         val baseUrl = stripShpExtension(shpUrl)
-        val sidecars = DefaultHttpClient(CONNECT_TIMEOUT_MS, REQUEST_TIMEOUT_MS).use { httpClient ->
+        val sidecars = DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS).use { httpClient ->
             val shpBytes = httpClient.get(shpUrl) { expectSuccess = true }.readRawBytes()
             val dbfBytes = fetchOptional(httpClient, "$baseUrl.dbf")
                 ?: fetchOptional(httpClient, "$baseUrl.DBF")

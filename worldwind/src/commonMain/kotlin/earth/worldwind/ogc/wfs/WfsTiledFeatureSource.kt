@@ -5,6 +5,7 @@ import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.TiledFeatureSource
 import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.util.http.DefaultHttpClient
+import earth.worldwind.util.http.HttpDefaults
 import io.ktor.client.HttpClientConfig
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -42,7 +43,7 @@ class WfsTiledFeatureSource(
 
     // One client for every tile request, created on first fetch and closed in close().
     private val clientDelegate = lazy {
-        DefaultHttpClient(WfsLayerFactory.CONNECT_TIMEOUT_MS, WfsLayerFactory.REQUEST_TIMEOUT_MS, clientConfig)
+        DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS, clientConfig)
     }
 
     // The GetCapabilities document, fetched once and reused for every tile so a viewport's worth of
