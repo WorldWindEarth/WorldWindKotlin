@@ -2,6 +2,7 @@ package earth.worldwind.layer.cache
 
 import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
+import earth.worldwind.layer.mercator.SlippyTiles
 import earth.worldwind.layer.mvt.MvtVectorLayer
 import earth.worldwind.layer.source.TileSource
 import kotlinx.coroutines.CoroutineScope
@@ -16,7 +17,7 @@ import kotlin.time.Duration.Companion.seconds
  * vector-tile store — the "save a region for offline use" flow. Takes the same
  * `resolution: ClosedRange<Angle>` as [TiledImageLayer.launchBulkRetrieval] (raster) and
  * [TiledElevationCoverage.launchBulkRetrieval] (elevation) for a uniform bulk API across layer
- * types; the range is mapped to a slippy zoom range via [WebMercatorTiles.zoomForResolution]
+ * types; the range is mapped to a slippy zoom range via [SlippyTiles.zoomForResolution]
  * (nearest-neighbor, matching `LevelSet.levelForResolution`) and clamped to the layer's
  * [MvtVectorLayer.minZoom]..[MvtVectorLayer.maxZoom].
  *
@@ -49,8 +50,8 @@ fun MvtVectorLayer.launchBulkRetrieval(
     onProgress: ((downloaded: Long, skipped: Long, total: Long) -> Unit)? = null,
 ): Job {
     // resolution.start is the finest (smallest angle) → deepest zoom; endInclusive is the coarsest.
-    val deepestZoom = WebMercatorTiles.zoomForResolution(resolution.start).coerceIn(minZoom, maxZoom)
-    val shallowestZoom = WebMercatorTiles.zoomForResolution(resolution.endInclusive).coerceIn(minZoom, maxZoom)
+    val deepestZoom = SlippyTiles.zoomForResolution(resolution.start).coerceIn(minZoom, maxZoom)
+    val shallowestZoom = SlippyTiles.zoomForResolution(resolution.endInclusive).coerceIn(minZoom, maxZoom)
     val source: TileSource = this.source
     val cached = source as? CachedTileSource
     return launchSlippyBulkRetrieval(

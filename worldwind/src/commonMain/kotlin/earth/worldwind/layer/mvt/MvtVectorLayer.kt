@@ -15,6 +15,7 @@ import earth.worldwind.layer.buildings.OsmBuilding
 import earth.worldwind.layer.buildings.OsmBuildingsTile
 import earth.worldwind.layer.mercator.MercatorSector
 import earth.worldwind.layer.mercator.MercatorTiledVectorLayer
+import earth.worldwind.layer.mercator.SlippyTiles
 import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.layer.source.TileSource
 import earth.worldwind.render.Color
@@ -42,9 +43,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan
 import kotlin.math.cos
-import kotlin.math.sinh
 import kotlin.concurrent.Volatile
 import kotlin.math.exp
 import kotlin.math.ln
@@ -1067,14 +1066,7 @@ open class MvtVectorLayer(
         /** Standard slippy-tile pixel width — the input to camera-altitude → zoom matching. */
         const val TILE_PIXEL_SIZE: Int = 256
 
-        fun tileToSector(zoom: Int, x: Int, y: Int): Sector {
-            val n = 1 shl zoom
-            val west = x.toDouble() / n * 360.0 - 180.0
-            val east = (x + 1).toDouble() / n * 360.0 - 180.0
-            val north = atan(sinh(PI * (1 - 2 * y.toDouble() / n))) * 180.0 / PI
-            val south = atan(sinh(PI * (1 - 2 * (y + 1).toDouble() / n))) * 180.0 / PI
-            return Sector.fromDegrees(south, west, north - south, east - west)
-        }
+        fun tileToSector(zoom: Int, x: Int, y: Int): Sector = SlippyTiles.tileToSector(zoom, x, y)
 
         internal fun anchorToOffset(anchor: String): Offset = when (anchor) {
             "top" -> Offset.topCenter()

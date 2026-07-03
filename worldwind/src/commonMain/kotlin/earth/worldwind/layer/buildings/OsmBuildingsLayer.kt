@@ -9,7 +9,7 @@ import earth.worldwind.layer.VectorLayer
 import earth.worldwind.layer.cache.RevalidatingSource
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.TiledFeatureSource
-import earth.worldwind.layer.mercator.MercatorSector
+import earth.worldwind.layer.mercator.SlippyTiles
 import earth.worldwind.layer.shadow.ShadowMode
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
@@ -32,12 +32,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlin.math.PI
 import kotlin.time.Clock
-import kotlin.math.asinh
-import kotlin.math.atan
-import kotlin.math.sinh
-import kotlin.math.tan
 import kotlin.math.abs
 
 /**
@@ -508,21 +503,9 @@ open class OsmBuildingsLayer(
             isLightingEnabled = true
         }
 
-        fun lonLatToTile(lonDegrees: Double, latDegrees: Double, zoom: Int): Pair<Int, Int> {
-            val n = 1 shl zoom
-            val x = ((lonDegrees + 180.0) / 360.0 * n).toInt()
-            val latRad = latDegrees.coerceIn(-MercatorSector.MAX_LATITUDE_DEG, MercatorSector.MAX_LATITUDE_DEG) * PI / 180.0
-            val y = ((1.0 - asinh(tan(latRad)) / PI) / 2.0 * n).toInt()
-            return x to y
-        }
+        fun lonLatToTile(lonDegrees: Double, latDegrees: Double, zoom: Int): Pair<Int, Int> =
+            SlippyTiles.lonLatToTile(lonDegrees, latDegrees, zoom)
 
-        fun tileToSector(zoom: Int, x: Int, y: Int): Sector {
-            val n = 1 shl zoom
-            val west = x.toDouble() / n * 360.0 - 180.0
-            val east = (x + 1).toDouble() / n * 360.0 - 180.0
-            val north = atan(sinh(PI * (1 - 2 * y.toDouble() / n))) * 180.0 / PI
-            val south = atan(sinh(PI * (1 - 2 * (y + 1).toDouble() / n))) * 180.0 / PI
-            return Sector.fromDegrees(south, west, north - south, east - west)
-        }
+        fun tileToSector(zoom: Int, x: Int, y: Int): Sector = SlippyTiles.tileToSector(zoom, x, y)
     }
 }
