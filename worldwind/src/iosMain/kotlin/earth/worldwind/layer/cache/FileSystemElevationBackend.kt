@@ -1,7 +1,6 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
 package earth.worldwind.layer.cache
-import earth.worldwind.layer.source.TileBlob
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,48 +22,15 @@ import kotlinx.cinterop.ExperimentalForeignApi
 internal class FileSystemElevationBackend(
     private val baseDirectory: String,
     private val contentKey: String,
-    private val tileStore: FileSystemTileStore,
-) : ElevationStoreBackend {
-
-    override val isReadOnly: Boolean = false
+    tileStore: FileSystemTileStore,
+) : DelegatingElevationBackend(tileStore) {
 
     override val cacheInfo: CachedSourceInfo
         get() = CachedSourceInfo(contentKey = contentKey, contentPath = baseDirectory)
 
     private val contentRoot: String = "$baseDirectory/$contentKey"
 
-    override suspend fun readTile(z: Int, x: Int, y: Int): CachedTile? {
-        val blob = tileStore.readTile(z, x, y) ?: return null
-        if (blob.isEmpty) return null
-        val (scale, offset) = readAncillary(z, x, y) ?: (1f to 0f)
-        return CachedTile(
-            bytes = blob.bytes, tileScale = scale, tileOffset = offset,
-            cachedAt = blob.cachedAt, etag = blob.etag, lastModified = blob.lastModified,
-        )
-    }
-
-    override suspend fun writeTile(
-        z: Int, x: Int, y: Int,
-        bytes: ByteArray,
-        tileScale: Float,
-        tileOffset: Float,
-        etag: String?,
-        lastModified: String?,
-    ) {
-        tileStore.writeTile(z, x, y, TileBlob(bytes = bytes, etag = etag, lastModified = lastModified))
-        // Keep the parallel ancillary sidecar in sync: write (scale, offset) when non-default, and
-        // delete any prior sidecar when default — otherwise a tile re-encoded with default packing
-        // would read a stale (scale, offset) from a leftover file and mis-decode the elevations.
-        if (tileScale != 1f || tileOffset != 0f) {
-            writeAncillary(z, x, y, tileScale, tileOffset)
-        } else {
-            deleteAncillary(z, x, y)
-        }
-    }
-
-    override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) = tileStore.bumpValidatedAt(z, x, y)
-
-    private suspend fun readAncillary(z: Int, x: Int, y: Int): Pair<Float, Float>? =
+    override suspend fun readAncillary(z: Int, x: Int, y: Int): Pair<Float, Float>? =
         withContext(Dispatchers.Default) {
             val path = ancillaryPath(z, x, y)
             if (!NSFileManager.defaultManager.fileExistsAtPath(path)) return@withContext null
@@ -76,7 +42,7 @@ internal class FileSystemElevationBackend(
             scale to offset
         }
 
-    private suspend fun writeAncillary(z: Int, x: Int, y: Int, scale: Float, offset: Float) =
+    override suspend fun writeAncillary(z: Int, x: Int, y: Int, scale: Float, offset: Float) =
         withContext(Dispatchers.Default) {
             ensureDirectory("$contentRoot/$z/$x")
             val bytes = ByteArray(8)
@@ -86,7 +52,7 @@ internal class FileSystemElevationBackend(
             Unit
         }
 
-    private suspend fun deleteAncillary(z: Int, x: Int, y: Int) = withContext(Dispatchers.Default) {
+    override suspend fun deleteAncillary(z: Int, x: Int, y: Int) = withContext(Dispatchers.Default) {
         val path = ancillaryPath(z, x, y)
         if (NSFileManager.defaultManager.fileExistsAtPath(path)) {
             NSFileManager.defaultManager.removeItemAtPath(path, null)

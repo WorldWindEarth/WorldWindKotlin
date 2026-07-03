@@ -1,6 +1,5 @@
 package earth.worldwind.layer.cache
 
-import earth.worldwind.layer.source.TileBlob
 import earth.worldwind.util.js.jso
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.withLock
@@ -22,47 +21,14 @@ import kotlin.js.unsafeCast
 internal class IndexedDbElevationBackend(
     private val db: IDBDatabase,
     private val contentKey: String,
-    private val tileStore: IndexedDbTileStore,
+    tileStore: IndexedDbTileStore,
     private val ancillaryStoreName: String,
-) : ElevationStoreBackend {
-
-    override val isReadOnly: Boolean = false
+) : DelegatingElevationBackend(tileStore) {
 
     override val cacheInfo: CachedSourceInfo
         get() = CachedSourceInfo(contentKey = contentKey, contentPath = db.name)
 
-    override suspend fun readTile(z: Int, x: Int, y: Int): CachedTile? {
-        val blob = tileStore.readTile(z, x, y) ?: return null
-        if (blob.isEmpty) return null
-        val (scale, offset) = readAncillary(z, x, y) ?: (1f to 0f)
-        return CachedTile(
-            bytes = blob.bytes, tileScale = scale, tileOffset = offset,
-            cachedAt = blob.cachedAt, etag = blob.etag, lastModified = blob.lastModified,
-        )
-    }
-
-    override suspend fun writeTile(
-        z: Int, x: Int, y: Int,
-        bytes: ByteArray,
-        tileScale: Float,
-        tileOffset: Float,
-        etag: String?,
-        lastModified: String?,
-    ) {
-        tileStore.writeTile(z, x, y, TileBlob(bytes = bytes, etag = etag, lastModified = lastModified))
-        // Keep the parallel ancillary row in sync: write (scale, offset) when non-default, and
-        // delete any prior row when default — otherwise a tile re-encoded with default packing would
-        // read a stale (scale, offset) from a leftover row and mis-decode the elevations.
-        if (tileScale != 1f || tileOffset != 0f) {
-            writeAncillary(z, x, y, tileScale, tileOffset)
-        } else {
-            deleteAncillary(z, x, y)
-        }
-    }
-
-    override suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) = tileStore.bumpValidatedAt(z, x, y)
-
-    private suspend fun readAncillary(z: Int, x: Int, y: Int): Pair<Float, Float>? =
+    override suspend fun readAncillary(z: Int, x: Int, y: Int): Pair<Float, Float>? =
         idbSerializationLock.withLock {
             val tx = db.transaction(ancillaryStoreName, "readonly")
             val store = tx.objectStore(ancillaryStoreName)
@@ -77,7 +43,7 @@ internal class IndexedDbElevationBackend(
             scale.toFloat() to offset.toFloat()
         }
 
-    private suspend fun writeAncillary(z: Int, x: Int, y: Int, scale: Float, offset: Float) =
+    override suspend fun writeAncillary(z: Int, x: Int, y: Int, scale: Float, offset: Float) =
         idbSerializationLock.withLock {
             val tx = db.transaction(ancillaryStoreName, "readwrite")
             val store = tx.objectStore(ancillaryStoreName)
@@ -90,7 +56,7 @@ internal class IndexedDbElevationBackend(
             idbAwaitTransaction(tx)
         }
 
-    private suspend fun deleteAncillary(z: Int, x: Int, y: Int) =
+    override suspend fun deleteAncillary(z: Int, x: Int, y: Int) =
         idbSerializationLock.withLock {
             val tx = db.transaction(ancillaryStoreName, "readwrite")
             tx.objectStore(ancillaryStoreName).delete(tileKey(contentKey, z, x, y))
