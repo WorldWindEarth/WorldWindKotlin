@@ -6,8 +6,7 @@ import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
-import earth.worldwind.util.http.DefaultHttpClient
-import earth.worldwind.util.http.HttpDefaults
+import earth.worldwind.util.http.LazyHttpClient
 import io.ktor.client.HttpClientConfig
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
@@ -40,9 +39,7 @@ class WfsBulkFeatureSource(
     // One client per source (configured with clientConfig), created on first fetch and closed in
     // close() — reused across the capabilities request and every GetFeature page, and across
     // fetchAll calls, rather than opened/closed per request.
-    private val clientDelegate = lazy {
-        DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS, clientConfig)
-    }
+    private val clientDelegate = LazyHttpClient(config = clientConfig)
 
     override suspend fun fetchAll(): Flow<CachedFeatureRow> {
         val rows = mutableListOf<CachedFeatureRow>()
@@ -86,9 +83,7 @@ class WfsBulkFeatureSource(
         }
     }
 
-    override fun close() {
-        if (clientDelegate.isInitialized()) clientDelegate.value.close()
-    }
+    override fun close() = clientDelegate.close()
 
     companion object {
         /** Cache service-identity tag for WFS-backed feature layers. */

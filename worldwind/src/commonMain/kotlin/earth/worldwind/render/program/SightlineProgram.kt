@@ -57,6 +57,8 @@ class SightlineProgram : AbstractShaderProgram() {
             const float momentBias = $defaultSightlineMomentBias;
             const float depthBias = 1e-5;
 
+            ${MomentShadowGlsl.OCCLUDE_MASK_FUNCTION}
+
             void main() {
                 /* Compute a mask that's on when the position is inside the occlusion projection, and off otherwise. Transform the
                    position to clip coordinates, where values between -1.0 and 1.0 are in the frustum. */
@@ -83,7 +85,6 @@ class SightlineProgram : AbstractShaderProgram() {
                    is rank-deficient and makes the Cholesky factorisation singular when
                    raw moments are all-equal (e.g., the d=1 sentinel). The uniform target
                    is well-conditioned, so the Cholesky stays stable for any raw input. */
-                vec4 b = mix(moments, vec4(0.5, 0.333333333, 0.25, 0.2), momentBias);
                 /* Receiver depth = perpendicular distance / range. `sightlinePosition.w` is
                    `-eye_z` after the perspective projection (the projection matrix's `w` row
                    is `(0,0,-1,0)`), which is exactly what [SightlineMomentsProgram] wrote at
@@ -92,39 +93,8 @@ class SightlineProgram : AbstractShaderProgram() {
                    exactly at the corresponding surface point. Radial would have been
                    non-linear, biasing the moment values bilinear sampling produces. */
                 float z0 = (sightlinePosition.w / range) - depthBias;
-                /* Cholesky factorisation of the 3x3 Hankel-style matrix B = [[1, b1, b2],
-                   [b1, b2, b3], [b2, b3, b4]] storing only the non-trivial entries. */
-                float L32D22 = b.z - b.x * b.y;
-                float D22 = b.y - b.x * b.x;
-                float squaredDepthVariance = b.w - b.y * b.y;
-                float D33D22 = squaredDepthVariance * D22 - L32D22 * L32D22;
-                float invD22 = 1.0 / D22;
-                float L32 = L32D22 * invD22;
-                /* Solve L * D * L^T * c = (1, z0, z0^2)^T to obtain the coefficients of the
-                   quadratic whose roots are the non-receiver depths in the reconstructed
-                   3-point depth distribution. */
-                vec3 c = vec3(1.0, z0, z0 * z0);
-                c.y -= b.x;
-                c.z -= b.y + L32 * c.y;
-                c.y *= invD22;
-                c.z *= D22 / D33D22;
-                c.y -= L32 * c.z;
-                c.x -= dot(c.yz, b.xy);
-                /* Solve `c.x + c.y * z + c.z * z^2 = 0` for the two non-receiver depths. */
-                float p = c.y / c.z;
-                float q = c.x / c.z;
-                float D = p * p * 0.25 - q;
-                float r = sqrt(D);
-                float z1 = -p * 0.5 - r;
-                float z2 = -p * 0.5 + r;
-                /* Three cases for the placement of (z0, z1, z2) on the depth axis. The Switch
-                   tuple selects coefficients for the closed-form occlusion fraction. */
-                vec4 sw = (z2 < z0) ? vec4(z1, z0, 1.0, 1.0)
-                        : (z1 < z0) ? vec4(z0, z1, 0.0, 1.0)
-                        : vec4(0.0);
-                float quotient = (sw.x * z2 - b.x * (sw.x + z2) + b.y)
-                               / ((z2 - sw.y) * (z0 - z1));
-                float occludeMask = clamp(sw.z + sw.w * quotient, 0.0, 1.0);
+                /* Reconstruct the closed-form occlusion fraction (shared [MomentShadowGlsl]). */
+                float occludeMask = msmOccludeMask(moments, z0, momentBias);
 
                 /* Modulate the RGBA color with the computed masks to display fragments according to the sightline's configuration. */
                 gl_FragColor = mix(color[0], color[1], occludeMask) * clipMask * rangeMask;

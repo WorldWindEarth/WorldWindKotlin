@@ -1,5 +1,6 @@
 package earth.worldwind.formats.ogc3d
 
+import earth.worldwind.formats.BinaryDataView
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -53,6 +54,40 @@ class FeatureTable internal constructor(
         return DoubleArray(3) { i ->
             (arr[i] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0
         }
+    }
+
+    /** Byte offset into [binary] of the accessor object at [key], or null when the key is absent,
+     *  not a JSON object, or carries no integer `byteOffset`. */
+    fun accessorByteOffset(key: String): Int? {
+        val el = jsonRoot[key] as? JsonObject ?: return null
+        return (el["byteOffset"] as? JsonPrimitive)?.content?.toIntOrNull()
+    }
+
+    /** Read a vec3 float32 accessor as a flattened `count * 3` array, or null when [key] is absent.
+     *  Throws when the accessor overruns [binary]. Shared by the i3dm / pnts loaders. */
+    fun readVec3Float(key: String, count: Int): FloatArray? {
+        val byteOffset = accessorByteOffset(key) ?: return null
+        val needed = count * 3 * 4
+        require(byteOffset + needed <= binary.size) {
+            "$key accessor overflows feature-table binary: byteOffset=$byteOffset count=$count " +
+                "needs=$needed binary=${binary.size}; feature-table JSON=${jsonDebugString()}"
+        }
+        val view = BinaryDataView(binary)
+        return FloatArray(count * 3) { view.getFloat32(byteOffset + it * 4, littleEndian = true) }
+    }
+
+    /** Read a scalar float32 accessor as a `count` array, or null when [key] is absent. */
+    fun readScalarFloat(key: String, count: Int): FloatArray? {
+        val byteOffset = accessorByteOffset(key) ?: return null
+        val view = BinaryDataView(binary)
+        return FloatArray(count) { view.getFloat32(byteOffset + it * 4, littleEndian = true) }
+    }
+
+    /** Read a uint8 accessor with [components] per element as a flattened `count * components`
+     *  byte array, or null when [key] is absent. */
+    fun readBytes(key: String, count: Int, components: Int): ByteArray? {
+        val byteOffset = accessorByteOffset(key) ?: return null
+        return ByteArray(count * components) { binary[byteOffset + it] }
     }
 
     companion object {

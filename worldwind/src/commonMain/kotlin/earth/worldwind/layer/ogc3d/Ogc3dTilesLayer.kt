@@ -14,6 +14,7 @@ import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.globe.Globe
 import earth.worldwind.geom.BoundingSphere
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.render.Color
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
@@ -1003,6 +1004,28 @@ open class Ogc3dTilesLayer(
         0.0, 0.0,  0.0, 1.0,
     )
 
+    /** Compose the tile's effective model transform into [scratchEffectiveTransform] and return it:
+     *  `tileToWorld * RTC_CENTER? * yUpToZUp?`. Shared by the mesh / points / gaussian enqueue paths,
+     *  which differ only in whether the glTF Y-up→Z-up step applies (mesh: unless skipped; points:
+     *  never — pnts are Z-up per §3.4.7; gaussian: always). */
+    private fun composeEffectiveTransform(tile: Tile3d, rtcCenter: DoubleArray?, applyYUpToZUp: Boolean): Matrix4 {
+        scratchEffectiveTransform.copy(tile.tileToWorld)
+        rtcCenter?.let { scratchEffectiveTransform.multiplyByTranslation(it[0], it[1], it[2]) }
+        if (applyYUpToZUp) scratchEffectiveTransform.multiplyByMatrix(yUpToZUp)
+        return scratchEffectiveTransform
+    }
+
+    /** Register one tile-level PickedObject so pick-mode colour readback resolves the tile's
+     *  [pickColor] back to [tile]. Shared by the points / gaussian paths and the mesh tile-level
+     *  (non-batched) fallback. */
+    private fun registerTilePick(rc: RenderContext, tile: Tile3d, pickColor: Color) {
+        val pickedObjectId = rc.nextPickedObjectId()
+        PickedObject.identifierToUniqueColor(pickedObjectId, pickColor)
+        rc.offerPickedObject(
+            PickedObject.fromUserObject(pickedObjectId, tile, rc.currentLayer, useTerrainPosition = false)
+        )
+    }
+
     /** Dispatch the per-content-type drawable for the color pass. */
     private fun enqueueDrawable(rc: RenderContext, tile: Tile3d) {
         val uri = tile.contentUri ?: return
@@ -1041,12 +1064,7 @@ open class Ogc3dTilesLayer(
 
         // Composition per spec: tileToWorld * RTC_CENTER * yUpToZUp. Raw glTF
         // (3D Tiles 1.1 / Google Photorealistic) skips the Y→Z step.
-        scratchEffectiveTransform.copy(tile.tileToWorld)
-        content.rtcCenter?.let { rtc ->
-            scratchEffectiveTransform.multiplyByTranslation(rtc[0], rtc[1], rtc[2])
-        }
-        if (!content.skipYUpToZUp) scratchEffectiveTransform.multiplyByMatrix(yUpToZUp)
-        drawable.tileToWorld.copy(scratchEffectiveTransform)
+        drawable.tileToWorld.copy(composeEffectiveTransform(tile, content.rtcCenter, applyYUpToZUp = !content.skipYUpToZUp))
 
         // World-bounding sphere for cascade culling + draw-order sort. Tile3d already caches
         // a globe-resolved sphere; we copy here so the drawable doesn't hold a back-reference.
@@ -1088,14 +1106,8 @@ open class Ogc3dTilesLayer(
                     )
                 }
             } else {
-                val pickedObjectId = rc.nextPickedObjectId()
-                PickedObject.identifierToUniqueColor(pickedObjectId, drawable.pickColor)
                 drawable.pickIdBase = 0
-                rc.offerPickedObject(
-                    PickedObject.fromUserObject(
-                        pickedObjectId, tile, rc.currentLayer, useTerrainPosition = false,
-                    )
-                )
+                registerTilePick(rc, tile, drawable.pickColor)
             }
         }
 
@@ -1131,24 +1143,12 @@ open class Ogc3dTilesLayer(
         drawable.focalLengthPixels = ScreenSpaceError.focalLengthPixels(rc)
 
         // pnts are Z-up per 3D Tiles 1.0 §3.4.7 — no yUpToZUp, only RTC composition.
-        scratchEffectiveTransform.copy(tile.tileToWorld)
-        content.rtcCenter?.let { rtc ->
-            scratchEffectiveTransform.multiplyByTranslation(rtc[0], rtc[1], rtc[2])
-        }
-        drawable.tileToWorld.copy(scratchEffectiveTransform)
+        drawable.tileToWorld.copy(composeEffectiveTransform(tile, content.rtcCenter, applyYUpToZUp = false))
 
         val sphere = tile.worldBoundingSphere(rc.globe)
         drawable.setWorldBounds(sphere.center, sphere.radius)
 
-        if (rc.isPickMode) {
-            val pickedObjectId = rc.nextPickedObjectId()
-            PickedObject.identifierToUniqueColor(pickedObjectId, drawable.pickColor)
-            rc.offerPickedObject(
-                PickedObject.fromUserObject(
-                    pickedObjectId, tile, rc.currentLayer, useTerrainPosition = false
-                )
-            )
-        }
+        if (rc.isPickMode) registerTilePick(rc, tile, drawable.pickColor)
 
         // SURFACE / NEG_INFINITY — same as mesh, so points write GROUND_COVERED_BIT before
         // terrain reads it. See [DrawableGroup.SURFACE] for the ordering convention.
@@ -1184,12 +1184,7 @@ open class Ogc3dTilesLayer(
 
         drawable.focalLengthPixels = ScreenSpaceError.focalLengthPixels(rc)
 
-        scratchEffectiveTransform.copy(tile.tileToWorld)
-        content.rtcCenter?.let { rtc ->
-            scratchEffectiveTransform.multiplyByTranslation(rtc[0], rtc[1], rtc[2])
-        }
-        scratchEffectiveTransform.multiplyByMatrix(yUpToZUp)
-        drawable.tileToWorld.copy(scratchEffectiveTransform)
+        drawable.tileToWorld.copy(composeEffectiveTransform(tile, content.rtcCenter, applyYUpToZUp = true))
 
         // View-aware sort: forward-into-scene in tile-local space = -((mv * tileToWorld) row 2),
         // computed directly from the row dot to stay correct when tileToWorld carries non-uniform
@@ -1209,16 +1204,10 @@ open class Ogc3dTilesLayer(
         drawable.setWorldBounds(sphere.center, sphere.radius)
 
         if (rc.isPickMode) {
-            // Register the tile so resolvePick's color-readback decodes the pick-mode
-            // fragment's `pickColor` back to a PickedObject. Without this, splats colour the
-            // pick FBO but resolvePick falls through to terrain and the splat depth is ignored.
-            val pickedObjectId = rc.nextPickedObjectId()
-            PickedObject.identifierToUniqueColor(pickedObjectId, drawable.pickColor)
-            rc.offerPickedObject(
-                PickedObject.fromUserObject(
-                    pickedObjectId, tile, rc.currentLayer, useTerrainPosition = false
-                )
-            )
+            // Register the tile so resolvePick's color-readback decodes the pick-mode fragment's
+            // `pickColor` back to a PickedObject. Without this, splats colour the pick FBO but
+            // resolvePick falls through to terrain and the splat depth is ignored.
+            registerTilePick(rc, tile, drawable.pickColor)
         }
 
         // Back-to-front sort: depthMask is off, so cross-tile pixel order must follow distance.

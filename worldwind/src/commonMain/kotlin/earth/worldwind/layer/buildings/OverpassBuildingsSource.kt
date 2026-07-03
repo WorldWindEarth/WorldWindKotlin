@@ -4,8 +4,7 @@ import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.TiledFeatureSource
-import earth.worldwind.util.http.DefaultHttpClient
-import io.ktor.client.HttpClient
+import earth.worldwind.util.http.LazyHttpClient
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -47,12 +46,11 @@ class OverpassBuildingsSource(
     // OkHttp's connection pool + DNS cache, allocating a full dispatcher/pool/plugin chain per
     // tile — profiling showed >250k client constructions and ~2M IOException allocations during
     // a Manhattan zoom session. Reuse keeps the pool warm between tile fetches.
-    private val client: HttpClient by lazy {
-        DefaultHttpClient(
-            connectTimeout = 5.seconds.inWholeMilliseconds,
-            requestTimeout = (timeout + 5).seconds.inWholeMilliseconds,
-        )
-    }
+    private val clientDelegate = LazyHttpClient(
+        connectTimeout = 5.seconds.inWholeMilliseconds,
+        requestTimeout = (timeout + 5).seconds.inWholeMilliseconds,
+    )
+    private val client get() = clientDelegate.value
 
     override suspend fun fetchTile(z: Int, x: Int, y: Int, sector: Sector): Flow<CachedFeatureRow>? {
         val buildings = fetchBuildings(sector)
@@ -78,7 +76,7 @@ class OverpassBuildingsSource(
         return response.elements.mapNotNull(::toBuilding)
     }
 
-    override fun close() { client.close() }
+    override fun close() = clientDelegate.close()
 
     private fun toBuilding(element: OverpassElement): OsmBuilding? {
         // Only handle ways with inline geometry. Skip nodes (they're isolated points) and

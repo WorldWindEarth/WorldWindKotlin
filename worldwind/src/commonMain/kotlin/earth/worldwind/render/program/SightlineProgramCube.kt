@@ -67,6 +67,8 @@ class SightlineProgramCube : AbstractShaderProgram() {
                so the smoothing is done in the receiver via dFdx/dFdy-aligned offsets. */
             const float BLUR_RADIUS = 3.0;
 
+            ${MomentShadowGlsl.OCCLUDE_MASK_FUNCTION}
+
             void main() {
                 /* Range gate. Per-fragment length() of the perspective-correctly interpolated
                    vec3 gives the true sphere boundary; a length varying interpolated at vertex
@@ -104,37 +106,14 @@ class SightlineProgramCube : AbstractShaderProgram() {
                               + textureCube(depthSampler, sightlineLocalPos + ddx - ddy)
                               + textureCube(depthSampler, sightlineLocalPos - ddx + ddy)) * 0.2;
 
-                vec4 b = mix(moments, vec4(0.5, 0.333333333, 0.25, 0.2), momentBias);
                 /* Receiver depth = L_inf / range. The cube map's dominant face stored exactly
                    this scalar (its perpendicular -eye_z = the dominant axis projection in the
                    canonical-OpenGL per-face frame), so M1_sampled and z0 match at the sample
                    direction without any per-face logic. */
                 float z0 = max(absLocal.x, max(absLocal.y, absLocal.z)) / range - depthBias;
 
-                /* Cholesky-style reconstruction (identical to the 2D receiver). */
-                float L32D22 = b.z - b.x * b.y;
-                float D22 = b.y - b.x * b.x;
-                float D33D22 = (b.w - b.y * b.y) * D22 - L32D22 * L32D22;
-                float invD22 = 1.0 / D22;
-                float L32 = L32D22 * invD22;
-                vec3 c = vec3(1.0, z0, z0 * z0);
-                c.y -= b.x;
-                c.z -= b.y + L32 * c.y;
-                c.y *= invD22;
-                c.z *= D22 / D33D22;
-                c.y -= L32 * c.z;
-                c.x -= dot(c.yz, b.xy);
-                float p = c.y / c.z;
-                float q = c.x / c.z;
-                float r = sqrt(p * p * 0.25 - q);
-                float z1 = -p * 0.5 - r;
-                float z2 = -p * 0.5 + r;
-                vec4 sw = (z2 < z0) ? vec4(z1, z0, 1.0, 1.0)
-                        : (z1 < z0) ? vec4(z0, z1, 0.0, 1.0)
-                        : vec4(0.0);
-                float quotient = (sw.x * z2 - b.x * (sw.x + z2) + b.y)
-                               / ((z2 - sw.y) * (z0 - z1));
-                float occludeMask = clamp(sw.z + sw.w * quotient, 0.0, 1.0);
+                /* Cholesky-style reconstruction - shared verbatim with the 2D receiver ([MomentShadowGlsl]). */
+                float occludeMask = msmOccludeMask(moments, z0, momentBias);
 
                 gl_FragColor = mix(color[0], color[1], occludeMask) * rangeMask * upMask;
             }

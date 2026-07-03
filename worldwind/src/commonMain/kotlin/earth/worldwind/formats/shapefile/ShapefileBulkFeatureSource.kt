@@ -10,8 +10,7 @@ import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.TriangleMesh
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.log
-import earth.worldwind.util.http.DefaultHttpClient
-import earth.worldwind.util.http.HttpDefaults
+import earth.worldwind.util.http.LazyHttpClient
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.get
 import io.ktor.client.statement.readRawBytes
@@ -40,7 +39,7 @@ class ShapefileBulkFeatureSource(
     // connection pools, and when a shared `httpClientCustomizer { engine { preconfigured = ... } }`
     // client is installed, ktor's close() shuts down that shared executor and breaks every other
     // source's request ("executor rejected").
-    private val clientDelegate = lazy { DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS) }
+    private val clientDelegate = LazyHttpClient()
     private val client get() = clientDelegate.value
 
     override suspend fun fetchAll(): Flow<CachedFeatureRow> {
@@ -102,9 +101,7 @@ class ShapefileBulkFeatureSource(
         return JsonObject(map).toString()
     }
 
-    override fun close() {
-        if (clientDelegate.isInitialized()) client.close()
-    }
+    override fun close() = clientDelegate.close()
 
     private suspend fun fetchOptional(url: String): ByteArray? = try {
         client.get(url) { expectSuccess = true }.readRawBytes()

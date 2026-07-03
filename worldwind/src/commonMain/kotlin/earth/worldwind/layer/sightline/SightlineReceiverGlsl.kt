@@ -1,6 +1,7 @@
 package earth.worldwind.layer.sightline
 
 import earth.worldwind.layer.shadow.defaultSightlineMomentBias
+import earth.worldwind.render.program.MomentShadowGlsl
 
 /**
  * Reusable GLSL fragments that any program can splice into its fragment shader to make its
@@ -81,34 +82,9 @@ object SightlineReceiverGlsl {
         const float sightlineMomentBias = $defaultSightlineMomentBias;
         const float sightlineDepthBias  = 1e-5;
 
-        /* Hamburger 4-moment occlusion bound. Returns 0 = visible, 1 = fully occluded. */
-        float msmOccludeMask(vec4 moments, float receiverDepth) {
-            vec4 b = mix(moments, vec4(0.5, 0.333333333, 0.25, 0.2), sightlineMomentBias);
-            float z0 = receiverDepth - sightlineDepthBias;
-            float L32D22 = b.z - b.x * b.y;
-            float D22 = b.y - b.x * b.x;
-            float D33D22 = (b.w - b.y * b.y) * D22 - L32D22 * L32D22;
-            float invD22 = 1.0 / D22;
-            float L32 = L32D22 * invD22;
-            vec3 c = vec3(1.0, z0, z0 * z0);
-            c.y -= b.x;
-            c.z -= b.y + L32 * c.y;
-            c.y *= invD22;
-            c.z *= D22 / D33D22;
-            c.y -= L32 * c.z;
-            c.x -= dot(c.yz, b.xy);
-            float p = c.y / c.z;
-            float q = c.x / c.z;
-            float r = sqrt(p * p * 0.25 - q);
-            float z1 = -p * 0.5 - r;
-            float z2 = -p * 0.5 + r;
-            vec4 sw = (z2 < z0) ? vec4(z1, z0, 1.0, 1.0)
-                    : (z1 < z0) ? vec4(z0, z1, 0.0, 1.0)
-                    : vec4(0.0);
-            float quotient = (sw.x * z2 - b.x * (sw.x + z2) + b.y)
-                           / ((z2 - sw.y) * (z0 - z1));
-            return clamp(sw.z + sw.w * quotient, 0.0, 1.0);
-        }
+        /* Hamburger 4-moment occlusion bound (0 = visible, 1 = fully occluded) - shared verbatim
+           with the cascade-shadow receiver via [earth.worldwind.render.program.MomentShadowGlsl]. */
+        ${MomentShadowGlsl.OCCLUDE_MASK_FUNCTION}
 
         /**
          * Returns the premultiplied tint for this fragment. Caller adds it via
@@ -123,7 +99,7 @@ object SightlineReceiverGlsl {
                 float upMask = 1.0 - step(max(absLocal.x, absLocal.y), sightlineLocalPos.z);
                 vec4 moments = textureCube(sightlineMomentsCubeSampler, sightlineLocalPos);
                 float z0 = max(absLocal.x, max(absLocal.y, absLocal.z)) / sightlineRange;
-                float occludeMask = msmOccludeMask(moments, z0);
+                float occludeMask = msmOccludeMask(moments, z0 - sightlineDepthBias, sightlineMomentBias);
                 return mix(sightlineColors[0], sightlineColors[1], occludeMask) * rangeMask * upMask;
             } else {
                 vec3 clipCoord = sightlinePosition.xyz / sightlinePosition.w;
@@ -133,7 +109,7 @@ object SightlineReceiverGlsl {
                 vec3 sampleCoord = clipCoord * 0.5 + 0.5;
                 vec4 moments = texture2D(sightlineMomentsSampler, sampleCoord.xy);
                 float z0 = sightlinePosition.w / sightlineRange;
-                float occludeMask = msmOccludeMask(moments, z0);
+                float occludeMask = msmOccludeMask(moments, z0 - sightlineDepthBias, sightlineMomentBias);
                 return mix(sightlineColors[0], sightlineColors[1], occludeMask) * clipMask * rangeMask;
             }
         }

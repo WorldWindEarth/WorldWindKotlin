@@ -270,33 +270,10 @@ open class DrawableShadow protected constructor() : Drawable {
         // texture in both passes — mixed-size sampling would either alias or read uninitialised
         // memory beyond the rendered subregion.
         val tempFb = dc.shadowBlurFramebuffer(cascadeTex.width)
-        val tempTex = tempFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-        val texelStep = 1f / cascadeTex.width.toFloat()
-        val tapSpacing = momentsBlurTexelSpacing[cascadeIndex] * texelStep
+        val tapSpacing = momentsBlurTexelSpacing[cascadeIndex] * (1f / cascadeTex.width.toFloat())
 
-        if (!dc.unitSquareBuffer.bindBuffer(dc)) return
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 2, GL_FLOAT, false, 0, 0)
-        dc.gl.disable(GL_DEPTH_TEST)
-        dc.gl.disable(GL_BLEND)
-        try {
-            // Pass 1: horizontal. cascadeFb -> tempFb.
-            if (!tempFb.bindFramebuffer(dc)) return
-            dc.gl.viewport(0, 0, cascadeTex.width, cascadeTex.height)
-            dc.activeTextureUnit(GL_TEXTURE0)
-            if (!cascadeTex.bindTexture(dc)) return
-            blur.loadBlurDirection(tapSpacing, 0f)
-            dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
-
-            // Pass 2: vertical. tempFb -> cascadeFb.
-            if (!cascadeFb.bindFramebuffer(dc)) return
-            dc.gl.viewport(0, 0, cascadeTex.width, cascadeTex.height)
-            if (!tempTex.bindTexture(dc)) return
-            blur.loadBlurDirection(0f, tapSpacing)
-            dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
-        } finally {
-            dc.gl.enable(GL_DEPTH_TEST)
-            // Caller's enable(GL_BLEND) at the end of [draw] re-enables blending.
-            dc.defaultTexture.bindTexture(dc)
-        }
+        // restoreCallerState = false: [draw] re-enables GL_BLEND and rebinds its own target after
+        // all cascades blur, and receivers sample the cascade FBO directly.
+        dc.separableBlurMoments(blur, cascadeFb, tempFb, tapSpacing, restoreCallerState = false)
     }
 }

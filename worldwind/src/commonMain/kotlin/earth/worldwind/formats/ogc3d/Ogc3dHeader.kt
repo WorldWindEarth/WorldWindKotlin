@@ -21,7 +21,8 @@ import earth.worldwind.formats.BinaryDataView
  * end of the batch-table binary.
  *
  * Note: `cmpt` is the only container that has a *different* header layout — see
- * [CmptHeader].
+ * [CmptHeader]. `i3dm` extends this layout with a trailing `gltfFormat` uint32 (parse it with
+ * `extraHeaderBytes = 4`), so its tables and payload start 4 bytes later.
  */
 class Ogc3dHeader internal constructor(
     /** ASCII magic identifier — `b3dm`, `i3dm`, or `pnts`. */
@@ -32,10 +33,12 @@ class Ogc3dHeader internal constructor(
     val featureTableBinaryByteLength: Int,
     val batchTableJsonByteLength: Int,
     val batchTableBinaryByteLength: Int,
+    /** Absolute offset (from the start of the input) of the feature-table JSON — just past the fixed
+     *  header plus any format-specific extra header bytes (e.g. i3dm's `gltfFormat`). */
+    val featureTableJsonOffset: Int,
     /** Offset (from the start of the input) where the format-specific payload begins. */
     val payloadOffset: Int,
 ) {
-    val featureTableJsonOffset: Int get() = HEADER_SIZE
     val featureTableBinaryOffset: Int get() = featureTableJsonOffset + featureTableJsonByteLength
     val batchTableJsonOffset: Int get() = featureTableBinaryOffset + featureTableBinaryByteLength
     val batchTableBinaryOffset: Int get() = batchTableJsonOffset + batchTableJsonByteLength
@@ -44,12 +47,15 @@ class Ogc3dHeader internal constructor(
         const val HEADER_SIZE = 28
 
         /**
-         * Parse the header. Throws [IllegalArgumentException] when the payload is shorter
-         * than 28 bytes or the magic / version / sub-lengths fail spec validation.
+         * Parse the header. [extraHeaderBytes] accounts for a format-specific header extension
+         * after the fixed 28 bytes (i3dm's `gltfFormat` uint32 → pass `4`); the tables and payload
+         * are shifted by it. Throws [IllegalArgumentException] when the payload is shorter than the
+         * header or the magic / version / sub-lengths fail spec validation.
          */
-        fun parse(bytes: ByteArray, offset: Int = 0): Ogc3dHeader {
-            require(bytes.size - offset >= HEADER_SIZE) {
-                "3D Tiles header truncated: have ${bytes.size - offset} bytes, need $HEADER_SIZE"
+        fun parse(bytes: ByteArray, offset: Int = 0, extraHeaderBytes: Int = 0): Ogc3dHeader {
+            val headerSize = HEADER_SIZE + extraHeaderBytes
+            require(bytes.size - offset >= headerSize) {
+                "3D Tiles header truncated: have ${bytes.size - offset} bytes, need $headerSize"
             }
             val view = BinaryDataView(bytes)
             val magic = bytes.decodeToString(offset, offset + 4)
@@ -63,10 +69,10 @@ class Ogc3dHeader internal constructor(
             val ftBin = view.getInt32(offset + 16, littleEndian = true)
             val btJson = view.getInt32(offset + 20, littleEndian = true)
             val btBin = view.getInt32(offset + 24, littleEndian = true)
-            val payloadOffset = HEADER_SIZE + ftJson + ftBin + btJson + btBin
-            require(payloadOffset <= byteLength) {
+            val payloadLength = headerSize + ftJson + ftBin + btJson + btBin
+            require(payloadLength <= byteLength) {
                 "3D Tiles header sub-lengths overflow byteLength: " +
-                    "header sum=$payloadOffset, byteLength=$byteLength"
+                    "header sum=$payloadLength, byteLength=$byteLength"
             }
             return Ogc3dHeader(
                 magic = magic,
@@ -76,7 +82,8 @@ class Ogc3dHeader internal constructor(
                 featureTableBinaryByteLength = ftBin,
                 batchTableJsonByteLength = btJson,
                 batchTableBinaryByteLength = btBin,
-                payloadOffset = offset + payloadOffset,
+                featureTableJsonOffset = offset + headerSize,
+                payloadOffset = offset + payloadLength,
             )
         }
     }

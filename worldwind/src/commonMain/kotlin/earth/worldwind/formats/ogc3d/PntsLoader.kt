@@ -159,11 +159,10 @@ object PntsLoader {
     }
 
     private fun readPositions(ft: FeatureTable, count: Int): FloatArray? {
-        readVec3FloatAccessor(ft, "POSITION", count)?.let { return it }
+        ft.readVec3Float("POSITION", count)?.let { return it }
         // POSITION_QUANTIZED needs offset + scale to map uint16 [0, 65535] back to a real
         // vec3. Per spec, value v -> v / 65535 * scale + offset.
-        val quantizedAccessor = ft.jsonElement("POSITION_QUANTIZED") as? JsonObject ?: return null
-        val byteOffset = (quantizedAccessor["byteOffset"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return null
+        val byteOffset = ft.accessorByteOffset("POSITION_QUANTIZED") ?: return null
         val offset = ft.vec3OrNull("QUANTIZED_VOLUME_OFFSET")
             ?: error("pnts POSITION_QUANTIZED requires QUANTIZED_VOLUME_OFFSET")
         val scale = ft.vec3OrNull("QUANTIZED_VOLUME_SCALE")
@@ -183,9 +182,9 @@ object PntsLoader {
 
     private fun readColors(ft: FeatureTable, count: Int): ByteArray {
         // RGBA: vec4 uint8.
-        readByteAccessor(ft, "RGBA", count, components = 4)?.let { return it }
+        ft.readBytes("RGBA", count, components = 4)?.let { return it }
         // RGB: vec3 uint8 — promote to RGBA with alpha=255.
-        readByteAccessor(ft, "RGB", count, components = 3)?.let { rgb ->
+        ft.readBytes("RGB", count, components = 3)?.let { rgb ->
             val out = ByteArray(count * 4)
             for (i in 0 until count) {
                 out[i * 4 + 0] = rgb[i * 3 + 0]
@@ -214,33 +213,6 @@ object PntsLoader {
             out[i * 4 + 2] = 0xFF.toByte()
             out[i * 4 + 3] = 0xFF.toByte()
         }
-        return out
-    }
-
-    private fun readVec3FloatAccessor(ft: FeatureTable, key: String, count: Int): FloatArray? {
-        val el = ft.jsonElement(key) as? JsonObject ?: return null
-        val byteOffset = (el["byteOffset"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return null
-        val needed = count * 3 * 4
-        require(byteOffset + needed <= ft.binary.size) {
-            "pnts $key accessor overflows feature-table binary: " +
-                "byteOffset=$byteOffset count=$count needs=$needed binary=${ft.binary.size}; " +
-                "feature-table JSON=${ft.jsonDebugString()}"
-        }
-        val out = FloatArray(count * 3)
-        val view = BinaryDataView(ft.binary)
-        for (i in 0 until count) {
-            for (c in 0 until 3) {
-                out[i * 3 + c] = view.getFloat32(byteOffset + (i * 3 + c) * 4, littleEndian = true)
-            }
-        }
-        return out
-    }
-
-    private fun readByteAccessor(ft: FeatureTable, key: String, count: Int, components: Int): ByteArray? {
-        val el = ft.jsonElement(key) as? JsonObject ?: return null
-        val byteOffset = (el["byteOffset"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return null
-        val out = ByteArray(count * components)
-        for (i in 0 until count * components) out[i] = ft.binary[byteOffset + i]
         return out
     }
 

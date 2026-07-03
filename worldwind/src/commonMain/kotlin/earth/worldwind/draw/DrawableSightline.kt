@@ -343,46 +343,12 @@ open class DrawableSightline protected constructor() : Drawable {
         if (!blur.useProgram(dc)) return
 
         val momentsFb = dc.momentsFramebuffer
-        val tempFb = dc.momentsBlurFramebuffer
         val momentsTex = momentsFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-        val tempTex = tempFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-        val texelStep = 1f / momentsTex.width.toFloat()
+        val tapSpacing = momentsBlurTexelSpacing * (1f / momentsTex.width.toFloat())
 
-        // Bind the unit-square buffer for the fullscreen quad. Same buffer used by other
-        // fullscreen-quad shaders in the codebase.
-        if (!dc.unitSquareBuffer.bindBuffer(dc)) return
-        dc.gl.vertexAttribPointer(0 /*vertexPoint*/, 2, GL_FLOAT, false, 0, 0)
-        // Blur passes are full-screen replaces, not blends. Disable depth test (no
-        // geometry to sort) and blend (the moments d^k channels include alpha = d^4 < 1
-        // over most of the depth range, which would alpha-blend with the cleared sentinel
-        // instead of overwriting it - same write-failure mode as the depth pass).
-        dc.gl.disable(GL_DEPTH_TEST)
-        dc.gl.disable(GL_BLEND)
-        val previousFramebuffer = dc.currentFramebuffer
-        try {
-            // Pass 1: horizontal. moments -> tempFb.
-            if (!tempFb.bindFramebuffer(dc)) return
-            dc.gl.viewport(0, 0, momentsTex.width, momentsTex.height)
-            dc.activeTextureUnit(GL_TEXTURE0)
-            if (!momentsTex.bindTexture(dc)) return
-            blur.loadBlurDirection(momentsBlurTexelSpacing * texelStep, 0f)
-            dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
-
-            // Pass 2: vertical. tempFb -> moments.
-            if (!momentsFb.bindFramebuffer(dc)) return
-            dc.gl.viewport(0, 0, momentsTex.width, momentsTex.height)
-            if (!tempTex.bindTexture(dc)) return
-            blur.loadBlurDirection(0f, momentsBlurTexelSpacing * texelStep)
-            dc.gl.drawArrays(GL_TRIANGLE_STRIP, 0, 4)
-        } finally {
-            // Restore caller's binding + camera viewport so the subsequent occlusion pass
-            // writes to the right target, not the moments FBO that pass 2 left bound.
-            dc.bindFramebuffer(previousFramebuffer)
-            dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
-            dc.gl.enable(GL_DEPTH_TEST)
-            dc.gl.enable(GL_BLEND)
-            dc.defaultTexture.bindTexture(dc)
-        }
+        // restoreCallerState = true: the occlusion pass runs immediately after and must write to
+        // the caller's target + camera viewport, not the moments FBO that pass 2 left bound.
+        dc.separableBlurMoments(blur, momentsFb, dc.momentsBlurFramebuffer, tapSpacing, restoreCallerState = true)
     }
 
     /**

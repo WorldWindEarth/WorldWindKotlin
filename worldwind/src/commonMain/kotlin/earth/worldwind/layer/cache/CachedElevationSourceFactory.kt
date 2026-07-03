@@ -1,4 +1,5 @@
 package earth.worldwind.layer.cache
+import earth.worldwind.layer.source.TileBlob
 import earth.worldwind.layer.source.TileSource
 
 import earth.worldwind.geom.TileMatrix
@@ -99,21 +100,8 @@ class CachedElevationSourceFactory(
             return false
         }
         if (blob.isEmpty || backend.isReadOnly) return false
-        val networkType = blob.contentType?.takeUnless {
-            it.equals("application/octet-stream", ignoreCase = true)
-        } ?: outputFormat
-        val decoded = try {
-            networkDecoder.decodeNetworkBytes(blob.bytes, networkType)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (t: Throwable) {
-            log(WARN, "CachedElevation revalidation decode failed [$z/$x/$y]: ${t.message}")
-            return false
-        } ?: return false
-        val matrix = tileMatrixSet.entries.getOrNull(z) ?: return false
-        val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
-        backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset, blob.etag, blob.lastModified)
-        return true
+        val decoded = decodeNetworkBlob(z, x, y, blob, "revalidation") ?: return false
+        return encodeAndWriteTile(z, x, y, decoded, blob)
     }
 
     override fun createElevationSource(tileMatrix: TileMatrix, row: Int, column: Int): ElevationSource =
@@ -144,22 +132,10 @@ class CachedElevationSourceFactory(
         // non-recoverable cases below: empty/404 tile and decode failure.
         val blob = network.fetchTile(z, x, y) ?: return false
         if (blob.isEmpty) return false
-        val networkType = blob.contentType?.takeUnless {
-            it.equals("application/octet-stream", ignoreCase = true)
-        } ?: outputFormat
-        val decoded = try {
-            networkDecoder.decodeNetworkBytes(blob.bytes, networkType)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (t: Throwable) {
-            log(WARN, "CachedElevation network decode failed [$z/$x/$y]: ${t.message}")
-            return false
-        } ?: return false
+        val decoded = decodeNetworkBlob(z, x, y, blob, "network") ?: return false
         if (backend.isReadOnly) return true
-        val matrix = tileMatrixSet.entries.getOrNull(z) ?: return true
         return try {
-            val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
-            backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset, blob.etag, blob.lastModified)
+            encodeAndWriteTile(z, x, y, decoded, blob)  // false only when the tile matrix is unknown
             true
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -225,33 +201,45 @@ class CachedElevationSourceFactory(
             return null
         } ?: return null
         if (blob.isEmpty) return null
-        val networkType = blob.contentType?.takeUnless {
-            it.equals("application/octet-stream", ignoreCase = true)
-        } ?: outputFormat
-        val decoded = try {
-            networkDecoder.decodeNetworkBytes(blob.bytes, networkType)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (t: Throwable) {
-            log(WARN, "CachedElevation network decode failed [$z/$x/$y]: ${t.message}")
-            return null
-        } ?: return null
+        val decoded = decodeNetworkBlob(z, x, y, blob, "network") ?: return null
         // Encode + persist (best-effort) before returning the rendered shorts. A write
         // failure shouldn't poison the current render — log and continue.
         if (!backend.isReadOnly) {
-            val matrix = tileMatrixSet.entries.getOrNull(z)
-            if (matrix != null) {
-                try {
-                    val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
-                    backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset, blob.etag, blob.lastModified)
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (t: Throwable) {
-                    log(WARN, "CachedElevation backend write failed [$z/$x/$y]: ${t.message}")
-                }
+            try {
+                encodeAndWriteTile(z, x, y, decoded, blob)  // no-op when the tile matrix is unknown
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (t: Throwable) {
+                log(WARN, "CachedElevation backend write failed [$z/$x/$y]: ${t.message}")
             }
         }
         return tileBufferToShorts(decoded)
+    }
+
+    /** Wire content-type for [blob], falling back to [outputFormat] when the server sent a generic
+     *  `application/octet-stream` (or no type). */
+    private fun networkTypeOf(blob: TileBlob): String =
+        blob.contentType?.takeUnless { it.equals("application/octet-stream", ignoreCase = true) } ?: outputFormat
+
+    /** Decode [blob] via [networkDecoder], rethrowing cancellation and mapping any decode failure (or a
+     *  null result) to null after logging. [what] tags the log line ("network" / "revalidation"). */
+    private suspend fun decodeNetworkBlob(z: Int, x: Int, y: Int, blob: TileBlob, what: String): ElevationTileBuffer? =
+        try {
+            networkDecoder.decodeNetworkBytes(blob.bytes, networkTypeOf(blob))
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            log(WARN, "CachedElevation $what decode failed [$z/$x/$y]: ${t.message}")
+            null
+        }
+
+    /** Transcode [decoded] to storage format and persist it with [blob]'s validators. Returns false
+     *  (nothing written) when the tile matrix is unknown; encode/write throws are the caller's to handle. */
+    private suspend fun encodeAndWriteTile(z: Int, x: Int, y: Int, decoded: ElevationTileBuffer, blob: TileBlob): Boolean {
+        val matrix = tileMatrixSet.entries.getOrNull(z) ?: return false
+        val encoded = ElevationStorageCodec.encode(decoded, isFloat, matrix.tileWidth, matrix.tileHeight)
+        backend.writeTile(z, x, y, encoded.bytes, encoded.tileScale, encoded.tileOffset, blob.etag, blob.lastModified)
+        return true
     }
 
     private fun tileBufferToShorts(buffer: ElevationTileBuffer): ShortArray = when (buffer) {
