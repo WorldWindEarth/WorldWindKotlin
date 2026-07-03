@@ -2,22 +2,12 @@ package earth.worldwind.layer.cache
 
 import earth.worldwind.geom.Sector
 import earth.worldwind.layer.mercator.SlippyTiles
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
-
-/** Outcome of a single bulk tile fetch — drives the `(downloaded, skipped, total)` progress tally. */
-internal enum class TileOutcome {
-    /** Tile was fetched (or already cached) and written through. */
-    DOWNLOADED,
-    /** Nothing to fetch — 404 / empty payload / no network source. Never retried. */
-    SKIPPED,
-}
 
 /** Number of slippy tiles intersecting [sector] across `[minZoom, maxZoom]` — the progress denominator. */
 private fun slippyTileCount(sector: Sector, minZoom: Int, maxZoom: Int): Long {
@@ -57,9 +47,7 @@ internal fun launchSlippyBulkRetrieval(
     onProgress: ((downloaded: Long, skipped: Long, total: Long) -> Unit)?,
     fetchOne: suspend (z: Int, x: Int, y: Int, tileSector: Sector) -> TileOutcome,
 ): Job = scope.launch(Dispatchers.Default) {
-    val total = slippyTileCount(sector, minZoom, maxZoom)
-    var downloaded = 0L
-    var skipped = 0L
+    val progress = BulkProgress(slippyTileCount(sector, minZoom, maxZoom), onProgress)
     for (z in minZoom..maxZoom) {
         val firstX = SlippyTiles.lonToTileX(sector.minLongitude.inDegrees, z)
         val lastX = SlippyTiles.lonToTileX(sector.maxLongitude.inDegrees, z)
@@ -68,23 +56,9 @@ internal fun launchSlippyBulkRetrieval(
         for (y in firstY..lastY) for (x in firstX..lastX) {
             ensureActive()
             val tileSector = SlippyTiles.tileToSector(z, x, y)
-            var outcome: TileOutcome? = null
-            var attempt = 0
-            while (attempt < maxRetries && outcome == null) {
-                ensureActive()
-                attempt++
-                try {
-                    outcome = fetchOne(z, x, y, tileSector)
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (_: Throwable) {
-                    val backoff = if (attempt % 2 == 0) retryTimeoutLong else retryTimeoutShort
-                    delay(backoff)
-                }
-            }
-            // Exhausted retries (outcome still null) is treated as a skip, matching BulkTileRetrieval.
-            if (outcome == TileOutcome.DOWNLOADED) onProgress?.invoke(++downloaded, skipped, total)
-            else onProgress?.invoke(downloaded, ++skipped, total)
+            progress.record(retryTile(maxRetries, retryTimeoutShort, retryTimeoutLong) {
+                fetchOne(z, x, y, tileSector)
+            })
         }
     }
 }

@@ -5,13 +5,11 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.util.Level
 import earth.worldwind.util.LevelSet
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -53,9 +51,7 @@ fun TileSource.launchBulkRetrieval(
     return scope.launch(Dispatchers.Default) {
         val minLevel = levelSet.levelForResolution(resolution.endInclusive)
         val maxLevel = levelSet.levelForResolution(resolution.start)
-        val tileCount = levelSet.tileCount(sector, minLevel, maxLevel)
-        var downloaded = 0L
-        var skipped = 0L
+        val progress = BulkProgress(levelSet.tileCount(sector, minLevel, maxLevel), onProgress)
         var cursor: Level? = minLevel
         while (cursor != null && cursor.levelNumber <= maxLevel.levelNumber) {
             val level = cursor
@@ -70,32 +66,11 @@ fun TileSource.launchBulkRetrieval(
                     ensureActive()
                     // Convert renderer-side row (bottom-up) to slippy-map y (top-down).
                     val slippyY = rowsAtLevel - row - 1
-                    var success = false
-                    var permanentMiss = false  // 404 / EMPTY sentinel — never retry
-                    var attempt = 0
-                    while (attempt < maxRetries && !success && !permanentMiss) {
-                        ensureActive()
-                        attempt++
-                        try {
-                            val blob = source.fetchTile(level.levelNumber, col, slippyY)
-                            when {
-                                // null = nothing to fetch (no network source / no tile). Bulk
-                                // never issues a conditional GET, so there's no 304 case —
-                                // treat null as a skip, not a download. blob.isEmpty = 404
-                                // sentinel. Neither is retried; transient failures throw.
-                                blob == null -> { permanentMiss = true; break }
-                                blob.isEmpty -> { permanentMiss = true; break }
-                                else -> { success = true; break }
-                            }
-                        } catch (cancellation: CancellationException) {
-                            throw cancellation
-                        } catch (_: Throwable) {
-                            val backoff = if (attempt % 2 == 0) retryTimeoutLong else retryTimeoutShort
-                            delay(backoff)
-                        }
-                    }
-                    if (success) onProgress?.invoke(++downloaded, skipped, tileCount)
-                    else onProgress?.invoke(downloaded, ++skipped, tileCount)
+                    progress.record(retryTile(maxRetries, retryTimeoutShort, retryTimeoutLong) {
+                        // No conditional GET here, so no 304: null (no source/tile) or isEmpty (404) is a permanent skip.
+                        val blob = source.fetchTile(level.levelNumber, col, slippyY)
+                        if (blob == null || blob.isEmpty) TileOutcome.SKIPPED else TileOutcome.DOWNLOADED
+                    })
                 }
             }
             cursor = level.nextLevel

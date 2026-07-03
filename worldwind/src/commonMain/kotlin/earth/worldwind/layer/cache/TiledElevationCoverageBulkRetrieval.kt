@@ -4,13 +4,11 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.TileMatrix
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -58,8 +56,7 @@ fun TiledElevationCoverage.launchBulkRetrieval(
     val total = matrices.sumOf { m -> m.tileCount(sector).toLong() }
 
     return scope.launch(Dispatchers.Default) {
-        var downloaded = 0L
-        var skipped = 0L
+        val progress = BulkProgress(total, onProgress)
         for (matrix in matrices) {
             val tileSector = matrix.sector
             if (!sector.intersect(tileSector)) continue
@@ -72,27 +69,11 @@ fun TiledElevationCoverage.launchBulkRetrieval(
             val lastCol = maxOf(first.column, last.column).coerceIn(0, matrix.matrixWidth - 1)
             for (row in firstRow..lastRow) for (col in firstCol..lastCol) {
                 ensureActive()
-                var success = false
-                var attempt = 0
-                while (attempt < maxRetries && !success) {
-                    ensureActive()
-                    attempt++
-                    try {
-                        if (factory.fetchAndCacheTile(matrix.ordinal, col, row, overrideCache)) {
-                            success = true
-                            break
-                        }
-                        // false → permanent miss / non-recoverable; don't retry.
-                        break
-                    } catch (cancellation: CancellationException) {
-                        throw cancellation
-                    } catch (_: Throwable) {
-                        val backoff = if (attempt % 2 == 0) retryTimeoutLong else retryTimeoutShort
-                        delay(backoff)
-                    }
-                }
-                if (success) onProgress?.invoke(++downloaded, skipped, total)
-                else onProgress?.invoke(downloaded, ++skipped, total)
+                progress.record(retryTile(maxRetries, retryTimeoutShort, retryTimeoutLong) {
+                    // true = cached (DOWNLOADED); false = permanent miss (SKIPPED, no retry); thrown = retry.
+                    if (factory.fetchAndCacheTile(matrix.ordinal, col, row, overrideCache)) TileOutcome.DOWNLOADED
+                    else TileOutcome.SKIPPED
+                })
             }
         }
     }
