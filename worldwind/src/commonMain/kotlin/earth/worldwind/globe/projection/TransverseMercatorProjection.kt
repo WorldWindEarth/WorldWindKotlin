@@ -6,8 +6,6 @@ import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.fromDegrees
 import earth.worldwind.geom.Angle.Companion.radians
 import earth.worldwind.geom.coords.TMCoord
-import earth.worldwind.util.Logger.ERROR
-import earth.worldwind.util.Logger.logMessage
 
 /**
  * Provides a Transverse Mercator ellipsoidal projection. The projection's central meridian may be specified and
@@ -45,119 +43,22 @@ open class TransverseMercatorProjection(
         return result
     }
 
-    override fun geographicToCartesianGrid(
-        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Double,
-        origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
-    ): FloatArray {
-        require(numLat >= 1 && numLon >= 1) {
-            logMessage(
-                ERROR, "TransverseMercatorProjection", "geographicToCartesianGrid",
-                "Number of latitude or longitude locations is less than one"
-            )
-        }
-        require(height == null || height.size >= numLat * numLon) {
-            logMessage(ERROR, "TransverseMercatorProjection", "geographicToCartesianGrid", "missingArray")
-        }
-
-        val a = ellipsoid.semiMajorAxis
-        val f = 1.0 / ellipsoid.inverseFlattening
-        val minLat = sector.minLatitude.inRadians
-        val maxLat = sector.maxLatitude.inRadians
-        val minLon = sector.minLongitude.inRadians
-        val maxLon = sector.maxLongitude.inRadians
-        val deltaLat = (maxLat - minLat) / if (numLat > 1) numLat - 1 else 1
-        val deltaLon = (maxLon - minLon) / if (numLon > 1) numLon - 1 else 1
-        val minLatLimit = MIN_LAT.inRadians
-        val maxLatLimit = MAX_LAT.inRadians
-        val minLonLimit = (centralMeridian - width).inRadians
-        val maxLonLimit = (centralMeridian + width).inRadians
-        var elevIndex = 0
-        val xOffset = origin?.x ?: 0.0
-        val yOffset = origin?.y ?: 0.0
-        val zOffset = origin?.z ?: 0.0
-
-        var rowIndex = rowOffset
-        val stride = if (rowStride == 0) numLon * 3 else rowStride
-        var lat = minLat
-        for (latIndex in 0 until numLat) {
-            if (latIndex == numLat - 1) lat = maxLat
-            val clampedLat = lat.coerceIn(minLatLimit, maxLatLimit)
-
-            var lon = minLon
-            var colIndex = rowIndex
-            for (lonIndex in 0 until numLon) {
-                if (lonIndex == numLon - 1) lon = maxLon
-                val clampedLon = lon.coerceIn(minLonLimit, maxLonLimit)
-                val tm = TMCoord.fromLatLon(
-                    clampedLat.radians, clampedLon.radians, a, f,
-                    centralLatitude, centralMeridian, 0.0, 0.0, scale
-                )
-                result[colIndex++] = (tm.easting - xOffset).toFloat()
-                result[colIndex++] = (tm.northing - yOffset).toFloat()
-                result[colIndex++] = if (height != null) (height[elevIndex++] * verticalExaggeration - zOffset).toFloat() else 0f
-                lon += deltaLon
-            }
-            rowIndex += stride
-            lat += deltaLat
-        }
-        return result
+    // Only the clamped latitude is per-row; the Transverse Mercator series runs per point (it needs longitude).
+    override fun projectRow(ellipsoid: Ellipsoid, latRad: Double, row: ProjectionRow) {
+        row.s0 = latRad.coerceIn(MIN_LAT.inRadians, MAX_LAT.inRadians)
     }
 
-    override fun geographicToCartesianBorder(
-        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: Float,
-        origin: Vec3?, offset: Double, result: FloatArray
-    ): FloatArray {
-        val a = ellipsoid.semiMajorAxis
-        val f = 1.0 / ellipsoid.inverseFlattening
-        val minLat = sector.minLatitude.inRadians
-        val maxLat = sector.maxLatitude.inRadians
-        val minLon = sector.minLongitude.inRadians
-        val maxLon = sector.maxLongitude.inRadians
-        val deltaLat = (maxLat - minLat) / (if (numLat > 1) numLat - 3 else 1)
-        val deltaLon = (maxLon - minLon) / (if (numLon > 1) numLon - 3 else 1)
-        val minLatLimit = MIN_LAT.inRadians
-        val maxLatLimit = MAX_LAT.inRadians
-        val minLonLimit = (centralMeridian - width).inRadians
-        val maxLonLimit = (centralMeridian + width).inRadians
-        val xOffset = origin?.x ?: 0.0
-        val yOffset = origin?.y ?: 0.0
-        val zOffset = origin?.z ?: 0.0
-
-        var resultIndex = 0
-        var lat = minLat
-        var lon = minLon
-        for (latIndex in 0 until numLat) {
-            when {
-                latIndex < 2 -> lat = minLat
-                latIndex < numLat - 2 -> lat += deltaLat
-                else -> lat = maxLat
-            }
-            val clampedLat = lat.coerceIn(minLatLimit, maxLatLimit)
-
-            var lonIndex = 0
-            while (lonIndex < numLon) {
-                when {
-                    lonIndex < 2 -> lon = minLon
-                    lonIndex < numLon - 2 -> lon += deltaLon
-                    else -> lon = maxLon
-                }
-                val clampedLon = lon.coerceIn(minLonLimit, maxLonLimit)
-                val tm = TMCoord.fromLatLon(
-                    clampedLat.radians, clampedLon.radians, a, f,
-                    centralLatitude, centralMeridian, 0.0, 0.0, scale
-                )
-                result[resultIndex++] = (tm.easting - xOffset).toFloat()
-                result[resultIndex++] = (tm.northing - yOffset).toFloat()
-                result[resultIndex++] = height - zOffset.toFloat()
-                if (lonIndex == 0 && latIndex != 0 && latIndex != numLat - 1) {
-                    val skip = numLon - 2
-                    lonIndex += skip
-                    resultIndex += skip * 3
-                }
-                lonIndex++
-            }
-        }
-        return result
+    override fun projectPoint(
+        ellipsoid: Ellipsoid, lonRad: Double, row: ProjectionRow,
+        xOffset: Double, yOffset: Double, offset: Double, result: Vec3,
+    ) {
+        val clampedLon = lonRad.coerceIn((centralMeridian - width).inRadians, (centralMeridian + width).inRadians)
+        val tm = TMCoord.fromLatLon(
+            row.s0.radians, clampedLon.radians, ellipsoid.semiMajorAxis, 1.0 / ellipsoid.inverseFlattening,
+            centralLatitude, centralMeridian, 0.0, 0.0, scale
+        )
+        result.x = tm.easting - xOffset
+        result.y = tm.northing - yOffset
     }
 
     override fun cartesianToGeographic(

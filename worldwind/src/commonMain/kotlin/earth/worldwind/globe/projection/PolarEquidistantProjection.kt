@@ -1,8 +1,6 @@
 package earth.worldwind.globe.projection
 
 import earth.worldwind.geom.*
-import earth.worldwind.util.Logger.ERROR
-import earth.worldwind.util.Logger.logMessage
 import kotlin.math.*
 
 /**
@@ -38,113 +36,22 @@ open class PolarEquidistantProjection(
         return result
     }
 
-    override fun geographicToCartesianGrid(
-        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: FloatArray?, verticalExaggeration: Double,
-        origin: Vec3?, offset: Double, result: FloatArray, rowOffset: Int, rowStride: Int
-    ): FloatArray {
-        require(numLat >= 1 && numLon >= 1) {
-            logMessage(
-                ERROR, "PolarEquidistantProjection", "geographicToCartesianGrid",
-                "Number of latitude or longitude locations is less than one"
-            )
-        }
-        require(height == null || height.size >= numLat * numLon) {
-            logMessage(ERROR, "PolarEquidistantProjection", "geographicToCartesianGrid", "missingArray")
-        }
-
-        val eqr = ellipsoid.semiMajorAxis
-        val minLat = sector.minLatitude.inRadians
-        val maxLat = sector.maxLatitude.inRadians
-        val minLon = sector.minLongitude.inRadians
-        val maxLon = sector.maxLongitude.inRadians
-        val deltaLat = (maxLat - minLat) / if (numLat > 1) numLat - 1 else 1
-        val deltaLon = (maxLon - minLon) / if (numLon > 1) numLon - 1 else 1
+    // a (the radius) depends only on latitude, so it is computed once per row. The previous inline grid
+    // additionally cached cos/sin(lon) per column; this matches the Gnomonic/UPS aspects, which do not.
+    override fun projectRow(ellipsoid: Ellipsoid, latRad: Double, row: ProjectionRow) {
         val northSouthFactor = if (isNorth) -1 else 1
-        val piOver2 = PI / 2
-        val cosLon = DoubleArray(numLon)
-        val sinLon = DoubleArray(numLon)
-        var elevIndex = 0
-        val xOffset = origin?.x ?: 0.0
-        val yOffset = origin?.y ?: 0.0
-        val zOffset = origin?.z ?: 0.0
-
-        var lon = minLon
-        for (lonIndex in 0 until numLon) {
-            if (lonIndex == numLon - 1) lon = maxLon
-            cosLon[lonIndex] = cos(lon)
-            sinLon[lonIndex] = sin(lon)
-            lon += deltaLon
-        }
-
-        var rowIndex = rowOffset
-        val stride = if (rowStride == 0) numLon * 3 else rowStride
-        var lat = minLat
-        for (latIndex in 0 until numLat) {
-            if (latIndex == numLat - 1) lat = maxLat
-
-            var a = eqr * (piOver2 + lat * northSouthFactor)
-            if ((isNorth && lat == piOver2) || (!isNorth && lat == -piOver2)) a = 0.0
-
-            var colIndex = rowIndex
-            for (lonIndex in 0 until numLon) {
-                result[colIndex++] = (a * sinLon[lonIndex] - xOffset).toFloat()
-                result[colIndex++] = (a * cosLon[lonIndex] * northSouthFactor - yOffset).toFloat()
-                result[colIndex++] = if (height != null) (height[elevIndex++] * verticalExaggeration - zOffset).toFloat() else 0f
-            }
-            rowIndex += stride
-            lat += deltaLat
-        }
-        return result
+        var a = ellipsoid.semiMajorAxis * (PI / 2 + latRad * northSouthFactor)
+        if ((isNorth && latRad == PI / 2) || (!isNorth && latRad == -PI / 2)) a = 0.0
+        row.s0 = a
     }
 
-    override fun geographicToCartesianBorder(
-        ellipsoid: Ellipsoid, sector: Sector, numLat: Int, numLon: Int, height: Float,
-        origin: Vec3?, offset: Double, result: FloatArray
-    ): FloatArray {
-        val eqr = ellipsoid.semiMajorAxis
-        val minLat = sector.minLatitude.inRadians
-        val maxLat = sector.maxLatitude.inRadians
-        val minLon = sector.minLongitude.inRadians
-        val maxLon = sector.maxLongitude.inRadians
-        val deltaLat = (maxLat - minLat) / (if (numLat > 1) numLat - 3 else 1)
-        val deltaLon = (maxLon - minLon) / (if (numLon > 1) numLon - 3 else 1)
+    override fun projectPoint(
+        ellipsoid: Ellipsoid, lonRad: Double, row: ProjectionRow,
+        xOffset: Double, yOffset: Double, offset: Double, result: Vec3,
+    ) {
         val northSouthFactor = if (isNorth) -1 else 1
-        val piOver2 = PI / 2
-        val xOffset = origin?.x ?: 0.0
-        val yOffset = origin?.y ?: 0.0
-        val zOffset = origin?.z ?: 0.0
-
-        var resultIndex = 0
-        var lat = minLat
-        var lon = minLon
-        for (latIndex in 0 until numLat) {
-            when {
-                latIndex < 2 -> lat = minLat
-                latIndex < numLat - 2 -> lat += deltaLat
-                else -> lat = maxLat
-            }
-            var a = eqr * (piOver2 + lat * northSouthFactor)
-            if ((isNorth && lat == piOver2) || (!isNorth && lat == -piOver2)) a = 0.0
-
-            var lonIndex = 0
-            while (lonIndex < numLon) {
-                when {
-                    lonIndex < 2 -> lon = minLon
-                    lonIndex < numLon - 2 -> lon += deltaLon
-                    else -> lon = maxLon
-                }
-                result[resultIndex++] = (a * sin(lon) - xOffset).toFloat()
-                result[resultIndex++] = (a * cos(lon) * northSouthFactor - yOffset).toFloat()
-                result[resultIndex++] = height - zOffset.toFloat()
-                if (lonIndex == 0 && latIndex != 0 && latIndex != numLat - 1) {
-                    val skip = numLon - 2
-                    lonIndex += skip
-                    resultIndex += skip * 3
-                }
-                lonIndex++
-            }
-        }
-        return result
+        result.x = row.s0 * sin(lonRad) - xOffset
+        result.y = row.s0 * cos(lonRad) * northSouthFactor - yOffset
     }
 
     override fun cartesianToGeographic(
