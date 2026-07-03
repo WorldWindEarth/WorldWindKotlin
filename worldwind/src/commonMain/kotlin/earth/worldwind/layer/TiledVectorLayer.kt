@@ -21,7 +21,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlin.concurrent.Volatile
-import kotlin.time.Clock
 
 /**
  * Reusable base for tiled vector layers (WFS features, MVT vector tiles, OSM buildings). Owns the
@@ -86,7 +85,7 @@ abstract class TiledVectorLayer<C : Any>(
     private val liveContent = HashMap<String, C>()
     // In-flight fetch jobs keyed by tileKey — dedups requests; cancelled only on invalidation/close.
     private val inFlight = HashMap<String, Job>()
-    private val backoff = HashMap<String, BackoffEntry>()
+    private val backoff = TileBackoff<String>()
     // Per-key invalidation generation. A fetch captures it at request time; [drainResults] drops a result
     // whose generation is stale (the tile was invalidated mid-fetch), so a pre-invalidation snapshot can't
     // be re-cached and pin out the revalidation — the tile re-requests instead.
@@ -266,7 +265,7 @@ abstract class TiledVectorLayer<C : Any>(
         val key = tile.tileKey
         // No view-change abort: a started load always finishes and caches. Cancelling on a tile briefly
         // leaving the cut (tilt/zoom) made tiles disappear/reappear; concurrency is gated by the semaphore.
-        if (isInBackoff(key) || inFlight.containsKey(key)) return
+        if (backoff.isInBackoff(key) || inFlight.containsKey(key)) return
         // Bound the launch queue so a giant cut can't pile up unbounded coroutines + HTTP/SSL → OOM; over-cap tiles re-request a later frame as in-flight slots drain (the semaphore still gates network concurrency).
         if (inFlight.size >= maxPendingFetches) return
         val z = tile.level.levelNumber
@@ -289,11 +288,6 @@ abstract class TiledVectorLayer<C : Any>(
         }
     }
 
-    private fun isInBackoff(key: String): Boolean {
-        val entry = backoff[key] ?: return false
-        return Clock.System.now().toEpochMilliseconds() < entry.nextRetryEpochMs
-    }
-
     private fun drainResults() {
         while (true) {
             val result = results.tryReceive().getOrNull() ?: return
@@ -302,21 +296,14 @@ abstract class TiledVectorLayer<C : Any>(
             if (result.epoch != (invalidationEpoch[result.key] ?: 0)) continue
             val value = result.value
             if (value == null) { // failure → exponential backoff + wake-up redraw
-                val entry = backoff.getOrPut(result.key) { BackoffEntry() }
-                entry.failCount++
-                if (entry.failCount > MAX_BACKOFF_RETRIES) {
-                    // Give up on a persistently-failing tile (404 / no coverage): stop retrying AND
-                    // stop waking the render loop every 60 s for the session's life. A far-future
-                    // retry keeps it out of the request path until source invalidation re-enables it.
-                    entry.nextRetryEpochMs = Long.MAX_VALUE
-                    continue
-                }
-                val delayMs = backoffDelayMs(entry.failCount)
-                entry.nextRetryEpochMs = Clock.System.now().toEpochMilliseconds() + delayMs
+                // Give up after MAX_BACKOFF_RETRIES (null delay): TileBackoff parks the key far in the
+                // future so a persistently-failing tile (404 / no coverage) stops both retrying and
+                // waking the render loop until source invalidation re-enables it.
+                val delayMs = backoff.recordFailure(result.key, MAX_BACKOFF_RETRIES) ?: continue
                 scope.launch { delay(delayMs); WorldWind.requestRedraw() }
                 continue
             }
-            backoff.remove(result.key)
+            backoff.clear(result.key)
             @Suppress("UNCHECKED_CAST")
             val content = value as C
             liveContent[result.key] = content
@@ -330,7 +317,7 @@ abstract class TiledVectorLayer<C : Any>(
             invalidationEpoch[key] = (invalidationEpoch[key] ?: 0) + 1 // stale-mark any in-flight fetch
             tiles.remove(key)
             inFlight.remove(key)?.cancel()
-            backoff.remove(key)
+            backoff.clear(key)
         }
     }
 
@@ -363,11 +350,6 @@ abstract class TiledVectorLayer<C : Any>(
 
     private class TileResult(val key: String, val value: Any?, val epoch: Int)
 
-    private class BackoffEntry {
-        var failCount = 0
-        var nextRetryEpochMs = 0L
-    }
-
     companion object {
         /** Levels of already-loaded finer tiles to search when bridging a zoom-OUT gap. */
         private const val MAX_FALLBACK_DEPTH = 3
@@ -378,12 +360,5 @@ abstract class TiledVectorLayer<C : Any>(
         /** Cache key matching [Tile.tileKey] = "level.row.column"; sources receive `(z=level,
          *  x=column, y=row)`, so revalidation callbacks map back the same way. */
         fun tileKeyOf(z: Int, x: Int, y: Int) = "$z.$y.$x"
-
-        private fun backoffDelayMs(failCount: Int): Long = when (failCount) {
-            1 -> 2_000
-            2 -> 5_000
-            3 -> 15_000
-            else -> 60_000
-        }
     }
 }
