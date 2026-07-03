@@ -6,6 +6,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
+import earth.worldwind.layer.shadow.ShadowReceiverUniforms
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.KglUniformLocation
@@ -257,13 +258,7 @@ open class TriangleShaderProgram(
     private var texCoordMatrixId = KglUniformLocation.NONE
     private var texSamplerId = KglUniformLocation.NONE
     private var clipDistanceId = KglUniformLocation.NONE
-    private var applyShadowId = KglUniformLocation.NONE
-    private var useMSMId = KglUniformLocation.NONE
-    private var ambientShadowId = KglUniformLocation.NONE
-    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val lightProjectionViewArray = FloatArray(16)
+    private val shadowUniforms = ShadowReceiverUniforms(shadowsEnabled)
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -310,19 +305,7 @@ open class TriangleShaderProgram(
         modelMatrixId = gl.getUniformLocation(program, "modelMatrix")
         modelMatrix.transposeToArray(array, 0) // 4 x 4 identity matrix
         gl.uniformMatrix4fv(modelMatrixId, 1, false, array, 0)
-        applyShadowId = gl.getUniformLocation(program, "applyShadow")
-        gl.uniform1i(applyShadowId, 0)
-        useMSMId = gl.getUniformLocation(program, "useMSM")
-        gl.uniform1i(useMSMId, 0)
-        ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
-        gl.uniform1f(ambientShadowId, 0.4f)
-        for (i in shadowMapIds.indices) {
-            shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
-            gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
-            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
-            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
-            gl.uniform1f(cascadeFarDepthIds[i], 0f)
-        }
+        shadowUniforms.init(gl, program)
     }
 
     fun enablePickMode(enable: Boolean) {
@@ -385,11 +368,11 @@ open class TriangleShaderProgram(
         }
     }
 
-    override var shadowUploadStamp: Long = -1L
+    override var shadowUploadStamp: Long
+        get() = shadowUniforms.uploadStamp
+        set(value) { shadowUniforms.uploadStamp = value }
 
-    override fun loadShadowDisabled() {
-        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
-    }
+    override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
     override fun loadShadowEnabled(
         ambientShadow: Float,
@@ -400,20 +383,10 @@ open class TriangleShaderProgram(
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
         useMSM: Boolean,
-    ) {
-        gl.uniform1i(applyShadowId, 1)
-        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
-        gl.uniform1f(ambientShadowId, ambientShadow)
-        lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
-        lightProjectionView1.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, lightProjectionViewArray, 0)
-        lightProjectionView2.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, lightProjectionViewArray, 0)
-        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
-        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
-        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
-    }
+    ) = shadowUniforms.loadEnabled(
+        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
+        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
+    )
 
     fun loadColor(color: Color) {
         if (this.color != color) {

@@ -5,8 +5,10 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
+import earth.worldwind.layer.shadow.ShadowReceiverUniforms
 import earth.worldwind.layer.sightline.SightlineReceiverGlsl
 import earth.worldwind.layer.sightline.SightlineReceiverProgram
+import earth.worldwind.layer.sightline.SightlineReceiverUniforms
 import earth.worldwind.layer.sightline.SightlineState
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
@@ -57,24 +59,9 @@ open class Ogc3dTilesProgram(
     private var pickIdBaseId = KglUniformLocation.NONE
     private var texSamplerId = KglUniformLocation.NONE
 
-    // Shadow receiver uniforms (only present in shadow variants).
-    private var applyShadowId = KglUniformLocation.NONE
-    private var useMSMId = KglUniformLocation.NONE
-    private var ambientShadowId = KglUniformLocation.NONE
-    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-
-    // Sightline receiver uniforms (only present in sightline variants).
-    private var applySightlineId = KglUniformLocation.NONE
-    private var sightlineOmnidirectionalId = KglUniformLocation.NONE
-    private var sightlineMvMatrixId = KglUniformLocation.NONE
-    private var sightlineProjMatrixId = KglUniformLocation.NONE
-    private var sightlineLocalMatrixId = KglUniformLocation.NONE
-    private var sightlineRangeId = KglUniformLocation.NONE
-    private var sightlineColorsId = KglUniformLocation.NONE
-    private var sightlineMomentsSamplerId = KglUniformLocation.NONE
-    private var sightlineMomentsCubeSamplerId = KglUniformLocation.NONE
+    // Shadow / sightline receiver uniforms (only present in the respective variants).
+    private val shadowUniforms = ShadowReceiverUniforms(shadowsEnabled)
+    private val sightlineUniforms = SightlineReceiverUniforms(sightlineEnabled)
 
     // --- uniform state caches (skip redundant GL calls) ----------------------------
 
@@ -94,8 +81,12 @@ open class Ogc3dTilesProgram(
     private var pickIdBase = 0f
     private val lightDirection = Vec3(0.0, 0.0, 1.0)
 
-    override var shadowUploadStamp: Long = -1L
-    override var lastSightlineState: SightlineState? = null
+    override var shadowUploadStamp: Long
+        get() = shadowUniforms.uploadStamp
+        set(value) { shadowUniforms.uploadStamp = value }
+    override var lastSightlineState: SightlineState?
+        get() = sightlineUniforms.lastState
+        set(value) { sightlineUniforms.lastState = value }
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
@@ -132,38 +123,8 @@ open class Ogc3dTilesProgram(
         texSamplerId = gl.getUniformLocation(program, "texSampler")
         gl.uniform1i(texSamplerId, 0) // GL_TEXTURE0
 
-        if (shadowsEnabled) {
-            applyShadowId = gl.getUniformLocation(program, "applyShadow")
-            gl.uniform1i(applyShadowId, 0)
-            useMSMId = gl.getUniformLocation(program, "useMSM")
-            gl.uniform1i(useMSMId, 0)
-            ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
-            gl.uniform1f(ambientShadowId, 0.4f)
-            for (i in shadowMapIds.indices) {
-                shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
-                gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
-                lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
-                cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
-                gl.uniform1f(cascadeFarDepthIds[i], 0f)
-            }
-        }
-
-        if (sightlineEnabled) {
-            applySightlineId = gl.getUniformLocation(program, "applySightline")
-            gl.uniform1i(applySightlineId, 0)
-            sightlineOmnidirectionalId = gl.getUniformLocation(program, "sightlineOmnidirectional")
-            gl.uniform1i(sightlineOmnidirectionalId, 0)
-            sightlineMvMatrixId = gl.getUniformLocation(program, "sightlineMvMatrix")
-            sightlineProjMatrixId = gl.getUniformLocation(program, "sightlineProjMatrix")
-            sightlineLocalMatrixId = gl.getUniformLocation(program, "sightlineLocalMatrix")
-            sightlineRangeId = gl.getUniformLocation(program, "sightlineRange")
-            gl.uniform1f(sightlineRangeId, 0f)
-            sightlineColorsId = gl.getUniformLocation(program, "sightlineColors")
-            sightlineMomentsSamplerId = gl.getUniformLocation(program, "sightlineMomentsSampler")
-            gl.uniform1i(sightlineMomentsSamplerId, 4) // GL_TEXTURE4
-            sightlineMomentsCubeSamplerId = gl.getUniformLocation(program, "sightlineMomentsCubeSampler")
-            gl.uniform1i(sightlineMomentsCubeSamplerId, 5) // GL_TEXTURE5
-        }
+        shadowUniforms.init(gl, program)
+        sightlineUniforms.init(gl, program)
     }
 
     // --- per-draw setters ----------------------------------------------------------
@@ -275,9 +236,7 @@ open class Ogc3dTilesProgram(
 
     // --- ShadowReceiverProgram impl -----------------------------------------------
 
-    override fun loadShadowDisabled() {
-        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
-    }
+    override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
     override fun loadShadowEnabled(
         ambientShadow: Float,
@@ -288,27 +247,14 @@ open class Ogc3dTilesProgram(
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
         useMSM: Boolean,
-    ) {
-        if (!shadowsEnabled) return
-        gl.uniform1i(applyShadowId, 1)
-        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
-        gl.uniform1f(ambientShadowId, ambientShadow)
-        lightProjectionView0.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, matrixArray, 0)
-        lightProjectionView1.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, matrixArray, 0)
-        lightProjectionView2.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, matrixArray, 0)
-        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
-        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
-        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
-    }
+    ) = shadowUniforms.loadEnabled(
+        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
+        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
+    )
 
     // --- SightlineReceiverProgram impl --------------------------------------------
 
-    override fun loadSightlineDisabled() {
-        if (sightlineEnabled) gl.uniform1i(applySightlineId, 0)
-    }
+    override fun loadSightlineDisabled() = sightlineUniforms.loadDisabled(gl)
 
     override fun loadSightlineEnabled(
         omnidirectional: Boolean,
@@ -318,29 +264,9 @@ open class Ogc3dTilesProgram(
         range: Float,
         visibleColor: Color,
         occludedColor: Color,
-    ) {
-        if (!sightlineEnabled) return
-        gl.uniform1i(applySightlineId, 1)
-        gl.uniform1i(sightlineOmnidirectionalId, if (omnidirectional) 1 else 0)
-        sightlineMv.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(sightlineMvMatrixId, 1, false, matrixArray, 0)
-        cubeMapProjection.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(sightlineProjMatrixId, 1, false, matrixArray, 0)
-        sightlineLocal.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(sightlineLocalMatrixId, 1, false, matrixArray, 0)
-        gl.uniform1f(sightlineRangeId, range)
-        val colorsArray = floatArrayOf(
-            visibleColor.red * visibleColor.alpha,
-            visibleColor.green * visibleColor.alpha,
-            visibleColor.blue * visibleColor.alpha,
-            visibleColor.alpha,
-            occludedColor.red * occludedColor.alpha,
-            occludedColor.green * occludedColor.alpha,
-            occludedColor.blue * occludedColor.alpha,
-            occludedColor.alpha,
-        )
-        gl.uniform4fv(sightlineColorsId, 2, colorsArray, 0)
-    }
+    ) = sightlineUniforms.loadEnabled(
+        gl, omnidirectional, sightlineMv, cubeMapProjection, sightlineLocal, range, visibleColor, occludedColor,
+    )
 
     companion object {
         /** Always include the sightline splice. `hasActiveSightline` is set inside

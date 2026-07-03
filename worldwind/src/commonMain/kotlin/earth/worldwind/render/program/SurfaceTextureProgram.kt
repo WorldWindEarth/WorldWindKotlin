@@ -5,6 +5,7 @@ import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
+import earth.worldwind.layer.shadow.ShadowReceiverUniforms
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.KglUniformLocation
@@ -132,16 +133,9 @@ open class SurfaceTextureProgram(
     private var colorId = KglUniformLocation.NONE
     private var opacityId = KglUniformLocation.NONE
     private var vertexOriginId = KglUniformLocation.NONE
-    private var applyShadowId = KglUniformLocation.NONE
-    private var useMSMId = KglUniformLocation.NONE
-    private var ambientShadowId = KglUniformLocation.NONE
-    /** Cascade moments samplers, one per cascade, bound to `GL_TEXTURE1` + cascadeIndex. */
-    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private val shadowUniforms = ShadowReceiverUniforms(shadowsEnabled)
     private val mvpMatrixArray = FloatArray(16)
     private val texCoordMatrixArray = FloatArray(9 * 2)
-    private val lightProjectionViewArray = FloatArray(16)
     private val color = Color()
     private var opacity = 1.0f
 
@@ -171,19 +165,7 @@ open class SurfaceTextureProgram(
         // GL no-ops there.
         vertexOriginId = gl.getUniformLocation(program, "vertexOrigin")
         gl.uniform3f(vertexOriginId, 0f, 0f, 0f)
-        applyShadowId = gl.getUniformLocation(program, "applyShadow")
-        gl.uniform1i(applyShadowId, 0)
-        useMSMId = gl.getUniformLocation(program, "useMSM")
-        gl.uniform1i(useMSMId, 0)
-        ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
-        gl.uniform1f(ambientShadowId, 0.4f)
-        for (i in shadowMapIds.indices) {
-            shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
-            gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
-            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
-            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
-            gl.uniform1f(cascadeFarDepthIds[i], 0f)
-        }
+        shadowUniforms.init(gl, program)
     }
 
     fun enablePickMode(enable: Boolean) { gl.uniform1i(enablePickModeId, if (enable) 1 else 0) }
@@ -226,13 +208,11 @@ open class SurfaceTextureProgram(
         gl.uniform3f(vertexOriginId, x, y, z)
     }
 
-    override var shadowUploadStamp: Long = -1L
+    override var shadowUploadStamp: Long
+        get() = shadowUniforms.uploadStamp
+        set(value) { shadowUniforms.uploadStamp = value }
 
-    override fun loadShadowDisabled() {
-        // Called once per drawable per frame; skip the JNI roundtrip on the no-shadow variant
-        // (applyShadowId is NONE and the GL call would be a silent no-op).
-        if (shadowsEnabled) gl.uniform1i(applyShadowId, 0)
-    }
+    override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
     override fun loadShadowEnabled(
         ambientShadow: Float,
@@ -243,20 +223,10 @@ open class SurfaceTextureProgram(
         cascadeFarDepth1: Float,
         cascadeFarDepth2: Float,
         useMSM: Boolean,
-    ) {
-        gl.uniform1i(applyShadowId, 1)
-        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
-        gl.uniform1f(ambientShadowId, ambientShadow)
-        lightProjectionView0.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, lightProjectionViewArray, 0)
-        lightProjectionView1.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, lightProjectionViewArray, 0)
-        lightProjectionView2.transposeToArray(lightProjectionViewArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, lightProjectionViewArray, 0)
-        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
-        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
-        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
-    }
+    ) = shadowUniforms.loadEnabled(
+        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
+        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
+    )
 
     companion object {
         /**
