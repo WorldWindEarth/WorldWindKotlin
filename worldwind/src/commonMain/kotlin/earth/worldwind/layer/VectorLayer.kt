@@ -20,4 +20,7 @@ package earth.worldwind.layer
  * [earth.worldwind.layer.source.TiledFeatureSource] for tile-addressed features) are
  * structurally too different to share a useful method set without losing type safety.
  */
-interface VectorLayer : Layer
+interface VectorLayer : Layer {
+    /** Makes a fresh copy carrying only this layer's configuration; caches and fetch scope are not shared. */
+    fun clone(): VectorLayer
+}

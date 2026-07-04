@@ -137,4 +137,15 @@ open class BulkFeatureLayer(
         source.close()
     }
 
+    /** Makes a fresh copy carrying this layer's configuration; source, renderables, and refresh driver are not shared. */
+    override fun clone() = BulkFeatureLayer(
+        source, displayName, shapeAttributes?.let { ShapeAttributes(it) }, autoApplyStyle,
+        defaultLineColor, defaultFillColor, density, labelVisibilityThreshold, defaultAltitudeMode,
+        customLogicToApplyProperties,
+    ).also {
+        it.autoRefreshViewport = autoRefreshViewport
+        it.autoRefreshDebounceMillis = autoRefreshDebounceMillis
+        it.autoRefreshMargin = autoRefreshMargin
+    }
+
 }

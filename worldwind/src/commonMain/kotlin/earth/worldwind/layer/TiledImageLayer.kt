@@ -14,5 +14,5 @@ open class TiledImageLayer(name: String? = null, tiledSurfaceImage: TiledSurface
 
     val type get() = tiledSurfaceImage?.tileFactory?.contentType
 
-    open fun clone() = TiledImageLayer(displayName, this.tiledSurfaceImage?.clone())
+    open fun clone() = TiledImageLayer(displayName, tiledSurfaceImage?.clone())
 }

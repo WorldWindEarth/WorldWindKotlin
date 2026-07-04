@@ -88,11 +88,11 @@ open class MvtVectorLayer(
     val maxZoom: Int = 14,
     // Resident tile-geometry cap (~0.7 MB vertex/element arrays each); 256 holds the working set +
     // ancestors without OOMing the heap (1024 OOM'd; 128 thrashed in-view tiles → GC storm).
-    maxLoadedTiles: Int = 256,
+    val maxLoadedTiles: Int = 256,
     // Network round-trips in flight; 4 fills a pan without hammering the server.
-    maxConcurrentFetches: Int = 4,
+    val maxConcurrentFetches: Int = 4,
     // CPU concurrency for the decode + tessellation stage, bounded so prep can't starve render/main.
-    maxConcurrentAssembly: Int = 4,
+    val maxConcurrentAssembly: Int = 4,
     /** When true (default), ring/line geometry is RDP+radial simplified at decode; false passes raw verts through. */
     val simplifyGeometry: Boolean = true,
     /**
@@ -149,6 +149,12 @@ open class MvtVectorLayer(
     private var capturedGlobe: Globe? = null
     @Volatile
     private var capturedGlobeState: Globe.State? = null
+
+    /** Makes a fresh copy carrying only this layer's configuration; caches and fetch scope are not shared. */
+    override fun clone() = MvtVectorLayer(
+        source, minZoom, maxZoom, maxLoadedTiles, maxConcurrentFetches, maxConcurrentAssembly,
+        simplifyGeometry, simplifyMaxZoom, useBatchedRendering, style, spriteAtlas, displayName,
+    )
 
     // ---- Base hooks ----------------------------------------------------------------------------
 

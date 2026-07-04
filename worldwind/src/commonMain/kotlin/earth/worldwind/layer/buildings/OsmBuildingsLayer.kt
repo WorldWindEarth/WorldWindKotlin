@@ -71,7 +71,7 @@ open class OsmBuildingsLayer(
     val tileZoom: Int = 15,
     val tileRadius: Int = 4,
     val maxLoadedTiles: Int = 256,
-    maxConcurrentFetches: Int = 2,
+    val maxConcurrentFetches: Int = 2,
     /**
      * When true, walls are coloured via [OsmColors.resolve] on each [OsmBuilding]'s tags (falling
      * back to [attributes]'s interior colour); top caps use `roof:colour` (falling back to the
@@ -136,6 +136,14 @@ open class OsmBuildingsLayer(
 
     init {
         maxActiveAltitude = 30_000.0
+    }
+
+    /** Makes a fresh copy carrying this layer's configuration + appearance; caches and fetch scope are not shared. */
+    override fun clone() = OsmBuildingsLayer(
+        source, tileZoom, tileRadius, maxLoadedTiles, maxConcurrentFetches, useOsmColors, useBatchedRendering, displayName,
+    ).also {
+        it.attributes = ShapeAttributes(attributes)
+        it.shadowMode = shadowMode
     }
 
     override fun doRender(rc: RenderContext) {

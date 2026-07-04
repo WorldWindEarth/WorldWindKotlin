@@ -42,10 +42,10 @@ open class TiledFeatureLayer(
     var source: TiledFeatureSource,
     /** Quadtree levels coarser than this aren't fetched/rendered — a single coarse tile's BBOX would
      *  pull too many features. The layer's effective "zoom band" floor. Level `n` spans `180°/2^n`. */
-    levelOffset: Int = 0,
-    numLevels: Int = 20,
-    maxLoadedTiles: Int = 256,
-    maxConcurrentFetches: Int = 4,
+    val levelOffset: Int = 0,
+    val numLevels: Int = 20,
+    val maxLoadedTiles: Int = 256,
+    val maxConcurrentFetches: Int = 4,
     var shapeAttributes: ShapeAttributes? = null,
     var autoApplyStyle: Boolean = true,
     var defaultLineColor: Color? = null,
@@ -165,6 +165,15 @@ open class TiledFeatureLayer(
     }
 
     override fun closeSource() { source.close() }
+
+    /** Makes a fresh copy carrying only this layer's configuration; caches and fetch scope are not shared. */
+    override fun clone() = TiledFeatureLayer(
+        source, levelOffset, numLevels, maxLoadedTiles, maxConcurrentFetches,
+        shapeAttributes?.let { ShapeAttributes(it) }, autoApplyStyle, defaultLineColor, defaultFillColor,
+        density, labelVisibilityThreshold, defaultAltitudeMode, simplifyTolerancePixels,
+        useBatchedRendering, customLogicToApplyProperties, progressiveRefinement, coarseAncestorFallback,
+        displayName,
+    )
 
     private class FeatureTile(sector: Sector, level: Level, row: Int, column: Int) : Tile(sector, level, row, column)
 
