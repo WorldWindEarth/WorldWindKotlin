@@ -91,7 +91,7 @@ class MvtDecoderTest {
         // Tile (0,0,0) covers the whole world. (5, 7) of 4096 is tiny — lon ≈ -180 + (5/4096)*360
         val expectedLon = -180.0 + (5.0 / 4096.0) * 360.0
         assertEquals(expectedLon, p.longitude.inDegrees, absoluteTolerance = 1e-9)
-        // y=7 of 4096 in tile 0 is near the top of the Mercator world (≈ MercatorSector.MAX_LATITUDE_DEG).
+        // y=7 of 4096 in tile 0 is near the top of the Mercator world (≈ SlippyTiles.maxLatitudeDegrees).
         assertTrue(p.latitude.inDegrees > 84.0)
     }
 

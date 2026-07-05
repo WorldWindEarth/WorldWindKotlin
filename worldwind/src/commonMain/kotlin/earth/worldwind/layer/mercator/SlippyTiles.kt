@@ -14,13 +14,30 @@ import kotlin.math.tan
  * Web-Mercator (slippy-map) tile ↔ geographic conversions, shared by the MVT and OSM-Buildings
  * layers and the bulk-retrieval drivers so the projection math lives in exactly one place. Tiles
  * follow the standard 256-px OSM/XYZ scheme: x grows east, y grows south (`y = 0` is north), with
- * `n = 2^zoom` tiles per axis. Latitude is clamped to ±[MercatorSector.MAX_LATITUDE_DEG].
+ * `n = 2^zoom` tiles per axis. Latitude is clamped to ±[maxLatitudeDegrees].
+ *
+ * This is the single source of truth for the Web-Mercator projection: [MercatorSector] (the
+ * [earth.worldwind.util.LevelSet]-backed render quadtree's warped extent) delegates its gudermannian
+ * math to [mercatorYToLatRadians] / [latRadiansToMercatorY] here, so the scalar hot-path kernel and
+ * the object-model tiling can never drift.
  */
 object SlippyTiles {
     private const val TILE_SIZE = 256
 
+    /** Web-Mercator latitude limit in radians — `atan(sinh(π))` (≈ 85.0511°), where the projection becomes square. */
+    val maxLatitudeRadians = mercatorYToLatRadians(1.0)
+
+    /** Web-Mercator latitude limit in degrees; slippy servers/clients clamp to ±this. */
+    val maxLatitudeDegrees = maxLatitudeRadians * 180.0 / PI
+
     /** Angular resolution (degrees/pixel) of zoom 0 — the full Mercator latitude span over one tile. */
-    private val zoom0DegreesPerPixel = 2.0 * MercatorSector.MAX_LATITUDE_DEG / TILE_SIZE
+    private val zoom0DegreesPerPixel = 2.0 * maxLatitudeDegrees / TILE_SIZE
+
+    /** Web-Mercator forward projection: normalized Mercator-Y in `[-1, 1]` → latitude in radians (`y = +1` → north limit). */
+    fun mercatorYToLatRadians(y: Double): Double = atan(sinh(y * PI))
+
+    /** Web-Mercator inverse projection: latitude in radians → normalized Mercator-Y in `[-1, 1]`. */
+    fun latRadiansToMercatorY(latRadians: Double): Double = asinh(tan(latRadians)) / PI
 
     /** Slippy column for [lonDegrees] at [zoom], clamped to the pyramid width. */
     fun lonToTileX(lonDegrees: Double, zoom: Int): Int {
@@ -31,8 +48,8 @@ object SlippyTiles {
     /** Slippy row (0 = north) for [latDegrees] at [zoom], clamped to Mercator bounds and pyramid height. */
     fun latToTileY(latDegrees: Double, zoom: Int): Int {
         val n = 1 shl zoom
-        val latRad = latDegrees.coerceIn(-MercatorSector.MAX_LATITUDE_DEG, MercatorSector.MAX_LATITUDE_DEG) * PI / 180.0
-        return ((1.0 - asinh(tan(latRad)) / PI) / 2.0 * n).toInt().coerceIn(0, n - 1)
+        val latRad = latDegrees.coerceIn(-maxLatitudeDegrees, maxLatitudeDegrees) * PI / 180.0
+        return ((1.0 - latRadiansToMercatorY(latRad)) / 2.0 * n).toInt().coerceIn(0, n - 1)
     }
 
     /** Slippy `(x, y)` containing [lonDegrees]/[latDegrees] at [zoom]. */
@@ -47,7 +64,7 @@ object SlippyTiles {
 
     /** Latitude (degrees, row 0 = north) at fractional slippy row [tileY], where [tilesPerAxis] `= 2^zoom`. */
     fun tileYToLatDegrees(tileY: Double, tilesPerAxis: Double): Double =
-        atan(sinh(PI * (1 - 2 * tileY / tilesPerAxis))) * 180.0 / PI
+        mercatorYToLatRadians(1.0 - 2.0 * tileY / tilesPerAxis) * 180.0 / PI
 
     /** Geographic bounds of slippy tile `(zoom, x, y)` (y slippy, 0 = north). */
     fun tileToSector(zoom: Int, x: Int, y: Int): Sector {
