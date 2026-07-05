@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration
 
 /** Number of slippy tiles intersecting [sector] across `[minZoom, maxZoom]` — the progress denominator. */
-private fun slippyTileCount(sector: Sector, minZoom: Int, maxZoom: Int): Long {
+internal fun slippyTileCount(sector: Sector, minZoom: Int, maxZoom: Int): Long {
     var total = 0L
     for (z in minZoom..maxZoom) {
         val firstX = SlippyTiles.lonToTileX(sector.minLongitude.inDegrees, z)

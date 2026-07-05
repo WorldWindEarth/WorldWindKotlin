@@ -49,9 +49,7 @@ fun MvtVectorLayer.launchBulkRetrieval(
     overrideCache: Boolean = false,
     onProgress: ((downloaded: Long, skipped: Long, total: Long) -> Unit)? = null,
 ): Job {
-    // resolution.start is the finest (smallest angle) → deepest zoom; endInclusive is the coarsest.
-    val deepestZoom = SlippyTiles.zoomForResolution(resolution.start).coerceIn(minZoom, maxZoom)
-    val shallowestZoom = SlippyTiles.zoomForResolution(resolution.endInclusive).coerceIn(minZoom, maxZoom)
+    val (shallowestZoom, deepestZoom) = zoomRangeForResolution(resolution)
     val source: TileSource = this.source
     val cached = source as? CachedTileSource
     return launchSlippyBulkRetrieval(
@@ -69,4 +67,23 @@ fun MvtVectorLayer.launchBulkRetrieval(
         val blob = cached?.bulkFetchTile(z, x, y, overrideCache) ?: source.fetchTile(z, x, y)
         if (blob == null || blob.isEmpty) TileOutcome.SKIPPED else TileOutcome.DOWNLOADED
     }
+}
+
+/**
+ * Total number of MVT tiles [launchBulkRetrieval] would fetch for [sector] across the [resolution]
+ * range — the slippy analog of [LevelSet.tileCount], for sizing a download before committing to it.
+ * Uses the same zoom mapping and clamp as [launchBulkRetrieval], so the result matches the `total`
+ * later reported to that call's `onProgress`.
+ */
+fun MvtVectorLayer.tileCount(sector: Sector, resolution: ClosedRange<Angle>): Long {
+    val (shallowestZoom, deepestZoom) = zoomRangeForResolution(resolution)
+    return slippyTileCount(sector, shallowestZoom, deepestZoom)
+}
+
+/** Maps an angular [resolution] range to a `(shallowest, deepest)` slippy zoom pair clamped to the layer's zoom range. */
+private fun MvtVectorLayer.zoomRangeForResolution(resolution: ClosedRange<Angle>): Pair<Int, Int> {
+    // resolution.start is the finest (smallest angle) → deepest zoom; endInclusive is the coarsest.
+    val deepestZoom = SlippyTiles.zoomForResolution(resolution.start).coerceIn(minZoom, maxZoom)
+    val shallowestZoom = SlippyTiles.zoomForResolution(resolution.endInclusive).coerceIn(minZoom, maxZoom)
+    return shallowestZoom to deepestZoom
 }

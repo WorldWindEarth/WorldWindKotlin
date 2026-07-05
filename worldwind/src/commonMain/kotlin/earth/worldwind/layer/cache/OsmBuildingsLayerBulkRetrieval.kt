@@ -63,3 +63,10 @@ fun OsmBuildingsLayer.launchBulkRetrieval(
         if (flow == null) TileOutcome.SKIPPED else { flow.collect {}; TileOutcome.DOWNLOADED }
     }
 }
+
+/**
+ * Total number of OSM-Buildings feature tiles [launchBulkRetrieval] would fetch for [sector] — the
+ * slippy analog of [LevelSet.tileCount], for sizing a download before committing to it. Counts a
+ * single slippy zoom ([OsmBuildingsLayer.tileZoom]), the only zoom the renderer reads.
+ */
+fun OsmBuildingsLayer.tileCount(sector: Sector): Long = slippyTileCount(sector, tileZoom, tileZoom)
