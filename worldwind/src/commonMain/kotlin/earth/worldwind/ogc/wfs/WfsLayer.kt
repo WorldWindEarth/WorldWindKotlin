@@ -6,7 +6,12 @@ import earth.worldwind.layer.ViewportRefreshDriver
 import earth.worldwind.ogc.WfsLayerFactory
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Renderable
+import earth.worldwind.util.http.LazyHttpClient
 import io.ktor.client.HttpClientConfig
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * A [RenderableLayer] whose contents are sourced from an OGC WFS endpoint and can be
@@ -63,9 +68,34 @@ class WfsLayer(
         addAllRenderables(newRenderables)
     }
 
-    /** Cancel any in-flight auto-refresh and tear down the driver's scope. Call when
-     *  discarding the layer so a background fetch doesn't outlive it. */
-    fun cancel() = driver.cancel()
+    // One client reused across every refresh (and the one-time capabilities fetch) instead of the
+    // fresh client-per-fetch that WfsLayerFactory.createLayer would otherwise create — keeps the
+    // engine's connection pool warm across a pan/zoom's worth of refreshes.
+    private val clientDelegate = LazyHttpClient(config = clientConfig)
+
+    // GetCapabilities fetched once and reused for every refresh, so an auto-refreshing viewport
+    // doesn't re-download the (large) capabilities document on every pan — which can overwhelm a
+    // server into timing the capabilities request out. Fetched lazily under [metadataMutex].
+    private val metadataMutex = Mutex()
+    private var cachedMetadata: String? = null
+
+    private suspend fun resolveMetadata(): String? {
+        cachedMetadata?.let { return it }
+        return metadataMutex.withLock {
+            // NonCancellable: the capabilities fetch is shared across all refreshes, so aborting the
+            // one refresh that happened to trigger it must NOT cancel it for everyone.
+            cachedMetadata ?: withContext(NonCancellable) {
+                WfsLayerFactory.retrieveServiceMetadata(serviceAddress, clientDelegate.value)
+            }?.also { cachedMetadata = it }
+        }
+    }
+
+    /** Cancel any in-flight auto-refresh, tear down the driver's scope, and release the HTTP client.
+     *  Call when discarding the layer so a background fetch doesn't outlive it. */
+    fun cancel() {
+        driver.cancel()
+        clientDelegate.close()
+    }
 
     override fun doRender(rc: RenderContext) {
         // Skip pick mode — its tiny cursor frustum isn't the visible extent.
@@ -82,12 +112,15 @@ class WfsLayer(
     private suspend fun fetch(sector: Sector?, maxFeatures: Int?): List<Renderable> = WfsLayerFactory.createLayer(
         serviceAddress = serviceAddress,
         typeName = typeName,
+        // Reuse the cached capabilities document and the long-lived client across refreshes; a null
+        // metadata (transient GetCapabilities failure) lets createLayer re-resolve and surface the error.
+        serviceMetadata = resolveMetadata(),
         displayName = displayName,
         sector = sector,
         maxFeatures = maxFeatures,
         cqlFilter = cqlFilter,
         customLogicToApplyProperties = customLogicToApplyProperties,
         pageSize = pageSize,
-        clientConfig = clientConfig,
+        httpClient = clientDelegate.value,
     ).toList()
 }

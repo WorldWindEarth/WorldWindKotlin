@@ -15,10 +15,10 @@ import kotlinx.coroutines.flow.asFlow
 
 /**
  * [BulkFeatureSource] that fetches features from an OGC WFS endpoint. Delegates to
- * [WfsLayerFactory] for capabilities negotiation, output-format selection, pagination,
- * and per-page HTTP — captures the raw response body via `onResponseBody` and re-decodes
- * each page into [CachedFeatureRow]s using commonMain-only helpers (kotlinx-serialization
- * for GeoJSON, [WfsGmlReader] for GML). The decoder is cross-platform: JVM, Android, JS,
+ * [WfsLayerFactory.fetchFeaturePages] for capabilities negotiation, output-format selection,
+ * pagination, and per-page HTTP, then decodes each raw page straight into [CachedFeatureRow]s
+ * via [WfsFeatureDecoder] (kotlinx-serialization for GeoJSON, [WfsGmlReader] for GML) — no
+ * intermediate renderable graph is built. The decoder is cross-platform: JVM, Android, JS,
  * and iOS all share this implementation.
  *
  * Pre-3.0 versions on JVM/Android used `mil.nga.sf` (Simple Features) as an intermediate
@@ -46,10 +46,10 @@ class WfsBulkFeatureSource(
         var attempt = 1
         while (true) {
             try {
-                // Rows accumulate via onResponseBody; clear before each (re)try so a retry after a
-                // mid-stream failure doesn't duplicate the pages that already arrived.
+                // Rows accumulate per page; clear before each (re)try so a retry after a mid-stream
+                // failure doesn't duplicate the pages that already arrived.
                 rows.clear()
-                WfsLayerFactory.createLayer(
+                WfsLayerFactory.fetchFeaturePages(
                     serviceAddress = serviceAddress,
                     typeName = layerName,
                     serviceMetadata = serviceMetadata,
@@ -58,10 +58,7 @@ class WfsBulkFeatureSource(
                     cqlFilter = cqlFilter,
                     pageSize = pageSize,
                     httpClient = clientDelegate.value,
-                    // Keep the in-memory RenderableLayer build cheap — we only care about the raw bytes.
-                    customLogicToApplyProperties = {},
-                    onResponseBody = { body, isGml -> rows += WfsFeatureDecoder.decode(body, isGml) },
-                )
+                ) { body, isGml -> rows += WfsFeatureDecoder.decode(body, isGml) }
                 return rows.asFlow()
             } catch (e: CancellationException) {
                 throw e

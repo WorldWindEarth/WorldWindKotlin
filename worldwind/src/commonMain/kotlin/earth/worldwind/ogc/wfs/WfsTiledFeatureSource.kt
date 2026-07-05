@@ -66,10 +66,10 @@ class WfsTiledFeatureSource(
         // re-fetch the capabilities document per tile and storm the server.
         val metadata = resolveMetadata()
             ?: error("WfsTiledFeatureSource: WFS capabilities unavailable for $serviceAddress")
-        // createLayer captures raw page bodies via onResponseBody; we only want the decoded rows.
-        // An empty result returns an empty flow → the cache records it as a negative (no-features) tile.
+        // Decode each raw page straight into cache rows — no discarded renderable graph. An empty
+        // result returns an empty flow → the cache records it as a negative (no-features) tile.
         val rows = mutableListOf<CachedFeatureRow>()
-        WfsLayerFactory.createLayer(
+        WfsLayerFactory.fetchFeaturePages(
             serviceAddress = serviceAddress,
             typeName = typeName,
             serviceMetadata = metadata,
@@ -79,9 +79,7 @@ class WfsTiledFeatureSource(
             sortBy = sortBy,
             pageSize = pageSize,
             httpClient = clientDelegate.value,
-            customLogicToApplyProperties = {},
-            onResponseBody = { body, isGml -> rows += WfsFeatureDecoder.decode(body, isGml) },
-        )
+        ) { body, isGml -> rows += WfsFeatureDecoder.decode(body, isGml) }
         return rows.asFlow()
     }
 

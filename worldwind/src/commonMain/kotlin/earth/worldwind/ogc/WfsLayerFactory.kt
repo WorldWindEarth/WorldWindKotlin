@@ -115,9 +115,6 @@ object WfsLayerFactory {
      * @param clientConfig Optional [HttpClientConfig] customizer applied to every Ktor client
      *   created here — use it to install basic auth, a bearer token, custom headers, or other
      *   request-shaping behaviour required by private endpoints.
-     * @param onResponseBody Optional hook invoked once per fetched page with the raw response
-     *   body (post-OWS-exception check). Cache implementations use this to persist features
-     *   into the backing store without re-parsing.
      */
     suspend fun createLayer(
         serviceAddress: String,
@@ -132,42 +129,84 @@ object WfsLayerFactory {
         pageSize: Int? = null,
         clientConfig: HttpClientConfig<*>.() -> Unit = {},
         httpClient: HttpClient? = null,
-        onResponseBody: (suspend (String, Boolean) -> Unit)? = null,
     ): RenderableLayer {
+        // First page seeds the result layer (so it keeps the styling/type the decode path produces);
+        // subsequent pages append their renderables into it.
+        var finalName = displayName
+        var result: RenderableLayer? = null
+        fetchFeaturePages(
+            serviceAddress = serviceAddress,
+            typeName = typeName,
+            serviceMetadata = serviceMetadata,
+            sector = sector,
+            maxFeatures = maxFeatures,
+            cqlFilter = cqlFilter,
+            sortBy = sortBy,
+            pageSize = pageSize,
+            clientConfig = clientConfig,
+            httpClient = httpClient,
+            onResolvedDisplayName = { resolvedName -> if (finalName == null) finalName = resolvedName },
+        ) { body, isGml ->
+            val pageLayer = decodePage(body, isGml, finalName ?: typeName, customLogicToApplyProperties)
+            result?.addAllRenderables(pageLayer.toList()) ?: run { result = pageLayer }
+        }
+        return result ?: RenderableLayer(finalName ?: typeName)
+    }
+
+    /**
+     * Core WFS fetch loop shared by the renderable path ([createLayer]) and the cache-row path
+     * ([earth.worldwind.ogc.wfs.WfsBulkFeatureSource] / [earth.worldwind.ogc.wfs.WfsTiledFeatureSource]):
+     * negotiate a feature type + output format, issue the (optionally paginated) GetFeature requests,
+     * vet each page for OWS exceptions, and hand the raw body to [onPage] — which decodes it however
+     * the caller needs (to renderables, or straight to [earth.worldwind.layer.source.CachedFeatureRow]s
+     * without ever building the discarded renderable graph). [onResolvedDisplayName] fires once after
+     * feature-type resolution, before any page, so a caller can adopt the server's title as its name.
+     */
+    internal suspend fun fetchFeaturePages(
+        serviceAddress: String,
+        typeName: String,
+        serviceMetadata: String? = null,
+        sector: Sector? = null,
+        maxFeatures: Int? = null,
+        cqlFilter: String? = null,
+        sortBy: String? = null,
+        pageSize: Int? = null,
+        clientConfig: HttpClientConfig<*>.() -> Unit = {},
+        httpClient: HttpClient? = null,
+        onResolvedDisplayName: (String) -> Unit = {},
+        onPage: suspend (body: String, isGml: Boolean) -> Unit,
+    ) {
         require(serviceAddress.isNotEmpty()) {
-            logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingServiceAddress")
+            logMessage(ERROR, "WfsLayerFactory", "fetchFeaturePages", "missingServiceAddress")
         }
         require(typeName.isNotEmpty()) {
-            logMessage(ERROR, "WfsLayerFactory", "createLayer", "missingLayerNames")
+            logMessage(ERROR, "WfsLayerFactory", "fetchFeaturePages", "missingLayerNames")
         }
-        // One client for the whole layer build — capabilities AND every GetFeature page — rather
-        // than a fresh client per request. A caller may inject a long-lived client (the cached
-        // bulk source does, to reuse it across fetches); otherwise we own one and close it here.
-        // Never open+close a client per request: with a shared `preconfigured` engine, ktor's
-        // close() shuts down the shared executor and the next request fails with "executor rejected".
+        // One client for the whole fetch — capabilities AND every GetFeature page — rather than a
+        // fresh client per request. A caller may inject a long-lived client (the cached sources do,
+        // to reuse it across fetches); otherwise we own one and close it here. Never open+close a
+        // client per request: with a shared `preconfigured` engine, ktor's close() shuts down the
+        // shared executor and the next request fails with "executor rejected".
         val client = httpClient ?: DefaultHttpClient(HttpDefaults.CONNECT_TIMEOUT_MS, HttpDefaults.REQUEST_TIMEOUT_MS, clientConfig)
         try {
             val resolved = resolveFeatureType(serviceAddress, typeName, serviceMetadata, client)
+            onResolvedDisplayName(resolved.displayName)
             val baseParams = buildGetFeatureParams(resolved, typeName, sector, maxFeatures, cqlFilter, sortBy)
-            val finalName = displayName ?: resolved.displayName
             val paginating = pageSize != null && resolved.version == VERSION_20
 
             if (!paginating) {
                 val (body, contentType) = fetchGetFeature(resolved.getFeatureUrl, baseParams, client)
                 checkForOwsException(body)
-                val effectiveIsGml = decideIsGml(resolved.isGml, contentType)
-                onResponseBody?.invoke(body, effectiveIsGml)
-                return decodePage(body, effectiveIsGml, finalName, customLogicToApplyProperties)
+                onPage(body, decideIsGml(resolved.isGml, contentType))
+                return
             }
 
-            // Paginated path: loop STARTINDEX until the server returns fewer than the requested
-            // page size or we reach maxFeatures. First page seeds the result layer so any
-            // userProperties (id, sector) set by GeoJsonLayerFactory survive into the merged layer.
-            // STARTINDEX advances by the *feature* count the server returned — not the renderable
-            // count, which can be inflated by multi-geometry features (a country with mainland +
-            // islands expands into multiple Polygons but is still one row server-side).
+            // Paginated path: loop STARTINDEX until the server returns fewer than the requested page
+            // size or we reach maxFeatures. STARTINDEX advances by the *feature* count the server
+            // returned — not the renderable count, which can be inflated by multi-geometry features
+            // (a country with mainland + islands expands into multiple Polygons but is still one row
+            // server-side).
             val cap = maxFeatures ?: Int.MAX_VALUE
-            var result: RenderableLayer? = null
             var fetched = 0
             var startIndex = 0
             while (fetched < cap) {
@@ -179,16 +218,13 @@ object WfsLayerFactory {
                 val (body, contentType) = fetchGetFeature(resolved.getFeatureUrl, pageParams, client)
                 checkForOwsException(body)
                 val effectiveIsGml = decideIsGml(resolved.isGml, contentType)
-                onResponseBody?.invoke(body, effectiveIsGml)
                 val featureCount = countFeaturesInResponse(body, effectiveIsGml)
-                val pageLayer = decodePage(body, effectiveIsGml, finalName, customLogicToApplyProperties)
-                if (result == null) result = pageLayer else result.addAllRenderables(pageLayer.toList())
+                onPage(body, effectiveIsGml)
                 if (featureCount == 0) break
                 fetched += featureCount
                 if (featureCount < thisPageSize) break // server returned a short page → no more data
                 startIndex += featureCount
             }
-            return result ?: RenderableLayer(finalName)
         } finally {
             if (httpClient == null) client.close()
         }
