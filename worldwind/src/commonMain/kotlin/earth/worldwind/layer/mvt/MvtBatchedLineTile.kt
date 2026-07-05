@@ -462,6 +462,17 @@ class MvtBatchedLineTile(
         }
     }
 
+    /** Approximate GPU byte footprint (VBO + EBO) for LRU byte-weighting. Once assembled it's the
+     *  exact array bytes; before assembly it estimates from source point counts (each polyline point
+     *  expands to a 4-vertex quad group of VERTEX_STRIDE floats + ~6 indices, 4 bytes each). */
+    val gpuByteEstimate: Int get() = if (!tileData.refreshGeometry) {
+        (tileData.vertexArray.size + tileData.elementArray.size) * Int.SIZE_BYTES
+    } else {
+        var pts = 0
+        for (fi in features.indices) pts += features[fi].coords.size / 2
+        pts * (4 * VERTEX_STRIDE + 6) * Int.SIZE_BYTES
+    }
+
     /** Drop this tile's GL buffer entries from the render-resource cache. */
     fun releaseRenderResources(rc: RenderContext) {
         rc.renderResourceCache.remove(tileData.vertexBufferKey)

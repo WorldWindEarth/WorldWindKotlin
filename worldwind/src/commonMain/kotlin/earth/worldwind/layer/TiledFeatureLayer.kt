@@ -74,6 +74,16 @@ open class TiledFeatureLayer(
      *  THROUGH the finer tiles — both resolutions at once. False keeps only the finest loaded tiles
      *  and leaves still-loading cells blank, so detail never doubles up. */
     override val coarseAncestorFallback: Boolean = true,
+    /** GPU-byte budget for the resident-tile cache. Because full-resolution WFS geometry makes tile
+     *  VBO/EBOs wildly uneven, a flat tile count ([maxLoadedTiles]) lets a few dense tiles balloon GPU
+     *  memory until the driver OOMs (KGSL `mmap` ENOMEM) while the Java heap still looks empty. A byte
+     *  budget evicts on real footprint instead. Non-zero here overrides [maxLoadedTiles]; set `0` to
+     *  fall back to the count bound. */
+    val maxLoadedTileBytes: Long = DEFAULT_MAX_TILE_BYTES,
+    /** Max GPU bytes of freshly-fetched tiles admitted to the cache per frame. A pan brings in a burst
+     *  of tiles whose VBO/EBO uploads otherwise all land in one `uploadBuffers` call (a multi-hundred-ms
+     *  frame hitch); this spreads them across frames. `0` disables the throttle. */
+    val maxTileUploadBytesPerFrame: Int = DEFAULT_UPLOAD_BYTES_PER_FRAME,
     displayName: String? = null,
 ) : TiledVectorLayer<List<Renderable>>(
     // Geographic (Plate-Carrée) pyramid: level 0 is two 180°×180° tiles; each level halves both.
@@ -83,6 +93,7 @@ open class TiledFeatureLayer(
         Location.fromDegrees(180.0, 180.0),
         numLevels, 256, 256, levelOffset,
     ), GeographicTileFactory, maxLoadedTiles, maxConcurrentFetches, displayName,
+    maxLoadedTileBytes, maxTileUploadBytesPerFrame,
 ) {
     private var wiredSource: TiledFeatureSource? = null
     // Captured on the render thread, read off-thread to pre-assemble batched tile geometry.
@@ -154,6 +165,19 @@ open class TiledFeatureLayer(
         }
     }
 
+    /** Sum the tile's real VBO/EBO footprint (batched fill + outline) so the LRU bounds this layer by
+     *  GPU bytes. Non-batched renderables (Paths/Placemarks/Labels) share atlases and carry no big
+     *  per-tile buffer, so they're charged a small nominal weight. */
+    override fun contentWeight(content: List<Renderable>): Int {
+        var bytes = 0
+        for (r in content) bytes += when (r) {
+            is MvtBatchedPolygonTile -> r.gpuByteEstimate
+            is MvtBatchedLineTile -> r.gpuByteEstimate
+            else -> RENDERABLE_WEIGHT_BYTES
+        }
+        return bytes
+    }
+
     override fun beginFrame(rc: RenderContext) {
         capturedGlobe = rc.globe
         capturedGlobeState = rc.globeState
@@ -172,7 +196,7 @@ open class TiledFeatureLayer(
         shapeAttributes?.let { ShapeAttributes(it) }, autoApplyStyle, defaultLineColor, defaultFillColor,
         density, labelVisibilityThreshold, defaultAltitudeMode, simplifyTolerancePixels,
         useBatchedRendering, customLogicToApplyProperties, progressiveRefinement, coarseAncestorFallback,
-        displayName,
+        maxLoadedTileBytes, maxTileUploadBytesPerFrame, displayName,
     )
 
     private class FeatureTile(sector: Sector, level: Level, row: Int, column: Int) : Tile(sector, level, row, column)
@@ -187,6 +211,18 @@ open class TiledFeatureLayer(
         /** Tile texel dimension — matches the [LevelSet] tile width below; one texel ≈ one screen
          *  pixel at the SSE-selected level, so a per-texel tolerance is a per-pixel tolerance. */
         const val TILE_TEXELS = 256.0
+
+        /** Default resident-tile GPU-byte budget (96 MB) — bounds VBO/EBO memory regardless of how
+         *  dense individual WFS tiles turn out to be. Tune up for headroom, down on tight-VRAM devices. */
+        const val DEFAULT_MAX_TILE_BYTES = 96L * 1024 * 1024
+
+        /** Default per-frame GPU-upload admission budget (6 MB) — roughly a few ms of buffer upload,
+         *  so a tile burst spreads over frames instead of one long `uploadBuffers` stall. */
+        const val DEFAULT_UPLOAD_BYTES_PER_FRAME = 6 * 1024 * 1024
+
+        /** Nominal LRU weight for a non-batched renderable (Path/Placemark/Label): no big per-tile
+         *  VBO/EBO, so it's charged a flat small amount rather than a measured buffer size. */
+        const val RENDERABLE_WEIGHT_BYTES = 4 * 1024
     }
 }
 

@@ -50,6 +50,17 @@ abstract class TiledVectorLayer<C : Any>(
     maxLoadedTiles: Int = 256,
     maxConcurrentFetches: Int = 4,
     displayName: String? = null,
+    /** When `> 0`, the resident-tile LRU is bounded by summed [contentWeight] (GPU bytes) with this
+     *  budget instead of by tile count — so eviction reacts to real GPU-buffer footprint, not a flat
+     *  count that a few dense tiles can blow past. `0` (default) keeps the tile-count bound
+     *  ([maxLoadedTiles]); subclasses whose content owns big per-tile VBO/EBOs pass a byte budget. */
+    maxLoadedTileBytes: Long = 0,
+    /** When `> 0`, at most this much freshly-fetched content weight (same unit as [contentWeight]:
+     *  GPU bytes when [maxLoadedTileBytes] is set, else tiles) is admitted into the cache per frame;
+     *  the rest waits for the next frame (a redraw is requested). Spreads a pan's burst of new tiles —
+     *  and their GPU uploads — across several frames instead of one multi-hundred-ms hitch. `0`
+     *  (default) admits everything each frame (legacy behaviour). */
+    private val maxTileAdmitWeightPerFrame: Int = 0,
 ) : AbstractLayer(displayName), VectorLayer {
 
     /** Screen-space-error knob: lower = finer (more, smaller on-screen tiles); higher = coarser. */
@@ -70,7 +81,12 @@ abstract class TiledVectorLayer<C : Any>(
     private val invalidations = Channel<String>(capacity = Channel.UNLIMITED)
     private val topLevelTiles = mutableListOf<Tile>()
     private val subtreeCache = LruMemoryCache<String, Array<Tile>>(2000)
-    private val tiles = object : LruMemoryCache<String, C>(maxLoadedTiles.toLong()) {
+    // When byteWeighted the LRU capacity is a GPU-byte budget and each entry is weighted by
+    // contentWeight(); otherwise capacity is a tile count and every entry weighs 1.
+    private val byteWeighted = maxLoadedTileBytes > 0
+    private val tiles = object : LruMemoryCache<String, C>(
+        if (byteWeighted) maxLoadedTileBytes else maxLoadedTiles.toLong()
+    ) {
         override fun entryRemoved(key: String, oldValue: C, newValue: C?, evicted: Boolean) {
             liveContent.remove(key)
             // Prune the per-key invalidation epoch on a real removal with no fetch pending (keep it for put-replacements and in-flight fetches that still need it), so a long pan doesn't leak dead keys.
@@ -126,6 +142,16 @@ abstract class TiledVectorLayer<C : Any>(
     /** Release any GPU buffers owned by evicted [content]. Default no-op (content with no GL state,
      *  e.g. renderables that the [RenderContext] resource cache evicts on its own). */
     protected open fun onContentEvicted(rc: RenderContext, content: C) {}
+
+    /** Approximate GPU-byte footprint of [content], used to weight the resident-tile LRU when a
+     *  [maxLoadedTileBytes] budget is set. Default `1` (the count-based bound). Subclasses whose
+     *  content owns VBO/EBOs override this to return the tile's real buffer bytes. */
+    protected open fun contentWeight(content: C): Int = 1
+
+    /** LRU weight for [content] in the cache's active unit: [contentWeight] (GPU bytes) when a byte
+     *  budget is set, else a flat `1` (tile count). Always ≥ 1 so a zero-geometry tile still occupies
+     *  a slot and can be evicted. */
+    private fun weightOf(content: C): Int = if (byteWeighted) contentWeight(content).coerceAtLeast(1) else 1
 
     /** Push per-frame state into [content] just before it's rendered (e.g. a zoom-interpolated line
      *  width). Default no-op. Runs for ancestor/descendant fallback tiles too. */
@@ -289,6 +315,7 @@ abstract class TiledVectorLayer<C : Any>(
     }
 
     private fun drainResults() {
+        var admittedWeight = 0
         while (true) {
             val result = results.tryReceive().getOrNull() ?: return
             inFlight.remove(result.key)
@@ -306,8 +333,17 @@ abstract class TiledVectorLayer<C : Any>(
             backoff.clear(result.key)
             @Suppress("UNCHECKED_CAST")
             val content = value as C
+            val weight = weightOf(content)
             liveContent[result.key] = content
-            tiles.put(result.key, content, 1) // weight 1 per tile so maxLoadedTiles is a tile count
+            tiles.put(result.key, content, weight)
+            // Per-frame admission budget: once we've admitted enough new content this frame, leave the
+            // rest queued (the results channel is unbounded) and wake a follow-up frame. This spreads a
+            // pan's burst of freshly-fetched tiles — and the GPU buffer uploads they trigger on first
+            // render — across frames instead of one multi-hundred-ms uploadBuffers hitch.
+            if (maxTileAdmitWeightPerFrame > 0) {
+                admittedWeight += weight
+                if (admittedWeight >= maxTileAdmitWeightPerFrame) { WorldWind.requestRedraw(); return }
+            }
         }
     }
 

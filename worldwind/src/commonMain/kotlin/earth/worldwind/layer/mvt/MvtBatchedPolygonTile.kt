@@ -525,6 +525,21 @@ class MvtBatchedPolygonTile(
         vertices.add(0f)
     }
 
+    /** Approximate GPU byte footprint (VBO + EBO) for LRU byte-weighting. Once assembled it's the
+     *  exact array bytes; before assembly it estimates from source vertex counts (VERTEX_STRIDE
+     *  floats/vertex for the VBO + ~3 triangle indices/vertex for the EBO, 4 bytes each). */
+    val gpuByteEstimate: Int get() = if (!tileData.refreshGeometry) {
+        (tileData.vertexArray.size + tileData.elementArray.size) * Int.SIZE_BYTES
+    } else {
+        var verts = 0
+        for (fi in features.indices) {
+            val f = features[fi]
+            verts += f.outer.size / 2
+            for (hi in f.holes.indices) verts += f.holes[hi].size / 2
+        }
+        verts * (VERTEX_STRIDE + 3) * Int.SIZE_BYTES
+    }
+
     /**
      * Drop this tile's GL buffer entries from [earth.worldwind.render.RenderResourceCache] for
      * every cached globe state. Called by [MvtVectorLayer] on LRU eviction so the kernel
