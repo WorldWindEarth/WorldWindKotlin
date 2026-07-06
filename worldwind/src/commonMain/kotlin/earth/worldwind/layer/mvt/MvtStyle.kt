@@ -51,10 +51,9 @@ fun interface MvtStyle {
     val backgroundColor: Color? get() = null
 
     companion object {
-        // Canonical z-order bands. Spacing in tens leaves room for per-class adjustments
-        // ([Z_ROAD_MOTORWAY] sits above [Z_ROAD_MINOR] without colliding with [Z_BUILDING]).
-        // Apply to whichever MvtStyle wants explicit ordering; the layer just sorts ascending.
-        // [backgroundColor] fill: above imagery (zOrder 0) to cover the basemap, below [Z_WATER] so fills paint over it.
+        // Canonical z-order bands, spaced in tens for per-class adjustments. INTRA-TILE sort keys
+        // only (EBO bucket / insertion order): the layer enqueues all draped content at a single
+        // surface base z, so layer order — not these bands — places MVT against other layers.
         const val Z_BACKGROUND = 5
         const val Z_WATER = 10
         const val Z_LANDCOVER = 20

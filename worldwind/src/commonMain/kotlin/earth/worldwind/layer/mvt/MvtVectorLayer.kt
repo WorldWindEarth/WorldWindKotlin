@@ -473,6 +473,9 @@ open class MvtVectorLayer(
         // we can stable-sort by z-order before adding to [out].
         val lineRenderables = if (useBatchedRendering) null else ArrayList<Pair<Int, Path>>()
 
+        // Non-batched fills; overlap order carried by this list's z-sort since all share [SURFACE_Z_ORDER].
+        val polygonRenderables = if (useBatchedRendering) null else ArrayList<Pair<Int, Polygon>>()
+
         // Label collection — accumulated per tile then wrapped in one [MvtLabelGroup] at the
         // end so Stage 4b's collision pass runs across all labels in this tile.
         val tileLabels = ArrayList<Label>()
@@ -608,11 +611,12 @@ open class MvtVectorLayer(
                                     altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                     isFollowTerrain = true
                                     pathType = PathType.LINEAR
-                                    this.zOrder = zOrder.toDouble()
+                                    this.zOrder = SURFACE_Z_ORDER
                                 }
                                 val holes = poly.holes
                                 for (hi in holes.indices) { val hole = holes[hi]; if (hole.size >= 6) p.addBoundary(flatRingToPositions(hole)) }
-                                out += p
+                                // Defer to the z-sorted collection so fills keep their relative order.
+                                polygonRenderables?.let { it += zOrder to p } ?: run { out += p }
                             }
                         }
                     }
@@ -642,7 +646,7 @@ open class MvtVectorLayer(
                                             altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                             isFollowTerrain = true
                                             pathType = PathType.LINEAR
-                                            this.zOrder = (zOrder - 1).toDouble()
+                                            this.zOrder = SURFACE_Z_ORDER
                                         }
                                         lineRenderables?.let { it += (zOrder - 1) to casingPath }
                                             ?: run { out += casingPath }
@@ -682,7 +686,7 @@ open class MvtVectorLayer(
                                         altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                                         isFollowTerrain = true
                                         pathType = PathType.LINEAR
-                                        this.zOrder = zOrder.toDouble()
+                                        this.zOrder = SURFACE_Z_ORDER
                                     }
                                     if (lineRenderables != null) {
                                         lineRenderables += zOrder to path
@@ -811,11 +815,8 @@ open class MvtVectorLayer(
                 boundingSector = key.sector,
                 displayName = "mvt-batched-poly-${key.z}-${key.x}-${key.y}",
             ).apply {
-                // Single tile-level z. Per-feature z-ordering inside the tile is preserved by
-                // EBO bucket order; this is the z used when compositing this tile against
-                // lines and other surface drawables. Picking the lowest polygon z lets lines
-                // (typically Z_ROAD_* ≥ 70) consistently composite over the polygon mass.
-                zOrder = (polygonBatch.minOfOrNull { it.zOrder } ?: 0).toDouble()
+                // Shared base z: feature order is intra-tile (EBO buckets), fills-under-lines is enqueue order (poly prepended).
+                zOrder = SURFACE_Z_ORDER
             }
             // Off-thread tessellation (earcut into a reused per-tile arena, serialised by the tile's
             // assembleLock) — moves the expensive work off the render thread so zoom storms don't stall.
@@ -823,15 +824,15 @@ open class MvtVectorLayer(
             out.add(0, batched)
         }
 
-        // Append the batched-line tile after polygons so its compositor z is above. Lines
-        // route by attribute width/color INSIDE the tile via per-range drawElements calls.
+        // Append the batched-line tile after polygons so enqueue order keeps lines above fills.
+        // Lines route by attribute width/color INSIDE the tile via per-range drawElements calls.
         if (lineBatch != null && lineBatch.isNotEmpty()) {
             val batchedLines = MvtBatchedLineTile(
                 features = lineBatch,
                 boundingSector = key.sector,
                 displayName = "mvt-batched-line-${key.z}-${key.x}-${key.y}",
             ).apply {
-                zOrder = (lineBatch.maxOfOrNull { it.zOrder } ?: 0).toDouble()
+                zOrder = SURFACE_Z_ORDER
             }
             // Line assembly is pure degree arithmetic — safe to pre-assemble regardless of
             // whether we have a globe yet, but we gate on globeState for cache consistency.
@@ -839,8 +840,13 @@ open class MvtVectorLayer(
             out += batchedLines
         }
 
-        // Non-batched fallback path: stable-sort per-feature Paths by z ascending so reflow /
-        // draw-list iteration matches paint order even outside the surface compositor's sort.
+        // Non-batched: emit fills first (z-sorted) so they enqueue under the lines below.
+        if (polygonRenderables != null) {
+            polygonRenderables.sortBy { it.first }
+            for ((_, poly) in polygonRenderables) out += poly
+        }
+
+        // Then per-feature Paths, stable-sorted by z so draw-list order matches paint order.
         if (lineRenderables != null) {
             lineRenderables.sortBy { it.first }
             for ((_, path) in lineRenderables) out += path
@@ -959,7 +965,7 @@ open class MvtVectorLayer(
                             altitudeMode = AltitudeMode.CLAMP_TO_GROUND
                             isFollowTerrain = true
                             pathType = PathType.LINEAR
-                            this.zOrder = zOrder.toDouble()
+                            this.zOrder = SURFACE_Z_ORDER
                         }
                         if (lineRenderables != null) lineRenderables += zOrder to path
                         else out += path
@@ -1068,6 +1074,9 @@ open class MvtVectorLayer(
          * to rebuild the source at content-getter time.
          */
         const val SERVICE_TYPE = "MVT"
+
+        /** Shared surface-bin z for all MVT draped content; per-feature z stays an intra-tile sort key so layer order places MVT against other layers. */
+        const val SURFACE_Z_ORDER = 0.0
 
         /** Standard slippy-tile pixel width — the input to camera-altitude → zoom matching. */
         const val TILE_PIXEL_SIZE: Int = 256
