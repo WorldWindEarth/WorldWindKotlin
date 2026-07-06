@@ -105,12 +105,13 @@ object DefaultMvtStyle : MvtStyle {
             "park", "national_park" -> MvtStyle.Z_PARK
             "building", "buildings" -> MvtStyle.Z_BUILDING
             "boundary", "admin", "boundaries" -> MvtStyle.Z_BOUNDARY
+            // `_link` ramps share their parent grade's z-band (Mapbox road.class).
             "transportation", "road", "highway", "roads", "streets" -> when (kind) {
-                "motorway" -> MvtStyle.Z_ROAD_MOTORWAY
-                "trunk" -> MvtStyle.Z_ROAD_TRUNK
-                "primary" -> MvtStyle.Z_ROAD_PRIMARY
-                "secondary" -> MvtStyle.Z_ROAD_SECONDARY
-                "tertiary" -> MvtStyle.Z_ROAD_TERTIARY
+                "motorway", "motorway_link" -> MvtStyle.Z_ROAD_MOTORWAY
+                "trunk", "trunk_link" -> MvtStyle.Z_ROAD_TRUNK
+                "primary", "primary_link" -> MvtStyle.Z_ROAD_PRIMARY
+                "secondary", "secondary_link" -> MvtStyle.Z_ROAD_SECONDARY
+                "tertiary", "tertiary_link" -> MvtStyle.Z_ROAD_TERTIARY
                 "rail", "transit" -> MvtStyle.Z_RAIL
                 "track" -> MvtStyle.Z_ROAD_TRACK
                 "path", "footway", "pedestrian", "steps" -> MvtStyle.Z_ROAD_PATH
@@ -135,8 +136,10 @@ object DefaultMvtStyle : MvtStyle {
             // Land cover / land use
             "landcover", "land" -> when (kind) {
                 "wood", "forest", "scrub", "grass", "farmland", "meadow" -> VEGETATION_FILL
+                "wetland", "marsh", "swamp", "bog" -> WETLAND_FILL
                 "ice", "glacier", "snow" -> SNOW_FILL
                 "sand", "beach" -> SAND_FILL
+                "rock", "bare_rock", "scree", "shingle" -> ROCK_FILL
                 "residential", "commercial", "industrial", "neighbourhood" -> URBAN_FILL
                 else -> LANDUSE_FILL
             }
@@ -153,20 +156,22 @@ object DefaultMvtStyle : MvtStyle {
             }
             "park", "national_park" -> PARK_FILL
             // Transport — OMT `transportation`, Shortbread `streets`. Kind values overlap.
+            // OMT carries road grade AND rail in `class`; footways/steps/etc. share class=path,
+            // distinguished only by subclass. track/path get distinct lines (matching zOrderFor).
             "transportation", "road", "highway", "roads", "transportation_name", "streets" -> when (kind) {
-                "motorway", "trunk" -> ROAD_MAJOR
-                "primary", "secondary", "tertiary" -> ROAD_PRIMARY
+                "motorway", "motorway_link", "trunk", "trunk_link" -> ROAD_MAJOR
+                "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link" -> ROAD_PRIMARY
                 "rail", "transit", "tram", "subway", "light_rail" -> RAIL_LINE
+                "track" -> TRACK_LINE
+                "path", "footway", "pedestrian", "steps", "cycleway", "bridleway", "corridor" -> PATH_LINE
                 else -> ROAD_MINOR
             }
             // Built environment
             "building", "buildings" -> BUILDING_FILL
             "boundary", "admin", "boundaries" -> BOUNDARY_LINE
-            // Anything we don't recognise drops to a debug gray so the developer can see "I
-            // got geometry but no style mapped" rather than mistaking dropped features for
-            // a fetch failure. Switch [MvtVectorLayer.style] to a custom impl returning null
-            // here for production tile data.
-            else -> if (geometryType == MvtGeometryType.LINESTRING) UNKNOWN_LINE else UNKNOWN_FILL
+            // Unrecognised layers are dropped (matching [OpenTopoMapMvtStyle]) so the "basic"
+            // look stays clean on real tiles instead of painting unmapped layers a debug gray.
+            else -> null
         }
     }
 
@@ -191,16 +196,18 @@ object DefaultMvtStyle : MvtStyle {
     val WATERWAY_LINE = line(0.55f, 0.72f, 0.88f, 1.2f)
     val PARK_FILL = fill(0.78f, 0.90f, 0.72f)
     val VEGETATION_FILL = fill(0.74f, 0.86f, 0.69f)
+    val WETLAND_FILL = fill(0.80f, 0.86f, 0.74f)
     val LANDUSE_FILL = fill(0.93f, 0.92f, 0.86f)
     val URBAN_FILL = fill(0.91f, 0.89f, 0.84f)
     val SAND_FILL = fill(0.96f, 0.93f, 0.78f)
+    val ROCK_FILL = fill(0.85f, 0.83f, 0.80f)
     val SNOW_FILL = fill(0.94f, 0.97f, 1.0f)
     val ROAD_MAJOR = line(0.95f, 0.78f, 0.40f, 2.5f)
     val ROAD_PRIMARY = line(0.97f, 0.88f, 0.55f, 1.8f)
     val ROAD_MINOR = line(0.88f, 0.86f, 0.82f, 1.0f)
+    val TRACK_LINE = line(0.66f, 0.55f, 0.42f, 0.9f)
+    val PATH_LINE = line(0.72f, 0.66f, 0.60f, 0.7f)
     val RAIL_LINE = line(0.55f, 0.55f, 0.55f, 1.0f)
     val BUILDING_FILL = fill(0.83f, 0.81f, 0.77f)
     val BOUNDARY_LINE = line(0.62f, 0.50f, 0.70f, 1.0f, a = 0.7f)
-    val UNKNOWN_FILL = fill(0.85f, 0.85f, 0.85f, a = 0.5f)
-    val UNKNOWN_LINE = line(0.6f, 0.6f, 0.6f, 0.8f)
 }

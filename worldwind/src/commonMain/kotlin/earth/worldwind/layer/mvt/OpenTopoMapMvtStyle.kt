@@ -29,6 +29,9 @@ import earth.worldwind.shape.ShapeAttributes
  */
 object OpenTopoMapMvtStyle : MvtStyle {
 
+    // Cream page under every fill, matching the rule-based [OpenTopoMapRules] twin.
+    override val backgroundColor: Color get() = BG_CREAM
+
     override fun zOrderFor(
         layerName: String,
         geometryType: MvtGeometryType,
@@ -256,12 +259,9 @@ object OpenTopoMapMvtStyle : MvtStyle {
     val CLIFF_LINE = line(CLIFF_GRAY, 0.8f)
 
     /**
-     * Cream background recommended for the WorldWind viewport when rendering with this style.
-     * The OpenTopoMap look depends heavily on the off-white page color showing through every
-     * un-styled area; against the default WorldWind black, polygons look like floating
-     * decals. Apps using this style should call
-     * `engine.layers.removeImageryLayers()` (or similar) and set the viewport clear color via
-     * the platform-specific WorldWindow API.
+     * Cream page color, exposed via [backgroundColor] so the layer paints a full-tile fill under
+     * every feature automatically. Also usable as the WorldWind viewport clear color when this
+     * style overlays no imagery, so partial edge tiles blend into the same page tone.
      */
     val BACKGROUND_REFERENCE: Color = BG_CREAM
 }
