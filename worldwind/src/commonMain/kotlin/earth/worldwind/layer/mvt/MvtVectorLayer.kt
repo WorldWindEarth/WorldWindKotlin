@@ -463,7 +463,8 @@ open class MvtVectorLayer(
         // Mapbox `background` layer: a full-tile fill under every feature so gaps show the style base.
         // Routed through the batched fill (not DrawableSurfaceColor) so it composites in the
         // shadow-receiving DrawableSurfaceShape pass. Its Z_BACKGROUND becomes the tile's min-z.
-        if (polygonBatch != null) style.backgroundColor?.let { polygonBatch += backgroundFeature(key.sector, it) }
+        // Data tiles only — a no-data tile stays transparent so underlying layers show through.
+        if (polygonBatch != null && tile.layers.isNotEmpty()) style.backgroundColor?.let { polygonBatch += backgroundFeature(key.sector, it) }
         val lineBatch = if (useBatchedRendering) ArrayList<MvtBatchedLineTile.BatchLineFeature>() else null
         // Per-color extruded-building buckets — each becomes one OsmBuildingsTile. Keyed by
         // the actual Color value (which has structural equality) so distinct colors with
