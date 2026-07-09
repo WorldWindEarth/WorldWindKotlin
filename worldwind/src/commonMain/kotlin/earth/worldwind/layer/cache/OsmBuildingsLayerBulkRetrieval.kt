@@ -44,6 +44,7 @@ fun OsmBuildingsLayer.launchBulkRetrieval(
     overrideCache: Boolean = false,
     onProgress: ((downloaded: Long, skipped: Long, total: Long) -> Unit)? = null,
 ): Job {
+    val layer = this
     val source: TiledFeatureSource = this.source
     val cached = source as? CachedTiledFeatureSource
     return launchSlippyBulkRetrieval(
@@ -55,6 +56,11 @@ fun OsmBuildingsLayer.launchBulkRetrieval(
         retryTimeoutShort = retryTimeoutShort,
         retryTimeoutLong = retryTimeoutLong,
         onProgress = onProgress,
+        onSuccess = {
+            // Record the downloaded region as the layer's data extent and persist it for reopen.
+            if (layer.sector.isFullSphere) layer.sector.copy(sector) else layer.sector.union(sector)
+            cached?.featureStore?.setBoundingSector(layer.sector)
+        },
     ) { z, x, y, tileSector ->
         // Feature sources are flow-based and write through on collection, so the returned flow must
         // be drained to actually persist the tile. A null flow means the source confirms no features.

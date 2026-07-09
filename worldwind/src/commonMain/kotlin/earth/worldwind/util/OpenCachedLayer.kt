@@ -10,6 +10,7 @@ import earth.worldwind.geom.TileMatrixSet
 import earth.worldwind.globe.elevation.coverage.ElevationCoverage
 import earth.worldwind.globe.elevation.coverage.TiledElevationCoverage
 import earth.worldwind.layer.TiledImageLayer
+import earth.worldwind.layer.VectorLayer
 import earth.worldwind.layer.buildings.OsmBuildingsLayer
 import earth.worldwind.layer.buildings.OverpassBuildingsSource
 import earth.worldwind.layer.cache.CachedBulkFeatureSource
@@ -346,7 +347,7 @@ private suspend fun ContentManager.openMvtVectorLayer(
         urlTemplate, headers = MvtVectorLayer.decodeHeaders(entry.service?.metadata),
     )
     val source = CachedTileSource(network, store)
-    return MvtVectorLayer(source = source, displayName = entry.displayName)
+    return MvtVectorLayer(source = source, displayName = entry.displayName).applyPersistedSector(entry)
 }
 
 // ============================================================================
@@ -422,6 +423,11 @@ private suspend fun ContentManager.openWcs201ElevationCoverage(
 private fun TiledElevationCoverage.applyPersistedSector(entry: CacheEntry): TiledElevationCoverage =
     apply { entry.boundingSector?.let { sector.copy(it) } }
 
+/** Apply the gpkg's persisted bbox onto the layer's data-availability [VectorLayer.sector] —
+ *  the vector analog of the coverage overload above. */
+private fun <L : VectorLayer> L.applyPersistedSector(entry: CacheEntry): L =
+    apply { entry.boundingSector?.let { sector.copy(it) } }
+
 /**
  * Recover a [TileMatrixSet] for a coverage entry. Uses the platform's
  * [ContentManager.tryRecoverTileMatrixSet] hook (GeoPackage reads the stored pyramid;
@@ -458,7 +464,8 @@ private suspend fun ContentManager.openWfsLayer(
         serviceMetadata = service.metadata,
     )
     val source = CachedBulkFeatureSource(network, store)
-    return BulkFeatureLayer(source = source, displayName = entry.displayName).also { it.load() }
+    return BulkFeatureLayer(source = source, displayName = entry.displayName)
+        .applyPersistedSector(entry).also { it.load() }
 }
 
 private suspend fun ContentManager.openShapefileLayer(
@@ -468,7 +475,8 @@ private suspend fun ContentManager.openShapefileLayer(
     val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
     val network = ShapefileBulkFeatureSource(shpUrl)
     val source = CachedBulkFeatureSource(network, store)
-    return BulkFeatureLayer(source = source, displayName = entry.displayName).also { it.load() }
+    return BulkFeatureLayer(source = source, displayName = entry.displayName)
+        .applyPersistedSector(entry).also { it.load() }
 }
 
 /** GeoJSON has no reopen-time upstream: the document text was supplied inline at
@@ -481,7 +489,8 @@ private suspend fun ContentManager.openGeoJsonLayer(
 ): BulkFeatureLayer {
     val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
     val source = CachedBulkFeatureSource(inner = null, store = store)
-    return BulkFeatureLayer(source = source, displayName = entry.displayName).also { it.load() }
+    return BulkFeatureLayer(source = source, displayName = entry.displayName)
+        .applyPersistedSector(entry).also { it.load() }
 }
 
 private suspend fun ContentManager.openOsmBuildingsLayer(
@@ -500,5 +509,5 @@ private suspend fun ContentManager.openOsmBuildingsLayer(
         useOsmColors = config.useOsmColors,
         useBatchedRendering = config.useBatchedRendering,
         displayName = entry.displayName,
-    )
+    ).applyPersistedSector(entry)
 }

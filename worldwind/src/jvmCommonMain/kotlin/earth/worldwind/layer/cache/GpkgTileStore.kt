@@ -3,6 +3,7 @@ import earth.worldwind.layer.source.TileBlob
 
 import earth.worldwind.formats.gpkg.GeoPackage
 import earth.worldwind.formats.gpkg.GpkgContent
+import earth.worldwind.geom.Sector
 
 /**
  * GeoPackage-backed [TileStore]. One instance binds to one tile-pyramid table — works for
@@ -77,6 +78,9 @@ class GpkgTileStore(
         if (cachePolicy.isUnbounded || geoPackage.isReadOnly) return
         geoPackage.evictTiles(content, cachePolicy)
     }
+
+    // Goes through this store's own [content] instance so the in-memory copy stays coherent with the row.
+    override suspend fun setBoundingSector(sector: Sector) = geoPackage.setBoundingSector(content, sector)
 
     override suspend fun sizeBytes(): Long = geoPackage.readTilesDataSize(content.tableName)
 }

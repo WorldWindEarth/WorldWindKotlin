@@ -1,6 +1,7 @@
 package earth.worldwind.layer
 
 import earth.worldwind.geom.AltitudeMode
+import earth.worldwind.geom.Sector
 import earth.worldwind.layer.source.BulkFeatureSource
 import earth.worldwind.layer.source.CachedFeatureRow
 import earth.worldwind.layer.source.DEFAULT_DENSITY
@@ -76,6 +77,9 @@ open class BulkFeatureLayer(
     var customLogicToApplyProperties: Renderable.(LinkedHashMap<String, Any?>) -> Unit = {},
 ) : RenderableLayer(displayName), VectorLayer {
 
+    // Real data availability sector; informational for bulk sources (no tile assembly to gate)
+    override val sector = Sector().setFullSphere()
+
     /**
      * Pull rows from [source] and atomically replace this layer's renderables. Accumulates
      * the full set before swapping in to avoid mid-load flicker (paginated WFS responses
@@ -143,6 +147,7 @@ open class BulkFeatureLayer(
         defaultLineColor, defaultFillColor, density, labelVisibilityThreshold, defaultAltitudeMode,
         customLogicToApplyProperties,
     ).also {
+        it.sector.copy(sector)
         it.autoRefreshViewport = autoRefreshViewport
         it.autoRefreshDebounceMillis = autoRefreshDebounceMillis
         it.autoRefreshMargin = autoRefreshMargin

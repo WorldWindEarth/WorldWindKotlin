@@ -155,7 +155,7 @@ open class MvtVectorLayer(
     override fun clone() = MvtVectorLayer(
         source, minZoom, maxZoom, maxLoadedTiles, maxConcurrentFetches, maxConcurrentAssembly,
         simplifyGeometry, simplifyMaxZoom, useBatchedRendering, style, spriteAtlas, displayName,
-    )
+    ).also { it.sector.copy(sector) }
 
     // ---- Base hooks ----------------------------------------------------------------------------
 

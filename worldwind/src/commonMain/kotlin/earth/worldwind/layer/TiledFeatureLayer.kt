@@ -197,7 +197,7 @@ open class TiledFeatureLayer(
         density, labelVisibilityThreshold, defaultAltitudeMode, simplifyTolerancePixels,
         useBatchedRendering, customLogicToApplyProperties, progressiveRefinement, coarseAncestorFallback,
         maxLoadedTileBytes, maxTileUploadBytesPerFrame, displayName,
-    )
+    ).also { it.sector.copy(sector) }
 
     private class FeatureTile(sector: Sector, level: Level, row: Int, column: Int) : Tile(sector, level, row, column)
 

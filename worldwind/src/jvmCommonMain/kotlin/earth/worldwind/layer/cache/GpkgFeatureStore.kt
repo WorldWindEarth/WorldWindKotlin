@@ -114,6 +114,9 @@ class GpkgFeatureStore(
         withContext(dbDispatcher) { geoPackage.evictFeatures(content, cachePolicy) }
     }
 
+    // Goes through this store's own [content] instance so the in-memory copy stays coherent with the row.
+    override suspend fun setBoundingSector(sector: Sector) = geoPackage.setBoundingSector(content, sector)
+
     override suspend fun sizeBytes(): Long =
         withContext(dbDispatcher) { geoPackage.readFeaturesDataSize(content.tableName) }
 

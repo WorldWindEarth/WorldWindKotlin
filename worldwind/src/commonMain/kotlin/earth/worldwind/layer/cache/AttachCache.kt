@@ -198,6 +198,8 @@ internal suspend fun ContentManager.attachMvtVectorLayerCache(
     val levelSet = buildMvtLevelSet(layer.minZoom, layer.maxZoom)
     val store = openVectorTileStore(contentKey, levelSet, cachePolicy, displayName = layer.displayName)
     layer.source = CachedTileSource(network, store)
+    // Seed the content bbox from an already-narrowed layer extent (e.g. rebind after bulk download).
+    if (!layer.sector.isFullSphere) store.setBoundingSector(layer.sector)
     registerWebService(contentKey, WebServiceInfo(
         type = MvtVectorLayer.SERVICE_TYPE,
         address = network.urlTemplate,
@@ -265,6 +267,8 @@ internal suspend fun ContentManager.attachOsmBuildingsLayerCache(
         ?: error("OsmBuildingsLayer wraps a non-Overpass source: ${current::class.simpleName}")
     val store = openFeatureStore(contentKey, cachePolicy, displayName = layer.displayName)
     layer.source = CachedTiledFeatureSource(network, store)
+    // Seed the content bbox from an already-narrowed layer extent (e.g. rebind after bulk download).
+    if (!layer.sector.isFullSphere) store.setBoundingSector(layer.sector)
     registerWebService(contentKey, WebServiceInfo(
         type = OverpassBuildingsSource.SERVICE_TYPE,
         address = network.endpoint,
@@ -283,6 +287,8 @@ internal suspend fun ContentManager.attachTiledFeatureLayerCache(
         ?: error("TiledFeatureLayer wraps a non-WFS tiled source: ${current::class.simpleName}")
     val store = openFeatureStore(contentKey, cachePolicy, displayName = layer.displayName)
     layer.source = CachedTiledFeatureSource(network, store)
+    // Seed the content bbox from an already-narrowed layer extent (e.g. rebind after bulk download).
+    if (!layer.sector.isFullSphere) store.setBoundingSector(layer.sector)
     registerWebService(contentKey, WebServiceInfo(
         type = WfsTiledFeatureSource.SERVICE_TYPE,
         address = network.serviceAddress,

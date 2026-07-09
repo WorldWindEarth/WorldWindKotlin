@@ -88,6 +88,9 @@ open class OsmBuildingsLayer(
     displayName: String? = "OSM Buildings",
 ) : AbstractLayer(displayName), VectorLayer {
 
+    // Real data availability sector can be smaller than the slippy grid
+    override val sector = Sector().setFullSphere()
+
     /** Shape attributes applied to every building polygon. Mutating between frames is safe. */
     var attributes: ShapeAttributes = defaultBuildingAttributes()
 
@@ -142,6 +145,7 @@ open class OsmBuildingsLayer(
     override fun clone() = OsmBuildingsLayer(
         source, tileZoom, tileRadius, maxLoadedTiles, maxConcurrentFetches, useOsmColors, useBatchedRendering, displayName,
     ).also {
+        it.sector.copy(sector)
         it.attributes = ShapeAttributes(attributes)
         it.shadowMode = shadowMode
     }
@@ -170,7 +174,10 @@ open class OsmBuildingsLayer(
             if (y !in 0 until n) continue
             // Wrap longitudinally so a tile-radius window straddling the antimeridian still works.
             val x = ((cx + dx) % n + n) % n
-            processTile(rc, TileKey(tileZoom, x, y))
+            val key = TileKey(tileZoom, x, y)
+            // Data-availability gate; the full-sphere fast path skips the tile-sector build.
+            if (!sector.isFullSphere && !key.sector.intersects(sector)) continue
+            processTile(rc, key)
         }
     }
 

@@ -50,6 +50,7 @@ fun MvtVectorLayer.launchBulkRetrieval(
     onProgress: ((downloaded: Long, skipped: Long, total: Long) -> Unit)? = null,
 ): Job {
     val (shallowestZoom, deepestZoom) = zoomRangeForResolution(resolution)
+    val layer = this
     val source: TileSource = this.source
     val cached = source as? CachedTileSource
     return launchSlippyBulkRetrieval(
@@ -61,6 +62,11 @@ fun MvtVectorLayer.launchBulkRetrieval(
         retryTimeoutShort = retryTimeoutShort,
         retryTimeoutLong = retryTimeoutLong,
         onProgress = onProgress,
+        onSuccess = {
+            // Record the downloaded region as the layer's data extent and persist it for reopen.
+            if (layer.sector.isFullSphere) layer.sector.copy(sector) else layer.sector.union(sector)
+            cached?.tileStore?.setBoundingSector(layer.sector)
+        },
     ) { z, x, y, _ ->
         // The source consumes slippy coordinates directly (y = 0 is north), which is exactly what
         // the enumerator yields — no bottom-up/top-down flip like the renderer's loadTileContent.

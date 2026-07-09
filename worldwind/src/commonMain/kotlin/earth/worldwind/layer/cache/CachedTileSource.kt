@@ -52,6 +52,10 @@ class CachedTileSource(
      *  different content manager. `null` for offline-only caches. */
     val networkSource: TileSource? get() = inner
 
+    /** The backing store. Exposed for bulk-download flows that persist store-level metadata
+     *  (e.g. the downloaded-region bounding sector). */
+    val tileStore: TileStore get() = store
+
     /** Delegates to the underlying [store] when it reports a [CachedSourceInfo]; `null`
      *  when the store isn't cache-introspectable (custom in-memory store, etc.). */
     override val cacheInfo: CachedSourceInfo?

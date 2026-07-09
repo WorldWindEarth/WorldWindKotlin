@@ -52,6 +52,10 @@ interface FeatureStore {
     /** Apply [cachePolicy] now. Idempotent / unbounded → no-op. */
     suspend fun evict() {}
 
+    /** Persist [sector] as the store's content bounding box — the data-availability extent a
+     *  bulk download records (e.g. `gpkg_contents`). Default no-op for stores without one. */
+    suspend fun setBoundingSector(sector: Sector) {}
+
     /** Approximate byte size of all rows in the store. */
     suspend fun sizeBytes(): Long
 }

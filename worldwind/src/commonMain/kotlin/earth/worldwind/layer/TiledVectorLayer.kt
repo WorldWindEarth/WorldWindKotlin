@@ -63,6 +63,9 @@ abstract class TiledVectorLayer<C : Any>(
     private val maxTileAdmitWeightPerFrame: Int = 0,
 ) : AbstractLayer(displayName), VectorLayer {
 
+    // Real data availability sector can be smaller than the tile-grid sector
+    final override val sector = Sector().setFullSphere()
+
     /** Screen-space-error knob: lower = finer (more, smaller on-screen tiles); higher = coarser. */
     var detailControl: Double = 1.0
 
@@ -278,7 +281,8 @@ abstract class TiledVectorLayer<C : Any>(
     private fun truncate(toSize: Int) { while (renderCut.size > toSize) renderCut.removeAt(renderCut.size - 1) }
 
     private fun isVisible(rc: RenderContext, tile: Tile) =
-        tile.intersectsSector(rc.terrain.sector) && tile.intersectsFrustum(rc) &&
+        tile.intersectsSector(sector) && // data-availability gate ([VectorLayer.sector])
+            tile.intersectsSector(rc.terrain.sector) && tile.intersectsFrustum(rc) &&
             rc.globe.projectionLimits?.let { tile.intersectsSector(it) } != false
 
     /** Loaded content for [tile], or null below [LevelSet.levelOffset] (never fetched) or not yet

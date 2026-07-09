@@ -257,7 +257,12 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         return try {
             withContext(Dispatchers.IO) { block(handle) }
         } finally {
-            pool.send(handle)
+            // trySend: a suspending `send` throws for a cancelled reader, leaking the handle until
+            // the pool drains empty; it only fails once [shutdown] closed the pool — then close the straggler.
+            if (pool.trySend(handle).isFailure) runCatching {
+                releaseFeatureReadResources(handle)
+                handle.close()
+            }
         }
     }
 
@@ -1404,6 +1409,22 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val maxY = content.maxY ?: return null
         val srsId = content.srs?.id ?: return null
         return buildSector(minX, minY, maxX, maxY, srsId)
+    }
+
+    /** Persist [sector] as the `gpkg_contents` bounding box of [content] — the SRS-aware inverse
+     *  of [getBoundingSector]. For EPSG:3857 the latitude range is clamped to the Web-Mercator
+     *  limits before conversion to meters. */
+    suspend fun setBoundingSector(content: GpkgContent, sector: Sector): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) return@withContext
+        val srsId = content.srs?.id ?: return@withContext
+        val bounded = if (srsId == EPSG_3857) MercatorSector.fromSector(sector) else sector
+        val box = buildBoundingBox(bounded, srsId)
+        content.minX = box.minLongitude
+        content.minY = box.minLatitude
+        content.maxX = box.maxLongitude
+        content.maxY = box.maxLatitude
+        content.lastChange = Date()
+        contentDao.update(content)
     }
 
     protected open fun createWebServiceTable() {

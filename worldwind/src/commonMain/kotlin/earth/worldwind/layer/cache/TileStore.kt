@@ -1,6 +1,8 @@
 package earth.worldwind.layer.cache
 import earth.worldwind.layer.source.TileBlob
 
+import earth.worldwind.geom.Sector
+
 /**
  * Persistent backing for [CachedTileSource] — read/write/evict tile blobs keyed by
  * `(z, x, y)`. The store is the cache; [CachedTileSource] is the cache-aware view that
@@ -33,6 +35,10 @@ interface TileStore {
 
     /** Apply [cachePolicy] now. Idempotent / unbounded policy → no-op. */
     suspend fun evict() {}
+
+    /** Persist [sector] as the store's content bounding box — the data-availability extent a
+     *  bulk download records (e.g. `gpkg_contents`). Default no-op for stores without one. */
+    suspend fun setBoundingSector(sector: Sector) {}
 
     /** Approximate byte size of all tiles in the store. */
     suspend fun sizeBytes(): Long

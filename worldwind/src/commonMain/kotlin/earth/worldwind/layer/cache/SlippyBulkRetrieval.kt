@@ -35,6 +35,8 @@ internal fun slippyTileCount(sector: Sector, minZoom: Int, maxZoom: Int): Long {
  * attempts, after which the tile is counted as skipped.
  *
  * @param scope coroutine scope owning the returned [Job]; typically `GlobalScope` for a long job.
+ * @param onSuccess invoked after the loop completes without cancellation (e.g. to record the
+ *   downloaded region as the layer/store data extent).
  */
 internal fun launchSlippyBulkRetrieval(
     sector: Sector,
@@ -45,6 +47,7 @@ internal fun launchSlippyBulkRetrieval(
     retryTimeoutShort: Duration,
     retryTimeoutLong: Duration,
     onProgress: ((downloaded: Long, skipped: Long, total: Long) -> Unit)?,
+    onSuccess: (suspend () -> Unit)? = null,
     fetchOne: suspend (z: Int, x: Int, y: Int, tileSector: Sector) -> TileOutcome,
 ): Job = scope.launch(Dispatchers.Default) {
     val progress = BulkProgress(slippyTileCount(sector, minZoom, maxZoom), onProgress)
@@ -61,4 +64,5 @@ internal fun launchSlippyBulkRetrieval(
             })
         }
     }
+    onSuccess?.invoke()
 }

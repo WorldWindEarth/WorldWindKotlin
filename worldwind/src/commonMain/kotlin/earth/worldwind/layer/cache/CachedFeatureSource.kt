@@ -124,6 +124,10 @@ class CachedTiledFeatureSource(
      *  extractors peel this off when the layer is already cache-attached. */
     val networkSource: TiledFeatureSource? get() = inner
 
+    /** The backing store. Exposed for bulk-download flows that persist store-level metadata
+     *  (e.g. the downloaded-region bounding sector). */
+    val featureStore: FeatureStore get() = store
+
     /** Invoked (off the render thread) after a stale tile is re-downloaded and replaced, so the
      *  render layer can drop its in-memory copy and reload the fresh rows. */
     override var onTileRevalidated: ((z: Int, x: Int, y: Int) -> Unit)? = null
