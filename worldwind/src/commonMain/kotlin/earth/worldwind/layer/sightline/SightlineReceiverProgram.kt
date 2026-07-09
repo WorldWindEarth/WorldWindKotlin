@@ -5,8 +5,8 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.Color
 import earth.worldwind.util.kgl.GL_COLOR_ATTACHMENT0
 import earth.worldwind.util.kgl.GL_TEXTURE0
-import earth.worldwind.util.kgl.GL_TEXTURE4
 import earth.worldwind.util.kgl.GL_TEXTURE5
+import earth.worldwind.util.kgl.GL_TEXTURE6
 import earth.worldwind.util.kgl.GL_TEXTURE_CUBE_MAP
 import earth.worldwind.util.kgl.KglTexture
 
@@ -30,22 +30,31 @@ interface SightlineReceiverProgram {
     var lastSightlineState: SightlineState?
 }
 
+// Scratch for the camera-relative sightline matrix composition. GL thread only.
+private val sightlineMvScratch = Matrix4()
+
 /**
- * Binds the moments texture(s) on units 4-5 and uploads sightline matrices into [program].
+ * Binds the moments texture(s) on units 5-6 and uploads sightline matrices into [program].
  * Skips the work when there's no active sightline this frame (or in pick mode), and clears
  * `applySightline` so receivers fall through to "no tint".
+ *
+ * Receiver programs feed **camera-relative** positions into `emitSightlineVaryings` (the same
+ * varying that drives the shadow receiver — see
+ * [earth.worldwind.layer.shadow.ShadowReceiverGlsl] for why raw ECEF float32 positions are
+ * unusable), so the world → sightline matrices are re-based against the eye point here, in
+ * double precision, before upload.
  */
 fun DrawContext.applySightlineReceiverUniforms(program: SightlineReceiverProgram, applySightline: Boolean = true) {
     val state = sightlineState
     if (!applySightline || isPickMode || state == null) {
         program.loadSightlineDisabled()
         program.lastSightlineState = null
-        // Bind benign 2D + cube textures so the never-sampled unit-4/5 samplers don't trip macOS's
+        // Bind benign 2D + cube textures so the never-sampled unit-5/6 samplers don't trip macOS's
         // empty-unit validator. Deduped — bound once per frame.
         if (!sightlineBenignBound) {
-            activeTextureUnit(GL_TEXTURE4)
-            defaultTexture.bindTexture(this)
             activeTextureUnit(GL_TEXTURE5)
+            defaultTexture.bindTexture(this)
+            activeTextureUnit(GL_TEXTURE6)
             defaultCubeTexture.bindTexture(this)
             activeTextureUnit(GL_TEXTURE0)
             sightlineBenignBound = true
@@ -56,29 +65,32 @@ fun DrawContext.applySightlineReceiverUniforms(program: SightlineReceiverProgram
     if (lastSightlineTextureBind !== state) {
         sightlineBenignBound = false
         if (state.omnidirectional) {
-            // Cube path: bind cube moments at unit 5, ensure unit 4 has a benign 2D bind so
+            // Cube path: bind cube moments at unit 6, ensure unit 5 has a benign 2D bind so
             // the unused sampler2D doesn't read undefined.
-            activeTextureUnit(GL_TEXTURE5)
+            activeTextureUnit(GL_TEXTURE6)
             momentsCubeMapTexture.bindTexture(this)
-            activeTextureUnit(GL_TEXTURE4)
+            activeTextureUnit(GL_TEXTURE5)
             defaultTexture.bindTexture(this)
         } else {
-            // Directional path: bind 2D moments at unit 4, clear cube binding at unit 5 so
+            // Directional path: bind 2D moments at unit 5, clear cube binding at unit 6 so
             // the unused samplerCube doesn't form a feedback loop with the next depth pass.
-            activeTextureUnit(GL_TEXTURE4)
-            momentsFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0).bindTexture(this)
             activeTextureUnit(GL_TEXTURE5)
+            momentsFramebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0).bindTexture(this)
+            activeTextureUnit(GL_TEXTURE6)
             gl.bindTexture(GL_TEXTURE_CUBE_MAP, KglTexture.NONE)
         }
         activeTextureUnit(GL_TEXTURE0)
         lastSightlineTextureBind = state
     }
     if (program.lastSightlineState !== state) {
+        // Fold the eye translation into the world -> sightline matrix so camera-relative
+        // receiver positions resolve to the same sightline-eye coordinates as world ones.
+        sightlineMvScratch.copy(state.sightlineView).multiplyByTranslation(eyePoint.x, eyePoint.y, eyePoint.z)
         program.loadSightlineEnabled(
             state.omnidirectional,
-            state.sightlineView,
+            sightlineMvScratch,
             state.cubeMapProjection,
-            state.sightlineView,
+            sightlineMvScratch,
             state.range,
             state.visibleColor,
             state.occludedColor,

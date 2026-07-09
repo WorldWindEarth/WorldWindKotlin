@@ -1,8 +1,3 @@
 package earth.worldwind.layer.shadow
 
-actual val defaultShadowAlgorithm: ShadowAlgorithm = ShadowAlgorithm.MSM
-
-actual val defaultMomentsBlurTexelSpacing: FloatArray = floatArrayOf(2f, 2f, 1f)
-
-actual val defaultMsmMomentBias: Float = 3e-5f
 actual val defaultSightlineMomentBias: Float = 3e-5f

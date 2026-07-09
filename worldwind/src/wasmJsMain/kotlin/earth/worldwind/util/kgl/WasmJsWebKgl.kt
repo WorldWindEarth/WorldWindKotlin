@@ -85,10 +85,15 @@ private external interface WebGL2RenderingContext : JsAny {
         width: Int, height: Int, format: Int, type: Int, pboOffset: Int,
     )
     fun getBufferSubData(target: Int, srcOffset: Int, view: Uint8Array)
+    fun drawBuffers(buffers: JsAny)
+    fun readBuffer(src: Int)
     fun fenceSync(condition: Int, flags: Int): WebGLSync?
     fun clientWaitSync(sync: WebGLSync, flags: Int, timeout: Int): Int
     fun deleteSync(sync: WebGLSync)
 }
+
+private fun newJsIntArray(): JsAny = js("[]")
+private fun jsIntArrayPush(array: JsAny, value: Int): Unit = js("array.push(value)")
 
 class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
 
@@ -507,6 +512,16 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
     }
 
     override fun pixelStorei(pname: Int, param: Int) = gl.pixelStorei(pname, param)
+
+    // No-op on WebGL1 — depth-only framebuffer callers gate on [supportsSizedTextureFormats].
+    override fun drawBuffers(bufs: IntArray) {
+        val gl2 = this.gl2 ?: return
+        val array = newJsIntArray()
+        for (value in bufs) jsIntArrayPush(array, value)
+        gl2.drawBuffers(array)
+    }
+
+    override fun readBuffer(src: Int) { gl2?.readBuffer(src) }
 }
 
 internal actual fun createWebKgl(gl: WebGLRenderingContext): Kgl = WasmJsWebKgl(gl)

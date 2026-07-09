@@ -11,6 +11,8 @@ import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.LayerList
 import kotlin.concurrent.Volatile
+import earth.worldwind.layer.shadow.ShadowCaster
+import earth.worldwind.layer.shadow.ShadowSceneBounds
 import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.render.image.ImageOptions
@@ -115,6 +117,16 @@ open class RenderContext {
      */
     var shadowState: ShadowState? = null
     /**
+     * View-depth extent of shadow-relevant content accumulated while the **previous** regular
+     * frame's drawables were offered. Consumed by [earth.worldwind.layer.shadow.ShadowLayer]
+     * to fit cascade splits — the shadow layer renders before content layers, so the current
+     * frame's own accumulation ([shadowSceneBoundsCurrent]) is still empty at that point.
+     * One frame of latency is invisible in practice.
+     */
+    val shadowSceneBounds = ShadowSceneBounds()
+    /** Accumulation target for the frame being rendered — rolled into [shadowSceneBounds] on [reset]. */
+    val shadowSceneBoundsCurrent = ShadowSceneBounds()
+    /**
      * `true` when an enabled [earth.worldwind.layer.shadow.ShadowLayer] is present in [layers]
      * for this frame. Computed once at the start of [earth.worldwind.WorldWind.renderFrame]
      * before any [Layer.render] runs, so receivers that touch every visible fragment
@@ -192,6 +204,10 @@ open class RenderContext {
         cameraPoint.set(0.0, 0.0, 0.0)
         lightDirection.set(0.0, 0.0, 1.0)
         shadowState = null
+        // Roll the completed frame's bounds into the consumable slot; pick frames render a
+        // reduced scene and are discarded.
+        if (!isPickMode && shadowSceneBoundsCurrent.hasData) shadowSceneBounds.copyFrom(shadowSceneBoundsCurrent)
+        shadowSceneBoundsCurrent.clear()
         hasShadowLayer = false
         hasActiveSightline = false
         hasGroundCoverageMask = false
@@ -496,12 +512,34 @@ open class RenderContext {
     }
 
     fun offerSurfaceDrawable(drawable: Drawable, zOrder: Double) {
+        contributeShadowSceneBounds(drawable)
         drawableQueue?.offerDrawable(drawable, DrawableGroup.SURFACE, zOrder)
     }
 
     fun offerShapeDrawable(drawable: Drawable, cameraDistanceSq: Double) {
+        contributeShadowSceneBounds(drawable)
         // order by descending squared distance to the viewer
         drawableQueue?.offerDrawable(drawable, DrawableGroup.SHAPE, -cameraDistanceSq)
+    }
+
+    /**
+     * Accumulates the drawable's world bounding sphere into this frame's [ShadowSceneBounds]
+     * when a shadow layer is active. [earth.worldwind.layer.shadow.ShadowLayer] consumes the
+     * accumulation on the next frame to fit cascade splits to the content actually in view.
+     */
+    private fun contributeShadowSceneBounds(drawable: Drawable) {
+        if (!hasShadowLayer || isPickMode) return
+        if (drawable !is ShadowCaster) return
+        val center = drawable.shadowCasterCenter ?: return
+        // View-forward distance to the sphere center. Camera forward = -(third modelview row).
+        val m = modelview.m
+        val distance = -(m[8] * (center.x - cameraPoint.x)
+            + m[9] * (center.y - cameraPoint.y)
+            + m[10] * (center.z - cameraPoint.z))
+        // lightDirection is set by the atmosphere layer before content layers offer.
+        val lightZTop = lightDirection.x * center.x + lightDirection.y * center.y +
+            lightDirection.z * center.z + drawable.shadowCasterRadius
+        shadowSceneBoundsCurrent.contribute(distance, drawable.shadowCasterRadius, lightZTop)
     }
 
     fun offerScreenDrawable(drawable: Drawable, zOrder: Double) {

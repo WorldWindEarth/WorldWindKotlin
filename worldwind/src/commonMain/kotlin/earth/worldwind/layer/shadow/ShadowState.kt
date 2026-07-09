@@ -6,48 +6,66 @@ import earth.worldwind.geom.Vec3
 /**
  * Per-frame state for the directional sun-shadow pipeline. Owned by [ShadowLayer], populated
  * during render, and consumed by [earth.worldwind.draw.DrawableShadow] (depth pass) and by
- * receiver shaders (terrain, lit shapes, unlit shapes) during the main pass.
+ * receiver shaders (terrain, lit shapes, 3D-Tile meshes) during the main pass.
  *
- * The pipeline uses **Cascaded Shadow Maps** (CSM): the camera frustum is sliced into
- * [cascadeCount] depth ranges and each slice gets its own light-space orthographic projection
- * sized to that slice's world-space footprint. Receivers select a cascade per-fragment from
- * view-space depth.
+ * The pipeline uses **Cascaded Shadow Maps**: the camera frustum's scene-fit depth range is
+ * sliced into [cascadeCount] sub-ranges and each slice gets its own light-space orthographic
+ * projection sized to that slice's world-space footprint. The depth pass renders casters into
+ * one depth texture per cascade; receivers select a cascade per-fragment from view-space depth
+ * and resolve occlusion with a bilinear-weighted percentage-closer filter.
  *
- * Shadow attenuation is selectable via [ShadowLayer.algorithm]: PCF (16-tap rotated grid,
- * default) or MSM (Hamburger 4-moment, Peters & Klein 2015). PCF is robust on every GL
- * implementation; MSM has subtler precision requirements that some mobile shader compilers
- * don't meet. Both consume the same `RGBA32F` cascade depth pass.
+ * Receiver-side shadow math runs in **camera-relative coordinates**: [CascadeState.shadowMatrix]
+ * maps `worldPos - cameraPoint` into the cascade's `[0, 1]^3` texture space. Composing the
+ * camera translation into the matrix on the CPU (in double precision) keeps fragment-shader
+ * inputs at view-distance magnitude — a raw ECEF world position quantizes to ~0.5 m in float32,
+ * which would erase street-scale shadow detail entirely.
  */
 class ShadowState(
-    /**
-     * Number of cascades. PSSM splits the view frustum into this many slices. Default 3
-     * is a typical balance between quality at close range and far-range coverage on a globe.
-     */
+    /** Number of cascades. Default 4 spans street-scale detail to globe-scale coverage. */
     val cascadeCount: Int = DEFAULT_CASCADE_COUNT,
 ) {
     /** One [CascadeState] per slice; index 0 is the closest cascade. */
     val cascades = Array(cascadeCount) { CascadeState() }
 
     /**
-     * Multiplier for shadowed-fragment colour. `0.0` => fully black shadow, `1.0` => no
-     * darkening (sky-light only term). The default `0.4` is a perceptual mid-point that reads
-     * as a directional shadow without obscuring the receiver's underlying albedo.
+     * Multiplier for shadowed-fragment colour on UNLIT receivers (terrain imagery,
+     * photogrammetry, points), where the shadow term is the only sun shading. `0.0` =>
+     * fully black shadow, `1.0` => no darkening; the default `0.4` is a perceptual
+     * mid-point that reads as a directional shadow without obscuring the underlying
+     * albedo. Lit receivers ignore it - their shadow floor is the scene ambient term
+     * (see [earth.worldwind.render.program.LightingGlsl]).
      */
     var ambientShadow: Float = DEFAULT_AMBIENT_SHADOW
 
     /**
-     * Far cap for the largest cascade in metres. View-frustum depths beyond this distance are
-     * not shadow-mapped; receivers gate their shadow lookup with this value to avoid sampling
-     * out-of-range texels.
+     * Effective far cap of the last cascade in metres for this frame. Receivers fade shadows
+     * out over the last 20% of this distance so the far cascade edge never pops.
      */
-    var maxCascadeDistance: Double = DEFAULT_MAX_CASCADE_DISTANCE
+    var shadowDistance: Double = 0.0
 
     /**
-     * Active shadow algorithm for this frame. `null` = cascade pipeline can't run on this
-     * GL implementation (no `RGBA32F`); receivers treat fragments as fully lit. Otherwise
-     * this is [ShadowLayer.algorithm]. Finalised by [earth.worldwind.draw.DrawableShadow] at draw time.
+     * World-space unit vector toward the sun, snapshotted from
+     * [earth.worldwind.render.RenderContext.lightDirection]. Receivers use it for the
+     * normal-offset and normal-shading terms.
      */
-    var algorithm: ShadowAlgorithm? = null
+    val lightDirection = Vec3(0.0, 0.0, 1.0)
+
+    /** Camera position the cascade [CascadeState.shadowMatrix] matrices are relative to. */
+    val cameraPoint = Vec3()
+
+    /**
+     * `true` when the cascade depth maps are populated and receivers may sample them.
+     * Set by [ShadowLayer] at render time; cleared by [earth.worldwind.draw.DrawableShadow]
+     * at draw time when the GL implementation can't run the pipeline (no sized formats /
+     * depth textures).
+     */
+    var isReady: Boolean = false
+
+    /**
+     * Debug visualisation mode: 0 off, 1 cascade bands (1.0 / 0.75 / 0.5 / 0.25 per
+     * cascade), 2 footprint coverage, 3 raw shadow-map depth projected onto the scene.
+     */
+    var debugShadowMode: Int = 0
 
     /**
      * Monotonic counter incremented every frame that [ShadowLayer.doRender] populates new
@@ -57,39 +75,41 @@ class ShadowState(
      */
     var frameStamp: Long = 0
 
-    /** Linear depth metric range for moments storage = `1.0 / maxCascadeDistance`. */
-    val invMaxCascadeDistance: Float get() = (1.0 / maxCascadeDistance).toFloat()
-
     /**
-     * Per-cascade light-space transforms and view-frustum slice metadata. The view matrix
-     * orients the orthographic frustum along the sun direction; the projection matrix sizes
-     * it to encompass the slice's world-space corner points.
+     * Per-cascade light-space transforms and view-frustum slice metadata.
      */
     class CascadeState {
         /**
-         * World → light-eye-space rotation+translation. Identity when the cascade is empty
-         * (e.g. sun below the horizon and the slice is fully self-occluded).
+         * World → light-eye-space rotation+translation, with the cascade's near plane at
+         * light-eye z = 0. Drives the depth pass ([earth.worldwind.draw.DrawableShadow]
+         * composes caster model matrices against it) and caster culling.
          */
         val lightView = Matrix4()
 
-        /**
-         * Light-eye-space → light-clip-space orthographic projection sized to cover this
-         * slice's world-space bounding box.
-         */
+        /** Light-eye-space → light-clip-space orthographic projection for the depth pass. */
         val lightProjection = Matrix4()
 
-        /** Composed `lightProjection * lightView`. Receivers use this to derive shadow UVs. */
+        /**
+         * Composed `lightProjection * lightView` (world → light clip), kept in double for
+         * the depth pass: caster MVPs must be composed against it on the CPU so the large
+         * light-frame translations cancel before the float32 upload — uploading
+         * `lightView * model` alone quantizes caster geometry to ~0.5 m at ECEF magnitude.
+         */
         val lightProjectionView = Matrix4()
 
         /**
-         * Linear depth metric range in metres for this cascade. The depth pass writes
-         * `-eye_z / range` so the receiver can do an absolute depth comparison without the
-         * orthographic projection's sign-of-depth artefacts.
+         * Camera-relative world → cascade texture space (`xy` = UV in `[0, 1]`, `z` = depth in
+         * `[0, 1]`). Composed on the CPU in double precision as
+         * `texScaleBias * lightProjection * lightView * translate(cameraPoint)` so receivers
+         * feed it `worldPos - cameraPoint` at full float32 precision.
          */
+        val shadowMatrix = Matrix4()
+
+        /** Light-space depth range in metres (near plane to far plane of [lightProjection]). */
         var range: Double = 1.0
 
-        /** View-space `-z` lower bound of the camera-frustum slice this cascade covers. */
-        var nearViewDepth: Double = 0.0
+        /** World-space size of one shadow-map texel in metres — drives the receiver normal-offset bias. */
+        var texelWorldSize: Double = 0.0
 
         /** View-space `-z` upper bound of the camera-frustum slice this cascade covers. */
         var farViewDepth: Double = 0.0
@@ -111,8 +131,9 @@ class ShadowState(
             lightView.copy(source.lightView)
             lightProjection.copy(source.lightProjection)
             lightProjectionView.copy(source.lightProjectionView)
+            shadowMatrix.copy(source.shadowMatrix)
             range = source.range
-            nearViewDepth = source.nearViewDepth
+            texelWorldSize = source.texelWorldSize
             farViewDepth = source.farViewDepth
             boxXMin = source.boxXMin
             boxXMax = source.boxXMax
@@ -142,6 +163,7 @@ class ShadowState(
     }
 
     fun reset() {
+        isReady = false
         for (cascade in cascades) cascade.isValid = false
     }
 
@@ -153,21 +175,17 @@ class ShadowState(
     fun copyFrom(source: ShadowState) {
         require(cascadeCount == source.cascadeCount) { "cascadeCount mismatch" }
         ambientShadow = source.ambientShadow
-        maxCascadeDistance = source.maxCascadeDistance
-        algorithm = source.algorithm
+        shadowDistance = source.shadowDistance
+        debugShadowMode = source.debugShadowMode
+        lightDirection.copy(source.lightDirection)
+        cameraPoint.copy(source.cameraPoint)
+        isReady = source.isReady
         frameStamp = source.frameStamp
         for (i in cascades.indices) cascades[i].copyFrom(source.cascades[i])
     }
 
     companion object {
-        const val DEFAULT_CASCADE_COUNT: Int = 3
+        const val DEFAULT_CASCADE_COUNT: Int = 4
         const val DEFAULT_AMBIENT_SHADOW: Float = 0.4f
-        /**
-         * Default floor for the largest cascade's far cap. 10 km sizes cascade 0 to ~700 m
-         * with ~0.7 m texels at 1024^2 - sharp enough for building silhouettes while keeping
-         * distant terrain shadows visible. [ShadowLayer] raises this floor with the lookAt
-         * range each frame for tilted / far-focused views.
-         */
-        const val DEFAULT_MAX_CASCADE_DISTANCE: Double = 10_000.0
     }
 }

@@ -196,10 +196,18 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         if (buffer?.bindBuffer(dc) != true) return
 
         submeshModelMatrix.copy(tileToWorld).multiplyByMatrix(submesh.worldMatrix)
-        program.loadModelMatrix(submeshModelMatrix)
 
         mvpMatrix.copy(dc.modelviewProjection).multiplyByMatrix(submeshModelMatrix)
         program.loadModelviewProjection(mvpMatrix)
+
+        // Camera-relative model matrix for the shadow / sightline position varying:
+        // left-multiplying translate(-eyePoint) only shifts the translation column, done here
+        // in double precision so the float32 uniform stays at view-distance magnitude.
+        val eye = dc.eyePoint
+        submeshModelMatrix.m[3] -= eye.x
+        submeshModelMatrix.m[7] -= eye.y
+        submeshModelMatrix.m[11] -= eye.z
+        program.loadModelMatrix(submeshModelMatrix)
 
         program.loadColor(Color(submesh.baseColor[0], submesh.baseColor[1], submesh.baseColor[2], submesh.baseColor[3]))
         program.loadOpacity(1.0f)
@@ -266,6 +274,10 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         val buffers = submeshBuffers
         val bufCount = buffers.size
         val n = submeshes.size
+        // No back-face culling from the sun's POV: photogrammetry winding is unreliable, so
+        // culling punches holes in thin-surface shadows and falsely lights sun-away facades
+        // (their own skin must occlude them). Same rationale as the terrain caster pass.
+        dc.gl.disable(GL_CULL_FACE)
         for (idx in 0 until n) {
             val submesh = submeshes[idx]
             val mode = submesh.mode
@@ -285,6 +297,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
                 dc.gl.drawArrays(mode, 0, submesh.vertexCount)
             }
         }
+        dc.gl.enable(GL_CULL_FACE)
     }
 
     /** Sightline depth pass. Triangles only — lines/points alias on the moments cube. */
@@ -295,6 +308,8 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         val buffers = submeshBuffers
         val bufCount = buffers.size
         val n = submeshes.size
+        // No back-face culling — same rationale as [drawShadowDepth].
+        dc.gl.disable(GL_CULL_FACE)
         for (idx in 0 until n) {
             val submesh = submeshes[idx]
             val mode = submesh.mode
@@ -314,6 +329,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
                 dc.gl.drawArrays(mode, 0, submesh.vertexCount)
             }
         }
+        dc.gl.enable(GL_CULL_FACE)
     }
 
 }

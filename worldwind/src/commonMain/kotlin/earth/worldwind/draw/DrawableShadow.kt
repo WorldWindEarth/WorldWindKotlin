@@ -3,8 +3,9 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.shadow.ShadowCaster
 import earth.worldwind.layer.shadow.ShadowState
-import earth.worldwind.render.program.SightlineMomentsBlurProgram
-import earth.worldwind.render.program.SightlineMomentsProgram
+import earth.worldwind.render.program.DirectionalDepthProgram
+import earth.worldwind.util.Logger.INFO
+import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
@@ -12,25 +13,22 @@ import kotlin.jvm.JvmStatic
 /**
  * Runs the cascaded shadow map depth pass for the directional sun-shadow pipeline.
  * Enqueued each frame by [earth.worldwind.layer.shadow.ShadowLayer] in the BACKGROUND drawable
- * group, so its [draw] runs before any receiver shape / terrain draw and the cascade moments
- * textures are populated by the time receivers sample them in [DrawContext.shadowCascadeFramebuffer].
+ * group, so its [draw] runs before any receiver shape / terrain draw and the cascade depth
+ * textures are populated by the time receivers sample them
+ * ([DrawContext.shadowCascadeFramebuffer]).
  *
- * The depth pass reuses [SightlineMomentsProgram] (Hamburger 4-moment) — its `perpDepth =
- * -ep.z * invRange` formulation is what we want once [ShadowState.CascadeState.lightView]
- * has been translated to put the cascade's near plane at light-eye-z = 0. After the depth
- * pass for each cascade, a separable Gaussian blur ([SightlineMomentsBlurProgram]) widens
- * the variance support so the receiver-side Cholesky reconstruction produces a smooth soft
- * shadow band rather than mesh-aligned stripes.
+ * The pass is **depth-only**: [DirectionalDepthProgram] rasterises casters through each
+ * cascade's orthographic light projection with colour writes masked off, and the cascade
+ * framebuffer's `DEPTH_COMPONENT` texture receives true hardware depth. That makes
+ * `glPolygonOffset` a real slope-scaled caster bias — steeply-lit triangles get
+ * proportionally more offset, so receivers only need a small constant bias and contact
+ * shadows survive at street scale.
  *
  * Casters are dispatched via the [ShadowCaster] interface, parallel to
  * [SightlineOccluder] but with this drawable's per-cascade matrices.
  */
 open class DrawableShadow protected constructor() : Drawable {
-    var momentsProgram: SightlineMomentsProgram? = null
-    var momentsBlurProgram: SightlineMomentsBlurProgram? = null
-
-    /** Per-cascade Gaussian-blur tap spacing in shadow-map texels. `[0, 0, 0]` skips the blur. */
-    var momentsBlurTexelSpacing: FloatArray = floatArrayOf(0f, 0f, 0f)
+    var depthProgram: DirectionalDepthProgram? = null
 
     /**
      * Active cascade matrix during caster dispatch. Set by [draw] for each cascade so
@@ -40,10 +38,22 @@ open class DrawableShadow protected constructor() : Drawable {
     private var activeCascade: ShadowState.CascadeState? = null
 
     private val scratchMatrix = Matrix4()
+    private var terrainCoverageSkip = BooleanArray(0)
     private var pool: Pool<DrawableShadow>? = null
 
     companion object {
         val KEY = DrawableShadow::class
+
+        /**
+         * Slope-scaled polygon offset for the caster pass (factor × max depth slope +
+         * units × implementation quantum). Covers the rasterization-texel slope only — the
+         * receiver's per-tap receiver-plane bias handles the filter kernel's spatial reach,
+         * so the factor stays small and chimney-scale contact shadows survive. The 24-bit
+         * cascade depth buffer keeps the constant term sub-centimetre even for
+         * kilometre-deep cascades.
+         */
+        const val POLYGON_OFFSET_FACTOR = 1.5f
+        const val POLYGON_OFFSET_UNITS = 4f
 
         @JvmStatic
         fun obtain(pool: Pool<DrawableShadow>): DrawableShadow {
@@ -54,31 +64,29 @@ open class DrawableShadow protected constructor() : Drawable {
     }
 
     override fun recycle() {
-        momentsProgram = null
-        momentsBlurProgram = null
+        depthProgram = null
         activeCascade = null
         pool?.release(this)
         pool = null
     }
 
     override fun draw(dc: DrawContext) {
-        // Per-frame snapshot owned by [Frame] - the layer's scratch state is mutated on the
-        // main thread while this draw runs on the GL thread.
+        // Frame-owned snapshot - the layer's scratch state mutates on the render thread.
         val state = dc.shadowState ?: return
-        val moments = momentsProgram ?: return
-        if (!moments.useProgram(dc)) return
+        val program = depthProgram ?: return
 
-        // Both PCF and MSM need the cascade depth at full RGBA32F precision; without sized
-        // formats (GLES2 / WebGL1) disable the receivers so they don't sample garbage.
+        // Depth-texture cascades need sized formats; without them receivers stay fully lit.
         if (!dc.gl.supportsSizedTextureFormats) {
-            state.algorithm = null
+            state.isReady = false
+            return
+        }
+        if (!program.useProgram(dc)) {
+            state.isReady = false
             return
         }
 
-        // Unbind cascade textures from units 1..3. They were left bound by the previous frame's
-        // receiver pass; binding the cascade FBO now (with the same texture as colour attachment)
-        // forms a feedback loop that WebGL flags as GL_INVALID_OPERATION on every depth-pass
-        // draw call. Invalidate the bind stamp so the first receiver in this frame re-binds them.
+        // Unbind cascade textures from units 1..4 - still bound from the previous frame's
+        // receivers, they'd form a WebGL feedback loop with the cascade FBO.
         for (i in 0 until state.cascadeCount) {
             dc.activeTextureUnit(GL_TEXTURE1 + i)
             dc.bindTexture(KglTexture.NONE)
@@ -86,22 +94,30 @@ open class DrawableShadow protected constructor() : Drawable {
         dc.activeTextureUnit(GL_TEXTURE0)
         dc.lastShadowTextureBindStamp = -1L
 
-        // Restore caller's binding (pick FBO in pick mode) instead of NONE. Defensive —
-        // ShadowLayer skips pick mode today, matches sibling drawables' contract.
+        // Restore the caller's framebuffer binding on exit.
         val previousFramebuffer = dc.currentFramebuffer
         try {
+            // Depth-only pass: no colour writes, slope-scaled polygon offset as caster bias.
+            // Depth test/write asserted explicitly - a leaked depthMask(false) would silently
+            // empty the maps (glClear obeys depthMask too).
+            dc.gl.enable(GL_DEPTH_TEST)
+            dc.gl.depthFunc(GL_LEQUAL)
+            dc.gl.depthMask(true)
+            dc.gl.colorMask(false, false, false, false)
+            dc.gl.disable(GL_BLEND)
+            dc.gl.enable(GL_POLYGON_OFFSET_FILL)
+            dc.gl.polygonOffset(POLYGON_OFFSET_FACTOR, POLYGON_OFFSET_UNITS)
+            computeTerrainCoverageSkips(dc)
             for (i in 0 until state.cascadeCount) {
                 val cascade = state.cascades[i]
                 if (!cascade.isValid) continue
                 drawCascadeDepth(dc, i, cascade)
-                if (i < momentsBlurTexelSpacing.size && momentsBlurTexelSpacing[i] > 0f) {
-                    blurCascadeMoments(dc, i)
-                }
             }
         } finally {
             // Restore default WorldWind state regardless of which cascade failed.
             dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
+            dc.gl.colorMask(true, true, true, true)
             dc.gl.enable(GL_BLEND)
             dc.gl.disable(GL_POLYGON_OFFSET_FILL)
             dc.gl.polygonOffset(0f, 0f)
@@ -110,86 +126,93 @@ open class DrawableShadow protected constructor() : Drawable {
     }
 
     /**
-     * Renders terrain and shape casters into the moments framebuffer for one cascade.
-     * Same conventions as [DrawableSightline.drawSceneDepth]: clear to the d=1 sentinel,
-     * disable blend (raw moment writes overwrite, never blend), polygon-offset the terrain
-     * to disambiguate overlapping triangles, then dispatch caster shapes without offset
-     * (they only act as occluders, never receive their own shadow during this pass).
+     * Renders terrain and shape casters into the depth framebuffer for one cascade. Depth
+     * clears to 1.0 — the "no occluder" sentinel every receiver comparison passes against.
      */
     protected open fun drawCascadeDepth(dc: DrawContext, cascadeIndex: Int, cascade: ShadowState.CascadeState) {
-        val moments = momentsProgram ?: return
-        // Re-bind the moments program. After the previous cascade's [blurCascadeMoments] ran,
-        // the blur program is the active GL program. Loading moments uniforms (or running
-        // [terrain.drawTriangles]) without re-binding here writes to / draws through the wrong
-        // program -- locations from `moments` resolve to bogus slots on the blur program and
-        // the GL call is silently discarded, which manifests as garbage moments in cascades 1
-        // and 2 (cascade 0 happens to work because [draw] binds moments before the loop).
-        if (!moments.useProgram(dc)) return
-        moments.loadProjection(cascade.lightProjection)
-        moments.loadRange(cascade.range.toFloat())
+        val program = depthProgram ?: return
 
         val framebuffer = dc.shadowCascadeFramebuffer(cascadeIndex)
         if (!framebuffer.bindFramebuffer(dc)) return
 
-        val colorTexture = framebuffer.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-        dc.gl.viewport(0, 0, colorTexture.width, colorTexture.height)
-        // Sentinel clear: d=1 in all four moments. Receivers' Cholesky reconstruction of a
-        // (1,1,1,1) moment vector returns occlusion=0 (visible) for any receiver depth ≤ 1,
-        // i.e. fragments outside the cascade footprint read as fully lit.
-        dc.gl.clearColor(1f, 1f, 1f, 1f)
-        dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-        // Restore default clear colour so the next main-pass clear doesn't repaint the screen
-        // with the moments sentinel.
-        dc.gl.clearColor(0f, 0f, 0f, 0f)
-        // Direct moment writes; no alpha blending against the sentinel.
-        dc.gl.disable(GL_BLEND)
+        val depthTexture = framebuffer.getAttachedTexture(GL_DEPTH_ATTACHMENT)
+        dc.gl.viewport(0, 0, depthTexture.width, depthTexture.height)
+        dc.gl.clear(GL_DEPTH_BUFFER_BIT)
 
-        // Terrain casters. No polygon offset here even though the sightline pipeline uses
-        // one: that offset is only meant to disambiguate depth-attachment ordering between
-        // overlapping LoD-seam tiles, but at our scale it also suppresses terrain-on-terrain
-        // shadows (mountain → valley) because the offset is comparable to the natural
-        // mountain-vs-valley `perpDepth` separation. Self-shadow acne is prevented by the
-        // receiver's [msmDepthBias] in [ShadowReceiverGlsl], not by polygon offset.
-        //
-        // Per-cascade tile cull: tiles whose bounding sphere falls entirely outside the
-        // active cascade's footprint are skipped. Globe-scale terrain has hundreds of tiles
-        // visible in the camera frustum but only a fraction reach into close cascades —
-        // big win on cascade 0/1 in particular. Tiles without bounds (radius `<= 0`) are
-        // dispatched into every cascade as before.
-        //
-        // Disable face culling for the terrain depth pass. WorldWind's terrain mesh winds
-        // opposite to what GL_CULL_FACE_BACK from the sun's POV expects, so back-face culling
-        // rejects the sun-facing slopes — the actual occluders — and only the anti-sun slopes
-        // reach the moments FBO; their depth then equals every receiver's own depth and no
-        // self-shadow registers. Without culling, both sides rasterise and the depth test
-        // keeps the smaller perpDepth regardless of winding.
+        // Terrain casters, sphere-culled per cascade. Face culling off: terrain winding
+        // inverts from the sun's POV and would reject the sun-facing slopes - the occluders.
         dc.gl.disable(GL_CULL_FACE)
         for (idx in 0 until dc.drawableTerrainCount) {
             val terrain = dc.getDrawableTerrain(idx)
             val terrainOrigin = terrain.vertexOrigin
             val terrainRadius = terrain.boundingSphereRadius
             if (terrainRadius > 0.0 && !cascade.intersectsSphere(terrainOrigin, terrainRadius)) continue
+            // Terrain under 3D-Tile mesh coverage must not cast: the globe's elevation
+            // surface is an independent height source that commonly sits ABOVE the
+            // photogrammetry mesh, blanketing whole tile regions in false shadow.
+            if (terrainCoverageSkip[idx]) continue
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
-            scratchMatrix.copy(cascade.lightView)
+            scratchMatrix.copy(cascade.lightProjectionView)
             scratchMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
-            moments.loadModelview(scratchMatrix)
+            program.loadModelviewProjection(scratchMatrix)
             terrain.drawTriangles(dc)
         }
         dc.gl.enable(GL_CULL_FACE)
 
-        // Shape casters. activeCascade routes loadCasterMatrix / loadCasterTranslation calls
-        // through this cascade's lightView for the duration of the dispatch.
+        // Shape casters; activeCascade routes their matrix loads through this cascade.
         activeCascade = cascade
         drawShapeCasters(dc)
         activeCascade = null
+
+        // Debug: coarse-sample the map; all-1.0 = no caster wrote this cascade.
+        if ((dc.shadowState?.debugShadowMode ?: 0) != 0) {
+            val size = depthTexture.width
+            val patch = ByteArray(16 * 16 * 4)
+            var minDepth = Float.MAX_VALUE
+            var writtenSamples = 0
+            for (gy in 0 until 4) for (gx in 0 until 4) {
+                dc.gl.readPixels(size * (gx * 2 + 1) / 8 - 8, size * (gy * 2 + 1) / 8 - 8, 16, 16, GL_DEPTH_COMPONENT, GL_FLOAT, patch)
+                for (i in 0 until 256) {
+                    val bits = (patch[i * 4].toInt() and 0xFF) or
+                        ((patch[i * 4 + 1].toInt() and 0xFF) shl 8) or
+                        ((patch[i * 4 + 2].toInt() and 0xFF) shl 16) or
+                        ((patch[i * 4 + 3].toInt() and 0xFF) shl 24)
+                    val v = Float.fromBits(bits)
+                    if (v < minDepth) minDepth = v
+                    if (v < 1f) writtenSamples++
+                }
+            }
+            log(INFO, "DrawableShadow cascade$cascadeIndex depth min=$minDepth written=$writtenSamples/4096")
+        }
+    }
+
+    /**
+     * Precomputes, once per frame, which terrain tiles to skip as casters: those
+     * INTERSECTING any 3D-Tile mesh coverage region. Intersection is deliberate — coverage
+     * arrives as multiple sectors, and a tile straddling two of them is contained by
+     * neither, so a containment test lets it cast and darken the mesh below. The cost is
+     * that terrain bordering a tileset stops casting onto it.
+     */
+    private fun computeTerrainCoverageSkips(dc: DrawContext) {
+        val count = dc.drawableTerrainCount
+        if (terrainCoverageSkip.size < count) terrainCoverageSkip = BooleanArray(count)
+        val regions = dc.groundCoverageRegions
+        for (idx in 0 until count) {
+            var skip = false
+            if (dc.hasGroundCoverageMask) {
+                val sector = dc.getDrawableTerrain(idx).sector
+                for (i in regions.indices) if (regions[i].intersects(sector)) { skip = true; break }
+            }
+            terrainCoverageSkip[idx] = skip
+        }
     }
 
     /**
      * Iterates the non-terrain drawable queue and dispatches every [ShadowCaster] to cast
-     * its geometry into the active cascade's moments framebuffer. Shape drawables that opt
+     * its geometry into the active cascade's depth framebuffer. Shape drawables that opt
      * in by implementing [ShadowCaster] (currently [DrawableShape], [DrawableMesh],
-     * [DrawableCollada]) participate. Surface decals, screen sprites, sightline volumes,
-     * lambdas, and the depth pass itself are skipped.
+     * [DrawableCollada], the 3D-Tile mesh / points drawables) participate. Surface decals,
+     * screen sprites, sightline volumes, lambdas, and the depth pass itself are skipped.
      *
      * Casters whose [ShadowCaster.shadowCasterCenter] is non-null are sphere-tested against
      * the active cascade's light-eye AABB (see
@@ -210,15 +233,15 @@ open class DrawableShadow protected constructor() : Drawable {
     }
 
     /**
-     * Composes the active cascade's `lightView * modelMatrix` and loads it into the moments
-     * depth-pass program. Casters call this once before each draw call.
+     * Composes the active cascade's `lightView * modelMatrix` and loads it into the depth-pass
+     * program. Casters call this once before each draw call.
      */
     fun loadCasterMatrix(modelMatrix: Matrix4) {
-        val program = momentsProgram ?: return
+        val program = depthProgram ?: return
         val cascade = activeCascade ?: return
-        scratchMatrix.copy(cascade.lightView)
+        scratchMatrix.copy(cascade.lightProjectionView)
         scratchMatrix.multiplyByMatrix(modelMatrix)
-        program.loadModelview(scratchMatrix)
+        program.loadModelviewProjection(scratchMatrix)
     }
 
     /**
@@ -226,11 +249,11 @@ open class DrawableShadow protected constructor() : Drawable {
      * in world coordinates (the common case — terrain tiles, shape vertex origins).
      */
     fun loadCasterTranslation(x: Double, y: Double, z: Double) {
-        val program = momentsProgram ?: return
+        val program = depthProgram ?: return
         val cascade = activeCascade ?: return
-        scratchMatrix.copy(cascade.lightView)
+        scratchMatrix.copy(cascade.lightProjectionView)
         scratchMatrix.multiplyByTranslation(x, y, z)
-        program.loadModelview(scratchMatrix)
+        program.loadModelviewProjection(scratchMatrix)
     }
 
     /**
@@ -252,28 +275,5 @@ open class DrawableShadow protected constructor() : Drawable {
             }
         }
         if (cullFaceDisabled) dc.gl.enable(GL_CULL_FACE)
-    }
-
-    /**
-     * Separable Gaussian blur on this cascade's moments texture. Pass 1: cascade FBO →
-     * shared shadow-blur FBO (horizontal). Pass 2: shadow-blur FBO → cascade FBO (vertical).
-     * Receiver shaders sample the cascade FBO directly so no further plumbing is needed.
-     * No-op when [momentsBlurProgram] is null.
-     */
-    protected open fun blurCascadeMoments(dc: DrawContext, cascadeIndex: Int) {
-        val blur = momentsBlurProgram ?: return
-        if (!blur.useProgram(dc)) return
-
-        val cascadeFb = dc.shadowCascadeFramebuffer(cascadeIndex)
-        val cascadeTex = cascadeFb.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-        // Match the blur ping-pong's size to this cascade so unit-square UVs read the full
-        // texture in both passes — mixed-size sampling would either alias or read uninitialised
-        // memory beyond the rendered subregion.
-        val tempFb = dc.shadowBlurFramebuffer(cascadeTex.width)
-        val tapSpacing = momentsBlurTexelSpacing[cascadeIndex] * (1f / cascadeTex.width.toFloat())
-
-        // restoreCallerState = false: [draw] re-enables GL_BLEND and rebinds its own target after
-        // all cascades blur, and receivers sample the cascade FBO directly.
-        dc.separableBlurMoments(blur, cascadeFb, tempFb, tapSpacing, restoreCallerState = false)
     }
 }

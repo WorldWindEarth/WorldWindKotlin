@@ -127,11 +127,15 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
                     program.mvpMatrix.copy(dc.modelviewProjection)
                     program.mvpMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
                     program.loadModelviewProjection()
-                    // Tile-local -> world translation for the shadow-receiver pass. Skipped on
+                    // Tile-local -> camera-relative translation for the shadow-receiver pass,
+                    // differenced in double so the float32 uniform stays precise (a raw ECEF
+                    // origin quantizes to ~0.5 m — see ShadowReceiverGlsl). Skipped on
                     // no-shadow frames since the fragment shader doesn't read worldPos there.
                     if (dc.shadowState != null) {
                         program.loadVertexOrigin(
-                            terrainOrigin.x.toFloat(), terrainOrigin.y.toFloat(), terrainOrigin.z.toFloat()
+                            (terrainOrigin.x - dc.eyePoint.x).toFloat(),
+                            (terrainOrigin.y - dc.eyePoint.y).toFloat(),
+                            (terrainOrigin.z - dc.eyePoint.z).toFloat(),
                         )
                     }
                 }

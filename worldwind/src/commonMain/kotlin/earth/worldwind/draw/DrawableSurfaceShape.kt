@@ -312,7 +312,11 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             // sampled by the shadow-receiver path; skipped on no-shadow frames.
             dc.applyShadowReceiverUniforms(program)
             if (dc.shadowState != null) {
-                modelMatrix.setToTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
+                modelMatrix.setToTranslation(
+                    terrainOrigin.x - dc.eyePoint.x,
+                    terrainOrigin.y - dc.eyePoint.y,
+                    terrainOrigin.z - dc.eyePoint.z,
+                )
                 program.loadModelMatrix(modelMatrix)
             }
 

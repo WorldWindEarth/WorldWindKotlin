@@ -342,6 +342,7 @@ const val GL_HIGH_FLOAT = 0x8DF2
 const val GL_LOW_INT = 0x8DF3
 const val GL_MEDIUM_INT = 0x8DF4
 const val GL_HIGH_INT = 0x8DF5
+const val GL_NONE = 0
 const val GL_FRAMEBUFFER = 0x8D40
 const val GL_READ_FRAMEBUFFER = 0x8CA8
 const val GL_DRAW_FRAMEBUFFER = 0x8CA9
@@ -695,4 +696,18 @@ interface Kgl {
     fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean)
     fun lineWidth(width: Float)
     fun pixelStorei(pname: Int, param: Int)
+    /**
+     * `glDrawBuffers` — selects the colour buffers the bound framebuffer draws into. Pass
+     * `[GL_NONE]` to make a depth-only framebuffer complete on desktop GL (which otherwise
+     * reports `FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER` for the default `GL_COLOR_ATTACHMENT0`).
+     * Requires GLES3+ / WebGL2 / GL3+; no-op where unsupported (callers gate on
+     * [supportsSizedTextureFormats]).
+     */
+    fun drawBuffers(bufs: IntArray)
+    /**
+     * `glReadBuffer` — selects the colour buffer for read operations on the bound framebuffer.
+     * Pair `readBuffer(GL_NONE)` with [drawBuffers] for depth-only framebuffers. Requires
+     * GLES3+ / WebGL2 / GL3+; no-op where unsupported.
+     */
+    fun readBuffer(src: Int)
 }

@@ -5,6 +5,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.layer.shadow.ShadowReceiverUniforms
+import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.layer.sightline.SightlineReceiverGlsl
 import earth.worldwind.layer.sightline.SightlineReceiverProgram
 import earth.worldwind.layer.sightline.SightlineReceiverUniforms
@@ -36,6 +37,11 @@ open class Ogc3dTilesPointsProgram(
     )
 
     override val attribBindings: Array<String> = arrayOf("vertexPosition", "vertexColor")
+
+    // Prepend [Kgl.glslDerivativesPrefix] (WW_HAS_DERIVATIVES + platform-aware extension
+    // directive) so the shadow receiver's receiver-plane depth bias can use dFdx/dFdy.
+    override fun glslVersion(dc: earth.worldwind.draw.DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+
 
     private fun defines(): String {
         var out = ""
@@ -153,19 +159,7 @@ open class Ogc3dTilesPointsProgram(
 
     override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
-    override fun loadShadowEnabled(
-        ambientShadow: Float,
-        lightProjectionView0: Matrix4,
-        lightProjectionView1: Matrix4,
-        lightProjectionView2: Matrix4,
-        cascadeFarDepth0: Float,
-        cascadeFarDepth1: Float,
-        cascadeFarDepth2: Float,
-        useMSM: Boolean,
-    ) = shadowUniforms.loadEnabled(
-        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
-        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
-    )
+    override fun loadShadowEnabled(state: ShadowState) = shadowUniforms.loadEnabled(gl, state)
 
     override fun loadSightlineDisabled() = sightlineUniforms.loadDisabled(gl)
 
@@ -254,7 +248,7 @@ open class Ogc3dTilesPointsProgram(
             #endif
             #ifdef SHADOWS_ENABLED
             varying float viewDepth;
-            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            ${ShadowReceiverGlsl.fragmentDeclarations()}
             #endif
 
             #ifdef SIGHTLINE_ENABLED
@@ -275,7 +269,7 @@ open class Ogc3dTilesPointsProgram(
                 vec4 color = pointColor * opacity;
 
                 #ifdef SHADOWS_ENABLED
-                color.rgb *= computeShadowVisibility(worldPos, viewDepth);
+                color.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
                 #endif
                 #ifdef SIGHTLINE_ENABLED
                 vec4 tint = computeSightlineTint();

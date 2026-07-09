@@ -7,6 +7,7 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.layer.shadow.ShadowReceiverUniforms
+import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.GL_TEXTURE0
@@ -45,10 +46,16 @@ open class BasicTextureProgram(
             varying vec3 normal;
             #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
+            varying vec3 worldNormal;
             varying float viewDepth;
             #endif
 
             void main() {
+                #ifdef SHADOWS_ENABLED
+                /* Zero signals "no usable normal" to the receiver - line mode and unlit
+                   meshes (their normal attribute may be disabled) sample depth-only. */
+                worldNormal = vec3(0.0);
+                #endif
                 if (isRenderLine) {
                     vec4 vPoint = vec4(vertexPoint.xyz + normalVector.xyz * (segmentWidth / 2.0), 1.0);
                     gl_Position = mvpMatrix * vPoint;
@@ -63,6 +70,11 @@ open class BasicTextureProgram(
                     texCoord = (texCoordMatrix * vec3(vertexTexCoord, 1.0)).st;
                     if (applyLighting) {
                         normal = (mvInverseMatrix * normalVector).xyz;
+                        #ifdef SHADOWS_ENABLED
+                        /* Smooth world-space normal for the shadow normal-offset bias.
+                           mat3 built from columns - ESSL 1.00 lacks mat3(mat4). */
+                        worldNormal = mat3(modelMatrix[0].xyz, modelMatrix[1].xyz, modelMatrix[2].xyz) * normalVector.xyz;
+                        #endif
                     }
                 }
                 #ifdef SHADOWS_ENABLED
@@ -90,11 +102,14 @@ open class BasicTextureProgram(
 
             varying vec2 texCoord;
             varying vec3 normal;
+
+            ${LightingGlsl.DECLARATIONS}
             #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
+            varying vec3 worldNormal;
             varying float viewDepth;
 
-            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
             #endif
 
             void main() {
@@ -103,7 +118,6 @@ open class BasicTextureProgram(
                    and shadow work below. On tile-based GPUs (Adreno, Mali) this also preserves
                    the tile's hidden-surface-removal which a later discard would disable. */
                 if (enableTexture && textureColor.a == 0.0) discard;
-                float ambient = 0.15;
                 if (enableTexture && !modulateColor)
                     gl_FragColor = textureColor * color * opacity;
                 else if (enableTexture && modulateColor)
@@ -111,20 +125,41 @@ open class BasicTextureProgram(
                 else
                     gl_FragColor = color * opacity;
                 if (gl_FragColor.a == 0.0) discard;
+                /* modulateColor doubles as the pick-mode flag: skip lighting and shadow
+                   attenuation there so pick IDs aren't darkened. */
                 if (applyLighting) {
                     vec3 n = normalize(normal) * (gl_FrontFacing ? 1.0 : -1.0);
-                    gl_FragColor.rgb *= clamp(ambient + dot(lightDirection, n), 0.0, 1.0);
+                    float lambert = max(dot(lightDirection, n), 0.0);
+                    #ifdef SHADOWS_ENABLED
+                    if (!modulateColor) {
+                        /* Flip the offset normal with the lighting normal so interior
+                           faces of two-sided meshes bias toward their own visible side. */
+                        vec3 wn = dot(worldNormal, worldNormal) > 0.0
+                            ? normalize(worldNormal) * (gl_FrontFacing ? 1.0 : -1.0)
+                            : vec3(0.0);
+                        gl_FragColor.rgb *= shadowLitFactor(lambert, worldPos, viewDepth, wn);
+                    } else {
+                        gl_FragColor.rgb *= litShadingFactor(lambert, 1.0);
+                    }
+                    #else
+                    gl_FragColor.rgb *= litShadingFactor(lambert, 1.0);
+                    #endif
                 }
                 #ifdef SHADOWS_ENABLED
-                /* Skip shadow attenuation in pick mode so pick IDs aren't darkened. */
-                if (!modulateColor) {
-                    gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
+                else if (!modulateColor) {
+                    /* Unlit content: the shadow term is the only sun shading. */
+                    gl_FragColor.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
                 }
                 #endif
             }
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint", "normalVector", "vertexTexCoord")
+
+    // Prepend [Kgl.glslDerivativesPrefix] (WW_HAS_DERIVATIVES + platform-aware extension
+    // directive) so the shadow receiver's receiver-plane depth bias can use dFdx/dFdy.
+    override fun glslVersion(dc: earth.worldwind.draw.DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+
 
     private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
 
@@ -299,19 +334,7 @@ open class BasicTextureProgram(
 
     override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
-    override fun loadShadowEnabled(
-        ambientShadow: Float,
-        lightProjectionView0: Matrix4,
-        lightProjectionView1: Matrix4,
-        lightProjectionView2: Matrix4,
-        cascadeFarDepth0: Float,
-        cascadeFarDepth1: Float,
-        cascadeFarDepth2: Float,
-        useMSM: Boolean,
-    ) = shadowUniforms.loadEnabled(
-        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
-        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
-    )
+    override fun loadShadowEnabled(state: ShadowState) = shadowUniforms.loadEnabled(gl, state)
 
     fun loadIsRenderLine(isRenderLine: Boolean) {
         if (this.isRenderLine != isRenderLine) {

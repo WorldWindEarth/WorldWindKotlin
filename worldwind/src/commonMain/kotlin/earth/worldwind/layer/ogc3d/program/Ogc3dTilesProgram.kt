@@ -6,6 +6,7 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.layer.shadow.ShadowReceiverUniforms
+import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.layer.sightline.SightlineReceiverGlsl
 import earth.worldwind.layer.sightline.SightlineReceiverProgram
 import earth.worldwind.layer.sightline.SightlineReceiverUniforms
@@ -13,6 +14,7 @@ import earth.worldwind.layer.sightline.SightlineState
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.AbstractShaderProgram
+import earth.worldwind.render.program.LightingGlsl
 import earth.worldwind.util.kgl.KglUniformLocation
 
 /**
@@ -33,6 +35,11 @@ open class Ogc3dTilesProgram(
     override val attribBindings: Array<String> = arrayOf(
         "vertexPosition", "vertexNormal", "vertexTexCoord", "vertexColor", "vertexBatchId",
     )
+
+    // Prepend [Kgl.glslDerivativesPrefix] (WW_HAS_DERIVATIVES + platform-aware extension
+    // directive) so the shadow receiver's receiver-plane depth bias can use dFdx/dFdy.
+    override fun glslVersion(dc: earth.worldwind.draw.DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+
 
     private fun defines(): String {
         var out = ""
@@ -238,19 +245,7 @@ open class Ogc3dTilesProgram(
 
     override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
-    override fun loadShadowEnabled(
-        ambientShadow: Float,
-        lightProjectionView0: Matrix4,
-        lightProjectionView1: Matrix4,
-        lightProjectionView2: Matrix4,
-        cascadeFarDepth0: Float,
-        cascadeFarDepth1: Float,
-        cascadeFarDepth2: Float,
-        useMSM: Boolean,
-    ) = shadowUniforms.loadEnabled(
-        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
-        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
-    )
+    override fun loadShadowEnabled(state: ShadowState) = shadowUniforms.loadEnabled(gl, state)
 
     // --- SightlineReceiverProgram impl --------------------------------------------
 
@@ -285,6 +280,11 @@ open class Ogc3dTilesProgram(
 
         private val VERTEX_SHADER: String = """
             uniform mat4 mvpMatrix;
+            /* Camera-relative model matrix: translate(-eyePoint) * tileToWorld * nodeMatrix,
+               composed in double precision on the CPU. Its rotation equals the world model
+               matrix (normals unaffected); its translation is eye-relative so [worldPos]
+               interpolates at full float32 precision near the camera - a raw ECEF varying
+               quantizes to ~0.5 m and destroys street-scale shadow / sightline detail. */
             uniform mat4 modelMatrix;
             /* Batch picking: encode pickIdBase + vertexBatchId into 24-bit RGB. */
             uniform float pickIdBase;
@@ -363,12 +363,14 @@ open class Ogc3dTilesProgram(
             varying vec3 worldNormal;
             varying vec4 vertColor;
             varying vec4 batchPickColor;
+
+            ${LightingGlsl.DECLARATIONS}
             #if defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)
             varying vec3 worldPos;
             #endif
             #ifdef SHADOWS_ENABLED
             varying float viewDepth;
-            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
             #endif
 
             #ifdef SIGHTLINE_ENABLED
@@ -394,17 +396,23 @@ open class Ogc3dTilesProgram(
                 if (enableLighting) {
                     /* Lambert against world-space sun direction. Adjacent triangles share
                        per-vertex normals so a true diffuse term works (unlike the OSM-buildings
-                       dFdx fallback). Ambient 0.35 + 0.65 * lambert matches TriangleShaderProgram. */
+                       dFdx fallback). enableLighting == real per-vertex normals present, so
+                       the shadow path gets a normal-offset receiver bias too. */
                     float lambert = max(dot(normalize(worldNormal), lightDirection), 0.0);
-                    baseColor.rgb *= 0.35 + 0.65 * lambert;
+                    #ifdef SHADOWS_ENABLED
+                    baseColor.rgb *= shadowLitFactor(lambert, worldPos, viewDepth, normalize(worldNormal));
+                    #else
+                    baseColor.rgb *= litShadingFactor(lambert, 1.0);
+                    #endif
                 }
+                #ifdef SHADOWS_ENABLED
+                else {
+                    /* Photogrammetry (baked light, no normals): shadow is the only sun shading. */
+                    baseColor.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
+                }
+                #endif
 
                 baseColor *= opacity;
-
-                #ifdef SHADOWS_ENABLED
-                float shadowVis = computeShadowVisibility(worldPos, viewDepth);
-                baseColor.rgb *= shadowVis;
-                #endif
 
                 #ifdef SIGHTLINE_ENABLED
                 vec4 tint = computeSightlineTint();

@@ -352,4 +352,12 @@ class AndroidKgl : Kgl {
     }
 
     override fun pixelStorei(pname: Int, param: Int) = GLES20.glPixelStorei(pname, param)
+
+    override fun drawBuffers(bufs: IntArray) {
+        if (isGles3OrLater) GLES30.glDrawBuffers(bufs.size, bufs, 0)
+    }
+
+    override fun readBuffer(src: Int) {
+        if (isGles3OrLater) GLES30.glReadBuffer(src)
+    }
 }

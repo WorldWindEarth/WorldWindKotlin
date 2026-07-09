@@ -87,7 +87,9 @@ import platform.gles3.glGetUniformLocation
 import platform.gles3.glLineWidth
 import platform.gles3.glLinkProgram
 import platform.gles3.glMapBufferRange
+import platform.gles3.glDrawBuffers
 import platform.gles3.glPixelStorei
+import platform.gles3.glReadBuffer
 import platform.gles3.glPolygonOffset
 import platform.gles3.glReadPixels
 import platform.gles3.glRenderbufferStorageMultisample
@@ -570,6 +572,12 @@ class IosKgl : Kgl {
 
     override fun lineWidth(width: Float) { glLineWidth(width) }
     override fun pixelStorei(pname: Int, param: Int) { glPixelStorei(pname.toUInt(), param) }
+
+    override fun drawBuffers(bufs: IntArray) {
+        UIntArray(bufs.size) { bufs[it].toUInt() }.usePinned { glDrawBuffers(bufs.size, it.addressOf(0)) }
+    }
+
+    override fun readBuffer(src: Int) { glReadBuffer(src.toUInt()) }
 
     private companion object {
         const val LOG_BUF_SIZE = 1024

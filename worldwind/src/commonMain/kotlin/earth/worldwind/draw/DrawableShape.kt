@@ -60,10 +60,15 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder, S
         mvpMatrix.multiplyByTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
         program.loadModelviewProjection(mvpMatrix)
 
-        // Model -> world transform. Needed by the shadow receiver AND by lighting (the vertex
-        // shader now feeds worldPos to the fragment shader's flat-normal derivation). Cheap
-        // (translation only) - upload unconditionally so the worldPos varying is always valid.
-        modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+        // Camera-relative model transform (translation only). The fragment shader adds this
+        // matrix's 4th column to localPos for shadow sampling; keeping it eye-relative keeps
+        // the float32 math precise (see ShadowReceiverGlsl). Uploaded unconditionally so the
+        // varying-derived position is always valid.
+        modelMatrix.setToTranslation(
+            drawState.vertexOrigin.x - dc.eyePoint.x,
+            drawState.vertexOrigin.y - dc.eyePoint.y,
+            drawState.vertexOrigin.z - dc.eyePoint.z,
+        )
         program.loadModelMatrix(modelMatrix)
 
         // Lighting: enable only for filled triangles (lines have no meaningful face normal),

@@ -7,6 +7,7 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.layer.shadow.ShadowReceiverUniforms
+import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.KglUniformLocation
@@ -151,11 +152,13 @@ open class TriangleShaderProgram(
 
             varying vec2 texCoord;
             varying vec3 localPos;
+
+            ${LightingGlsl.DECLARATIONS}
             #ifdef SHADOWS_ENABLED
             uniform mat4 modelMatrix;
             varying float viewDepth;
 
-            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
             #endif
 
             void main() {
@@ -188,28 +191,23 @@ open class TriangleShaderProgram(
                 #else
                 lambert = 1.0;
                 #endif
-                if (enableLighting && !enablePickMode) {
-                    #ifdef WW_HAS_DERIVATIVES
-                    /* Ambient 0.35 keeps unlit walls legible; diffuse 0.65 sweeps to 1.0 for
-                       a face turned to the sun. Linear (not "ambient + lambert" clamped) so
-                       adjacent wall faces stay distinguishable from each other. */
-                    gl_FragColor.rgb *= 0.35 + 0.65 * lambert;
-                    #endif
-                }
                 #ifdef SHADOWS_ENABLED
                 if (!enablePickMode) {
-                    /* Reconstruct world-space position for shadow-map sampling. modelMatrix is
-                       translation-only here, so its 4th column carries the vertexOrigin offset. */
+                    /* Reconstruct the camera-relative position for shadow-map sampling.
+                       modelMatrix is translation-only here; its 4th column carries the
+                       eye-relative vertexOrigin offset (composed on the CPU in double). */
                     vec3 worldPos = localPos + modelMatrix[3].xyz;
-                    float shadowVis = computeShadowVisibility(worldPos, viewDepth);
                     if (enableLighting) {
-                        /* Lambert-modulated shadow: self-shadowed faces (lambert ~= 0) skip
-                           the cascade shadow to avoid double-dimming back-facing walls. */
-                        float shadowInfluence = smoothstep(0.0, 0.3, lambert);
-                        gl_FragColor.rgb *= mix(1.0, shadowVis, shadowInfluence);
+                        /* Zero normal: view-winding face normals (two-sided walls) are
+                           unusable for the normal-offset bias - sample depth-only. */
+                        gl_FragColor.rgb *= shadowLitFactor(lambert, worldPos, viewDepth, vec3(0.0));
                     } else {
-                        gl_FragColor.rgb *= shadowVis;
+                        gl_FragColor.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
                     }
+                }
+                #else
+                if (enableLighting && !enablePickMode) {
+                    gl_FragColor.rgb *= litShadingFactor(lambert, 1.0);
                 }
                 #endif
             }
@@ -374,19 +372,7 @@ open class TriangleShaderProgram(
 
     override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
-    override fun loadShadowEnabled(
-        ambientShadow: Float,
-        lightProjectionView0: Matrix4,
-        lightProjectionView1: Matrix4,
-        lightProjectionView2: Matrix4,
-        cascadeFarDepth0: Float,
-        cascadeFarDepth1: Float,
-        cascadeFarDepth2: Float,
-        useMSM: Boolean,
-    ) = shadowUniforms.loadEnabled(
-        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
-        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
-    )
+    override fun loadShadowEnabled(state: ShadowState) = shadowUniforms.loadEnabled(gl, state)
 
     fun loadColor(color: Color) {
         if (this.color != color) {

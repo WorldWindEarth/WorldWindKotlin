@@ -6,10 +6,14 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.program.SightlineMomentsBlurProgram
-import earth.worldwind.render.program.SightlineMomentsProgram
+import earth.worldwind.render.program.DirectionalDepthProgram
+import earth.worldwind.util.Logger.INFO
+import earth.worldwind.util.Logger.log
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -17,97 +21,82 @@ import kotlin.math.sqrt
 
 /**
  * Adds directional sun-shadow rendering to the scene. When this layer is in the layer list,
- * shapes (3D meshes, polygons, COLLADA / glTF models, etc.) cast shadows onto terrain and
- * onto each other from the same world-space sun direction that drives shape lighting and
- * atmospheric scattering ([RenderContext.lightDirection]).
+ * shapes (3D meshes, polygons, COLLADA / glTF models, OGC 3D-Tile meshes, etc.) cast shadows
+ * onto terrain and onto each other from the same world-space sun direction that drives shape
+ * lighting and atmospheric scattering ([RenderContext.lightDirection]).
  *
- * Implementation is **Cascaded Shadow Maps** (CSM, [cascadeCount] cascades by default 3) with
- * **Hamburger 4-moment Moment Shadow Mapping** (Peters & Klein 2015) for soft edges. Cascade
- * splits use a parallel-split (PSSM) scheme blended between uniform and logarithmic by
- * [splitBlend]; the largest cascade's far cap is `max(maxCascadeDistance, viewingDistance*2)`
- * so it auto-scales from city-scale at close zoom to focal-point scale at tilted/far views.
+ * Implementation is **Cascaded Shadow Maps** ([cascadeCount] cascades, default 4) rendered as
+ * plain depth textures and resolved with a bilinear-weighted percentage-closer filter for
+ * smooth, stable penumbrae. Three properties matter for city-scale quality:
  *
- * Receivers (terrain, shapes, COLLADA / glTF models) sample the cascade moments textures in
- * their own fragment shaders and modulate their output colour by the resulting occlusion
- * factor. The [ambientShadow] knob controls how dark fully-occluded fragments appear: `0.0` =
- * pure black shadow, `1.0` = no darkening (sky-light only term). Per-shape opt-out is via
- * `ShapeAttributes.shadowMode` (and `ColladaScene.shadowMode` / `GltfScene.shadowMode` for
- * 3D models) - the [ShadowMode] enum is decoupled from `isLightingEnabled` and separates
- * cast vs receive. Terrain always receives.
+ *  - **Scene-fit splits.** The cascade depth range is fit to the view-depth extent of the
+ *    content actually on screen ([RenderContext.shadowSceneBounds], accumulated from drawable
+ *    bounding spheres on the previous frame) rather than to a terrain-ray probe. When the
+ *    camera is close to a small object, per-cascade windows are additionally clamped to
+ *    street-scale distances ([maximumCascadeDistances]) so the closest cascade stays
+ *    centimetre-sharp.
+ *  - **Camera-relative receiver math.** Cascade matrices handed to receivers map
+ *    `worldPos - cameraPoint`, composed in double precision on the CPU. Raw ECEF positions
+ *    quantize to ~0.5 m in float32 varyings, which would destroy street-scale shadows.
+ *  - **Slope-scaled caster bias.** The depth pass renders true depth, so hardware
+ *    `glPolygonOffset` provides per-triangle slope-proportional bias; receivers add only a
+ *    small constant bias plus a normal-offset term scaled by the cascade's texel world size.
  *
- * Performance:
- *  - Each cascade adds a depth pass over caster geometry plus a separable Gaussian blur.
- *  - The receiver-side shader cost is ~20 ALU ops + 1 cascade-selecting branch + 5 texture
- *    taps (centred + 4 diagonal) per fragment.
- *  - Memory: `cascadeCount * SHADOW_MAP_SIZE^2 * 16B (RGBA32F) + depth attachment` plus one
- *    blur ping-pong texture of the same size. At the default 3 cascades / 1024 px that's
- *    `3 * 4 + 4 = 16 MB`.
+ * Receivers sample the cascade depth textures in their own fragment shaders and modulate
+ * their output colour by the resulting visibility. The [ambientShadow] knob controls how dark
+ * fully-occluded fragments appear: `0.0` = pure black shadow, `1.0` = no darkening. Per-shape
+ * opt-out is via `ShapeAttributes.shadowMode` (and `ColladaScene.shadowMode` /
+ * `GltfScene.shadowMode` / `Ogc3dTilesLayer.shadowMode`) — the [ShadowMode] enum is decoupled
+ * from `isLightingEnabled` and separates cast vs receive. Terrain always receives.
  *
  * Place this layer **after** [earth.worldwind.layer.atmosphere.AtmosphereLayer] in the layer
  * list so the atmosphere has already populated [RenderContext.lightDirection] before the
- * cascade matrices are computed. Layers that render before the shadow layer don't see
- * shadows; this is intentional – the only known case is the atmosphere itself, which has
- * its own ground-darkening from the day/night terminator and shouldn't double-shadow.
+ * cascade matrices are computed.
  */
 open class ShadowLayer : AbstractLayer("Shadow") {
     override var isPickEnabled = false
 
-    /** Number of PSSM cascades. Currently fixed at [ShadowState.DEFAULT_CASCADE_COUNT]. */
+    /** Number of cascades. Currently fixed at [ShadowState.DEFAULT_CASCADE_COUNT]. */
     val cascadeCount: Int get() = ShadowState.DEFAULT_CASCADE_COUNT
 
     /**
-     * PSSM split blend factor. `0.0` = pure uniform splits, `1.0` = pure logarithmic. The
-     * default `0.7` biases toward log so close-range cascades stay tight on a globe view.
+     * Cascade split interpolation between uniform (`0.0`) and logarithmic (`1.0`) spacing.
+     * The default `0.9` is log-dominant so close-range cascades stay tight; the uniform
+     * fraction keeps far cascades from collapsing when the near plane is very close.
      */
-    var splitBlend: Double = 0.7
+    var splitLambda: Double = 0.9
 
     /**
-     * Floor for the largest cascade's far cap, in metres. The actual cap each frame is
-     * `max(maxCascadeDistance, viewingDistance * 2.0)` so tilted / far-focused views push the
-     * cascade out toward the focal point without per-app tuning. Only matters at close zoom.
+     * Floor for the last cascade's far cap, in metres. The actual cap each frame is
+     * `max(maximumDistance, viewingDistance * 2.0)` — tilted / far-focused views push the
+     * cascades out toward the focal point without per-app tuning — further tightened to the
+     * scene's own depth extent when drawable bounds are available. Receivers fade shadows
+     * out over the last 20% of the effective cap.
      */
-    var maxCascadeDistance: Double = ShadowState.DEFAULT_MAX_CASCADE_DISTANCE
+    var maximumDistance: Double = DEFAULT_MAXIMUM_DISTANCE
 
     /**
-     * Minimum near distance used when deriving cascade splits. When the camera projection's
-     * own near plane is very close (sub-metre), PSSM log-splits collapse to nearly zero
-     * extent for the closest cascade and the depth-pass loses precision. Clamping the input
-     * near to this floor keeps all cascades workable at typical zoom levels.
+     * Floor for the scene-fit near distance, in metres. Keeps the logarithmic split from
+     * collapsing the closest cascade to centimetres when the camera projection's near plane
+     * is very close.
      */
-    var minNearDistance: Double = 1.0
+    var minNearDistance: Double = 0.5
 
     /**
-     * Floor for the per-cascade light-space near-plane pullback, in metres. The actual
-     * pullback each frame is `max(casterPullback, viewingDistance * 0.1)` so far-focused
-     * views automatically capture orbital-altitude casters without per-app tuning.
-     *
-     * Larger values capture taller casters at the cost of MSM precision: the depth-range
-     * window widens, so each `1.0/range` quantum shrinks. Globe-scale views with high-
-     * altitude casters currently produce visible shadows only after a small zoom-in - the
-     * soft-shadow reconstruction is unstable when one cascade texel covers many polygon-
-     * interior fragments at near-identical depths. Tracking separately as a polish item.
+     * Street-scale cap on each cascade's depth window, in metres, at a street-level fit
+     * anchor; the caps relax proportionally as the nearest content recedes. The last entry
+     * is unbounded so distant coverage never disappears. At the reference 1024² maps the
+     * 50 m closest cascade keeps ~5 cm texels.
      */
-    var casterPullback: Double = 5_000.0
+    val maximumCascadeDistances = doubleArrayOf(50.0, 300.0, 1200.0, Double.MAX_VALUE)
 
     /**
      * Ambient floor for fully-occluded fragments. See [ShadowState.ambientShadow].
      */
     var ambientShadow: Float = ShadowState.DEFAULT_AMBIENT_SHADOW
 
-    /**
-     * Receiver-side soft-shadow algorithm. Defaults to [defaultShadowAlgorithm] - PCF on
-     * JVM/Android (Adreno can't do MSM cleanly), MSM on JS (WebGL2/ANGLE handles MSM's
-     * 1-tap analytic reconstruction far faster than PCF's 9 manual rotated taps).
-     */
-    var algorithm: ShadowAlgorithm = defaultShadowAlgorithm
-
-    /**
-     * Per-cascade Gaussian-blur tap spacing applied to the moments texture before the
-     * receiver pass. Defaults to [defaultMomentsBlurTexelSpacing] - non-zero on JS to
-     * widen MSM's analytic penumbra, zero on JVM/Android where PCF doesn't benefit from
-     * pre-blurred moments. Index 0 is the closest cascade.
-     */
-    var momentsBlurTexelSpacing: FloatArray = defaultMomentsBlurTexelSpacing
+    /** Debug: 0 off, 1 cascade bands, 2 footprint coverage, 3 raw shadow-map depth; logs re-fits when non-zero. */
+    var debugShadowMode: Int = 0
 
     /**
      * Shared per-frame state. Reused across frames – the layer mutates the cascade matrices
@@ -119,7 +108,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     // thread. Not thread-safe; doRender is called serially per WorldWindow.
     private val viewToWorld = Matrix4()
     private val lightRotation = Matrix4()
-    private val cascadeWorldCorners = Array(8) { Vec3() }
+    private val sliceCorners = Array(8) { Vec3() }
     private val scratchVec = Vec3()
     private val rightVec = Vec3()
     private val upVec = Vec3()
@@ -127,22 +116,25 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     private val upRefVec = Vec3()
     private val splits = DoubleArray(ShadowState.DEFAULT_CASCADE_COUNT + 1)
 
-    // Effective per-frame values, derived in doRender() from the user knobs and lookAt range.
-    // Stored as fields so computeCascade() reads the same value used for the cascade splits.
-    private var effectiveMaxCascadeDistance: Double = 0.0
-    private var effectiveCasterPullback: Double = 0.0
+    // Sticky scene fit (see doRender): the cascade layout anchors here and only re-fits when
+    // the scene drifts beyond the hysteresis band, keeping shadow-map texels world-pinned
+    // during pans.
+    private var hasFit = false
+    private var fitNear = 0.0
+    private var fitFar = 0.0
+    private var fitCapScale = 1.0
+    private var wasteViolationFrames = 0
+    private val anchoredLightDirection = Vec3()
+    private var hasLightAnchor = false
+    /** Closest cascade's texel world size from the previous frame — scales the light-anchor tolerance. */
+    private var lastTexelWorld0 = 0.0
 
     override fun doRender(rc: RenderContext) {
         if (rc.globe.is2D) return // No shadow rendering on 2D globe
         if (rc.isPickMode) return // Picks bypass shadows entirely
 
-        // Sun-below-horizon early-exit. [RenderContext.lightDirection] points TOWARD the sun
-        // (the shadow pipeline negates it later to get the travel direction). Dot it with the
-        // camera's local up (= cameraPoint normalised, in ECEF) to recover sin(elevation):
-        // `+1` when the sun is overhead, `0` at the horizon, negative when below. The small
-        // `< -0.05` margin keeps the test from flickering on the exact terminator and avoids
-        // running the shadow pass for the night side of the globe, where receivers fall back
-        // to ambient anyway.
+        // Sun-below-horizon early-exit: dot(lightDirection, camera up) = sin(elevation);
+        // the -0.05 margin avoids terminator flicker.
         val cp = rc.cameraPoint
         val eyeMagSq = cp.x * cp.x + cp.y * cp.y + cp.z * cp.z
         if (eyeMagSq > 0.0) {
@@ -152,65 +144,116 @@ open class ShadowLayer : AbstractLayer("Shadow") {
             if (sinElevation < -0.05) return
         }
 
-        // Auto-scale cascade extents with the lookAt range (camera-to-focal-point distance).
-        // [rc.viewingDistance] is populated by BasicFrameController as the forward-ray
-        // terrain hit, or [rc.horizonDistance] when the centre ray misses terrain. Tilted
-        // close-range views push the cascade out toward the focal point instead of being
-        // clipped by a low altitude. User knobs act as floors at very close zoom.
-        val lookAtRange = max(0.0, rc.viewingDistance)
-        effectiveMaxCascadeDistance = max(maxCascadeDistance, lookAtRange * 2.0)
-        effectiveCasterPullback = max(casterPullback, lookAtRange * 0.1)
-
-        // Sync state knobs to ShadowState so receivers see the current configuration.
-        // [algorithm] is finalised at draw time by DrawableShadow (it may set null when the
-        // GL context can't support the cascade pipeline at all).
         shadowState.ambientShadow = ambientShadow
-        shadowState.maxCascadeDistance = effectiveMaxCascadeDistance
-        shadowState.algorithm = algorithm
+        shadowState.debugShadowMode = debugShadowMode
+        shadowState.lightDirection.copy(rc.lightDirection)
+        shadowState.cameraPoint.copy(rc.cameraPoint)
         shadowState.frameStamp++
         shadowState.reset()
 
-        // Compute camera near/far from the projection matrix. Standard OpenGL perspective:
+        // Camera near/far from the projection matrix. Standard OpenGL perspective:
         //   m[10] = -(f+n)/(f-n), m[11] = -2fn/(f-n)
         // Solving: n = m[11] / (m[10] - 1); f = m[11] / (m[10] + 1).
         val pm = rc.projection.m
-        val cameraNear = max(minNearDistance, pm[11] / (pm[10] - 1))
-        val cameraFar = min(effectiveMaxCascadeDistance, pm[11] / (pm[10] + 1))
-        if (cameraFar <= cameraNear) return // degenerate projection — skip this frame
+        val projNear = pm[11] / (pm[10] - 1)
+        val projFar = pm[11] / (pm[10] + 1)
 
-        // PSSM split distances. splits[0] = near, splits[N] = far (or maxCascadeDistance).
-        // splits[i] for 0 < i < N blends uniform and log per Lloyd / Tadamura.
-        splits[0] = cameraNear
-        splits[cascadeCount] = cameraFar
-        val invN = 1.0 / cascadeCount
-        for (i in 1 until cascadeCount) {
-            val frac = i * invN
-            val uniform = cameraNear + (cameraFar - cameraNear) * frac
-            val log = cameraNear * (cameraFar / cameraNear).pow(frac)
-            splits[i] = log * splitBlend + uniform * (1.0 - splitBlend)
+        // Scene-fit depth range from previous-frame drawable bounds; the terrain-ray
+        // viewingDistance covers terrain-only scenes, and the far cap auto-raises with the
+        // lookAt range for tilted globe-scale views.
+        val lookAtRange = max(0.0, rc.viewingDistance)
+        val farCap = max(maximumDistance, lookAtRange * 2.0)
+        val bounds = rc.shadowSceneBounds
+        // Caster bounds roll over from the previous frame, so the first fit sees none and
+        // shadows stay invisible until the next redraw - request it (once: hasFit latches).
+        if (!hasFit && !bounds.hasData) rc.requestRedraw()
+        var shadowNear = max(minNearDistance, projNear)
+        var shadowFar = min(farCap, projFar)
+        if (bounds.hasData) {
+            shadowNear = max(shadowNear, min(bounds.near, max(lookAtRange, minNearDistance)))
+            // 15% headroom past the caster bounds: long shadows land beyond the casters
+            // themselves, and the distance fade must not swallow them at globe scale.
+            shadowFar = min(shadowFar, max(bounds.far * 1.15, lookAtRange))
+        }
+        if (shadowFar <= shadowNear) return // nothing within shadow range this frame
+
+        // STICKY fit: the raw inputs drift continuously with camera motion and LoD
+        // streaming; refitting per frame changes the texel quantum and shadow edges crawl.
+        // Coverage loss on either end leaves content sampling outside the cascade footprint
+        // (visibly unshadowed), so both ends re-fit immediately - ladder quantization lands
+        // repeated refits on identical rungs, so there is no ping-pong. A merely WASTEFUL
+        // fit waits out LoD flutter.
+        // Tight near slack (matches far's 1.05): content nearer than the fit sits in front
+        // of every cascade footprint and cannot be shadowed until a refit.
+        val nearCoverageViolation = hasFit && shadowNear < fitNear / 1.05
+        val farCoverageViolation = hasFit && shadowFar > fitFar * 1.05
+        val wasteViolation = hasFit && (shadowNear > fitNear * 4.0 || shadowFar < fitFar / 4.0)
+        val severeViolation = hasFit && (
+            shadowNear > fitNear * 16.0 ||
+            shadowFar > fitFar * 6.0 || shadowFar < fitFar / 16.0)
+        wasteViolationFrames = if (wasteViolation) wasteViolationFrames + 1 else 0
+        val needRefit = !hasFit || severeViolation || nearCoverageViolation ||
+            farCoverageViolation || wasteViolationFrames >= REFIT_DEBOUNCE_FRAMES
+        if (needRefit) {
+            wasteViolationFrames = 0
+            // Ladder-quantized so repeated refits around the same view land on identical values.
+            fitNear = max(minNearDistance, ladderFloor(shadowNear))
+            fitFar = max(ladderCeil(shadowFar), fitNear * 4.0)
+            // Street caps scale with distance to the nearest content - smooth, no binary
+            // threshold for LoD streaming to flicker across.
+            fitCapScale = max(1.0, fitNear / 25.0)
+            hasFit = true
+            if (debugShadowMode != 0) logRefit(rc)
         }
 
-        // Inverse modelview = world ← view. Camera is orthonormal so inversion is a transpose
-        // of the upper 3x3 plus a translation flip — invertOrthonormalMatrix does both.
+        // Cascade splits: lerp between uniform and logarithmic spacing by [splitLambda].
+        splits[0] = fitNear
+        splits[cascadeCount] = fitFar
+        val range = fitFar - fitNear
+        val ratio = fitFar / fitNear
+        for (i in 1 until cascadeCount) {
+            val p = i.toDouble() / cascadeCount
+            val logScale = fitNear * ratio.pow(p)
+            val uniformScale = fitNear + range * p
+            splits[i] = uniformScale + (logScale - uniformScale) * splitLambda
+        }
+
+        // Cap cascade windows so close cascades stay centimetre-sharp regardless of horizon
+        // distance; the last cascade keeps the remaining range.
+        var distance = splits[0]
+        for (i in 0 until cascadeCount - 1) {
+            distance += min(splits[i + 1] - splits[i], maximumCascadeDistances[i] * fitCapScale)
+            splits[i + 1] = min(distance, splits[i + 1])
+        }
+
+        // Inverse modelview = world ← view (orthonormal: transpose + translation flip).
         viewToWorld.invertOrthonormalMatrix(rc.modelview)
 
-        // Camera frustum tangents at unit depth: y_near = z * tanHalfFovY, x_near = aspect * y_near.
-        // From the perspective projection: m[5] = 1/tan(fov_y/2); m[0] = 1/(aspect * tan(fov_y/2)).
+        // Frustum tangents at unit depth from the projection: m[5] = 1/tan(fovY/2), m[0] = m[5]/aspect.
         val tanHalfFovY = 1.0 / pm[5]
         val aspect = pm[5] / pm[0]
 
-        // Light-space rotation: forward = -lightDirection (we look in the direction the light
-        // travels). Pick an "up" reference orthogonal to the light direction; ECEF +Z (north
-        // pole) works except when the light is itself near the pole, in which case +Y is
-        // an unambiguous fallback.
-        forwardVec.copy(rc.lightDirection).multiply(-1.0).normalize()
+        // Sticky light anchor: camera-derived suns rotate in ECEF on every pan, and any
+        // light rotation re-phases the snap grid (light-frame coordinates sit at ECEF
+        // magnitude). Tolerance is adaptive — allow only the angle that displaces a shadow
+        // across the shadow range by ~2 closest-cascade texels, so every re-anchor step is
+        // sub-pixel at street AND globe scale. Shading terms keep the continuous sun.
+        val trueLight = rc.lightDirection
+        val anchorTolerance = (2.0 * lastTexelWorld0 / max(fitFar, 1.0)).coerceIn(2e-5, 0.01)
+        val anchorDot = if (hasLightAnchor) anchoredLightDirection.dot(trueLight) else -1.0
+        if (!hasLightAnchor || anchorDot < cos(anchorTolerance)) {
+            anchoredLightDirection.copy(trueLight).normalize()
+            hasLightAnchor = true
+        }
+
+        // Light-space rotation: forward = -lightDirection; ECEF +Z as the up reference,
+        // +Y when the light is itself near the pole.
+        forwardVec.copy(anchoredLightDirection).multiply(-1.0).normalize()
         if (abs(forwardVec.z) > 0.99) upRefVec.set(0.0, 1.0, 0.0) else upRefVec.set(0.0, 0.0, 1.0)
         // right = upRef × forward, up = forward × right (recomputed for orthonormality).
         rightVec.copy(upRefVec).cross(forwardVec).normalize()
         upVec.copy(forwardVec).cross(rightVec).normalize()
-        // Rotation-only world → light-eye matrix. Translation is added per-cascade so each
-        // cascade's near plane lands at light-eye-z = 0 (matches SightlineMomentsProgram's
-        // perpDepth = -ep.z * invRange convention without an extra offset uniform).
+        // Rotation-only world → light-eye; per-cascade translation added later.
         lightRotation.set(
             rightVec.x, rightVec.y, rightVec.z, 0.0,
             upVec.x, upVec.y, upVec.z, 0.0,
@@ -218,27 +261,47 @@ open class ShadowLayer : AbstractLayer("Shadow") {
             0.0, 0.0, 0.0, 1.0,
         )
 
-        // Per-cascade: compute world-space slice corners → light-eye-space AABB → ortho proj.
+        // Per cascade: slice corners → light-space fit → ortho projection.
         var anyValid = false
         for (i in 0 until cascadeCount) {
             val sliceNear = splits[i]
             val sliceFar = splits[i + 1]
             if (sliceFar <= sliceNear) continue
-            if (computeCascade(i, sliceNear, sliceFar, tanHalfFovY, aspect)) anyValid = true
+            if (computeCascade(rc, i, sliceNear, sliceFar, tanHalfFovY, aspect)) anyValid = true
         }
-        if (!anyValid) return // sun below horizon or all cascades degenerate — no shadows this frame
+        if (!anyValid) return // all cascades degenerate — no shadows this frame
 
-        // Publish state and enqueue the depth-pass drawable. DrawableShadow runs early in the
-        // draw queue (BACKGROUND group) so the cascade textures are populated before any
-        // receivers sample them.
+        shadowState.shadowDistance = shadowFar
+        shadowState.isReady = true
+        if (debugShadowMode != 0 && needRefit) {
+            for (i in 0 until cascadeCount) {
+                val c = shadowState.cascades[i]
+                log(
+                    INFO, "ShadowLayer cascade $i: far=${c.farViewDepth} texel=${c.texelWorldSize} " +
+                        "range=${c.range} valid=${c.isValid}"
+                )
+            }
+        }
+        lastTexelWorld0 = shadowState.cascades[0].texelWorldSize
+
+        // DrawableShadow draws in the BACKGROUND group, before any receiver samples the maps.
         rc.shadowState = shadowState
 
         val pool = rc.getDrawablePool(DrawableShadow.KEY)
         val drawable = DrawableShadow.obtain(pool)
-        drawable.momentsProgram = rc.getShaderProgram { SightlineMomentsProgram() }
-        drawable.momentsBlurProgram = rc.getShaderProgram { SightlineMomentsBlurProgram() }
-        drawable.momentsBlurTexelSpacing = momentsBlurTexelSpacing
+        drawable.depthProgram = rc.getShaderProgram { DirectionalDepthProgram() }
         rc.offerBackgroundDrawable(drawable)
+    }
+
+    /** Debug: dump the fit anchors and raw scene inputs on every re-fit. */
+    private fun logRefit(rc: RenderContext) {
+        val bounds = rc.shadowSceneBounds
+        log(
+            INFO, "ShadowLayer refit: fitNear=$fitNear fitFar=$fitFar capScale=$fitCapScale " +
+                "boundsNear=${if (bounds.hasData) bounds.near else -1.0} " +
+                "boundsFar=${if (bounds.hasData) bounds.far else -1.0} " +
+                "viewingDistance=${rc.viewingDistance}"
+        )
     }
 
     /**
@@ -248,6 +311,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
      * extremely flat sun angles).
      */
     private fun computeCascade(
+        rc: RenderContext,
         cascadeIndex: Int,
         sliceNear: Double,
         sliceFar: Double,
@@ -256,71 +320,63 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     ): Boolean {
         val cascade = shadowState.cascades[cascadeIndex]
 
-        // Build 8 view-space corners of the slice. View space puts -Z forward, so a depth
-        // distance `d` corresponds to view-z = -d. y_extent = d * tanHalfFovY, x = aspect * y.
+        // 8 view-space slice corners (-Z forward; y = d * tanHalfFovY, x = aspect * y).
         val nearY = sliceNear * tanHalfFovY
         val nearX = nearY * aspect
         val farY = sliceFar * tanHalfFovY
         val farX = farY * aspect
-        // Order: 0..3 are near-plane corners, 4..7 are far-plane corners
-        // (-x,-y), (+x,-y), (+x,+y), (-x,+y) on each plane.
-        cascadeWorldCorners[0].set(-nearX, -nearY, -sliceNear)
-        cascadeWorldCorners[1].set(+nearX, -nearY, -sliceNear)
-        cascadeWorldCorners[2].set(+nearX, +nearY, -sliceNear)
-        cascadeWorldCorners[3].set(-nearX, +nearY, -sliceNear)
-        cascadeWorldCorners[4].set(-farX, -farY, -sliceFar)
-        cascadeWorldCorners[5].set(+farX, -farY, -sliceFar)
-        cascadeWorldCorners[6].set(+farX, +farY, -sliceFar)
-        cascadeWorldCorners[7].set(-farX, +farY, -sliceFar)
+        // 0..3 near-plane corners, 4..7 far-plane corners.
+        sliceCorners[0].set(-nearX, -nearY, -sliceNear)
+        sliceCorners[1].set(+nearX, -nearY, -sliceNear)
+        sliceCorners[2].set(+nearX, +nearY, -sliceNear)
+        sliceCorners[3].set(-nearX, +nearY, -sliceNear)
+        sliceCorners[4].set(-farX, -farY, -sliceFar)
+        sliceCorners[5].set(+farX, -farY, -sliceFar)
+        sliceCorners[6].set(+farX, +farY, -sliceFar)
+        sliceCorners[7].set(-farX, +farY, -sliceFar)
         // View → world.
-        for (corner in cascadeWorldCorners) corner.multiplyByMatrix(viewToWorld)
+        for (corner in sliceCorners) corner.multiplyByMatrix(viewToWorld)
 
-        // Stable cascade footprint: bounding sphere of the 8 corners in light-eye-rotated
-        // space (no translation yet). Tight AABB of the slice corners is rotation-dependent —
-        // a pure camera rotation stretches/squeezes the AABB extent and changes the per-texel
-        // metre quantum, producing a 1-pixel shimmer along shadow edges. The bounding sphere
-        // is rotation-invariant, so the cascade footprint stays the same size as the camera
-        // orbits; texel-snapping the sphere centre then pins each shadow-map cell to a fixed
-        // world position. Cost is ~1.4× lower texel density than the tight AABB.
-        var cx = 0.0
-        var cy = 0.0
+        // Footprint radius from the slice's bounding sphere computed in VIEW space (splits +
+        // projection only — never camera pose) and ladder-quantized: the snap grid index sits
+        // at ECEF magnitude (~1e8 texels), so even a 9th-digit radius change re-phases the
+        // whole map. Sphere centre balances near/far corner distances:
+        //   (c - near)^2 + nearSq = (c - far)^2 + farSq
+        val nearSq = nearX * nearX + nearY * nearY
+        val farSq = farX * farX + farY * farY
+        val centerDistance = (
+            (farSq - nearSq) / (2.0 * (sliceFar - sliceNear)) + (sliceFar + sliceNear) * 0.5
+        ).coerceIn(sliceNear, sliceFar)
+        val farDelta = sliceFar - centerDistance
+        val sphereRadius = ladderCeil(sqrt(farSq + farDelta * farDelta), RADIUS_LADDER_BASE)
+
+        // Light-eye-rotated coordinates of the sphere centre (xy drives the ortho window)
+        // and the slice corners' light-depth extent (z drives the depth window).
+        scratchVec.set(0.0, 0.0, -centerDistance).multiplyByMatrix(viewToWorld).multiplyByMatrix(lightRotation)
+        var cx = scratchVec.x
+        var cy = scratchVec.y
         var zMin = Double.POSITIVE_INFINITY
         var zMax = Double.NEGATIVE_INFINITY
-        for (corner in cascadeWorldCorners) {
+        for (corner in sliceCorners) {
             scratchVec.copy(corner).multiplyByMatrix(lightRotation)
-            cx += scratchVec.x
-            cy += scratchVec.y
             if (scratchVec.z < zMin) zMin = scratchVec.z
             if (scratchVec.z > zMax) zMax = scratchVec.z
         }
-        cx /= cascadeWorldCorners.size.toDouble()
-        cy /= cascadeWorldCorners.size.toDouble()
 
-        // Max squared distance from centroid (in xy plane) gives the sphere radius. Z extent
-        // is handled separately — depth shimmer doesn't affect shadow edges, only x/y does.
-        var maxR2 = 0.0
-        for (corner in cascadeWorldCorners) {
-            scratchVec.copy(corner).multiplyByMatrix(lightRotation)
-            val dx = scratchVec.x - cx
-            val dy = scratchVec.y - cy
-            val r2 = dx * dx + dy * dy
-            if (r2 > maxR2) maxR2 = r2
+        // Extend the near plane toward the sun: the footprint-scaled pullback captures
+        // terrain-scale casters, the accumulated caster light-axis top captures floating
+        // casters (a model at altitude) that a cascade's own window wouldn't reach.
+        var zNearLight = zMax + max(500.0, 2.0 * sphereRadius)
+        val bounds = rc.shadowSceneBounds
+        if (bounds.hasData && bounds.maxCasterLightZ > -Double.MAX_VALUE) {
+            zNearLight = max(zNearLight, bounds.maxCasterLightZ + 500.0)
         }
-        val sphereRadius = sqrt(maxR2)
-
-        // Pull the near plane (closest-to-light = highest eye_z) further toward the sun so
-        // tall casters between the sun and the slice are captured. The far plane stays at
-        // the slice's deepest corner.
-        val zNearLight = zMax + effectiveCasterPullback
         val zFarLight = zMin
         val depthRange = zNearLight - zFarLight
         if (depthRange <= 0.0 || sphereRadius <= 0.0) return false
 
-        // Texel-grid snap on the sphere centre. Each shadow texel covers `2*sphereRadius /
-        // mapSize` light-eye metres; snapping the centre to integer multiples pins the
-        // discrete cells to fixed world positions across frames. mapSize is per-cascade
-        // (the far cascade can be smaller — see [DrawContext.SHADOW_CASCADE_MAP_SIZES]).
-        val mapSize = DrawContext.SHADOW_CASCADE_MAP_SIZES[cascadeIndex].toDouble()
+        // Texel-grid snap: pins shadow-map cells to fixed world positions across frames.
+        val mapSize = DrawContext.shadowCascadeMapSize(cascadeIndex).toDouble()
         val texelSize = 2.0 * sphereRadius / mapSize
         cx = floor(cx / texelSize) * texelSize
         cy = floor(cy / texelSize) * texelSize
@@ -330,9 +386,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         val yMin = cy - sphereRadius
         val yMax = cy + sphereRadius
 
-        // Translate light-eye space so eye_z = 0 lies at the near plane. Equivalent to
-        //   lightView = translate(0, 0, -zNearLight) * lightRotation
-        // Build it directly to avoid an extra matrix multiply.
+        // lightView = translate(0, 0, -zNearLight) * lightRotation, built directly.
         cascade.lightView.set(
             lightRotation.m[0], lightRotation.m[1], lightRotation.m[2], 0.0,
             lightRotation.m[4], lightRotation.m[5], lightRotation.m[6], 0.0,
@@ -340,13 +394,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
             0.0, 0.0, 0.0, 1.0,
         )
 
-        // Orthographic projection: ortho(xMin, xMax, yMin, yMax, near=0, far=depthRange).
-        // After translation, eye_z ∈ [-depthRange, 0] in this cascade. Standard OpenGL ortho:
-        //   [2/(r-l)  0       0           -(r+l)/(r-l)]
-        //   [0        2/(t-b) 0           -(t+b)/(t-b)]
-        //   [0        0       -2/(f-n)    -(f+n)/(f-n)]
-        //   [0        0       0           1]
-        // With near=0, far=depthRange: m[10] = -2/depthRange, m[11] = -1.
+        // Standard GL ortho(xMin, xMax, yMin, yMax, near=0, far=depthRange).
         val invX = 2.0 / (xMax - xMin)
         val invY = 2.0 / (yMax - yMin)
         val invZ = 2.0 / depthRange
@@ -357,20 +405,65 @@ open class ShadowLayer : AbstractLayer("Shadow") {
             0.0, 0.0, 0.0, 1.0,
         )
 
-        // Composed lightProjection * lightView for the receivers.
+        // Composed world → light-clip for the depth pass (see [CascadeState.lightProjectionView]).
         cascade.lightProjectionView.copy(cascade.lightProjection).multiplyByMatrix(cascade.lightView)
 
+        // Receiver matrix: camera-relative world → [0,1]^3 texture space, composed in double.
+        val cam = shadowState.cameraPoint
+        cascade.shadowMatrix
+            .copy(TEX_SCALE_BIAS)
+            .multiplyByMatrix(cascade.lightProjectionView)
+            .multiplyByTranslation(cam.x, cam.y, cam.z)
+
         cascade.range = depthRange
-        cascade.nearViewDepth = sliceNear
+        cascade.texelWorldSize = texelSize
         cascade.farViewDepth = sliceFar
-        // Cache the snapped xy AABB for per-cascade caster culling. Same coordinate frame as
-        // [CascadeState.lightView]'s rotation: x/y are light-eye-rotated, z is the slice's
-        // post-translation depth window — handled separately inside [intersectsSphere].
+        // Snapped xy AABB for per-cascade caster culling (light-eye-rotated frame).
         cascade.boxXMin = xMin
         cascade.boxXMax = xMax
         cascade.boxYMin = yMin
         cascade.boxYMax = yMax
         cascade.isValid = true
         return true
+    }
+
+    companion object {
+        /** Default floor for the last cascade's far cap, in metres. */
+        const val DEFAULT_MAXIMUM_DISTANCE: Double = 10_000.0
+
+        /**
+         * Geometric quantization step applied to the fit inputs at refit time, so repeated
+         * refits around the same view land on identical values.
+         */
+        private const val LADDER_BASE = 1.5
+
+        /**
+         * Consecutive frames a wasteful-fit violation must persist before re-anchoring —
+         * long enough that LoD-streaming spikes never re-grid the shadows.
+         */
+        private const val REFIT_DEBOUNCE_FRAMES = 30
+
+        /**
+         * Quantization step for the cascade footprint radius. Finer than [LADDER_BASE] so
+         * at most ~20% texel density is wasted; still discrete, so the texel quantum can't
+         * drift with camera pose.
+         */
+        private const val RADIUS_LADDER_BASE = 1.2
+
+        /** Rounds [value] down to the nearest power of [base]. */
+        private fun ladderFloor(value: Double, base: Double = LADDER_BASE): Double =
+            if (value <= 0.0) 0.0 else base.pow(floor(ln(value) / ln(base)))
+
+        /** Rounds [value] up to the nearest power of [base]. */
+        private fun ladderCeil(value: Double, base: Double = LADDER_BASE): Double =
+            if (value <= 0.0) 0.0 else base.pow(ceil(ln(value) / ln(base)))
+
+        /** Clip space `[-1,1]` → texture space `[0,1]` scale-bias, folded into [ShadowState.CascadeState.shadowMatrix]. */
+        private val TEX_SCALE_BIAS = Matrix4(
+            0.5, 0.0, 0.0, 0.5,
+            0.0, 0.5, 0.0, 0.5,
+            0.0, 0.0, 0.5, 0.5,
+            0.0, 0.0, 0.0, 1.0,
+        )
     }
 }

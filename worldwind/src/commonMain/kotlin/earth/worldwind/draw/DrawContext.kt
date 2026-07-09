@@ -41,18 +41,39 @@ open class DrawContext(val gl: Kgl) {
          */
         const val MSAA_SAMPLES = 4
         /**
-         * Per-side resolution of each cascaded shadow map. 1024 matches the existing scratch /
-         * moments FBOs (GL implementations rarely fault when reusing the same allocation
-         * footprint), and is enough to keep shadow texels under one screen pixel for typical
-         * close-range cascades on a 1080p viewport. Used by [SHADOW_CASCADE_MAP_SIZES] as the
-         * default for close cascades.
+         * Baseline per-cascade shadow-map resolution ([SHADOW_CASCADE_MAP_SIZES]). 2048² matches
+         * the reference-engine default; depth-pass fill isn't the shadow bottleneck (the receiver
+         * resolve is), so it's near-free on frame time - drop to 1024² for lighter VRAM.
          */
-        const val SHADOW_MAP_SIZE = 1024
-        /** Per-cascade shadow-map resolution. Uniform 1024² across all three cascades; an
-         *  earlier `[1024, 1024, 512]` mix saved ~3 MB of moments storage but produced a
-         *  visible kernel-pattern grid on the far cascade at globe-scale viewing where one
-         *  shadow texel spans 50+ km on the ground. */
-        val SHADOW_CASCADE_MAP_SIZES = intArrayOf(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
+        const val SHADOW_MAP_SIZE = 2048
+        /**
+         * Per-cascade shadow-map resolution — reference-tier 2048² per cascade. Apps may assign
+         * a different tier **before the first frame only**: receiver shaders bake these sizes
+         * as constants when programs are built and the cascade framebuffers allocate on
+         * first use, so the setter validates the shape and refuses changes once any consumer
+         * has read the values (late mutation would silently desync shaders, framebuffers,
+         * and the layer's texel math). Process-global — shared by all WorldWindows.
+         */
+        var SHADOW_CASCADE_MAP_SIZES = intArrayOf(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
+            set(value) {
+                check(!shadowCascadeSizesLocked) {
+                    "SHADOW_CASCADE_MAP_SIZES must be assigned before the first frame"
+                }
+                require(value.size == ShadowState.DEFAULT_CASCADE_COUNT && value.all { it > 0 }) {
+                    "SHADOW_CASCADE_MAP_SIZES needs ${ShadowState.DEFAULT_CASCADE_COUNT} positive sizes"
+                }
+                field = value
+            }
+
+        private var shadowCascadeSizesLocked = false
+
+        /** Reads (and permanently locks) the cascade map size for [index]. */
+        fun shadowCascadeMapSize(index: Int): Int {
+            shadowCascadeSizesLocked = true
+            return SHADOW_CASCADE_MAP_SIZES[index]
+        }
+        /** Reusable `[GL_NONE]` argument for depth-only framebuffer draw-buffer setup. */
+        private val NO_DRAW_BUFFERS = intArrayOf(GL_NONE)
     }
 
     val eyePoint = Vec3()
@@ -73,7 +94,7 @@ open class DrawContext(val gl: Kgl) {
     var shadowState: ShadowState? = null
     /**
      * Frame stamp of the last [ShadowState] whose cascade textures were bound to texture units
-     * 1..3. Used by [earth.worldwind.layer.shadow.applyShadowReceiverUniforms] to skip the
+     * 1..4. Used by [earth.worldwind.layer.shadow.applyShadowReceiverUniforms] to skip the
      * (cheap but redundant) `activeTexture` + `bindTexture` pairs after the first receiver in
      * a frame. Reset to `-1` on context reset.
      */
@@ -86,9 +107,9 @@ open class DrawContext(val gl: Kgl) {
      */
     var sightlineState: SightlineState? = null
     /** Identity of the [SightlineState] whose moments texture(s) are currently bound on
-     *  units 4 / 5. `null` after the cube/2D bindings are cleared on a no-sightline frame. */
+     *  units 5 / 6. `null` after the cube/2D bindings are cleared on a no-sightline frame. */
     var lastSightlineTextureBind: SightlineState? = null
-    /** Whether benign 2D/cube textures are bound on units 4 / 5 this frame so the no-sightline path's
+    /** Whether benign 2D/cube textures are bound on units 5 / 6 this frame so the no-sightline path's
      *  never-sampled samplers don't trip macOS's empty-unit validator. Reset per frame. */
     var sightlineBenignBound = false
     val viewport = Viewport()
@@ -127,7 +148,6 @@ open class DrawContext(val gl: Kgl) {
     private var momentsCubeMapTextureCache: Texture? = null
     private var momentsCubeMapFramebufferCache: Framebuffer? = null
     private val shadowCascadeFramebufferCache = arrayOfNulls<Framebuffer>(ShadowState.DEFAULT_CASCADE_COUNT)
-    private val shadowBlurFramebufferCache = HashMap<Int, Framebuffer>(2)
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
@@ -330,54 +350,32 @@ open class DrawContext(val gl: Kgl) {
 
     /**
      * Returns the per-cascade shadow framebuffer for the directional sun-shadow pipeline.
-     * Each cascade gets its own [SHADOW_MAP_SIZE]^2 framebuffer with:
-     *  - colour `RGBA32F` storing the four raw moments `(d, d^2, d^3, d^4)` of linear light-space
-     *    depth (same Hamburger 4-moment formulation as [momentsFramebuffer]; the receiver's
-     *    Cholesky reconstruction in the shape and terrain shaders subtracts close-magnitude
-     *    products of these moments, so full-float precision is required to keep the bound
-     *    quantisation noise below the perceptual threshold).
-     *  - depth `GL_DEPTH_COMPONENT24` for triangle ordering during the depth pass.
-     *
-     * Filter mode follows [createMomentsColorAttachment] — `GL_LINEAR` where the GL allows
-     * linear-filterable RGBA32F, otherwise `GL_NEAREST` (Adreno 540 / Samsung S9 lacks the
-     * extension; sampling would otherwise read back the texture-incomplete sentinel and
-     * paint a uniform dark cast over the viewport). PCF taps individual texels and works
-     * with either filter. Lazily allocated and cached per cascade index.
-     *
-     * Cascades 0..n-1 (closest-to-farthest) reuse [createMomentsDepthAttachment] for the depth
-     * texture so size / format stays consistent with the sightline pipeline. The colour format
-     * tracks [Kgl.maxRenderableFloatBits]: 32F where renderable, then 16F, then RGBA8 as the
-     * unusable-but-bootable fallback (PCF receivers never read these attachments anyway).
+     * Each cascade is **depth-only**: a `GL_DEPTH_COMPONENT24` texture holds true hardware
+     * depth written by [DirectionalDepthProgram]'s pass (which lets `glPolygonOffset` apply
+     * slope-scaled caster bias), and receivers sample it directly — depth textures return
+     * their value in the red channel when sampled without a compare mode. `GL_NEAREST` is
+     * mandatory for non-compare depth sampling; the receiver's percentage-closer filter does
+     * its own bilinear weighting across texels. Clamp-to-edge keeps out-of-footprint UVs
+     * from wrapping to the opposite side of the map. Lazily allocated and cached per cascade.
      */
     fun shadowCascadeFramebuffer(cascadeIndex: Int): Framebuffer {
         require(cascadeIndex in shadowCascadeFramebufferCache.indices) {
             "shadowCascadeFramebuffer: cascadeIndex $cascadeIndex out of range"
         }
         return shadowCascadeFramebufferCache[cascadeIndex] ?: Framebuffer().apply {
-            val size = SHADOW_CASCADE_MAP_SIZES[cascadeIndex]
-            val colorAttachment = createMomentsColorAttachment(size, size)
-            // Clamp-to-edge so receiver UVs that fall just outside the cascade footprint
-            // don't sample wrap-arounds from the opposite side of the shadow map.
-            colorAttachment.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-            colorAttachment.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-            attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
-            attachTexture(this@DrawContext, createMomentsDepthAttachment(size), GL_DEPTH_ATTACHMENT)
+            val size = shadowCascadeMapSize(cascadeIndex)
+            val depthAttachment = createMomentsDepthAttachment(size)
+            depthAttachment.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+            depthAttachment.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+            attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
+            // With no colour attachment, desktop GL reports FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER
+            // unless the draw and read buffers are explicitly set to NONE (FBO state).
+            val previousFramebuffer = currentFramebuffer
+            bindFramebuffer(this@DrawContext)
+            gl.drawBuffers(NO_DRAW_BUFFERS)
+            gl.readBuffer(GL_NONE)
+            this@DrawContext.bindFramebuffer(previousFramebuffer)
         }.also { shadowCascadeFramebufferCache[cascadeIndex] = it }
-    }
-
-    /**
-     * Per-size ping-pong target for the separable Gaussian blur applied to each cascade's
-     * moments texture before the receiver pass. Cached per `size` because [SHADOW_CASCADE_MAP_SIZES]
-     * mixes resolutions across cascades — sampling a 512² cascade through a 1024² blur FBO
-     * would either read uninitialised memory or need scale-aware UVs in the blur shader.
-     * Allocating one blur FBO per unique cascade size sidesteps both. Same `RGBA32F` colour
-     * format as the cascade FBOs.
-     */
-    fun shadowBlurFramebuffer(size: Int): Framebuffer = shadowBlurFramebufferCache.getOrPut(size) {
-        Framebuffer().apply {
-            val colorAttachment = createMomentsColorAttachment(size, size)
-            attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
-        }
     }
 
     /**
@@ -508,7 +506,6 @@ open class DrawContext(val gl: Kgl) {
         momentsCubeMapTextureCache?.release(this)
         momentsCubeMapFramebufferCache?.release(this)
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i]?.release(this)
-        for (fb in shadowBlurFramebufferCache.values) fb.release(this)
         multisampleFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -527,7 +524,6 @@ open class DrawContext(val gl: Kgl) {
         momentsCubeMapTextureCache = null
         momentsCubeMapFramebufferCache = null
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i] = null
-        shadowBlurFramebufferCache.clear()
         multisampleFramebufferCache = null
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null

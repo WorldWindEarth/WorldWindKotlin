@@ -6,6 +6,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.layer.shadow.ShadowReceiverUniforms
+import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.kgl.KglUniformLocation
@@ -33,10 +34,9 @@ open class SurfaceTextureProgram(
             uniform mat4 mvpMatrix;
             uniform mat3 texCoordMatrix[2];
             #ifdef SHADOWS_ENABLED
-            /* Tile-local -> world translation for shadow receivers. Same value [DrawableSurfaceTexture]
-               feeds via [multiplyByTranslation] when composing mvpMatrix; passing it separately here
-               lets the fragment shader recover world-space position for the shadow lookup without
-               re-uploading any matrices. */
+            /* Tile-local -> camera-relative translation (terrainOrigin - eyePoint, differenced
+               in double on the CPU) for shadow receivers. The fragment shader recovers a
+               camera-relative position for the shadow lookup without re-uploading matrices. */
             uniform vec3 vertexOrigin;
             #endif
 
@@ -86,7 +86,7 @@ open class SurfaceTextureProgram(
             varying vec3 worldPos;
             varying float viewDepth;
 
-            ${ShadowReceiverGlsl.FRAGMENT_DECLARATIONS}
+            ${ShadowReceiverGlsl.fragmentDeclarations(depthBias = ShadowReceiverGlsl.TERRAIN_DEPTH_BIAS)}
             #endif
 
             void main() {
@@ -113,13 +113,18 @@ open class SurfaceTextureProgram(
                 #ifdef SHADOWS_ENABLED
                 /* Skip shadow attenuation in pick mode so picked terrain isn't darkened. */
                 if (!enablePickMode) {
-                    gl_FragColor.rgb *= computeShadowVisibility(worldPos, viewDepth);
+                    gl_FragColor.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
                 }
                 #endif
             }
         """.trimIndent()
     )
     override val attribBindings = arrayOf("vertexPoint", "vertexTexCoord")
+
+    // Prepend [Kgl.glslDerivativesPrefix] (WW_HAS_DERIVATIVES + platform-aware extension
+    // directive) so the shadow receiver's receiver-plane depth bias can use dFdx/dFdy.
+    override fun glslVersion(dc: earth.worldwind.draw.DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+
 
     private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
 
@@ -214,19 +219,7 @@ open class SurfaceTextureProgram(
 
     override fun loadShadowDisabled() = shadowUniforms.loadDisabled(gl)
 
-    override fun loadShadowEnabled(
-        ambientShadow: Float,
-        lightProjectionView0: Matrix4,
-        lightProjectionView1: Matrix4,
-        lightProjectionView2: Matrix4,
-        cascadeFarDepth0: Float,
-        cascadeFarDepth1: Float,
-        cascadeFarDepth2: Float,
-        useMSM: Boolean,
-    ) = shadowUniforms.loadEnabled(
-        gl, ambientShadow, lightProjectionView0, lightProjectionView1, lightProjectionView2,
-        cascadeFarDepth0, cascadeFarDepth1, cascadeFarDepth2, useMSM,
-    )
+    override fun loadShadowEnabled(state: ShadowState) = shadowUniforms.loadEnabled(gl, state)
 
     companion object {
         /**

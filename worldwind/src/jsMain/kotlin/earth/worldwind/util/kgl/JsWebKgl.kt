@@ -80,6 +80,8 @@ private external interface WebGL2RenderingContext {
         width: Int, height: Int, format: Int, type: Int, pboOffset: Int,
     )
     fun getBufferSubData(target: Int, srcOffset: Int, view: Uint8Array)
+    fun drawBuffers(buffers: Array<Int>)
+    fun readBuffer(src: Int)
     fun fenceSync(condition: Int, flags: Int): WebGLSync?
     fun clientWaitSync(sync: WebGLSync, flags: Int, timeout: Int): Int
     fun deleteSync(sync: WebGLSync)
@@ -491,6 +493,11 @@ class JsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
     }
 
     override fun pixelStorei(pname: Int, param: Int) = gl.pixelStorei(pname, param)
+
+    // No-op on WebGL1 — depth-only framebuffer callers gate on [supportsSizedTextureFormats].
+    override fun drawBuffers(bufs: IntArray) { gl2?.drawBuffers(bufs.toTypedArray()) }
+
+    override fun readBuffer(src: Int) { gl2?.readBuffer(src) }
 }
 
 internal actual fun createWebKgl(gl: WebGLRenderingContext): Kgl = JsWebKgl(gl)

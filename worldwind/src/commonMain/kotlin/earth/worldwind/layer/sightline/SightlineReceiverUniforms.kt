@@ -46,9 +46,9 @@ class SightlineReceiverUniforms(private val enabled: Boolean) {
         gl.uniform1f(sightlineRangeId, 0f)
         sightlineColorsId = gl.getUniformLocation(program, "sightlineColors")
         sightlineMomentsSamplerId = gl.getUniformLocation(program, "sightlineMomentsSampler")
-        gl.uniform1i(sightlineMomentsSamplerId, 4) // GL_TEXTURE4
+        gl.uniform1i(sightlineMomentsSamplerId, 5) // GL_TEXTURE5 — units 1..4 hold the shadow cascades
         sightlineMomentsCubeSamplerId = gl.getUniformLocation(program, "sightlineMomentsCubeSampler")
-        gl.uniform1i(sightlineMomentsCubeSamplerId, 5) // GL_TEXTURE5
+        gl.uniform1i(sightlineMomentsCubeSamplerId, 6) // GL_TEXTURE6
     }
 
     fun loadDisabled(gl: Kgl) {

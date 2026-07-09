@@ -72,9 +72,14 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder, Sh
             // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.
             dc.applyShadowReceiverUniforms(program, drawState.shadowMode.receivesShadows)
 
-            // Model -> world transform for the shadow-receiver pass; skipped on no-shadow frames.
+            // Camera-relative model transform for the shadow-receiver pass (see
+            // ShadowReceiverGlsl for the float32 precision rationale); skipped on no-shadow frames.
             if (dc.shadowState != null) {
-                modelMatrix.setToTranslation(drawState.vertexOrigin.x, drawState.vertexOrigin.y, drawState.vertexOrigin.z)
+                modelMatrix.setToTranslation(
+                    drawState.vertexOrigin.x - dc.eyePoint.x,
+                    drawState.vertexOrigin.y - dc.eyePoint.y,
+                    drawState.vertexOrigin.z - dc.eyePoint.z,
+                )
                 program.loadModelMatrix(modelMatrix)
             }
 

@@ -371,5 +371,9 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     }
 
     override fun pixelStorei(pname: Int, param: Int) = gl.glPixelStorei(pname, param)
+
+    override fun drawBuffers(bufs: IntArray) = gl.glDrawBuffers(bufs.size, bufs, 0)
+
+    override fun readBuffer(src: Int) = gl.glReadBuffer(src)
 }
 

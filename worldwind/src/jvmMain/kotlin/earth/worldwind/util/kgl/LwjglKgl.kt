@@ -305,4 +305,8 @@ class LwjglKgl : Kgl {
     }
 
     override fun pixelStorei(pname: Int, param: Int) = GL33.glPixelStorei(pname, param)
+
+    override fun drawBuffers(bufs: IntArray) = GL33.glDrawBuffers(bufs)
+
+    override fun readBuffer(src: Int) = GL33.glReadBuffer(src)
 }

@@ -1,33 +1,43 @@
 package earth.worldwind.layer.shadow
 
-import earth.worldwind.geom.Matrix4
 import earth.worldwind.util.kgl.Kgl
 import earth.worldwind.util.kgl.KglProgram
 import earth.worldwind.util.kgl.KglUniformLocation
 
 /**
  * The GL uniform-location + upload machinery every [ShadowReceiverProgram] needs, factored out of the
- * five programs (triangle / basic-texture / surface-texture / 3D-Tiles mesh + points) that each
- * copy-pasted the identical field block, [init] resolution loop, and [loadEnabled]/[loadDisabled]
+ * receiver programs (triangle / basic-texture / surface-texture / 3D-Tiles mesh + points) that would
+ * each copy-paste the identical field block, [init] resolution loop, and [loadEnabled]/[loadDisabled]
  * bodies. A program owns one instance, resolves it in `initProgram`, and forwards its interface
  * methods to it (see [ShadowReceiverProgram]).
  *
  * [enabled] mirrors the program's `shadowsEnabled` flag and gates every method, so the no-shadow
  * program variants stay inert: [init] skips resolution (locations remain [KglUniformLocation.NONE])
- * and the load methods early-return — behaviourally identical to the previous per-program code,
- * where the same calls hit `NONE` locations as silent no-ops.
+ * and the load methods early-return — behaviourally identical to per-program code where the same
+ * calls hit `NONE` locations as silent no-ops.
  */
 class ShadowReceiverUniforms(private val enabled: Boolean) {
     private var applyShadowId = KglUniformLocation.NONE
-    private var useMSMId = KglUniformLocation.NONE
     private var ambientShadowId = KglUniformLocation.NONE
-    private val shadowMapIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val lightProjectionViewIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
-    private val cascadeFarDepthIds = arrayOf(KglUniformLocation.NONE, KglUniformLocation.NONE, KglUniformLocation.NONE)
+    private var lightDirectionId = KglUniformLocation.NONE
+    private var maxDistanceId = KglUniformLocation.NONE
+    private var cascadeFarDepthsId = KglUniformLocation.NONE
+    private var cascadeTexelWorldSizesId = KglUniformLocation.NONE
+    private var cascadeDepthBiasesId = KglUniformLocation.NONE
+    private var debugCascadesId = KglUniformLocation.NONE
+    private val shadowMapIds = Array(ShadowReceiverGlsl.CASCADE_COUNT) { KglUniformLocation.NONE }
+    private val shadowMatrixIds = Array(ShadowReceiverGlsl.CASCADE_COUNT) { KglUniformLocation.NONE }
     private val matrixArray = FloatArray(16)
+    private val vec4Array = FloatArray(4)
 
     /** Frame stamp of the last uploaded [ShadowState] — backs [ShadowReceiverProgram.shadowUploadStamp]. */
     var uploadStamp = -1L
+
+    private companion object {
+        /** Texel scale for the per-cascade receiver bias: the constant fallback where
+         *  derivatives are unavailable and the clamp base for the receiver-plane term. */
+        const val KERNEL_BIAS_TEXELS = 1.0
+    }
 
     /** Resolve the receiver uniforms and seed their defaults. Call from the owning program's
      *  `initProgram` after the program links. No-op for the no-shadow variant. */
@@ -35,16 +45,24 @@ class ShadowReceiverUniforms(private val enabled: Boolean) {
         if (!enabled) return
         applyShadowId = gl.getUniformLocation(program, "applyShadow")
         gl.uniform1i(applyShadowId, 0)
-        useMSMId = gl.getUniformLocation(program, "useMSM")
-        gl.uniform1i(useMSMId, 0)
         ambientShadowId = gl.getUniformLocation(program, "ambientShadow")
-        gl.uniform1f(ambientShadowId, 0.4f)
+        gl.uniform1f(ambientShadowId, ShadowState.DEFAULT_AMBIENT_SHADOW)
+        lightDirectionId = gl.getUniformLocation(program, "shadowLightDirection")
+        gl.uniform3f(lightDirectionId, 0f, 0f, 1f)
+        maxDistanceId = gl.getUniformLocation(program, "shadowMaxDistance")
+        gl.uniform1f(maxDistanceId, 0f)
+        cascadeFarDepthsId = gl.getUniformLocation(program, "cascadeFarDepths")
+        gl.uniform4f(cascadeFarDepthsId, 0f, 0f, 0f, 0f)
+        cascadeTexelWorldSizesId = gl.getUniformLocation(program, "cascadeTexelWorldSizes")
+        gl.uniform4f(cascadeTexelWorldSizesId, 0f, 0f, 0f, 0f)
+        cascadeDepthBiasesId = gl.getUniformLocation(program, "cascadeDepthBiases")
+        gl.uniform4f(cascadeDepthBiasesId, 0f, 0f, 0f, 0f)
+        debugCascadesId = gl.getUniformLocation(program, "debugShadowMode")
+        gl.uniform1i(debugCascadesId, 0)
         for (i in shadowMapIds.indices) {
             shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
             gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
-            lightProjectionViewIds[i] = gl.getUniformLocation(program, "lightProjectionView$i")
-            cascadeFarDepthIds[i] = gl.getUniformLocation(program, "cascadeFarDepth$i")
-            gl.uniform1f(cascadeFarDepthIds[i], 0f)
+            shadowMatrixIds[i] = gl.getUniformLocation(program, "shadowMatrix$i")
         }
     }
 
@@ -52,29 +70,43 @@ class ShadowReceiverUniforms(private val enabled: Boolean) {
         if (enabled) gl.uniform1i(applyShadowId, 0)
     }
 
-    fun loadEnabled(
-        gl: Kgl,
-        ambientShadow: Float,
-        lightProjectionView0: Matrix4,
-        lightProjectionView1: Matrix4,
-        lightProjectionView2: Matrix4,
-        cascadeFarDepth0: Float,
-        cascadeFarDepth1: Float,
-        cascadeFarDepth2: Float,
-        useMSM: Boolean,
-    ) {
+    fun loadEnabled(gl: Kgl, state: ShadowState) {
         if (!enabled) return
         gl.uniform1i(applyShadowId, 1)
-        gl.uniform1i(useMSMId, if (useMSM) 1 else 0)
-        gl.uniform1f(ambientShadowId, ambientShadow)
-        lightProjectionView0.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[0], 1, false, matrixArray, 0)
-        lightProjectionView1.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[1], 1, false, matrixArray, 0)
-        lightProjectionView2.transposeToArray(matrixArray, 0)
-        gl.uniformMatrix4fv(lightProjectionViewIds[2], 1, false, matrixArray, 0)
-        gl.uniform1f(cascadeFarDepthIds[0], cascadeFarDepth0)
-        gl.uniform1f(cascadeFarDepthIds[1], cascadeFarDepth1)
-        gl.uniform1f(cascadeFarDepthIds[2], cascadeFarDepth2)
+        gl.uniform1f(ambientShadowId, state.ambientShadow)
+        gl.uniform3f(
+            lightDirectionId,
+            state.lightDirection.x.toFloat(), state.lightDirection.y.toFloat(), state.lightDirection.z.toFloat(),
+        )
+        gl.uniform1f(maxDistanceId, state.shadowDistance.toFloat())
+        gl.uniform1i(debugCascadesId, state.debugShadowMode)
+        // Sanitize far depths for any degenerate cascade: carrying the previous cascade's far
+        // forward makes the shader's branch chain skip the invalid slice entirely.
+        var previousFar = 0f
+        for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
+            val cascade = state.cascades[i]
+            if (cascade.isValid) previousFar = cascade.farViewDepth.toFloat()
+            vec4Array[i] = previousFar
+        }
+        gl.uniform4f(cascadeFarDepthsId, vec4Array[0], vec4Array[1], vec4Array[2], vec4Array[3])
+        for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
+            vec4Array[i] = state.cascades[i].texelWorldSize.toFloat()
+        }
+        gl.uniform4f(cascadeTexelWorldSizesId, vec4Array[0], vec4Array[1], vec4Array[2], vec4Array[3])
+        // Kernel-slope bias: the PCF kernel reaches [KERNEL_BIAS_TEXELS] texels from the
+        // receiver, where a moderately sloped surface legitimately sits that many texel
+        // world-sizes closer to the sun. Normalized by each cascade's depth range so the
+        // shader can subtract it from the [0,1] receiver depth directly.
+        for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
+            val cascade = state.cascades[i]
+            vec4Array[i] = if (cascade.range > 0.0) {
+                (KERNEL_BIAS_TEXELS * cascade.texelWorldSize / cascade.range).toFloat()
+            } else 0f
+        }
+        gl.uniform4f(cascadeDepthBiasesId, vec4Array[0], vec4Array[1], vec4Array[2], vec4Array[3])
+        for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
+            state.cascades[i].shadowMatrix.transposeToArray(matrixArray, 0)
+            gl.uniformMatrix4fv(shadowMatrixIds[i], 1, false, matrixArray, 0)
+        }
     }
 }

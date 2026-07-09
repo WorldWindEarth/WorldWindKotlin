@@ -76,6 +76,7 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
     private var pool: Pool<DrawableTilePoints>? = null
 
     private val mvpMatrix = Matrix4()
+    private val relModelMatrix = Matrix4()
 
     companion object {
         val KEY = DrawableTilePoints::class
@@ -113,9 +114,16 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
         dc.applyShadowReceiverUniforms(program, shadowMode.receivesShadows)
         dc.applySightlineReceiverUniforms(program)
 
-        program.loadModelMatrix(tileToWorld)
         mvpMatrix.copy(dc.modelviewProjection).multiplyByMatrix(tileToWorld)
         program.loadModelviewProjection(mvpMatrix)
+        // Camera-relative model matrix for the shadow / sightline position varying — the
+        // eye shift keeps the float32 uniform (and the interpolated varying) precise.
+        val eye = dc.eyePoint
+        relModelMatrix.copy(tileToWorld)
+        relModelMatrix.m[3] -= eye.x
+        relModelMatrix.m[7] -= eye.y
+        relModelMatrix.m[11] -= eye.z
+        program.loadModelMatrix(relModelMatrix)
         program.loadBasePointSize(basePointSize)
         program.loadFocalLengthPixels(focalLengthPixels)
         program.loadOpacity(1f)
