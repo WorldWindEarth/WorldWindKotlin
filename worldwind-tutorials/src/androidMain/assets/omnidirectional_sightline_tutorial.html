@@ -12,12 +12,12 @@
 <body>
 <h1>Line Of Sight Tutorial</h1>
 <p>
-    Demonstrates how to create an OmnidirectionalSightline and add it to the globe to visualize line of sight. An
-    OmnidirectionalSightline provides a visual area representation of line of sight from a provided origin. Areas
+    Demonstrates how to create an RealtimeSightline and add it to the globe to visualize line of sight. An
+    RealtimeSightline provides a visual area representation of line of sight from a provided origin. Areas
     occluded by terrain from line of sight will appear in a different color than areas visible to the provided point.
 </p>
 <p>
-    This tutorial demonstrates the creation of an OmnidirectionSightline. In addition to the OmnidirectionalSightline, a
+    This tutorial demonstrates the creation of an OmnidirectionSightline. In addition to the RealtimeSightline, a
     Placemark indicating the position of the sightline origin is added to provide visual context.
 </p>
 <p>
@@ -25,16 +25,16 @@
     Regions colored gray are occluded by terrain. This tutorial uses a sightline range of 10,000 meters.
 </p>
 <h2>Example</h2>
-<h3>OmnidirectionalSightlineFragment.kt</h3>
+<h3>RealtimeSightlineFragment.kt</h3>
 <p>
     The OmnidirectionSightlineFragment class extends the BasicGlobeFragment and overrides the createWorldWindow method.
-    An OmnidirectionalSightline object with specified position and range is then created and added to the globe.
+    An RealtimeSightline object with specified position and range is then created and added to the globe.
 </p>
 <div style="border-top: 1px solid black; border-bottom: 1px solid black;">
     <textarea id="kotlin-code">
-class OmnidirectionalSightlineFragment: BasicGlobeFragment() {
+class RealtimeSightlineFragment: BasicGlobeFragment() {
     /**
-     * Creates a new WorldWindow (GLSurfaceView) object with an OmnidirectionalSightline
+     * Creates a new WorldWindow (GLSurfaceView) object with an RealtimeSightline
      *
      * @return The WorldWindow object containing the globe.
      */
@@ -43,7 +43,7 @@ class OmnidirectionalSightlineFragment: BasicGlobeFragment() {
 
 class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
 
-    private val omniSightline: OmnidirectionalSightline
+    private val omniSightline: RealtimeSightline
     private val directionalSightline: DirectionalSightline
 
     private val layer = RenderableLayer("Sightline").apply {
@@ -52,7 +52,7 @@ class SightlineTutorial(private val engine: WorldWind) : AbstractTutorial() {
         val omnidirectionalPosition = Position.fromDegrees(46.230, -122.190, 2500.0)
         val directionalPosition = Position.fromDegrees(46.193, -122.194, 2500.0)
 
-        omniSightline = OmnidirectionalSightline(omnidirectionalPosition, 10000.0).apply {
+        omniSightline = RealtimeSightline(omnidirectionalPosition, 10000.0).apply {
             isPickEnabled = false
             attributes.apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
             occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }

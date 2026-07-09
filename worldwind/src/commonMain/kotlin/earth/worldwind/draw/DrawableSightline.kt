@@ -1,6 +1,6 @@
 package earth.worldwind.draw
 
-import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Angle.Companion.POS360
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Matrix4
@@ -11,8 +11,10 @@ import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 
 /**
@@ -21,16 +23,15 @@ import kotlin.math.sin
  * view, and an overlay pass that tints terrain visible/occluded by PCF-comparing each fragment
  * against that cube (see [earth.worldwind.layer.sightline.SightlineReceiverGlsl]).
  *
- * One cube serves both sightline kinds: the omnidirectional sightline uses the full sphere,
- * the directional sightline applies its heading/field-of-view wedge mask in the receiver. All
- * six faces are rendered — photogrammetry receivers above the observer (city-canyon facades)
- * are tinted correctly, unlike the terrain-era assumption that nothing is visible looking up.
+ * The cube always covers the full sphere; the sightline's heading/field-of-view wedge is a
+ * receiver-side mask (360 degrees masks nothing). All six faces are rendered — photogrammetry
+ * receivers above the observer (city-canyon facades) are tinted correctly, unlike the
+ * terrain-era assumption that nothing is visible looking up.
  */
 open class DrawableSightline protected constructor() : Drawable {
-    var omnidirectional = false
-    /** Directional wedge angle (azimuth width and elevation cap). Ignored when [omnidirectional]. */
-    var fieldOfView = POS90
-    /** Directional wedge heading clockwise from North. Ignored when [omnidirectional]. */
+    /** Horizontal wedge angle about [heading]; 360 degrees covers the full sphere. */
+    var fieldOfView = POS360
+    /** Wedge heading clockwise from North. Irrelevant at 360 degrees. */
     var heading = ZERO
     /** Local (Z = up) frame of the sightline position; cube faces render in this frame. */
     val centerTransform = Matrix4()
@@ -176,16 +177,13 @@ open class DrawableSightline protected constructor() : Drawable {
         state.visibleColor.copy(visibleColor)
         state.occludedColor.copy(occludedColor)
         state.sightlineView.copy(centerTransform).invertOrthonormal()
-        if (omnidirectional) {
-            state.cosHalfFov = -1f
-            state.sinHalfFov = 1f
-        } else {
-            val halfFov = fieldOfView.inRadians / 2.0
-            state.cosHalfFov = cos(halfFov).toFloat()
-            state.sinHalfFov = sin(halfFov).toFloat()
-            state.forwardX = sin(heading.inRadians).toFloat()
-            state.forwardY = cos(heading.inRadians).toFloat()
-        }
+        // cos(180) = -1 disables the azimuth wedge; the elevation cap saturates at 90 degrees
+        // so wide sightlines cover the full sphere.
+        val halfFov = fieldOfView.inRadians / 2.0
+        state.cosHalfFov = cos(halfFov).toFloat()
+        state.sinHalfFov = sin(min(halfFov, PI / 2.0)).toFloat()
+        state.forwardX = sin(heading.inRadians).toFloat()
+        state.forwardY = cos(heading.inRadians).toFloat()
     }
 
     /**

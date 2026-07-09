@@ -256,7 +256,7 @@ open class Ogc3dTilesProgram(
 
     companion object {
         /** Always include the sightline splice. `hasActiveSightline` is set inside
-         *  `OmnidirectionalSightline.makeDrawable` during the render-traversal phase — the
+         *  `RealtimeSightline.makeDrawable` during the render-traversal phase — the
          *  same phase 3D-Tiles layers traverse — so its value at shader-pick time depends on
          *  layer order. With the splice always present, `computeSightlineTint` early-outs to
          *  `vec4(0.0)` when `applySightline == false`, so per-fragment cost when no sightline

@@ -21,16 +21,16 @@ class SightlineState {
     var range = 0f
 
     /**
-     * Unit horizontal forward direction of the directional wedge in the local frame,
-     * `(sin heading, cos heading)`. Unused when the azimuth wedge is disabled ([cosHalfFov] = -1).
+     * Unit horizontal forward direction of the wedge in the local frame,
+     * `(sin heading, cos heading)`. Irrelevant when the azimuth wedge is disabled ([cosHalfFov] = -1).
      */
     var forwardX = 0f
     var forwardY = 1f
 
-    /** `cos(fieldOfView / 2)` for the directional azimuth wedge; `-1` disables it (omni). */
+    /** `cos(fieldOfView / 2)` for the azimuth wedge; `-1` (fov = 360) disables it. */
     var cosHalfFov = -1f
 
-    /** `sin(fieldOfView / 2)` capping elevation above the horizon; `1` disables it (omni). */
+    /** `sin(min(fieldOfView / 2, 90 deg))` capping elevation above the horizon; `1` disables it. */
     var sinHalfFov = 1f
 
     /** Visible (line-of-sight) tint color. Premultiplied by the receiver. */

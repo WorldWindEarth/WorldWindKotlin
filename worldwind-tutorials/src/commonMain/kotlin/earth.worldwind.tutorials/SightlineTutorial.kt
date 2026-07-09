@@ -10,16 +10,15 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.render.image.ImageSource
-import earth.worldwind.shape.OmnidirectionalSightline
-import earth.worldwind.shape.DirectionalSightline
+import earth.worldwind.shape.RealtimeSightline
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.Polygon
 import earth.worldwind.shape.ShapeAttributes
 
 class SightlineTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
-    private val omniSightline: OmnidirectionalSightline
-    private val directionalSightline: DirectionalSightline
+    private val omniSightline: RealtimeSightline
+    private val directionalSightline: RealtimeSightline
 
     private val layer = RenderableLayer("Sightline").apply {
         // Sightline origins. Each placemark drives its sightline's center; the sightlines
@@ -27,7 +26,7 @@ class SightlineTutorial(engine: WorldWind) : AbstractTutorial(engine) {
         val omnidirectionalPosition = Position.fromDegrees(46.230, -122.190, 2500.0)
         val directionalPosition = Position.fromDegrees(46.193, -122.194, 2500.0)
 
-        omniSightline = OmnidirectionalSightline(omnidirectionalPosition, 10000.0).apply {
+        omniSightline = RealtimeSightline(omnidirectionalPosition, 10000.0).apply {
             isPickEnabled = false
             attributes.apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
             occludeAttributes.apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
@@ -48,7 +47,7 @@ class SightlineTutorial(engine: WorldWind) : AbstractTutorial(engine) {
             }
         })
 
-        directionalSightline = DirectionalSightline(
+        directionalSightline = RealtimeSightline(
             directionalPosition, 10000.0, 40.0.degrees, 30.0.degrees
         ).apply {
             isPickEnabled = false

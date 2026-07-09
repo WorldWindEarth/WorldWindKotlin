@@ -13,21 +13,21 @@ import earth.worldwind.layer.RenderableLayer
 import earth.worldwind.render.Color
 import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource.Companion.fromResource
-import earth.worldwind.shape.OmnidirectionalSightline
+import earth.worldwind.shape.RealtimeSightline
 import earth.worldwind.shape.Placemark
 import earth.worldwind.shape.ShapeAttributes
 
 /**
- * This Activity demonstrates the OmnidirectionalSightline object which provides a visual representation of line of
+ * This Activity demonstrates the RealtimeSightline object which provides a visual representation of line of
  * sight from a specified origin. Terrain visible from the origin is colored differently than areas not visible from
- * the OmnidirectionalSightline origin. Line of sight is calculated as a straight line from the origin to the available
+ * the RealtimeSightline origin. Line of sight is calculated as a straight line from the origin to the available
  * terrain.
  */
 open class OmnidirectionalSightlineActivity: BasicGlobeActivity() {
     /**
-     * The OmnidirectionalSightline object which will display areas visible using a line of sight from the origin
+     * The RealtimeSightline object which will display areas visible using a line of sight from the origin
      */
-    protected lateinit var sightline: OmnidirectionalSightline
+    protected lateinit var sightline: RealtimeSightline
     /**
      * A Placemark representing the origin of the sightline
      */
@@ -39,10 +39,10 @@ open class OmnidirectionalSightlineActivity: BasicGlobeActivity() {
         aboutBoxText = "Demonstrates a draggable WorldWind Omnidirectional sightline. Drag the placemark icon around the " +
                 "screen to move the sightline position."
 
-        // Initialize the OmnidirectionalSightline and Corresponding Placemark
+        // Initialize the RealtimeSightline and Corresponding Placemark
         // The position is the line of sight origin for determining visible terrain
         val pos = fromDegrees(46.202, -122.190, 500.0)
-        sightline = OmnidirectionalSightline(pos, 10000.0).apply {
+        sightline = RealtimeSightline(pos, 10000.0).apply {
             attributes = ShapeAttributes().apply { interiorColor = Color(0f, 1f, 0f, 0.5f) }
             occludeAttributes = ShapeAttributes().apply { interiorColor = Color(0.1f, 0.1f, 0.1f, 0.8f) }
             altitudeMode = AltitudeMode.RELATIVE_TO_GROUND

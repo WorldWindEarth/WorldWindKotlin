@@ -136,8 +136,7 @@ open class RenderContext {
      */
     var hasShadowLayer: Boolean = false
     /**
-     * Per-frame flag set by [earth.worldwind.shape.DirectionalSightline.makeDrawable] /
-     * [earth.worldwind.shape.OmnidirectionalSightline.makeDrawable]
+     * Per-frame flag set by [earth.worldwind.shape.RealtimeSightline.makeDrawable]
      * when a visible sightline is enqueued. Read by `Ogc3dTilesProgram.get` (and any other
      * program that splices [earth.worldwind.layer.sightline.SightlineReceiverGlsl]) to pick
      * the sightline-aware variant up front. Independent of [DrawContext.sightlineState],
