@@ -157,8 +157,7 @@ internal suspend fun ContentManager.dispatchCachedEntry(
     entry: CacheEntry,
     cachePolicy: CachePolicy = CachePolicy.UNBOUNDED,
 ): Any? {
-    val service = entry.service
-    if (service == null) return tryOpenNativeContent(entry)
+    val service = entry.service ?: return tryOpenNativeContent(entry)
     val opener = CachedLayerRegistry.opener(entry.dataType, service.type) ?: return null
     return opener(this, entry, cachePolicy)
 }
@@ -308,7 +307,7 @@ private suspend fun ContentManager.openWebMercatorImageLayer(
     val store = openImageTileStore(
         entry.contentKey, levelSet, imageFormat, isTransparent, cachePolicy, displayName = entry.displayName,
     )
-    val network: TileSource? = UrlTemplateImageTileSource(urlTemplate)
+    val network = UrlTemplateImageTileSource(urlTemplate)
     val source = CachedTileSource(network, store)
     val tileFactory = TileSourceFactoryAdapter(source, imageFormat)
     val tiledSurfaceImage = MercatorTiledSurfaceImage(tileFactory, levelSet)
@@ -343,7 +342,9 @@ private suspend fun ContentManager.openMvtVectorLayer(
     // global. If the gpkg has a persisted narrower bbox (bulk-download extent), apply it.
     entry.boundingSector?.let { levelSet.sector.copy(it) }
     val store = openVectorTileStore(entry.contentKey, levelSet, cachePolicy, displayName = entry.displayName)
-    val network: TileSource? = UrlTemplateMvtTileSource(urlTemplate)
+    val network = UrlTemplateMvtTileSource(
+        urlTemplate, headers = MvtVectorLayer.decodeHeaders(entry.service?.metadata),
+    )
     val source = CachedTileSource(network, store)
     return MvtVectorLayer(source = source, displayName = entry.displayName)
 }
@@ -451,7 +452,7 @@ private suspend fun ContentManager.openWfsLayer(
     cachePolicy: CachePolicy,
 ): BulkFeatureLayer {
     val store = openFeatureStore(entry.contentKey, cachePolicy, displayName = entry.displayName)
-    val network: WfsBulkFeatureSource? = WfsBulkFeatureSource(
+    val network = WfsBulkFeatureSource(
         serviceAddress = service.address,
         layerName = service.layerName ?: "",
         serviceMetadata = service.metadata,

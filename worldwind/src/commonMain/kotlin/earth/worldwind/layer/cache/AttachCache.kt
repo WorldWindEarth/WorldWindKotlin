@@ -202,6 +202,7 @@ internal suspend fun ContentManager.attachMvtVectorLayerCache(
         type = MvtVectorLayer.SERVICE_TYPE,
         address = network.urlTemplate,
         outputFormat = "application/vnd.mapbox-vector-tile",
+        metadata = MvtVectorLayer.encodeHeaders(network.headers),
     ))
 }
 

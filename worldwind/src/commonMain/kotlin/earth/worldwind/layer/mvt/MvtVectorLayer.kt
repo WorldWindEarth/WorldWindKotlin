@@ -41,6 +41,7 @@ import earth.worldwind.util.withPermit
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -1074,6 +1075,17 @@ open class MvtVectorLayer(
          * to rebuild the source at content-getter time.
          */
         const val SERVICE_TYPE = "MVT"
+
+        /** Round-trips the source's request headers through `WebServiceInfo.metadata` so cache
+         *  reopen rebuilds the network source with them (e.g. the User-Agent OSM's tile policy
+         *  requires) — the persisted URL template alone loses them. Null when there are none. */
+        fun encodeHeaders(headers: Map<String, String>): String? =
+            if (headers.isEmpty()) null else Json.encodeToString(headers)
+
+        /** Inverse of [encodeHeaders]; malformed/absent metadata decodes to no headers. */
+        fun decodeHeaders(metadata: String?): Map<String, String> = metadata?.let {
+            runCatching { Json.decodeFromString<Map<String, String>>(it) }.getOrNull()
+        } ?: emptyMap()
 
         /** Shared surface-bin z for all MVT draped content; per-feature z stays an intra-tile sort key so layer order places MVT against other layers. */
         const val SURFACE_Z_ORDER = 0.0
