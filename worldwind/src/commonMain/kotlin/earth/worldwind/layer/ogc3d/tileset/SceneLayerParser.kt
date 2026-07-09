@@ -52,7 +52,7 @@ object SceneLayerParser {
         val metricSquared = pages?.lodSelectionMetricType?.endsWith("SQ", ignoreCase = true) == true
         val rootIndex = rootIndexOf(doc)
 
-        val ctx = BuildContext(archiveId, nodesPerPage, metricSquared, referenceScreenSpaceError, nodePages, geoToWorld)
+        val ctx = BuildContext(archiveId, nodesPerPage, metricSquared, referenceScreenSpaceError, nodePages, geoToWorld, doc)
         val rootDoc = ctx.node(rootIndex)
             ?: error("SLPK root node $rootIndex not found — no usable nodepages/*.json (legacy per-node 1.6 index documents are unsupported)")
         val root = ctx.buildNode(rootIndex, rootDoc)
@@ -78,6 +78,7 @@ object SceneLayerParser {
         val referenceSSE: Double,
         val source: NodePageSource,
         val geoToWorld: GeographicToWorld,
+        val doc: SceneLayerDoc,
     ) {
         private val pageCache = HashMap<Int, NodePageDoc>()
         private val visited = HashSet<Int>() // guards malformed cyclic child references
@@ -144,16 +145,29 @@ object SceneLayerParser {
             return referenceSSE * 2.0 * radius / threshold
         }
 
-        /** `slpk:{id}!/nodes/{resource}/geometries/{definition}.bin`, plus `?t=nodes/{mat}/textures/0.jpg`
-         *  when the node has a material (the decoder reads that sibling; the query is stripped before the
-         *  archive lookup + cache key). Null for a structural node. `.gz` is resolved by the archive read;
-         *  texture 0 = JPEG (1 = KTX2 twin). */
+        /** `slpk:{id}!/nodes/{res}/geometries/{def}.bin` plus a texture query (stripped before archive
+         *  lookup + cache key): `?t=nodes/{mat}/textures/{name}.{ext}` from `textureSetDefinitions`, or
+         *  `?tn={mat}` when a legacy package omits them. Null for a structural node. */
         private fun contentUriOf(node: NodeDoc): String? {
             val geom = node.mesh?.geometry ?: return null
             if (geom.resource < 0) return null
             val base = "slpk:$archiveId!/nodes/${geom.resource}/geometries/${geom.definition}.bin"
-            val materialResource = node.mesh?.material?.resource ?: -1
-            return if (materialResource >= 0) "$base?t=nodes/$materialResource/textures/0.jpg" else base
+            val material = node.mesh?.material ?: return base
+            if (material.resource < 0) return base
+            if (doc.materialDefinitions.isEmpty()) return "$base?tn=${material.resource}"
+            val name = textureEntryName(material.definition) ?: return base
+            return "$base?t=nodes/${material.resource}/textures/$name"
+        }
+
+        /** Texture entry name from the material's texture set, preferring decodable jpg/png. Null =
+         *  no decodable base-color texture declared — the mesh renders untextured by design. */
+        private fun textureEntryName(materialDefinition: Int): String? {
+            val material = doc.materialDefinitions.getOrNull(materialDefinition) ?: return null
+            val setId = material.pbrMetallicRoughness?.baseColorTexture?.textureSetDefinitionId ?: return null
+            val formats = doc.textureSetDefinitions.getOrNull(setId)?.formats ?: return null
+            val chosen = formats.firstOrNull { it.format == "jpg" || it.format == "png" } ?: return null
+            val name = chosen.name ?: return null
+            return "$name.${chosen.format}"
         }
     }
 

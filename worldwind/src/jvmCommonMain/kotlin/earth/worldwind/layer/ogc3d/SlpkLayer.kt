@@ -3,6 +3,7 @@ package earth.worldwind.layer.ogc3d
 import earth.worldwind.formats.archive.ZipFileArchive
 import earth.worldwind.formats.mimeForExtension
 import earth.worldwind.formats.i3s.I3sGeometryDecoder
+import earth.worldwind.formats.i3s.I3sSceneLayer
 import earth.worldwind.formats.i3s.I3sVertexMapper
 import earth.worldwind.formats.i3s.SlpkArchive
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -94,15 +95,30 @@ class SlpkLayer private constructor(
         return true
     }
 
-    /** Read the node's base-color texture from the archive, given the `?t=<path>` query on the URI. */
+    /** Read the node's base-color texture: `?t=<entry>` is metadata-derived; `?tn=<res>` means legacy —
+     *  the name comes from the node's `3dNodeIndexDocument` textureData href. */
     private suspend fun textureFor(uri: String): I3sGeometryDecoder.I3sTexture? {
-        val marker = uri.indexOf("?t=")
+        uri.indexOf("?t=").let { if (it >= 0) return readTexture(uri.substring(it + 3)) }
+        val marker = uri.indexOf("?tn=")
         if (marker < 0) return null
-        val texPath = uri.substring(marker + 3)
-        val texBytes = archive.readEntry(texPath) ?: return null
-        // Texture streams are jpg / png / ktx2 (dds where present); default an unrecognised type to JPEG.
-        val mime = mimeForExtension(texPath) ?: "image/jpeg"
-        return I3sGeometryDecoder.I3sTexture(texBytes, mime)
+        val nodeDir = "nodes/${uri.substring(marker + 4)}"
+        val body = archive.readEntry("$nodeDir/3dNodeIndexDocument.json")?.decodeToString() ?: return null
+        // parseNodeIndex doesn't suspend, so runCatching can't swallow a cancellation here.
+        val doc = runCatching { I3sSceneLayer.parseNodeIndex(body) }.getOrNull() ?: return null
+        val href = doc.textureData.firstOrNull()?.href ?: return null
+        val path = I3sSceneLayer.resolveNodeRelativeHref(nodeDir, href)
+        // The href omits the extension (e.g. "./textures/0_0"); probe the encodings the decoder accepts.
+        for (candidate in listOf(path, "$path.jpg", "$path.png", "$path.jpeg")) {
+            readTexture(candidate)?.let { return it }
+        }
+        return null
+    }
+
+    private suspend fun readTexture(entryPath: String): I3sGeometryDecoder.I3sTexture? {
+        val bytes = archive.readEntry(entryPath) ?: return null
+        // Default an unrecognised or missing extension to JPEG — the dominant I3S texture encoding.
+        val mime = mimeForExtension(entryPath) ?: "image/jpeg"
+        return I3sGeometryDecoder.I3sTexture(bytes, mime)
     }
 
     companion object {
