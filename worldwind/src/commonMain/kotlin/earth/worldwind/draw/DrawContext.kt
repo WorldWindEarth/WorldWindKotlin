@@ -47,6 +47,11 @@ open class DrawContext(val gl: Kgl) {
          */
         const val SHADOW_MAP_SIZE = 2048
         /**
+         * Per-face resolution of the sightline depth cube map. One cube serves both the
+         * omnidirectional and directional sightline kinds.
+         */
+        const val SIGHTLINE_MAP_SIZE = 1024
+        /**
          * Per-cascade shadow-map resolution — reference-tier 2048² per cascade. Apps may assign
          * a different tier **before the first frame only**: receiver shaders bake these sizes
          * as constants when programs are built and the cascade framebuffers allocate on
@@ -88,7 +93,7 @@ open class DrawContext(val gl: Kgl) {
      * Per-frame cascaded shadow map state. Non-null when [earth.worldwind.layer.shadow.ShadowLayer]
      * is in the layer list; null otherwise (receivers should treat absence as "no shadows").
      * The state's cascade matrices and ambient factor drive the receiver shaders; the state
-     * also signals which shadow framebuffers ([shadowCascadeFramebuffer]) hold valid moments
+     * also signals which shadow framebuffers ([shadowCascadeFramebuffer]) hold valid depth
      * for this frame.
      */
     var shadowState: ShadowState? = null
@@ -103,12 +108,16 @@ open class DrawContext(val gl: Kgl) {
      * Per-frame sightline-receiver state. Populated by [DrawableSightline] when its depth pass
      * runs (BACKGROUND group); read by every shape program that splices in
      * [earth.worldwind.layer.sightline.SightlineReceiverGlsl] so the shape's own fragment
-     * shader can sample the moments map and self-shadow without an overlay re-rasterisation.
+     * shader can sample the depth cube and self-shadow without an overlay re-rasterisation.
      */
     var sightlineState: SightlineState? = null
-    /** Identity of the [SightlineState] whose moments texture(s) are currently bound on
-     *  units 5 / 6. `null` after the cube/2D bindings are cleared on a no-sightline frame. */
+    /** Identity of the [SightlineState] whose depth cube is currently bound on unit 5.
+     *  `null` after the binding is cleared on a no-sightline frame. */
     var lastSightlineTextureBind: SightlineState? = null
+    /** Identity of the sightline shape whose depth pass last filled [sightlineDepthCubeTexture].
+     *  With several sightlines in a scene each one's overlay pass re-renders the cube only when
+     *  another sightline has overwritten it since its own depth pass ran. */
+    var sightlineCubeOwner: Any? = null
     /** Whether benign 2D/cube textures are bound on units 5 / 6 this frame so the no-sightline path's
      *  never-sampled samplers don't trip macOS's empty-unit validator. Reset per frame. */
     var sightlineBenignBound = false
@@ -143,10 +152,8 @@ open class DrawContext(val gl: Kgl) {
     private var pickFramebufferCache: Framebuffer? = null
     private var pickDepthReadbackFramebufferCache: Framebuffer? = null
     private var scratchFramebufferCache: Framebuffer? = null
-    private var momentsFramebufferCache: Framebuffer? = null
-    private var momentsBlurFramebufferCache: Framebuffer? = null
-    private var momentsCubeMapTextureCache: Texture? = null
-    private var momentsCubeMapFramebufferCache: Framebuffer? = null
+    private var sightlineDepthCubeTextureCache: Texture? = null
+    private var sightlineCubeFramebufferCache: Framebuffer? = null
     private val shadowCascadeFramebufferCache = arrayOfNulls<Framebuffer>(ShadowState.DEFAULT_CASCADE_COUNT)
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var unitSquareBufferCache: BufferObject? = null
@@ -231,49 +238,19 @@ open class DrawContext(val gl: Kgl) {
     }.also { scratchFramebufferCache = it }
 
     /**
-     * Returns an offscreen framebuffer used by [earth.worldwind.draw.DrawableSightline] when
-     * running its depth pass with Moment Shadow Mapping (Hamburger 4-moment, Peters & Klein
-     * 2015). Two attachments:
-     *  - colour `RGBA32F` storing the four raw moments `(d, d^2, d^3, d^4)` of linear
-     *    perpendicular depth from the sightline. Full-float gives 23 mantissa bits per
-     *    channel; the higher-order moments (`d^3`, `d^4`) require it because the Cholesky
-     *    reconstruction in the receiver subtracts close-magnitude products and any
-     *    quantisation noise propagates into a noisy occlusion bound. Float textures require
-     *    GLES3+ / WebGL2 / desktop GL3+; the path is taken only when
-     *    [Kgl.supportsSizedTextureFormats] is true.
-     *  - depth `GL_DEPTH_COMPONENT24` for terrain triangle ordering during the depth pass;
-     *    the occlusion pass never reads it. See [createMomentsDepthAttachment] for why 24-bit.
-     * The colour attachment is `GL_LINEAR`-filtered where the GL supports linear-filterable
-     * RGBA32F (see [createMomentsColorAttachment]) so a single hardware tap averages 2x2
-     * neighbouring `(d, d^2, d^3, d^4)` values; the separable Gaussian in
-     * [earth.worldwind.render.program.SightlineMomentsBlurProgram] widens the support further. Same per-side resolution as
-     * [scratchFramebuffer]; lazily allocated and cached.
+     * 24-bit depth texture used as the depth attachment of the shadow-cascade and sightline
+     * depth passes. 24-bit keeps far-range ridges resolvable (~3 m at `range = 10 km` vs
+     * ~750 m on 16-bit). Sized format requires GLES3+ / WebGL2 / desktop GL3+; falls back to
+     * `GL_DEPTH_COMPONENT` (driver-default precision) on older platforms. `GL_NEAREST` is
+     * mandatory for sampling a depth texture without a compare mode.
      */
-    val momentsFramebuffer get() = momentsFramebufferCache ?: Framebuffer().apply {
-        // Float render targets require sized formats; the MSM moments path falls back to
-        // RGBA8 on platforms without them, which has the precision issues described above.
-        // Use the highest-precision float colour buffer the GL implementation can render to
-        // (RGBA32F preferred, RGBA16F second, RGBA8 last - see Kgl.maxRenderableFloatBits).
-        // Filter mode is baked in by [createMomentsColorAttachment].
-        val colorAttachment = createMomentsColorAttachment(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE)
-        attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
-        attachTexture(this@DrawContext, createMomentsDepthAttachment(), GL_DEPTH_ATTACHMENT)
-    }.also { momentsFramebufferCache = it }
-
-    /**
-     * 24-bit depth texture for the moments depth pass (shared between [momentsFramebuffer]
-     * and [momentsCubeMapFramebuffer]). When the depth pass falls back to non-linear
-     * `gl_FragCoord.z` (i.e. `EXT_frag_depth` not honoured), far-plane ridges resolve at
-     * ~3 m at `range = 10 km` on 24-bit vs ~750 m on 16-bit - enough to avoid zebra
-     * banding. Sized format requires GLES3+ / WebGL2 / desktop GL3+; falls back to
-     * `GL_DEPTH_COMPONENT` (driver-default precision) on older platforms.
-     */
-    private fun createMomentsDepthAttachment(size: Int = SCRATCH_FRAMEBUFFER_SIZE): Texture {
+    private fun createDepthTextureAttachment(size: Int = SCRATCH_FRAMEBUFFER_SIZE, target: Int = GL_TEXTURE_2D): Texture {
         val sized = gl.supportsSizedTextureFormats
         return Texture(
             size, size,
             GL_DEPTH_COMPONENT, if (sized) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT,
             true, if (sized) GL_DEPTH_COMPONENT24 else GL_DEPTH_COMPONENT,
+            target = target,
         ).apply {
             setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
@@ -281,72 +258,31 @@ open class DrawContext(val gl: Kgl) {
     }
 
     /**
-     * Best moments-storage colour attachment renderable on the current GL — RGBA32F where
-     * the GL has full float colour buffers, RGBA16F where only half-float is renderable
-     * (e.g. iOS Simulator's Metal-backed GLES3), or RGBA8 as the unusable-but-bootable
-     * fallback. Centralised so all moments / shadow / cube-moments paths pick the same
-     * tier without duplicating the [Kgl.maxRenderableFloatBits] branch.
-     *
-     * Filter mode is baked in here: `GL_LINEAR` when the chosen tier supports it (RGBA16F
-     * and RGBA8 always; RGBA32F only when [Kgl.supportsFloatTextureLinear]), otherwise
-     * `GL_NEAREST`. Without the gate, RGBA32F + `GL_LINEAR` on hardware that lacks
-     * `OES_texture_float_linear` (Adreno 540 / Samsung S9) makes the texture incomplete and
-     * sampling returns `(0,0,0,1)`, which paints a uniform dark cast across every shadow
-     * receiver. Callers that need a different wrap mode (e.g. `GL_CLAMP_TO_EDGE` for the
-     * cascade attachments) set it separately after this call returns.
+     * Depth-only cube map for the sightline depth pass. Five faces hold true hardware depth
+     * from the sightline's point of view (POS_Z is never rendered — terrain is not visible
+     * looking straight up; receivers mask upward directions instead). Receivers sample it
+     * with `textureCube(...).r` and compare in-shader; the receiver's percentage-closer
+     * filter does its own tent weighting across taps. Lazily allocated and cached.
      */
-    private fun createMomentsColorAttachment(width: Int, height: Int, target: Int = GL_TEXTURE_2D): Texture {
-        val bits = gl.maxRenderableFloatBits
-        val texture = when (bits) {
-            32 -> Texture(width, height, GL_RGBA, GL_FLOAT, true, GL_RGBA32F, target = target)
-            16 -> Texture(width, height, GL_RGBA, GL_HALF_FLOAT, true, GL_RGBA16F, target = target)
-            else -> Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA, target = target)
-        }
-        val filter = if (bits == 32 && !gl.supportsFloatTextureLinear) GL_NEAREST else GL_LINEAR
-        texture.setTexParameter(GL_TEXTURE_MIN_FILTER, filter)
-        texture.setTexParameter(GL_TEXTURE_MAG_FILTER, filter)
-        texture.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-        texture.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-        return texture
-    }
+    val sightlineDepthCubeTexture get() = sightlineDepthCubeTextureCache
+        ?: createDepthTextureAttachment(SIGHTLINE_MAP_SIZE, GL_TEXTURE_CUBE_MAP)
+            .also { sightlineDepthCubeTextureCache = it }
 
     /**
-     * Cube-map RGBA32F moments texture used by the omnidirectional sightline's cube-map
-     * receiver path. Filter mode follows [createMomentsColorAttachment] (linear where the
-     * GL allows it on RGBA32F, otherwise nearest). Only five faces are written by the depth
-     * pass (POS_X, NEG_X, POS_Y, NEG_Y, NEG_Z) - the omitted POS_Z face is left
-     * cleared (sentinel d=1) so any upward-pointing fragment direction reads as "visible".
-     * The receiver does a single pass with `samplerCube`, which uses hardware seamless
-     * filtering across face boundaries - the per-face 2D blur seam mismatch that paints a
-     * square contour at the bottom-side seam is avoided entirely. Lazily allocated and
-     * cached; requires `Kgl.supportsSizedTextureFormats` for RGBA32F.
+     * Depth-only framebuffer paired with [sightlineDepthCubeTexture]. The depth pass
+     * re-attaches the face being rendered to `GL_DEPTH_ATTACHMENT` via
+     * [Framebuffer.attachTexture] with the matching `GL_TEXTURE_CUBE_MAP_*` target. With no
+     * colour attachment, desktop GL reports FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER unless the
+     * draw and read buffers are explicitly set to NONE (FBO state, set once here).
      */
-    val momentsCubeMapTexture get() = momentsCubeMapTextureCache
-        ?: createMomentsColorAttachment(
-            SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE, target = GL_TEXTURE_CUBE_MAP
-        ).also { momentsCubeMapTextureCache = it }
-
-    /**
-     * Framebuffer paired with [momentsCubeMapTexture] for cube-map depth-pass writes. The
-     * depth-component16 texture is attached once and shared across all six face renders
-     * (depth is cleared between faces). The colour attachment is rebound per face to the
-     * matching cube-map face target via [Framebuffer.attachTexture] with
-     * `GL_TEXTURE_CUBE_MAP_POSITIVE_X + i`. Lazily allocated and cached.
-     */
-    val momentsCubeMapFramebuffer get() = momentsCubeMapFramebufferCache ?: Framebuffer().apply {
-        attachTexture(this@DrawContext, createMomentsDepthAttachment(), GL_DEPTH_ATTACHMENT)
-    }.also { momentsCubeMapFramebufferCache = it }
-
-    /**
-     * Single-attachment companion to [momentsFramebuffer] used as the ping-pong target for
-     * the separable Gaussian blur on the moments texture. Same colour format/size as the
-     * moments FBO (so the blurred result can be sampled with the same filter parameters);
-     * no depth attachment because the blur passes don't rasterise geometry.
-     */
-    val momentsBlurFramebuffer get() = momentsBlurFramebufferCache ?: Framebuffer().apply {
-        val colorAttachment = createMomentsColorAttachment(SCRATCH_FRAMEBUFFER_SIZE, SCRATCH_FRAMEBUFFER_SIZE)
-        attachTexture(this@DrawContext, colorAttachment, GL_COLOR_ATTACHMENT0)
-    }.also { momentsBlurFramebufferCache = it }
+    val sightlineCubeFramebuffer get() = sightlineCubeFramebufferCache ?: Framebuffer().apply {
+        attachTexture(this@DrawContext, sightlineDepthCubeTexture, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X)
+        val previousFramebuffer = currentFramebuffer
+        bindFramebuffer(this@DrawContext)
+        gl.drawBuffers(NO_DRAW_BUFFERS)
+        gl.readBuffer(GL_NONE)
+        this@DrawContext.bindFramebuffer(previousFramebuffer)
+    }.also { sightlineCubeFramebufferCache = it }
 
     /**
      * Returns the per-cascade shadow framebuffer for the directional sun-shadow pipeline.
@@ -364,7 +300,7 @@ open class DrawContext(val gl: Kgl) {
         }
         return shadowCascadeFramebufferCache[cascadeIndex] ?: Framebuffer().apply {
             val size = shadowCascadeMapSize(cascadeIndex)
-            val depthAttachment = createMomentsDepthAttachment(size)
+            val depthAttachment = createDepthTextureAttachment(size)
             depthAttachment.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
             depthAttachment.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
             attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
@@ -501,10 +437,8 @@ open class DrawContext(val gl: Kgl) {
         pickFramebufferCache?.release(this)
         pickDepthReadbackFramebufferCache?.release(this)
         scratchFramebufferCache?.release(this)
-        momentsFramebufferCache?.release(this)
-        momentsBlurFramebufferCache?.release(this)
-        momentsCubeMapTextureCache?.release(this)
-        momentsCubeMapFramebufferCache?.release(this)
+        sightlineDepthCubeTextureCache?.release(this)
+        sightlineCubeFramebufferCache?.release(this)
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i]?.release(this)
         multisampleFramebufferCache?.release(this)
         unitSquareBufferCache?.release(this)
@@ -519,10 +453,8 @@ open class DrawContext(val gl: Kgl) {
         pickFramebufferCache = null
         pickDepthReadbackFramebufferCache = null
         scratchFramebufferCache = null
-        momentsFramebufferCache = null
-        momentsBlurFramebufferCache = null
-        momentsCubeMapTextureCache = null
-        momentsCubeMapFramebufferCache = null
+        sightlineDepthCubeTextureCache = null
+        sightlineCubeFramebufferCache = null
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i] = null
         multisampleFramebufferCache = null
         unitSquareBufferCache = null

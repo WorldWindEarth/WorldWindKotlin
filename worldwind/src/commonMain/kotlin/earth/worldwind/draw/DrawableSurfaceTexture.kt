@@ -91,9 +91,9 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
         program.enableTexture(true)
 
         // Bind the cascade shadow maps once per draw - they're per-frame state, not per-tile.
-        // [applyShadowReceiverUniforms] no-ops in pick mode and on platforms without RGBA32F
-        // moments support, leaving [DrawableSurfaceTexture] free to render terrain tiles in
-        // both cases without further branching here.
+        // [applyShadowReceiverUniforms] no-ops in pick mode and on platforms that can't
+        // run the depth-texture cascades, leaving [DrawableSurfaceTexture] free to render
+        // terrain tiles in both cases without further branching here.
         dc.applyShadowReceiverUniforms(program)
 
         // Set up to use vertex tex coord attributes.

@@ -7,7 +7,7 @@ import earth.worldwind.geom.Vec3
 /**
  * Implemented by [earth.worldwind.draw.Drawable]s that can be rendered into the cascaded
  * shadow map's depth pass. Parallel to [earth.worldwind.draw.SightlineOccluder] but specialized
- * for the directional sun-shadow pipeline: the depth-pass program is the same MSM moments
+ * for the directional sun-shadow pipeline: the depth-pass program is the same depth-only
  * shader used by the sightline pipeline, but the per-cascade matrices come from
  * [DrawableShadow] (orthographic) instead of from a perspective sightline frustum.
  *

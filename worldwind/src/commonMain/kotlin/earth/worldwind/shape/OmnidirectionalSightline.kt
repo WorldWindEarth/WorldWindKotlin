@@ -11,8 +11,8 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.program.SightlineMomentsProgram
-import earth.worldwind.render.program.SightlineProgramCube
+import earth.worldwind.render.program.DirectionalDepthProgram
+import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlin.jvm.JvmOverloads
@@ -172,14 +172,14 @@ open class OmnidirectionalSightline @JvmOverloads constructor(
         // populated before they draw.
         val pool = rc.getDrawablePool(DrawableSightline.KEY)
         fun configure(drawable: DrawableSightline) {
+            drawable.sourceKey = this
             drawable.omnidirectional = true
-            drawable.fieldOfView = POS90
             rc.globe.cartesianToLocalTransform(centerPoint.x, centerPoint.y, centerPoint.z, drawable.centerTransform)
             drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
             drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
-            drawable.programCube = rc.getShaderProgram { SightlineProgramCube() }
-            drawable.momentsProgram = rc.getShaderProgram { SightlineMomentsProgram() }
+            drawable.program = rc.getShaderProgram { SightlineProgram() }
+            drawable.depthProgram = rc.getShaderProgram { DirectionalDepthProgram() }
         }
         val depth = DrawableSightline.obtain(pool).also(::configure)
         depth.renderMode = DrawableSightline.RenderMode.DEPTH_ONLY

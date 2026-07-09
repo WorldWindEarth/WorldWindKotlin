@@ -352,13 +352,13 @@ open class WorldWindow(
         gl.getExtension("EXT_texture_filter_anisotropic")
         gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic")
 
-        // Extensions required by the omnidirectional sightline's MSM cube-map path. WebGL2
+        // Extensions used by receiver shaders on WebGL1 contexts. WebGL2
         // makes the latter two implicitly available, but some implementations only honour the
         // GLSL `#extension` directive after a `getExtension` call has touched them.
         gl.getExtension("EXT_color_buffer_float")    // RGBA32F renderable as colour attachment
         gl.getExtension("OES_texture_float_linear")  // GL_LINEAR filtering on float textures
-        gl.getExtension("OES_standard_derivatives")  // dFdx/dFdy in SightlineProgramCube
-        gl.getExtension("EXT_frag_depth")            // gl_FragDepthEXT in SightlineMomentsProgram
+        gl.getExtension("OES_standard_derivatives")  // dFdx/dFdy in receiver-plane bias
+        gl.getExtension("EXT_frag_depth")            // gl_FragDepthEXT for linear-depth writers
 
         // Set up to receive broadcast messages from WorldWind's global message center.
         WorldWind.addListener(this)

@@ -150,7 +150,7 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
     //
     // Fragment shaders also get a `precision mediump float / int` default injected. ES 1.00
     // gives fragments an implicit default; ES 3.00 doesn't, and shaders that don't carry
-    // their own `precision` block (e.g. [SightlineMomentsProgram], [DepthToColorProgram])
+    // their own `precision` block (e.g. [DepthToColorProgram])
     // would otherwise fail with "No precision specified for (float)". Shaders that DO carry
     // their own block keep working - the later declaration overrides this default.
     private fun translateLegacyGlsl(shader: KglShader, source: String): String {

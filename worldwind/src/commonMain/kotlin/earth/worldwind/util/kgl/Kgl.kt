@@ -627,22 +627,19 @@ interface Kgl {
      * with `EXT_color_buffer_half_float`); `0` => no float color attachment is renderable
      * and consumers must fall back to `GL_RGBA8`.
      *
-     * Currently consulted by `DrawContext.momentsFramebuffer`,
-     * `DrawContext.momentsCubeMapTexture` and `DrawContext.momentsBlurFramebuffer` to pick
-     * the precision tier of the MSM moments storage. RGBA16F gives ~11 bits of mantissa,
-     * enough for visible-but-coarser sightline / shadow penumbras (see
-     * `feedback_no_rgba16f_msm_shadows`); RGBA8 is unusable for MSM but lets the engine
-     * boot rather than producing all-black sightlines.
+     * No engine consumer since the shadow and sightline pipelines moved to plain depth
+     * textures; retained as public capability API for applications that render their own
+     * float colour attachments.
      */
     val maxRenderableFloatBits: Int get() = if (supportsSizedTextureFormats) 32 else 0
     /**
      * `true` when `GL_LINEAR` filtering is valid on a 32-bit-float colour texture. RGBA32F +
      * `GL_LINEAR` is texture-complete only with `OES_texture_float_linear` /
      * `EXT_texture_float_linear`; without it the sampler returns the incomplete-texture default
-     * `(0,0,0,1)`, silently turning every shadow / sightline tap into a fully-occluded result
-     * (Adreno 540 / Samsung S9 hits this). Callers that allocate `RGBA32F` must fall back to
-     * `GL_NEAREST` when this is `false` — `DrawContext.createMomentsColorAttachment` does so.
-     * Always `true` on desktop GL3+; Android / iOS / WebGL query the extension at runtime.
+     * `(0,0,0,1)` (Adreno 540 / Samsung S9 hits this). Callers that allocate `RGBA32F`
+     * must fall back to `GL_NEAREST` when this is `false`. No engine consumer since the
+     * shadow and sightline pipelines moved to plain depth textures; retained as public
+     * capability API. Always `true` on desktop GL3+; Android / iOS / WebGL query at runtime.
      */
     val supportsFloatTextureLinear: Boolean get() = true
     /**

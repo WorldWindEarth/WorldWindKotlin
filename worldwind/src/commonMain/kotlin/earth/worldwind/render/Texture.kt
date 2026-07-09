@@ -181,7 +181,7 @@ open class Texture(
         // Configure the OpenGL texture magnification function. Always use the nearest filtering function in picking mode.
         // Render targets ([isRT]) skip anisotropic filtering: applying anisotropy to a non-mipmapped float render
         // target on Adreno (and likely other tile-based GPUs) produces wildly wrong sampling patterns - the cascade
-        // moments / sightline cube faces end up looking like scrambled image content rather than smoothly varying
+        // shadow-cascade / sightline textures end up looking like scrambled image content rather than smoothly varying
         // depths, and the receiver shaders inherit the noise wholesale.
         when {
             dc.isPickMode -> dc.gl.texParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST)

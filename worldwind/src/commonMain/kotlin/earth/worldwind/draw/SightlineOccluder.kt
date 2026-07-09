@@ -28,11 +28,10 @@ interface SightlineOccluder {
      *    immediately before each draw call,
      *  - issuing `glDrawElements` / `glDrawArrays`.
      *
-     * Polygon offset is already disabled by the caller (shapes don't self-shadow), and the
-     * depth-only colour mask is not applied during the sightline depth pass for VSM/depth
-     * receivers - the caller has set up exactly the state appropriate for opaque triangle
-     * rasterisation. The only state the implementation typically needs to manage is cull
-     * face if its geometry isn't a closed CCW solid.
+     * The caller has set up exactly the state appropriate for opaque depth-only triangle
+     * rasterisation (slope-scaled polygon offset, colour writes masked). The only state the
+     * implementation typically needs to manage is cull face if its geometry isn't a closed
+     * CCW solid.
      *
      * Called once per sightline face during the depth pass, so any non-trivial setup that
      * doesn't depend on the active face matrices belongs in the caller's `makeDrawable`,

@@ -1,21 +1,28 @@
 package earth.worldwind.layer.sightline
 
-import earth.worldwind.layer.shadow.defaultSightlineMomentBias
-import earth.worldwind.render.program.MomentShadowGlsl
+import earth.worldwind.draw.DrawContext
 
 /**
  * Reusable GLSL fragments that any program can splice into its fragment shader to make its
- * own pixels modulate against the active sightline's moments map. Mirrors
+ * own pixels modulate against the active sightline's depth cube. Mirrors
  * [earth.worldwind.layer.shadow.ShadowReceiverGlsl] for sun shadows.
  *
  * The vertex shader pulls in [VERTEX_DECLARATIONS] and calls `emitSightlineVaryings(vertex)`
- * once per vertex (`vertex` is the model-space position to be transformed). The fragment
- * shader pulls in [FRAGMENT_DECLARATIONS] and calls `computeSightlineTint()` to get a
- * premultiplied RGBA — `vec4(0)` means "no tint". Compose it over the surface colour:
+ * once per vertex (`vertex` is the position `sightlineLocalMatrix` expects — camera-relative
+ * world for embedded receivers, tile-origin-relative for the terrain overlay pass). The
+ * fragment shader pulls in [FRAGMENT_DECLARATIONS] and calls `computeSightlineTint()` to get
+ * a premultiplied RGBA — `vec4(0)` means "no tint". Compose it over the surface colour:
  *
  *   vec4 tint = computeSightlineTint();
  *   gl_FragColor.rgb = gl_FragColor.rgb * (1.0 - tint.a) + tint.rgb;
  *   gl_FragColor.a = max(gl_FragColor.a, tint.a);
+ *
+ * Occlusion is resolved against a plain depth cube map (see
+ * [DrawContext.sightlineDepthCubeTexture]): the fragment's sightline-local direction picks the
+ * cube texel, and the fragment's own window depth along the dominant face axis is compared
+ * against the stored hardware depth with a 3x3 binomial tent PCF — the same
+ * depth-texture-plus-software-PCF design as the cascaded sun shadows, which compiles as
+ * GLSL ES 1.00 on every platform.
  *
  * Receivers gate the splice with `#ifdef SIGHTLINE_ENABLED` so a single GLSL source supports
  * both the receiver-aware and base variants.
@@ -25,93 +32,110 @@ object SightlineReceiverGlsl {
     const val SIGHTLINE_ENABLED_DEFINE = "#define SIGHTLINE_ENABLED\n"
 
     /**
-     * Block to splice into the **vertex** shader. Pulls the sightline-related varyings.
-     * Caller's vertex shader provides `sightlineModelMatrix` (model -> world transform of
-     * the receiver) and computes its own `gl_Position`; this block adds the sightline
-     * varying outputs alongside.
+     * Block to splice into the **vertex** shader. `sightlineLocalMatrix` maps the caller's
+     * vertex position into the sightline-local frame (Z = up, origin at the sightline);
+     * the caller computes its own `gl_Position` alongside.
      */
     val VERTEX_DECLARATIONS: String = """
-        uniform mat4 sightlineMvMatrix;       /* sightlineView * modelMatrix; world for receivers in world coords */
-        uniform mat4 sightlineProjMatrix;     /* cubeMapProjection (directional) */
-        uniform mat4 sightlineLocalMatrix;    /* inv(centerTransform) * modelMatrix (omni) */
-        uniform bool sightlineOmnidirectional;
+        uniform mat4 sightlineLocalMatrix;
 
-        varying vec4 sightlinePosition;
         varying vec3 sightlineLocalPos;
-        varying float sightlineDistance;
 
         void emitSightlineVaryings(vec4 vertexPos) {
-            vec4 ep = sightlineMvMatrix * vertexPos;
-            sightlineDistance = length(ep);
-            if (sightlineOmnidirectional) {
-                sightlineLocalPos = (sightlineLocalMatrix * vertexPos).xyz;
-                sightlinePosition = vec4(0.0);
-            } else {
-                sightlinePosition = sightlineProjMatrix * ep;
-                sightlineLocalPos = vec3(0.0);
-            }
+            sightlineLocalPos = (sightlineLocalMatrix * vertexPos).xyz;
         }
     """.trimIndent()
 
     /**
      * Block to splice into the **fragment** shader. Provides `computeSightlineTint` which
-     * returns the premultiplied tint to additively blend into the surface colour.
+     * returns the premultiplied tint to blend into the surface colour.
      *
-     * Texture units: `sightlineMomentsSampler` = unit 4 (2D for directional path),
-     * `sightlineMomentsCubeSampler` = unit 5 (cube for omni path). Both bindings are baked
-     * in at program init time; the caller binds the matching textures via
+     * The depth cube sampler lives on texture unit 5 (units 1..4 hold the shadow cascades);
+     * the binding is baked in at program init time and the matching texture is bound via
      * [applySightlineReceiverUniforms] before draw.
      */
     val FRAGMENT_DECLARATIONS: String = """
         uniform bool applySightline;
-        uniform bool sightlineOmnidirectional;
-        uniform sampler2D sightlineMomentsSampler;
-        uniform samplerCube sightlineMomentsCubeSampler;
+        uniform samplerCube sightlineDepthSampler;
         uniform float sightlineRange;
+        uniform float sightlineDepthScale;    /* range/(range-1): window depth = scale*(1-1/d), near = 1 */
+        uniform vec2 sightlineForwardAz;      /* unit horizontal forward of the wedge (directional) */
+        uniform float sightlineCosHalfFov;    /* cos(fov/2); -1 disables the azimuth wedge (omni) */
+        uniform float sightlineSinHalfFov;    /* sin(fov/2) elevation cap; 1 disables it (omni) */
         uniform vec4 sightlineColors[2];      /* [0] visible, [1] occluded; premultiplied */
 
-        varying vec4 sightlinePosition;
         varying vec3 sightlineLocalPos;
-        varying float sightlineDistance;
 
-        const vec3 sightlineMinusOne = vec3(-1.0, -1.0, -1.0);
-        const vec3 sightlinePlusOne  = vec3( 1.0,  1.0,  1.0);
-        /* Platform-templated via [defaultSightlineMomentBias]: IEEE-strict 3e-5 on JVM/JS/
-           Android/desktop; 3e-2 on iOS Mac Simulator's Metal-backed GLES3 only, where the
-           Cholesky reorder produces light-leak noise even in sightline's tight depth range. */
-        const float sightlineMomentBias = $defaultSightlineMomentBias;
-        const float sightlineDepthBias  = 1e-5;
-
-        /* Hamburger 4-moment occlusion bound (0 = visible, 1 = fully occluded) - shared verbatim
-           with the cascade-shadow receiver via [earth.worldwind.render.program.MomentShadowGlsl]. */
-        ${MomentShadowGlsl.OCCLUDE_MASK_FUNCTION}
+        const float sightlineMapSize = ${DrawContext.SIGHTLINE_MAP_SIZE}.0;
 
         /**
-         * Returns the premultiplied tint for this fragment. Caller adds it via
+         * Returns the premultiplied tint for this fragment. Caller composes it via
          *   gl_FragColor.rgb = gl_FragColor.rgb * (1 - tint.a) + tint.rgb;
          * `vec4(0)` short-circuits when the fragment is outside the sightline volume.
          */
         vec4 computeSightlineTint() {
             if (!applySightline) return vec4(0.0);
-            if (sightlineOmnidirectional) {
-                float rangeMask = step(length(sightlineLocalPos), sightlineRange);
-                vec3 absLocal = abs(sightlineLocalPos);
-                float upMask = 1.0 - step(max(absLocal.x, absLocal.y), sightlineLocalPos.z);
-                vec4 moments = textureCube(sightlineMomentsCubeSampler, sightlineLocalPos);
-                float z0 = max(absLocal.x, max(absLocal.y, absLocal.z)) / sightlineRange;
-                float occludeMask = msmOccludeMask(moments, z0 - sightlineDepthBias, sightlineMomentBias);
-                return mix(sightlineColors[0], sightlineColors[1], occludeMask) * rangeMask * upMask;
-            } else {
-                vec3 clipCoord = sightlinePosition.xyz / sightlinePosition.w;
-                vec3 clipMaskV = step(sightlineMinusOne, clipCoord) * step(clipCoord, sightlinePlusOne);
-                float clipMask = clipMaskV.x * clipMaskV.y * clipMaskV.z;
-                float rangeMask = step(sightlineDistance, sightlineRange);
-                vec3 sampleCoord = clipCoord * 0.5 + 0.5;
-                vec4 moments = texture2D(sightlineMomentsSampler, sampleCoord.xy);
-                float z0 = sightlinePosition.w / sightlineRange;
-                float occludeMask = msmOccludeMask(moments, z0 - sightlineDepthBias, sightlineMomentBias);
-                return mix(sightlineColors[0], sightlineColors[1], occludeMask) * clipMask * rangeMask;
+            vec3 local = sightlineLocalPos;
+            /* Hoisted before any divergent branch so derivative quads stay coherent. */
+            vec3 dLx = vec3(0.0);
+            vec3 dLy = vec3(0.0);
+            #ifdef WW_HAS_DERIVATIVES
+            dLx = dFdx(sightlineLocalPos);
+            dLy = dFdy(sightlineLocalPos);
+            #endif
+            float dist = length(local);
+            /* Fragments inside the 1 m near plane get a negative reference depth below and
+               resolve as visible - no explicit near mask needed, only division safety. */
+            if (dist < 0.01 || dist >= sightlineRange) return vec4(0.0);
+            /* Directional wedge: azimuth within fov/2 of forward, elevation below fov/2.
+               Omni loads cosHalfFov = -1 and sinHalfFov = 1, which can never reject. */
+            if (dot(local.xy, sightlineForwardAz) < sightlineCosHalfFov * length(local.xy)) return vec4(0.0);
+            if (local.z > sightlineSinHalfFov * dist) return vec4(0.0);
+            /* Distance along the dominant face axis - the depth the cube face stored. */
+            vec3 a = abs(local);
+            float dAxis = max(a.x, max(a.y, a.z));
+            /* Tangent basis of the dominant face; one step shifts the lookup one texel. */
+            vec3 t1;
+            vec3 t2;
+            if (a.x >= a.y && a.x >= a.z) { t1 = vec3(0.0, 1.0, 0.0); t2 = vec3(0.0, 0.0, 1.0); }
+            else if (a.y >= a.z) { t1 = vec3(1.0, 0.0, 0.0); t2 = vec3(0.0, 0.0, 1.0); }
+            else { t1 = vec3(1.0, 0.0, 0.0); t2 = vec3(0.0, 1.0, 0.0); }
+            float texelStep = 2.0 * dAxis / sightlineMapSize;
+            /* Receiver-plane slope: predict how the surface's axis distance changes per face
+               texel so grazing receivers (street pavement) compare each PCF tap against the
+               plane, not the fragment - the same cure as the sun receiver's dzduv slide. */
+            vec2 dduv = vec2(0.0);
+            #ifdef WW_HAS_DERIVATIVES
+            vec3 axisV = (local - t1 * dot(local, t1) - t2 * dot(local, t2)) / dAxis;
+            float u = dot(local, t1) / dAxis;
+            float v = dot(local, t2) / dAxis;
+            float dax = dot(axisV, dLx);
+            float day = dot(axisV, dLy);
+            float dux = (dot(t1, dLx) - u * dax) / dAxis;
+            float duy = (dot(t1, dLy) - u * day) / dAxis;
+            float dvx = (dot(t2, dLx) - v * dax) / dAxis;
+            float dvy = (dot(t2, dLy) - v * day) / dAxis;
+            float det = dux * dvy - duy * dvx;
+            if (abs(det) > 1e-12) dduv = vec2(dax * dvy - day * dvx, dux * day - duy * dax) / det;
+            #endif
+            /* Per-texel slide in axis distance, clamped so silhouette discontinuities can't
+               drag the prediction to another surface. */
+            float duTexel = 2.0 / sightlineMapSize;
+            vec2 slide = clamp(dduv * duTexel, vec2(-8.0 * texelStep), vec2(8.0 * texelStep));
+            /* 3x3 binomial tent PCF; each tap compares against the plane-predicted depth,
+               biased toward visible by ~two texels of world distance (dz/dd = scale/d^2). */
+            float occluded = 0.0;
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    vec3 dir = local + (t1 * float(i) + t2 * float(j)) * texelStep;
+                    float dPred = max(dAxis + slide.x * float(i) + slide.y * float(j) - 2.0 * texelStep, 0.01);
+                    float refDepth = sightlineDepthScale * (1.0 - 1.0 / dPred);
+                    float w = (2.0 - abs(float(i))) * (2.0 - abs(float(j)));
+                    occluded += w * step(textureCube(sightlineDepthSampler, dir).r, refDepth);
+                }
             }
+            occluded /= 16.0;
+            return mix(sightlineColors[0], sightlineColors[1], occluded);
         }
     """.trimIndent()
 }

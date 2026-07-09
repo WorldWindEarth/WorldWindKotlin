@@ -129,9 +129,9 @@ open class BasicFrameController: FrameController {
         // emitted once *per unit*, so we have to cover them all up front. Units in use:
         //   0       — diffuse textures (BasicShaderProgram et al.)
         //   1..4    — ShadowReceiver cascade depth samplers
-        //   5       — Sightline receiver 2D moments (cube on unit 6 needs its own dummy
-        //             and isn't covered here; the sightline path itself unbinds it when
-        //             disabled, so the warning hasn't been observed for the cube unit yet).
+        //   5       — Sightline receiver depth cube (a samplerCube unit; the 2D
+        //             default bound below is still a valid non-empty binding for the
+        //             warning check, and the sightline path re-binds its own cube).
         // Subsequent drawables that bind their own texture overwrite the default; units
         // never sampled keep the default and silence the driver without further scatter.
         for (unit in 0..5) {

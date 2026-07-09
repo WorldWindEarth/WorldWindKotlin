@@ -251,17 +251,8 @@ open class Ogc3dTilesProgram(
 
     override fun loadSightlineDisabled() = sightlineUniforms.loadDisabled(gl)
 
-    override fun loadSightlineEnabled(
-        omnidirectional: Boolean,
-        sightlineMv: Matrix4,
-        cubeMapProjection: Matrix4,
-        sightlineLocal: Matrix4,
-        range: Float,
-        visibleColor: Color,
-        occludedColor: Color,
-    ) = sightlineUniforms.loadEnabled(
-        gl, omnidirectional, sightlineMv, cubeMapProjection, sightlineLocal, range, visibleColor, occludedColor,
-    )
+    override fun loadSightlineEnabled(state: SightlineState, localMatrix: Matrix4) =
+        sightlineUniforms.loadEnabled(gl, state, localMatrix)
 
     companion object {
         /** Always include the sightline splice. `hasActiveSightline` is set inside

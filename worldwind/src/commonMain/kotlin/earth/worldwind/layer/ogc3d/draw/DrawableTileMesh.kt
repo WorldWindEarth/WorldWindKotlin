@@ -300,7 +300,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         dc.gl.enable(GL_CULL_FACE)
     }
 
-    /** Sightline depth pass. Triangles only — lines/points alias on the moments cube. */
+    /** Sightline depth pass. Triangles only — lines/points alias on the depth cube. */
     override fun drawSightlineDepth(dc: DrawContext, sightline: DrawableSightline) {
         if (!shadowMode.castsShadows) return
         val content = this.content ?: return

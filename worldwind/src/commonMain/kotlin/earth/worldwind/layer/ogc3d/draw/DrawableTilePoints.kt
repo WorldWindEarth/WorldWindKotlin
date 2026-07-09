@@ -23,12 +23,11 @@ import kotlin.jvm.JvmStatic
  * pre-uploaded [PointCloudContent], the tile-to-world transform, and per-frame state for
  * the shadow + sightline receiver paths. Pool-recycled.
  *
- * Casts cascade shadows as 1-pixel point splats: the existing moments depth program is
+ * Casts cascade shadows as 1-pixel point splats: the depth-only caster program is
  * triangle-oriented but happily rasterises `GL_POINTS`, with `gl_PointSize` defaulting to 1.
- * Combined with the cascade moments separable-blur pass, dense LiDAR clouds produce realistic
- * ground-halo shadows; sparse clouds look slightly stippled. A follow-up may add a
- * dedicated points-moments program that writes a size-attenuated `gl_PointSize` matching
- * the colour pass's per-splat disc.
+ * Softened by the receiver's PCF, dense LiDAR clouds produce believable ground-halo shadows;
+ * sparse clouds look slightly stippled. A follow-up may add a dedicated points depth program
+ * that writes a size-attenuated `gl_PointSize` matching the colour pass's per-splat disc.
  */
 open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
 
@@ -151,15 +150,12 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
 
     /**
      * Cascade depth-pass dispatch. Binds the same VBO as the colour pass, points attribute 0
-     * at the interleaved position field, and rasterises `GL_POINTS` into the moments
-     * framebuffer. The depth program writes perpendicular-depth moments per fragment, same as
-     * the triangle path — the only difference is each occluder is one pixel rather than a
-     * filled triangle. Cascade separable-blur smears those impulses into round soft splats on
-     * the ground, giving believable point-cloud shadows without a dedicated point-sprite
-     * moments shader.
+     * at the interleaved position field, and rasterises `GL_POINTS` into the cascade depth
+     * texture — each occluder is one pixel rather than a filled triangle; the receiver's PCF
+     * smears those impulses into soft splats on the ground.
      *
      * No-op when `shadowMode.castsShadows` is false or the VBO hasn't been uploaded yet.
-     * Doesn't touch attribute 1 (colour) — moments shader only reads position.
+     * Doesn't touch attribute 1 (colour) — the depth shader only reads position.
      */
     override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {
         if (!shadowMode.castsShadows) return

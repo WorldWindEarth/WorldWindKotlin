@@ -14,8 +14,7 @@ import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
-import earth.worldwind.render.program.SightlineMomentsBlurProgram
-import earth.worldwind.render.program.SightlineMomentsProgram
+import earth.worldwind.render.program.DirectionalDepthProgram
 import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -226,21 +225,17 @@ open class DirectionalSightline @JvmOverloads constructor(
         // way as before. Each holds its own copy of the configuration; they don't share state.
         val pool = rc.getDrawablePool(DrawableSightline.KEY)
         fun configure(drawable: DrawableSightline) {
+            drawable.sourceKey = this
             drawable.omnidirectional = false
             drawable.fieldOfView = fieldOfView
+            drawable.heading = heading
+            // Plain local (Z = up) frame; the heading/fov wedge is a receiver-side mask.
             rc.globe.cartesianToLocalTransform(centerPoint.x, centerPoint.y, centerPoint.z, drawable.centerTransform)
-            drawable.centerTransform.multiplyByRotation(1.0, 0.0, 0.0, POS90).multiplyByRotation(0.0, -1.0, 0.0, heading)
             drawable.range = range.coerceIn(0.0, Float.MAX_VALUE.toDouble()).toFloat()
-            drawable.directionalFillPasses = when {
-                position.altitude > range * 0.1 -> 2
-                position.altitude > range * 0.01 -> 1
-                else -> 0
-            }
             drawable.visibleColor.copy(if (rc.isPickMode) pickColor else activeAttributes.interiorColor)
             drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
             drawable.program = rc.getShaderProgram { SightlineProgram() }
-            drawable.momentsProgram = rc.getShaderProgram { SightlineMomentsProgram() }
-            drawable.momentsBlurProgram = rc.getShaderProgram { SightlineMomentsBlurProgram() }
+            drawable.depthProgram = rc.getShaderProgram { DirectionalDepthProgram() }
         }
 
         val depth = DrawableSightline.obtain(pool).also(::configure)

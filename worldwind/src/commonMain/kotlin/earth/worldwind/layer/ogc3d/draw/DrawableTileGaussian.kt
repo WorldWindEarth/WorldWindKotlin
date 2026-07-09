@@ -32,7 +32,7 @@ import kotlin.jvm.JvmStatic
  * around the tile.
  *
  * Implements [ShadowCaster] like [DrawableTilePoints]: emits one-pixel `GL_POINTS` into the
- * cascade moments framebuffer when `shadowMode.castsShadows`. The colour pass does not
+ * cascade depth texture when `shadowMode.castsShadows`. The colour pass does not
  * apply incoming shadows — splats are usually self-shadowed already, the bookkeeping cost
  * outweighs the fidelity gain.
  */
@@ -177,9 +177,8 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
 
     /**
      * Cascade depth-pass dispatch. Mirrors [DrawableTilePoints.drawShadowDepth]: binds the
-     * centers VBO + a single position attribute, issues `GL_POINTS` into the cascade moments
-     * framebuffer. One-pixel splats per splat → cascade separable blur softens them into
-     * believable ground halos.
+     * centers VBO + a single position attribute, issues `GL_POINTS` into the cascade depth
+     * texture. One pixel per splat → the receiver's PCF softens them into ground halos.
      */
     override fun drawShadowDepth(dc: DrawContext, shadow: DrawableShadow) {
         if (!shadowMode.castsShadows) return

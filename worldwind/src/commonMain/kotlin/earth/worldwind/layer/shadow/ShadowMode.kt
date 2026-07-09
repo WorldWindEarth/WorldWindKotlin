@@ -23,6 +23,6 @@ enum class ShadowMode {
 
     /** Whether the shape's geometry should be rasterised into the cascade depth maps. */
     val castsShadows: Boolean get() = this == ENABLED || this == CAST_ONLY
-    /** Whether the shape's fragments should sample the cascade moments and be darkened. */
+    /** Whether the shape's fragments should sample the cascade depth maps and be darkened. */
     val receivesShadows: Boolean get() = this == ENABLED || this == RECEIVE_ONLY
 }
