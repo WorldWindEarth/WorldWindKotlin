@@ -69,8 +69,12 @@ class CachedBulkFeatureSource(
 
     override suspend fun fetchAll(): Flow<CachedFeatureRow> = flow {
         if (store.sizeBytes() > 0) {
-            store.readAll().collect { emit(it) }
-            return@flow
+            var cachedRows = 0
+            store.readAll().collect { cachedRows++; emit(it) }
+            if (cachedRows > 0 || isCacheOnly) return@flow
+            // Cache present but yielded nothing (e.g. schema-drift decode failure) — refetch.
+            logMessage(WARN, "CachedBulkFeatureSource", "fetchAll",
+                "cache present but yielded 0 rows; refetching from source")
         }
         if (isCacheOnly) return@flow
         val source = inner ?: return@flow

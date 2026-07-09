@@ -3,6 +3,7 @@
 package earth.worldwind.tutorials
 
 import earth.worldwind.WorldWind
+import earth.worldwind.util.Logger
 import earth.worldwind.WorldWindow as PlatformWorldWindow
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.log
@@ -63,6 +64,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  *  (BackgroundLayer + StarField + Atmosphere + BasicElevationCoverage). The view is sized
  *  later by SwiftUI's UIViewRepresentable layout. */
 fun createWorldWindow(): PlatformWorldWindow {
+    Logger.loggingLevel = Logger.INFO // tutorial diagnostics visible in Console/NSLog
     val wwd = PlatformWorldWindow(CGRectMake(0.0, 0.0, 0.0, 0.0))
     setupDefaultGlobe(wwd.engine)
     // Renderable selection / drag, matches the JVM and Android tutorial setup.

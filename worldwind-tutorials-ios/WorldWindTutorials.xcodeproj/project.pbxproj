@@ -173,10 +173,11 @@
 			);
 			outputPaths = (
 				"$(DERIVED_FILE_DIR)/kotlin-native-framework.stamp",
+				"$(WW_KN_FRAMEWORK_DIR)/WorldWindTutorials.framework/WorldWindTutorials",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\ncd \"$SRCROOT/..\"\n\nif [ \"$CONFIGURATION\" = \"Release\" ]; then\n    GRADLE_CONFIG=\"Release\"\nelse\n    GRADLE_CONFIG=\"Debug\"\nfi\n\ncase \"$SDK_NAME-$ARCHS\" in\n    iphoneos*-*arm64*)         KN_TARGET=\"IosArm64\" ;;\n    iphonesimulator*-*arm64*)  KN_TARGET=\"IosSimulatorArm64\" ;;\n    iphonesimulator*-*x86_64*) KN_TARGET=\"IosX64\" ;;\n    *)\n        echo \"error: Unsupported SDK/arch combo: $SDK_NAME / $ARCHS\" >&2\n        exit 1\n        ;;\nesac\n\n# 1) Build the static framework so its headers + .a are ready for the Swift compile.\necho \"Running ./gradlew :worldwind-tutorials:link${GRADLE_CONFIG}Framework${KN_TARGET}\"\n./gradlew :worldwind-tutorials:link${GRADLE_CONFIG}Framework${KN_TARGET}\n\n# 2) Copy moko-resources bundles (images, files, assets) from the framework into the .app.\n# The task is registered per-variant and reads CONFIGURATION/SDK_NAME/ARCHS/BUILT_PRODUCTS_DIR/\n# CONTENTS_FOLDER_PATH from Xcode's env. Without it, MR.assets / MR.files / MR.images lookups\n# fail at runtime (FileResource retrieval failed, UIImage(named:) returns nil, etc.).\necho \"Running ./gradlew :worldwind-tutorials:copyResources${GRADLE_CONFIG}Framework${KN_TARGET}\"\n./gradlew :worldwind-tutorials:copyResources${GRADLE_CONFIG}Framework${KN_TARGET} \\\n    -Pmoko.resources.BUILT_PRODUCTS_DIR=\"$BUILT_PRODUCTS_DIR\" \\\n    -Pmoko.resources.CONTENTS_FOLDER_PATH=\"$CONTENTS_FOLDER_PATH\" \\\n    -Pmoko.resources.CONFIGURATION=\"$CONFIGURATION\" \\\n    -Pmoko.resources.SDK_NAME=\"$SDK_NAME\" \\\n    -Pmoko.resources.ARCHS=\"$ARCHS\"\n\n# 3) Touch a stamp file declared in outputPaths. With alwaysOutOfDate = 1 plus a real\n# outputPath, Xcode invalidates the downstream Swift compile / app link phases on every\n# build (otherwise it would skip linking when no Swift source changed and keep the .app\n# bundled with the previous Gradle build of the framework).\nmkdir -p \"$DERIVED_FILE_DIR\"\ntouch \"$DERIVED_FILE_DIR/kotlin-native-framework.stamp\"\n";
+			shellScript = "set -euo pipefail\ncd \"$SRCROOT/..\"\n\nif [ \"$CONFIGURATION\" = \"Release\" ]; then\n    GRADLE_CONFIG=\"Release\"\nelse\n    GRADLE_CONFIG=\"Debug\"\nfi\n\ncase \"$SDK_NAME-$ARCHS\" in\n    iphoneos*-*arm64*)         KN_TARGET=\"IosArm64\" ;;\n    iphonesimulator*-*arm64*)  KN_TARGET=\"IosSimulatorArm64\" ;;\n    iphonesimulator*-*x86_64*) KN_TARGET=\"IosX64\" ;;\n    *)\n        echo \"error: Unsupported SDK/arch combo: $SDK_NAME / $ARCHS\" >&2\n        exit 1\n        ;;\nesac\n\n# 1) Build the static framework so its headers + .a are ready for the Swift compile.\necho \"Running ./gradlew :worldwind-tutorials:link${GRADLE_CONFIG}Framework${KN_TARGET} (native draco)\"\n./gradlew :worldwind-tutorials:link${GRADLE_CONFIG}Framework${KN_TARGET} -Pworldwind.draco.buildIosNative=true\n\n# 2) Copy moko-resources bundles (images, files, assets) from the framework into the .app.\n# The task is registered per-variant and reads CONFIGURATION/SDK_NAME/ARCHS/BUILT_PRODUCTS_DIR/\n# CONTENTS_FOLDER_PATH from Xcode's env. Without it, MR.assets / MR.files / MR.images lookups\n# fail at runtime (FileResource retrieval failed, UIImage(named:) returns nil, etc.).\necho \"Running ./gradlew :worldwind-tutorials:copyResources${GRADLE_CONFIG}Framework${KN_TARGET}\"\n./gradlew :worldwind-tutorials:copyResources${GRADLE_CONFIG}Framework${KN_TARGET} \\\n    -Pmoko.resources.BUILT_PRODUCTS_DIR=\"$BUILT_PRODUCTS_DIR\" \\\n    -Pmoko.resources.CONTENTS_FOLDER_PATH=\"$CONTENTS_FOLDER_PATH\" \\\n    -Pmoko.resources.CONFIGURATION=\"$CONFIGURATION\" \\\n    -Pmoko.resources.SDK_NAME=\"$SDK_NAME\" \\\n    -Pmoko.resources.ARCHS=\"$ARCHS\"\n\n# 3) Touch the stamp declared in outputPaths. Together with the framework binary declared\n# there (via WW_KN_FRAMEWORK_DIR), this invalidates the downstream Swift compile and app\n# link — otherwise Xcode keeps linking the previous Gradle build of the static framework.\nmkdir -p \"$DERIVED_FILE_DIR\"\ntouch \"$DERIVED_FILE_DIR/kotlin-native-framework.stamp\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -322,6 +323,9 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosArm64/debugFramework";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosSimulatorArm64/debugFramework";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*][arch=x86_64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosX64/debugFramework";
+				"WW_KN_FRAMEWORK_DIR[sdk=iphoneos*]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosArm64/debugFramework";
+				"WW_KN_FRAMEWORK_DIR[sdk=iphonesimulator*][arch=arm64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosSimulatorArm64/debugFramework";
+				"WW_KN_FRAMEWORK_DIR[sdk=iphonesimulator*][arch=x86_64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosX64/debugFramework";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WorldWindTutorialsApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -371,6 +375,9 @@
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosArm64/releaseFramework";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosSimulatorArm64/releaseFramework";
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*][arch=x86_64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosX64/releaseFramework";
+				"WW_KN_FRAMEWORK_DIR[sdk=iphoneos*]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosArm64/releaseFramework";
+				"WW_KN_FRAMEWORK_DIR[sdk=iphonesimulator*][arch=arm64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosSimulatorArm64/releaseFramework";
+				"WW_KN_FRAMEWORK_DIR[sdk=iphonesimulator*][arch=x86_64]" = "$(SRCROOT)/../worldwind-tutorials/build/bin/iosX64/releaseFramework";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WorldWindTutorialsApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

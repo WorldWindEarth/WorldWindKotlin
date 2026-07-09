@@ -59,6 +59,25 @@ class TilesetParserUriTest {
     }
 
     @Test
+    fun collapsesDotSegmentsFromNestedTilesetChildren() {
+        // ArcGIS nested tilesets reference siblings via ../.. — servers 403 raw dot segments
+        // when the HTTP stack (iOS Darwin) sends the path verbatim.
+        val b = base("https://tiles.example.com/svc/3DTilesServer/L11/UP/tileset.json")
+        assertEquals(
+            "https://tiles.example.com/svc/3DTilesServer/L8/UP/tile.b3dm",
+            TilesetParser.resolveUri(b, "../../L8/UP/tile.b3dm"),
+        )
+        assertEquals(
+            "https://tiles.example.com/svc/3DTilesServer/L11/UP/tile.b3dm?session=x",
+            TilesetParser.resolveUri(b, "./tile.b3dm?session=x"),
+        )
+        assertEquals(
+            "https://tiles.example.com/svc/other.b3dm",
+            TilesetParser.resolveUri(b, "/svc/3DTilesServer/../other.b3dm"),
+        )
+    }
+
+    @Test
     fun fallsBackForOpaqueBaseUri() {
         // No scheme://authority/ — should still produce something usable via the Uri-library fallback.
         val b = base("file:///tmp/local/root.json")

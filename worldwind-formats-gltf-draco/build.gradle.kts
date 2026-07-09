@@ -61,6 +61,11 @@ val cmakeOnPath = providers.exec {
     commandLine("sh", "-c", "command -v cmake")
 }.result.get().exitValue == 0
 
+// cmake from PATH, else the Android SDK's bundled copy — no system-wide install required.
+val cmakeExecutable: String = if (cmakeOnPath) "cmake"
+    else sdkDir.orNull?.let { sdk -> file("$sdk/cmake/$cmakeVersion/bin/cmake").takeIf { it.exists() }?.absolutePath }
+        ?: "cmake"
+
 // ──────────────────────────────────────────────────────────────────────────────────────
 // iOS cinterop helper — registers cmakeConfigureIos_<target> + cmakeBuildIos_<target>
 // Exec tasks, then attaches a cinterop binding that depends on the CMake build. Called
@@ -81,7 +86,7 @@ fun KotlinNativeTarget.setupIosDracoCinterop(
         outputs.file(buildDirProv.map { it.file("CMakeCache.txt") })
         doFirst { buildDirProv.get().asFile.mkdirs() }
         workingDir = buildDirProv.get().asFile
-        executable = "cmake"
+        executable = cmakeExecutable
         argumentProviders.add {
             // Resolve the Apple SDK path via xcrun. Minimum iOS version aligns with the
             // worldwind module's iOS deployment target.
@@ -109,7 +114,7 @@ fun KotlinNativeTarget.setupIosDracoCinterop(
         outputs.file(buildDirProv.map { it.file("libdraco_bridge.a") })
         outputs.file(buildDirProv.map { it.dir("_deps/draco-build/libdraco.a") })
         workingDir = buildDirProv.get().asFile
-        executable = "cmake"
+        executable = cmakeExecutable
         argumentProviders.add {
             listOf("--build", buildDirProv.get().asFile.absolutePath, "--config", "Release")
         }
@@ -315,7 +320,7 @@ val cmakeConfigureJvm = tasks.register<Exec>("cmakeConfigureJvm") {
     outputs.file(jvmNativeBuildDir.map { it.file("${jvmHost.classifier}/CMakeCache.txt") })
     doFirst { jvmNativeBuildDir.get().dir(jvmHost.classifier).asFile.mkdirs() }
     workingDir = jvmNativeBuildDir.get().dir(jvmHost.classifier).asFile
-    executable = "cmake"
+    executable = cmakeExecutable
     argumentProviders.add {
         listOf(
             "-DCMAKE_BUILD_TYPE=Release",
@@ -334,7 +339,7 @@ val cmakeBuildJvm = tasks.register<Exec>("cmakeBuildJvm") {
     val targetDir = jvmNativeBuildDir.map { it.dir(jvmHost.classifier) }
     outputs.file(targetDir.map { it.file(jvmHost.libFileName) })
     workingDir = targetDir.get().asFile
-    executable = "cmake"
+    executable = cmakeExecutable
     argumentProviders.add {
         listOf("--build", targetDir.get().asFile.absolutePath, "--config", "Release")
     }

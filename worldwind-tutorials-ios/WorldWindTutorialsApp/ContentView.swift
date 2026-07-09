@@ -57,6 +57,12 @@ struct ContentView: View {
         // size for the embedded CAEAGLLayer and floods the console with
         // "Failed to create <W>x0 image slot" warnings.
         .navigationSplitViewStyle(.prominentDetail)
+        // Test hook: WW_TUTORIAL env var auto-selects a tutorial (simctl launch driving).
+        .onAppear {
+            if selectedId == nil, let id = ProcessInfo.processInfo.environment["WW_TUTORIAL"] {
+                selectedId = id
+            }
+        }
         .onChange(of: selectedId) { newValue in
             if let id = newValue {
                 Tutorials.shared.apply(engine: MainKt.engineOf(window: globe.window), id: id)

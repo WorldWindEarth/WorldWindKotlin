@@ -50,7 +50,7 @@ class ShapefileLayerTutorial(
                 // this call. Same pattern as WfsLayerTutorial.
                 if (layer is BulkFeatureLayer) layer.load()
                 WorldWind.requestRedraw()
-                Logger.log(Logger.INFO, "Shapefile layer creation succeeded")
+                Logger.log(Logger.INFO, "Shapefile layer creation succeeded, renderables=${layer.count}")
             } catch (e: Throwable) {
                 Logger.log(Logger.ERROR, "Shapefile layer creation failed", e)
             }

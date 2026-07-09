@@ -161,8 +161,30 @@ object TilesetParser {
     internal fun resolveUri(base: ResolvedBase, child: String): String {
         if (child.startsWith("http://") || child.startsWith("https://") || child.startsWith("data:")) return child
         if (base.origin.isEmpty()) return resolveUriFallback(base.baseUri, child)
-        return if (child.startsWith("/")) base.origin + child
-               else base.origin + base.dirWithSlash + child
+        val spliced = if (child.startsWith("/")) base.origin + child
+                      else base.origin + base.dirWithSlash + child
+        // Collapse dot segments — some servers 403 raw `..` and some HTTP stacks send paths verbatim.
+        return if (child.startsWith(".") || child.contains("/.")) collapseDotSegments(spliced) else spliced
+    }
+
+    /** Remove `.` segments and fold `seg/..` pairs in the path part of [uri], leaving the
+     *  origin and any `?…`/`#…` suffix untouched. Called only when a dot segment is present. */
+    internal fun collapseDotSegments(uri: String): String {
+        val suffixAt = firstOf(uri, '?', '#')
+        val full = if (suffixAt >= 0) uri.substring(0, suffixAt) else uri
+        val suffix = if (suffixAt >= 0) uri.substring(suffixAt) else ""
+        val schemeEnd = full.indexOf("://")
+        val pathStart = if (schemeEnd >= 0) full.indexOf('/', schemeEnd + 3) else 0
+        if (pathStart < 0) return uri
+        val prefix = full.substring(0, pathStart)
+        val segments = ArrayList<String>()
+        for (seg in full.substring(pathStart).split('/')) when (seg) {
+            "", "." -> {}
+            ".." -> if (segments.isNotEmpty()) segments.removeAt(segments.size - 1)
+            else -> segments.add(seg)
+        }
+        val trailingSlash = if (full.endsWith("/") && segments.isNotEmpty()) "/" else ""
+        return prefix + "/" + segments.joinToString("/") + trailingSlash + suffix
     }
 
     /** Slow fallback when [baseUri] doesn't match `scheme://authority/...`. Used for
@@ -179,7 +201,8 @@ object TilesetParser {
             val childPath = if (childSuffixAt >= 0) child.substring(0, childSuffixAt) else child
             val rawSuffix = if (childSuffixAt >= 0) child.substring(childSuffixAt) else ""
             val childSuffix = if (rawSuffix == "?" || rawSuffix == "#") "" else rawSuffix
-            val newPath = if (childPath.startsWith("/")) childPath else "$dir/$childPath"
+            val rawPath = if (childPath.startsWith("/")) childPath else "$dir/$childPath"
+            val newPath = if (rawPath.contains("/.")) collapseDotSegments(rawPath) else rawPath
             parentUri.buildUpon().path(newPath).clearQuery().fragment(null).build().toString() + childSuffix
         } catch (_: Throwable) {
             val dir = baseUri.substringBeforeLast('/', missingDelimiterValue = "")

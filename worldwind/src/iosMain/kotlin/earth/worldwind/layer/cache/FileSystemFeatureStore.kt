@@ -56,7 +56,9 @@ class FileSystemFeatureStore(
         val list = runCatching { JSON.decodeFromString(rowListSerializer, text) }
             .onFailure { e ->
                 Logger.log(WARN, "FileSystemFeatureStore.readAll('$contentKey') decode failed: " +
-                    "${e::class.simpleName}: ${e.message}")
+                    "${e::class.simpleName}: ${e.message}; discarding stale bulk cache")
+                // Schema drift from an older build — self-heal so the next fetch repopulates.
+                NSFileManager.defaultManager.removeItemAtPath(path, null)
             }
             .getOrNull()
             ?: return@withContext emptyFlow()

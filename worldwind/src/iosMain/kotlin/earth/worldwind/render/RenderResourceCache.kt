@@ -34,6 +34,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 import earth.worldwind.render.image.ImageData
+import platform.Foundation.NSProcessInfo
 import platform.UIKit.UIImage
 
 /**
@@ -44,11 +45,12 @@ import platform.UIKit.UIImage
  * from `WorldWindow.doFrame`).
  */
 actual open class RenderResourceCache(
-    capacity: Long = DEFAULT_CAPACITY,
+    capacity: Long = recommendedCapacity(),
     lowWater: Long = (capacity * 0.75).toLong()
 ) : LruMemoryCache<Any, RenderResource>(capacity, lowWater) {
     companion object {
-        const val DEFAULT_CAPACITY = 512L * 1024 * 1024
+        // Use 3/16 of physical memory as recommended resource cache capacity, same as Android.
+        fun recommendedCapacity(): Long = (NSProcessInfo.processInfo.physicalMemory / 16UL * 3UL).toLong()
     }
 
     override var age = 0L
