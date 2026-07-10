@@ -17,12 +17,12 @@ import earth.worldwind.draw.DrawContext
  *   gl_FragColor.rgb = gl_FragColor.rgb * (1.0 - tint.a) + tint.rgb;
  *   gl_FragColor.a = max(gl_FragColor.a, tint.a);
  *
- * Occlusion is resolved against a plain depth cube map (see
- * [DrawContext.sightlineDepthCubeTexture]): the fragment's sightline-local direction picks the
- * cube texel, and the fragment's own window depth along the dominant face axis is compared
- * against the stored hardware depth with a 3x3 binomial tent PCF — the same
- * depth-texture-plus-software-PCF design as the cascaded sun shadows, which compiles as
- * GLSL ES 1.00 on every platform.
+ * Occlusion is resolved against a depth cube map (see [DrawContext.sightlineDepthCubeTexture]):
+ * the fragment's sightline-local direction picks the cube texel, and the fragment's own window
+ * depth along the dominant face axis is compared against the stored hardware depth with a 3x3
+ * binomial tent PCF — the same design as the cascaded sun shadows, including the
+ * `WW_SHADOW_SAMPLERS` hardware depth-compare variant (`samplerCubeShadow`, one compare per
+ * tap in the sampler) with the in-shader `step` compare as the GLSL ES 1.00 fallback.
  *
  * Receivers gate the splice with `#ifdef SIGHTLINE_ENABLED` so a single GLSL source supports
  * both the receiver-aware and base variants.
@@ -56,7 +56,11 @@ object SightlineReceiverGlsl {
      */
     val FRAGMENT_DECLARATIONS: String = """
         uniform bool applySightline;
-        uniform samplerCube sightlineDepthSampler;
+        #ifdef WW_SHADOW_SAMPLERS
+        uniform highp samplerCubeShadow sightlineDepthSampler;
+        #else
+        uniform highp samplerCube sightlineDepthSampler;
+        #endif
         uniform float sightlineRange;
         uniform float sightlineDepthScale;    /* range/(range-1): window depth = scale*(1-1/d), near = 1 */
         uniform vec2 sightlineForwardAz;      /* unit horizontal forward of the wedge (directional) */
@@ -131,7 +135,12 @@ object SightlineReceiverGlsl {
                     float dPred = max(dAxis + slide.x * float(i) + slide.y * float(j) - 2.0 * texelStep, 0.01);
                     float refDepth = sightlineDepthScale * (1.0 - 1.0 / dPred);
                     float w = (2.0 - abs(float(i))) * (2.0 - abs(float(j)));
+                    #ifdef WW_SHADOW_SAMPLERS
+                    /* LEQUAL compare returns visibility; the tap contributes its complement. */
+                    occluded += w * (1.0 - texture(sightlineDepthSampler, vec4(dir, refDepth)));
+                    #else
                     occluded += w * step(textureCube(sightlineDepthSampler, dir).r, refDepth);
+                    #endif
                 }
             }
             occluded /= 16.0;

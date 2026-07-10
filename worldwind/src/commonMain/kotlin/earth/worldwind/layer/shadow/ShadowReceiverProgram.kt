@@ -5,6 +5,9 @@ import earth.worldwind.util.kgl.GL_DEPTH_ATTACHMENT
 import earth.worldwind.util.kgl.GL_TEXTURE0
 import earth.worldwind.util.kgl.GL_TEXTURE1
 
+/** Sentinel [DrawContext.lastShadowTextureBindStamp]: units 1..4 hold the null shadow map. */
+private const val NULL_MAPS_STAMP = -2L
+
 /**
  * Common contract implemented by every shader program that samples the cascaded shadow maps
  * (see [ShadowReceiverGlsl] for the GLSL these methods drive). Lets
@@ -62,7 +65,21 @@ fun DrawContext.applyShadowReceiverUniforms(program: ShadowReceiverProgram, appl
         // The shared texture binds are only disturbed by pick / no-state frames; a plain
         // per-shape opt-out leaves units 1..4 intact - resetting here would force every
         // following receiver to re-bind all cascades.
-        if (isPickMode || state == null || !state.isReady) lastShadowTextureBindStamp = -1L
+        if (isPickMode || state == null || !state.isReady) {
+            // WebGL2 validates sampler type vs texture format at draw time even when the
+            // shader never samples - sampler2DShadow units must hold a compare-mode depth
+            // texture, so park them on the 1x1 null map until real cascades bind.
+            if (gl.hasShadowSamplers && lastShadowTextureBindStamp != NULL_MAPS_STAMP) {
+                for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
+                    activeTextureUnit(GL_TEXTURE1 + i)
+                    nullShadowDepthTexture.bindTexture(this)
+                }
+                activeTextureUnit(GL_TEXTURE0)
+                lastShadowTextureBindStamp = NULL_MAPS_STAMP
+            } else if (!gl.hasShadowSamplers) {
+                lastShadowTextureBindStamp = -1L
+            }
+        }
         return
     }
     val stamp = state.frameStamp

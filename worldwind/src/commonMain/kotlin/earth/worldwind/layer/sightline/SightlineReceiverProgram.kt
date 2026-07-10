@@ -36,11 +36,12 @@ fun DrawContext.applySightlineReceiverUniforms(program: SightlineReceiverProgram
     if (!applySightline || isPickMode || state == null) {
         program.loadSightlineDisabled()
         program.lastSightlineState = null
-        // Bind a benign cube texture so the never-sampled unit-5 samplerCube doesn't trip
-        // macOS's empty-unit validator. Deduped — bound once per frame.
+        // Bind a benign cube so the never-sampled unit-5 sampler doesn't trip macOS's
+        // empty-unit validator - and, under hardware compare samplers, so WebGL2's draw-time
+        // sampler-vs-format validation sees a compare-mode depth cube. Bound once per frame.
         if (!sightlineBenignBound) {
             activeTextureUnit(GL_TEXTURE5)
-            defaultCubeTexture.bindTexture(this)
+            (if (gl.hasShadowSamplers) nullShadowDepthCubeTexture else defaultCubeTexture).bindTexture(this)
             activeTextureUnit(GL_TEXTURE0)
             sightlineBenignBound = true
         }

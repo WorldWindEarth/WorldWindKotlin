@@ -123,7 +123,7 @@ open class SurfaceTextureProgram(
 
     // Prepend [Kgl.glslDerivativesPrefix] (WW_HAS_DERIVATIVES + platform-aware extension
     // directive) so the shadow receiver's receiver-plane depth bias can use dFdx/dFdy.
-    override fun glslVersion(dc: earth.worldwind.draw.DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+    override fun glslVersion(dc: earth.worldwind.draw.DrawContext) = ShadowReceiverGlsl.glslPrefix(dc, shadowsEnabled)
 
 
     private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""

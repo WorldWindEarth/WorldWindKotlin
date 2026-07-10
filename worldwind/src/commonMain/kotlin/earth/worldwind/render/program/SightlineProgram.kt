@@ -2,6 +2,7 @@ package earth.worldwind.render.program
 
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.sightline.SightlineReceiverGlsl
 import earth.worldwind.layer.sightline.SightlineReceiverProgram
 import earth.worldwind.layer.sightline.SightlineReceiverUniforms
@@ -46,8 +47,8 @@ class SightlineProgram : AbstractShaderProgram(), SightlineReceiverProgram {
     )
     override val attribBindings = arrayOf("vertexPoint")
 
-    // Receiver-plane bias needs dFdx/dFdy; prefix enables them on WebGL1-class contexts.
-    override fun glslVersion(dc: DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+    // Receiver prefix: hardware compare samplers where available + dFdx/dFdy enablement.
+    override fun glslVersion(dc: DrawContext) = ShadowReceiverGlsl.glslPrefix(dc, true)
 
     private var mvpMatrixId = KglUniformLocation.NONE
     private val uniforms = SightlineReceiverUniforms(enabled = true)

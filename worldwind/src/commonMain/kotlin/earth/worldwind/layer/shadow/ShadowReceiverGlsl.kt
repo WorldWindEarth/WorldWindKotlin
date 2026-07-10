@@ -27,10 +27,10 @@ import earth.worldwind.draw.DrawContext
  *    overload adds a normal-offset receiver bias scaled by the active cascade's texel
  *    world size. All short-circuit to 1.0 when `applyShadow` is false.
  *
- * Occlusion resolve is a bilinear-weighted 3x3 percentage-closer filter — the exact sum of
- * nine hardware-PCF taps, evaluated over the 4x4 texel neighbourhood with separable tent
- * weights (16 fetches). Continuous everywhere, no per-pixel rotation noise, stable under
- * camera motion thanks to the cascade texel snapping.
+ * Occlusion resolve is a single hardware depth-compare tap by default (its free 2x2 bilinear
+ * PCF softens the edge by one texel), or a bilinear-weighted 3x3 nine-tap kernel when
+ * [DrawContext.SOFT_SHADOWS] is set. Stable under camera motion thanks to the cascade texel
+ * snapping.
  */
 object ShadowReceiverGlsl {
     /** Number of cascades the shader code is unrolled for. Matches [ShadowState.DEFAULT_CASCADE_COUNT]. */
@@ -38,6 +38,24 @@ object ShadowReceiverGlsl {
 
     /** Toggled by each receiver program's `shadowsEnabled` flag. */
     const val SHADOWS_ENABLED_DEFINE = "#define SHADOWS_ENABLED\n"
+
+    /** Switches the occlusion resolves (cascades AND the sightline cube) to hardware
+     *  depth-compare samplers (`sampler2DShadow` / `samplerCubeShadow`). */
+    const val SHADOW_SAMPLERS_DEFINE = "#define WW_SHADOW_SAMPLERS 1\n"
+
+    /**
+     * `#version` + define prefix for receiver programs. Shadow-capable variants compile as
+     * modern GLSL with hardware depth-compare samplers where the platform supports them
+     * ([earth.worldwind.util.kgl.Kgl.hasShadowSamplers]) - which also makes GLES3
+     * depth-texture reads spec-defined; everything else keeps the platform's legacy default.
+     */
+    fun glslPrefix(dc: DrawContext, receiverEnabled: Boolean): String =
+        if (receiverEnabled && dc.gl.hasShadowSamplers) {
+            // Samplers define AFTER the derivatives prefix: Apple requires #extension first.
+            dc.gl.glslVersion3.ifEmpty { dc.gl.glslVersion } + dc.gl.glslDerivativesPrefix + SHADOW_SAMPLERS_DEFINE
+        } else {
+            dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+        }
 
     /**
      * Receiver-side constant depth bias for opaque primitives (shapes, 3D-Tile meshes,
@@ -61,12 +79,48 @@ object ShadowReceiverGlsl {
      * depth bias as a GLSL float literal. [lit] additionally emits `shadowLitFactor` for
      * receivers with a lighting model (requires `LightingGlsl.DECLARATIONS` above this block).
      */
-    fun fragmentDeclarations(depthBias: String = PRIMITIVE_DEPTH_BIAS, lit: Boolean = false): String = """
+    fun fragmentDeclarations(depthBias: String = PRIMITIVE_DEPTH_BIAS, lit: Boolean = false): String {
+        val soft = DrawContext.softShadows()
+        val pcfRadius = if (soft) 1 else 0
+        val pcfCount = (2 * pcfRadius + 1) * (2 * pcfRadius + 1)
+        // Software (WebGL1) fallback body: bilinear-weighted 3x3 tent when soft, single tap otherwise.
+        val softwarePcfBody = if (soft) """
+            vec2 st = uv * mapSize - 0.5;
+            vec2 base = floor(st);
+            vec2 f = st - base;
+            vec4 wx = vec4(1.0 - f.x, 1.0, 1.0, f.x);
+            vec4 wy = vec4(1.0 - f.y, 1.0, 1.0, f.y);
+            vec2 invSize = 1.0 / mapSize;
+            float sum = 0.0;
+            for (int j = 0; j < 4; j++) {
+                for (int i = 0; i < 4; i++) {
+                    vec2 texelUV = (base + vec2(float(i) - 1.0, float(j) - 1.0) + 0.5) * invSize;
+                    float casterDepth = texture2D(shadowMap, texelUV).r;
+                    float tapDepth = receiverDepth + clamp(dot(texelUV - uv, dzduv), -planeBiasClamp, planeBiasClamp);
+                    /* Clamp like hardware compare clamps D_ref: near the depth-window bottom the
+                       plane term can push tapDepth past 1.0, reading cleared texels as shadowed. */
+                    sum += wx[i] * wy[j] * step(clamp(tapDepth, 0.0, 1.0), casterDepth);
+                }
+            }
+            return sum * (1.0 / 9.0);""" else """
+            /* Single tap - plain sampler2D has no free bilinear (harder than the sampler2DShadow tap). */
+            float casterDepth = texture2D(shadowMap, uv).r;
+            return step(clamp(receiverDepth, 0.0, 1.0), casterDepth);"""
+        return """
         uniform bool applyShadow;
-        uniform sampler2D shadowMap0;
-        uniform sampler2D shadowMap1;
-        uniform sampler2D shadowMap2;
-        uniform sampler2D shadowMap3;
+        #ifdef WW_SHADOW_SAMPLERS
+        /* Depth-compare samplers: each tap returns hardware-filtered 2x2 PCF against the
+           reference depth (TEXTURE_COMPARE_MODE is set on the cascade textures). */
+        uniform highp sampler2DShadow shadowMap0;
+        uniform highp sampler2DShadow shadowMap1;
+        uniform highp sampler2DShadow shadowMap2;
+        uniform highp sampler2DShadow shadowMap3;
+        #else
+        uniform highp sampler2D shadowMap0;
+        uniform highp sampler2D shadowMap1;
+        uniform highp sampler2D shadowMap2;
+        uniform highp sampler2D shadowMap3;
+        #endif
         uniform mat4 shadowMatrix0;
         uniform mat4 shadowMatrix1;
         uniform mat4 shadowMatrix2;
@@ -98,34 +152,31 @@ object ShadowReceiverGlsl {
            push samples along noisy photogrammetry normals and shimmer. */
         const float shadowNormalOffsetMax = 2.0;
 
-        /* Bilinear-weighted 3x3 percentage-closer filter: the exact sum of nine 2x2
-           hardware-PCF taps at 1-texel spacing, expanded to per-texel separable tent weights
-           over the 4x4 neighbourhood - [1-f, 1, 1, f] per axis, normalised by 9. Smooth in
-           both space and depth-edge crossing; no per-pixel rotation noise.
-
-           [dzduv] is the receiver-plane depth gradient: each tap's comparison depth slides
-           along the receiver's own surface plane, so sloped surfaces don't self-shadow
-           against their neighbouring texels while chimney-scale contact shadows keep
-           sub-texel precision. Clamped to [planeBiasClamp] so silhouette-crossing
-           derivatives can't fling the prediction. */
-        float shadowPcf(sampler2D shadowMap, vec2 uv, vec2 mapSize, float receiverDepth, vec2 dzduv, float planeBiasClamp) {
-            vec2 st = uv * mapSize - 0.5;
-            vec2 base = floor(st);
-            vec2 f = st - base;
-            vec4 wx = vec4(1.0 - f.x, 1.0, 1.0, f.x);
-            vec4 wy = vec4(1.0 - f.y, 1.0, 1.0, f.y);
+        /* Bilinear-weighted 3x3 percentage-closer filter. [dzduv] is the receiver-plane depth
+           gradient: each tap's comparison depth slides along the receiver's own surface plane,
+           so sloped surfaces don't self-shadow against their neighbouring texels while
+           chimney-scale contact shadows keep sub-texel precision. Clamped to [planeBiasClamp]
+           so silhouette-crossing derivatives can't fling the prediction. */
+        #ifdef WW_SHADOW_SAMPLERS
+        /* (2r+1)^2 depth-compare taps; r baked from [DrawContext.SOFT_SHADOWS] (0 = 1 tap, 1 = 3x3). */
+        float shadowPcf(highp sampler2DShadow shadowMap, vec2 uv, vec2 mapSize, float receiverDepth, vec2 dzduv, float planeBiasClamp) {
             vec2 invSize = 1.0 / mapSize;
             float sum = 0.0;
-            for (int j = 0; j < 4; j++) {
-                for (int i = 0; i < 4; i++) {
-                    vec2 texelUV = (base + vec2(float(i) - 1.0, float(j) - 1.0) + 0.5) * invSize;
-                    float casterDepth = texture2D(shadowMap, texelUV).r;
-                    float tapDepth = receiverDepth + clamp(dot(texelUV - uv, dzduv), -planeBiasClamp, planeBiasClamp);
-                    sum += wx[i] * wy[j] * step(tapDepth, casterDepth);
+            for (int j = -$pcfRadius; j <= $pcfRadius; j++) {
+                for (int i = -$pcfRadius; i <= $pcfRadius; i++) {
+                    vec2 tapUV = uv + vec2(float(i), float(j)) * invSize;
+                    float tapDepth = receiverDepth + clamp(dot(tapUV - uv, dzduv), -planeBiasClamp, planeBiasClamp);
+                    sum += texture(shadowMap, vec3(tapUV, tapDepth));
                 }
             }
-            return sum * (1.0 / 9.0);
+            return sum * (1.0 / $pcfCount.0);
         }
+        #else
+        /* Software (WebGL1) fallback; [softwarePcfBody] bakes the 3x3 tent (soft) or single tap (hard). */
+        float shadowPcf(sampler2D shadowMap, vec2 uv, vec2 mapSize, float receiverDepth, vec2 dzduv, float planeBiasClamp) {
+            $softwarePcfBody
+        }
+        #endif
 
         /* Projects the camera-relative position into the chosen cascade and runs the filter.
            Returns -1.0 when the position lands outside the cascade's [0, 1]^3 footprint -
@@ -246,14 +297,22 @@ object ShadowReceiverGlsl {
                 else dbgPos = shadowMatrix3 * vec4(position, 1.0);
                 bool outside = any(lessThan(dbgPos.xyz, vec3(0.0))) || any(greaterThan(dbgPos.xyz, vec3(1.0)));
                 if (debugShadowMode == 2) return outside ? 0.1 : 1.0;
-                /* Mode 3: project the raw shadow-map depth onto the scene - empty maps
-                   read as uniform 1.0 (white); populated maps show caster silhouettes. */
+                /* Mode 3: project the shadow map onto the scene - empty maps read as
+                   uniform 1.0 (white); populated maps show caster silhouettes. */
                 if (outside) return 0.0;
                 float dbgDepth;
+                #ifdef WW_SHADOW_SAMPLERS
+                /* Compare-mode samplers can't return raw depth; show the compare mask. */
+                if (cascade == 0) dbgDepth = texture(shadowMap0, dbgPos.xyz);
+                else if (cascade == 1) dbgDepth = texture(shadowMap1, dbgPos.xyz);
+                else if (cascade == 2) dbgDepth = texture(shadowMap2, dbgPos.xyz);
+                else dbgDepth = texture(shadowMap3, dbgPos.xyz);
+                #else
                 if (cascade == 0) dbgDepth = texture2D(shadowMap0, dbgPos.xy).r;
                 else if (cascade == 1) dbgDepth = texture2D(shadowMap1, dbgPos.xy).r;
                 else if (cascade == 2) dbgDepth = texture2D(shadowMap2, dbgPos.xy).r;
                 else dbgDepth = texture2D(shadowMap3, dbgPos.xy).r;
+                #endif
                 return dbgDepth;
             }
             /* Normal-offset receiver bias: push the sample point toward the sun-facing side
@@ -326,4 +385,5 @@ object ShadowReceiverGlsl {
             return litShadingFactor(lambert, upFactor, visibility);
         }
     """.trimIndent() else ""
+    }
 }

@@ -219,8 +219,13 @@ class IosKgl : Kgl {
     override fun createShader(type: Int): KglShader = KglShader(glCreateShader(type.toUInt()))
 
     override fun shaderSource(shader: KglShader, source: String) {
+        // Programs opting into [glslVersion3] carry legacy ES 1.00 syntax that must be
+        // rewritten for `#version 300 es`; plain legacy sources pass through untouched.
+        val effective = if (source.startsWith("#version 3")) {
+            translateLegacyGlslToGles3(source, getShaderParameteri(shader, GL_SHADER_TYPE) == GL_VERTEX_SHADER)
+        } else source
         memScoped {
-            val cstr: CPointer<ByteVar> = source.cstr.ptr
+            val cstr: CPointer<ByteVar> = effective.cstr.ptr
             val arr = allocArrayOf(cstr)
             glShaderSource(shader.id, 1, arr, null)
         }

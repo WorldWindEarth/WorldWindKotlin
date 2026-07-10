@@ -261,6 +261,9 @@ const val GL_TEXTURE_MAG_FILTER = 0x2800
 const val GL_TEXTURE_MIN_FILTER = 0x2801
 const val GL_TEXTURE_WRAP_S = 0x2802
 const val GL_TEXTURE_WRAP_T = 0x2803
+const val GL_TEXTURE_COMPARE_MODE = 0x884C
+const val GL_TEXTURE_COMPARE_FUNC = 0x884D
+const val GL_COMPARE_REF_TO_TEXTURE = 0x884E
 const val GL_TEXTURE = 0x1702
 const val GL_TEXTURE_CUBE_MAP = 0x8513
 const val GL_TEXTURE_BINDING_CUBE_MAP = 0x8514
@@ -439,6 +442,12 @@ interface Kgl {
      * default to a modern directive (JOGL emits `#version 330 core\n`).
      */
     val glslVersion3: String get() = glslVersion
+    /**
+     * True when receiver shaders may use `sampler2DShadow` hardware depth-compare sampling
+     * (needs a GLES 3 / WebGL 2 / GL 3.3 core shader path). Platforms whose [glslVersion3]
+     * is unconditionally non-empty but whose context may be legacy (WebGL1) must override.
+     */
+    val hasShadowSamplers: Boolean get() = glslVersion3.isNotEmpty()
     /**
      * Preprocessor prefix that opts a shader into `dFdx` / `dFdy`. Defines our private
      * `WW_HAS_DERIVATIVES` macro plus, where needed, emits the GLES extension directive.

@@ -12,10 +12,19 @@ class AndroidKgl : Kgl {
     private val arrI = IntArray(16)
     private val arrF = FloatArray(16)
 
-    override val hasMaliOOMBug: Boolean by lazy {
-        GLES20.glGetString(GL_RENDERER).contains("mali", true)
-    }
+    override val hasMaliOOMBug get() = isMali
     override val glslVersion3 get() = if (isGles3OrLater) "#version 300 es\n" else ""
+    // Hardware depth-compare (sampler2DShadow) on every non-Adreno GLES3 GPU. Adreno's compare
+    // path is driver-unpredictable - device-tested working, flickering, and melting across
+    // different Adreno builds with no GL_RENDERER signal to tell them apart - so it stays software.
+    override val hasShadowSamplers get() = isGles3OrLater && !isAdreno
+
+    private val isAdreno: Boolean by lazy {
+        (GLES20.glGetString(GL_RENDERER) ?: "").contains("adreno", true)
+    }
+    private val isMali: Boolean by lazy {
+        (GLES20.glGetString(GL_RENDERER) ?: "").contains("mali", true)
+    }
 
     // RenderResourceCache requests a GLES3 EGL context and falls back to GLES2 if the device
     // doesn't have it. The "OpenGL ES X.Y …" version string tells us which we got — MSAA
@@ -57,7 +66,14 @@ class AndroidKgl : Kgl {
 
     override fun createShader(type: Int): KglShader = KglShader(GLES20.glCreateShader(type))
 
-    override fun shaderSource(shader: KglShader, source: String) = GLES20.glShaderSource(shader.id, source)
+    // Programs opting into [glslVersion3] carry legacy ES 1.00 syntax that must be rewritten
+    // for `#version 300 es`; plain legacy sources (no modern directive) pass through untouched.
+    override fun shaderSource(shader: KglShader, source: String) = GLES20.glShaderSource(
+        shader.id,
+        if (source.startsWith("#version 3")) {
+            translateLegacyGlslToGles3(source, getShaderParameteri(shader, GL_SHADER_TYPE) == GL_VERTEX_SHADER)
+        } else source
+    )
 
     override fun compileShader(shader: KglShader) = GLES20.glCompileShader(shader.id)
 

@@ -77,6 +77,27 @@ open class DrawContext(val gl: Kgl) {
             shadowCascadeSizesLocked = true
             return SHADOW_CASCADE_MAP_SIZES[index]
         }
+
+        /**
+         * Soft shadows: `true` = 3x3 nine-tap PCF kernel; `false` (default) = a single
+         * depth-compare tap whose free 2x2 hardware bilinear still softens the edge one texel.
+         * The nine-tap kernel is the dominant shadow fragment cost on mobile (~55% of shadow
+         * GPU time measured), so it's opt-in. Baked into receiver shaders - assign before the
+         * first frame, like [SHADOW_CASCADE_MAP_SIZES].
+         */
+        var SOFT_SHADOWS = false
+            set(value) {
+                check(!shadowCascadeSizesLocked) {
+                    "SOFT_SHADOWS must be assigned before the first frame"
+                }
+                field = value
+            }
+
+        /** Reads (and permanently locks) the soft-shadow flag. */
+        fun softShadows(): Boolean {
+            shadowCascadeSizesLocked = true
+            return SOFT_SHADOWS
+        }
         /** Reusable `[GL_NONE]` argument for depth-only framebuffer draw-buffer setup. */
         private val NO_DRAW_BUFFERS = intArrayOf(GL_NONE)
     }
@@ -159,6 +180,8 @@ open class DrawContext(val gl: Kgl) {
     private var pickDepthReadbackFramebufferCache: Framebuffer? = null
     private var scratchFramebufferCache: Framebuffer? = null
     private var sightlineDepthCubeTextureCache: Texture? = null
+    private var nullShadowDepthTextureCache: Texture? = null
+    private var nullShadowDepthCubeTextureCache: Texture? = null
     private var sightlineCubeFramebufferCache: Framebuffer? = null
     private val shadowCascadeFramebufferCache = arrayOfNulls<Framebuffer>(ShadowState.DEFAULT_CASCADE_COUNT)
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
@@ -264,15 +287,48 @@ open class DrawContext(val gl: Kgl) {
     }
 
     /**
+     * 1x1 compare-mode depth texture bound to the cascade units when no shadow state is
+     * active. WebGL2 validates sampler type vs texture format at draw time even when the
+     * shader never samples (`applyShadow` false), so `sampler2DShadow` receivers must always
+     * see a compare-mode depth texture on units 1..4. Only used when [Kgl.hasShadowSamplers].
+     */
+    val nullShadowDepthTexture get() = nullShadowDepthTextureCache
+        ?: createNullDepthTexture(GL_TEXTURE_2D).also { nullShadowDepthTextureCache = it }
+
+    /** Cube counterpart of [nullShadowDepthTexture] for the sightline unit (`samplerCubeShadow`). */
+    val nullShadowDepthCubeTexture get() = nullShadowDepthCubeTextureCache
+        ?: createNullDepthTexture(GL_TEXTURE_CUBE_MAP).also { nullShadowDepthCubeTextureCache = it }
+
+    private fun createNullDepthTexture(target: Int) = Texture(
+        1, 1,
+        GL_DEPTH_COMPONENT, if (gl.supportsSizedTextureFormats) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT,
+        false, if (gl.supportsSizedTextureFormats) GL_DEPTH_COMPONENT24 else GL_DEPTH_COMPONENT,
+        target = target,
+    ).apply {
+        setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        setTexParameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
+        setTexParameter(GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL)
+    }
+
+    /**
      * Depth-only cube map for the sightline depth pass. Five faces hold true hardware depth
      * from the sightline's point of view (POS_Z is never rendered — terrain is not visible
-     * looking straight up; receivers mask upward directions instead). Receivers sample it
-     * with `textureCube(...).r` and compare in-shader; the receiver's percentage-closer
-     * filter does its own tent weighting across taps. Lazily allocated and cached.
+     * looking straight up; receivers mask upward directions instead). On
+     * [Kgl.hasShadowSamplers] platforms receivers tap it through `samplerCubeShadow`
+     * (LINEAR + compare mode); otherwise they read raw depth with `textureCube(...).r` and
+     * compare in-shader. Either way the receiver's percentage-closer filter does its own
+     * tent weighting across taps. Lazily allocated and cached.
      */
     val sightlineDepthCubeTexture get() = sightlineDepthCubeTextureCache
-        ?: createDepthTextureAttachment(SIGHTLINE_MAP_SIZE, GL_TEXTURE_CUBE_MAP)
-            .also { sightlineDepthCubeTextureCache = it }
+        ?: createDepthTextureAttachment(SIGHTLINE_MAP_SIZE, GL_TEXTURE_CUBE_MAP).apply {
+            if (gl.hasShadowSamplers) {
+                setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                setTexParameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
+                setTexParameter(GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL)
+            }
+        }.also { sightlineDepthCubeTextureCache = it }
 
     /**
      * Depth-only framebuffer paired with [sightlineDepthCubeTexture]. The depth pass
@@ -294,10 +350,11 @@ open class DrawContext(val gl: Kgl) {
      * Returns the per-cascade shadow framebuffer for the directional sun-shadow pipeline.
      * Each cascade is **depth-only**: a `GL_DEPTH_COMPONENT24` texture holds true hardware
      * depth written by [DirectionalDepthProgram]'s pass (which lets `glPolygonOffset` apply
-     * slope-scaled caster bias), and receivers sample it directly — depth textures return
-     * their value in the red channel when sampled without a compare mode. `GL_NEAREST` is
-     * mandatory for non-compare depth sampling; the receiver's percentage-closer filter does
-     * its own bilinear weighting across texels. Clamp-to-edge keeps out-of-footprint UVs
+     * slope-scaled caster bias). On [Kgl.hasShadowSamplers] platforms the texture carries
+     * LINEAR + COMPARE_REF_TO_TEXTURE and receivers tap it through `sampler2DShadow`
+     * (hardware 2x2 PCF per tap); otherwise receivers read raw depth from the red channel,
+     * where `GL_NEAREST` is mandatory and the software percentage-closer filter does its own
+     * bilinear weighting across texels. Clamp-to-edge keeps out-of-footprint UVs
      * from wrapping to the opposite side of the map. Lazily allocated and cached per cascade.
      */
     fun shadowCascadeFramebuffer(cascadeIndex: Int): Framebuffer {
@@ -309,6 +366,14 @@ open class DrawContext(val gl: Kgl) {
             val depthAttachment = createDepthTextureAttachment(size)
             depthAttachment.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
             depthAttachment.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+            if (gl.hasShadowSamplers) {
+                // Hardware depth-compare sampling (sampler2DShadow receivers): LINEAR +
+                // compare mode gives spec-defined 2x2 PCF per tap.
+                depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                depthAttachment.setTexParameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
+                depthAttachment.setTexParameter(GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL)
+            }
             attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
             // With no colour attachment, desktop GL reports FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER
             // unless the draw and read buffers are explicitly set to NONE (FBO state).
@@ -445,6 +510,8 @@ open class DrawContext(val gl: Kgl) {
         pickDepthReadbackFramebufferCache?.release(this)
         scratchFramebufferCache?.release(this)
         sightlineDepthCubeTextureCache?.release(this)
+        nullShadowDepthTextureCache?.release(this)
+        nullShadowDepthCubeTextureCache?.release(this)
         sightlineCubeFramebufferCache?.release(this)
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i]?.release(this)
         multisampleFramebufferCache?.release(this)
@@ -461,6 +528,8 @@ open class DrawContext(val gl: Kgl) {
         pickDepthReadbackFramebufferCache = null
         scratchFramebufferCache = null
         sightlineDepthCubeTextureCache = null
+        nullShadowDepthTextureCache = null
+        nullShadowDepthCubeTextureCache = null
         sightlineCubeFramebufferCache = null
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i] = null
         multisampleFramebufferCache = null

@@ -214,5 +214,12 @@ open class Texture(
         if (getTexParameter(GL_TEXTURE_WRAP_T).also { param = it } != 0)
             dc.gl.texParameteri(target, GL_TEXTURE_WRAP_T, param)
         else dc.gl.texParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+
+        // Depth-compare mode for hardware shadow sampling (sampler2DShadow); only when configured.
+        if (getTexParameter(GL_TEXTURE_COMPARE_MODE).also { param = it } != 0) {
+            dc.gl.texParameteri(target, GL_TEXTURE_COMPARE_MODE, param)
+            if (getTexParameter(GL_TEXTURE_COMPARE_FUNC).also { param = it } != 0)
+                dc.gl.texParameteri(target, GL_TEXTURE_COMPARE_FUNC, param)
+        }
     }
 }

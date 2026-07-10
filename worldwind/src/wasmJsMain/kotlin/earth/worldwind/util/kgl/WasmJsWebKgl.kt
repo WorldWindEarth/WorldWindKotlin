@@ -99,6 +99,9 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
 
     override val hasMaliOOMBug = false
     override val glslVersion3 = "#version 300 es\n"
+    // [glslVersion3] is unconditional (native ES 3.00 programs feature-gate themselves), so
+    // the depth-compare capability must check the actual context generation.
+    override val hasShadowSamplers get() = isWebGL2
 
     // Detect WebGL2 by constructor name rather than `instanceof`. `as?` compiles
     // to `gl instanceof WebGL2RenderingContext` where the class symbol resolves

@@ -224,7 +224,7 @@ open class TriangleShaderProgram(
     // JS WebGL2 where the compiler rejects the directive) ahead of [defines]. Harmless in the
     // vertex shader - the rules let `#extension` and a custom `#define` appear in either shader
     // stage so we keep the API symmetric instead of plumbing per-stage prefixes.
-    override fun glslVersion(dc: DrawContext) = dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
+    override fun glslVersion(dc: DrawContext) = ShadowReceiverGlsl.glslPrefix(dc, shadowsEnabled)
 
     private fun defines() = if (shadowsEnabled) ShadowReceiverGlsl.SHADOWS_ENABLED_DEFINE else ""
 
