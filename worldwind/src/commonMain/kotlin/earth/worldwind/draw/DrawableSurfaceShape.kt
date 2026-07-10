@@ -294,7 +294,10 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             program.enableTexture(true)
             val lightingActive = drawState.enableLighting && !drawState.isLine && !dc.isPickMode
             program.enableLighting(lightingActive)
-            if (lightingActive) program.loadLightDirection(dc.lightDirection)
+            if (lightingActive) {
+                program.loadLightDirection(dc.lightDirection)
+                program.loadUpDirection(dc.upDirection)
+            }
             program.loadTexCoordMatrix(identityMatrix3)
             program.loadColor(color)
             program.loadOpacity(opacity)

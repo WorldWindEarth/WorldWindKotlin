@@ -75,7 +75,10 @@ open class DrawableShape protected constructor(): Drawable, SightlineOccluder, S
         // outside pick mode (shader gates it too, but skipping the uniform upload saves work).
         val lightingActive = drawState.enableLighting && !drawState.isLine && !dc.isPickMode
         program.enableLighting(lightingActive)
-        if (lightingActive) program.loadLightDirection(dc.lightDirection)
+        if (lightingActive) {
+            program.loadLightDirection(dc.lightDirection)
+            program.loadUpDirection(dc.upDirection)
+        }
 
         // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass,
         // and per-shape opt-out (`shadowMode = DISABLED` or `CAST_ONLY`) skips receive too.

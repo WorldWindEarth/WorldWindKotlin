@@ -21,6 +21,7 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder, Sh
     private val mvpMatrix = Matrix4()
     private val modelMatrix = Matrix4()
     private val eyeLightDirection = Vec3()
+    private val eyeUpDirection = Vec3()
 
     override val shadowCasterCenter get() = if (drawState.boundingRadius > 0.0) drawState.boundingCenter else null
     override val shadowCasterRadius get() = drawState.boundingRadius
@@ -97,6 +98,8 @@ open class DrawableMesh protected constructor(): Drawable, SightlineOccluder, Sh
                 // against the eye-space normal directly.
                 eyeLightDirection.copy(dc.lightDirection).multiplyByMatrix(dc.modelviewNormalTransform).normalize()
                 program.loadLightDirection(eyeLightDirection)
+                eyeUpDirection.copy(dc.upDirection).multiplyByMatrix(dc.modelviewNormalTransform).normalize()
+                program.loadUpDirection(eyeUpDirection)
             }
 
             // Draw the specified primitives.

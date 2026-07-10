@@ -148,6 +148,8 @@ open class TriangleShaderProgram(
             uniform vec4 color;
             uniform float opacity;
             uniform vec3 lightDirection;
+            /* World-space globe-radial up at the camera, for the hemispheric ambient. */
+            uniform vec3 upDirection;
             uniform sampler2D texSampler;
 
             varying vec2 texCoord;
@@ -184,12 +186,15 @@ open class TriangleShaderProgram(
                    [lambert] is hoisted out of the lighting block so the shadow path below
                    can reuse it. */
                 float lambert;
+                float upFactor;
                 #ifdef WW_HAS_DERIVATIVES
                 vec3 n = normalize(cross(dFdx(localPos), dFdy(localPos)));
                 if (!gl_FrontFacing) n = -n;
                 lambert = max(dot(n, lightDirection), 0.0);
+                upFactor = dot(n, upDirection) * 0.5 + 0.5;
                 #else
                 lambert = 1.0;
+                upFactor = 0.5;
                 #endif
                 #ifdef SHADOWS_ENABLED
                 if (!enablePickMode) {
@@ -200,14 +205,14 @@ open class TriangleShaderProgram(
                     if (enableLighting) {
                         /* Zero normal: view-winding face normals (two-sided walls) are
                            unusable for the normal-offset bias - sample depth-only. */
-                        gl_FragColor.rgb *= shadowLitFactor(lambert, worldPos, viewDepth, vec3(0.0));
+                        gl_FragColor.rgb *= shadowLitFactor(lambert, upFactor, worldPos, viewDepth, vec3(0.0));
                     } else {
                         gl_FragColor.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
                     }
                 }
                 #else
                 if (enableLighting && !enablePickMode) {
-                    gl_FragColor.rgb *= litShadingFactor(lambert, 1.0);
+                    gl_FragColor.rgb *= litShadingFactor(lambert, upFactor, 1.0);
                 }
                 #endif
             }
@@ -228,6 +233,7 @@ open class TriangleShaderProgram(
     private var enableLighting = false
     private var enableOneVertexMode = false
     private val lightDirection = Vec3(0.0, 0.0, 1.0)
+    private val upDirection = Vec3(0.0, 0.0, 1.0)
     private val mvpMatrix = Matrix4()
     /** Cached value of the last uploaded `modelMatrix`; defaults to identity. Used by
      *  [loadModelMatrix] to skip redundant uploads. */
@@ -253,6 +259,7 @@ open class TriangleShaderProgram(
     private var enableLightingId = KglUniformLocation.NONE
     private var enableOneVertexModeId = KglUniformLocation.NONE
     private var lightDirectionId = KglUniformLocation.NONE
+    private var upDirectionId = KglUniformLocation.NONE
     private var texCoordMatrixId = KglUniformLocation.NONE
     private var texSamplerId = KglUniformLocation.NONE
     private var clipDistanceId = KglUniformLocation.NONE
@@ -289,6 +296,8 @@ open class TriangleShaderProgram(
         gl.uniform1i(enableOneVertexModeId, if (enableOneVertexMode) 1 else 0)
         lightDirectionId = gl.getUniformLocation(program, "lightDirection")
         gl.uniform3f(lightDirectionId, lightDirection.x.toFloat(), lightDirection.y.toFloat(), lightDirection.z.toFloat())
+        upDirectionId = gl.getUniformLocation(program, "upDirection")
+        gl.uniform3f(upDirectionId, upDirection.x.toFloat(), upDirection.y.toFloat(), upDirection.z.toFloat())
 
         texCoordMatrixId = gl.getUniformLocation(program, "texCoordMatrix")
         texCoordMatrix.transposeToArray(array, 0) // 3 x 3 identity matrix
@@ -330,6 +339,13 @@ open class TriangleShaderProgram(
         if (lightDirection != direction) {
             lightDirection.copy(direction)
             gl.uniform3f(lightDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
+        }
+    }
+    /** Upload the unit world-space globe-radial up at the camera (hemispheric ambient). */
+    fun loadUpDirection(direction: Vec3) {
+        if (upDirection != direction) {
+            upDirection.copy(direction)
+            gl.uniform3f(upDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
         }
     }
     fun enableOneVertexMode(enable: Boolean) {

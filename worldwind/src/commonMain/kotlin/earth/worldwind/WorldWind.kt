@@ -590,6 +590,7 @@ open class WorldWind @JvmOverloads constructor(
 
         // Set up the draw context according to the frame's current state.
         dc.eyePoint.copy(frame.modelview.extractEyePoint(dc.eyePoint))
+        dc.upDirection.copy(dc.eyePoint).normalize()
         dc.viewport.copy(frame.viewport)
         dc.projection.copy(frame.projection)
         dc.modelview.copy(frame.modelview)

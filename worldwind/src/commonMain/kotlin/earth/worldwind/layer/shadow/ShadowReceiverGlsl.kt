@@ -320,10 +320,10 @@ object ShadowReceiverGlsl {
         /* Lit receivers: the full lighting multiplier with only the direct sun term
            shadow-attenuated. Lambert owns the dark side, so back faces can never be
            double-darkened by the cascade term. */
-        float shadowLitFactor(float lambert, vec3 position, float viewDepth, vec3 worldNormal) {
+        float shadowLitFactor(float lambert, float upFactor, vec3 position, float viewDepth, vec3 worldNormal) {
             float visibility = shadowSunVisibility(position, viewDepth, worldNormal);
             if (applyShadow && debugShadowMode != 0) return visibility;
-            return litShadingFactor(lambert, visibility);
+            return litShadingFactor(lambert, upFactor, visibility);
         }
     """.trimIndent() else ""
 }

@@ -58,6 +58,7 @@ open class Ogc3dTilesProgram(
     private var enableLightingId = KglUniformLocation.NONE
     private var enableVertexColorId = KglUniformLocation.NONE
     private var lightDirectionId = KglUniformLocation.NONE
+    private var upDirectionId = KglUniformLocation.NONE
     private var alphaCutoffId = KglUniformLocation.NONE
     private var enableAlphaMaskId = KglUniformLocation.NONE
     private var enablePickModeId = KglUniformLocation.NONE
@@ -87,6 +88,7 @@ open class Ogc3dTilesProgram(
     private val pickColor = Color(0f, 0f, 0f, 1f)
     private var pickIdBase = 0f
     private val lightDirection = Vec3(0.0, 0.0, 1.0)
+    private val upDirection = Vec3(0.0, 0.0, 1.0)
 
     override var shadowUploadStamp: Long
         get() = shadowUniforms.uploadStamp
@@ -115,6 +117,8 @@ open class Ogc3dTilesProgram(
         gl.uniform1i(enableVertexColorId, 0)
         lightDirectionId = gl.getUniformLocation(program, "lightDirection")
         gl.uniform3f(lightDirectionId, 0f, 0f, 1f)
+        upDirectionId = gl.getUniformLocation(program, "upDirection")
+        gl.uniform3f(upDirectionId, 0f, 0f, 1f)
         alphaCutoffId = gl.getUniformLocation(program, "alphaCutoff")
         gl.uniform1f(alphaCutoffId, 0.5f)
         enableAlphaMaskId = gl.getUniformLocation(program, "enableAlphaMask")
@@ -191,6 +195,14 @@ open class Ogc3dTilesProgram(
         if (lightDirection != direction) {
             lightDirection.copy(direction)
             gl.uniform3f(lightDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
+        }
+    }
+
+    /** Loads the unit world-space globe-radial up at the camera (hemispheric ambient). */
+    fun loadUpDirection(direction: Vec3) {
+        if (upDirection != direction) {
+            upDirection.copy(direction)
+            gl.uniform3f(upDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
         }
     }
 
@@ -348,6 +360,8 @@ open class Ogc3dTilesProgram(
             uniform bool enableBatchPick;
             uniform vec4 pickColor;
             uniform vec3 lightDirection;
+            /* World-space globe-radial up at the camera, for the hemispheric ambient. */
+            uniform vec3 upDirection;
             uniform sampler2D texSampler;
 
             varying vec2 texCoord;
@@ -389,11 +403,13 @@ open class Ogc3dTilesProgram(
                        per-vertex normals so a true diffuse term works (unlike the OSM-buildings
                        dFdx fallback). enableLighting == real per-vertex normals present, so
                        the shadow path gets a normal-offset receiver bias too. */
-                    float lambert = max(dot(normalize(worldNormal), lightDirection), 0.0);
+                    vec3 wn = normalize(worldNormal);
+                    float lambert = max(dot(wn, lightDirection), 0.0);
+                    float upFactor = dot(wn, upDirection) * 0.5 + 0.5;
                     #ifdef SHADOWS_ENABLED
-                    baseColor.rgb *= shadowLitFactor(lambert, worldPos, viewDepth, normalize(worldNormal));
+                    baseColor.rgb *= shadowLitFactor(lambert, upFactor, worldPos, viewDepth, wn);
                     #else
-                    baseColor.rgb *= litShadingFactor(lambert, 1.0);
+                    baseColor.rgb *= litShadingFactor(lambert, upFactor, 1.0);
                     #endif
                 }
                 #ifdef SHADOWS_ENABLED

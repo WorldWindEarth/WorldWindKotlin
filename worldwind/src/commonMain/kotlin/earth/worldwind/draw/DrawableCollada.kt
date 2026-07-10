@@ -59,6 +59,7 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
     private val normalMatrix = Matrix4()
     private val modelMatrix = Matrix4()
     private val eyeLightDirection = Vec3()
+    private val eyeUpDirection = Vec3()
 
     companion object {
         val KEY = DrawableCollada::class
@@ -85,6 +86,8 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         // Eye-space light direction is shared across all entities in this draw.
         eyeLightDirection.copy(dc.lightDirection).multiplyByMatrix(dc.modelviewNormalTransform).normalize()
         prog.loadLightDirection(eyeLightDirection)
+        eyeUpDirection.copy(dc.upDirection).multiplyByMatrix(dc.modelviewNormalTransform).normalize()
+        prog.loadUpDirection(eyeUpDirection)
 
         // Bind cascade shadow textures and load receiver uniforms once per draw. Picks bypass
         // shadow application so pick IDs aren't darkened. RECEIVE_ONLY/DISABLED skips here.

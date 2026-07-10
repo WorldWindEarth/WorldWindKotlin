@@ -144,6 +144,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         dc.applyShadowReceiverUniforms(program, shadowMode.receivesShadows)
         dc.applySightlineReceiverUniforms(program)
         program.loadLightDirection(dc.lightDirection)
+        program.loadUpDirection(dc.upDirection)
 
         program.enablePickMode(dc.isPickMode)
         val batchPickActive = dc.isPickMode && pickIdBase > 0

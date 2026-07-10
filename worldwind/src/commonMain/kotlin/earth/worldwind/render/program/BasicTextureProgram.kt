@@ -99,6 +99,8 @@ open class BasicTextureProgram(
                world-space sun direction by the modelview rotation so the fragment shader can
                dot directly against the eye-space normal. */
             uniform vec3 lightDirection;
+            /* Eye-space globe-radial up at the camera (same transform), hemispheric ambient. */
+            uniform vec3 upDirection;
 
             varying vec2 texCoord;
             varying vec3 normal;
@@ -130,6 +132,7 @@ open class BasicTextureProgram(
                 if (applyLighting) {
                     vec3 n = normalize(normal) * (gl_FrontFacing ? 1.0 : -1.0);
                     float lambert = max(dot(lightDirection, n), 0.0);
+                    float upFactor = dot(n, upDirection) * 0.5 + 0.5;
                     #ifdef SHADOWS_ENABLED
                     if (!modulateColor) {
                         /* Flip the offset normal with the lighting normal so interior
@@ -137,12 +140,12 @@ open class BasicTextureProgram(
                         vec3 wn = dot(worldNormal, worldNormal) > 0.0
                             ? normalize(worldNormal) * (gl_FrontFacing ? 1.0 : -1.0)
                             : vec3(0.0);
-                        gl_FragColor.rgb *= shadowLitFactor(lambert, worldPos, viewDepth, wn);
+                        gl_FragColor.rgb *= shadowLitFactor(lambert, upFactor, worldPos, viewDepth, wn);
                     } else {
-                        gl_FragColor.rgb *= litShadingFactor(lambert, 1.0);
+                        gl_FragColor.rgb *= litShadingFactor(lambert, upFactor, 1.0);
                     }
                     #else
-                    gl_FragColor.rgb *= litShadingFactor(lambert, 1.0);
+                    gl_FragColor.rgb *= litShadingFactor(lambert, upFactor, 1.0);
                     #endif
                 }
                 #ifdef SHADOWS_ENABLED
@@ -176,6 +179,7 @@ open class BasicTextureProgram(
     private val color = Color()
     private var opacity = 1.0f
     private val lightDirection = Vec3(0.0, 0.0, 1.0)
+    private val upDirection = Vec3(0.0, 0.0, 1.0)
     private var mvpMatrixId = KglUniformLocation.NONE
     private var mvInverseMatrixId = KglUniformLocation.NONE
     private var modelMatrixId = KglUniformLocation.NONE
@@ -188,6 +192,7 @@ open class BasicTextureProgram(
     private var opacityId = KglUniformLocation.NONE
     private var applyLightingId = KglUniformLocation.NONE
     private var lightDirectionId = KglUniformLocation.NONE
+    private var upDirectionId = KglUniformLocation.NONE
     private var isRenderLineId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
@@ -217,6 +222,8 @@ open class BasicTextureProgram(
         gl.uniform1i(applyLightingId, if (applyLighting) 1 else 0)
         lightDirectionId = gl.getUniformLocation(program, "lightDirection")
         gl.uniform3f(lightDirectionId, lightDirection.x.toFloat(), lightDirection.y.toFloat(), lightDirection.z.toFloat())
+        upDirectionId = gl.getUniformLocation(program, "upDirection")
+        gl.uniform3f(upDirectionId, upDirection.x.toFloat(), upDirection.y.toFloat(), upDirection.z.toFloat())
         isRenderLineId = gl.getUniformLocation(program, "isRenderLine")
         gl.uniform1i(isRenderLineId, if (isRenderLine) 1 else 0)
 
@@ -311,6 +318,15 @@ open class BasicTextureProgram(
         if (lightDirection != direction) {
             lightDirection.copy(direction)
             gl.uniform3f(lightDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
+        }
+    }
+
+    /** Loads the eye-space globe-radial up at the camera (hemispheric ambient); callers
+     *  transform world up by the same modelview rotation as [loadLightDirection]. */
+    fun loadUpDirection(direction: Vec3) {
+        if (upDirection != direction) {
+            upDirection.copy(direction)
+            gl.uniform3f(upDirectionId, direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
         }
     }
 

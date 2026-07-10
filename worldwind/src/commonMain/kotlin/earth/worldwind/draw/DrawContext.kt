@@ -90,6 +90,12 @@ open class DrawContext(val gl: Kgl) {
      */
     val lightDirection = Vec3(0.0, 0.0, 1.0)
     /**
+     * World-space unit globe-radial up at the camera, for hemispheric ambient shading.
+     * Up varies negligibly over shading-relevant distances, so one per-frame vector serves
+     * every lit drawable; eye-space consumers multiply by [modelviewNormalTransform].
+     */
+    val upDirection = Vec3(0.0, 0.0, 1.0)
+    /**
      * Per-frame cascaded shadow map state. Non-null when [earth.worldwind.layer.shadow.ShadowLayer]
      * is in the layer list; null otherwise (receivers should treat absence as "no shadows").
      * The state's cascade matrices and ambient factor drive the receiver shaders; the state
@@ -402,6 +408,7 @@ open class DrawContext(val gl: Kgl) {
     fun reset() {
         eyePoint.set(0.0, 0.0, 0.0)
         lightDirection.set(0.0, 0.0, 1.0)
+        upDirection.set(0.0, 0.0, 1.0)
         shadowState = null
         lastShadowTextureBindStamp = -1L
         sightlineState = null
