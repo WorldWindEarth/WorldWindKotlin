@@ -50,6 +50,8 @@
     <string name="title_ogc3d_tiles">OGC 3D Tiles</string>
     <string name="title_google_3d_tiles">Google 3D Tiles</string>
     <string name="title_cesium_ion_3d_tiles">Cesium Ion 3D Tiles</string>
+    <string name="title_ogc3d_tiles_archive_3tz">3D Tiles Archive (.3tz)</string>
+    <string name="title_ogc3d_tiles_archive_3dtiles">3D Tiles Archive (.3dtiles)</string>
     <string name="title_point_cloud">Point Cloud (LAS/LAZ)</string>
     <string name="title_mvt_vector_tiles">Vector Tiles (MVT)</string>
 

@@ -367,6 +367,16 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/cesium_ion_3d_tiles_tutorial.html",
                 R.string.title_cesium_ion_3d_tiles
             )
+            R.id.nav_ogc3d_tiles_archive_3tz_activity -> loadTutorial(
+                Ogc3dTilesArchiveFragment::class.java,
+                "file:///android_asset/ogc3d_tiles_archive_tutorial.html",
+                R.string.title_ogc3d_tiles_archive_3tz
+            )
+            R.id.nav_ogc3d_tiles_archive_3dtiles_activity -> loadTutorial(
+                Ogc3dTilesSqliteArchiveFragment::class.java,
+                "file:///android_asset/ogc3d_tiles_archive_tutorial.html",
+                R.string.title_ogc3d_tiles_archive_3dtiles
+            )
             R.id.nav_point_cloud_activity -> loadTutorial(
                 PointCloudFragment::class.java,
                 "file:///android_asset/point_cloud_tutorial.html",

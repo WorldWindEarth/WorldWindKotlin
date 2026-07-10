@@ -199,6 +199,14 @@
             android:icon="@drawable/ic_tut_scatter"
             android:title="@string/title_cesium_ion_3d_tiles"/>
         <item
+            android:id="@+id/nav_ogc3d_tiles_archive_3tz_activity"
+            android:icon="@drawable/ic_tut_scatter"
+            android:title="@string/title_ogc3d_tiles_archive_3tz"/>
+        <item
+            android:id="@+id/nav_ogc3d_tiles_archive_3dtiles_activity"
+            android:icon="@drawable/ic_tut_scatter"
+            android:title="@string/title_ogc3d_tiles_archive_3dtiles"/>
+        <item
             android:id="@+id/nav_point_cloud_activity"
             android:icon="@drawable/ic_tut_scatter"
             android:title="@string/title_point_cloud"/>

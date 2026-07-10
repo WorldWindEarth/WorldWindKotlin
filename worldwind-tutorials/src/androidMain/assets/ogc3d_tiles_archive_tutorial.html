@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>3D Tiles Archive Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>3D Tiles Archive Tutorial</h1>
+<p>
+    Renders a local <b>Cesium 3D Tiles Archive</b> — a single-file package of an ordinary 3D Tiles
+    dataset. Both container forms are supported and auto-detected by magic bytes: <code>.3tz</code>
+    (a ZIP) and <code>.3dtiles</code> (a SQLite <code>media(key, content)</code> database).
+</p>
+<p>
+    <code>openArchived3dTilesLayer(file)</code> wires the archive in purely as the layer's byte
+    transport — nothing is copied or extracted, tile bytes are read straight from the archive at
+    render time, and the standard parse/decode/traverse/GPU pipeline runs unchanged. Call
+    <code>Ogc3dTilesLayer.shutdown()</code> when done to close the archive handle.
+</p>
+<p>
+    The tutorial stages the bundled dragon sample archive into the app cache dir on first use
+    (the archive readers only open real filesystem files), then frames the camera on the dataset
+    extent once <code>tileset.json</code> parses.
+</p>
+<h2>Example</h2>
+<h3>Ogc3dTilesArchiveFragment.kt</h3>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+open class Ogc3dTilesArchiveFragment : BasicGlobeFragment() {
+    protected open val assetPath: String get() = MR.assets.dragon_3tz.originalPath
+    protected open val stagedName: String get() = "dragon.3tz"
+    private var tutorial: Ogc3dTilesArchiveTutorial? = null
+
+    override fun createWorldWindow(): WorldWindow = super.createWorldWindow().also { wwd ->
+        val ctx = requireContext()
+        Ogc3dTilesArchiveTutorial(wwd.engine, lifecycleScope) {
+            // Stage the bundled archive moko-resource into the Android cache dir; the
+            // ZIP / SQLite readers only open real filesystem files.
+            withContext(Dispatchers.IO) {
+                File(ctx.cacheDir, stagedName).also { out ->
+                    if (!out.exists()) ctx.assets
+                        .open(assetPath)
+                        .buffered()
+                        .use { input -> out.outputStream().buffered().use { input.copyTo(it) } }
+                }.path
+            }
+        }.also {
+            tutorial = it
+            it.start()
+        }
+    }
+
+    override fun onDestroyView() {
+        tutorial?.stop()
+        tutorial = null
+        super.onDestroyView()
+    }
+}
+
+/** Same dataset in the `.3dtiles` (SQLite `media(key, content)`) container form. */
+class Ogc3dTilesSqliteArchiveFragment : Ogc3dTilesArchiveFragment() {
+    override val assetPath: String get() = MR.assets.dragon_3dtiles.originalPath
+    override val stagedName: String get() = "dragon.3dtiles"
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>

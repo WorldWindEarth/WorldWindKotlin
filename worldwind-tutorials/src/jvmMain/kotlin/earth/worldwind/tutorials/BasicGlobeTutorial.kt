@@ -315,8 +315,8 @@ fun main() {
                     },
                 ),
                 "ArcGIS SLPK (local)" to SlpkTutorial(engine),
-                "3D Tiles Archive (.3tz)" to Ogc3dTilesArchiveTutorial(engine) { SharedStagedArchive.tz() },
-                "3D Tiles Archive (.3dtiles)" to Ogc3dTilesArchiveTutorial(engine) { SharedStagedArchive.sqlite() },
+                "3D Tiles Archive (.3tz)" to Ogc3dTilesArchiveTutorial(engine, mainScope) { SharedStagedArchive.tz() },
+                "3D Tiles Archive (.3dtiles)" to Ogc3dTilesArchiveTutorial(engine, mainScope) { SharedStagedArchive.sqlite() },
                 "Point Cloud (LAS/LAZ)" to PointCloudTutorial(engine),
             )
 
