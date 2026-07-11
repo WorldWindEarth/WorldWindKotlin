@@ -292,16 +292,29 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             val buffer = (if (idx < bufCount) buffers[idx] else null) ?: continue
             if (!buffer.bindBuffer(dc)) continue
             submeshModelMatrix.copy(tileToWorld).multiplyByMatrix(submesh.worldMatrix)
+            // Cutout submeshes (alpha-masked base colour) cast their silhouette, not the
+            // full quad: switch to the alpha-tested depth variant with texcoords bound.
+            val alphaMasked = submesh.alphaMask && submesh.texCoordOffset >= 0 &&
+                submesh.baseColorTexture?.let { shadow.beginAlphaMaskedCaster(dc, it, submesh.alphaCutoff) } == true
             shadow.loadCasterMatrix(submeshModelMatrix)
             dc.gl.enableVertexAttribArray(0)
             dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
+            if (alphaMasked) {
+                dc.gl.enableVertexAttribArray(1)
+                dc.gl.vertexAttribPointer(1, 2, GL_FLOAT, false, submesh.vertexStride, submesh.texCoordOffset)
+            }
             if (submesh.elementCount > 0) {
                 val elementBuffer = submesh.elementBuffer ?: buffer
-                if (!elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) continue
-                val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
-                dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
+                if (elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) {
+                    val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
+                    dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
+                }
             } else {
                 dc.gl.drawArrays(mode, 0, submesh.vertexCount)
+            }
+            if (alphaMasked) {
+                dc.gl.disableVertexAttribArray(1)
+                shadow.endAlphaMaskedCaster(dc)
             }
         }
         dc.gl.enable(GL_CULL_FACE)

@@ -3,6 +3,8 @@ package earth.worldwind.draw
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.layer.shadow.ShadowCaster
 import earth.worldwind.layer.shadow.ShadowState
+import earth.worldwind.render.Texture
+import earth.worldwind.render.program.AlphaDepthProgram
 import earth.worldwind.render.program.DirectionalDepthProgram
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
@@ -29,6 +31,9 @@ import kotlin.jvm.JvmStatic
  */
 open class DrawableShadow protected constructor() : Drawable {
     var depthProgram: DirectionalDepthProgram? = null
+    var alphaDepthProgram: AlphaDepthProgram? = null
+    /** `true` while [beginAlphaMaskedCaster] has the alpha-tested program bound. */
+    private var alphaCasterActive = false
 
     /**
      * Active cascade matrix during caster dispatch. Set by [draw] for each cascade so
@@ -65,6 +70,7 @@ open class DrawableShadow protected constructor() : Drawable {
 
     override fun recycle() {
         depthProgram = null
+        alphaDepthProgram = null
         activeCascade = null
         pool?.release(this)
         pool = null
@@ -237,11 +243,36 @@ open class DrawableShadow protected constructor() : Drawable {
      * program. Casters call this once before each draw call.
      */
     fun loadCasterMatrix(modelMatrix: Matrix4) {
-        val program = depthProgram ?: return
         val cascade = activeCascade ?: return
         scratchMatrix.copy(cascade.lightProjectionView)
         scratchMatrix.multiplyByMatrix(modelMatrix)
-        program.loadModelviewProjection(scratchMatrix)
+        if (alphaCasterActive) alphaDepthProgram?.loadModelviewProjection(scratchMatrix)
+        else depthProgram?.loadModelviewProjection(scratchMatrix)
+    }
+
+    /**
+     * Switches the depth pass to the alpha-tested caster program for a cutout-textured
+     * sub-draw: binds [texture] on unit 0 and loads [cutoff]. The caller binds its own
+     * texcoord attribute (location 1) and calls [endAlphaMaskedCaster] afterwards.
+     * Returns false - leaving the opaque program active - when the variant is unavailable
+     * or the texture fails to bind (the sub-draw then casts a solid silhouette).
+     */
+    fun beginAlphaMaskedCaster(dc: DrawContext, texture: Texture, cutoff: Float): Boolean {
+        val program = alphaDepthProgram ?: return false
+        if (!program.useProgram(dc)) return false
+        alphaCasterActive = true
+        if (!texture.bindTexture(dc)) {
+            endAlphaMaskedCaster(dc)
+            return false
+        }
+        program.loadAlphaCutoff(cutoff)
+        return true
+    }
+
+    /** Restores the opaque depth program after an alpha-masked sub-draw. */
+    fun endAlphaMaskedCaster(dc: DrawContext) {
+        alphaCasterActive = false
+        depthProgram?.useProgram(dc)
     }
 
     /**

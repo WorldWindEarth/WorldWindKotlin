@@ -6,6 +6,7 @@ import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.AbstractLayer
 import earth.worldwind.render.RenderContext
+import earth.worldwind.render.program.AlphaDepthProgram
 import earth.worldwind.render.program.DirectionalDepthProgram
 import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
@@ -319,6 +320,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         val pool = rc.getDrawablePool(DrawableShadow.KEY)
         val drawable = DrawableShadow.obtain(pool)
         drawable.depthProgram = rc.getShaderProgram { DirectionalDepthProgram() }
+        drawable.alphaDepthProgram = rc.getShaderProgram { AlphaDepthProgram() }
         rc.offerBackgroundDrawable(drawable)
     }
 
