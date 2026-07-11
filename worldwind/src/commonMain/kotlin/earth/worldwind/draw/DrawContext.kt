@@ -148,6 +148,11 @@ open class DrawContext(val gl: Kgl) {
     /** Whether benign 2D/cube textures are bound on units 5 / 6 this frame so the no-sightline path's
      *  never-sampled samplers don't trip macOS's empty-unit validator. Reset per frame. */
     var sightlineBenignBound = false
+    /** Scratch for the camera-relative sightline matrix composed in
+     *  [earth.worldwind.layer.sightline.applySightlineReceiverUniforms]. Owned by the draw
+     *  context (not file scope) so each WorldWindow's GL thread composes into its own matrix -
+     *  multiple windows draw concurrently on separate threads. Fully overwritten per use. */
+    val sightlineLocalScratch = Matrix4()
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()

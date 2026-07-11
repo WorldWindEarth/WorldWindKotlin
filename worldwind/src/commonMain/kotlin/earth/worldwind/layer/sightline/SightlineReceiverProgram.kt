@@ -17,9 +17,6 @@ interface SightlineReceiverProgram {
     var lastSightlineState: SightlineState?
 }
 
-// Scratch for the camera-relative sightline matrix composition. GL thread only.
-private val sightlineLocalScratch = Matrix4()
-
 /**
  * Binds the sightline depth cube on unit 5 and uploads the sightline uniforms into [program].
  * Skips the work when there's no active sightline this frame (or in pick mode), and clears
