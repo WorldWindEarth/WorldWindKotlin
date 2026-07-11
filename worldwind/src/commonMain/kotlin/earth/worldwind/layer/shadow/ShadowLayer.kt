@@ -95,6 +95,18 @@ open class ShadowLayer : AbstractLayer("Shadow") {
      */
     var ambientShadow: Float = ShadowState.DEFAULT_AMBIENT_SHADOW
 
+    /**
+     * How many cascades (closest first) recruit OFF-SCREEN shadow casters. A caster outside
+     * the view frustum is kept alive - rasterizing into the depth maps but skipping the
+     * color pass - when its bounds intersect one of the first N cascades' light-space boxes,
+     * so its shadow still reaches visible ground. `0` disables keepalive: off-screen objects
+     * cast nothing (cheapest, matches most engines). Higher values extend correct shadows to
+     * coarser cascades at the cost of a larger resident caster set - in dense 3D-Tiles
+     * scenes each step roughly grows the kept-alive tile ring by the next cascade's
+     * footprint. Clamped to [cascadeCount].
+     */
+    var offscreenCasterCascades: Int = DEFAULT_OFFSCREEN_CASTER_CASCADES
+
     /** Debug: 0 off, 1 cascade bands, 2 footprint coverage, 3 raw shadow-map depth; logs re-fits when non-zero. */
     var debugShadowMode: Int = 0
 
@@ -272,6 +284,7 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         if (!anyValid) return // all cascades degenerate — no shadows this frame
 
         shadowState.shadowDistance = shadowFar
+        shadowState.offscreenCasterCascades = offscreenCasterCascades.coerceIn(0, cascadeCount)
         shadowState.isReady = true
         if (debugShadowMode != 0 && needRefit) {
             for (i in 0 until cascadeCount) {
@@ -430,6 +443,12 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     companion object {
         /** Default floor for the last cascade's far cap, in metres. */
         const val DEFAULT_MAXIMUM_DISTANCE: Double = 10_000.0
+
+        /** Default [offscreenCasterCascades]: the two street-scale cascades. Correct shadows
+         *  from just-off-screen casters where texels resolve them, without recruiting the
+         *  coarse cascades' kilometre-scale rings (device-measured at ~2.5x resident tiles
+         *  and ~4 ms/frame in dense city pans when all cascades recruit). */
+        const val DEFAULT_OFFSCREEN_CASTER_CASCADES: Int = 2
 
         /**
          * Geometric quantization step applied to the fit inputs at refit time, so repeated

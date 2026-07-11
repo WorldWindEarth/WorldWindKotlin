@@ -360,12 +360,14 @@ abstract class AbstractShape(
 
         if (!isWithinProjectionLimits(rc) || isVisible?.invoke(this, rc) == false) return
 
-        // Off-camera shapes that fall inside an active sightline are kept alive as occluder-only
-        // drawables so the sightline's depth pass still picks them up via SightlineOccluder.
+        // Off-camera shapes that fall inside an active sightline or a shadow cascade's
+        // footprint are kept alive as occluder-only drawables so the depth passes still
+        // pick them up - otherwise their shadows/occlusion pop as the camera turns.
         val cameraVisible = intersectsFrustum(rc)
         val sightlineCaster = !cameraVisible && intersectsAnySightlineBound(rc)
-        if (!cameraVisible && !sightlineCaster && !mustAssembleGeometry(rc)) return
-        isOccluderOnly = sightlineCaster
+        val shadowCaster = !cameraVisible && !sightlineCaster && intersectsAnyShadowCascade(rc)
+        if (!cameraVisible && !sightlineCaster && !shadowCaster && !mustAssembleGeometry(rc)) return
+        isOccluderOnly = sightlineCaster || shadowCaster
 
         // Adjust to terrain changes
         checkTerrainState(rc)
@@ -430,6 +432,18 @@ abstract class AbstractShape(
             if (dx * dx + dy * dy + dz * dz <= maxDist * maxDist) return true
         }
         return false
+    }
+
+    /** Off-camera shadow casters whose bounding sphere intersects a cascade's light-space
+     *  box still darken visible ground; [RenderContext.shadowState] carries this frame's
+     *  cascade layout when the shadow layer rendered earlier in the layer list. */
+    protected fun intersectsAnyShadowCascade(rc: RenderContext): Boolean {
+        if (rc.shadowState == null) return false
+        val active = if (isHighlighted) highlightAttributes ?: attributes else attributes
+        if (!active.shadowMode.castsShadows) return false
+        val box = currentBoundindData.boundingBox
+        if (box.isUnitBox) return false // surface shapes don't cast
+        return rc.intersectsShadowCasterRegion(box.center, box.radius)
     }
 
     protected open fun determineActiveAttributes(rc: RenderContext) {

@@ -526,6 +526,23 @@ open class RenderContext {
      * when a shadow layer is active. [earth.worldwind.layer.shadow.ShadowLayer] consumes the
      * accumulation on the next frame to fit cascade splits to the content actually in view.
      */
+    /** True when a shadow-casting bounding sphere outside the view frustum still intersects
+     *  a valid cascade's light-space box - its shadow can reach visible ground. Requires the
+     *  shadow layer to have rendered earlier in the layer list ([shadowState] set).
+     *  Only the first [ShadowState.offscreenCasterCascades] cascades recruit (app-tunable via
+     *  [earth.worldwind.layer.shadow.ShadowLayer.offscreenCasterCascades]): the coarse
+     *  cascades' texels span metres, so an off-screen caster's shadow there is sub-texel
+     *  noise, and their huge light boxes would keep distant content alive wholesale.
+     *  Visible casters still draw into every cascade. */
+    fun intersectsShadowCasterRegion(center: Vec3, radius: Double): Boolean {
+        val state = shadowState ?: return false
+        for (i in 0 until minOf(state.cascadeCount, state.offscreenCasterCascades)) {
+            val cascade = state.cascades[i]
+            if (cascade.isValid && cascade.intersectsSphere(center, radius)) return true
+        }
+        return false
+    }
+
     private fun contributeShadowSceneBounds(drawable: Drawable) {
         if (!hasShadowLayer || isPickMode) return
         if (drawable !is ShadowCaster) return

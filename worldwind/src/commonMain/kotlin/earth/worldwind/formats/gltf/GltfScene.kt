@@ -72,7 +72,12 @@ class GltfScene internal constructor(
         if (localBoundingRadius < 0) computeLocalBoundingRadius()
         boundingSphere.center.copy(placePoint)
         boundingSphere.radius = (localBoundingRadius * scale).coerceAtLeast(1.0)
-        if (!boundingSphere.intersectsFrustum(rc.frustum)) return
+        // Keep off-camera casters alive for the shadow depth pass - their shadows still
+        // reach visible ground; the color draw is skipped via [DrawableCollada.isOccluderOnly].
+        val cameraVisible = boundingSphere.intersectsFrustum(rc.frustum)
+        val occluderOnly = !cameraVisible && shadowMode.castsShadows &&
+            rc.intersectsShadowCasterRegion(boundingSphere.center, boundingSphere.radius)
+        if (!cameraVisible && !occluderOnly) return
 
         val distanceSq = rc.cameraPoint.distanceToSquared(placePoint)
 
@@ -150,6 +155,7 @@ class GltfScene internal constructor(
         drawable.indexBuffer = iboRef
         drawable.doubleSided = false
         drawable.shadowMode = shadowMode
+        drawable.isOccluderOnly = occluderOnly
         drawable.layerOpacity = rc.currentLayer.opacity
         drawable.transformationMatrix.copy(transformationMatrix)
         drawable.normalTransformMatrix.copy(normalTransformMatrix)

@@ -67,6 +67,10 @@ class ShadowState(
      */
     var debugShadowMode: Int = 0
 
+    /** Snapshot of [ShadowLayer.offscreenCasterCascades], clamped to [cascadeCount].
+     *  Consumed by [earth.worldwind.render.RenderContext.intersectsShadowCasterRegion]. */
+    var offscreenCasterCascades: Int = 0
+
     /**
      * Monotonic counter incremented every frame that [ShadowLayer.doRender] populates new
      * cascades. Drives the per-frame caching in [applyShadowReceiverUniforms]: cascade texture
@@ -177,6 +181,7 @@ class ShadowState(
         ambientShadow = source.ambientShadow
         shadowDistance = source.shadowDistance
         debugShadowMode = source.debugShadowMode
+        offscreenCasterCascades = source.offscreenCasterCascades
         lightDirection.copy(source.lightDirection)
         cameraPoint.copy(source.cameraPoint)
         isReady = source.isReady

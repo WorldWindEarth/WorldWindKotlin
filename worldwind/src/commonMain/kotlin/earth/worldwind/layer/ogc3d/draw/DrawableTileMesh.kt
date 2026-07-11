@@ -48,6 +48,10 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
      *  draw where stencil != this id. */
     var stencilId: Int = 0
 
+    /** Tile kept alive only as a shadow caster (outside the view frustum): rasterizes in
+     *  [drawShadowDepth] / [drawSightlineDepth] but skips the color pass entirely. */
+    var isOccluderOnly: Boolean = false
+
     val tileToWorld = Matrix4()
 
     var shadowMode: ShadowMode = ShadowMode.ENABLED
@@ -124,6 +128,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
     override fun recycle() {
         content = null
         program = null
+        isOccluderOnly = false
         // Drop references but keep the array storage — next obtain() reuses them via
         // ensureSubmeshArrays. Without this, drawables in the pool pin textures/buffers
         // alive and block RR-cache eviction.
@@ -134,6 +139,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
     }
 
     override fun draw(dc: DrawContext) {
+        if (isOccluderOnly) return
         val content = this.content ?: return
         val submeshes = content.submeshes ?: return
         if (submeshes.isEmpty()) return

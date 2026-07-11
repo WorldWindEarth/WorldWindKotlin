@@ -53,6 +53,10 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
     /** Outermost-fallback subtree id (0 = no fallback ancestor → stencil bypassed). */
     var stencilId: Int = 0
 
+    /** Tile kept alive only as a shadow caster (outside the view frustum): rasterizes in
+     *  the cascade depth pass but skips the color pass entirely. */
+    var isOccluderOnly: Boolean = false
+
     /** Per-tile base point size in pixels at 1 m eye depth. Caller sets at enqueue time. */
     var basePointSize: Float = 1f
 
@@ -97,11 +101,13 @@ open class DrawableTilePoints protected constructor() : Drawable, ShadowCaster {
         content = null
         vertexBuffer = null
         program = null
+        isOccluderOnly = false
         pool?.release(this)
         pool = null
     }
 
     override fun draw(dc: DrawContext) {
+        if (isOccluderOnly) return
         val content = this.content ?: return
         val vbo = this.vertexBuffer ?: return
         val pointCount = content.pointCount

@@ -32,6 +32,11 @@ class Traverser(
 
     private val result = Result()
     private val traverseStack = ArrayDeque<TraversalEntry>()
+    /** Keep tiles outside the view frustum selected when their bounding sphere intersects a
+     *  shadow cascade's light-space box - their shadows still reach visible ground. Set per
+     *  traversal by the layer (shadow layer active and the layer casts shadows). */
+    var includeShadowCasters = false
+
     /** Reusable [TraversalEntry] pool. Each traversal allocated one entry per visible child
      *  (~500-2000 per frame at globe scale) — measurable LOS pressure. The stack pops in
      *  LIFO order, so released entries are immediately available to the next push. */
@@ -111,6 +116,8 @@ class Traverser(
         markFallbacks(selectedSet)
         assignStencilIds(selectedSet)
         result.selectedTiles.sortWith(selectedSortComparator)
+        // Flag shadow-only tiles so the layer enqueues them occluder-only (no color pass).
+        for (tile in result.selectedTiles) tile.isShadowOnly = isShadowOnly(rc, tile)
         return result
     }
 
@@ -184,6 +191,10 @@ class Traverser(
          *  no fallback ancestor (fast-path); excess subtrees beyond 127 fall back to 0
          *  (harmless overdraw — no skip-LoD masking). */
         private const val MAX_STENCIL_ID = 127
+
+        /** Error-budget multiplier for tiles kept only as shadow casters - shadows tolerate
+         *  far coarser geometry than the screen does. */
+        private const val SHADOW_ONLY_SSE_FACTOR = 6.0
     }
 
     private fun selectTiles(rc: RenderContext, root: Tile3d) {
@@ -258,7 +269,8 @@ class Traverser(
         val uri = tile.contentUri
         if (uri == null || uri.endsWith(".json", ignoreCase = true)) return true
         val sse = ScreenSpaceError.compute(rc, tile.geometricError, distance)
-        return sse > maxScreenSpaceError
+        val budget = if (isShadowOnly(rc, tile)) maxScreenSpaceError * SHADOW_ONLY_SSE_FACTOR else maxScreenSpaceError
+        return sse > budget
     }
 
     /** Push visible children, aggregate `refines` across the cohort (AND/OR per
@@ -337,8 +349,18 @@ class Traverser(
         return uri != null && !uri.endsWith(".json", ignoreCase = true) && tile.content != null
     }
 
-    private fun intersectsFrustum(rc: RenderContext, tile: Tile3d): Boolean =
-        tile.worldBoundingSphere(rc.globe).intersectsFrustum(rc.frustum)
+    private fun intersectsFrustum(rc: RenderContext, tile: Tile3d): Boolean {
+        val sphere = tile.worldBoundingSphere(rc.globe)
+        if (sphere.intersectsFrustum(rc.frustum)) return true
+        return includeShadowCasters && rc.intersectsShadowCasterRegion(sphere.center, sphere.radius)
+    }
+
+    /** True when [tile] was accepted only for shadow casting (outside the view frustum) -
+     *  such tiles refine against a much coarser error budget: their geometry is consumed
+     *  through cascade texels far coarser than screen pixels, and full-LoD off-screen
+     *  refinement would multiply the resident tile set and its fetch/render cost. */
+    private fun isShadowOnly(rc: RenderContext, tile: Tile3d): Boolean =
+        includeShadowCasters && !tile.worldBoundingSphere(rc.globe).intersectsFrustum(rc.frustum)
 
     private fun cameraDistance(rc: RenderContext, tile: Tile3d): Double {
         val sphere = tile.worldBoundingSphere(rc.globe)

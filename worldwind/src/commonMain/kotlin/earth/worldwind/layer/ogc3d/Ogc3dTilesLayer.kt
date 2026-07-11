@@ -326,6 +326,8 @@ open class Ogc3dTilesLayer(
         frameCounter++
         rebakeAltitudeOffset(rc, current)
         traverser.maxScreenSpaceError = memoryAdjustedSSE
+        traverser.includeShadowCasters =
+            shadowMode.castsShadows && (rc.shadowState?.offscreenCasterCascades ?: 0) > 0
         val result = traverser.traverse(rc, current)
 
         // Touch loaded tiles before draining uploads so that the put()/makeSpace eviction
@@ -1048,6 +1050,7 @@ open class Ogc3dTilesLayer(
         drawable.shadowMode = shadowMode
         drawable.isFallback = tile.isFallback
         drawable.stencilId = tile.stencilId
+        drawable.isOccluderOnly = tile.isShadowOnly
         // Refs resolved once in uploadMeshContent — no per-frame HashMap.getNode. Post-eviction
         // bindBuffer/bindTexture returns false → drawSubmesh skips, same as the prior cache-miss path.
         drawable.ensureSubmeshArrays(submeshes.size)
@@ -1137,6 +1140,7 @@ open class Ogc3dTilesLayer(
         drawable.shadowMode = shadowMode
         drawable.isFallback = tile.isFallback
         drawable.stencilId = tile.stencilId
+        drawable.isOccluderOnly = tile.isShadowOnly
         drawable.basePointSize = pointSize
 
         // Keeps on-screen point size uniform with distance.

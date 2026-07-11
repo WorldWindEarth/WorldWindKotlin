@@ -72,7 +72,11 @@ class DrawableCollada : Drawable, SightlineOccluder, ShadowCaster {
         entities.clear()
     }
 
+    /** Kept alive off-camera for the shadow/sightline depth passes; color draw skips. */
+    var isOccluderOnly = false
+
     override fun draw(dc: DrawContext) {
+        if (isOccluderOnly) return // queued only for the depth passes
         val prog = program ?: return
         if (!prog.useProgram(dc)) return
         if (vertexBuffer?.bindBuffer(dc) != true) return

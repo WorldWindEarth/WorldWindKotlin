@@ -57,6 +57,10 @@ class Tile3d internal constructor(
      *  draw where stencil != this id. */
     var stencilId: Int = 0
 
+    /** Set by the traverser when the tile was accepted only as a shadow caster (outside the
+     *  view frustum). The layer enqueues it occluder-only: cascade depth pass, no color pass. */
+    var isShadowOnly: Boolean = false
+
     /** Scratch sort key set by [Traverser] each frame for distance-first ordering.
      *  Direct primitive field — avoids the boxed `HashMap<Tile3d, Double>` lookup that
      *  showed up as `Double.valueOf` 271 samples on the main thread at globe scale. */
