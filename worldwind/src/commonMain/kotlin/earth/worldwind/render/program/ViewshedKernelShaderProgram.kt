@@ -24,6 +24,7 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
 
     private var elevTexId = KglUniformLocation.NONE
     private var gridSizeId = KglUniformLocation.NONE
+    private var maxStepsId = KglUniformLocation.NONE
     private var observerCellId = KglUniformLocation.NONE
     private var observerAltId = KglUniformLocation.NONE
     private var earthRadiusId = KglUniformLocation.NONE
@@ -40,6 +41,7 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
         elevTexId = gl.getUniformLocation(program, "elevTex")
         gl.uniform1i(elevTexId, 0) // sampler bound to GL_TEXTURE0
         gridSizeId = gl.getUniformLocation(program, "gridSize")
+        maxStepsId = gl.getUniformLocation(program, "maxSteps")
         observerCellId = gl.getUniformLocation(program, "observerCell")
         observerAltId = gl.getUniformLocation(program, "observerAlt")
         earthRadiusId = gl.getUniformLocation(program, "earthRadius")
@@ -53,6 +55,9 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
     }
 
     fun loadGridSize(width: Int, height: Int) = gl.uniform2i(gridSizeId, width, height)
+
+    /** Walk-iteration cap; callers pass `width + height`, the exact bound on `|dx| + |dy|`. */
+    fun loadMaxSteps(steps: Int) = gl.uniform1i(maxStepsId, steps)
     fun loadObserverCell(x: Int, y: Int) = gl.uniform2i(observerCellId, x, y)
     fun loadObserverAltitude(meters: Float) = gl.uniform1f(observerAltId, meters)
     fun loadEarthRadius(meters: Float) = gl.uniform1f(earthRadiusId, meters)
@@ -90,9 +95,12 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
         """.trimIndent()
 
         // Per-fragment Amanatides–Woo walk from the observer to the target cell, with bilerp
-        // sampling at sub-pixel ray-cell crossings and an earth-curvature + atmospheric-
-        // refraction correction on apparent angle. MAX_STEPS is a hard safety cap; the walk
-        // normally exits via `xi == tx && yi == ty` after at most |dx|+|dy| iterations.
+        // sampling at ray-cell crossings and an earth-curvature + refraction correction. The
+        // walk exits after at most |dx|+|dy| steps; the caller uploads maxSteps = width+height,
+        // the exact bound, so the cap never truncates a valid walk (and reads occluded, not
+        // visible, if it ever does). maxSteps is a uniform, not a constant, because mobile
+        // GLSL compilers fully unroll constant-bounded loops — at grid scale that overruns the
+        // instruction limit and fails the link, which the kernel drawable then skips silently.
         private val FRAGMENT_SOURCE = """
             precision highp float;
             precision highp int;
@@ -100,6 +108,7 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
 
             uniform sampler2D elevTex;
             uniform ivec2 gridSize;
+            uniform int maxSteps;
             uniform ivec2 observerCell;
             uniform float observerAlt;
             uniform float earthRadius;
@@ -113,7 +122,6 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
 
             out vec4 fragColor;
 
-            const int MAX_STEPS = 4096;
             const float DROP_COEFF = 0.87;        // 1 - k where k = 0.13 atmospheric refraction
             const float BIG = 1.0e30;
 
@@ -171,7 +179,8 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
                 int xi = cxi;
                 int yi = cyi;
                 bool occluded = false;
-                for (int i = 0; i < MAX_STEPS; i++) {
+                bool reached = false;
+                for (int i = 0; i < maxSteps; i++) {
                     float tEntry;
                     if (tMaxX < tMaxY) {
                         tEntry = tMaxX;
@@ -182,7 +191,7 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
                         yi += stepY;
                         tMaxY += tDeltaY;
                     }
-                    if (xi == tx && yi == ty) break;
+                    if (xi == tx && yi == ty) { reached = true; break; }
 
                     float fx = float(cxi) + 0.5 + tEntry * float(dx);
                     float fy = float(cyi) + 0.5 + tEntry * float(dy);
@@ -208,7 +217,8 @@ class ViewshedKernelShaderProgram : AbstractShaderProgram() {
                     }
                 }
 
-                fragColor = occluded ? occludedColor : visibleColor;
+                // A truncated walk proves nothing; read occluded, the conservative default.
+                fragColor = (occluded || !reached) ? occludedColor : visibleColor;
             }
         """.trimIndent()
     }

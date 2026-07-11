@@ -136,6 +136,7 @@ open class DrawableViewshedKernel : Drawable {
         dc.gl.viewport(0, 0, width, height)
 
         program.loadGridSize(width, height)
+        program.loadMaxSteps(width + height)
         program.loadObserverCell(observerCellX, observerCellY)
         program.loadObserverAltitude(observerAltitude)
         program.loadEarthRadius(earthRadius)

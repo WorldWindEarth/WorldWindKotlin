@@ -394,15 +394,16 @@ open class ViewshedSightline @JvmOverloads constructor(
         val elevationDirty = pendingElevationTimestamp != lastElevationModelTimestamp
         val elevationSettled = elevationDirty && framesSinceTimestampChange >= elevationDebounceFrames
 
-        // After a draft dispatch settles, re-run at full resolution. Gated on [lastWasDraft]
-        // so zoom/pan don't trigger continuous re-dispatch. If settled, mark dirty for the
-        // trigger below; otherwise pump rc.requestRedraw to keep frames coming on event-driven
-        // JVM/Android (the global WorldWind.requestRedraw is gated by isWaitingForRedraw and
-        // is a no-op mid-frame; rc.requestRedraw sets the per-frame flag the engine propagates).
-        // The same pump also keeps frames flowing while we're waiting for the elevation
-        // debounce to expire.
-        if (isIdle && (lastWasDraft || elevationDirty)) {
-            val readyToTrigger = (lastWasDraft && framesSinceChange >= settleFrames) || elevationSettled
+        // After a draft dispatch settles, re-run at full resolution. The pump keeps frames
+        // coming on event-driven JVM/Android while escalation or elevation-debounce work is
+        // pending (rc.requestRedraw sets the per-frame flag; the global WorldWind.requestRedraw
+        // is a no-op mid-frame). It must NOT gate on isIdle: the frame after a draft dispatch
+        // can still be gpuInFlight and the GPU-completion callback requests no redraw, so
+        // gating would freeze the countdown and the full-res pass would never trigger. Only
+        // the re-dispatch trigger gates on isIdle-and-ready.
+        if (lastWasDraft || elevationDirty) {
+            val readyToTrigger = isIdle &&
+                ((lastWasDraft && framesSinceChange >= settleFrames) || elevationSettled)
             if (readyToTrigger) dirty = true else rc.requestRedraw()
         }
 
