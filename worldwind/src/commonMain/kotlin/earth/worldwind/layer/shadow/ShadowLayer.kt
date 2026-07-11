@@ -147,18 +147,30 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         if (rc.globe.is2D) return // No shadow rendering on 2D globe
         if (rc.isPickMode) return // Picks bypass shadows entirely
 
-        // Sun-below-horizon early-exit: dot(lightDirection, camera up) = sin(elevation);
-        // the -0.05 margin avoids terminator flicker.
+        // Terminator handling: sin(sun elevation) against the SHADED CONTENT's zenith - the
+        // look-at point when available (an orbital camera over the night side can still view
+        // sunlit terrain across the limb), the camera's otherwise.
         val cp = rc.cameraPoint
-        val eyeMagSq = cp.x * cp.x + cp.y * cp.y + cp.z * cp.z
-        if (eyeMagSq > 0.0) {
-            val invEyeMag = 1.0 / sqrt(eyeMagSq)
-            val sinElevation = (rc.lightDirection.x * cp.x +
-                rc.lightDirection.y * cp.y + rc.lightDirection.z * cp.z) * invEyeMag
-            if (sinElevation < -0.05) return
+        rc.lookAtPosition?.let {
+            rc.globe.geographicToCartesianNormal(it.latitude, it.longitude, scratchVec)
+        } ?: run {
+            val eyeMagSq = cp.x * cp.x + cp.y * cp.y + cp.z * cp.z
+            if (eyeMagSq <= 0.0) return
+            scratchVec.copy(cp).divide(sqrt(eyeMagSq))
         }
+        val sinElevation = rc.lightDirection.x * scratchVec.x +
+            rc.lightDirection.y * scratchVec.y + rc.lightDirection.z * scratchVec.z
+        if (sinElevation < TERMINATOR_MIN_SIN_ELEVATION) return
+        // Fade shadow strength to nothing across the terminator band instead of a one-frame
+        // global pop: raise the ambient floor toward 1 as the sun sinks. Physically, grazing
+        // sunlight is attenuated by the atmosphere and diffuse sky light dominates.
+        val terminatorT = (
+            (sinElevation - TERMINATOR_MIN_SIN_ELEVATION) /
+                (TERMINATOR_FULL_SIN_ELEVATION - TERMINATOR_MIN_SIN_ELEVATION)
+        ).coerceIn(0.0, 1.0)
+        val terminatorFade = (terminatorT * terminatorT * (3.0 - 2.0 * terminatorT)).toFloat()
 
-        shadowState.ambientShadow = ambientShadow
+        shadowState.ambientShadow = ambientShadow + (1f - ambientShadow) * (1f - terminatorFade)
         shadowState.debugShadowMode = debugShadowMode
         shadowState.lightDirection.copy(rc.lightDirection)
         shadowState.cameraPoint.copy(rc.cameraPoint)
@@ -477,6 +489,12 @@ open class ShadowLayer : AbstractLayer("Shadow") {
          * Geometric quantization step applied to the fit inputs at refit time, so repeated
          * refits around the same view land on identical values.
          */
+        /** Below this sin(sun elevation) shadows are skipped entirely. */
+        private const val TERMINATOR_MIN_SIN_ELEVATION = -0.05
+        /** Above this sin(sun elevation) shadows render at full strength; between the two
+         *  the ambient floor fades toward 1 (smoothstep). ~5.7 degrees. */
+        private const val TERMINATOR_FULL_SIN_ELEVATION = 0.10
+
         private const val LADDER_BASE = 1.5
 
         /**
