@@ -86,7 +86,7 @@ open class SurfaceTextureProgram(
             varying vec3 worldPos;
             varying float viewDepth;
 
-            ${ShadowReceiverGlsl.fragmentDeclarations(depthBias = ShadowReceiverGlsl.TERRAIN_DEPTH_BIAS)}
+            ${ShadowReceiverGlsl.fragmentDeclarations()}
             #endif
 
             void main() {

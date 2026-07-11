@@ -59,27 +59,27 @@ object ShadowReceiverGlsl {
 
     /**
      * Receiver-side constant depth bias for opaque primitives (shapes, 3D-Tile meshes,
-     * models), in units of the active cascade's `[0, 1]` depth range. Small because the
-     * caster pass already applies slope-scaled polygon offset.
+     * models), in world metres — normalized per cascade on the CPU (metres / depth range)
+     * so a caster-inflated depth window can't balloon the bias and detach contact shadows.
+     * Small because the caster pass already applies slope-scaled polygon offset.
      */
-    const val PRIMITIVE_DEPTH_BIAS = "2e-5"
+    const val PRIMITIVE_DEPTH_BIAS_METERS = 0.02f
 
     /**
-     * Receiver-side constant depth bias for terrain-draped receivers — larger than the
-     * primitive bias because terrain triangles are big and often nearly light-parallel.
-     * Deliberately NOT scaled with view distance: normalized bias already grows with
-     * cascade range, and distance scaling once ballooned to tens of km at globe range.
+     * Receiver-side constant depth bias for terrain-draped receivers, in world metres —
+     * larger than the primitive bias because terrain triangles are big and often nearly
+     * light-parallel.
      */
-    const val TERRAIN_DEPTH_BIAS = "1e-4"
+    const val TERRAIN_DEPTH_BIAS_METERS = 0.08f
 
     private fun mapSize(i: Int) = "vec2(${DrawContext.shadowCascadeMapSize(i)}.0)"
 
     /**
-     * Builds the fragment-shader declaration block. [depthBias] is the receiver's constant
-     * depth bias as a GLSL float literal. [lit] additionally emits `shadowLitFactor` for
-     * receivers with a lighting model (requires `LightingGlsl.DECLARATIONS` above this block).
+     * Builds the fragment-shader declaration block. [lit] additionally emits
+     * `shadowLitFactor` for receivers with a lighting model (requires
+     * `LightingGlsl.DECLARATIONS` above this block).
      */
-    fun fragmentDeclarations(depthBias: String = PRIMITIVE_DEPTH_BIAS, lit: Boolean = false): String {
+    fun fragmentDeclarations(lit: Boolean = false): String {
         val soft = DrawContext.softShadows()
         val pcfRadius = if (soft) 1 else 0
         val pcfCount = (2 * pcfRadius + 1) * (2 * pcfRadius + 1)
@@ -142,8 +142,10 @@ object ShadowReceiverGlsl {
         const vec2 shadowMapSize2 = ${mapSize(2)};
         const vec2 shadowMapSize3 = ${mapSize(3)};
 
-        /* Constant receiver bias; glPolygonOffset in the caster pass carries the slope part. */
-        const float shadowDepthBias = $depthBias;
+        /* Per-cascade constant receiver bias in normalized depth units, computed on the CPU
+           as receiverBiasMeters / cascadeDepthRange; glPolygonOffset in the caster pass
+           carries the slope part. */
+        uniform vec4 cascadeConstBiases;
 
         /* Normal-offset scale in cascade texels; grows toward light-grazing surfaces. */
         const float shadowNormalOffsetTexels = 2.0;
@@ -185,7 +187,7 @@ object ShadowReceiverGlsl {
            [kernelBias] is the selected cascade's texel-scale bias (cascadeDepthBiases) - the
            constant fallback where derivatives are unavailable / degenerate, and the clamp
            scale for the receiver-plane prediction. */
-        float sampleCascade(int cascadeIndex, vec3 position, vec3 dPosDx, vec3 dPosDy, float viewDepth, float kernelBias) {
+        float sampleCascade(int cascadeIndex, vec3 position, vec3 dPosDx, vec3 dPosDy, float viewDepth, float kernelBias, float receiverBias) {
             vec4 shadowPos;
             vec3 posDx;
             vec3 posDy;
@@ -227,7 +229,7 @@ object ShadowReceiverGlsl {
                 constBias = kernelBias * 0.25;
             }
             #endif
-            float bias = constBias + shadowDepthBias;
+            float bias = constBias + receiverBias;
             float receiverDepth = shadowPos.z - bias;
             float planeBiasClamp = kernelBias * 4.0;
             if (cascadeIndex == 0) return shadowPcf(shadowMap0, shadowPos.xy, shadowMapSize0, receiverDepth, dzduv, planeBiasClamp);
@@ -264,26 +266,36 @@ object ShadowReceiverGlsl {
             float kernelBias;
             float kernelBiasNext;
             float kernelBiasPrev;
+            float constBias;
+            float constBiasNext;
+            float constBiasPrev;
             if (viewDepth < cascadeFarDepths.x) {
                 cascade = 0; cascadeNear = 0.0;                cascadeFar = cascadeFarDepths.x;
                 texelWorld = cascadeTexelWorldSizes.x; texelWorldNext = cascadeTexelWorldSizes.y;
                 kernelBias = cascadeDepthBiases.x;     kernelBiasNext = cascadeDepthBiases.y;
-                texelWorldPrev = 0.0;                  kernelBiasPrev = 0.0;
+                constBias = cascadeConstBiases.x;      constBiasNext = cascadeConstBiases.y;
+                texelWorldPrev = 0.0;                  kernelBiasPrev = 0.0; constBiasPrev = 0.0;
             } else if (viewDepth < cascadeFarDepths.y) {
                 cascade = 1; cascadeNear = cascadeFarDepths.x; cascadeFar = cascadeFarDepths.y;
                 texelWorld = cascadeTexelWorldSizes.y; texelWorldNext = cascadeTexelWorldSizes.z;
                 kernelBias = cascadeDepthBiases.y;     kernelBiasNext = cascadeDepthBiases.z;
+                constBias = cascadeConstBiases.y;      constBiasNext = cascadeConstBiases.z;
                 texelWorldPrev = cascadeTexelWorldSizes.x; kernelBiasPrev = cascadeDepthBiases.x;
+                constBiasPrev = cascadeConstBiases.x;
             } else if (viewDepth < cascadeFarDepths.z) {
                 cascade = 2; cascadeNear = cascadeFarDepths.y; cascadeFar = cascadeFarDepths.z;
                 texelWorld = cascadeTexelWorldSizes.z; texelWorldNext = cascadeTexelWorldSizes.w;
                 kernelBias = cascadeDepthBiases.z;     kernelBiasNext = cascadeDepthBiases.w;
+                constBias = cascadeConstBiases.z;      constBiasNext = cascadeConstBiases.w;
                 texelWorldPrev = cascadeTexelWorldSizes.y; kernelBiasPrev = cascadeDepthBiases.y;
+                constBiasPrev = cascadeConstBiases.y;
             } else {
                 cascade = 3; cascadeNear = cascadeFarDepths.z; cascadeFar = cascadeFarDepths.w;
                 texelWorld = cascadeTexelWorldSizes.w; texelWorldNext = 0.0;
                 kernelBias = cascadeDepthBiases.w;     kernelBiasNext = 0.0;
+                constBias = cascadeConstBiases.w;      constBiasNext = 0.0;
                 texelWorldPrev = cascadeTexelWorldSizes.z; kernelBiasPrev = cascadeDepthBiases.z;
+                constBiasPrev = cascadeConstBiases.z;
             }
             if (debugShadowMode == 1) {
                 /* Cascade layout view: 1.0 / 0.75 / 0.5 / 0.25 per cascade. */
@@ -320,7 +332,7 @@ object ShadowReceiverGlsl {
                more for light-grazing surfaces. */
             float offsetStrength = (1.0 - nDotL) * shadowNormalOffsetTexels;
             vec3 position0 = position + worldNormal * min(offsetStrength * texelWorld, shadowNormalOffsetMax);
-            float visibility = sampleCascade(cascade, position0, dPosDx, dPosDy, viewDepth, kernelBias);
+            float visibility = sampleCascade(cascade, position0, dPosDx, dPosDy, viewDepth, kernelBias, constBias);
             /* In the deepest [cascadeBlendFraction] of each cascade lerp toward the next
                cascade's visibility to hide the seam. Blend only between REAL coverage: the
                per-cascade snapped footprints are offset from each other, so blend-zone (and
@@ -333,7 +345,7 @@ object ShadowReceiverGlsl {
                 float t = smoothstep(blendStart, cascadeFar, viewDepth);
                 if (t > 0.0 || visibility < 0.0) {
                     vec3 position1 = position + worldNormal * min(offsetStrength * texelWorldNext, shadowNormalOffsetMax);
-                    float visibilityNext = sampleCascade(cascade + 1, position1, dPosDx, dPosDy, viewDepth, kernelBiasNext);
+                    float visibilityNext = sampleCascade(cascade + 1, position1, dPosDx, dPosDy, viewDepth, kernelBiasNext, constBiasNext);
                     if (visibility < 0.0) visibility = visibilityNext;
                     else if (visibilityNext >= 0.0) visibility = mix(visibility, visibilityNext, t);
                 }
@@ -347,7 +359,7 @@ object ShadowReceiverGlsl {
                    proportionally smaller reach, or fallback pixels read lighter than their
                    normally-sampled neighbours. */
                 vec3 positionPrev = position + worldNormal * min(offsetStrength * texelWorldPrev, shadowNormalOffsetMax);
-                visibility = sampleCascade(cascade - 1, positionPrev, dPosDx, dPosDy, viewDepth, kernelBiasPrev);
+                visibility = sampleCascade(cascade - 1, positionPrev, dPosDx, dPosDy, viewDepth, kernelBiasPrev, constBiasPrev);
             }
             /* Still no coverage: genuinely beyond every footprint - lit. */
             if (visibility < 0.0) visibility = 1.0;

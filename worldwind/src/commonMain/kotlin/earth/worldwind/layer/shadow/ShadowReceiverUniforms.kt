@@ -16,7 +16,11 @@ import earth.worldwind.util.kgl.KglUniformLocation
  * and the load methods early-return — behaviourally identical to per-program code where the same
  * calls hit `NONE` locations as silent no-ops.
  */
-class ShadowReceiverUniforms(private val enabled: Boolean) {
+class ShadowReceiverUniforms(
+    private val enabled: Boolean,
+    /** Receiver constant depth bias in world metres — normalized per cascade at upload. */
+    private val depthBiasMeters: Float = ShadowReceiverGlsl.PRIMITIVE_DEPTH_BIAS_METERS,
+) {
     private var applyShadowId = KglUniformLocation.NONE
     private var ambientShadowId = KglUniformLocation.NONE
     private var lightDirectionId = KglUniformLocation.NONE
@@ -24,6 +28,7 @@ class ShadowReceiverUniforms(private val enabled: Boolean) {
     private var cascadeFarDepthsId = KglUniformLocation.NONE
     private var cascadeTexelWorldSizesId = KglUniformLocation.NONE
     private var cascadeDepthBiasesId = KglUniformLocation.NONE
+    private var cascadeConstBiasesId = KglUniformLocation.NONE
     private var debugCascadesId = KglUniformLocation.NONE
     private val shadowMapIds = Array(ShadowReceiverGlsl.CASCADE_COUNT) { KglUniformLocation.NONE }
     private val shadowMatrixIds = Array(ShadowReceiverGlsl.CASCADE_COUNT) { KglUniformLocation.NONE }
@@ -57,6 +62,8 @@ class ShadowReceiverUniforms(private val enabled: Boolean) {
         gl.uniform4f(cascadeTexelWorldSizesId, 0f, 0f, 0f, 0f)
         cascadeDepthBiasesId = gl.getUniformLocation(program, "cascadeDepthBiases")
         gl.uniform4f(cascadeDepthBiasesId, 0f, 0f, 0f, 0f)
+        cascadeConstBiasesId = gl.getUniformLocation(program, "cascadeConstBiases")
+        gl.uniform4f(cascadeConstBiasesId, 0f, 0f, 0f, 0f)
         debugCascadesId = gl.getUniformLocation(program, "debugShadowMode")
         gl.uniform1i(debugCascadesId, 0)
         for (i in shadowMapIds.indices) {
@@ -104,6 +111,13 @@ class ShadowReceiverUniforms(private val enabled: Boolean) {
             } else 0f
         }
         gl.uniform4f(cascadeDepthBiasesId, vec4Array[0], vec4Array[1], vec4Array[2], vec4Array[3])
+        // Constant receiver bias: world metres normalized by each cascade's depth range so an
+        // inflated depth window (high-altitude caster) can't balloon the world-space bias.
+        for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
+            val cascade = state.cascades[i]
+            vec4Array[i] = if (cascade.range > 0.0) (depthBiasMeters / cascade.range).toFloat() else 0f
+        }
+        gl.uniform4f(cascadeConstBiasesId, vec4Array[0], vec4Array[1], vec4Array[2], vec4Array[3])
         for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
             state.cascades[i].shadowMatrix.transposeToArray(matrixArray, 0)
             gl.uniformMatrix4fv(shadowMatrixIds[i], 1, false, matrixArray, 0)
