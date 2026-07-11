@@ -205,10 +205,10 @@ open class DrawableSightline protected constructor() : Drawable {
         if (!framebuffer.bindFramebuffer(dc)) return false
 
         try {
-            // Rendering into a texture still bound for sampling on unit 5 is undefined.
-            dc.activeTextureUnit(GL_TEXTURE5)
-            dc.defaultCubeTexture.bindTexture(dc)
-            dc.activeTextureUnit(GL_TEXTURE0)
+            // Get the real cube off unit 5 before attaching its faces as a render target -
+            // rendering into a texture still bound for sampling is undefined. Also invalidates
+            // the receiver bind cache so a later receiver rebinds the real cube.
+            dc.parkBenignSightlineCube()
 
             dc.gl.viewport(0, 0, size, size)
             // Assert the depth-write state the pass depends on; colour writes stay masked.
@@ -397,10 +397,10 @@ open class DrawableSightline protected constructor() : Drawable {
                 terrain.drawTriangles(dc)
             }
         } finally {
-            // Benign cube on unit 5 so the next depth pass can attach faces without feedback.
-            dc.activeTextureUnit(GL_TEXTURE5)
-            dc.defaultCubeTexture.bindTexture(dc)
-            dc.activeTextureUnit(GL_TEXTURE0)
+            // Benign cube on unit 5 so the next depth pass can attach faces without feedback,
+            // and the receiver bind cache is invalidated so a later receiver rebinds the real
+            // cube instead of cache-hitting onto this benign one.
+            dc.parkBenignSightlineCube()
         }
     }
 }

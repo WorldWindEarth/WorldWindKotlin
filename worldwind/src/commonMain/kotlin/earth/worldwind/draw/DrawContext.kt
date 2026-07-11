@@ -444,6 +444,23 @@ open class DrawContext(val gl: Kgl) {
         ?: Texture(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, false, target = GL_TEXTURE_CUBE_MAP).also {
             defaultCubeTextureCache = it
         }
+
+    /**
+     * Parks a benign cube on unit 5 and invalidates the sightline bind cache. Called by
+     * [DrawableSightline] whenever it clobbers unit 5 for feedback safety (a texture bound for
+     * sampling can't also be a render target). Without the [lastSightlineTextureBind] reset a
+     * later receiver holding the same [SightlineState] would cache-hit and sample this benign
+     * cube instead of the real depth cube - safe today only by drawable ordering. The parked
+     * cube is compare-mode ([nullShadowDepthCubeTexture]) under hardware samplers, matching the
+     * receiver path so WebGL2's draw-time sampler-vs-format validation stays consistent.
+     */
+    fun parkBenignSightlineCube() {
+        activeTextureUnit(GL_TEXTURE5)
+        (if (gl.hasShadowSamplers) nullShadowDepthCubeTexture else defaultCubeTexture).bindTexture(this)
+        activeTextureUnit(GL_TEXTURE0)
+        sightlineBenignBound = true
+        lastSightlineTextureBind = null
+    }
     /**
      * Returns a scratch list suitable for accumulating entries during drawing. The list is cleared before each frame,
      * otherwise its contents are undefined.
