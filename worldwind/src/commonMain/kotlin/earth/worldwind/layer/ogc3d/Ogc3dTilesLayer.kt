@@ -66,6 +66,10 @@ import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.Logger
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.traceAsyncBegin
+import earth.worldwind.util.traceAsyncEnd
+import earth.worldwind.util.traceCounter
+import earth.worldwind.util.traceSection
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -227,7 +231,8 @@ open class Ogc3dTilesLayer(
      *  pressure to fetch; an unbounded queue would stockpile parsed mesh preps (each
      *  retaining a decoded Bitmap + vertex FloatArray) when GL upload can't keep up. */
     private val pendingMeshUploads = Channel<MeshUploadEntry>(capacity = PENDING_UPLOAD_CHANNEL_CAPACITY)
-    /** Best-effort depth gauge for the bounded upload queue; drifts under cancellation. */
+    /** Side counter for the Perfetto `tiles.pendingUploads` track — Channel API hides its
+     *  own size. Drifts by inflight cancellations (we don't decrement on cancel). */
     @Volatile private var pendingUploadDepth: Int = 0
 
     /** Tile → in-flight fetch [Job]. Walked each frame so fetches whose tile is no longer
@@ -299,12 +304,12 @@ open class Ogc3dTilesLayer(
      *  without a [RenderContext]. Null before the first frame. */
     @Volatile protected var lastGlobe: Globe? = null
 
-    override fun doRender(rc: RenderContext) {
+    override fun doRender(rc: RenderContext) = traceSection("3dTiles.doRender") {
         lastGlobe = rc.globe
         val current = tileset
         if (current == null) {
             ensureRootRequested()
-            return
+            return@traceSection
         }
         if (cachedSector == null) {
             cachedSector = current.root.boundingVolume.worldBoundingSector(rc.globe, current.root.tileToWorld, Sector())
@@ -321,7 +326,7 @@ open class Ogc3dTilesLayer(
         // current on-screen tile set.
         if (rc.isPickMode) {
             for (tile in lastSelectedTiles) enqueueDrawable(rc, tile)
-            return
+            return@traceSection
         }
         invalidateOnContextLoss(rc)
         frameCounter++
@@ -329,12 +334,13 @@ open class Ogc3dTilesLayer(
         traverser.maxScreenSpaceError = memoryAdjustedSSE
         traverser.includeShadowCasters =
             shadowMode.castsShadows && (rc.shadowState?.offscreenCasterCascades ?: 0) > 0
-        val result = traverser.traverse(rc, current)
+        val result = traceSection("3dTiles.traverse") { traverser.traverse(rc, current) }
 
         // Touch loaded tiles before draining uploads so that the put()/makeSpace eviction
         // triggered by new uploads sees them as recently used and skips them.
         var occupiedBytes = 0L
         var hasUnloadedRequests = false
+        traceSection("3dTiles.touchAndRequest") {
         for (tile in result.requestedTiles) {
             val content = tile.content
             when {
@@ -384,22 +390,29 @@ open class Ogc3dTilesLayer(
                 }
             }
         }
-        sweepEvictedGaussianTiles()
+        }
+        traceSection("3dTiles.sweepGaussian") { sweepEvictedGaussianTiles() }
         adjustMemorySSE(occupiedBytes, hasUnloadedRequests)
-        reapInFlightFetches(result.requestedTiles)
+        traceSection("3dTiles.reapFetches") { reapInFlightFetches(result.requestedTiles) }
 
-        drainPendingMeshUploads(rc)
+        traceSection("3dTiles.drainUploads") { drainPendingMeshUploads(rc) }
 
-        lastSelectedTiles.clear()
-        lastSelectedTiles.addAll(result.selectedTiles)
-        for (tile in result.selectedTiles) enqueueDrawable(rc, tile)
+        traceSection("3dTiles.stampSelected") {
+            lastSelectedTiles.clear()
+            lastSelectedTiles.addAll(result.selectedTiles)
+        }
+        traceSection("3dTiles.enqueueDrawables") {
+            for (tile in result.selectedTiles) enqueueDrawable(rc, tile)
+        }
 
         // Stamp touched tiles for the cold-subtree sweep.
         val now = frameCounter
-        for (tile in result.selectedTiles) tile.lastSelectedFrame = now
-        for (tile in result.requestedTiles) tile.lastSelectedFrame = now
+        traceSection("3dTiles.stampLastFrame") {
+            for (tile in result.selectedTiles) tile.lastSelectedFrame = now
+            for (tile in result.requestedTiles) tile.lastSelectedFrame = now
+        }
         if (now % TILE_TREE_SWEEP_FRAMES == 0L) {
-            tileset?.let { evictColdSubtrees(it.root, now, TILE_TREE_EVICT_THRESHOLD_FRAMES) }
+            tileset?.let { traceSection("3dTiles.evictColdSubtrees") { evictColdSubtrees(it.root, now, TILE_TREE_EVICT_THRESHOLD_FRAMES) } }
         }
 
         // Sustain the load loop via rc.requestRedraw — WorldWind.requestRedraw() from inside
@@ -523,6 +536,8 @@ open class Ogc3dTilesLayer(
                     .coerceIn(MIN_EAGER_BIND_BUDGET, MAX_EAGER_BIND_BUDGET)
             }
         }
+        traceCounter("tiles.installCap", adaptiveInstallCap.toLong())
+        traceCounter("tiles.eagerBindBudget", adaptiveEagerBindBudget.toLong())
         var loadedAny = false
         var stoppedAtBudget = false
         var uploaded = 0
@@ -530,6 +545,9 @@ open class Ogc3dTilesLayer(
             val entry = pendingMeshUploads.tryReceive().getOrNull() ?: break
             uploaded++
             pendingUploadDepth--
+            val cookie = (entry.tile.contentUri ?: entry.tile.graftedFromUri ?: "").hashCode()
+            traceAsyncEnd("Tile.installWait", cookie)
+            traceAsyncEnd("Tile.lifetime", cookie)
             // One bad upload mustn't abort the frame — per-tile catch, FAIL the tile, keep draining.
             try {
                 uploadMeshContent(entry.prep, entry.shell, rc)
@@ -750,6 +768,8 @@ open class Ogc3dTilesLayer(
         val uri = tile.contentUri ?: return
         if (tile.loadState != Tile3d.LoadState.UNLOADED) return
         tile.loadState = Tile3d.LoadState.FETCHING
+        val cookie = uri.hashCode()
+        traceAsyncBegin("Tile.lifetime", cookie)
         // Cesium-style "progressive resolution": coarser parents win over finer children
         // (parent always available as fallback render — no holes during refinement). At
         // same level, closer-to-camera wins. Sub-tileset .json wrappers pinned to the
@@ -782,17 +802,24 @@ open class Ogc3dTilesLayer(
                     is HttpStatusException -> Tile3d.LoadState.FAILED
                     else -> Tile3d.LoadState.UNLOADED
                 }
+                traceAsyncEnd("Tile.lifetime", cookie)
             }
         )
         inFlightFetches[tile] = job
+        traceCounter("tiles.inflight", inFlightFetches.size.toLong())
     }
 
     /** Drop completed jobs and cancel any whose tile is no longer in [activeTiles] —
      *  reclaims fetch-queue permits when the camera moves before the fetch lands. */
     private fun reapInFlightFetches(activeTiles: Collection<Tile3d>) {
-        if (inFlightFetches.isEmpty()) return
+        if (inFlightFetches.isEmpty()) {
+            traceCounter("tiles.stale_in_flight", 0)
+            traceCounter("tiles.reaped_this_frame", 0)
+            return
+        }
         reapActiveSet.clear()
         reapActiveSet.addAll(activeTiles)
+        var reaped = 0
         val iter = inFlightFetches.entries.iterator()
         while (iter.hasNext()) {
             val (tile, job) = iter.next()
@@ -802,20 +829,32 @@ open class Ogc3dTilesLayer(
                     job.cancel()
                     tile.loadState = Tile3d.LoadState.UNLOADED
                     iter.remove()
+                    reaped++
                 }
             }
         }
+        // Post-reap stragglers indicate jobs whose cancel() hasn't yet released their permit.
+        var stale = 0
+        for (tile in inFlightFetches.keys) if (tile !in reapActiveSet) stale++
+        traceCounter("tiles.inflight", inFlightFetches.size.toLong())
+        traceCounter("tiles.stale_in_flight", stale.toLong())
+        traceCounter("tiles.reaped_this_frame", reaped.toLong())
     }
 
     private suspend fun handleContentFetched(tile: Tile3d, bytes: ByteArray) {
+        val cookie = (tile.contentUri ?: tile.graftedFromUri ?: "").hashCode()
+        traceAsyncBegin("Tile.parse", cookie)
         tile.loadState = Tile3d.LoadState.PARSING
         val kind = ContentDispatcher.detect(bytes)
         val uri = tile.contentUri ?: ""
+        // Mesh paths hand off via enqueueMeshUpload → drainPendingMeshUploads which closes the
+        // async sections; non-mesh paths (json, points, gaussian) close them here.
+        var meshHandoff = false
         try {
             when (kind) {
-                ContentDispatcher.Kind.B3DM -> enqueueMeshUpload(tile, parseB3dm(bytes, uri))
-                ContentDispatcher.Kind.I3DM -> enqueueMeshUpload(tile, parseI3dm(bytes, uri))
-                ContentDispatcher.Kind.CMPT -> enqueueMeshUpload(tile, parseCmpt(bytes, uri))
+                ContentDispatcher.Kind.B3DM -> { enqueueMeshUpload(tile, parseB3dm(bytes, uri)); meshHandoff = true }
+                ContentDispatcher.Kind.I3DM -> { enqueueMeshUpload(tile, parseI3dm(bytes, uri)); meshHandoff = true }
+                ContentDispatcher.Kind.CMPT -> { enqueueMeshUpload(tile, parseCmpt(bytes, uri)); meshHandoff = true }
                 ContentDispatcher.Kind.PNTS -> attachPointCloudContent(tile, parsePnts(bytes, uri))
                 ContentDispatcher.Kind.GLTF, ContentDispatcher.Kind.GLTF_JSON -> {
                     // glb can wrap Gaussian splats via KHR_gaussian_splatting; give the
@@ -827,9 +866,9 @@ open class Ogc3dTilesLayer(
                             attachGaussianContent(tile, parseGaussian(bytes, loader, uri))
                         }
                     } else if (kind == ContentDispatcher.Kind.GLTF) {
-                        enqueueMeshUpload(tile, parseGltfBinary(bytes, uri))
+                        enqueueMeshUpload(tile, parseGltfBinary(bytes, uri)); meshHandoff = true
                     } else {
-                        enqueueMeshUpload(tile, parseGltfJson(bytes, uri))
+                        enqueueMeshUpload(tile, parseGltfJson(bytes, uri)); meshHandoff = true
                     }
                 }
                 ContentDispatcher.Kind.TILESET_JSON ->
@@ -856,6 +895,7 @@ open class Ogc3dTilesLayer(
         } catch (cancelled: CancellationException) {
             // Don't poison the tile state on cooperative cancellation.
             tile.loadState = Tile3d.LoadState.UNLOADED
+            if (!meshHandoff) { traceAsyncEnd("Tile.parse", cookie); traceAsyncEnd("Tile.lifetime", cookie) }
             throw cancelled
         } catch (t: Throwable) {
             logMessage(
@@ -863,7 +903,10 @@ open class Ogc3dTilesLayer(
                 "parse failed for ${tile.contentUri}", t
             )
             tile.loadState = Tile3d.LoadState.FAILED
+            if (!meshHandoff) { traceAsyncEnd("Tile.parse", cookie); traceAsyncEnd("Tile.lifetime", cookie) }
         }
+        // Non-mesh paths (json / points / gaussian) finish synchronously here.
+        if (!meshHandoff) { traceAsyncEnd("Tile.parse", cookie); traceAsyncEnd("Tile.lifetime", cookie) }
     }
 
     private class ParsedMesh(val shell: MeshContent, val prep: MeshContentPrep)
@@ -1017,7 +1060,11 @@ open class Ogc3dTilesLayer(
     /** Hand a parsed mesh to the render thread for RR-cache upload. Suspends on a full
      *  bounded queue, holding the fetch permit — the back-pressure path. */
     private suspend fun enqueueMeshUpload(tile: Tile3d, parsed: ParsedMesh) {
-        pendingUploadDepth++
+        val cookie = (tile.contentUri ?: tile.graftedFromUri ?: "").hashCode()
+        traceAsyncEnd("Tile.parse", cookie)
+        traceAsyncBegin("Tile.installWait", cookie)
+        pendingUploadDepth++ // race-tolerant diagnostic counter, not a correctness gate
+        traceCounter("tiles.pendingUploads", pendingUploadDepth.toLong())
         pendingMeshUploads.send(MeshUploadEntry(tile, parsed.shell, parsed.prep))
         WorldWind.requestRedraw()
     }

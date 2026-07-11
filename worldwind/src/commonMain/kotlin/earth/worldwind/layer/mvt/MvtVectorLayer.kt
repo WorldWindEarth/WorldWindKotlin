@@ -37,6 +37,7 @@ import earth.worldwind.util.FloatList
 import earth.worldwind.util.IntList
 import earth.worldwind.util.LongList
 import earth.worldwind.util.PrioritySemaphore
+import earth.worldwind.util.traceSection
 import earth.worldwind.util.withPermit
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -173,12 +174,12 @@ open class MvtVectorLayer(
             withContext(mvtAssemblyDispatcher) {
                 assemblyPermits.withPermit {
                     val tile = if (blob == null || blob.isEmpty) MvtTile(emptyList())
-                    else MvtDecoder.decode(blob.bytes)
+                    else traceSection("Mvt.decode") { MvtDecoder.decode(blob.bytes) }
                     // Re-run schema detection while UNKNOWN — an empty first tile would otherwise lock it.
                     if (tile.layers.isNotEmpty() && detectedSchema.let { it == null || it == MvtSchemaDetector.Schema.UNKNOWN }) {
                         detectedSchema = MvtSchemaDetector.detect(tile)
                     }
-                    toRenderables(key, tile)
+                    traceSection("Mvt.assemble") { toRenderables(key, tile) }
                 }
             }
         } catch (e: CancellationException) {
@@ -246,7 +247,7 @@ open class MvtVectorLayer(
             labelLineDedup.clear()
             val totalLabels = activeLabelGroups.sumOf { it.labels.size }
             // One pass collides point labels then curved line labels (line-vs-point + line-vs-line).
-            labelCollider.run(rc, activeLabelGroups, totalLabels, labelDedup, activeLineLabels, labelLineDedup)
+            traceSection("Mvt.collide") { labelCollider.run(rc, activeLabelGroups, totalLabels, labelDedup, activeLineLabels, labelLineDedup) }
             // Curved line labels first, then point groups on top (city names over street names).
             for (l in activeLineLabels) try {
                 l.render(rc)
@@ -516,6 +517,7 @@ open class MvtVectorLayer(
         // distort under 1px simplification), and full-detail continental geometry at low zoom OOMs.
         val simplifyTile = simplifyGeometry && key.z <= simplifyMaxZoom
 
+        traceSection("Mvt.features") {
         val scratch = MvtGeometry.Scratch()
         // One reused props map for the whole tile — refilled (cleared) per feature instead of a fresh
         // LinkedHashMap each iteration. Safe: every reader (firstMatching/resolve/buildText/buildExtrusion/
@@ -803,6 +805,7 @@ open class MvtVectorLayer(
                 }
             }
         }
+        }
 
         // Captured globe snapshot for off-thread pre-assembly. Null until the first frame; pre-
         // assembly is skipped in that case and the render thread assembles lazily on first paint.
@@ -811,6 +814,7 @@ open class MvtVectorLayer(
 
         // Prepend the batched-polygon tile so fills paint under lines. Surface compositor
         // honours enqueue order within a sector for opaque drawables.
+        traceSection("Mvt.build") {
         if (polygonBatch != null && polygonBatch.isNotEmpty()) {
             val batched = MvtBatchedPolygonTile(
                 features = polygonBatch,
@@ -840,6 +844,7 @@ open class MvtVectorLayer(
             // whether we have a globe yet, but we gate on globeState for cache consistency.
             batchedLines.assemble(preAssembleState)
             out += batchedLines
+        }
         }
 
         // Non-batched: emit fills first (z-sorted) so they enqueue under the lines below.

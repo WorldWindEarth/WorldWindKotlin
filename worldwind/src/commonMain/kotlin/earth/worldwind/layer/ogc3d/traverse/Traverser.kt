@@ -8,6 +8,7 @@ import earth.worldwind.layer.ogc3d.tileset.Refinement
 import earth.worldwind.layer.ogc3d.tileset.Tile3d
 import earth.worldwind.layer.ogc3d.tileset.Tileset
 import earth.worldwind.render.RenderContext
+import earth.worldwind.util.traceCounter
 
 /** Per-frame tile-tree walk. Emits selected tiles (drawables) + requested tiles (fetches). */
 class Traverser(
@@ -117,7 +118,13 @@ class Traverser(
         assignStencilIds(selectedSet)
         result.selectedTiles.sortWith(selectedSortComparator)
         // Flag shadow-only tiles so the layer enqueues them occluder-only (no color pass).
-        for (tile in result.selectedTiles) tile.isShadowOnly = isShadowOnly(rc, tile)
+        var shadowOnly = 0L
+        for (tile in result.selectedTiles) {
+            tile.isShadowOnly = isShadowOnly(rc, tile)
+            if (tile.isShadowOnly) shadowOnly++
+        }
+        traceCounter("tiles.selected", result.selectedTiles.size.toLong())
+        traceCounter("tiles.shadowOnly", shadowOnly)
         return result
     }
 

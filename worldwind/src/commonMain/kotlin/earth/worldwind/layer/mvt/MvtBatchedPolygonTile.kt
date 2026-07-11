@@ -17,6 +17,7 @@ import earth.worldwind.util.FloatList
 import earth.worldwind.util.IntList
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.Earcut
+import earth.worldwind.util.traceSection
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_TRIANGLES
@@ -164,7 +165,7 @@ class MvtBatchedPolygonTile(
         if (tileData.refreshGeometry || tileData.vertexArray.isEmpty()) return
 
         if (rc.isPickMode) {
-            emitPickDrawables(rc, tileData)
+            traceSection("Mvt.pick") { emitPickDrawables(rc, tileData) }
             return
         }
 
@@ -350,11 +351,13 @@ class MvtBatchedPolygonTile(
         // [features] list (the order the layer hands out pickPayloads in).
         val originalIndices = features.indices.toMutableList()
         if (features.size > 1) originalIndices.sortBy { features[it].zOrder }
-        for (oi in originalIndices.indices) {
-            val idx = originalIndices[oi]
-            val f = features[idx]
-            if (f.outer.size < 6) continue
-            assembleFeature(f, idx)
+        traceSection("Mvt.tessellate.poly") {
+            for (oi in originalIndices.indices) {
+                val idx = originalIndices[oi]
+                val f = features[idx]
+                if (f.outer.size < 6) continue
+                assembleFeature(f, idx)
+            }
         }
 
         // Concat per-(z, color) buckets into the final EBO; LinkedHashMap iteration = z-asc.

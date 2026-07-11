@@ -14,6 +14,7 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.BasicShaderProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.traceSection
 import earth.worldwind.util.kgl.GL_COLOR_BUFFER_BIT
 import earth.worldwind.util.kgl.GL_DEPTH_STENCIL_ATTACHMENT
 import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
@@ -58,7 +59,7 @@ open class BasicFrameController: FrameController {
         if (rc.globe.is2D && !boundingBox.setToSector(fullSphere, rc.globe, 0f, 0f).intersectsFrustum(rc.frustum)) return
 
         // Prepare terrain for specified globe offset
-        rc.terrain = rc.terrainTessellator.tessellate(rc)
+        rc.terrain = traceSection("Terrain.tessellate") { rc.terrainTessellator.tessellate(rc) }
 
         // Compute viewing distance and pixel size based on available terrain
         if (!rc.globe.is2D) adjustViewingParameters(rc)
@@ -67,7 +68,7 @@ open class BasicFrameController: FrameController {
         if (rc.isPickMode) renderTerrainPickedObject(rc) else renderTerrain(rc).also { lastTerrains[globeOffset] = rc.terrain }
 
         // Render all layers on specified globe offset
-        rc.layers.render(rc)
+        traceSection("Layers.render") { rc.layers.render(rc) }
     }
 
     protected open fun adjustViewingParameters(rc: RenderContext) {
@@ -122,7 +123,7 @@ open class BasicFrameController: FrameController {
         }
         setViewport(dc)
         clearFrame(dc)
-        uploadBuffers(dc)
+        traceSection("GL.upload") { uploadBuffers(dc) }
         // Pre-bind the 1×1 default 2D texture to every unit any sampler2D in the codebase
         // could resolve to. macOS Core profile prints a one-shot UNSUPPORTED warning on
         // the first draw it sees with a sampler bound to an empty unit; the warning is
@@ -139,7 +140,7 @@ open class BasicFrameController: FrameController {
             dc.defaultTexture.bindTexture(dc)
         }
         dc.activeTextureUnit(GL_TEXTURE0)
-        drawDrawables(dc)
+        traceSection("GL.draw") { drawDrawables(dc) }
         if (dc.isPickMode) {
             // Skip the depth-to-color blit when no shapes were drawn (most clicks on empty space).
             if (dc.pickedObjects?.count != 0) copyDepthToReadbackFramebuffer(dc)
@@ -157,16 +158,16 @@ open class BasicFrameController: FrameController {
         dc.gl.clear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
     }
 
-    protected open fun uploadBuffers(dc: DrawContext) {
+    protected open fun uploadBuffers(dc: DrawContext) = traceSection("Frame.uploadBuffers") {
         dc.uploadBuffers()
     }
 
-    protected open fun drawDrawables(dc: DrawContext) {
+    protected open fun drawDrawables(dc: DrawContext) = traceSection("Frame.drawDrawables") {
         dc.rewindDrawables()
         while (true) {
             val next = dc.pollDrawable() ?: break
             try {
-                next.draw(dc)
+                traceSection("Draw.${next::class.simpleName ?: "?"}") { next.draw(dc) }
             } catch (e: Exception) {
                 logMessage(
                     ERROR, "BasicFrameController", "drawDrawables",

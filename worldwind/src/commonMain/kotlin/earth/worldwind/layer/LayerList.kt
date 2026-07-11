@@ -3,6 +3,7 @@ package earth.worldwind.layer
 import earth.worldwind.render.RenderContext
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.traceSection
 
 open class LayerList() : Iterable<Layer> {
     protected val layers = mutableListOf<Layer>()
@@ -80,7 +81,7 @@ open class LayerList() : Iterable<Layer> {
             val layer = layers[i]
             rc.currentLayer = layer
             try {
-                layer.render(rc)
+                traceSection("Layer.${layer::class.simpleName ?: "?"}") { layer.render(rc) }
             } catch (e: Exception) {
                 logMessage(
                     ERROR, "LayerList", "render",

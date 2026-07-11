@@ -10,6 +10,8 @@ import earth.worldwind.util.Logger.INFO
 import earth.worldwind.util.Logger.log
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
+import earth.worldwind.util.traceCounter
+import earth.worldwind.util.traceSection
 import kotlin.jvm.JvmStatic
 
 /**
@@ -44,6 +46,8 @@ open class DrawableShadow protected constructor() : Drawable {
 
     private val scratchMatrix = Matrix4()
     private var terrainCoverageSkip = BooleanArray(0)
+    /** Diagnostic: caster draw calls dispatched this frame across all cascades. */
+    private var casterDrawCount = 0L
     private var pool: Pool<DrawableShadow>? = null
 
     companion object {
@@ -114,11 +118,13 @@ open class DrawableShadow protected constructor() : Drawable {
             dc.gl.enable(GL_POLYGON_OFFSET_FILL)
             dc.gl.polygonOffset(POLYGON_OFFSET_FACTOR, POLYGON_OFFSET_UNITS)
             computeTerrainCoverageSkips(dc)
+            casterDrawCount = 0
             for (i in 0 until state.cascadeCount) {
                 val cascade = state.cascades[i]
                 if (!cascade.isValid) continue
-                drawCascadeDepth(dc, i, cascade)
+                traceSection("Shadow.cascade$i") { drawCascadeDepth(dc, i, cascade) }
             }
+            traceCounter("shadow.casterDraws", casterDrawCount)
         } finally {
             // Restore default WorldWind state regardless of which cascade failed.
             dc.bindFramebuffer(previousFramebuffer)
@@ -162,6 +168,7 @@ open class DrawableShadow protected constructor() : Drawable {
             scratchMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
             program.loadModelviewProjection(scratchMatrix)
             terrain.drawTriangles(dc)
+            casterDrawCount++
         }
         dc.gl.enable(GL_CULL_FACE)
 
@@ -235,6 +242,7 @@ open class DrawableShadow protected constructor() : Drawable {
             val center = drawable.shadowCasterCenter
             if (center != null && !cascade.intersectsSphere(center, drawable.shadowCasterRadius)) continue
             drawable.drawShadowDepth(dc, this)
+            casterDrawCount++
         }
     }
 

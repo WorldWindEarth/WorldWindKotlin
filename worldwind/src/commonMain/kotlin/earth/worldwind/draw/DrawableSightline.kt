@@ -12,6 +12,8 @@ import earth.worldwind.render.program.DirectionalDepthProgram
 import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
+import earth.worldwind.util.traceCounter
+import earth.worldwind.util.traceSection
 import kotlin.jvm.JvmStatic
 import kotlin.math.PI
 import kotlin.math.cos
@@ -161,15 +163,15 @@ open class DrawableSightline protected constructor() : Drawable {
         // Faces are always 90 degrees; the directional field of view is a receiver-side mask.
         cubeMapProjection.setToPerspectiveProjection(1, 1, POS90, 1.0, max(range.toDouble(), 1.001))
         if (renderMode != RenderMode.OVERLAY_ONLY) {
-            if (!drawSceneDepth(dc)) return
+            if (!traceSection("Sightline.depthCube") { drawSceneDepth(dc) }) return
             // Publish for embedded receivers; with several sightlines the last one wins there.
             dc.sightlineState = SightlineState().also(::fillState)
         }
         if (renderMode != RenderMode.DEPTH_ONLY) {
             // Overlay renders its OWN configuration (dc.sightlineState may be another
             // sightline's); re-render the cube only if another sightline overwrote it.
-            if (dc.sightlineCubeOwner !== sourceKey && !drawSceneDepth(dc)) return
-            drawSceneOcclusion(dc, overlayState.also(::fillState))
+            if (dc.sightlineCubeOwner !== sourceKey && !traceSection("Sightline.depthCube") { drawSceneDepth(dc) }) return
+            traceSection("Sightline.overlay") { drawSceneOcclusion(dc, overlayState.also(::fillState)) }
         }
     }
 

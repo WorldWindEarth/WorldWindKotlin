@@ -9,6 +9,7 @@ import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.program.TriangleShaderProgram
 import earth.worldwind.util.Pool
+import earth.worldwind.util.traceSection
 import earth.worldwind.util.kgl.*
 import kotlin.jvm.JvmStatic
 
@@ -79,9 +80,9 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 // Get the drawable terrain associated with the draw context.
                 val terrain = dc.getDrawableTerrain(idx)
                 // Draw the accumulated surface shapes to a texture representing the terrain's sector.
-                drawShapesToTexture(dc, terrain)?.let { texture ->
+                traceSection("GL.rtt.shapes") { drawShapesToTexture(dc, terrain) }?.let { texture ->
                     // Draw the texture containing the rasterized shapes onto the terrain geometry.
-                    drawTextureToTerrain(dc, terrain, texture)
+                    traceSection("GL.rtt.composite") { drawTextureToTerrain(dc, terrain, texture) }
                 }
             }
         } finally {
