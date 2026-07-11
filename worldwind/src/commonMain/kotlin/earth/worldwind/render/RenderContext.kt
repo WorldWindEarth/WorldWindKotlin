@@ -552,10 +552,21 @@ open class RenderContext {
         val distance = -(m[8] * (center.x - cameraPoint.x)
             + m[9] * (center.y - cameraPoint.y)
             + m[10] * (center.z - cameraPoint.z))
-        // lightDirection is set by the atmosphere layer before content layers offer.
-        val lightZTop = lightDirection.x * center.x + lightDirection.y * center.y +
-            lightDirection.z * center.z + drawable.shadowCasterRadius
+        // lightDirection is set by the atmosphere layer before content layers offer. The
+        // overflow-fallback caster top is CAMERA-RELATIVE: the shadow layer re-bases it with
+        // its own anchored sun, and at absolute ECEF magnitudes even a sub-milliradian
+        // difference between the continuous and anchored directions is kilometres of error.
+        val lightZTop = lightDirection.x * (center.x - cameraPoint.x) +
+            lightDirection.y * (center.y - cameraPoint.y) +
+            lightDirection.z * (center.z - cameraPoint.z) + drawable.shadowCasterRadius
         shadowSceneBoundsCurrent.contribute(distance, drawable.shadowCasterRadius, lightZTop)
+        // Track individual spheres only for ELEVATED casters - content at/below camera level
+        // is already covered by each cascade's slice pullback, and registering every tile
+        // mesh would overflow the list in city scenes, degrading to the global fallback in
+        // exactly the drone-over-city case the per-cascade gating exists for.
+        if (lightZTop > ShadowSceneBounds.ELEVATED_CASTER_THRESHOLD) {
+            shadowSceneBoundsCurrent.addCasterSphere(center.x, center.y, center.z, drawable.shadowCasterRadius)
+        }
     }
 
     fun offerScreenDrawable(drawable: Drawable, zOrder: Double) {

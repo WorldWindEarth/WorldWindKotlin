@@ -138,6 +138,8 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     private var wasteViolationFrames = 0
     private val anchoredLightDirection = Vec3()
     private var hasLightAnchor = false
+    /** dot(anchored light, camera point) - re-bases the camera-relative overflow caster top. */
+    private var casterLightZBase = 0.0
     /** Closest cascade's texel world size from the previous frame — scales the light-anchor tolerance. */
     private var lastTexelWorld0 = 0.0
 
@@ -257,6 +259,8 @@ open class ShadowLayer : AbstractLayer("Shadow") {
             anchoredLightDirection.copy(trueLight).normalize()
             hasLightAnchor = true
         }
+        casterLightZBase = anchoredLightDirection.x * cp.x +
+            anchoredLightDirection.y * cp.y + anchoredLightDirection.z * cp.z
 
         // Light-space rotation: forward = -lightDirection; ECEF +Z as the up reference,
         // +Y when the light is itself near the pole.
@@ -376,18 +380,6 @@ open class ShadowLayer : AbstractLayer("Shadow") {
             if (scratchVec.z > zMax) zMax = scratchVec.z
         }
 
-        // Extend the near plane toward the sun: the footprint-scaled pullback captures
-        // terrain-scale casters, the accumulated caster light-axis top captures floating
-        // casters (a model at altitude) that a cascade's own window wouldn't reach.
-        var zNearLight = zMax + max(500.0, 2.0 * sphereRadius)
-        val bounds = rc.shadowSceneBounds
-        if (bounds.hasData && bounds.maxCasterLightZ > -Double.MAX_VALUE) {
-            zNearLight = max(zNearLight, bounds.maxCasterLightZ + 500.0)
-        }
-        val zFarLight = zMin
-        val depthRange = zNearLight - zFarLight
-        if (depthRange <= 0.0 || sphereRadius <= 0.0) return false
-
         // Texel-grid snap: pins shadow-map cells to fixed world positions across frames.
         val mapSize = DrawContext.shadowCascadeMapSize(cascadeIndex).toDouble()
         val texelSize = 2.0 * sphereRadius / mapSize
@@ -398,6 +390,37 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         val xMax = cx + sphereRadius
         val yMin = cy - sphereRadius
         val yMax = cy + sphereRadius
+
+        // Extend the near plane toward the sun: the footprint-scaled pullback captures
+        // terrain-scale casters; tracked caster spheres lift ONLY the cascades whose window
+        // they overlap in light-space XY - one model at altitude anywhere in the scene must
+        // not inflate street-level depth windows. Spheres are stored in world coordinates
+        // and transformed here with THIS frame's anchored light rotation, so no continuous
+        // vs anchored frame mixing.
+        var zNearLight = zMax + max(500.0, 2.0 * sphereRadius)
+        val bounds = rc.shadowSceneBounds
+        val lm = lightRotation.m
+        for (i in 0 until bounds.casterCount) {
+            val base = i * 4
+            val wx = bounds.casterSpheres[base]
+            val wy = bounds.casterSpheres[base + 1]
+            val wz = bounds.casterSpheres[base + 2]
+            val r = bounds.casterSpheres[base + 3]
+            val ex = lm[0] * wx + lm[1] * wy + lm[2] * wz
+            if (ex + r < xMin || ex - r > xMax) continue
+            val ey = lm[4] * wx + lm[5] * wy + lm[6] * wz
+            if (ey + r < yMin || ey - r > yMax) continue
+            val ez = lm[8] * wx + lm[9] * wy + lm[10] * wz
+            zNearLight = max(zNearLight, ez + r + 500.0)
+        }
+        // Overflow fallback: more casters than the tracked list holds - lift conservatively
+        // by the camera-relative global top re-based to the anchored light axis.
+        if (bounds.casterOverflow && bounds.maxCasterLightZ > -Double.MAX_VALUE) {
+            zNearLight = max(zNearLight, bounds.maxCasterLightZ + casterLightZBase + 500.0)
+        }
+        val zFarLight = zMin
+        val depthRange = zNearLight - zFarLight
+        if (depthRange <= 0.0 || sphereRadius <= 0.0) return false
 
         // lightView = translate(0, 0, -zNearLight) * lightRotation, built directly.
         cascade.lightView.set(
