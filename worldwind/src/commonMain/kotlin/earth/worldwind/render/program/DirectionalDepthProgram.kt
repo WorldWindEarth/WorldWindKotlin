@@ -26,6 +26,13 @@ class DirectionalDepthProgram : AbstractShaderProgram() {
 
             void main() {
                 gl_Position = mvpMatrix * vertexPoint;
+                /* Caster pancaking: geometry sunward of the cascade's near plane (clip z
+                   < -w) rasterises AT the near plane instead of being clipped away - a
+                   mountain kilometres toward the sun must still darken a street-scale
+                   cascade whose depth window can't reach it. Exact for the orthographic
+                   light projection (w = 1); flattened depth stays conservatively nearer
+                   to the sun, which cannot un-shadow a receiver. */
+                gl_Position.z = max(gl_Position.z, -gl_Position.w);
             }
         """.trimIndent(),
         """
