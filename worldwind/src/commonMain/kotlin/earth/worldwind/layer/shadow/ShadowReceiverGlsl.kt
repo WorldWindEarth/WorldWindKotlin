@@ -252,8 +252,9 @@ object ShadowReceiverGlsl {
             dPosDy = dFdy(position);
             #endif
             /* Coarse sanity cap only - the visual end of coverage is the last cascade's own
-               footprint edge in sampleCascade, so no scalar distance can cut a shadow the
-               maps can actually render. */
+               footprint edge in sampleCascade. shadowMaxDistance uploads the FITTED coverage
+               end (fitFar), so 2x can never sit inside populated cascade coverage - the
+               footprint extends past fitFar by at most about one cascade radius. */
             if (viewDepth >= shadowMaxDistance * 2.0) return 1.0;
             /* Cascade selection. ESSL 1.00 fragment shaders can't index vectors dynamically,
                so the per-cascade texel sizes are picked inside the same branch chain. */

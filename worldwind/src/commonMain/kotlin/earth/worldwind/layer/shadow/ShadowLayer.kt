@@ -300,7 +300,10 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         }
         if (!anyValid) return // all cascades degenerate — no shadows this frame
 
-        shadowState.shadowDistance = shadowFar
+        // The receivers' sanity cap keys off this: upload the FITTED coverage end, not the
+        // raw tracked distance - steady states with shadowFar well under fitFar (caster
+        // bounds shrank after the fit) must not cut shadows the maps still render.
+        shadowState.shadowDistance = fitFar
         shadowState.offscreenCasterCascades = offscreenCasterCascades.coerceIn(0, cascadeCount)
         shadowState.isReady = true
         if (debugShadowMode != 0 && needRefit) {
