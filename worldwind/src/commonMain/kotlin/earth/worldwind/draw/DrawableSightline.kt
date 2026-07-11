@@ -4,6 +4,8 @@ import earth.worldwind.geom.Angle.Companion.POS360
 import earth.worldwind.geom.Angle.Companion.POS90
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.shadow.ShadowCaster
 import earth.worldwind.layer.sightline.SightlineState
 import earth.worldwind.render.Color
 import earth.worldwind.render.program.DirectionalDepthProgram
@@ -257,19 +259,38 @@ open class DrawableSightline protected constructor() : Drawable {
     }
 
     /**
+     * True when the world-space sphere intersects the observer's range sphere - only then
+     * can it occlude a fragment within the sightline's reach (an occluder of a point at
+     * distance <= range lies between observer and point, so inside the range sphere).
+     * Radius <= 0 opts out of culling. The floor matches the cube projection's minimum far.
+     */
+    protected fun intersectsRange(center: Vec3, radius: Double): Boolean {
+        if (radius <= 0.0) return true
+        val m = centerTransform.m
+        val dx = center.x - m[3]
+        val dy = center.y - m[7]
+        val dz = center.z - m[11]
+        val reach = max(range.toDouble(), 1.001) + radius
+        return dx * dx + dy * dy + dz * dz <= reach * reach
+    }
+
+    /**
      * Precomputes, once per depth pass, which terrain tiles to skip as occluders: those
-     * intersecting any 3D-Tile mesh coverage region. The coarse terrain model can sit above
-     * the photogrammetry streets and would otherwise occlude everything a street-level
-     * observer sees - the same conflict (and the same cure) as the sun-shadow caster pass.
+     * OUTSIDE the observer's range sphere (they can't occlude anything the sightline
+     * reaches, and rasterizing them into six faces was the pass's dominant waste), plus
+     * those intersecting any 3D-Tile mesh coverage region - the coarse terrain model can
+     * sit above the photogrammetry streets and would otherwise occlude everything a
+     * street-level observer sees, the same conflict (and cure) as the sun-shadow pass.
      */
     private fun computeTerrainCoverageSkips(dc: DrawContext) {
         val count = dc.drawableTerrainCount
         if (terrainCoverageSkip.size < count) terrainCoverageSkip = BooleanArray(count)
         val regions = dc.groundCoverageRegions
         for (idx in 0 until count) {
-            var skip = false
-            if (dc.hasGroundCoverageMask) {
-                val sector = dc.getDrawableTerrain(idx).sector
+            val terrain = dc.getDrawableTerrain(idx)
+            var skip = !intersectsRange(terrain.vertexOrigin, terrain.boundingSphereRadius)
+            if (!skip && dc.hasGroundCoverageMask) {
+                val sector = terrain.sector
                 for (i in regions.indices) if (regions[i].intersects(sector)) { skip = true; break }
             }
             terrainCoverageSkip[idx] = skip
@@ -287,7 +308,14 @@ open class DrawableSightline protected constructor() : Drawable {
         val queue = dc.drawableQueue ?: return
         for (i in 0 until queue.count) {
             val drawable = queue.getDrawable(i)
-            if (drawable is SightlineOccluder) drawable.drawSightlineDepth(dc, this)
+            if (drawable !is SightlineOccluder) continue
+            // Range-cull via the shadow-caster bounds every built-in occluder also exposes;
+            // unbounded occluders dispatch into every face - the safe default.
+            if (drawable is ShadowCaster) {
+                val center = drawable.shadowCasterCenter
+                if (center != null && !intersectsRange(center, drawable.shadowCasterRadius)) continue
+            }
+            drawable.drawSightlineDepth(dc, this)
         }
     }
 
