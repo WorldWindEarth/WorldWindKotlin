@@ -297,16 +297,13 @@ open class WorldWindow @JvmOverloads constructor(
                 )
             } finally {
                 pickFrame.recycle()
-                requestRender()
             }
         }
 
-        // Remove and switch to the frame at the front of the frame queue, recycling the previous frame back into the
-        // pool. Continue requesting frames on the OpenGL thread until the frame queue is empty.
+        // Remove and switch to the frame at the front of the frame queue, recycling the previous frame back into the pool.
         frameQueue.poll()?.let { nextFrame ->
             currentFrame?.recycle()
             currentFrame = nextFrame
-            requestRender()
         }
 
         // Process and display the Drawables accumulated in the last frame taken from the front of the queue. This frame
@@ -319,6 +316,10 @@ open class WorldWindow @JvmOverloads constructor(
                 "Exception while drawing frame in OpenGL thread", e
             )
         }
+
+        // Request one more pass only while frames are pending, to avoid a redundant redraw of the current frame.
+        // Each frame offered to a queue is paired with its own render request, so no wakeup can be lost here.
+        if (pickQueue.isNotEmpty() || frameQueue.isNotEmpty()) requestRender()
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
