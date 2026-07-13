@@ -93,13 +93,14 @@ open class RealtimeSightline @JvmOverloads constructor(
 
     /**
      * The sightline's horizontal field of view about [heading]. Elevation coverage above the
-     * horizon is capped at half the field of view for angles below 180 degrees.
+     * horizon is capped at half the field of view for angles below 180 degrees. A zero field
+     * of view is an empty wedge; the sightline renders nothing.
      *
-     * @throws IllegalArgumentException If the field of view is not between 0 (exclusive) and 360 degrees
+     * @throws IllegalArgumentException If the field of view is not between 0 and 360 degrees inclusive
      */
     var fieldOfView = fieldOfView
         set(value) {
-            require(value > ZERO && value <= POS360) {
+            require(value >= ZERO && value <= POS360) {
                 logMessage(ERROR, "RealtimeSightline", "setFieldOfView", "invalidFieldOfView")
             }
             field = value
@@ -148,7 +149,7 @@ open class RealtimeSightline @JvmOverloads constructor(
         require(range >= 0) {
             logMessage(ERROR, "RealtimeSightline", "constructor", "The range $range is invalid")
         }
-        require(fieldOfView > ZERO && fieldOfView <= POS360) {
+        require(fieldOfView >= ZERO && fieldOfView <= POS360) {
             logMessage(ERROR, "RealtimeSightline", "constructor", "invalidFieldOfView")
         }
     }
@@ -199,6 +200,7 @@ open class RealtimeSightline @JvmOverloads constructor(
     }
 
     protected open fun isVisible(rc: RenderContext): Boolean {
+        if (fieldOfView == ZERO) return false // An empty wedge covers nothing
         val cameraDistance = centerPoint.distanceTo(rc.cameraPoint)
         val pixelSizeMeters = rc.pixelSizeAtDistance(cameraDistance)
         if (range < pixelSizeMeters) return false // The range is zero, or is less than one screen pixel
