@@ -16,6 +16,9 @@ open class DrawableGroundAtmosphere : Drawable {
     val lightDirection = Vec3()
     var globeRadius = 0.0
     var atmosphereAltitude = 0.0
+    /** Eye altitude (m) at/below which the ground atmosphere is off, and at/above which it's full. */
+    var fadeNearAltitude = 0.0
+    var fadeFarAltitude = 0.0
     var program: GroundProgram? = null
     var nightTexture: Texture? = null
     protected val mvpMatrix = Matrix4()
@@ -50,6 +53,15 @@ open class DrawableGroundAtmosphere : Drawable {
 
         // Use the draw context's eye point.
         program.loadEyePoint(dc.eyePoint)
+
+        // Fade the ground atmosphere with eye altitude: full from space, off near the surface
+        // where the atmospheric path is negligible and the single-scatter model over-reddens
+        // the terrain. smoothstep between the two thresholds; identity (1.0) preserves the
+        // legacy from-space look.
+        val eyeAltitude = dc.eyePoint.magnitude - globeRadius
+        val span = fadeFarAltitude - fadeNearAltitude
+        val t = if (span > 0.0) ((eyeAltitude - fadeNearAltitude) / span).coerceIn(0.0, 1.0) else 1.0
+        program.loadGroundStrength((t * t * (3.0 - 2.0 * t)).toFloat())
 
         // Use this layer's light direction.
         program.loadLightDirection(lightDirection)

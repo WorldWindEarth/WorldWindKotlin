@@ -33,6 +33,16 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
      * when [time] is set).
      */
     var lightDirectionProvider: ((RenderContext) -> Unit)? = null
+    /**
+     * Eye altitude (metres) below which the ground-atmosphere scattering is fully faded out, and
+     * above [groundFadeFarAltitude] fully applied, with a smoothstep in between. Near the surface
+     * the atmospheric path is negligible and the single-scatter model would over-redden the
+     * terrain ("Mars" tint); from space the full effect is preserved. Set both equal-or-inverted
+     * to disable the fade (always-full, legacy behaviour); set [groundFadeFarAltitude] to 0 to
+     * force the ground atmosphere off entirely.
+     */
+    var groundFadeNearAltitude: Double = 15_000.0
+    var groundFadeFarAltitude: Double = 400_000.0
     protected val activeLightDirection = Vec3()
     private val fullSphereSector = Sector().setFullSphere()
 
@@ -94,6 +104,8 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         drawable.lightDirection.copy(activeLightDirection)
         drawable.globeRadius = rc.globe.equatorialRadius
         drawable.atmosphereAltitude = rc.atmosphereAltitude
+        drawable.fadeNearAltitude = groundFadeNearAltitude
+        drawable.fadeFarAltitude = groundFadeFarAltitude
 
         // Use this layer's night image when the light location is different from the eye location.
         drawable.nightTexture = time?.run { rc.getTexture(nightImageSource, nightImageOptions) }

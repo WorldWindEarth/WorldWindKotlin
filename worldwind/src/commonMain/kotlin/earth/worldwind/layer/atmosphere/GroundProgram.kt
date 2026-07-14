@@ -40,6 +40,7 @@ class GroundProgram: AbstractAtmosphereProgram() {
             uniform float scale;			    /* 1 / (atmosphereRadius - globeRadius) */
             uniform float scaleDepth;		    /* The scale depth (i.e. the altitude at which the atmosphere's average density is found) */
             uniform float scaleOverScaleDepth;	/* fScale / fScaleDepth */
+            uniform float groundStrength;       /* 1 = full atmosphere (space), 0 = none (near ground) */
 
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
@@ -114,8 +115,14 @@ class GroundProgram: AbstractAtmosphereProgram() {
                     samplePoint += sampleRay;
                 }
 
-                primaryColor = frontColor * (invWavelength * KrESun + KmESun);
-                secondaryColor = attenuate; /* Calculate the attenuation factor for the ground */
+                /* Altitude fade: primary (additive in-scatter) -> 0, secondary (multiplicative
+                   extinction) -> 1.0, so both blend passes become no-ops near the ground. */
+                primaryColor = frontColor * (invWavelength * KrESun + KmESun) * groundStrength;
+                /* Near the ground fade extinction toward its LUMINANCE, not toward 1.0: the
+                   low-altitude "Mars cast" was the wavelength-selective hue of the full-column
+                   extinction, but its brightness carries the day/night terminator and gates the
+                   night texture (1.0 - secondaryColor) - collapsing to white erased both. */
+                secondaryColor = mix(vec3(dot(attenuate, vec3(0.2126, 0.7152, 0.0722))), attenuate, groundStrength);
 
                 /* Transform the vertex point by the modelview-projection matrix */
                 gl_Position = mvpMatrix * vertexPoint;
