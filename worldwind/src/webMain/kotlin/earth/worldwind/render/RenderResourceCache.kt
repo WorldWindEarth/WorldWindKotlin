@@ -320,6 +320,7 @@ actual open class RenderResourceCache(
     protected open fun retrievalFailed(source: ImageSource) {
         absentResourceList.markResourceAbsent(source.hashCode())
         lanes.unmarkChecked(source) // after the absent timeout, re-check the cache (a bulk download may have filled it)
+        WorldWind.requestRedraw() // re-issue requests a full retrieval lane dropped, like the other platforms
         log(WARN, "Image retrieval failed: $source")
     }
 

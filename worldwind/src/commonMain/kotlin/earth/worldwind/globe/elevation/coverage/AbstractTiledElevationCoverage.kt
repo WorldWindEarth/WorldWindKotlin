@@ -328,20 +328,33 @@ abstract class AbstractTiledElevationCoverage(
                     RetrievalPhase.NONE -> {}
                     // Phase 1: cache-only read on its own (generous) budget, so a slow network DEM
                     // fetch holding the network slots can't stall cached tiles behind it. A hit
-                    // renders next frame; a miss is recorded so the next frame falls through to the
-                    // network lane.
+                    // renders next frame; a miss falls through to the online request in the same
+                    // coroutine (moving over to the network lane), so the tile can never strand
+                    // waiting for a launch that no future query would re-issue.
                     RetrievalPhase.CACHE -> if (lanes.canReserve(RetrievalLane.LOCAL, cacheRetrievalQueueSize, key)) {
                         lanes.reserve(RetrievalLane.LOCAL, key)
                         mainScope.launch {
-                            try {
-                                val cached = cacheFactory!!.readCachedTileImage(tileMatrix, row, column)
-                                if (cached != null) retrievalSucceeded(key, cached) else cacheMissed(key, tileMatrix, row, column)
+                            val cached = try {
+                                cacheFactory!!.readCachedTileImage(tileMatrix, row, column)
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Throwable) {
-                                cacheMissed(key, tileMatrix, row, column)
+                                null // ignore cache read failures and fall through to the network
                             } finally {
                                 lanes.release(RetrievalLane.LOCAL, key)
+                            }
+                            if (cached != null) retrievalSucceeded(key, cached) else {
+                                lanes.markChecked(key) // route straight to the network lane if re-fetched later
+                                // Guaranteed continuation of a confirmed cache miss: reserve past the
+                                // network lane budget rather than drop the request.
+                                lanes.reserve(RetrievalLane.REMOTE, key)
+                                try {
+                                    retrieveTileArray(key, tileMatrix, row, column)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Throwable) {
+                                    retrievalFailed(key)
+                                }
                             }
                         }
                     }
@@ -392,12 +405,6 @@ abstract class AbstractTiledElevationCoverage(
     protected fun retrievalFailed(key: Long) {
         absentResourceList.markResourceAbsent(key)
         lanes.release(RetrievalLane.REMOTE, key)
-    }
-
-    /** Records a cache-only read miss and starts Phase 2 directly; skips the global timestamp bump that would re-sample every terrain tile's height grid each frame (retrievalSucceeded's later bump+redraw shows the tile). */
-    protected fun cacheMissed(key: Long, tileMatrix: TileMatrix, row: Int, column: Int) {
-        lanes.markChecked(key)
-        launchNetworkRetrieve(key, tileMatrix, row, column)
     }
 
     protected open fun readHeightGrid(
