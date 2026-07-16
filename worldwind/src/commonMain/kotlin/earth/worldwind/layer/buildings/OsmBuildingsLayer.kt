@@ -113,8 +113,8 @@ open class OsmBuildingsLayer(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val results = Channel<TileResult>(capacity = Channel.UNLIMITED)
     // Tiles a stale-while-revalidate refresh has replaced in the cache (delivered off the render
-    // thread via [RevalidatingSource.onTileRevalidated]). [drainRevalidated] drops each from the
-    // in-memory [tiles] LRU on the render thread so the fresh rows reload from cache.
+    // thread via [RevalidatingSource.onTileRevalidated]). [drainRevalidated] rebuilds each from
+    // the fresh cache rows in the background and swaps the resident tile on completion.
     private val revalidated = Channel<TileKey>(capacity = Channel.UNLIMITED)
     // The source the revalidation callback is currently wired to. [source] can be swapped by a
     // cache attach / rebind, so [wireRevalidation] re-wires whenever it changes.
@@ -385,17 +385,25 @@ open class OsmBuildingsLayer(
     }
 
     /**
-     * Drop every just-revalidated tile from the in-memory [tiles] LRU so the next [processTile]
-     * reloads the fresh rows the background refresh wrote to the cache. Render-thread only —
-     * [LruMemoryCache.remove] routes batched tiles through `entryRemoved` to free their GPU
-     * buffers, matching normal eviction.
+     * Refresh every just-revalidated tile from the fresh rows the background refresh wrote to the
+     * cache — swap-on-ready, NOT drop-then-reload. Removing the resident tile here made each
+     * revalidated tile visibly blink (appear → vanish for the reload round-trip → reappear); a
+     * 30-day-stale cache window blinking tile by tile as staggered refreshes landed read as
+     * "random eviction". Instead the stale tile keeps rendering while [fetch] rebuilds it from
+     * cache; [drainResults]' `tiles.put` then replaces the entry atomically on the render thread,
+     * and [LruMemoryCache.put] routes the old value through `entryRemoved` to free its GPU
+     * buffers, matching normal eviction. Tiles not currently resident have nothing on screen to
+     * preserve — clearing [pending] is enough for the next [processTile] to load the fresh rows.
      */
     private fun drainRevalidated() {
         while (true) {
             val key = revalidated.tryReceive().getOrNull() ?: return
-            tiles.remove(key)
-            pending.remove(key)
             backoff.clear(key)
+            if (tiles[key] == null) {
+                pending.remove(key)
+            } else if (!isClosed && pending.add(key)) {
+                scope.launch { fetch(key) }
+            }
         }
     }
 

@@ -20,7 +20,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -138,6 +140,12 @@ class CachedTiledFeatureSource(
 
     private val revalidating = mutableSetOf<Long>()
     private val revalidateMutex = Mutex()
+    // Concurrent background refreshes. A fully-stale tile window (e.g. a 30-day-old buildings
+    // cache) revalidates every visible tile at once — ungated, that fired up to a whole window of
+    // parallel requests at the upstream source, and public Overpass mirrors answer such bursts
+    // with 429/503, leaving most tiles silently stale. Two permits mirror the render layers' own
+    // network fetch budget; queued refreshes suspend without holding threads.
+    private val revalidationSemaphore = Semaphore(MAX_CONCURRENT_REVALIDATIONS)
 
     /** When true, [fetchTile] never calls [inner] — cache hits served, cache misses
      *  return `null`. Mirrors [CachedTileSource.isCacheOnly]. */
@@ -252,10 +260,12 @@ class CachedTiledFeatureSource(
         if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
         revalidationScope.launch {
             try {
-                val fresh = network.fetchTile(z, x, y, sector)?.toList() ?: return@launch
-                // Never blank: an empty refresh keeps the existing rows — replacement only.
-                if (fresh.isEmpty()) return@launch
-                store.writeTile(z, x, y, fresh.asFlow(), sector)
+                revalidationSemaphore.withPermit {
+                    val fresh = network.fetchTile(z, x, y, sector)?.toList() ?: return@launch
+                    // Never blank: an empty refresh keeps the existing rows — replacement only.
+                    if (fresh.isEmpty()) return@launch
+                    store.writeTile(z, x, y, fresh.asFlow(), sector)
+                }
                 onTileRevalidated?.invoke(z, x, y)
             } catch (e: CancellationException) {
                 throw e
@@ -266,5 +276,10 @@ class CachedTiledFeatureSource(
                 revalidateMutex.withLock { revalidating.remove(key) }
             }
         }
+    }
+
+    private companion object {
+        /** See [revalidationSemaphore]. */
+        const val MAX_CONCURRENT_REVALIDATIONS = 2
     }
 }
