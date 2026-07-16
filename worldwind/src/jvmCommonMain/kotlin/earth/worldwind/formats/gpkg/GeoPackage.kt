@@ -159,6 +159,29 @@ expect fun releaseFeatureReadResources(geoPackage: GeoPackageCore)
 expect fun createFeatureSpatialIndex(geoPackage: GeoPackageCore, tableName: String)
 
 /**
+ * Ensure the read-side index structures the platform's feature read path relies on. Runs on every
+ * writable feature-store open, so it must stay cheap on the consistent path — anything that can
+ * rescan the feature data (like NGA's `FeatureTableIndex.index()`) is off-limits here. Android
+ * creates the ww_rtree acceleration vtable and count-reconciles it against nga_geometry_index
+ * (bulk rebuild only on mismatch — crash healing / pre-rtree cache backfill); JVM needs nothing
+ * (reads use the trigger-maintained OGC RTree created with the table).
+ */
+expect fun ensureFeatureReadIndexes(geoPackage: GeoPackageCore, tableName: String)
+
+/**
+ * Delete feature rows by id, keeping every platform index structure in sync (Android: the NGA
+ * geometry index rows and the ww_rtree mirror; JVM: the OGC RTree via its own triggers).
+ * The eviction path's bulk delete — implementations chunk to stay within SQLite statement limits.
+ */
+expect fun deleteCachedFeaturesByIds(geoPackage: GeoPackageCore, tableName: String, ids: Collection<Long>)
+
+/**
+ * Release per-file feature-read acceleration state (Android: the owned SQLite-bindings connection
+ * serving ww_rtree probes). Called once from [GeoPackage.shutdown]; no-op on JVM.
+ */
+expect fun releaseFeatureAcceleration(pathName: String)
+
+/**
  * Read every feature whose geometry intersects the bounding box (min/max lon/lat in the geometry
  * column's SRS) via the RTree spatial index — the flat-store query that replaces `tile_z/x/y`
  * filtering. Same `(geometry, propertiesJson)` shape and generic property handling as
@@ -299,6 +322,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         tileUserDataDao.clear()
         tileMatrixCache.clear()
         evictionScheduler.shutdown()
+        releaseFeatureAcceleration(pathName)
     }
 
     suspend fun getContent(tableName: String): GpkgContent? = withContext(Dispatchers.IO) {
@@ -1138,6 +1162,25 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /**
+     * Ensure the cheap read-side SQL indexes exist for an already-provisioned table — new tables
+     * get them in [setupFeatureTable], but tables from older builds may predate an index the
+     * current read path relies on (e.g. the Android covering index over nga_geometry_index).
+     *
+     * Deliberately NOT [createFeatureSpatialIndex]: NGA's `FeatureTableIndex.index()` is a no-op
+     * only while `table_index.last_indexed >= contents.last_change`, and cache writes keep bumping
+     * last_change — so calling it here triggered a full clear-and-rebuild of the geometry index on
+     * every attach, monopolising the write dispatcher and stalling ALL layer provisioning. This
+     * path must stay O(create-index-if-not-exists). Failures are logged, never thrown — a missing
+     * optimisation index must not fail the attach.
+     */
+    suspend fun ensureFeatureReadIndexes(content: GpkgContent): Unit = withContext(writeDispatcher) {
+        if (!isReadOnly) runCatching { ensureFeatureReadIndexes(geoPackage, content.tableName) }.onFailure {
+            logMessage(WARN, "GeoPackage", "ensureFeatureReadIndexes",
+                "Skipped for '${content.tableName}': ${it.message}")
+        }
+    }
+
+    /**
      * Replace every row in one transaction. Used by full-refresh sources (WFS, Shapefile);
      * tile-pyramid sources use [writeFeatureTile] instead.
      */
@@ -1313,13 +1356,10 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
 
-    /** Delete the given feature rows by id, chunked to stay within SQLite statement limits. */
+    /** Delete the given feature rows by id, keeping the platform index structures in sync. */
     private fun deleteFeaturesByIds(tableName: String, ids: Collection<Long>) {
         if (ids.isEmpty()) return
-        val q = "\"${tableName.replace("\"", "\"\"")}\""
-        for (chunk in ids.chunked(500)) {
-            geoPackage.database.execSQL("DELETE FROM $q WHERE $FEATURE_ID_COLUMN IN (${chunk.joinToString(",")})")
-        }
+        deleteCachedFeaturesByIds(geoPackage, tableName, ids)
     }
 
 

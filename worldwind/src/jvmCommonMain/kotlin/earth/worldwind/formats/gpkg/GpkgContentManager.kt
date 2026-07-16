@@ -272,6 +272,11 @@ class GpkgContentManager(
             require(existing.dataTypeName.equals(FEATURES, ignoreCase = true)) {
                 "Content '$contentKey' is not a features table (was '${existing.dataTypeName}')"
             }
+            // Tables written by older builds may predate an index the read path now relies on
+            // (e.g. the Android covering index over nga_geometry_index); new tables get theirs
+            // in setupFeatureTable. Cheap create-if-not-exists only, never throws, no-op on
+            // read-only opens — attach must not pay for or fail on an optimisation index.
+            geoPackage.ensureFeatureReadIndexes(existing)
         } ?: geoPackage.setupFeaturesContent(contentKey, displayName = displayName)
         GpkgFeatureStore(geoPackage, content, cachePolicy)
     }

@@ -173,6 +173,27 @@ actual fun createFeatureSpatialIndex(geoPackage: GeoPackageCore, tableName: Stri
     FeatureTableIndex(gpkg, featureDao).index()
 }
 
+/** No-op on JVM: reads go through the OGC RTree, which is created with the table and
+ *  trigger-maintained — there is no extra read-side index to ensure. */
+actual fun ensureFeatureReadIndexes(geoPackage: GeoPackageCore, tableName: String) {}
+
+actual fun deleteCachedFeaturesByIds(geoPackage: GeoPackageCore, tableName: String, ids: Collection<Long>) {
+    if (ids.isEmpty()) return
+    val gpkg = geoPackage as GeoPackage
+    val q = "\"${tableName.replace("\"", "\"\"")}\""
+    // The OGC RTree stays consistent via its DELETE trigger; nga_geometry_index rows are left
+    // dangling (they match no feature id, so queries ignore them) — the Android reconcile treats
+    // nga rows as its rebuild source, and dangling ids fetch nothing, so this stays harmless.
+    for (chunk in ids.chunked(500)) {
+        gpkg.connection.execSQL(
+            "DELETE FROM $q WHERE ${earth.worldwind.formats.gpkg.GeoPackage.FEATURE_ID_COLUMN} IN (${chunk.joinToString(",")})"
+        )
+    }
+}
+
+/** No-op on JVM: no per-file acceleration state (see the Android actual). */
+actual fun releaseFeatureAcceleration(pathName: String) {}
+
 actual fun writeFeatureTileFlat(
     geoPackage: GeoPackageCore, tableName: String,
     minX: Double, minY: Double, maxX: Double, maxY: Double,

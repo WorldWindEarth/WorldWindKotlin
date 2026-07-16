@@ -77,6 +77,12 @@ kotlin {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         }
 
+        // Device-test APK only (the library AAR has no java-res merge): pngj and objenesis both
+        // ship a META-INF/INDEX.LIST, which the merge step treats as a duplicate.
+        packaging {
+            resources.excludes += "META-INF/INDEX.LIST"
+        }
+
         optimization {
             consumerKeepRules.publish = true
             consumerKeepRules.files.add(file("proguard-rules.pro"))
