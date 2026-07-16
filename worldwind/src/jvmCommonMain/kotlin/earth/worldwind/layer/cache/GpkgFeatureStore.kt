@@ -122,11 +122,18 @@ class GpkgFeatureStore(
 
     private companion object {
         /**
-         * One thread for ALL GeoPackage feature I/O. SQLite is single-writer, and running reads +
-         * writes concurrently from the fetch pool ([Dispatchers.Default]) produced a WAL-checkpoint +
-         * connection-pool + mil.nga.geopackage-monitor lock convoy that blocked the dispatcher for
-         * ~35 s in profiling, starving tile decode. Serialising removes the contention outright and
-         * keeps blocking SQLite off the CPU dispatcher (so decode/tessellation keep their threads).
+         * One submission thread for GeoPackage feature I/O. SQLite is single-writer, and running
+         * reads + writes concurrently from the fetch pool ([Dispatchers.Default]) produced a
+         * WAL-checkpoint + connection-pool + mil.nga.geopackage-monitor lock convoy that blocked
+         * the dispatcher for ~35 s in profiling, starving tile decode. Serialising write submission
+         * removes that contention and keeps blocking SQLite off the CPU dispatcher.
+         *
+         * NOTE this does NOT serialise the reads end-to-end: [GeoPackage.readFeatureTile] et al.
+         * internally hop to their own context (`withReadHandle` / `Dispatchers.IO`), which suspends
+         * here and releases the limited slot — so several readTile calls can be inside SQLite at
+         * once. Read concurrency is actually bounded by GeoPackage's read-handle pool
+         * (READ_HANDLE_COUNT read-only connections), which also keeps feature bbox scans off the
+         * writable handle's connection pool that the tile/elevation stores read through.
          */
         @OptIn(ExperimentalCoroutinesApi::class)
         private val dbDispatcher = Dispatchers.IO.limitedParallelism(1)

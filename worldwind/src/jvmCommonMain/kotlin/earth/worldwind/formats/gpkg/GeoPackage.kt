@@ -87,8 +87,9 @@ expect class FeatureStyle {
     fun getIcon(): IconRow?
 }
 
-/** Feature read-handle pool size; 0 falls back to reading on the shared handle (Android, whose
- *  framework SQLite already pools connections under WAL). See [GeoPackage.withReadHandle]. */
+/** Feature read-handle pool size — both the number of extra read-only connections and the cap on
+ *  concurrent feature bbox scans; 0 falls back to unbounded reads on the shared handle.
+ *  See [GeoPackage.withReadHandle]. */
 internal expect val READ_HANDLE_COUNT: Int
 
 expect fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPackageCore
@@ -235,10 +236,24 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     // Lazy pool of extra read-only NGA handles (own connection each) for parallel feature reads.
     // Read-only is key: NGA registers the RTree ST_* functions only when writable, so these skip
     // that per-read work and the create_function race concurrent reads hit on one connection.
+    // The pool is also the concurrency bound for feature scans: a caller waits (suspended, no
+    // thread held) in [Channel.receive] until a handle frees up, so at most [READ_HANDLE_COUNT]
+    // bbox queries run at once and none of them touches the shared writable handle's connections
+    // — tile/elevation reads on that handle can't queue behind them. Null when every read-only
+    // open failed (exotic WAL/permission cases); callers then fall back to the shared handle.
     private val readHandlePoolLazy = lazy {
-        Channel<GeoPackageCore>(READ_HANDLE_COUNT).also { ch ->
-            repeat(READ_HANDLE_COUNT) { ch.trySend(openOrCreateGeoPackage(pathName, isReadOnly = true)) }
+        val handles = buildList {
+            repeat(READ_HANDLE_COUNT) {
+                runCatching { openOrCreateGeoPackage(pathName, isReadOnly = true) }
+                    .onSuccess { add(it) }
+                    .onFailure {
+                        logMessage(WARN, "GeoPackage", "readHandlePool",
+                            "Read-only handle open failed for '$pathName': ${it.message}")
+                    }
+            }
         }
+        if (handles.isEmpty()) null
+        else Channel<GeoPackageCore>(handles.size).also { ch -> handles.forEach { h -> ch.trySend(h) } }
     }
 
     init {
@@ -249,10 +264,11 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     }
 
     /** Run feature-read [block] on a borrowed read-only handle (own connection, concurrent under WAL);
-     *  with no pool (count 0) it runs on the shared handle via [Dispatchers.IO], the prior behavior. */
+     *  with no pool (count 0, or all read-only opens failed) it runs on the shared handle via
+     *  [Dispatchers.IO], the prior behavior. */
     private suspend fun <R> withReadHandle(block: (GeoPackageCore) -> R): R {
-        if (READ_HANDLE_COUNT <= 0) return withContext(Dispatchers.IO) { block(geoPackage) }
-        val pool = readHandlePoolLazy.value
+        val pool = if (READ_HANDLE_COUNT <= 0) null else readHandlePoolLazy.value
+        if (pool == null) return withContext(Dispatchers.IO) { block(geoPackage) }
         val handle = pool.receive()
         return try {
             withContext(Dispatchers.IO) { block(handle) }
@@ -273,7 +289,7 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     fun shutdown() = geoPackage.close().also {
         releaseFeatureReadResources(geoPackage)
-        if (readHandlePoolLazy.isInitialized()) readHandlePoolLazy.value.let { pool ->
+        if (readHandlePoolLazy.isInitialized()) readHandlePoolLazy.value?.let { pool ->
             pool.close()
             while (true) {
                 val r = pool.tryReceive()
