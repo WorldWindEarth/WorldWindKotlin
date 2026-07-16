@@ -28,6 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -103,6 +104,12 @@ open class OsmBuildingsLayer(
     var shadowMode: ShadowMode = ShadowMode.ENABLED
 
     private val semaphore = Semaphore(maxConcurrentFetches.coerceAtLeast(1))
+    // Separate, wider gate for cache reads. They must not share the (small) network semaphore —
+    // a slow Overpass fetch would stall cached neighbours behind it — but they can't run ungated
+    // either: a full tile window is (2×tileRadius+1)² = 81 tiles, and 81 concurrent SQLite bbox
+    // reads monopolised the cache database's connections and Dispatchers.IO workers, starving
+    // elevation + imagery tile loads for tens of seconds (simpleperf, 2026-07).
+    private val cacheReadSemaphore = Semaphore(MAX_CONCURRENT_CACHE_READS)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val results = Channel<TileResult>(capacity = Channel.UNLIMITED)
     // Tiles a stale-while-revalidate refresh has replaced in the cache (delivered off the render
@@ -317,16 +324,20 @@ open class OsmBuildingsLayer(
         OsmBuildingsTile(buildings, attributes, useOsmColors = useOsmColors, shadowMode = shadowMode)
 
     /** Resolve buildings for one tile from [source]. Cache-backed sources serve hits via
-     *  [TiledFeatureSource.tryReadCachedTile] WITHOUT taking a [semaphore] permit — only the
-     *  network round-trip on a cache miss is throttled. Otherwise a slow Overpass fetch for one
-     *  uncached tile would hold the (small) fetch budget and stall cached neighbours behind it.
-     *  Subclasses override to attach custom per-tile processing. */
+     *  [TiledFeatureSource.tryReadCachedTile] under [cacheReadSemaphore], NOT the network
+     *  [semaphore] — a slow Overpass fetch for one uncached tile must not stall cached
+     *  neighbours behind it, while the cache database still gets a bounded number of
+     *  concurrent readers (see [cacheReadSemaphore]). Only the network round-trip on a cache
+     *  miss takes the [semaphore]. Subclasses override to attach custom per-tile processing. */
     protected open suspend fun loadBuildings(key: TileKey): List<OsmBuilding> {
         val src = source
         val rows = mutableListOf<CachedFeatureRow>()
-        val cached = src.tryReadCachedTile(key.z, key.x, key.y, key.sector)
+        // Collect inside the permit: sources may defer the actual read to flow collection.
+        val cached = cacheReadSemaphore.withPermit {
+            src.tryReadCachedTile(key.z, key.x, key.y, key.sector)?.toList()
+        }
         if (cached != null) {
-            cached.collect { rows += it }
+            rows += cached
         } else {
             // Cache miss (or a non-caching source): the network fetch is gated by [semaphore].
             semaphore.withPermit {
@@ -468,6 +479,11 @@ open class OsmBuildingsLayer(
         fun decodeCacheConfig(metadata: String?): CacheConfig = metadata?.takeIf { it.isNotBlank() }
             ?.let { runCatching { cacheConfigJson.decodeFromString(CacheConfig.serializer(), it) }.getOrNull() }
             ?: CacheConfig()
+
+        // Concurrent cache reads across the layer. Wider than the default network budget (cache
+        // reads are local I/O), yet small enough that a tile-window burst leaves the cache
+        // database's connections free for the tile/elevation stores sharing the same file.
+        private const val MAX_CONCURRENT_CACHE_READS = 4
 
         // Roof-cap lift above the wall top. 1 cm is invisible at building scale yet wins
         // the depth test against the wall top cleanly without polygon-offset machinery.
