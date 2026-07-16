@@ -23,7 +23,6 @@ import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.util.NumericArray
 import earth.worldwind.util.glu.GLU
-import earth.worldwind.util.glu.GLUtessellator
 import earth.worldwind.util.glu.GLUtessellatorCallbackAdapter
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
@@ -86,75 +85,37 @@ class OsmBuildingsTile(
     // cleanly on 24-bit-depth targets; on 16-bit-depth defaults (notably the WebGL default
     // framebuffer) the two roofs flicker per-pixel.
     private val effectiveBuildings: List<OsmBuilding> = filterRedundantOutlines(buildings)
+    // Footprint 2D triangulations, index-aligned with [effectiveBuildings]. Computed ONCE at
+    // construction — which [OsmBuildingsLayer.fetch] runs on Dispatchers.Default — because the
+    // triangulation depends only on the (lon, lat) contours, never on terrain, projection or
+    // vertical exaggeration. GLU tessellation dominated [assembleGeometry] (~60% in profiling),
+    // and running it lazily on first render stacked ~300 ms of triangulation onto single
+    // Choreographer ticks when a cache burst delivered a whole tile window at once; it also
+    // re-ran on every DEM/VE re-tessellation for no reason. [assembleGeometry] now only maps the
+    // cached topology through per-corner terrain sampling and geographicToCartesian.
+    private val capMeshes: List<CapMesh?> = tessellateFootprints(effectiveBuildings)
     private val data = mutableMapOf<Globe.State?, TileData>()
     private val boundingBox = BoundingBox()
     private var bufferDataVersion = 0
     private val scratchPoint = Vec3()
-    private val tessCoords = DoubleArray(3)
     private val vertices = FloatList()
     // Per-colour element buckets — LinkedHashMap so sub-draw order matches insertion order. Active
-    // bucket switches via [selectColor] before each face; the tess callback writes to it implicitly.
+    // bucket switches via [selectColor] before each face; [emitCap] writes to it implicitly.
     private val perColorElements = LinkedHashMap<Int, IntList>()
     private var currentElements: IntList = IntList()
     // Building-major mirror of [perColorElements] — feeds the pick EBO so each building's
     // triangles end up contiguous. [emitTriangle] writes to both views.
     private val pickElements = IntList()
     private val vertexOrigin = Vec3()
-    // [topIndexBase] is the absolute index of the FIRST cap-corner vertex of the current building;
-    // the tess callback receives a per-cap ordinal (0..n-1) as vertexData and resolves the global
-    // index via `topIndexBase + ordinal`. [tessTriIdx] accumulates three IDs before emitting one
-    // triangle.
-    private var topIndexBase = 0
-    private val tessTriIdx = IntArray(3)
-    private var tessTriCount = 0
-    // True for the bottom cap: GLU emits CCW-from-above regardless of [GLU.gluTessNormal], so we
-    // reverse the winding here to make the bottom face down.
-    private var tessSwapWinding = false
-    // RC + altitude in scope during one [runTess] call so [combineData] can resolve synthesised
-    // vertices back to local Cartesian — without these the combined vertex would end up at
-    // (lon°, lat°, z) interpreted as local floats, collapsing to a sliver near vertexOrigin and
-    // looking like dropped roof triangles.
-    private var tessRc: RenderContext? = null
-    private var tessCapAlt: Double = 0.0
-    private val tessCallback = object : GLUtessellatorCallbackAdapter() {
-        override fun vertexData(vertexData: Any?, polygonData: Any?) {
-            tessTriIdx[tessTriCount++] = topIndexBase + (vertexData as Int)
-            if (tessTriCount == 3) {
-                tessTriCount = 0
-                if (tessSwapWinding) emitTriangle(tessTriIdx[0], tessTriIdx[2], tessTriIdx[1])
-                else emitTriangle(tessTriIdx[0], tessTriIdx[1], tessTriIdx[2])
-            }
-        }
 
-        override fun combineData(
-            coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any?
-        ) {
-            // GLU invokes combine on intersecting / coincident vertices. coords come back in the
-            // (lon°, lat°) space we fed gluTessVertex, so convert to local Cartesian via the same
-            // helper used for original cap corners. Altitude is uniform per cap (single terrain
-            // sample), so [tessCapAlt] suffices.
-            val rc = tessRc ?: return
-            val lon = coords[0].degrees
-            val lat = coords[1].degrees
-            val newIdx = pushLocalVertex(rc, lat, lon, tessCapAlt)
-            outData[0] = newIdx - topIndexBase
-        }
-
-        override fun errorData(errnum: Int, polygonData: Any?) {
-            // Most GLU errors on OSM input are recoverable warnings (self-intersecting rings,
-            // near-coincident corners). Match [earth.worldwind.shape.Polygon] and keep whatever
-            // triangles GLU did emit rather than rewinding the bucket — wholesale-dropping every
-            // building with a stray warning produced visible holes across the scene.
-            logMessage(WARN, "OsmBuildingsTile", "runTess",
-                "GLU error $errnum: ${GLU.gluErrorString(errnum)}")
-        }
-
-        // Registering edgeFlag forces GLU to emit GL_TRIANGLES exclusively. Without it GLU may
-        // choose GL_TRIANGLE_FAN / GL_TRIANGLE_STRIP for some inputs — and the [vertexData] loop
-        // here treats every three vertices as an independent triangle, mangling strip/fan output
-        // and leaving holes in the roof of certain buildings.
-        override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?) { /* no-op */ }
-    }
+    /**
+     * One footprint's cached triangulation. [triangles] holds cap-local ordinals: `0 until
+     * cornerCount` are ring corners in push order (outer ring then each hole with ≥ 3 distinct
+     * corners, closing duplicates dropped — see [ringCount]); `cornerCount + k` is the k-th
+     * GLU-combined vertex, whose (lon°, lat°) pair sits at [combinedLonLat][2k]. Triangles are
+     * stored top-cap winding (CCW from above); the bottom cap reverses at emit time.
+     */
+    private class CapMesh(val triangles: IntArray, val combinedLonLat: DoubleArray, val cornerCount: Int)
 
     /**
      * Per-globe-state geometry cache. [elementArray] is colour-major (one [ColorRange] per bucket);
@@ -373,10 +334,10 @@ class OsmBuildingsTile(
         tileData.vertexOrigin.copy(vertexOrigin)
 
         val defaultWallColorPacked = packColor(attributes.interiorColor)
-        for (b in effectiveBuildings) {
+        for ((bi, b) in effectiveBuildings.withIndex()) {
             if (b.outerRing.size < 3) continue
             val pickStart = pickElements.size
-            assembleBuilding(rc, b, defaultWallColorPacked)
+            assembleBuilding(rc, b, capMeshes[bi], defaultWallColorPacked)
             val pickCount = pickElements.size - pickStart
             if (pickCount > 0) pickRangesTmp.add(PickRange(b, pickStart, pickCount))
         }
@@ -427,7 +388,7 @@ class OsmBuildingsTile(
         return sig
     }
 
-    private fun assembleBuilding(rc: RenderContext, b: OsmBuilding, defaultWallColorPacked: Int) {
+    private fun assembleBuilding(rc: RenderContext, b: OsmBuilding, mesh: CapMesh?, defaultWallColorPacked: Int) {
         // Per-corner terrain samples implement OSM "Simple 3D Buildings" on sloped ground:
         // ground-rooted walls drape their bases to local elevation at each footprint corner so
         // the building meets the terrain everywhere (a single anchor sample leaves downhill
@@ -469,9 +430,9 @@ class OsmBuildingsTile(
                 rc, hole, innerGroundAlts[hi], topAlt, floatingFloorAlt, isFloating, isHole = true,
             )
         }
-        if (isFloating) emitCap(rc, b, floatingFloorAlt, isTop = false)
+        if (isFloating) emitCap(rc, b, mesh, floatingFloorAlt, isTop = false)
         selectColor(roofColorPacked)
-        emitCap(rc, b, topAlt, isTop = true)
+        emitCap(rc, b, mesh, topAlt, isTop = true)
     }
 
     private fun selectColor(colorPacked: Int) {
@@ -523,79 +484,137 @@ class OsmBuildingsTile(
     }
 
     /**
-     * Emits one cap (top or bottom). Lays out outer-ring then inner-ring corner vertices
-     * contiguously, sets [topIndexBase] for the [tessCallback], and runs GLU over the contours.
+     * Emits one cap (top or bottom) from the building's cached [CapMesh]: pushes the corner and
+     * GLU-combined vertices at [alt] — in exactly the ordinal order the construction-time
+     * tessellation assigned — then replays the cached triangles. No tessellation happens here;
+     * this is the render-state-dependent remainder (terrain sampling + geographicToCartesian).
+     * GLU emits CCW-from-above regardless of winding hints, so the bottom cap reverses each
+     * triangle to face down.
      */
-    private fun emitCap(rc: RenderContext, b: OsmBuilding, alt: Double, isTop: Boolean) {
+    private fun emitCap(rc: RenderContext, b: OsmBuilding, mesh: CapMesh?, alt: Double, isTop: Boolean) {
+        mesh ?: return
+        if (mesh.triangles.isEmpty()) return
+        val base = vertices.size / VERTEX_STRIDE
         val outer = b.outerRing
         val n = ringCount(outer)
-        if (n < 3) return
-        topIndexBase = vertices.size / VERTEX_STRIDE
         for (i in 0 until n) pushLocalVertex(rc, outer[i].latitude, outer[i].longitude, alt)
-        val holeBases = IntArray(b.innerRings.size)
-        for ((hi, hole) in b.innerRings.withIndex()) {
+        for (hole in b.innerRings) {
             val m = ringCount(hole)
-            holeBases[hi] = (vertices.size / VERTEX_STRIDE) - topIndexBase
-            if (m >= 3) for (i in 0 until m) {
-                pushLocalVertex(rc, hole[i].latitude, hole[i].longitude, alt)
-            }
+            if (m >= 3) for (i in 0 until m) pushLocalVertex(rc, hole[i].latitude, hole[i].longitude, alt)
         }
-        runTess(rc, outer, b.innerRings, holeBases, alt, isTop)
+        var k = 0
+        while (k < mesh.combinedLonLat.size) {
+            pushLocalVertex(rc, mesh.combinedLonLat[k + 1].degrees, mesh.combinedLonLat[k].degrees, alt)
+            k += 2
+        }
+        val t = mesh.triangles
+        var i = 0
+        if (isTop) while (i < t.size) {
+            emitTriangle(base + t[i], base + t[i + 1], base + t[i + 2]); i += 3
+        } else while (i < t.size) {
+            emitTriangle(base + t[i], base + t[i + 2], base + t[i + 1]); i += 3
+        }
     }
 
     /**
-     * Feeds outer + inner contours to GLU and collects emitted triangles into the active colour
-     * bucket via [tessCallback]. [tessRc] / [tessCapAlt] stay populated so the tess callback's
-     * `combineData` override can convert synthesised (lon, lat) vertices back to local Cartesian.
+     * Construction-time GLU tessellation of every footprint — pure 2D (lon°, lat°) work with no
+     * render-state inputs, so it runs on the fetch coroutine's Dispatchers.Default thread and its
+     * result is reused for both caps of a floating building and across every DEM/VE
+     * re-tessellation. All tessellation state is local to this call; nothing is shared with the
+     * render thread until the constructed tile is published through the layer's results channel.
      */
-    private fun runTess(
-        rc: RenderContext, outer: List<Position>, innerRings: List<List<Position>>,
-        holeBases: IntArray, capAlt: Double, isTop: Boolean,
-    ) {
-        val tess = rc.tessellator
-        tessTriCount = 0
-        tessSwapWinding = !isTop
-        tessRc = rc
-        tessCapAlt = capAlt
+    private fun tessellateFootprints(buildings: List<OsmBuilding>): List<CapMesh?> {
+        if (buildings.isEmpty()) return emptyList()
+        val tess = GLU.gluNewTess()
+        val triangles = IntList()
+        val combined = ArrayList<Double>()
+        var cornerCount = 0
+        val triIdx = IntArray(3)
+        var triCount = 0
+        val callback = object : GLUtessellatorCallbackAdapter() {
+            override fun vertexData(vertexData: Any?, polygonData: Any?) {
+                triIdx[triCount++] = vertexData as Int
+                if (triCount == 3) {
+                    triCount = 0
+                    triangles.add(triIdx[0]); triangles.add(triIdx[1]); triangles.add(triIdx[2])
+                }
+            }
 
-        // Same projection normal for both caps — the input contours are the same XY contour at
-        // different Z. Bottom cap face direction comes from [tessSwapWinding].
-        GLU.gluTessNormal(tess, 0.0, 0.0, 1.0)
-        GLU.gluTessCallback(tess, GLU.GLU_TESS_VERTEX_DATA, tessCallback)
-        GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, tessCallback)
-        GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, tessCallback)
-        GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, tessCallback)
-        GLU.gluTessBeginPolygon(tess, this)
+            override fun combineData(
+                coords: DoubleArray, data: Array<Any?>, weight: FloatArray, outData: Array<Any?>, polygonData: Any?
+            ) {
+                // GLU invokes combine on intersecting / coincident vertices. coords come back in
+                // the (lon°, lat°) space we fed gluTessVertex; record the pair and hand back its
+                // ordinal — [emitCap] materialises it after the ring corners at render time.
+                outData[0] = cornerCount + combined.size / 2
+                combined.add(coords[0])
+                combined.add(coords[1])
+            }
 
-        feedContour(tess, outer, baseOrdinal = 0)
-        for ((hi, hole) in innerRings.withIndex()) {
-            if (hole.size >= 3) feedContour(tess, hole, baseOrdinal = holeBases[hi])
+            override fun errorData(errnum: Int, polygonData: Any?) {
+                // Most GLU errors on OSM input are recoverable warnings (self-intersecting rings,
+                // near-coincident corners). Match [earth.worldwind.shape.Polygon] and keep whatever
+                // triangles GLU did emit rather than dropping the building — wholesale-dropping
+                // every building with a stray warning produced visible holes across the scene.
+                logMessage(WARN, "OsmBuildingsTile", "tessellateFootprints",
+                    "GLU error $errnum: ${GLU.gluErrorString(errnum)}")
+            }
+
+            // Registering edgeFlag forces GLU to emit GL_TRIANGLES exclusively. Without it GLU may
+            // choose GL_TRIANGLE_FAN / GL_TRIANGLE_STRIP for some inputs — and the [vertexData]
+            // loop here treats every three vertices as an independent triangle, mangling strip/fan
+            // output and leaving holes in the roof of certain buildings.
+            override fun edgeFlagData(boundaryEdge: Boolean, polygonData: Any?) { /* no-op */ }
         }
-
-        GLU.gluTessEndPolygon(tess)
+        // Same projection normal for every cap — footprints are 2D contours at z = 0.
+        GLU.gluTessNormal(tess, 0.0, 0.0, 1.0)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_VERTEX_DATA, callback)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, callback)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, callback)
+        GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, callback)
+        val tessCoords = DoubleArray(3)
+        val meshes = buildings.map { b ->
+            val outer = b.outerRing
+            val n = ringCount(outer)
+            if (n < 3) return@map null
+            // Corner ordinals: outer ring 0 until n, then each hole with >= 3 distinct corners —
+            // [emitCap] pushes render vertices in this exact order.
+            cornerCount = n + b.innerRings.sumOf { hole -> ringCount(hole).takeIf { it >= 3 } ?: 0 }
+            triangles.clear()
+            combined.clear()
+            triCount = 0
+            GLU.gluTessBeginPolygon(tess, Unit)
+            var baseOrdinal = 0
+            GLU.gluTessBeginContour(tess)
+            for (i in 0 until n) {
+                tessCoords[0] = outer[i].longitude.inDegrees
+                tessCoords[1] = outer[i].latitude.inDegrees
+                tessCoords[2] = 0.0
+                GLU.gluTessVertex(tess, tessCoords, 0, baseOrdinal + i)
+            }
+            GLU.gluTessEndContour(tess)
+            baseOrdinal += n
+            for (hole in b.innerRings) {
+                val m = ringCount(hole)
+                if (m < 3) continue
+                GLU.gluTessBeginContour(tess)
+                for (i in 0 until m) {
+                    tessCoords[0] = hole[i].longitude.inDegrees
+                    tessCoords[1] = hole[i].latitude.inDegrees
+                    tessCoords[2] = 0.0
+                    GLU.gluTessVertex(tess, tessCoords, 0, baseOrdinal + i)
+                }
+                GLU.gluTessEndContour(tess)
+                baseOrdinal += m
+            }
+            GLU.gluTessEndPolygon(tess)
+            CapMesh(triangles.toIntArray(), combined.toDoubleArray(), cornerCount)
+        }
         GLU.gluTessCallback(tess, GLU.GLU_TESS_VERTEX_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_COMBINE_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_ERROR_DATA, null)
         GLU.gluTessCallback(tess, GLU.GLU_TESS_EDGE_FLAG_DATA, null)
-        tessRc = null
-    }
-
-    /**
-     * Streams one ring's corners as 2D (lon, lat) coords. [baseOrdinal] starts at 0 for the outer
-     * ring; each hole starts at its own `holeBases` offset so the tess callback can map ordinal
-     * back to absolute vertex index via `topIndexBase + ordinal`.
-     */
-    private fun feedContour(tess: GLUtessellator, ring: List<Position>, baseOrdinal: Int) {
-        val n = ringCount(ring)
-        GLU.gluTessBeginContour(tess)
-        for (i in 0 until n) {
-            val p = ring[i]
-            tessCoords[0] = p.longitude.inDegrees
-            tessCoords[1] = p.latitude.inDegrees
-            tessCoords[2] = 0.0
-            GLU.gluTessVertex(tess, tessCoords, 0, baseOrdinal + i)
-        }
-        GLU.gluTessEndContour(tess)
+        return meshes
     }
 
     /**
