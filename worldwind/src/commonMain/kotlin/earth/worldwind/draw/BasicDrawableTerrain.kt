@@ -26,6 +26,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     var vertexPoints: BufferObject? = null
     var vertexHeights: BufferObject? = null
     var vertexTexCoords: BufferObject? = null
+    var vertexNormals: BufferObject? = null
     var elements: BufferObject? = null
     /** Lazy-cached intersection vs [DrawContext.groundCoverageRegions]. Computed on the
      *  first [drawTriangles] call per frame, reused by subsequent painters; reset by
@@ -49,6 +50,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
         vertexPoints = null
         vertexHeights = null
         vertexTexCoords = null
+        vertexNormals = null
         elements = null
         // Reset of the lazy memo (paired with [intersectsGroundCoverageComputed]) — not defensive;
         // without it the next tile inherits the prior tile's coverage answer.
@@ -73,6 +75,12 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     override fun useVertexTexCoordAttrib(dc: DrawContext, attribLocation: Int): Boolean {
         val bufferBound = vertexTexCoords?.bindBuffer(dc) ?: false
         if (bufferBound) dc.gl.vertexAttribPointer(attribLocation, 2, GL_FLOAT, false, 0, 0)
+        return bufferBound
+    }
+
+    override fun useVertexNormalAttrib(dc: DrawContext, attribLocation: Int): Boolean {
+        val bufferBound = vertexNormals?.bindBuffer(dc) ?: false
+        if (bufferBound) dc.gl.vertexAttribPointer(attribLocation, 3, GL_FLOAT, false, 0, 0)
         return bufferBound
     }
 

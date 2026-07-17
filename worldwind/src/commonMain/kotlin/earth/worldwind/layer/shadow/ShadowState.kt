@@ -37,6 +37,16 @@ class ShadowState(
      */
     var ambientShadow: Float = DEFAULT_AMBIENT_SHADOW
 
+    /** Snapshot of [ShadowLayer.isTerrainCastingEnabled] — gates terrain in the depth pass. */
+    var isTerrainCastingEnabled: Boolean = true
+
+    /**
+     * Effective Lambertian terrain shading strength for this frame ([ShadowLayer.terrainLambert]
+     * scaled by the terminator fade). Consumed by
+     * [earth.worldwind.render.program.SurfaceTextureProgram]; `0` keeps unshaded imagery.
+     */
+    var terrainLambert: Float = 0f
+
     /**
      * Effective far cap of the last cascade in metres for this frame. Receivers fade shadows
      * out over the last 20% of this distance so the far cascade edge never pops.
@@ -179,6 +189,8 @@ class ShadowState(
     fun copyFrom(source: ShadowState) {
         require(cascadeCount == source.cascadeCount) { "cascadeCount mismatch" }
         ambientShadow = source.ambientShadow
+        isTerrainCastingEnabled = source.isTerrainCastingEnabled
+        terrainLambert = source.terrainLambert
         shadowDistance = source.shadowDistance
         debugShadowMode = source.debugShadowMode
         offscreenCasterCascades = source.offscreenCasterCascades

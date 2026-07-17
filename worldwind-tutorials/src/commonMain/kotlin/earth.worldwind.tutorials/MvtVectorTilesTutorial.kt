@@ -11,6 +11,7 @@ import earth.worldwind.layer.mvt.MvtStyle
 import earth.worldwind.layer.mvt.MvtVectorLayer
 import earth.worldwind.layer.mvt.OpenTopoMapRules
 import earth.worldwind.layer.mvt.UrlTemplateMvtTileSource
+import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.util.LevelSet
 import earth.worldwind.util.Logger
 import kotlinx.coroutines.CoroutineScope
@@ -27,7 +28,10 @@ import kotlin.coroutines.cancellation.CancellationException
  * Differences from full OpenTopoMap:
  *   - **No elevation contours.** OpenTopoMap's brown contour lines come from SRTM, not OSM,
  *     so they don't appear in OpenMapTiles vector data.
- *   - **No hillshading.** Needs a terrain-relief pass against WorldWind's elevation coverage.
+ *   - **Lambertian relief instead of raster hillshading.** The tutorial flips the scene's
+ *     [ShadowLayer] to cartographic terrain lighting: `terrainLambert` shades slopes from
+ *     smooth per-vertex terrain-mesh normals and `isTerrainCastingEnabled = false` makes
+ *     terrain receive-only, so mountainsides get soft relief instead of hard black self-shadow.
  *   - **No road casings.** Each road class is a single-tone line ([earth.worldwind.shape.Path]
  *     doesn't support two-tone outline/fill the way the OpenTopoMap Mapnik style does).
  *
@@ -48,9 +52,19 @@ class MvtVectorTilesTutorial(
 
     private var mvt: MvtVectorLayer? = null
     private var cacheJob: Job? = null
+    private var shadow: ShadowLayer? = null
+    private var previousTerrainCasting = true
+    private var previousTerrainLambert = 0f
 
     override fun start() {
         super.start()
+        // Cartographic terrain lighting: soft relief on receive-only terrain (hard self-shadow reads as ink blots).
+        shadow = engine.layers.filterIsInstance<ShadowLayer>().firstOrNull()?.apply {
+            previousTerrainCasting = isTerrainCastingEnabled
+            previousTerrainLambert = terrainLambert
+            isTerrainCastingEnabled = false
+            terrainLambert = TERRAIN_LAMBERT
+        }
         cacheJob = scope.launch {
             try {
                 val layer = layerLoader()
@@ -87,6 +101,11 @@ class MvtVectorTilesTutorial(
 
     override fun stop() {
         super.stop()
+        shadow?.apply {
+            isTerrainCastingEnabled = previousTerrainCasting
+            terrainLambert = previousTerrainLambert
+        }
+        shadow = null
         cacheJob?.cancel()
         cacheJob = null
         mvt?.let {
@@ -97,6 +116,8 @@ class MvtVectorTilesTutorial(
     }
 
     companion object {
+        /** Full-strength Lambertian relief; lower for an even subtler hillshade. */
+        const val TERRAIN_LAMBERT = 1f
         /** OpenStreetMap's official vector tiles (Shortbread schema, no API key). z0–14. */
         const val URL_TEMPLATE = "https://vector.openstreetmap.org/shortbread_v1/{z}/{x}/{y}.mvt"
         const val USER_AGENT = "WorldWindKotlin-Tutorials"

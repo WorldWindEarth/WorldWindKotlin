@@ -96,6 +96,12 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
         // terrain tiles in both cases without further branching here.
         dc.applyShadowReceiverUniforms(program)
 
+        // Relief is cascade-independent: no isReady gate, so platforms where the depth
+        // pipeline can't run (applyShadow stays 0) still get the hillshade.
+        val shadowState = dc.shadowState
+        val reliefActive = shadowState != null && !dc.isPickMode && shadowState.terrainLambert > 0f
+        program.loadTerrainRelief(if (reliefActive) shadowState.terrainLambert else 0f, shadowState?.lightDirection)
+
         // Set up to use vertex tex coord attributes.
         dc.gl.enableVertexAttribArray(1)
 
@@ -123,6 +129,12 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
                 ) {
                     // Suppress subsequent tile state application until the next terrain.
                     usingTerrainAttrs = true
+                    // Smooth mesh normal for terrain relief; the fragment shader degrades to
+                    // flat shading if the attrib stays disabled (degenerate interpolant).
+                    if (reliefActive) {
+                        if (terrain.useVertexNormalAttrib(dc, 2 /*vertexNormal*/)) dc.gl.enableVertexAttribArray(2)
+                        else dc.gl.disableVertexAttribArray(2)
+                    }
                     // Use the draw context's modelview projection matrix, transformed to terrain local coordinates.
                     program.mvpMatrix.copy(dc.modelviewProjection)
                     program.mvpMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
@@ -161,6 +173,7 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
 
         // Restore the default WorldWind OpenGL state.
         dc.gl.disableVertexAttribArray(1)
+        if (reliefActive) dc.gl.disableVertexAttribArray(2)
     }
 
     protected open fun canBatchWith(that: Drawable) = that is DrawableSurfaceTexture && program === that.program

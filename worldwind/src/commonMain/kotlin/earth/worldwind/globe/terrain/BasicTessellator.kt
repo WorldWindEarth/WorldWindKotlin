@@ -157,6 +157,7 @@ open class BasicTessellator: Tessellator, TileFactory {
         // Assemble the drawable's OpenGL buffer objects.
         drawable.vertexPoints = tile.getPointBuffer(rc)
         drawable.vertexHeights = tile.getHeightBuffer(rc)
+        drawable.vertexNormals = if (rc.isTerrainReliefEnabled) tile.getNormalBuffer(rc) else null
         drawable.vertexTexCoords = levelSetVertexTexCoordBuffer
         drawable.elements = levelSetElementBuffer
     }

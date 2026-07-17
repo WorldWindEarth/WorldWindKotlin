@@ -18,6 +18,7 @@ interface DrawableTerrain: Drawable {
     fun useVertexPointAttrib(dc: DrawContext, attribLocation: Int): Boolean
     fun useVertexHeightsAttrib(dc: DrawContext, attribLocation: Int): Boolean
     fun useVertexTexCoordAttrib(dc: DrawContext, attribLocation: Int): Boolean
+    fun useVertexNormalAttrib(dc: DrawContext, attribLocation: Int): Boolean
     fun drawLines(dc: DrawContext): Boolean
     fun drawTriangles(dc: DrawContext): Boolean
 }
