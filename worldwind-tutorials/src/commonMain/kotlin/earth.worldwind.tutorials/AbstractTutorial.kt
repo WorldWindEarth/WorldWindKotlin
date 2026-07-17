@@ -17,15 +17,17 @@ abstract class AbstractTutorial(protected val engine: WorldWind) {
     open val actions: ArrayList<String>? = null
 
     /**
-     * Sun azimuth in degrees from north, clockwise. The default `290°` (WNW) places the sun
-     * behind-and-slightly-left of a camera looking north so shadows fall toward the far right
-     * of the scene. Override per tutorial when a different angle reads better.
+     * Sun azimuth in degrees from north, clockwise. The default `315°` (NW) is the
+     * cartographic hillshading convention - relief shading reads correctly with top-left
+     * light, and shadows still fall legibly toward the scene's lower right for a camera
+     * looking north. Override per tutorial when a different angle reads better.
      */
-    protected open val sunAzimuthDegrees: Double = 290.0
+    protected open val sunAzimuthDegrees: Double = 315.0
 
     /**
-     * Sun elevation in degrees above the local horizon. The default `45°` keeps shadows
-     * legible (long enough to read but not horizon-grazing).
+     * Sun elevation in degrees above the local horizon. The default `45°` matches the
+     * hillshading convention and keeps shadows legible (long enough to read but not
+     * horizon-grazing).
      */
     protected open val sunElevationDegrees: Double = 45.0
 

@@ -540,7 +540,10 @@ open class WorldWind @JvmOverloads constructor(
 
         // Snapshot once per frame: receivers pick their shader variant before
         // [ShadowLayer.doRender] runs, so they can't read [rc.shadowState] yet.
-        rc.hasShadowLayer = layers.firstOrNull { it is ShadowLayer }?.isEnabled == true
+        val shadowLayer = layers.firstOrNull { it is ShadowLayer } as? ShadowLayer
+        rc.hasShadowLayer = shadowLayer?.isEnabled == true
+        // Raw knob, not the terminator-faded value: normals must stay ready as the fade rises.
+        rc.isTerrainReliefEnabled = rc.hasShadowLayer && shadowLayer!!.terrainLambert > 0f
 
         // The depth-as-color shader program is only needed for the pick pass to reconstruct
         // Cartesian points from the depth buffer, so allocate it lazily and only on pick frames.

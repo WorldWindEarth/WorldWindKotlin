@@ -136,6 +136,13 @@ open class RenderContext {
      */
     var hasShadowLayer: Boolean = false
     /**
+     * `true` when the frame's [earth.worldwind.layer.shadow.ShadowLayer] has
+     * `terrainLambert > 0`. Gates per-tile terrain normal buffers in the tessellator, so
+     * shadow-only scenes (relief off) never pay the normals pipeline. Snapshotted alongside
+     * [hasShadowLayer].
+     */
+    var isTerrainReliefEnabled: Boolean = false
+    /**
      * Per-frame flag set by [earth.worldwind.shape.RealtimeSightline.makeDrawable]
      * when a visible sightline is enqueued. Read by `Ogc3dTilesProgram.get` (and any other
      * program that splices [earth.worldwind.layer.sightline.SightlineReceiverGlsl]) to pick
@@ -208,6 +215,7 @@ open class RenderContext {
         if (!isPickMode && shadowSceneBoundsCurrent.hasData) shadowSceneBounds.copyFrom(shadowSceneBoundsCurrent)
         shadowSceneBoundsCurrent.clear()
         hasShadowLayer = false
+        isTerrainReliefEnabled = false
         hasActiveSightline = false
         hasGroundCoverageMask = false
         groundCoverageRegions.clear()

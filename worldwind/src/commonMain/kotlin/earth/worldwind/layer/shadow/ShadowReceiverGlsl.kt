@@ -397,6 +397,28 @@ object ShadowReceiverGlsl {
             if (applyShadow && debugShadowMode != 0) return visibility;
             return litShadingFactor(lambert, upFactor, visibility);
         }
+
+        /* Lambertian terrain relief strength (see ShadowLayer.terrainLambert); 0 for draws
+           whose geometry is not the terrain mesh. */
+        uniform float terrainLambert;
+
+        /* Whole-albedo relief factor for terrain-draped receivers. [rawNormal] is the raw
+           interpolated per-vertex mesh normal; a degenerate interpolant (attrib unbound)
+           degrades to flat shading with depth-only sampling. Capped at 1.0 so relief
+           darkens the map, never brightens it; intermediate [terrainLambert] strengths
+           scale the contrast toward flat-lit. */
+        float terrainReliefFactor(vec3 rawNormal, vec3 position, float viewDepth) {
+            float relief = 1.0;
+            vec3 n = rawNormal;
+            float nLenSq = dot(n, n);
+            if (nLenSq > 1e-4) {
+                n *= inversesqrt(nLenSq);
+                relief = mix(1.0, clamp(dot(n, shadowLightDirection), 0.0, 1.0), terrainLambert);
+            } else {
+                n = vec3(0.0);
+            }
+            return min(shadowLitFactor(relief, 1.0, position, viewDepth, n), 1.0);
+        }
     """.trimIndent() else ""
     }
 }

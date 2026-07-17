@@ -3,6 +3,7 @@ package earth.worldwind.render.program
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowReceiverGlsl
 import earth.worldwind.layer.shadow.ShadowReceiverProgram
 import earth.worldwind.layer.shadow.ShadowReceiverUniforms
@@ -42,12 +43,16 @@ open class SurfaceTextureProgram(
 
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
+            #ifdef SHADOWS_ENABLED
+            attribute vec3 vertexNormal;
+            #endif
 
             varying vec2 texCoord;
             varying vec2 tileCoord;
             #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
+            varying vec3 terrainNormal;
             #endif
 
             void main() {
@@ -57,6 +62,7 @@ open class SurfaceTextureProgram(
                 #ifdef SHADOWS_ENABLED
                 worldPos = vertexPoint.xyz + vertexOrigin;
                 viewDepth = gl_Position.w;
+                terrainNormal = vertexNormal;
                 #endif
 
                 /* Transform the vertex tex coord by the tex coord matrices. */
@@ -85,8 +91,11 @@ open class SurfaceTextureProgram(
             #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;
+            varying vec3 terrainNormal;
 
-            ${ShadowReceiverGlsl.fragmentDeclarations()}
+            ${LightingGlsl.DECLARATIONS}
+
+            ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
             #endif
 
             void main() {
@@ -113,13 +122,15 @@ open class SurfaceTextureProgram(
                 #ifdef SHADOWS_ENABLED
                 /* Skip shadow attenuation in pick mode so picked terrain isn't darkened. */
                 if (!enablePickMode) {
-                    gl_FragColor.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
+                    gl_FragColor.rgb *= terrainLambert > 0.0
+                        ? terrainReliefFactor(terrainNormal, worldPos, viewDepth)
+                        : shadowAlbedoFactor(worldPos, viewDepth);
                 }
                 #endif
             }
         """.trimIndent()
     )
-    override val attribBindings = arrayOf("vertexPoint", "vertexTexCoord")
+    override val attribBindings = arrayOf("vertexPoint", "vertexTexCoord", "vertexNormal")
 
     // Prepend [Kgl.glslDerivativesPrefix] (WW_HAS_DERIVATIVES + platform-aware extension
     // directive) so the shadow receiver's receiver-plane depth bias can use dFdx/dFdy.
@@ -212,6 +223,10 @@ open class SurfaceTextureProgram(
     fun loadVertexOrigin(x: Float, y: Float, z: Float) {
         gl.uniform3f(vertexOriginId, x, y, z)
     }
+
+    /** Forwards to [ShadowReceiverUniforms.loadTerrainRelief]; a no-op on the no-shadow variant. */
+    fun loadTerrainRelief(strength: Float, lightDirection: Vec3?) =
+        shadowUniforms.loadTerrainRelief(gl, strength, lightDirection)
 
     override var shadowUploadStamp: Long
         get() = shadowUniforms.uploadStamp

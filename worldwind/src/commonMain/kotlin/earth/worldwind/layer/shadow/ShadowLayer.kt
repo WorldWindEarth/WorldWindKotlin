@@ -97,6 +97,27 @@ open class ShadowLayer : AbstractLayer("Shadow") {
     var ambientShadow: Float = ShadowState.DEFAULT_AMBIENT_SHADOW
 
     /**
+     * Whether terrain rasterises into the cascade depth maps. `false` makes terrain a
+     * receive-only surface: shapes still cast onto it, but mountainsides no longer blanket
+     * valleys (and themselves) in hard self-shadow — the cartographic look, best combined
+     * with [terrainLambert] for relief. Terrain always receives regardless.
+     */
+    var isTerrainCastingEnabled: Boolean = true
+
+    /**
+     * Lambertian terrain shading strength in `[0, 1]`. `0` (default) keeps classic unshaded
+     * imagery. Non-zero shades terrain with the engine lighting model
+     * ([earth.worldwind.render.program.LightingGlsl]) from smooth per-vertex terrain normals
+     * (built by [earth.worldwind.globe.terrain.TerrainTile.getNormalBuffer], relief resolution
+     * follows terrain mesh LoD): sun-averted slopes darken toward the scene ambient, a
+     * hillshade-style relief whose contrast intermediate values scale down. Received shadows
+     * then attenuate the direct sun term instead of multiplying the whole albedo by
+     * [ambientShadow], so shadowed terrain reads much lighter. Fades out across the
+     * terminator band with the shadows.
+     */
+    var terrainLambert: Float = 0f
+
+    /**
      * How many cascades (closest first) recruit OFF-SCREEN shadow casters. A caster outside
      * the view frustum is kept alive - rasterizing into the depth maps but skipping the
      * color pass - when its bounds intersect one of the first N cascades' light-space boxes,
@@ -172,6 +193,8 @@ open class ShadowLayer : AbstractLayer("Shadow") {
         val terminatorFade = (terminatorT * terminatorT * (3.0 - 2.0 * terminatorT)).toFloat()
 
         shadowState.ambientShadow = ambientShadow + (1f - ambientShadow) * (1f - terminatorFade)
+        shadowState.isTerrainCastingEnabled = isTerrainCastingEnabled
+        shadowState.terrainLambert = terrainLambert.coerceIn(0f, 1f) * terminatorFade
         shadowState.debugShadowMode = debugShadowMode
         shadowState.lightDirection.copy(rc.lightDirection)
         shadowState.cameraPoint.copy(rc.cameraPoint)

@@ -314,7 +314,8 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
             // up the 3D-caster shadows the terrain underneath received. modelMatrix is only
             // sampled by the shadow-receiver path; skipped on no-shadow frames.
             dc.applyShadowReceiverUniforms(program)
-            if (dc.shadowState != null) {
+            val shadowState = dc.shadowState
+            if (shadowState != null) {
                 modelMatrix.setToTranslation(
                     terrainOrigin.x - dc.eyePoint.x,
                     terrainOrigin.y - dc.eyePoint.y,
@@ -322,10 +323,18 @@ open class DrawableSurfaceShape protected constructor(): Drawable {
                 )
                 program.loadModelMatrix(modelMatrix)
             }
+            // Terrain relief rides this pass (the rasterized geometry is the terrain mesh);
+            // no isReady gate - relief is cascade-independent.
+            val reliefActive = shadowState != null && !dc.isPickMode && shadowState.terrainLambert > 0f
+            program.loadTerrainRelief(if (reliefActive) shadowState.terrainLambert else 0f, shadowState?.lightDirection)
+            if (reliefActive && terrain.useVertexNormalAttrib(dc, 4 /*vertexNormal*/)) dc.gl.enableVertexAttribArray(4)
 
             // Draw the terrain as triangles.
             terrain.drawTriangles(dc)
         } finally {
+            // Reset so subsequent shape draws with this shared program stay unshaded.
+            program.loadTerrainRelief(0f, null)
+            dc.gl.disableVertexAttribArray(4)
             // Unbind color attachment texture to avoid feedback loop
             dc.defaultTexture.bindTexture(dc)
         }

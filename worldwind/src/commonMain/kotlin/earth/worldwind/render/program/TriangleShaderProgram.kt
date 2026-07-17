@@ -38,6 +38,11 @@ open class TriangleShaderProgram(
             attribute vec4 pointB;
             attribute vec4 pointC;
             attribute vec2 vertexTexCoord;
+            #ifdef SHADOWS_ENABLED
+            /* Bound only by the surface-shape composite pass, where the geometry is the
+               terrain mesh; disabled (degenerate) for every other draw. */
+            attribute vec3 vertexNormal;
+            #endif
 
             varying vec2 texCoord;
             /* Shape-local position (small magnitudes around the vertex origin). The fragment
@@ -48,6 +53,7 @@ open class TriangleShaderProgram(
             varying vec3 localPos;
             #ifdef SHADOWS_ENABLED
             varying float viewDepth;
+            varying vec3 terrainNormal;
             #endif
 
             void main() {
@@ -120,6 +126,7 @@ open class TriangleShaderProgram(
                 }
                 #ifdef SHADOWS_ENABLED
                 viewDepth = gl_Position.w;
+                terrainNormal = vertexNormal;
                 #endif
 
                 /* Transform the vertex tex coord by the tex coord matrix. */
@@ -159,6 +166,7 @@ open class TriangleShaderProgram(
             #ifdef SHADOWS_ENABLED
             uniform mat4 modelMatrix;
             varying float viewDepth;
+            varying vec3 terrainNormal;
 
             ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
             #endif
@@ -206,6 +214,9 @@ open class TriangleShaderProgram(
                         /* Zero normal: view-winding face normals (two-sided walls) are
                            unusable for the normal-offset bias - sample depth-only. */
                         gl_FragColor.rgb *= shadowLitFactor(lambert, upFactor, worldPos, viewDepth, vec3(0.0));
+                    } else if (terrainLambert > 0.0) {
+                        /* Surface-shape composite: the rasterized geometry is the terrain mesh. */
+                        gl_FragColor.rgb *= terrainReliefFactor(terrainNormal, worldPos, viewDepth);
                     } else {
                         gl_FragColor.rgb *= shadowAlbedoFactor(worldPos, viewDepth);
                     }
@@ -218,7 +229,7 @@ open class TriangleShaderProgram(
             }
         """.trimIndent()
     )
-    override val attribBindings = arrayOf("pointA", "pointB", "pointC", "vertexTexCoord")
+    override val attribBindings = arrayOf("pointA", "pointB", "pointC", "vertexTexCoord", "vertexNormal")
 
     // Prepend [Kgl.glslDerivativesPrefix] (directive + macro on most platforms, macro-only on
     // JS WebGL2 where the compiler rejects the directive) ahead of [defines]. Harmless in the
@@ -354,6 +365,10 @@ open class TriangleShaderProgram(
             gl.uniform1i(enableOneVertexModeId, if (enable) 1 else 0)
         }
     }
+    /** Forwards to [ShadowReceiverUniforms.loadTerrainRelief]; callers must reset to 0 after
+     *  a relief draw so regular shape draws stay unshaded. No-op on the no-shadow variant. */
+    fun loadTerrainRelief(strength: Float, lightDirection: Vec3?) =
+        shadowUniforms.loadTerrainRelief(gl, strength, lightDirection)
     fun loadTexCoordMatrix(matrix: Matrix3) {
         if (texCoordMatrix != matrix) {
             texCoordMatrix.copy(matrix)

@@ -147,23 +147,25 @@ open class DrawableShadow protected constructor() : Drawable {
 
         // Terrain casters, sphere-culled per cascade. Face culling off: terrain winding
         // inverts from the sun's POV and would reject the sun-facing slopes - the occluders.
-        dc.gl.disable(GL_CULL_FACE)
-        for (idx in 0 until dc.drawableTerrainCount) {
-            val terrain = dc.getDrawableTerrain(idx)
-            val terrainOrigin = terrain.vertexOrigin
-            val terrainRadius = terrain.boundingSphereRadius
-            if (terrainRadius > 0.0 && !cascade.intersectsSphere(terrainOrigin, terrainRadius)) continue
-            // Terrain under 3D-Tile mesh coverage must not cast: the globe's elevation
-            // surface is an independent height source that commonly sits ABOVE the
-            // photogrammetry mesh, blanketing whole tile regions in false shadow.
-            if (terrainCoverageSkip[idx]) continue
-            if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
-            scratchMatrix.copy(cascade.lightProjectionView)
-            scratchMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
-            program.loadModelviewProjection(scratchMatrix)
-            terrain.drawTriangles(dc)
+        if (dc.shadowState?.isTerrainCastingEnabled != false) {
+            dc.gl.disable(GL_CULL_FACE)
+            for (idx in 0 until dc.drawableTerrainCount) {
+                val terrain = dc.getDrawableTerrain(idx)
+                val terrainOrigin = terrain.vertexOrigin
+                val terrainRadius = terrain.boundingSphereRadius
+                if (terrainRadius > 0.0 && !cascade.intersectsSphere(terrainOrigin, terrainRadius)) continue
+                // Terrain under 3D-Tile mesh coverage must not cast: the globe's elevation
+                // surface is an independent height source that commonly sits ABOVE the
+                // photogrammetry mesh, blanketing whole tile regions in false shadow.
+                if (terrainCoverageSkip[idx]) continue
+                if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
+                scratchMatrix.copy(cascade.lightProjectionView)
+                scratchMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
+                program.loadModelviewProjection(scratchMatrix)
+                terrain.drawTriangles(dc)
+            }
+            dc.gl.enable(GL_CULL_FACE)
         }
-        dc.gl.enable(GL_CULL_FACE)
 
         // Shape casters; activeCascade routes their matrix loads through this cascade.
         activeCascade = cascade

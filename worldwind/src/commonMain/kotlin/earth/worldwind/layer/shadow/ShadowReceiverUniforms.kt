@@ -1,5 +1,6 @@
 package earth.worldwind.layer.shadow
 
+import earth.worldwind.geom.Vec3
 import earth.worldwind.util.kgl.Kgl
 import earth.worldwind.util.kgl.KglProgram
 import earth.worldwind.util.kgl.KglUniformLocation
@@ -32,6 +33,8 @@ class ShadowReceiverUniforms(
     private var debugCascadesId = KglUniformLocation.NONE
     private val shadowMapIds = Array(ShadowReceiverGlsl.CASCADE_COUNT) { KglUniformLocation.NONE }
     private val shadowMatrixIds = Array(ShadowReceiverGlsl.CASCADE_COUNT) { KglUniformLocation.NONE }
+    private var terrainLambertId = KglUniformLocation.NONE
+    private var terrainLambert = 0f
     private val matrixArray = FloatArray(16)
     private val vec4Array = FloatArray(4)
 
@@ -70,6 +73,31 @@ class ShadowReceiverUniforms(
             shadowMapIds[i] = gl.getUniformLocation(program, "shadowMap$i")
             gl.uniform1i(shadowMapIds[i], 1 + i) // GL_TEXTURE1 + i
             shadowMatrixIds[i] = gl.getUniformLocation(program, "shadowMatrix$i")
+        }
+        // NONE (silent no-op) on receivers whose GLSL is not lit - only lit receivers declare it.
+        terrainLambertId = gl.getUniformLocation(program, "terrainLambert")
+        terrainLambert = 0f
+        gl.uniform1f(terrainLambertId, terrainLambert)
+    }
+
+    /**
+     * Sets the Lambertian terrain relief strength (see [ShadowLayer.terrainLambert]) for the
+     * next draw. Per-drawable state - callers must reset to 0 after a relief draw so other
+     * draws through the same program stay unshaded. Relief is cascade-independent, so
+     * [lightDirection] re-uploads the sun for frames where the depth pipeline is disabled
+     * and [loadEnabled] never ran.
+     */
+    fun loadTerrainRelief(gl: Kgl, strength: Float, lightDirection: Vec3?) {
+        if (!enabled) return
+        if (terrainLambert != strength) {
+            terrainLambert = strength
+            gl.uniform1f(terrainLambertId, strength)
+        }
+        if (strength > 0f && lightDirection != null) {
+            gl.uniform3f(
+                lightDirectionId,
+                lightDirection.x.toFloat(), lightDirection.y.toFloat(), lightDirection.z.toFloat(),
+            )
         }
     }
 
