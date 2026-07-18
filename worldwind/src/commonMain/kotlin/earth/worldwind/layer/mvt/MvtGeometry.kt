@@ -204,7 +204,7 @@ object MvtGeometry {
                         flat[i * 2 + 1] = SlippyTiles.tileYToLatDegrees(ty, nz)
                     }
                     if (area > 0.0) {
-                        polygons += PolygonRings(flat, mutableListOf())
+                        polygons += PolygonRings(flat)
                         snapshotRawOuter(scratch.rawOuter, ringX, ringY, rawN)
                     } else {
                         // Hole vs. separate landmass decided on RAW tile coords against the RAW current
@@ -212,9 +212,9 @@ object MvtGeometry {
                         // swallow offshore islands (Ireland, Greenland) as fake holes.
                         val cur = polygons.lastOrNull()
                         if (cur != null && scratch.rawOuter.size >= 6 && rawCentroidInsideTile(scratch.rawOuter, ringX, ringY, rawN)) {
-                            cur.holes.add(flat)
+                            cur.addHole(flat)
                         } else {
-                            polygons += PolygonRings(flat, mutableListOf())
+                            polygons += PolygonRings(flat)
                             snapshotRawOuter(scratch.rawOuter, ringX, ringY, rawN)
                         }
                     }
@@ -325,7 +325,15 @@ object MvtGeometry {
     /** A polygon's outer ring with zero or more inner holes, in lat/lon. */
     /** Rings as flat interleaved `[lon°, lat°, …]` degree arrays — avoids a [Position] object per
      *  vertex (thousands per dense tile) and feeds earcut / [MvtBatchedPolygonTile] directly. */
-    class PolygonRings(val outer: DoubleArray, val holes: MutableList<DoubleArray>)
+    class PolygonRings(val outer: DoubleArray) {
+        /** Hole rings; stays the shared empty list until the first hole - most rings have none. */
+        var holes: List<DoubleArray> = emptyList()
+            private set
+
+        fun addHole(ring: DoubleArray) {
+            (holes as? ArrayList<DoubleArray> ?: ArrayList<DoubleArray>(2).also { holes = it }).add(ring)
+        }
+    }
 
     /**
      * Result of [labelAnchorForLine]: where to place a line label and how to orient it.

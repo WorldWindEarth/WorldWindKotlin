@@ -330,19 +330,28 @@ class MvtBatchedLineTile(
         // share a bucket with the same dash pattern; solid lines share the null-source
         // bucket. `Float.toRawBits` gives exact equality on identical literals; ImageSource
         // identity equality is the bucket discriminator for stipple.
-        val groups = LinkedHashMap<BucketKey, MutableList<Int>>()
+        val groups = LinkedHashMap<BucketKey, IntList>()
+        // Same-bucket run cache: zOrder-sorted features usually arrive in runs of identical
+        // attributes - skip the per-feature BucketKey allocation and map lookup for a run.
+        var lastKey: BucketKey? = null
+        var lastList: IntList? = null
         for (si in sortedIndices.indices) {
             val origIdx = sortedIndices[si]
             val feature = features[origIdx]
             if (feature.coords.size < 4) continue
             val attrs = feature.attributes
             val colorPacked = packColor(attrs.outlineColor)
-            val key = BucketKey(
-                colorPacked = colorPacked,
-                widthBits = attrs.outlineWidth.toRawBits(),
-                outlineImageSource = attrs.outlineImageSource,
-            )
-            groups.getOrPut(key) { ArrayList() } += origIdx
+            val widthBits = attrs.outlineWidth.toRawBits()
+            val source = attrs.outlineImageSource
+            val cached = lastKey
+            val members = if (cached != null && cached.colorPacked == colorPacked &&
+                cached.widthBits == widthBits && cached.outlineImageSource === source) {
+                lastList!!
+            } else {
+                val key = BucketKey(colorPacked, widthBits, source)
+                groups.getOrPut(key) { IntList() }.also { lastKey = key; lastList = it }
+            }
+            members.add(origIdx)
         }
 
         // Emit one contiguous element range per bucket. Between concatenated polylines we
@@ -356,7 +365,7 @@ class MvtBatchedLineTile(
             val groupLineWidth = first.outlineWidth
             val rangeStart = elementsScratch.size
             var lastIdx = -1
-            for (mi in memberIndices.indices) {
+            for (mi in 0 until memberIndices.size) {
                 val origIdx = memberIndices[mi]
                 if (lastIdx >= 0) {
                     val firstNewIdx = vertices.size / VERTEX_STRIDE
