@@ -101,10 +101,12 @@ class GroundProgram: AbstractAtmosphereProgram() {
                 /* Now loop through the sample rays */
                 vec3 frontColor = vec3(0.0, 0.0, 0.0);
                 vec3 attenuate = vec3(0.0, 0.0, 0.0);
+                float lastDepth = 1.0;
                 for(int i=0; i<SAMPLE_COUNT; i++)
                 {
                     float height = length(samplePoint);
                     float depth = exp(scaleOverScaleDepth * (globeRadius - height));
+                    lastDepth = depth;
 
                     // Clamp scatter to 0 to prevent negative values (non-physical brightening) which cause absurd values (negative lightning)
                     // No upper clamp: the night side needs large scatter values to go fully dark.
@@ -115,14 +117,24 @@ class GroundProgram: AbstractAtmosphereProgram() {
                     samplePoint += sampleRay;
                 }
 
-                /* Altitude fade: primary (additive in-scatter) -> 0, secondary (multiplicative
-                   extinction) -> 1.0, so both blend passes become no-ops near the ground. */
-                primaryColor = frontColor * (invWavelength * KrESun + KmESun) * groundStrength;
-                /* Near the ground fade extinction toward its LUMINANCE, not toward 1.0: the
-                   low-altitude "Mars cast" was the wavelength-selective hue of the full-column
-                   extinction, but its brightness carries the day/night terminator and gates the
-                   night texture (1.0 - secondaryColor) - collapsing to white erased both. */
-                secondaryColor = mix(vec3(dot(attenuate, vec3(0.2126, 0.7152, 0.0722))), attenuate, groundStrength);
+                /* The extinction hue and the in-scatter glow are one shader term with three
+                   faces: an olive "Mars cast" at high sun near the ground (the imagery already
+                   bakes clear-day atmosphere), the orange evening ground at low sun (nothing
+                   bakes sunset), and the day/night darkening (always wanted). The altitude fade
+                   suppresses the first; a low-sun gate lets the second back through it. */
+                float lowSun = 1.0 - smoothstep(0.1, 0.35, lightAngle);
+                float hueStrength = max(groundStrength, lowSun);
+                /* Altitude/sun fade: primary (additive in-scatter) -> 0 near the ground at high sun. */
+                primaryColor = frontColor * (invWavelength * KrESun + KmESun) * hueStrength;
+                /* Near the ground fade extinction toward the SUN-PATH transmission luminance
+                   alone: it carries the day/night terminator and gates the night texture
+                   (1.0 - secondaryColor) while staying ~1.0 in daylight. The full-column
+                   luminance also holds the view-path haze term, which darkened draped imagery
+                   against 3D-Tile meshes (the ground pass never touches those); collapsing to
+                   white instead erased night entirely. */
+                vec3 sunAttenuate = exp(-(lastDepth * lightScale) * (invWavelength * Kr4PI + Km4PI));
+                float dayNight = dot(sunAttenuate, vec3(0.2126, 0.7152, 0.0722));
+                secondaryColor = mix(vec3(dayNight), attenuate, hueStrength);
 
                 /* Transform the vertex point by the modelview-projection matrix */
                 gl_Position = mvpMatrix * vertexPoint;

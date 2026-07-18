@@ -2,6 +2,7 @@ package earth.worldwind.layer.shadow
 
 import earth.worldwind.geom.Vec3
 import earth.worldwind.util.kgl.Kgl
+import kotlin.math.max
 import earth.worldwind.util.kgl.KglProgram
 import earth.worldwind.util.kgl.KglUniformLocation
 
@@ -45,6 +46,12 @@ class ShadowReceiverUniforms(
         /** Texel scale for the per-cascade receiver bias: the constant fallback where
          *  derivatives are unavailable and the clamp base for the receiver-plane term. */
         const val KERNEL_BIAS_TEXELS = 1.0
+
+        /** Floor for the normalized constant bias: four 24-bit depth-buffer quanta. A
+         *  globe-scale depth window dilutes the metre bias below the map's own quantization
+         *  (terrain casts true depth), which reads back as concentric ring acne; at street
+         *  ranges the metre bias dominates and this floor is far below it. */
+        const val DEPTH_QUANTUM_FLOOR = 4.0 / 16777216.0
     }
 
     /** Resolve the receiver uniforms and seed their defaults. Call from the owning program's
@@ -140,10 +147,14 @@ class ShadowReceiverUniforms(
         }
         gl.uniform4f(cascadeDepthBiasesId, vec4Array[0], vec4Array[1], vec4Array[2], vec4Array[3])
         // Constant receiver bias: world metres normalized by each cascade's depth range so an
-        // inflated depth window (high-altitude caster) can't balloon the world-space bias.
+        // inflated depth window (high-altitude caster) can't balloon the world-space bias,
+        // floored at a few depth-buffer quanta so a huge window can't dilute it below the
+        // map's own quantization.
         for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {
             val cascade = state.cascades[i]
-            vec4Array[i] = if (cascade.range > 0.0) (depthBiasMeters / cascade.range).toFloat() else 0f
+            vec4Array[i] = if (cascade.range > 0.0) {
+                max(depthBiasMeters / cascade.range, DEPTH_QUANTUM_FLOOR).toFloat()
+            } else 0f
         }
         gl.uniform4f(cascadeConstBiasesId, vec4Array[0], vec4Array[1], vec4Array[2], vec4Array[3])
         for (i in 0 until ShadowReceiverGlsl.CASCADE_COUNT) {

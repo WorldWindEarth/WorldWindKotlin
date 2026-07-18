@@ -518,7 +518,13 @@ open class ShadowLayer : AbstractLayer("Shadow") {
          * refits around the same view land on identical values.
          */
         /** Below this sin(sun elevation) shadows are skipped entirely. */
-        private const val TERMINATOR_MIN_SIN_ELEVATION = -0.05
+        /** Below this sin(sun elevation) the shadow pipeline is skipped entirely. Physical sunset:
+         *  atmospheric refraction (~0.57 deg) plus the solar semi-diameter (~0.27 deg) keep the
+         *  upper limb visible until the center reaches -0.83 deg, so long twilight shadows are
+         *  legitimate slightly below geometric zero - at a few percent residual strength via the
+         *  fade window. Below that the maps hold only 1/sin-amplified noise; the atmosphere's
+         *  extinction owns darkness past sunset. */
+        private const val TERMINATOR_MIN_SIN_ELEVATION = -0.0145
         /** Above this sin(sun elevation) shadows render at full strength; between the two
          *  the ambient floor fades toward 1 (smoothstep). ~5.7 degrees. */
         private const val TERMINATOR_FULL_SIN_ELEVATION = 0.10

@@ -188,26 +188,14 @@ object ShadowReceiverGlsl {
            constant fallback where derivatives are unavailable / degenerate, and the clamp
            scale for the receiver-plane prediction. */
         float sampleCascade(int cascadeIndex, vec3 position, vec3 dPosDx, vec3 dPosDy, float viewDepth, float kernelBias, float receiverBias) {
-            vec4 shadowPos;
-            vec3 posDx;
-            vec3 posDy;
-            if (cascadeIndex == 0) {
-                shadowPos = shadowMatrix0 * vec4(position, 1.0);
-                posDx = (shadowMatrix0 * vec4(dPosDx, 0.0)).xyz;
-                posDy = (shadowMatrix0 * vec4(dPosDy, 0.0)).xyz;
-            } else if (cascadeIndex == 1) {
-                shadowPos = shadowMatrix1 * vec4(position, 1.0);
-                posDx = (shadowMatrix1 * vec4(dPosDx, 0.0)).xyz;
-                posDy = (shadowMatrix1 * vec4(dPosDy, 0.0)).xyz;
-            } else if (cascadeIndex == 2) {
-                shadowPos = shadowMatrix2 * vec4(position, 1.0);
-                posDx = (shadowMatrix2 * vec4(dPosDx, 0.0)).xyz;
-                posDy = (shadowMatrix2 * vec4(dPosDy, 0.0)).xyz;
-            } else {
-                shadowPos = shadowMatrix3 * vec4(position, 1.0);
-                posDx = (shadowMatrix3 * vec4(dPosDx, 0.0)).xyz;
-                posDy = (shadowMatrix3 * vec4(dPosDy, 0.0)).xyz;
-            }
+            /* Branchless matrix pick - the 4-way chain here spilled on Mali r19 like the
+               cascade-selection chain did; a weighted sum is flat arithmetic. The per-sampler
+               tap branch below has to stay (samplers can't be selected dynamically). */
+            vec4 cw = vec4(equal(vec4(0.0, 1.0, 2.0, 3.0), vec4(float(cascadeIndex))));
+            mat4 m = shadowMatrix0 * cw.x + shadowMatrix1 * cw.y + shadowMatrix2 * cw.z + shadowMatrix3 * cw.w;
+            vec4 shadowPos = m * vec4(position, 1.0);
+            vec3 posDx = (m * vec4(dPosDx, 0.0)).xyz;
+            vec3 posDy = (m * vec4(dPosDy, 0.0)).xyz;
             /* Orthographic light projection - w == 1, no perspective divide. */
             if (any(lessThan(shadowPos.xyz, vec3(0.0))) || any(greaterThan(shadowPos.xyz, vec3(1.0)))) {
                 return -1.0;
@@ -220,6 +208,7 @@ object ShadowReceiverGlsl {
                every cascade boundary. Degenerate for point sprites - constant fallback. */
             vec2 dzduv = vec2(0.0);
             float constBias = kernelBias;
+            vec2 mapSize = shadowMapSize0 * cw.x + shadowMapSize1 * cw.y + shadowMapSize2 * cw.z + shadowMapSize3 * cw.w;
             #ifdef WW_HAS_DERIVATIVES
             float det = posDx.x * posDy.y - posDx.y * posDy.x;
             if (abs(det) > 1e-16) {
@@ -227,6 +216,13 @@ object ShadowReceiverGlsl {
                              posDx.x * posDy.z - posDy.x * posDx.z) / det;
                 /* The plane term carries the slope; keep only a small quantisation floor. */
                 constBias = kernelBias * 0.25;
+                /* Center-tap slope compensation, replacing the caster-side polygon-offset slope
+                   term: the map holds one depth per texel, so a tilted receiver legitimately
+                   sits up to ~1.5 texels of its own depth-slope below the stored sample. The
+                   caster offset did this per primitive, but on a curved globe at grazing sun
+                   adjacent tiles' slopes differ discontinuously (tile-border shadows); the
+                   per-fragment receiver slope is continuous by construction. */
+                constBias += min(1.5 * length(dzduv) / mapSize.x, kernelBias * 16.0);
             }
             #endif
             float bias = constBias + receiverBias;
@@ -256,48 +252,27 @@ object ShadowReceiverGlsl {
                end (fitFar), so 2x can never sit inside populated cascade coverage - the
                footprint extends past fitFar by at most about one cascade radius. */
             if (viewDepth >= shadowMaxDistance * 2.0) return 1.0;
-            /* Cascade selection. ESSL 1.00 fragment shaders can't index vectors dynamically,
-               so the per-cascade texel sizes are picked inside the same branch chain. */
-            int cascade;
-            float cascadeNear;
-            float cascadeFar;
-            float texelWorld;
-            float texelWorldNext;
-            float texelWorldPrev;
-            float kernelBias;
-            float kernelBiasNext;
-            float kernelBiasPrev;
-            float constBias;
-            float constBiasNext;
-            float constBiasPrev;
-            if (viewDepth < cascadeFarDepths.x) {
-                cascade = 0; cascadeNear = 0.0;                cascadeFar = cascadeFarDepths.x;
-                texelWorld = cascadeTexelWorldSizes.x; texelWorldNext = cascadeTexelWorldSizes.y;
-                kernelBias = cascadeDepthBiases.x;     kernelBiasNext = cascadeDepthBiases.y;
-                constBias = cascadeConstBiases.x;      constBiasNext = cascadeConstBiases.y;
-                texelWorldPrev = 0.0;                  kernelBiasPrev = 0.0; constBiasPrev = 0.0;
-            } else if (viewDepth < cascadeFarDepths.y) {
-                cascade = 1; cascadeNear = cascadeFarDepths.x; cascadeFar = cascadeFarDepths.y;
-                texelWorld = cascadeTexelWorldSizes.y; texelWorldNext = cascadeTexelWorldSizes.z;
-                kernelBias = cascadeDepthBiases.y;     kernelBiasNext = cascadeDepthBiases.z;
-                constBias = cascadeConstBiases.y;      constBiasNext = cascadeConstBiases.z;
-                texelWorldPrev = cascadeTexelWorldSizes.x; kernelBiasPrev = cascadeDepthBiases.x;
-                constBiasPrev = cascadeConstBiases.x;
-            } else if (viewDepth < cascadeFarDepths.z) {
-                cascade = 2; cascadeNear = cascadeFarDepths.y; cascadeFar = cascadeFarDepths.z;
-                texelWorld = cascadeTexelWorldSizes.z; texelWorldNext = cascadeTexelWorldSizes.w;
-                kernelBias = cascadeDepthBiases.z;     kernelBiasNext = cascadeDepthBiases.w;
-                constBias = cascadeConstBiases.z;      constBiasNext = cascadeConstBiases.w;
-                texelWorldPrev = cascadeTexelWorldSizes.y; kernelBiasPrev = cascadeDepthBiases.y;
-                constBiasPrev = cascadeConstBiases.y;
-            } else {
-                cascade = 3; cascadeNear = cascadeFarDepths.z; cascadeFar = cascadeFarDepths.w;
-                texelWorld = cascadeTexelWorldSizes.w; texelWorldNext = 0.0;
-                kernelBias = cascadeDepthBiases.w;     kernelBiasNext = 0.0;
-                constBias = cascadeConstBiases.w;      constBiasNext = 0.0;
-                texelWorldPrev = cascadeTexelWorldSizes.z; kernelBiasPrev = cascadeDepthBiases.z;
-                constBiasPrev = cascadeConstBiases.z;
-            }
+            /* Branchless cascade selection. The equivalent if/else-if chain carrying twelve
+               live scalars compiled pathologically on Mali r19 drivers (~10 ms/frame of
+               register spill at full-screen coverage); step/dot arithmetic sidesteps it and
+               works in both ESSL 1.00 and 3.00. */
+            vec4 past = step(cascadeFarDepths, vec4(viewDepth));
+            float fCascade = min(past.x + past.y + past.z + past.w, 3.0);
+            int cascade = int(fCascade);
+            vec4 w = vec4(equal(vec4(0.0, 1.0, 2.0, 3.0), vec4(fCascade)));
+            vec4 wNext = vec4(equal(vec4(0.0, 1.0, 2.0, 3.0), vec4(fCascade + 1.0)));
+            vec4 wPrev = vec4(equal(vec4(0.0, 1.0, 2.0, 3.0), vec4(fCascade - 1.0)));
+            float cascadeNear = dot(vec4(0.0, cascadeFarDepths.xyz), w);
+            float cascadeFar = dot(cascadeFarDepths, w);
+            float texelWorld = dot(cascadeTexelWorldSizes, w);
+            float texelWorldNext = dot(cascadeTexelWorldSizes, wNext);
+            float texelWorldPrev = dot(cascadeTexelWorldSizes, wPrev);
+            float kernelBias = dot(cascadeDepthBiases, w);
+            float kernelBiasNext = dot(cascadeDepthBiases, wNext);
+            float kernelBiasPrev = dot(cascadeDepthBiases, wPrev);
+            float constBias = dot(cascadeConstBiases, w);
+            float constBiasNext = dot(cascadeConstBiases, wNext);
+            float constBiasPrev = dot(cascadeConstBiases, wPrev);
             if (debugShadowMode == 1) {
                 /* Cascade layout view: 1.0 / 0.75 / 0.5 / 0.25 per cascade. */
                 return 1.0 - float(cascade) * 0.25;
