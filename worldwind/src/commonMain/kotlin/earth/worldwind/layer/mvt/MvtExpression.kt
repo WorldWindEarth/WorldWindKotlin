@@ -190,11 +190,18 @@ sealed class MvtExpression<out T> {
     // ---- Boolean combinators ---------------------------------------------------
 
     class AllOf(val children: List<MvtExpression<Boolean>>) : MvtExpression<Boolean>() {
-        override fun evaluate(ctx: EvalContext): Boolean = children.all { it.evaluate(ctx) == true }
+        override fun evaluate(ctx: EvalContext): Boolean {
+            // Indexed loop - runs per feature, an iterator here shows up in allocation profiles
+            for (i in children.indices) if (children[i].evaluate(ctx) != true) return false
+            return true
+        }
     }
 
     class AnyOf(val children: List<MvtExpression<Boolean>>) : MvtExpression<Boolean>() {
-        override fun evaluate(ctx: EvalContext): Boolean = children.any { it.evaluate(ctx) == true }
+        override fun evaluate(ctx: EvalContext): Boolean {
+            for (i in children.indices) if (children[i].evaluate(ctx) == true) return true
+            return false
+        }
     }
 
     class Not(val child: MvtExpression<Boolean>) : MvtExpression<Boolean>() {
@@ -207,7 +214,7 @@ sealed class MvtExpression<out T> {
     class Add(val operands: List<MvtExpression<*>>) : MvtExpression<Double>() {
         override fun evaluate(ctx: EvalContext): Double? {
             var acc = 0.0
-            for (op in operands) acc += numberOrNull(op.evaluate(ctx)) ?: return null
+            for (i in operands.indices) acc += numberOrNull(operands[i].evaluate(ctx)) ?: return null
             return acc
         }
     }
@@ -225,7 +232,7 @@ sealed class MvtExpression<out T> {
     class Mul(val operands: List<MvtExpression<*>>) : MvtExpression<Double>() {
         override fun evaluate(ctx: EvalContext): Double? {
             var acc = 1.0
-            for (op in operands) acc *= numberOrNull(op.evaluate(ctx)) ?: return null
+            for (i in operands.indices) acc *= numberOrNull(operands[i].evaluate(ctx)) ?: return null
             return acc
         }
     }
@@ -252,7 +259,10 @@ sealed class MvtExpression<out T> {
         class Branch<T>(val condition: MvtExpression<Boolean>, val value: MvtExpression<T>)
 
         override fun evaluate(ctx: EvalContext): T? {
-            for (b in branches) if (b.condition.evaluate(ctx) == true) return b.value.evaluate(ctx)
+            for (i in branches.indices) {
+                val b = branches[i]
+                if (b.condition.evaluate(ctx) == true) return b.value.evaluate(ctx)
+            }
             return default.evaluate(ctx)
         }
     }
@@ -271,8 +281,9 @@ sealed class MvtExpression<out T> {
 
         override fun evaluate(ctx: EvalContext): T? {
             val inputValue = input.evaluate(ctx)
-            for (b in branches) {
-                for (label in b.labels) if (looseEquals(inputValue, label)) return b.value.evaluate(ctx)
+            for (i in branches.indices) {
+                val b = branches[i]
+                for (j in b.labels.indices) if (looseEquals(inputValue, b.labels[j])) return b.value.evaluate(ctx)
             }
             return default.evaluate(ctx)
         }
@@ -290,8 +301,9 @@ sealed class MvtExpression<out T> {
         override fun evaluate(ctx: EvalContext): T? {
             val x = numberOrNull(input.evaluate(ctx)) ?: return base.evaluate(ctx)
             var chosen: MvtExpression<T> = base
-            for ((z, v) in stops) {
-                if (x >= z) chosen = v else break
+            for (i in stops.indices) {
+                val stop = stops[i]
+                if (x >= stop.first) chosen = stop.second else break
             }
             return chosen.evaluate(ctx)
         }
@@ -395,7 +407,7 @@ sealed class MvtExpression<out T> {
     class Concat(val parts: List<MvtExpression<*>>) : MvtExpression<String>() {
         override fun evaluate(ctx: EvalContext): String {
             val sb = StringBuilder()
-            for (p in parts) p.evaluate(ctx)?.let { sb.append(it.toString()) }
+            for (i in parts.indices) parts[i].evaluate(ctx)?.let { sb.append(it.toString()) }
             return sb.toString()
         }
     }
