@@ -53,6 +53,9 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
     // thread on every move after the first, skipping the coroutine dispatch hop and the
     // pickRequest.await round-trip. Null while pick is in flight or if the pick missed.
     private var draggedMovable: Movable? = null
+    // True once the onDown pick outcome is published. Lets onScroll bail out immediately on
+    // plain map pans instead of cancelling and launching a coroutine per touch-move event.
+    private var isPickResolved = false
 
     fun onTouchEvent(event: MotionEvent): Boolean {
         // Skip select and drag processing if the processor is disabled or callback is not assigned
@@ -94,12 +97,15 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
 
     override fun onScroll(downEvent: MotionEvent?, moveEvent: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
         val callback = callback ?: return false
+        // Pick resolved to nothing draggable - plain map pan. Other platforms gate on isDraggingArmed here.
+        if (isPickResolved && !isDraggingArmed) return false
         // Capture cursor coords up-front: MotionEvent is recycled by the framework once this
         // listener returns, so reading moveEvent.x/y from a deferred slow-path coroutine below
         // would race with the recycle and pick up garbage screen coords.
         val cursorX = moveEvent.x.toDouble()
         val cursorY = moveEvent.y.toDouble()
         draggingJob?.cancel()
+        draggingJob = null // forget the finished job so later moves skip the cancel
 
         // Fast path — pick already resolved into a Movable: run the move synchronously on the
         // touch thread. Reading referencePosition fresh each call picks up the prior moveTo,
@@ -218,6 +224,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
         // Clear stale cache eagerly so a fresh ACTION_DOWN can't reuse the prior drag's
         // Movable while this pick is still in flight.
         draggedMovable = null
+        isPickResolved = false
         pickRequest = wwd.pickAsync(event.x - slop / 2f, event.y - slop / 2f, slop.toFloat(), slop.toFloat())
         mainScope.launch {
             val pickList = pickRequest.await()
@@ -252,6 +259,7 @@ open class SelectDragDetector(protected val wwd: WorldWindow) : SimpleOnGestureL
                 grabRotation = null
                 grabAltitude = 0.0
             }
+            isPickResolved = true // publish last: onScroll may now trust isDraggingArmed
         }
     }
 
