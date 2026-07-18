@@ -22,6 +22,14 @@ interface ElevationCoverage {
     val timestamp: Long
 
     /**
+     * Checks if coverage data influencing the specified sector could have changed after the specified timestamp
+     * @param time timestamp to compare with, e.g. a consumer's cached [timestamp] value
+     * @param sector the sector of interest
+     * @return true if data in the sector could have changed; conservative implementations may always return true
+     */
+    fun isChangedSince(time: Long, sector: Sector) = timestamp > time
+
+    /**
      * Clears elevation runtime data
      */
     fun clear()

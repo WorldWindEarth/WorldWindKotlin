@@ -257,6 +257,15 @@ open class Globe(
     }
 
     /**
+     * Checks if elevation data influencing the specified sector could have changed after the specified timestamp
+     *
+     * @param time timestamp to compare with, e.g. a consumer's cached elevation model timestamp
+     * @param sector the sector of interest
+     * @return true if elevation data in the sector could have changed
+     */
+    fun isElevationChangedSince(time: Long, sector: Sector) = elevationModel.isChangedSince(time, sector)
+
+    /**
      * Get absolute position with terrain elevation at specified coordinates
      *
      * @param latitude Specified latitude

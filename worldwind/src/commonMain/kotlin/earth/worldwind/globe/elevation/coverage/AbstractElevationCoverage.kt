@@ -13,12 +13,40 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
             field = value
             updateTimestamp()
         }
-    override var timestamp = Clock.System.now().toEpochMilliseconds()
-        protected set
+    override val timestamp get() = updateState.timestamp
     private var userProperties: MutableMap<Any, Any>? = null
+    // Single immutable snapshot keeps timestamp and log consistent for readers on other threads
+    private var updateState = Clock.System.now().toEpochMilliseconds().let { UpdateState(it, it, emptyList()) }
 
-    protected fun updateTimestamp() {
-        timestamp = Clock.System.now().toEpochMilliseconds()
+    private class UpdateRecord(val timestamp: Long, val sector: Sector?)
+
+    private class UpdateState(val timestamp: Long, val logStart: Long, val log: List<UpdateRecord>)
+
+    protected fun updateTimestamp() = updateTimestamp(null)
+
+    /** Registers a data change; [changedSector] scopes consumer invalidation, null invalidates everything */
+    protected fun updateTimestamp(changedSector: Sector?) {
+        val prev = updateState
+        // Strictly increasing so consumers comparing cached timestamps never miss same-millisecond updates
+        val time = maxOf(Clock.System.now().toEpochMilliseconds(), prev.timestamp + 1)
+        val log = prev.log + UpdateRecord(time, changedSector?.let { Sector(it) })
+        val overflow = log.size - UPDATE_LOG_CAPACITY
+        updateState = if (overflow > 0) {
+            UpdateState(time, log[overflow - 1].timestamp, log.subList(overflow, log.size).toList())
+        } else UpdateState(time, prev.logStart, log)
+    }
+
+    override fun isChangedSince(time: Long, sector: Sector): Boolean {
+        val state = updateState
+        if (state.timestamp <= time) return false
+        if (time < state.logStart) return true // updates before the log window are unknown - assume changed
+        val log = state.log
+        for (i in log.indices.reversed()) {
+            val record = log[i]
+            if (record.timestamp <= time) break // log is ordered - older records cannot match
+            if (record.sector == null || record.sector.intersects(sector)) return true
+        }
+        return false
     }
 
     override fun getUserProperty(key: Any) = userProperties?.get(key)
@@ -49,4 +77,8 @@ abstract class AbstractElevationCoverage: ElevationCoverage {
     protected abstract fun doGetElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray)
 
     protected abstract fun doGetElevationLimits(sector: Sector, result: FloatArray)
+
+    companion object {
+        private const val UPDATE_LOG_CAPACITY = 128
+    }
 }

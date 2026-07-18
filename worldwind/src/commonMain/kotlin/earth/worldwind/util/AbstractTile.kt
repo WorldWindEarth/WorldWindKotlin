@@ -20,6 +20,7 @@ abstract class AbstractTile(
     protected val extent by lazy { BoundingBox() }
     protected open val heightLimits by lazy { FloatArray(2) }
     protected var heightLimitsTimestamp = 0L
+    protected var heightLimitsResolved = false // last scan found actual elevation data
     protected var extentVE = 0.0
     protected var extentGlobeState: Globe.State? = null
     protected var extentGlobeOffset: Globe.Offset? = null
@@ -96,7 +97,14 @@ abstract class AbstractTile(
         val globe = rc.globe
         val timestamp = rc.elevationModelTimestamp
         if (timestamp != heightLimitsTimestamp) {
-            if (globe.is2D) heightLimits.fill(0f) else calcHeightLimits(globe)
+            if (globe.is2D) {
+                heightLimits.fill(0f)
+                heightLimitsResolved = false // force recalculation when the globe returns to 3D
+            } else if (!heightLimitsResolved || globe.isElevationChangedSince(heightLimitsTimestamp, sector)) {
+                // Unresolved limits rescan on every update - the scan doubles as the retrieval trigger
+                // for missing elevation tiles. Resolved limits rescan only on intersecting updates.
+                calcHeightLimits(globe)
+            }
         }
         val ve = rc.globe.verticalExaggeration
         val state = rc.globeState
@@ -119,6 +127,7 @@ abstract class AbstractTile(
         heightLimits[1] = -Float.MAX_VALUE
         globe.getElevationLimits(sector, heightLimits)
         // check for valid height limits
-        if (heightLimits[0] > heightLimits[1]) heightLimits.fill(0f)
+        heightLimitsResolved = heightLimits[0] <= heightLimits[1]
+        if (!heightLimitsResolved) heightLimits.fill(0f)
     }
 }
