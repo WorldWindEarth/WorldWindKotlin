@@ -50,6 +50,16 @@ open class DrawableShadow protected constructor() : Drawable {
         val KEY = DrawableShadow::class
 
         /**
+         * Domain bound for terrain self-shadow: cascades with texels coarser than this (meters)
+         * exclude terrain from the depth pass. Relief shadow below map resolution collapses to a
+         * few quantized visibility levels (iso-depth banding at globe scale); declining to render
+         * below-resolution content is the explicit form of what the moment-based pipeline did by
+         * blurring it into invisibility. Shape casters remain meaningful at any texel size and
+         * are never gated - terrain still receives their shadows everywhere.
+         */
+        const val MAX_TERRAIN_CASTER_TEXEL = 100.0
+
+        /**
          * Slope-scaled polygon offset for the caster pass (factor × max depth slope +
          * units × implementation quantum). Covers the rasterization-texel slope only — the
          * receiver's per-tap receiver-plane bias handles the filter kernel's spatial reach,
@@ -147,8 +157,12 @@ open class DrawableShadow protected constructor() : Drawable {
 
         // Terrain casters, sphere-culled per cascade. Face culling off: terrain winding
         // inverts from the sun's POV and would reject the sun-facing slopes - the occluders.
-        if (dc.shadowState?.isTerrainCastingEnabled != false) {
+        if (dc.shadowState?.isTerrainCastingEnabled != false && cascade.texelWorldSize <= MAX_TERRAIN_CASTER_TEXEL) {
             dc.gl.disable(GL_CULL_FACE)
+            // Terrain rasterizes TRUE depth: the polygon-offset slope term is discontinuous
+            // across tiles on a curved globe at grazing sun (tile-border shadows); the receiver's
+            // per-fragment slope bias replaces it continuously. Shape casters keep the offset.
+            dc.gl.disable(GL_POLYGON_OFFSET_FILL)
             for (idx in 0 until dc.drawableTerrainCount) {
                 val terrain = dc.getDrawableTerrain(idx)
                 val terrainOrigin = terrain.vertexOrigin
@@ -164,6 +178,7 @@ open class DrawableShadow protected constructor() : Drawable {
                 program.loadModelviewProjection(scratchMatrix)
                 terrain.drawTriangles(dc)
             }
+            dc.gl.enable(GL_POLYGON_OFFSET_FILL)
             dc.gl.enable(GL_CULL_FACE)
         }
 
