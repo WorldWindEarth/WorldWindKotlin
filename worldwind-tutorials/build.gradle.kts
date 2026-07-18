@@ -116,13 +116,17 @@ kotlin {
                 implementation(libs.material)
             }
         }
-        jvmMain {
+        named("jvmCommonMain") {
             dependencies {
                 // Make Ktor's OkHttp engine + OkHttpClient types visible to the tutorial-only
                 // permissive-SSL hook (`installPermissiveSslForTutorials`). The engine module
                 // already pulls these in for its own HTTP client, but `implementation`-scoped
                 // there so they don't leak transitively.
                 implementation(libs.ktor.client.okhttp)
+            }
+        }
+        jvmMain {
+            dependencies {
                 // VLCJ — uses the host's installed VLC 3.0+ libraries (no bundled natives).
                 implementation(libs.vlcj)
                 // JavaCV / FFmpeg via javacpp-presets. Pulls FFmpeg native binaries for the
@@ -285,6 +289,15 @@ tasks.register<JavaExec>("runJvmTutorials") {
     jvmArgs(
         "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED",
         "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
+    )
+    // JetBrains Runtime 25 bundles its own gluegen.rt/jogl.all system modules, which shadow
+    // the classpath JOGL and then fail to find (or version-mismatch) their native libraries.
+    // Limit the module universe so the classpath JOGL wins; the JavaFX --add-modules roots
+    // below stay observable from the module path.
+    jvmArgs(
+        "--limit-modules",
+        "java.se,jdk.unsupported,jdk.unsupported.desktop,jdk.accessibility,jdk.management," +
+        "jdk.zipfs,jdk.localedata,jdk.charsets,jdk.crypto.ec,jdk.crypto.cryptoki",
     )
     // Forward the SLPK dataset path to the app JVM so `-Dworldwind.slpk.path=…` reaches SlpkTutorial.
     System.getProperty("worldwind.slpk.path")?.let { systemProperty("worldwind.slpk.path", it) }

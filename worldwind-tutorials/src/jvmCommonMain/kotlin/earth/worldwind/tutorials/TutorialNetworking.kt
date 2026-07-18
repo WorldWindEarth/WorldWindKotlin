@@ -9,10 +9,11 @@ import javax.net.ssl.X509TrustManager
 
 /**
  * Tutorials reach NASA's NEO WMS, DLR's WMTS, USGS WCS, etc. — public services with valid
- * certificates that nonetheless fail PKIX path-building on JDKs whose `cacerts` truststore
- * is outdated (older Adoptium/Zulu/Oracle 17 builds especially). Production apps should
- * keep their JDK current; tutorial apps install a trust-all OkHttp client into the engine's
- * [httpClientCustomizer] hook so demos run on whatever JDK the user happens to have.
+ * certificates that nonetheless fail PKIX path-building when the local truststore is outdated:
+ * JDKs with stale `cacerts` (older Adoptium/Zulu/Oracle 17 builds especially) and older Android
+ * releases missing newer roots (e.g. HARICA 2021, which signs DLR's WMTS since 2026). Production
+ * apps should ship the missing roots (Android: network_security_config); tutorial apps install a
+ * trust-all OkHttp client into the engine's [httpClientCustomizer] hook so demos just run.
  *
  * Calling this is INSECURE — any HTTPS endpoint is accepted regardless of certificate. Keep
  * it scoped to tutorial / development entry points.
