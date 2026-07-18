@@ -4,6 +4,8 @@ import earth.worldwind.layer.source.TileBlob
 import earth.worldwind.formats.gpkg.GeoPackage
 import earth.worldwind.formats.gpkg.GpkgContent
 import earth.worldwind.geom.Sector
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * GeoPackage-backed [TileStore]. One instance binds to one tile-pyramid table — works for
@@ -27,16 +29,18 @@ class GpkgTileStore(
     override val cacheInfo: CachedSourceInfo
         get() = CachedSourceInfo(contentKey = content.tableName, contentPath = geoPackage.pathName)
 
-    override suspend fun readTile(z: Int, x: Int, y: Int): TileBlob? {
-        val row = geoPackage.readTileUserData(content, z, x, y) ?: return null
-        if (row.tileData.isEmpty()) return TileBlob.EMPTY
+    // One IO dispatch for the whole read: the inner GeoPackage suspend calls run undispatched
+    // once already on Dispatchers.IO, instead of a hop per statement.
+    override suspend fun readTile(z: Int, x: Int, y: Int): TileBlob? = withContext(Dispatchers.IO) {
+        val row = geoPackage.readTileUserData(content, z, x, y) ?: return@withContext null
+        if (row.tileData.isEmpty()) return@withContext TileBlob.EMPTY
         // Freshness tracking on (finite staleAfter): pull the ww_tile_revalidation row (keyed by this
         // tile row's id) so the SWR refresh can issue a conditional GET (ETag / Last-Modified) and
         // so `validatedAt` drives staleness. The tile row is already loaded, so its id is free;
         // skipped entirely when staleAfter is INFINITE.
         val tracked = cachePolicy.tracksFreshness
         val reval = if (tracked) geoPackage.readTileRevalidation(content, row.id) else null
-        return TileBlob(
+        TileBlob(
             bytes = row.tileData,
             etag = reval?.etag,
             lastModified = reval?.httpLastModified,
@@ -51,11 +55,11 @@ class GpkgTileStore(
     override suspend fun writeTile(z: Int, x: Int, y: Int, blob: TileBlob) {
         // Empty bytes act as the "no tile at this address" sentinel (HTTP 404 etc.) — store
         // a zero-length array so the next lookup short-circuits without a network call.
-        val tpudtId = geoPackage.writeTileUserData(content, z, x, y, blob.bytes)
-        // Stamp freshness against the tile row's id: validators (if the server sent any) plus
+        // Freshness is stamped in the same call: validators (if the server sent any) plus
         // validatedAt = now, so this tile won't be re-requested until it ages past staleAfter again.
-        geoPackage.writeTileRevalidation(
-            content, tpudtId, blob.etag, blob.lastModified, System.currentTimeMillis(),
+        geoPackage.writeTileCacheEntry(
+            content, z, x, y, blob.bytes,
+            etag = blob.etag, httpLastModified = blob.lastModified, validatedAt = System.currentTimeMillis(),
         )
         // Per-put eviction trigger — async drain fires when the table crosses the overshoot budget.
         geoPackage.notifyTileInsert(content, cachePolicy)
