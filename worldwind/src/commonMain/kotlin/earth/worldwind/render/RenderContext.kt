@@ -78,6 +78,12 @@ open class RenderContext {
     lateinit var renderResourceCache: RenderResourceCache
     var densityFactor = 1f
     var horizonDistance = 0.0
+    /** Frame snapshot of [earth.worldwind.FogSse]: camera fog density; 0 disables fog degradation. */
+    var fogDensity = 0.0
+    /** Frame snapshot of [earth.worldwind.FogSse.screenSpaceErrorFactor]. */
+    var fogScreenSpaceErrorFactor = 0.0
+    /** Distance beyond which a tile is fully fogged and may be culled from assembly. */
+    var fullFogDistance = Double.MAX_VALUE
     var atmosphereAltitude = 0.0
     var viewingDistance = 0.0
     var pixelSize = 0.0
@@ -201,6 +207,9 @@ open class RenderContext {
     open fun reset() {
         densityFactor = 1f
         horizonDistance = 0.0
+        fogDensity = 0.0
+        fogScreenSpaceErrorFactor = 0.0
+        fullFogDistance = Double.MAX_VALUE
         atmosphereAltitude = 0.0
         viewingDistance = 0.0
         pixelSize = 0.0

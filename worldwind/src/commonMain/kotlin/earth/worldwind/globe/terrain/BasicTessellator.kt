@@ -91,8 +91,8 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected open fun addTileOrDescendants(rc: RenderContext, tile: TerrainTile) {
         // ignore tiles which soes not fit projection limits
         if (rc.globe.projectionLimits?.let { tile.intersectsSector(it) } == false) return
-        // ignore the tile and its descendants if it's not needed or not visible
-        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc)) return
+        // ignore the tile and its descendants if it's not needed, not visible or fully fogged
+        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsFrustum(rc) || tile.isFullyFogged(rc)) return
         if (tile.level.isLastLevel || !tile.mustSubdivide(rc, detailControl)) {
             addTile(rc, tile)
             return  // use the tile if it does not need to be subdivided
