@@ -132,9 +132,10 @@ open class BasicFrameController: FrameController {
         //   5       — Sightline receiver depth cube (a samplerCube unit; the 2D
         //             default bound below is still a valid non-empty binding for the
         //             warning check, and the sightline path re-binds its own cube).
+        //   5..7    — SurfaceTextureProgram imagery composite batch units (2D target).
         // Subsequent drawables that bind their own texture overwrite the default; units
         // never sampled keep the default and silence the driver without further scatter.
-        for (unit in 0..5) {
+        for (unit in 0..7) {
             dc.activeTextureUnit(GL_TEXTURE0 + unit)
             dc.defaultTexture.bindTexture(dc)
         }
