@@ -1,11 +1,10 @@
 package earth.worldwind.util
 
 import earth.worldwind.geom.Sector
-import earth.worldwind.geom.Vec3
 import earth.worldwind.render.RenderContext
 import kotlin.jvm.JvmStatic
-import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.exp
 
 /**
  * Geographically rectangular tile within a [LevelSet], typically representing terrain or imagery. Provides a base
@@ -34,7 +33,6 @@ open class Tile protected constructor(
      * A key that uniquely identifies this tile within a level set. Tile keys are not unique to a specific level set.
      */
     val tileKey = "${level.levelNumber}.$row.$column"
-    private val scratchVector = Vec3()
 
     /**
      * Indicates whether this tile should be subdivided based on the current navigation state and a specified detail
@@ -48,33 +46,41 @@ open class Tile protected constructor(
     open fun mustSubdivide(rc: RenderContext, detailFactor: Double): Boolean {
         var texelSize = level.texelSize * rc.globe.equatorialRadius // Compute texel size in meters
 
-        val pixelSize = if (rc.globe.is2D) rc.pixelSize else {
-            // Consider that texels are laid out continuously on the arc of constant latitude connecting the tile's
-            // east and west edges and passing through its centroid.
-            texelSize *= cos(sector.centroidLatitude.inRadians)
+        // Adjust the subdivision threshold when the display density is low.
+        val threshold = detailFactor * rc.densityFactor
+        if (rc.globe.is2D) return texelSize > rc.pixelSize * threshold
 
-            // Get distance from nearest tile point to camera
-            val nearestPoint = nearestPoint(rc)
-            val distanceToCamera = nearestPoint.distanceTo(rc.cameraPoint)
+        // Consider that texels are laid out continuously on the arc of constant latitude connecting the tile's
+        // east and west edges and passing through its centroid.
+        texelSize *= cos(sector.centroidLatitude.inRadians)
 
-            // Accelerate the degradation of tile details depending on the viewing angle to tile normal.
-            // Only kicks in at very grazing angles (cosAngle < DEGRADE_THRESHOLD, i.e. < ~20° from horizontal)
-            // to preserve detail at normal viewing angles while still capping extreme horizon tile counts.
-            if (isAccelerateDegradation && level.tileDelta.latitude.inDegrees <= 5.625) {
-                val viewingVector = nearestPoint.subtract(rc.cameraPoint)
-                val normalVector =
-                    rc.globe.geographicToCartesianNormal(sector.centroidLatitude, sector.centroidLongitude, scratchVector)
-                val dot = viewingVector.dot(normalVector)
-                val cosAngle = abs(dot / (viewingVector.magnitude * normalVector.magnitude))
-                if (cosAngle < degradeThreshold) texelSize *= cosAngle / degradeThreshold
-            }
+        // Get distance from nearest tile point to camera
+        val distanceToCamera = distanceToCamera(rc)
 
-            // Use individual pixel size based on tile distance to camera
-            rc.pixelSizeAtDistance(distanceToCamera)
+        // Projected texel size in screen pixels (screen-space error)
+        var error = texelSize / rc.pixelSizeAtDistance(distanceToCamera)
+
+        // Attenuate far-field detail by the frame's fog factor - see [earth.worldwind.FogSse]
+        if (rc.fogDensity > 0.0) {
+            val t = rc.fogDensity * distanceToCamera
+            error -= (1.0 - exp(-t * t)) * rc.fogScreenSpaceErrorFactor * threshold
         }
 
-        // Adjust the subdivision factory when the display density is low.
-        return texelSize > pixelSize * detailFactor * rc.densityFactor
+        return error > threshold
+    }
+
+    /**
+     * Indicates whether this tile is entirely past full fog saturation and can be culled from assembly.
+     * Tall tiles are kept while their peaks can still rise above the horizon (line of sight reaches
+     * the camera horizon plus the peak's own horizon distance), so mountain ranges visible beyond the
+     * geometric horizon never vanish. Assumes height limits were refreshed this frame - the assembly
+     * gates test [intersectsFrustum] first, which does that.
+     */
+    open fun isFullyFogged(rc: RenderContext): Boolean {
+        if (rc.fogDensity <= 0.0) return false
+        val distanceToCamera = distanceToCamera(rc)
+        if (distanceToCamera < rc.fullFogDistance) return false
+        return distanceToCamera > rc.horizonDistance + rc.globe.horizonDistance(heightLimits[1].toDouble())
     }
 
     /**
@@ -136,20 +142,6 @@ open class Tile protected constructor(
     ) = cache[tileKey] ?: subdivide(tileFactory).also { cache.put(tileKey, it, cacheSize) }
 
     companion object {
-        /**
-         * Accelerate the degradation of tile details depending on the viewing angle to tile normal.
-         * Degradation is applied only at very grazing angles (below [degradeThreshold]) to cap horizon
-         * tile counts without sacrificing detail at normal viewing angles.
-         */
-        var isAccelerateDegradation = true
-
-        /**
-         * cos(angle) threshold below which tile-detail degradation kicks in.
-         * Default 0.35 ≈ 70° from vertical (20° above horizontal).
-         * Lower values = degradation starts closer to the horizon; higher values = more aggressive degradation.
-         */
-        var degradeThreshold = 0.35
-
         /**
          * Creates all tiles for a specified level within a [LevelSet].
          *

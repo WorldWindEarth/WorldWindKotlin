@@ -125,8 +125,8 @@ open class TiledSurfaceImage(tileFactory: TileFactory, levelSet: LevelSet): Abst
     protected open fun addTileOrDescendants(rc: RenderContext, tile: ImageTile) {
         // ignore tiles which do not fit projection limits
         if (rc.globe.projectionLimits?.let { tile.intersectsSector(it) } == false) return
-        // ignore the tile and its descendants if it's not needed or not visible
-        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc)) return
+        // ignore the tile and its descendants if it's not needed, not visible or fully fogged
+        if (!tile.intersectsSector(levelSet.sector) || !tile.intersectsSector(rc.terrain.sector) || !tile.intersectsFrustum(rc) || tile.isFullyFogged(rc)) return
         // Do not retrieve tiles bigger than level size because they can be simulated by downscaling more detailed tiles
         // TODO Remove this restriction when GeoPackage will be able to correctly align tiles bigger than level size
         val validSize = tile.level.levelWidth >= tile.level.tileWidth && tile.level.levelHeight >= tile.level.tileHeight

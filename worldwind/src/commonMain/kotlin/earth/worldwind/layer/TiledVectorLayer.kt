@@ -283,7 +283,7 @@ abstract class TiledVectorLayer<C : Any>(
     private fun isVisible(rc: RenderContext, tile: Tile) =
         tile.intersectsSector(sector) && // data-availability gate ([VectorLayer.sector])
             tile.intersectsSector(rc.terrain.sector) && tile.intersectsFrustum(rc) &&
-            rc.globe.projectionLimits?.let { tile.intersectsSector(it) } != false
+            rc.globe.projectionLimits?.let { tile.intersectsSector(it) } != false && !tile.isFullyFogged(rc)
 
     /** Loaded content for [tile], or null below [LevelSet.levelOffset] (never fetched) or not yet
      *  resident. Reading bumps LRU recency so a fallback ancestor/descendant stays put. */

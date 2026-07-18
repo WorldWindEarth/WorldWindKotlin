@@ -25,6 +25,28 @@ abstract class AbstractTile(
     protected var extentGlobeState: Globe.State? = null
     protected var extentGlobeOffset: Globe.Offset? = null
     private val nearestPoint = Vec3()
+    private val distanceCameraPoint = Vec3(Double.NaN, Double.NaN, Double.NaN)
+    private var distanceTimestamp = -1L
+    private var distanceToCamera = 0.0
+
+    /**
+     * Distance from this tile's nearest point to the camera, cached per camera position and
+     * elevation timestamp so the fog cull and the subdivision test share one computation per
+     * frame. 3D globes only - offset (2D continuous) globes reposition tiles without moving the
+     * camera point.
+     */
+    fun distanceToCamera(rc: RenderContext): Double {
+        val cameraPoint = rc.cameraPoint
+        if (distanceTimestamp != rc.elevationModelTimestamp ||
+            cameraPoint.x != distanceCameraPoint.x || cameraPoint.y != distanceCameraPoint.y ||
+            cameraPoint.z != distanceCameraPoint.z
+        ) {
+            distanceCameraPoint.copy(cameraPoint)
+            distanceTimestamp = rc.elevationModelTimestamp
+            distanceToCamera = nearestPoint(rc).distanceTo(cameraPoint)
+        }
+        return distanceToCamera
+    }
 
     /**
      * Indicates whether this tile's Cartesian extent intersects a frustum.

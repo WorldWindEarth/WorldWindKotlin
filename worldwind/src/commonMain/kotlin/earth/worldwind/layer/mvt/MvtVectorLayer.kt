@@ -309,6 +309,10 @@ open class MvtVectorLayer(
      *  tile — near tiles keep [detailControl], the horizon band coarsens hard (fewer place features
      *  in the tile, instead of relying on the label collision pass to hide them). */
     override fun effectiveDetailControl(rc: RenderContext, tile: Tile): Double {
+        // The frame's fog SSE is the same far-band demotion engine-wide; stacking both would
+        // double-coarsen the horizon band. The local factor only serves fog-less frames
+        // (fog disabled, 2D globes, or above the fog ceiling).
+        if (rc.fogDensity > 0.0) return detailControl
         if (farBandDetailFactor <= 0.0 || rc.horizonDistance <= 0.0) return detailControl
         val s = tile.sector
         rc.geographicToCartesian(s.centroidLatitude, s.centroidLongitude, 0.0, AltitudeMode.ABSOLUTE, farBandScratch)

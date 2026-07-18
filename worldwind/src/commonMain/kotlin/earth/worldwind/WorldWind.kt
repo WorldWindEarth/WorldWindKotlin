@@ -92,6 +92,11 @@ open class WorldWind @JvmOverloads constructor(
      */
     var atmosphereAltitude = 160000.0
     /**
+     * Fog-based far-field tile detail degradation settings, snapshotted into the render context
+     * each frame. Per-engine, so multiple WorldWindows can differ.
+     */
+    val fogSse = FogSse()
+    /**
      * Artificial restriction of far distance. Applied only if automatically calculated distance is grater.
      */
     var farDistanceLimit = 0.0
@@ -499,6 +504,12 @@ open class WorldWind @JvmOverloads constructor(
         rc.renderResourceCache = renderResourceCache
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude
+        // Snapshot the fog-SSE state: density is camera-constant for the frame, so tiles pay
+        // only exp() per LOD decision, and mid-frame knob changes can't tear the frame.
+        rc.fogDensity = if (globe.is2D) 0.0 else fogSse.frameDensity(cameraPosition.altitude, camera.tilt)
+        rc.fogScreenSpaceErrorFactor = fogSse.screenSpaceErrorFactor
+        rc.fullFogDistance =
+            if (rc.fogDensity > 0.0) FogSse.FULL_FOG_DENSITY_DISTANCE / rc.fogDensity else Double.MAX_VALUE
         rc.globeState = globeState
         rc.elevationModelTimestamp = elevationTimestamp
         rc.contextVersion = dc.contextVersion
