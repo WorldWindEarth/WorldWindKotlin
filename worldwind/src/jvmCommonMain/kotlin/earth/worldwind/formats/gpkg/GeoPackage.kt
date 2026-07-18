@@ -3,6 +3,7 @@ package earth.worldwind.formats.gpkg
 import com.j256.ormlite.dao.BaseDaoImpl
 import com.j256.ormlite.dao.Dao
 import com.j256.ormlite.dao.DaoManager
+import com.j256.ormlite.misc.TransactionManager
 import com.j256.ormlite.table.DatabaseTableConfig
 import com.j256.ormlite.table.TableUtils
 import earth.worldwind.MR
@@ -428,9 +429,35 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     suspend fun readTileUserData(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int
     ): GpkgTileUserData? = withContext(Dispatchers.IO) {
-        getOrCreateTileUserDataDao(content.tableName).queryBuilder().where().eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
-            .and().eq(GpkgTileUserData.TILE_COLUMN, tileColumn).and().eq(GpkgTileUserData.TILE_ROW, tileRow)
-            .queryForFirst()
+        queryTileUserData(content.tableName, zoomLevel, tileColumn, tileRow)
+    }
+
+    /** Query the tile row by `(z, x, y)`. Caller runs on the appropriate dispatcher. */
+    private fun queryTileUserData(
+        tableName: String, zoomLevel: Int, tileColumn: Int, tileRow: Int
+    ): GpkgTileUserData? = getOrCreateTileUserDataDao(tableName).queryBuilder()
+        .where().eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
+        .and().eq(GpkgTileUserData.TILE_COLUMN, tileColumn).and().eq(GpkgTileUserData.TILE_ROW, tileRow)
+        .queryForFirst()
+
+    /** Non-suspend body of [writeTileUserData]. Caller guards read-only and runs on [writeDispatcher]. */
+    private fun upsertTileUserData(
+        content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray
+    ): Long {
+        val tileUserData = queryTileUserData(content.tableName, zoomLevel, tileColumn, tileRow)
+            ?: GpkgTileUserData().also {
+                it.zoomLevel = zoomLevel
+                it.tileColumn = tileColumn
+                it.tileRow = tileRow
+            }
+        tileUserData.tileData = tileData
+        getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
+        // Cache freshness (validated_at) rides in the ww_tile_revalidation side table, not a
+        // column on this OGC tile-user-data table — callers stamp it via writeTileRevalidation.
+        // Update content last modified date
+        content.lastChange = Date()
+        contentDao.update(content)
+        return tileUserData.id
     }
 
     /** Upsert the tile blob for `(z, x, y)` and return its tile-user-data row `id` (the `tpudt_id`
@@ -441,19 +468,32 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray
     ): Long = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
-        val tileUserData = readTileUserData(content, zoomLevel, tileColumn, tileRow) ?: GpkgTileUserData().also {
-            it.zoomLevel = zoomLevel
-            it.tileColumn = tileColumn
-            it.tileRow = tileRow
+        upsertTileUserData(content, zoomLevel, tileColumn, tileRow, tileData)
+    }
+
+    /**
+     * Single-transaction upsert of one cached tile: blob, optional gridded ancillary row (elevation)
+     * and optional freshness row, plus the content last-change stamp. One [writeDispatcher] hop and
+     * one SQLite commit instead of one per statement — the per-tile cache write path is commit-bound.
+     * Returns the tile-user-data row `id`.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun writeTileCacheEntry(
+        content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, tileData: ByteArray,
+        etag: String? = null, httpLastModified: String? = null, validatedAt: Long? = null,
+        griddedScale: Float? = null, griddedOffset: Float? = null,
+    ): Long = withContext(writeDispatcher) {
+        if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
+        // DDL stays outside the transaction — see the cross-connection trap in setupFeaturesContent.
+        if (validatedAt != null) ensureTileRevalidationTable()
+        TransactionManager.callInTransaction(connectionSource) {
+            val tpudtId = upsertTileUserData(content, zoomLevel, tileColumn, tileRow, tileData)
+            if (griddedScale != null && griddedOffset != null) {
+                upsertGriddedTile(content, tpudtId, griddedScale, griddedOffset, null, null, null, null)
+            }
+            if (validatedAt != null) upsertTileRevalidation(content, tpudtId, etag, httpLastModified, validatedAt)
+            tpudtId
         }
-        tileUserData.tileData = tileData
-        getOrCreateTileUserDataDao(content.tableName).createOrUpdate(tileUserData)
-        // Cache freshness (validated_at) rides in the ww_tile_revalidation side table, not a
-        // column on this OGC tile-user-data table — callers stamp it via writeTileRevalidation.
-        // Update content last modified date
-        content.lastChange = Date()
-        contentDao.update(content)
-        tileUserData.id
     }
 
     /** Per-put eviction trigger called after [writeTileUserData]. */
@@ -577,22 +617,24 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
      * are null, because [validatedAt] is the stale-while-revalidate trigger and must exist for every
      * cached tile. Creates the side table on first use; the table name is fresh, so no schema migration.
      */
-    @Throws(IllegalStateException::class)
-    suspend fun writeTileRevalidation(
-        content: GpkgContent, tpudtId: Long,
-        etag: String?, httpLastModified: String?, validatedAt: Long,
-    ) = withContext(writeDispatcher) {
-        if (isReadOnly) error("Tile revalidation cannot be saved. GeoPackage is read-only!")
-        if (!tileRevalidationDao.isTableExists) {
-            TableUtils.createTableIfNotExists(connectionSource, GpkgTileRevalidation::class.java)
-            // Declare the side table in gpkg_extensions, scoped to itself (column_name null) — never
-            // to the tile-pyramid tables — so strict readers see a documented extension yet still
-            // edit the standard tiles freely. Idempotent.
-            registerExtension(
-                tableName = GpkgTileRevalidation.TABLE_NAME, columnName = null,
-                extensionName = WW_TILE_REVALIDATION_EXTENSION,
-            )
-        }
+    /** Create the revalidation side table + its `gpkg_extensions` row on first use. Caller guards
+     *  read-only and runs on [writeDispatcher]. */
+    private fun ensureTileRevalidationTable() {
+        if (tileRevalidationDao.isTableExists) return
+        TableUtils.createTableIfNotExists(connectionSource, GpkgTileRevalidation::class.java)
+        // Declare the side table in gpkg_extensions, scoped to itself (column_name null) — never
+        // to the tile-pyramid tables — so strict readers see a documented extension yet still
+        // edit the standard tiles freely. Idempotent.
+        registerExtension(
+            tableName = GpkgTileRevalidation.TABLE_NAME, columnName = null,
+            extensionName = WW_TILE_REVALIDATION_EXTENSION,
+        )
+    }
+
+    /** Non-suspend body of [writeTileRevalidation]. Caller ensures the table exists and runs on [writeDispatcher]. */
+    private fun upsertTileRevalidation(
+        content: GpkgContent, tpudtId: Long, etag: String?, httpLastModified: String?, validatedAt: Long,
+    ): Dao.CreateOrUpdateStatus {
         // Read-modify-write keyed on the unique combo: the generated id is unknown up front, so
         // reuse the existing row's id (→ UPDATE) or insert a fresh one (id 0 → INSERT).
         val row = queryTileRevalidation(content.tableName, tpudtId) ?: GpkgTileRevalidation().apply {
@@ -602,7 +644,17 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         row.etag = etag
         row.httpLastModified = httpLastModified
         row.validatedAt = validatedAt
-        tileRevalidationDao.createOrUpdate(row)
+        return tileRevalidationDao.createOrUpdate(row)
+    }
+
+    @Throws(IllegalStateException::class)
+    suspend fun writeTileRevalidation(
+        content: GpkgContent, tpudtId: Long,
+        etag: String?, httpLastModified: String?, validatedAt: Long,
+    ) = withContext(writeDispatcher) {
+        if (isReadOnly) error("Tile revalidation cannot be saved. GeoPackage is read-only!")
+        ensureTileRevalidationTable()
+        upsertTileRevalidation(content, tpudtId, etag, httpLastModified, validatedAt)
     }
 
     /**
@@ -705,25 +757,37 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
             .and().eq(GpkgGriddedTile.COLUMN_TABLE_ID, tileUserData.id).queryForFirst()
     }
 
+    /** Non-suspend body of [writeGriddedTile], keyed by the tile row id. Caller guards read-only
+     *  and runs on [writeDispatcher]. */
+    private fun upsertGriddedTile(
+        content: GpkgContent, tileUserDataId: Long, scale: Float, offset: Float,
+        min: Float?, max: Float?, mean: Float?, stdDev: Float?
+    ): Dao.CreateOrUpdateStatus {
+        val griddedTile = griddedTileDao.queryBuilder().where()
+            .eq(GpkgGriddedTile.COLUMN_TABLE_NAME, content.tableName)
+            .and().eq(GpkgGriddedTile.COLUMN_TABLE_ID, tileUserDataId).queryForFirst()
+            ?: GpkgGriddedTile().also {
+                it.contents = content
+                it.tableId = tileUserDataId
+            }
+        // Replace tile attributes
+        griddedTile.scale = scale.toDouble()
+        griddedTile.offset = offset.toDouble()
+        griddedTile.min = min?.toDouble()
+        griddedTile.max = max?.toDouble()
+        griddedTile.mean = mean?.toDouble()
+        griddedTile.standardDeviation = stdDev?.toDouble()
+        return griddedTileDao.createOrUpdate(griddedTile)
+    }
+
     @Throws(IllegalStateException::class)
     suspend fun writeGriddedTile(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int, scale: Float = 1.0f, offset: Float = 0.0f,
         min: Float? = null, max: Float? = null, mean: Float? = null, stdDev: Float? = null
     ) = withContext(writeDispatcher) {
         if (isReadOnly) error("Tile cannot be saved. GeoPackage is read-only!")
-        readTileUserData(content, zoomLevel, tileColumn, tileRow)?.let { tileUserData ->
-            val griddedTile = readGriddedTile(content, tileUserData) ?: GpkgGriddedTile().also {
-                it.contents = content
-                it.tableId = tileUserData.id
-            }
-            // Replace tile attributes
-            griddedTile.scale = scale.toDouble()
-            griddedTile.offset = offset.toDouble()
-            griddedTile.min = min?.toDouble()
-            griddedTile.max = max?.toDouble()
-            griddedTile.mean = mean?.toDouble()
-            griddedTile.standardDeviation = stdDev?.toDouble()
-            griddedTileDao.createOrUpdate(griddedTile)
+        queryTileUserData(content.tableName, zoomLevel, tileColumn, tileRow)?.let { tileUserData ->
+            upsertGriddedTile(content, tileUserData.id, scale, offset, min, max, mean, stdDev)
         }
     }
 

@@ -281,16 +281,11 @@ open class GpkgCachedElevationDataFactory(
         if (parent.geoPackage.isReadOnly) return
         val matrix = parent.tileMatrixSet.entries.getOrNull(zoomLevel) ?: return
         val encoded = encodeForStorage(buffer, matrix.tileWidth, matrix.tileHeight) ?: return
-        val tpudtId = parent.geoPackage.writeTileUserData(
+        // Blob + gridded ancillary + freshness stamp in one dispatch and one SQLite commit.
+        parent.geoPackage.writeTileCacheEntry(
             parent.content, zoomLevel, tileColumn, tileRow, encoded.bytes,
-        )
-        parent.geoPackage.writeGriddedTile(
-            parent.content, zoomLevel, tileColumn, tileRow,
-            scale = encoded.tileScale, offset = encoded.tileOffset,
-        )
-        parent.geoPackage.writeTileRevalidation(
-            parent.content, tpudtId,
             etag = etag, httpLastModified = lastModified, validatedAt = System.currentTimeMillis(),
+            griddedScale = encoded.tileScale, griddedOffset = encoded.tileOffset,
         )
     }
 

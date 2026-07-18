@@ -57,7 +57,15 @@ actual fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPac
             close()
         }
     }
-    return manager.openExternal(file, !isReadOnly)
+    return manager.openExternal(file, !isReadOnly).also { core ->
+        // The framework pins wal_autocheckpoint to 100 pages (~400 KB), so tile-cache write bursts
+        // checkpoint (WAL+db fsync) every few tiles. Restore the SQLite default, matching JVM.
+        // PRAGMA is non-SELECT, so the compiled statement runs on the primary (writing) connection.
+        if (!isReadOnly) runCatching {
+            (core as GeoPackage).connection.db.db.compileStatement("PRAGMA wal_autocheckpoint=1000")
+                .use { it.simpleQueryForLong() }
+        }
+    }
 }
 
 actual fun createCoverageData(
