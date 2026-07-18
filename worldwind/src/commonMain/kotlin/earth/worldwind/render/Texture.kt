@@ -135,6 +135,7 @@ open class Texture(
     }
 
     protected open fun deleteTexture(dc: DrawContext) {
+        dc.textureDeleted(name)
         dc.gl.deleteTexture(name)
         name = KglTexture.NONE
     }

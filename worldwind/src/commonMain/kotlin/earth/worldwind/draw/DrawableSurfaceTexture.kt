@@ -33,6 +33,10 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
         }
     }
 
+    /**
+     * [texCoordMatrix] must be axis-aligned affine (scale + translation, e.g. a vertical flip);
+     * the composite pack ignores rotation and shear terms.
+     */
     fun set(
         program: SurfaceTextureProgram?, textureSector: Sector, opacity: Float, texture: Texture,
         texCoordMatrix: Matrix3, offset: Globe.Offset, terrainSector: Sector = textureSector
@@ -87,9 +91,6 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
         // Use the draw context's pick mode.
         program.enablePickMode(dc.isPickMode)
 
-        // Enable the program to display surface textures from multi-texture unit 0.
-        program.enableTexture(true)
-
         // Bind the cascade shadow maps once per draw - they're per-frame state, not per-tile.
         // [applyShadowReceiverUniforms] no-ops in pick mode and on platforms that can't
         // run the depth-texture cascades, leaving [DrawableSurfaceTexture] free to render
@@ -105,6 +106,10 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
         // Set up to use vertex tex coord attributes.
         dc.gl.enableVertexAttribArray(1)
 
+        // Pick mode draws one texture per pass so each drawable keeps its own pick color;
+        // normal mode composites a full batch of textures in a single geometry pass.
+        val batchSize = if (dc.isPickMode) 1 else SurfaceTextureProgram.TEXTURE_UNITS.size
+
         // Surface textures have been accumulated in the draw context's scratch list.
         val scratchList = dc.scratchList
         for (idx in 0 until dc.drawableTerrainCount) {
@@ -115,18 +120,17 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
             val terrainSector = terrain.sector
             val terrainOrigin = terrain.vertexOrigin
             var usingTerrainAttrs = false
-            for (idx in scratchList.indices) {
+            var count = 0
+            for (texIdx in scratchList.indices) {
                 // Get the surface texture and its sector.
-                val texture = scratchList[idx] as DrawableSurfaceTexture
-                val textureSector = texture.textureSector
+                val texture = scratchList[texIdx] as DrawableSurfaceTexture
                 if (texture.offset != terrain.offset || !texture.terrainSector.intersects(terrainSector)) continue
-                if (!texture.bindTexture(dc)) continue // texture failed to bind
 
                 // Use the terrain's vertex point attribute and vertex tex coord attribute.
-                if (!usingTerrainAttrs &&
-                    terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/) &&
-                    terrain.useVertexTexCoordAttrib(dc, 1 /*vertexTexCoord*/)
-                ) {
+                if (!usingTerrainAttrs) {
+                    if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/) ||
+                        !terrain.useVertexTexCoordAttrib(dc, 1 /*vertexTexCoord*/)
+                    ) break // terrain vertex attribute failed to bind; skip this terrain tile
                     // Suppress subsequent tile state application until the next terrain.
                     usingTerrainAttrs = true
                     // Smooth mesh normal for terrain relief; the fragment shader degrades to
@@ -141,7 +145,7 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
                     program.loadModelviewProjection()
                     // Tile-local -> camera-relative translation for the shadow-receiver pass,
                     // differenced in double so the float32 uniform stays precise (a raw ECEF
-                    // origin quantizes to ~0.5 m — see ShadowReceiverGlsl). Skipped on
+                    // origin quantizes to ~0.5 m - see ShadowReceiverGlsl). Skipped on
                     // no-shadow frames since the fragment shader doesn't read worldPos there.
                     if (dc.shadowState != null) {
                         program.loadVertexOrigin(
@@ -151,27 +155,33 @@ open class DrawableSurfaceTexture protected constructor(): Drawable {
                         )
                     }
                 }
-                if (!usingTerrainAttrs) continue  // terrain vertex attribute failed to bind
 
-                // Use tex coord matrices that register the surface texture correctly and mask terrain fragments that
-                // fall outside the surface texture's sector.
-                program.texCoordMatrix[0].copy(texture.texCoordMatrix)
-                program.texCoordMatrix[0].multiplyByTileTransform(terrainSector, textureSector)
-                program.texCoordMatrix[1].setToTileTransform(terrainSector, textureSector)
-                program.loadTexCoordMatrix()
+                // Bind the texture to the batch's next imagery unit.
+                dc.activeTextureUnit(GL_TEXTURE0 + SurfaceTextureProgram.TEXTURE_UNITS[count])
+                if (!texture.bindTexture(dc)) continue // texture failed to bind
 
-                // Use the surface texture's RGBA color.
-                program.loadColor(texture.color)
+                // Pack the batch slot's transform, coverage rectangle and opacity.
+                program.setBatchTexture(count, texture.texCoordMatrix, terrainSector, texture.textureSector, texture.opacity)
 
-                // Use the surface texture's opacity.
-                program.loadOpacity(texture.opacity)
+                // Pick mode keeps the per-drawable pick color.
+                if (dc.isPickMode) program.loadColor(texture.color)
 
-                // Draw the terrain as triangles.
+                if (++count == batchSize) {
+                    // Batch full: composite it over the terrain tile in one geometry pass.
+                    program.loadBatchTextures(count)
+                    terrain.drawTriangles(dc)
+                    count = 0
+                }
+            }
+            if (count > 0) {
+                // Composite the partial batch.
+                program.loadBatchTextures(count)
                 terrain.drawTriangles(dc)
             }
         }
 
         // Restore the default WorldWind OpenGL state.
+        dc.activeTextureUnit(GL_TEXTURE0)
         dc.gl.disableVertexAttribArray(1)
         if (reliefActive) dc.gl.disableVertexAttribArray(2)
     }

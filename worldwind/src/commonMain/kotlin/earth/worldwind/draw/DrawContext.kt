@@ -641,6 +641,14 @@ open class DrawContext(val gl: Kgl) {
     }
 
     /**
+     * Forgets a deleted texture in the per-unit bind cache. GL auto-unbinds deleted names, so a
+     * recycled name would otherwise cache-hit here and skip the real bind on rarely-rebound units.
+     */
+    fun textureDeleted(texture: KglTexture) {
+        for (i in textures.indices) if (textures[i] == texture) textures[i] = KglTexture.NONE
+    }
+
+    /**
      * Returns the name of the OpenGL buffer object bound to the specified target buffer.
      *
      * @param target the target buffer, either GL_ARRAY_BUFFER or GL_ELEMENT_ARRAY_BUFFER
