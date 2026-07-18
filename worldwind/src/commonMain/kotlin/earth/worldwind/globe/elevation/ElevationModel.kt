@@ -83,4 +83,13 @@ open class ElevationModel(): Iterable<ElevationCoverage> {
         // coverage order is irrelevant
         for (i in coverages.indices) coverages[i].getElevationLimits(sector, result)
     }
+
+    /**
+     * Checks if elevation data influencing the specified sector could have changed after the specified timestamp
+     */
+    fun isChangedSince(time: Long, sector: Sector): Boolean {
+        if (structureTimestamp > time) return true
+        for (i in coverages.indices) if (coverages[i].isChangedSince(time, sector)) return true
+        return false
+    }
 }

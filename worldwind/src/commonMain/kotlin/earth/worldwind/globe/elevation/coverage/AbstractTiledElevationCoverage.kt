@@ -64,7 +64,7 @@ abstract class AbstractTiledElevationCoverage(
         (factory as? RevalidatingSource)?.onTileRevalidated = { z, column, row ->
             tileMatrixSet.entries.getOrNull(z)?.let { matrix ->
                 pendingRevalidations.add(matrix.tileKey(row, column))
-                updateTimestamp()
+                updateTimestamp(matrix.tileSector(row, column))
                 WorldWind.requestRedraw()
             }
         }
@@ -398,7 +398,11 @@ abstract class AbstractTiledElevationCoverage(
         absentResourceList.unmarkResourceAbsent(key)
         lanes.release(RetrievalLane.REMOTE, key) // no-op on the cache-hit path (key was on the local lane)
         lanes.unmarkChecked(key) // re-check the cache if this tile is fetched again after eviction
-        updateTimestamp()
+        // Decode the tile sector back from the key so consumers outside it keep their cached height limits
+        val matrix = tileMatrixSet.entries.getOrNull((key ushr 56).toInt())
+        if (matrix != null) {
+            updateTimestamp(matrix.tileSector((key ushr 28 and 0xFFFFFFFL).toInt(), (key and 0xFFFFFFFL).toInt()))
+        } else updateTimestamp()
         WorldWind.requestRedraw()
     }
 
