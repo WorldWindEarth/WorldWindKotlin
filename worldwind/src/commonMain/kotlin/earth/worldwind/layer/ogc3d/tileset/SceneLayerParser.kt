@@ -152,7 +152,7 @@ object SceneLayerParser {
             val geom = node.mesh?.geometry ?: return null
             if (geom.resource < 0) return null
             val base = "slpk:$archiveId!/nodes/${geom.resource}/geometries/${geom.definition}.bin"
-            val material = node.mesh?.material ?: return base
+            val material = node.mesh.material ?: return base
             if (material.resource < 0) return base
             if (doc.materialDefinitions.isEmpty()) return "$base?tn=${material.resource}"
             val name = textureEntryName(material.definition) ?: return base
