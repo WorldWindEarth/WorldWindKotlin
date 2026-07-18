@@ -57,6 +57,8 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        // Older Android trust stores miss newer roots (e.g. HARICA behind DLR's WMTS).
+        installPermissiveSslForTutorials()
         // Install all 3D Tiles codecs once for the activity lifetime: Draco (glTF / pnts),
         // KTX2 (KHR_texture_basisu), SPZ (Gaussian splats). meshopt registers via the
         // module-internal default.
