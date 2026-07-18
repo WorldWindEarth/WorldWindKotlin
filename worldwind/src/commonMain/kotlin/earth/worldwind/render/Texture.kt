@@ -36,7 +36,7 @@ open class Texture(
          * runtime difference. Drivers that don't support GL_TEXTURE_MAX_ANISOTROPY_EXT
          * silently ignore the parameter.
          */
-        var anisotropicFiltering = AFLevel.AF16X
+        var anisotropicFiltering = AFLevel.OFF
 
         protected fun estimateByteCount(width: Int, height: Int, format: Int, type: Int, hasMipMap: Boolean): Int {
             require(width >= 0 && height >= 0) {
