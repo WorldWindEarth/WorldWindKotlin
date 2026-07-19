@@ -40,12 +40,15 @@ import earth.worldwind.layer.ogc3d.content.syncPointCloudContentGpu
 import earth.worldwind.layer.ogc3d.content.touchCache
 import earth.worldwind.util.ByteArrayPool
 import earth.worldwind.layer.ogc3d.content.uploadMeshContent
+import earth.worldwind.layer.ogc3d.draw.DrawableGaussianPass
 import earth.worldwind.layer.ogc3d.draw.DrawableTileGaussian
 import earth.worldwind.layer.ogc3d.draw.DrawableTileMesh
 import earth.worldwind.layer.ogc3d.draw.DrawableTilePoints
+import earth.worldwind.layer.ogc3d.program.GaussianCompositeProgram
 import earth.worldwind.layer.ogc3d.program.Ogc3dTilesGaussianProgram
 import earth.worldwind.layer.ogc3d.program.Ogc3dTilesPointsProgram
 import earth.worldwind.layer.ogc3d.program.Ogc3dTilesProgram
+import earth.worldwind.render.program.SceneDepthProgram
 import earth.worldwind.PickedObject
 import earth.worldwind.layer.ogc3d.stream.ContentDispatcher
 import earth.worldwind.layer.ogc3d.stream.HttpStatusException
@@ -169,6 +172,15 @@ open class Ogc3dTilesLayer(
     /** Per-fragment Gaussian-alpha discard threshold; raise to trim the soft splat fringe
      *  and cut blend-ROP fillrate. */
     var gaussianMinAlpha: Float = 0.01f
+
+    /** Gaussian-splat offscreen render scale in (0, 1]. Values < 1 draw all splat tiles into
+     *  a reduced-resolution target and composite-upsample — splat rendering is blended-fill
+     *  bound, so 0.5 costs ~1/4 the GPU fragment work at slightly softer splat edges. 1.0
+     *  restores direct full-resolution drawing. See [DrawableGaussianPass]. */
+    var gaussianRenderScale: Float = 0.5f
+
+    /** Per-frame collector for the reduced-resolution splat pass; render thread only. */
+    private var gaussianPass: DrawableGaussianPass? = null
 
     /** Gaussian-splat decoder. Defaults to [GltfGaussianLoader] (glb-wrapped SPZ via
      *  `KHR_gaussian_splatting`, plus raw `.spz`). Set to `null` to disable splat decoding
@@ -393,6 +405,7 @@ open class Ogc3dTilesLayer(
         lastSelectedTiles.clear()
         lastSelectedTiles.addAll(result.selectedTiles)
         for (tile in result.selectedTiles) enqueueDrawable(rc, tile)
+        offerGaussianPass(rc)
 
         // Stamp touched tiles for the cold-subtree sweep.
         val now = frameCounter
@@ -1255,7 +1268,30 @@ open class Ogc3dTilesLayer(
         }
 
         // Back-to-front sort: depthMask is off, so cross-tile pixel order must follow distance.
-        rc.offerShapeDrawable(drawable, sphere.center.distanceToSquared(rc.cameraPoint))
+        val depthSq = sphere.center.distanceToSquared(rc.cameraPoint)
+        if (rc.isPickMode || gaussianRenderScale >= 1f) {
+            // Direct full-resolution path. Pick stays direct: it needs full-res depth writes
+            // + pick colors in the pick framebuffer, not an offscreen color composite.
+            rc.offerShapeDrawable(drawable, depthSq)
+        } else {
+            // Reduced-resolution path: collect into one offscreen pass drawable per frame,
+            // offered after the enqueue loop with the nearest child's depth.
+            val pass = gaussianPass ?: DrawableGaussianPass.obtain(rc.getDrawablePool(DrawableGaussianPass.KEY)).also {
+                it.depthProgram = rc.getShaderProgram { SceneDepthProgram() }
+                it.compositeProgram = GaussianCompositeProgram.get(rc)
+                it.renderScale = gaussianRenderScale
+                it.owner = this
+                gaussianPass = it
+            }
+            pass.addChild(drawable, depthSq)
+        }
+    }
+
+    /** Offers the frame's collected splat pass, if any, and resets the per-frame collector. */
+    private fun offerGaussianPass(rc: RenderContext) {
+        val pass = gaussianPass ?: return
+        gaussianPass = null
+        rc.offerShapeDrawable(pass, pass.nearestChildDepthSq)
     }
 
     /** Stop fetch coroutines + close the HTTP client. */

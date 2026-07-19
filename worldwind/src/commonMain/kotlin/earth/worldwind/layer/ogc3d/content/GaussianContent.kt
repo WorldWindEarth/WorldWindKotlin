@@ -4,6 +4,7 @@ import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.geom.BoundingSphere
 import earth.worldwind.geom.Vec3
+import earth.worldwind.layer.ogc3d.program.Ogc3dTilesGaussianProgram
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.buffer.BufferObject
 import earth.worldwind.util.NumericArray
@@ -145,13 +146,31 @@ internal data class GaussianSortIndicesEboKey(val contentUri: String)
 
 /**
  * Off-thread Gaussian-splat preparation. Captures the codec's per-attribute float arrays,
- * computes the static back-to-front sort + tile-local bounding sphere, populates the
- * content's CPU-side payload slots. Runs from the parse coroutine; no render-context access.
+ * prunes the never-visible near-transparent tail, computes the static back-to-front sort +
+ * tile-local bounding sphere, populates the content's CPU-side payload slots. Runs from the
+ * parse coroutine; no render-context access.
  */
 internal fun GaussianContent.prepareGaussianContent(payload: GaussianPayload, contentUri: String) {
     if (centerArrayQ != null) return
     val count = payload.splatCount
     if (count <= 0) return
+
+    // Decode-time alpha pruning. Splats at or below the vertex shader's hard cull floor
+    // ([Ogc3dTilesGaussianProgram.HARD_CULL_ALPHA], from which [PRUNED_ALPHA_MAX_BYTE] is
+    // derived) can never emit a visible fragment, yet each one pays sort + vertex shading +
+    // tiler binning every frame. Dropping the tail once here is pixel-identical and shrinks
+    // every downstream array. `keep[k]` maps compacted slot k to its source; null = no prune.
+    val srcRgba = payload.rgba
+    var keptCount = count
+    var keep: IntArray? = null
+    if (srcRgba != null) {
+        val kept = IntArray(count)
+        var write = 0
+        for (i in 0 until count) {
+            if ((srcRgba[i * 4 + 3].toInt() and 0xFF) > PRUNED_ALPHA_MAX_BYTE) kept[write++] = i
+        }
+        if (write < count) { keep = kept; keptCount = write }
+    }
 
     var minX = Float.POSITIVE_INFINITY; var maxX = Float.NEGATIVE_INFINITY
     var minY = Float.POSITIVE_INFINITY; var maxY = Float.NEGATIVE_INFINITY
@@ -189,15 +208,16 @@ internal fun GaussianContent.prepareGaussianContent(payload: GaussianPayload, co
     val invSx = 65535f / rangeX
     val invSy = 65535f / rangeY
     val invSz = 65535f / rangeZ
-    val q = ShortArray(count * 3)
-    for (i in 0 until count) {
+    val q = ShortArray(keptCount * 3)
+    for (k in 0 until keptCount) {
+        val i = keep?.get(k) ?: k
         val ix = ((payload.centers[i * 3]     - minX) * invSx).toInt().coerceIn(0, 65535)
         val iy = ((payload.centers[i * 3 + 1] - minY) * invSy).toInt().coerceIn(0, 65535)
         val iz = ((payload.centers[i * 3 + 2] - minZ) * invSz).toInt().coerceIn(0, 65535)
         // Shift to signed int16 range so ShortArray stores it natively.
-        q[i * 3]     = (ix - 32768).toShort()
-        q[i * 3 + 1] = (iy - 32768).toShort()
-        q[i * 3 + 2] = (iz - 32768).toShort()
+        q[k * 3]     = (ix - 32768).toShort()
+        q[k * 3 + 1] = (iy - 32768).toShort()
+        q[k * 3 + 2] = (iz - 32768).toShort()
     }
     centerArrayQ = q
 
@@ -208,14 +228,15 @@ internal fun GaussianContent.prepareGaussianContent(payload: GaussianPayload, co
     // splat mode): the drawable early-returns on a null attribs buffer.
     if (payload.rotations.size >= count * 4) {
         val rgba = payload.rgba ?: ByteArray(count * 4) { -0x1 /* opaque white default */ }
-        val attribs = ByteArray(count * STRIDE_ATTRIBS)
+        val attribs = ByteArray(keptCount * STRIDE_ATTRIBS)
         val srcScales = payload.scales
         val srcRotations = payload.rotations
         // LE-float bit math inlined into the loop — extension-function dispatch was 20% of
         // parse-storm wall time on debug-build ART when this was a separate `writeLEFloat`
         // helper. 7 float writes × 1M-splat tile compounds quickly.
-        for (i in 0 until count) {
-            val base = i * STRIDE_ATTRIBS
+        for (k in 0 until keptCount) {
+            val i = keep?.get(k) ?: k
+            val base = k * STRIDE_ATTRIBS
             val si = i * 3
             val sx = srcScales[si].toRawBits()
             val sy = srcScales[si + 1].toRawBits()
@@ -271,13 +292,18 @@ internal fun GaussianContent.prepareGaussianContent(payload: GaussianPayload, co
     // [resortByCamera] replaces it with the view-Z proxy order before the next draw.
     val scratch = IntArray(SORT_BUCKETS)
     sortBucketScratch = scratch
-    val indices = IntArray(count) { it }
-    bucketSortByCentroidDistance(q, indices, count, scratch)
+    val indices = IntArray(keptCount) { it }
+    if (keptCount > 0) bucketSortByCentroidDistance(q, indices, keptCount, scratch)
     sortIndexArray = indices
     sortIndicesKey = GaussianSortIndicesEboKey(contentUri)
 
-    splatCount = count
+    splatCount = keptCount
 }
+
+/** Decode-time prune ceiling: uint8 alphas <= this are dropped in [prepareGaussianContent].
+ *  Derived from the vertex shader's hard cull floor so the pruned set is exactly the set
+ *  the shader culls anyway — pixel-identical for any runtime `minAlpha` setting. */
+internal val PRUNED_ALPHA_MAX_BYTE = (Ogc3dTilesGaussianProgram.HARD_CULL_ALPHA * 255f).toInt()
 
 /**
  * Per-frame render-thread GPU sync. Ensures each per-tile VBO/EBO exists in the RR cache and
