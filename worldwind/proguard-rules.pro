@@ -48,3 +48,6 @@
 -keep class io.data2viz.geojson.jackson.** {
    *;
 }
+
+# Custom SQLite (libsqliteX.so) used for GeoPackage rtree connections
+-keep class org.sqlite.database.** { *; }
