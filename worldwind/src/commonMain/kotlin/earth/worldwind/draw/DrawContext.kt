@@ -190,6 +190,8 @@ open class DrawContext(val gl: Kgl) {
     private var sightlineCubeFramebufferCache: Framebuffer? = null
     private val shadowCascadeFramebufferCache = arrayOfNulls<Framebuffer>(ShadowState.DEFAULT_CASCADE_COUNT)
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
+    private val gaussianPassFramebufferCache = mutableMapOf<Any, Array<Framebuffer?>>()
+    private val gaussianPassFramebufferParity = mutableMapOf<Any, Int>()
     private var unitSquareBufferCache: BufferObject? = null
     private var rectangleElementsBufferCache: BufferObject? = null
     private var defaultTextureCache: Texture? = null
@@ -537,6 +539,7 @@ open class DrawContext(val gl: Kgl) {
         sightlineCubeFramebufferCache?.release(this)
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i]?.release(this)
         multisampleFramebufferCache?.release(this)
+        for (slots in gaussianPassFramebufferCache.values) for (framebuffer in slots) framebuffer?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
         defaultTextureCache?.release(this)
@@ -555,6 +558,8 @@ open class DrawContext(val gl: Kgl) {
         sightlineCubeFramebufferCache = null
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i] = null
         multisampleFramebufferCache = null
+        gaussianPassFramebufferCache.clear()
+        gaussianPassFramebufferParity.clear()
         unitSquareBufferCache = null
         rectangleElementsBufferCache = null
         defaultTextureCache = null
@@ -805,6 +810,53 @@ open class DrawContext(val gl: Kgl) {
      * Lazily allocates [pickFramebuffer] and [pickDepthReadbackFramebuffer], reallocating both
      * when the cached attachments are smaller than `width × height` (e.g. after viewport resize).
      */
+    /**
+     * Reduced-resolution Gaussian-splat pass target: RGBA color (LINEAR, for the composite
+     * upsample) + 24-bit depth texture for the terrain occlusion prepass. Grows monotonically
+     * like the pick framebuffer; callers render into the lower-left `width x height` region
+     * and sample it back via a texture-scale uniform. Requires sized texture formats — callers
+     * gate on [earth.worldwind.util.kgl.Kgl.supportsSizedTextureFormats] and fall back to
+     * direct drawing otherwise. Returns null if the framebuffer cannot be completed.
+     */
+    fun ensureGaussianPassFramebuffer(owner: Any, width: Int, height: Int): Framebuffer? {
+        // Ping-pong between two buffers so frame N+1's clear/write never has to wait for the
+        // GPU to finish frame N's composite read of the same texture — single-buffered reuse
+        // serialized the pipeline into a ~1-GPU-frame bubble on the GL thread. The pair and
+        // its parity are keyed per [owner] (one pass per layer per frame): a global per-call
+        // parity would alias any even number of passes per frame back onto one slot each,
+        // silently restoring that stall. Entries live until [contextLost].
+        val slots = gaussianPassFramebufferCache.getOrPut(owner) { arrayOfNulls(2) }
+        val parity = (gaussianPassFramebufferParity[owner] ?: 0).also {
+            gaussianPassFramebufferParity[owner] = it xor 1
+        }
+        val existing = slots[parity]
+        if (existing != null) {
+            val color = existing.getAttachedTexture(GL_COLOR_ATTACHMENT0)
+            if (color.width >= width && color.height >= height) return existing
+            color.release(this)
+            existing.getAttachedTexture(GL_DEPTH_ATTACHMENT).release(this)
+            existing.release(this)
+            slots[parity] = null
+        }
+        val created = Framebuffer().apply {
+            val color = Texture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA8)
+            val depth = Texture(width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, true, GL_DEPTH_COMPONENT24)
+            depth.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            depth.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            attachTexture(this@DrawContext, color, GL_COLOR_ATTACHMENT0)
+            attachTexture(this@DrawContext, depth, GL_DEPTH_ATTACHMENT)
+        }
+        return if (created.isFramebufferComplete(this)) {
+            slots[parity] = created
+            created
+        } else {
+            created.getAttachedTexture(GL_COLOR_ATTACHMENT0).release(this)
+            created.getAttachedTexture(GL_DEPTH_ATTACHMENT).release(this)
+            created.release(this)
+            null
+        }
+    }
+
     fun ensurePickFramebuffer(width: Int, height: Int) {
         val existing = pickFramebufferCache
         if (existing != null) {

@@ -69,6 +69,9 @@ open class DrawableTileGaussian protected constructor() : Drawable, ShadowCaster
      *  on pick frames in `enqueueGaussianDrawable` alongside the matching `offerPickedObject`. */
     val pickColor = Color()
 
+    /** Camera distance² used by [DrawableGaussianPass] for its internal back-to-front sort. */
+    internal var sortKey = 0.0
+
     private val worldBoundingCenter = Vec3()
     private var worldBoundingRadius = 0.0
 

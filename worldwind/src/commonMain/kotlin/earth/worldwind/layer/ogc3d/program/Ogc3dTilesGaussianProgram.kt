@@ -19,10 +19,12 @@ import earth.worldwind.util.kgl.KglUniformLocation
  * projects through the perspective Jacobian
  * `J = [[f/z, 0, -f·x/z²], [0, f/z, -f·y/z²]]` to a screen-space 2×2 covariance
  * `Σ_2d = J · Σ_eye · Jᵀ`. The standard 3DGS `+0.3 px` low-pass anti-alias term is added
- * to the diagonal. The inverted 2D conic + post-clamp `gl_PointSize` (driver-bounded by
- * `GL_ALIASED_POINT_SIZE_RANGE`) are passed to the fragment as varyings. Fragment uses
- * `exp(-½·dᵀ·Σ⁻¹·d)` where `d` is the pixel offset from the splat centre derived from
- * `gl_PointCoord`.
+ * to the diagonal. The point radius is alpha-aware — `r = σ·√(2·ln(α/minAlpha))`, ~3σ for
+ * opaque splats, shrinking for faint ones — so fragments the discard threshold would kill
+ * are never rasterized. The inverted 2D conic, pre-scaled by the post-clamp `gl_PointSize`
+ * squared (driver-bounded by `GL_ALIASED_POINT_SIZE_RANGE`), is passed as a mediump varying;
+ * the fragment stage runs fully in fp16 and uses `exp(-½·dᵀ·Σ⁻¹·d)` on `gl_PointCoord`
+ * offsets directly.
  *
  * Deliberate scope limits:
  *  - **Per-splat solid colour**: reads RGBA straight from the codec output; no SH evaluation.
@@ -189,6 +191,13 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
         fun get(rc: RenderContext): Ogc3dTilesGaussianProgram =
             rc.getShaderProgram { Ogc3dTilesGaussianProgram() }
 
+        /** Hard vertex-cull alpha floor, interpolated into the shader as the minimum
+         *  `cutAlpha`. Chosen just above 1/255 (~0.00392) so a splat whose uint8 alpha is 1
+         *  sits at-or-below the floor — which makes decode-time pruning of alpha-byte <= 1
+         *  splats (`GaussianContent.PRUNED_ALPHA_MAX_BYTE`, derived from this constant)
+         *  pixel-identical for ANY runtime `minAlpha` setting. */
+        internal const val HARD_CULL_ALPHA = 0.004f
+
         private val VERTEX_SHADER: String = """
             uniform mat4 mvMatrix;
             uniform mat4 projMatrix;
@@ -200,6 +209,8 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
                modelPos = vertexPosition * qPosHalfRange + qPosCenter. */
             uniform vec3 qPosCenter;
             uniform vec3 qPosHalfRange;
+            /* Shared with the fragment stage — precision must match there (mediump). */
+            uniform mediump float minAlpha;
 
             attribute vec3 vertexPosition;
             attribute vec3 vertexScale;
@@ -208,10 +219,10 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
 
             /* lowp matches the 8-bit normalized source attribute. */
             varying lowp vec4 splatColor;
-            /* xyz = inverse 2D screen-space covariance Sigma^-1 = [[x,y],[y,z]].
-               w   = post-clamp gl_PointSize so fragment falloff stays correct when the
-                     driver clamps the theoretical 3sigma radius. */
-            varying vec4 conicAndSize;
+            /* xyz = inverse 2D screen-space covariance, pre-scaled by the post-clamp point size
+               squared so the fragment evaluates it directly on gl_PointCoord offsets in fp16.
+               w   = post-clamp gl_PointSize (<= 0 flags a culled splat). */
+            varying mediump vec4 conicAndSize;
 
             void main() {
                 vec3 modelPos = vertexPosition * qPosHalfRange + qPosCenter;
@@ -286,47 +297,65 @@ class Ogc3dTilesGaussianProgram : AbstractShaderProgram() {
                 }
                 float invDet = 1.0 / det;
 
-                /* Bounding 3sigma pixel radius: max eigenvalue of Sigma_2d, then radius = 3*sqrt(lambda_max).
+                /* Bounding pixel radius from the max eigenvalue of Sigma_2d.
                    lambda_{max/min} = (a+c)/2 +/- sqrt(((a-c)/2)^2 + b^2). */
                 float mid = (a + c) * 0.5;
                 float disc = sqrt(max(mid * mid - det, 0.0));
                 float lambdaMax = mid + disc;
-                float radiusPixels = 3.0 * sqrt(lambdaMax);
+                /* Alpha-aware cutoff instead of a flat 3sigma: rasterize only out to where this
+                   splat's tail crosses the fragment discard threshold, r = sigma*sqrt(2*ln(a/minAlpha)).
+                   Opaque splats keep ~3sigma; faint ones shrink, cutting blended fill that the
+                   fragment would discard anyway. Splats already below the threshold cull here. */
+                float cutAlpha = max(minAlpha, $HARD_CULL_ALPHA);
+                float tail = 2.0 * log(max(vertexColor.a, cutAlpha) / cutAlpha);
+                if (tail <= 0.0) {
+                    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+                    splatColor = vec4(0.0);
+                    conicAndSize = vec4(1.0, 0.0, 1.0, 0.0);
+                    gl_PointSize = 1.0;
+                    return;
+                }
+                float radiusPixels = sqrt(tail * lambdaMax);
                 float splatPointSize = clamp(2.0 * radiusPixels * splatSizeMultiplier, 1.0, maxPointSize);
                 gl_PointSize = splatPointSize;
 
                 /* Sigma^-1 off-diagonal is -b/det; storing +b/det absorbs the fragment's
-                   gl_PointCoord Y-flip (d.y -> -d.y) into this sign. */
-                conicAndSize = vec4(c * invDet, b * invDet, a * invDet, splatPointSize);
+                   gl_PointCoord Y-flip (d.y -> -d.y) into this sign. The clamped point size is
+                   folded in (conic *= size^2) so the fragment works on gl_PointCoord-range
+                   values and can run entirely in mediump (fp16) on mobile GPUs. */
+                vec3 conicPx = vec3(c, b, a) * (invDet * splatPointSize * splatPointSize);
+                /* Uniform rescale keeps Sigma^-1 positive-definite while bounding components to
+                   the fp16 range; only near-degenerate size-clamped splats are affected. */
+                float conicMax = max(abs(conicPx.x), max(abs(conicPx.y), abs(conicPx.z)));
+                conicPx *= min(1.0, 60000.0 / max(conicMax, 1.0e-6));
+                conicAndSize = vec4(conicPx, splatPointSize);
                 splatColor = vertexColor;
             }
         """.trimIndent()
 
         private val FRAGMENT_SHADER: String = """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
-            precision highp float;
-            #elif defined(GL_ES)
+            /* Whole stage fits fp16 — the vertex shader pre-scales the conic to gl_PointCoord
+               range, and mediump runs at twice the fp32 ALU rate on mobile GPUs. */
+            #ifdef GL_ES
             precision mediump float;
             #endif
 
-            uniform float minAlpha;
+            uniform mediump float minAlpha;
             uniform bool pickMode;
             uniform vec4 pickColor;
 
             varying lowp vec4 splatColor;
-            varying vec4 conicAndSize;
+            varying mediump vec4 conicAndSize;
 
             void main() {
-                float splatPointSize = conicAndSize.w;
-                if (splatPointSize <= 0.0) discard;
+                if (conicAndSize.w <= 0.0) discard;
 
                 /* gl_PointCoord stays Y-down; vertex shader pre-flipped conicAndSize.y. */
-                vec2 d = (gl_PointCoord - vec2(0.5)) * splatPointSize;
+                vec2 d = gl_PointCoord - vec2(0.5);
 
-                /* Mahalanobis distance squared d^T * Sigma^-1 * d, with conicAndSize.xyz = (x, y, z) of Sigma^-1. */
-                float mahal = conicAndSize.x * d.x * d.x
-                            + 2.0 * conicAndSize.y * d.x * d.y
-                            + conicAndSize.z * d.y * d.y;
+                /* Mahalanobis distance squared d^T * (size^2 * Sigma^-1) * d. The d-products are
+                   computed first so every intermediate stays inside the fp16 range. */
+                float mahal = dot(vec3(d.x * d.x, 2.0 * d.x * d.y, d.y * d.y), conicAndSize.xyz);
                 float falloff = exp(-0.5 * mahal);
 
                 float a = splatColor.a * falloff;
