@@ -47,6 +47,9 @@ open class BasicTessellator: Tessellator, TileFactory {
     protected var levelSetVertexTexCoordBuffer: BufferObject? = null
     protected var levelSetElementBuffer: BufferObject? = null
     protected var lastGlobeState: Globe.State? = null
+    // Rendered tile composition from the previous frame, used to detect terrain version changes.
+    protected val lastTileVersions = mutableMapOf<String, Int>()
+    protected var terrainVersion = ++terrainVersionSequence
     private val scratchCorner = Vec3()
     /**
      * Cache size should be adjusted in case of levelSet or detailControl changed.
@@ -79,11 +82,23 @@ open class BasicTessellator: Tessellator, TileFactory {
         // Sort terrain tiles by L1 distance on cylinder from camera
         currentTiles.sortBy { it.sortOrder }
 
+        // Bump the terrain version when the rendered tile composition or any tile's geometry changed.
+        var changed = currentTiles.size != lastTileVersions.size
+        if (!changed) for (i in currentTiles.indices) {
+            val tile = currentTiles[i]
+            if (lastTileVersions[tile.tileKey] != tile.pointBufferVersion) { changed = true; break }
+        }
+        if (changed) {
+            terrainVersion = ++terrainVersionSequence
+            lastTileVersions.clear()
+            for (i in currentTiles.indices) currentTiles[i].let { lastTileVersions[it.tileKey] = it.pointBufferVersion }
+        }
+
         // Release references to render resources acquired while assembling tiles.
         levelSetVertexTexCoordBuffer = null
         levelSetElementBuffer = null
 
-        return BasicTerrain(currentTiles, currentSector, levelSetTriStripElements)
+        return BasicTerrain(currentTiles, currentSector, levelSetTriStripElements, terrainVersion)
     }
 
     protected open fun createTopLevelTiles() = Tile.assembleTilesForLevel(levelSet.firstLevel, this, topLevelTiles)
@@ -276,5 +291,10 @@ open class BasicTessellator: Tessellator, TileFactory {
             }
         }
         return result
+    }
+
+    companion object {
+        // Global sequence keeps terrain versions unique across tessellators, so shape caches never cross-match windows.
+        private var terrainVersionSequence = 0L
     }
 }
