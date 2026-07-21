@@ -152,7 +152,12 @@ actual fun insertCachedFeatures(
 private const val FEATURE_INSERT_BATCH = 1000
 
 actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
-    (geoPackage as GeoPackage).getFeatureDao(tableName).deleteAll()
+    val gpkg = geoPackage as GeoPackage
+    gpkg.getFeatureDao(tableName).deleteAll()
+    // The RTree empties via triggers; nga_geometry_index is synced outside the feature
+    // transaction and its stale rows would seed Android's ww_rtree backfill — clear it too
+    // (after deleteAll's transaction, so no lock conflict).
+    gpkg.database.execSQL("DELETE FROM nga_geometry_index WHERE table_name = '${tableName.replace("'", "''")}'")
 }
 
 actual fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String) {

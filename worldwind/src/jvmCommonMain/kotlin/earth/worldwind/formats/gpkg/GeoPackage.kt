@@ -1227,15 +1227,19 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
 
     /**
      * Ensure the cheap read-side SQL indexes exist for an already-provisioned table — new tables
-     * get them in [setupFeatureTable], but tables from older builds may predate an index the
-     * current read path relies on (e.g. the Android covering index over nga_geometry_index).
+     * get them in [setupFeatureTable], but tables from older builds may predate a structure the
+     * current read path relies on (e.g. the Android rtree acceleration vtable).
      *
      * Deliberately NOT [createFeatureSpatialIndex]: NGA's `FeatureTableIndex.index()` is a no-op
      * only while `table_index.last_indexed >= contents.last_change`, and cache writes keep bumping
      * last_change — so calling it here triggered a full clear-and-rebuild of the geometry index on
      * every attach, monopolising the write dispatcher and stalling ALL layer provisioning. This
-     * path must stay O(create-index-if-not-exists). Failures are logged, never thrown — a missing
-     * optimisation index must not fail the attach.
+     * path must stay O(1) on current-generation caches — Android writes are atomic across all
+     * three structures, so attach has nothing to reconcile; only older caches pay one final
+     * count reconcile and pre-rtree caches the one-time backfill (unconditional, that reconcile
+     * cost ~0.7s of cold reads per open and delayed first map imagery behind the symbols layer —
+     * simpleperf 2026-07). Failures are logged, never thrown — a missing optimisation index must
+     * not fail the attach.
      */
     suspend fun ensureFeatureReadIndexes(content: GpkgContent): Unit = withContext(writeDispatcher) {
         if (!isReadOnly) runCatching { ensureFeatureReadIndexes(geoPackage, content.tableName) }.onFailure {

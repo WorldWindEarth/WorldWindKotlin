@@ -1,5 +1,6 @@
 package earth.worldwind.formats.gpkg
 
+import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.core.graphics.scale
 import earth.worldwind.formats.gpkg.GeoPackage.Companion.FEATURE_ID_COLUMN
@@ -9,10 +10,13 @@ import earth.worldwind.render.image.ImageSource
 import mil.nga.geopackage.BoundingBox
 import mil.nga.geopackage.GeoPackage
 import mil.nga.geopackage.GeoPackageCore
-import mil.nga.geopackage.GeoPackageFactory
+import mil.nga.geopackage.GeoPackageImpl
 import mil.nga.geopackage.db.GeoPackageConnection
+import mil.nga.geopackage.db.GeoPackageCursorFactory
 import mil.nga.geopackage.db.GeoPackageDatabase
 import mil.nga.geopackage.db.GeoPackageTableCreator
+import mil.nga.geopackage.db.SQLiteDatabaseUtils
+import mil.nga.geopackage.validate.GeoPackageValidate
 import mil.nga.geopackage.extension.coverage.GriddedCoverageDataType
 import mil.nga.geopackage.extension.nga.index.FeatureTableIndex
 import mil.nga.geopackage.features.user.FeatureDao
@@ -44,9 +48,14 @@ actual typealias FeatureStyle = mil.nga.geopackage.extension.nga.style.FeatureSt
 // and stalling terrain + imagery tile loads for tens of seconds (simpleperf, 2026-07).
 internal actual val READ_HANDLE_COUNT = 4
 
+/** Reaches GeoPackageImpl's protected constructor for [openOrCreateGeoPackage]; the null Context
+ *  matches what the context-less manager passed it before. */
+private class ExternalGeoPackage(
+    name: String, path: String, connection: GeoPackageConnection,
+    cursorFactory: GeoPackageCursorFactory, writable: Boolean,
+) : GeoPackageImpl(null, name, path, connection, cursorFactory, writable)
+
 actual fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPackageCore {
-    val manager = GeoPackageFactory.getManager(null)
-    manager.isSqliteWriteAheadLogging = true
     val file = File(pathName)
     if (!isReadOnly && !file.exists()) {
         // Create the new GeoPackage file manually due to manager.createFile requires Android Context
@@ -57,15 +66,31 @@ actual fun openOrCreateGeoPackage(pathName: String, isReadOnly: Boolean): GeoPac
             close()
         }
     }
-    return manager.openExternal(file, !isReadOnly).also { core ->
-        // The framework pins wal_autocheckpoint to 100 pages (~400 KB), so tile-cache write bursts
-        // checkpoint (WAL+db fsync) every few tiles. Restore the SQLite default, matching JVM.
-        // PRAGMA is non-SELECT, so the compiled statement runs on the primary (writing) connection.
-        if (!isReadOnly) runCatching {
-            (core as GeoPackage).connection.db.db.compileStatement("PRAGMA wal_autocheckpoint=1000")
-                .use { it.simpleQueryForLong() }
-        }
+    // NGA's manager.openExternal, replicated minus enableForeignKeys(): that call fronts PRAGMA
+    // foreign_keys=ON with a full-database foreign_key_check — a row walk of every FK-bearing
+    // table (nga_geometry_index alone is every indexed feature), 0.5-1s of cold pread64 per open
+    // and per pooled read handle (simpleperf 2026-07), not skippable via manager flags. Setting
+    // the pragma directly is the identical end state on a healthy file; with pre-existing
+    // orphans NGA would merely have left enforcement off, and enforcement only vets rows being
+    // written. Header/integrity validations already defaulted to off (context-less manager);
+    // WAL matches the manager path's isSqliteWriteAheadLogging=true.
+    val cursorFactory = GeoPackageCursorFactory()
+    var writable = !isReadOnly
+    val db = (if (writable) SQLiteDatabaseUtils.openReadWriteDatabaseAttempt(pathName, cursorFactory) else null)
+        ?: SQLiteDatabaseUtils.openReadOnlyDatabase(pathName, cursorFactory).also { writable = false }
+    db.enableWriteAheadLogging()
+    val connection = GeoPackageConnection(GeoPackageDatabase(db, writable, cursorFactory))
+    connection.foreignKeys(true)
+    val core = ExternalGeoPackage(file.nameWithoutExtension, pathName, connection, cursorFactory, writable)
+    GeoPackageValidate.validateMinimumTables(core)
+    // The framework pins wal_autocheckpoint to 100 pages (~400 KB), so tile-cache write bursts
+    // checkpoint (WAL+db fsync) every few tiles. Restore the SQLite default, matching JVM.
+    // PRAGMA is non-SELECT, so the compiled statement runs on the primary (writing) connection.
+    if (!isReadOnly) runCatching {
+        connection.db.db.compileStatement("PRAGMA wal_autocheckpoint=1000")
+            .use { it.simpleQueryForLong() }
     }
+    return core
 }
 
 actual fun createCoverageData(
@@ -129,8 +154,14 @@ actual fun releaseFeatureReadResources(geoPackage: GeoPackageCore) {
 // promises trigger maintenance, which no SQLite available to us can provide — an external tool
 // trusting it after an external edit would silently return wrong results. An unregistered
 // ww_-scoped vtable is ignored by external GIS (they discover layers via gpkg_contents) and can
-// never be trusted-then-stale. Crash between the feature transaction and the rtree mirror is
-// healed by the count reconcile in [ensureFeatureReadIndexes] on the next open.
+// never be trusted-then-stale.
+//
+// Consistency: the bindings connection sees the whole file, so every feature WRITE runs all
+// three mutations — feature row, nga_geometry_index, rtree — in ONE transaction on it
+// ([inAtomicFeatureTransaction]): a crash commits all or none. Reads stay on the framework
+// handles (WAL keeps committed bindings writes visible) and off libsqliteX. NGA's DAO write path
+// can't join that transaction: GeoPackageConnection hardcodes ORMLite's AndroidConnectionSource
+// onto the framework handle.
 
 /** One owned bindings connection per database file, opened with WAL preserved. NEVER use NGA's
  *  lazy GeoPackageDatabase.getBindingsDb(): its open path DOWNGRADES the file to
@@ -183,14 +214,6 @@ private fun GeoPackage.rtreeInsert(tableName: String, id: Long, envelope: Geomet
     )
 }
 
-private fun GeoPackage.rtreeDelete(tableName: String, ids: Collection<Long>) {
-    if (ids.isEmpty()) return
-    val db = rtreeDb()
-    for (chunk in ids.chunked(500)) {
-        db.execSQL("DELETE FROM ${quoted(rtreeName(tableName))} WHERE id IN (${chunk.joinToString(",")})")
-    }
-}
-
 /** Ids whose stored envelope intersects the bbox. The rtree stores float32 bounds rounded
  *  OUTWARD, so this is a superset of the exact envelope matches (never misses) — callers
  *  needing exact envelope semantics filter the fetched rows (see [readFeaturesInBoundingBox]). */
@@ -219,6 +242,109 @@ private fun GeoPackage.rtreeRebuild(tableName: String) {
         db.setTransactionSuccessful()
     } finally {
         db.endTransaction()
+    }
+}
+
+// --- Write-path generation stamp ------------------------------------------------------------
+//
+// Generation 2 = atomic writes, so a clean attach has nothing to reconcile. The stamp exists to
+// heal caches from generation-1 builds, whose two-connection writes could die between the
+// feature transaction and its rtree mirror: a missing or older stamp triggers one count
+// reconcile, then every later attach is O(1). The unconditional reconcile this replaces scanned
+// the table's whole nga_geometry_index PK range from cold flash on every open (~0.7s at region
+// scale, simpleperf 2026-07), starving tile reads and delaying first map imagery behind the
+// symbols layer. Unregistered private table, invisible to external GIS like ww_rtree_*.
+
+private const val RTREE_GENERATION_TABLE = "ww_rtree_generation"
+
+/** Feature writes mutate feature row, nga_geometry_index and rtree in one transaction. */
+private const val RTREE_GENERATION_ATOMIC = 2L
+
+/** Failure is harmless — an unstamped table just reconciles once more on the next attach. */
+private fun GeoPackage.stampRtreeGeneration(tableName: String) {
+    runCatching {
+        val db = rtreeDb()
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS $RTREE_GENERATION_TABLE (table_name TEXT PRIMARY KEY, generation INTEGER NOT NULL)"
+        )
+        db.execSQL(
+            "INSERT OR REPLACE INTO $RTREE_GENERATION_TABLE VALUES (?, $RTREE_GENERATION_ATOMIC)",
+            arrayOf<Any>(tableName),
+        )
+    }
+}
+
+/** Unknown state (no table, no row, unreadable) reads as generation 0 — reconcile is always safe. */
+private fun GeoPackage.rtreeGeneration(tableName: String): Long = runCatching {
+    rtreeDb().rawQuery(
+        "SELECT generation FROM $RTREE_GENERATION_TABLE WHERE table_name = ?", arrayOf(tableName),
+    ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
+}.getOrDefault(0L)
+
+// --- Atomic feature write engine ------------------------------------------------------------
+
+/** One bindings-connection transaction across feature rows, nga_geometry_index and the rtree —
+ *  a crash commits all three or none. writeDispatcher serializes all writers. */
+private inline fun <R> GeoPackage.inAtomicFeatureTransaction(block: (BindingsDatabase) -> R): R {
+    val db = rtreeDb()
+    db.beginTransaction()
+    try {
+        val result = block(db)
+        db.setTransactionSuccessful()
+        return result
+    } finally {
+        db.endTransaction()
+    }
+}
+
+/** Commit and reopen the transaction mid-bulk-insert, bounding write-lock hold time. */
+private fun BindingsDatabase.commitAndContinue() {
+    setTransactionSuccessful()
+    endTransaction()
+    beginTransaction()
+}
+
+/** Insert one feature row. Only the columns we carry values for are written — older cache tables
+ *  differ in optional columns (e.g. last_modified), and defaults cover the rest. */
+private fun BindingsDatabase.insertFeatureRow(
+    tableName: String, geometryColumn: String, srsId: Long,
+    geometry: Geometry?, properties: String?, uid: String?,
+): Long {
+    val values = ContentValues()
+    geometry?.let { values.put(geometryColumn, GeoPackageGeometryData.create(srsId, it).toBytes()) }
+    properties?.let { values.put(FEATURE_PROPERTIES_COLUMN, it) }
+    uid?.let { values.put(FEATURE_UID_COLUMN, it) }
+    return insertOrThrow(quoted(tableName), geometryColumn, values)
+}
+
+/** Maintain NGA's Geometry Index Extension exactly as FeatureTableIndex.index(row) would — it
+ *  stays the canonical, portable index. No-op for null envelopes, matching NGA and the rtree. */
+private fun BindingsDatabase.upsertGeometryIndex(tableName: String, geomId: Long, envelope: GeometryEnvelope?) {
+    envelope ?: return
+    execSQL(
+        "INSERT OR REPLACE INTO nga_geometry_index " +
+            "(table_name, geom_id, min_x, max_x, min_y, max_y, min_z, max_z, min_m, max_m) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        arrayOf(
+            tableName, geomId, envelope.minX, envelope.maxX, envelope.minY, envelope.maxY,
+            envelope.minZ, envelope.maxZ, envelope.minM, envelope.maxM,
+        ),
+    )
+}
+
+/** Remove rows from all three structures. Caller runs inside [inAtomicFeatureTransaction]. */
+private fun GeoPackage.deleteFeatureTriple(
+    db: BindingsDatabase, tableName: String, idColumn: String, ids: Collection<Long>,
+) {
+    if (ids.isEmpty()) return
+    val mirror = hasRtree(tableName)
+    for (chunk in ids.chunked(500)) {
+        val inList = chunk.joinToString(",")
+        db.execSQL("DELETE FROM ${quoted(tableName)} WHERE ${quoted(idColumn)} IN ($inList)")
+        db.execSQL(
+            "DELETE FROM nga_geometry_index WHERE table_name = ? AND geom_id IN ($inList)", arrayOf<Any>(tableName),
+        )
+        if (mirror) db.execSQL("DELETE FROM ${quoted(rtreeName(tableName))} WHERE id IN ($inList)")
     }
 }
 
@@ -304,46 +430,22 @@ actual fun insertCachedFeatures(
     if (rows.isEmpty()) return
     val gpkg = geoPackage as GeoPackage
     val featureDao = gpkg.getFeatureDao(tableName)
-    // Keep NGA's Geometry Index Extension current as we insert (the OGC RTree's auto-triggers do
-    // this on JVM; nga_geometry_index has none, so we call index(row) per inserted row).
-    val featureIndex = FeatureTableIndex(gpkg, featureDao)
-    // Chunked transactions instead of per-row autocommit: a Shapefile/WFS layer can be tens
-    // of thousands of features, and a commit (fsync) per row makes the write minutes-long.
-    // Chunking — rather than one big transaction — bounds how long the write lock is held so
-    // concurrent render reads from the same GeoPackage aren't starved.
-    val mirrored = ArrayList<Pair<Long, GeometryEnvelope?>>(rows.size)
-    featureDao.beginTransaction()
-    var committed = false
-    try {
+    val geometryColumn = featureDao.geometryColumns.columnName
+    val srsId = featureDao.geometryColumns.srsId
+    val mirror = gpkg.hasRtree(tableName)
+    // Chunked transactions: a commit (fsync) per row makes a Shapefile/WFS bulk write
+    // minutes-long, while one big transaction starves concurrent render reads of the write lock.
+    // Each chunk is atomic across all three structures, so a crash between chunks loses tail
+    // rows but never diverges the indexes.
+    gpkg.inAtomicFeatureTransaction { db ->
         var inserted = 0
         for ((geometry, propertiesJson) in rows) {
-            val row = featureDao.newRow()
-            row.geometry = GeoPackageGeometryData.create(featureDao.geometryColumns.srsId, geometry)
-            propertiesJson?.let { row.setValue(FEATURE_PROPERTIES_COLUMN, it) }
-            val id = featureDao.insert(row)
-            featureIndex.index(row)
-            mirrored.add(id to GeometryEnvelopeBuilder.buildEnvelope(geometry))
-            if (++inserted % FEATURE_INSERT_BATCH == 0) featureDao.endAndBeginTransaction()
+            val id = db.insertFeatureRow(tableName, geometryColumn, srsId, geometry, propertiesJson, uid = null)
+            val envelope = GeometryEnvelopeBuilder.buildEnvelope(geometry)
+            db.upsertGeometryIndex(tableName, id, envelope)
+            if (mirror) gpkg.rtreeInsert(tableName, id, envelope)
+            if (++inserted % FEATURE_INSERT_BATCH == 0) db.commitAndContinue()
         }
-        committed = true
-    } finally {
-        featureDao.endTransaction(committed)
-    }
-    gpkg.rtreeMirrorInserts(tableName, mirrored)
-}
-
-/** Apply queued rtree inserts after the feature transaction committed (WAL = one writer, so the
- *  rtree mirror runs as its own transaction on the bindings connection; a crash in between is
- *  healed by the count reconcile in [ensureFeatureReadIndexes]). */
-private fun GeoPackage.rtreeMirrorInserts(tableName: String, rows: List<Pair<Long, GeometryEnvelope?>>) {
-    if (rows.isEmpty() || !hasRtree(tableName)) return
-    val db = rtreeDb()
-    db.beginTransaction()
-    try {
-        for ((id, envelope) in rows) rtreeInsert(tableName, id, envelope)
-        db.setTransactionSuccessful()
-    } finally {
-        db.endTransaction()
     }
 }
 
@@ -352,8 +454,13 @@ private const val FEATURE_INSERT_BATCH = 1000
 
 actual fun truncateFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
     val gpkg = geoPackage as GeoPackage
-    gpkg.getFeatureDao(tableName).deleteAll()
-    if (gpkg.hasRtree(tableName)) gpkg.rtreeDb().execSQL("DELETE FROM ${quoted(rtreeName(tableName))}")
+    // All three structures in one transaction. The DAO-based predecessor left nga_geometry_index
+    // populated, so the count reconcile resurrected the deleted ids into the rtree on next open.
+    gpkg.inAtomicFeatureTransaction { db ->
+        db.execSQL("DELETE FROM ${quoted(tableName)}")
+        db.execSQL("DELETE FROM nga_geometry_index WHERE table_name = ?", arrayOf<Any>(tableName))
+        if (gpkg.hasRtree(tableName)) db.execSQL("DELETE FROM ${quoted(rtreeName(tableName))}")
+    }
 }
 
 actual fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
@@ -363,6 +470,9 @@ actual fun deleteFeatureTable(geoPackage: GeoPackageCore, tableName: String) {
     if (gpkg.hasRtree(tableName)) {
         gpkg.rtreeDb().execSQL("DROP TABLE IF EXISTS ${quoted(rtreeName(tableName))}")
         rtreePresence.remove("${gpkg.path}|$tableName")
+        runCatching {
+            gpkg.rtreeDb().execSQL("DELETE FROM $RTREE_GENERATION_TABLE WHERE table_name = ?", arrayOf<Any>(tableName))
+        }
     }
 }
 
@@ -376,17 +486,26 @@ actual fun createFeatureSpatialIndex(geoPackage: GeoPackageCore, tableName: Stri
     // the read path probes. Both idempotent.
     FeatureTableIndex(gpkg, gpkg.getFeatureDao(tableName)).index()
     gpkg.createRtree(tableName)
+    // Fresh, consistent pair with atomic writes ahead — stamp so the first attach skips the reconcile.
+    gpkg.stampRtreeGeneration(tableName)
 }
 
 actual fun ensureFeatureReadIndexes(geoPackage: GeoPackageCore, tableName: String) {
     val gpkg = geoPackage as GeoPackage
-    gpkg.createRtree(tableName)
-    // Legacy read accelerator from before the rtree — the read path no longer scans
-    // nga_geometry_index, so reclaim the space (vector caches are not in production; no fallback).
-    gpkg.connection.execSQL("DROP INDEX IF EXISTS idx_ww_geometry_index_covering")
-    // Count reconcile against the canonical nga_geometry_index: heals a crash between a feature
-    // transaction and its rtree mirror, and backfills caches written by pre-rtree builds. Two
-    // index-only COUNTs when consistent; one bulk INSERT..SELECT when not.
+    if (!gpkg.hasRtree(tableName)) {
+        // First open of a cache written by a pre-rtree build: create the rtree, backfill it from
+        // the canonical nga_geometry_index, and reclaim the legacy covering index only such
+        // builds carry (every rtree-era open has already dropped it). One-time migration cost.
+        gpkg.createRtree(tableName)
+        gpkg.connection.execSQL("DROP INDEX IF EXISTS idx_ww_geometry_index_covering")
+        gpkg.rtreeRebuild(tableName)
+        gpkg.stampRtreeGeneration(tableName)
+        return
+    }
+    // Atomic-generation caches cannot diverge — attach is a memoized presence probe plus one
+    // single-row read, all on the bindings connection, nothing on the framework pool. Older
+    // generations reconcile once (see the generation stamp comment), then are stamped.
+    if (gpkg.rtreeGeneration(tableName) >= RTREE_GENERATION_ATOMIC) return
     val ngaCount = gpkg.connection.db.db.rawQuery(
         "SELECT COUNT(*) FROM nga_geometry_index WHERE table_name = ?", arrayOf(tableName),
     ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
@@ -394,6 +513,7 @@ actual fun ensureFeatureReadIndexes(geoPackage: GeoPackageCore, tableName: Strin
         "SELECT COUNT(*) FROM ${quoted(rtreeName(tableName))}", null,
     ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
     if (ngaCount != rtreeCount) gpkg.rtreeRebuild(tableName)
+    gpkg.stampRtreeGeneration(tableName)
 }
 
 actual fun writeFeatureTileFlat(
@@ -403,7 +523,6 @@ actual fun writeFeatureTileFlat(
 ) {
     val gpkg = geoPackage as GeoPackage
     val featureDao = gpkg.getFeatureDao(tableName)
-    val featureIndex = FeatureTableIndex(gpkg, featureDao)
 
     // Remove the rows being replaced — bbox-replace (also the negative-cache clear) drops every
     // feature intersecting the tile; upsert drops the prior version of each feature by stable uid.
@@ -425,49 +544,23 @@ actual fun writeFeatureTileFlat(
             }
         }
     }
-    if (doomed.isNotEmpty()) {
-        featureDao.beginTransaction()
-        var ok = false
-        try {
-            for (row in doomed) {
-                featureIndex.deleteIndex(row)
-                featureDao.delete(row)
-            }
-            ok = true
-        } finally {
-            featureDao.endTransaction(ok)
-        }
-        gpkg.rtreeMirrorDeletes(tableName, doomed.map { it.id })
-    }
-    if (rows.isEmpty()) return
+    if (doomed.isEmpty() && rows.isEmpty()) return
 
+    // One transaction per tile write: replace-then-insert commits as a unit, so a crash leaves
+    // every structure as before and the tile is simply re-fetched. No chunking at tile sizes.
+    val idColumn = featureDao.table.pkColumn?.name ?: FEATURE_ID_COLUMN
+    val geometryColumn = featureDao.geometryColumns.columnName
     val srsId = featureDao.geometryColumns.srsId
-    // Keep NGA's Geometry Index Extension current as we insert (see insertCachedFeatures).
-    val mirrored = ArrayList<Pair<Long, GeometryEnvelope?>>(rows.size)
-    featureDao.beginTransaction()
-    var committed = false
-    try {
-        var inserted = 0
+    val mirror = gpkg.hasRtree(tableName)
+    gpkg.inAtomicFeatureTransaction { db ->
+        gpkg.deleteFeatureTriple(db, tableName, idColumn, doomed.map { it.id })
         for (row in rows) {
-            val featureRow = featureDao.newRow()
-            row.geometry?.let { featureRow.geometry = GeoPackageGeometryData.create(srsId, it) }
-            row.properties?.let { featureRow.setValue(FEATURE_PROPERTIES_COLUMN, it) }
-            row.uid?.let { featureRow.setValue(FEATURE_UID_COLUMN, it) }
-            val id = featureDao.insert(featureRow)
-            featureIndex.index(featureRow)
-            mirrored.add(id to row.geometry?.let { GeometryEnvelopeBuilder.buildEnvelope(it) })
-            if (++inserted % FEATURE_INSERT_BATCH == 0) featureDao.endAndBeginTransaction()
+            val id = db.insertFeatureRow(tableName, geometryColumn, srsId, row.geometry, row.properties, row.uid)
+            val envelope = row.geometry?.let { GeometryEnvelopeBuilder.buildEnvelope(it) }
+            db.upsertGeometryIndex(tableName, id, envelope)
+            if (mirror) gpkg.rtreeInsert(tableName, id, envelope)
         }
-        committed = true
-    } finally {
-        featureDao.endTransaction(committed)
     }
-    gpkg.rtreeMirrorInserts(tableName, mirrored)
-}
-
-private fun GeoPackage.rtreeMirrorDeletes(tableName: String, ids: Collection<Long>) {
-    if (ids.isEmpty() || !hasRtree(tableName)) return
-    rtreeDelete(tableName, ids)
 }
 
 /** Feature rows whose envelope MAY intersect the bbox: rtree probe + fetch-by-id when the rtree
@@ -498,17 +591,9 @@ private fun FeatureRow.envelopeIntersects(minX: Double, minY: Double, maxX: Doub
 actual fun deleteCachedFeaturesByIds(geoPackage: GeoPackageCore, tableName: String, ids: Collection<Long>) {
     if (ids.isEmpty()) return
     val gpkg = geoPackage as GeoPackage
-    val q = quoted(tableName)
-    for (chunk in ids.chunked(500)) {
-        val inList = chunk.joinToString(",")
-        gpkg.connection.execSQL("DELETE FROM $q WHERE $FEATURE_ID_COLUMN IN ($inList)")
-        // Keep both manually-maintained indexes free of dangling rows (the rtree count reconcile
-        // compares against nga_geometry_index, so they must stay in lockstep).
-        gpkg.connection.db.db.execSQL(
-            "DELETE FROM nga_geometry_index WHERE table_name = ? AND geom_id IN ($inList)", arrayOf(tableName),
-        )
+    gpkg.inAtomicFeatureTransaction { db ->
+        gpkg.deleteFeatureTriple(db, tableName, FEATURE_ID_COLUMN, ids)
     }
-    gpkg.rtreeMirrorDeletes(tableName, ids)
 }
 
 actual fun featureIdsInBoundingBox(
@@ -532,24 +617,15 @@ actual fun deleteVanishedOwnedFeatures(
     if (keepUids.isEmpty()) return
     val gpkg = geoPackage as GeoPackage
     val featureDao = gpkg.getFeatureDao(tableName)
-    val featureIndex = FeatureTableIndex(gpkg, featureDao)
     // Candidate rows whose envelope intersects the tile (rtree probe or NGA index); ownership is
     // then decided by the exact envelope-center check, so rtree over-approximation is harmless.
     val doomed = gpkg.queryFeatureRowsInBbox(featureDao, tableName, minX, minY, maxX, maxY)
         .filter { it.ownedAndVanished(keepUids, minX, minY, maxX, maxY) }
     if (doomed.isNotEmpty()) {
-        featureDao.beginTransaction()
-        var ok = false
-        try {
-            for (row in doomed) {
-                featureIndex.deleteIndex(row)
-                featureDao.delete(row)
-            }
-            ok = true
-        } finally {
-            featureDao.endTransaction(ok)
+        val idColumn = featureDao.table.pkColumn?.name ?: FEATURE_ID_COLUMN
+        gpkg.inAtomicFeatureTransaction { db ->
+            gpkg.deleteFeatureTriple(db, tableName, idColumn, doomed.map { it.id })
         }
-        gpkg.rtreeMirrorDeletes(tableName, doomed.map { it.id })
     }
 }
 
