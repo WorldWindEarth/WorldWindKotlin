@@ -36,6 +36,7 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
     private var g2Id = KglUniformLocation.NONE
     private var exposureId = KglUniformLocation.NONE
     private var groundStrengthId = KglUniformLocation.NONE
+    private var dayNightStrengthId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     /**
@@ -109,6 +110,8 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
         // Ground-atmosphere altitude fade (GroundProgram only; NONE for the sky shader).
         groundStrengthId = gl.getUniformLocation(program, "groundStrength")
         gl.uniform1f(groundStrengthId, 1f)
+        dayNightStrengthId = gl.getUniformLocation(program, "dayNightStrength")
+        gl.uniform1f(dayNightStrengthId, 1f)
     }
 
     fun loadFragMode(fragMode: FragMode) { gl.uniform1i(fragModeId, fragMode.asInt) }
@@ -146,6 +149,9 @@ abstract class AbstractAtmosphereProgram: AbstractShaderProgram() {
 
     /** Ground-atmosphere strength [0, 1]: 1 = full scattering (from space), 0 = none (near ground). */
     fun loadGroundStrength(strength: Float) { gl.uniform1f(groundStrengthId, strength) }
+
+    /** Day/night sun-path dimming [0, 1]: 1 = terminator active (time-of-day sun), 0 = disabled. */
+    fun loadDayNightStrength(strength: Float) { gl.uniform1f(dayNightStrengthId, strength) }
 
     fun loadAtmosphereParams(equatorialRadius: Double, atmosphereAltitude: Double) {
         val rayleighScaleDepth = 0.25

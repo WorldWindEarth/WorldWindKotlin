@@ -19,6 +19,8 @@ open class DrawableGroundAtmosphere : Drawable {
     /** Eye altitude (m) at/below which the ground atmosphere is off, and at/above which it's full. */
     var fadeNearAltitude = 0.0
     var fadeFarAltitude = 0.0
+    /** 1 = sun-path day/night dimming active (time-of-day sun), 0 = none (custom light direction). */
+    var dayNightStrength = 1f
     var program: GroundProgram? = null
     var nightTexture: Texture? = null
     protected val mvpMatrix = Matrix4()
@@ -62,6 +64,9 @@ open class DrawableGroundAtmosphere : Drawable {
         val span = fadeFarAltitude - fadeNearAltitude
         val t = if (span > 0.0) ((eyeAltitude - fadeNearAltitude) / span).coerceIn(0.0, 1.0) else 1.0
         program.loadGroundStrength((t * t * (3.0 - 2.0 * t)).toFloat())
+
+        // Disable the residual sun-path dimming when no time-of-day sun is active.
+        program.loadDayNightStrength(dayNightStrength)
 
         // Use this layer's light direction.
         program.loadLightDirection(lightDirection)

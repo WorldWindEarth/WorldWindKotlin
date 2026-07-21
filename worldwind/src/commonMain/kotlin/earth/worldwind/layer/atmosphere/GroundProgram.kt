@@ -41,6 +41,7 @@ class GroundProgram: AbstractAtmosphereProgram() {
             uniform float scaleDepth;		    /* The scale depth (i.e. the altitude at which the atmosphere's average density is found) */
             uniform float scaleOverScaleDepth;	/* fScale / fScaleDepth */
             uniform float groundStrength;       /* 1 = full atmosphere (space), 0 = none (near ground) */
+            uniform float dayNightStrength;     /* 1 = sun-path day/night dimming (time-of-day sun), 0 = none */
 
             attribute vec4 vertexPoint;
             attribute vec2 vertexTexCoord;
@@ -131,9 +132,10 @@ class GroundProgram: AbstractAtmosphereProgram() {
                    (1.0 - secondaryColor) while staying ~1.0 in daylight. The full-column
                    luminance also holds the view-path haze term, which darkened draped imagery
                    against 3D-Tile meshes (the ground pass never touches those); collapsing to
-                   white instead erased night entirely. */
+                   white unconditionally erased night entirely, so dayNightStrength collapses
+                   it only when no time-of-day sun is active (no terminator to carry). */
                 vec3 sunAttenuate = exp(-(lastDepth * lightScale) * (invWavelength * Kr4PI + Km4PI));
-                float dayNight = dot(sunAttenuate, vec3(0.2126, 0.7152, 0.0722));
+                float dayNight = mix(1.0, dot(sunAttenuate, vec3(0.2126, 0.7152, 0.0722)), dayNightStrength);
                 secondaryColor = mix(vec3(dayNight), attenuate, hueStrength);
 
                 /* Transform the vertex point by the modelview-projection matrix */
