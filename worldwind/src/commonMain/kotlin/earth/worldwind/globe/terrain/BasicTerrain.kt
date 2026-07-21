@@ -9,11 +9,14 @@ import kotlin.math.max
 import kotlin.math.min
 
 open class BasicTerrain(
-    tiles: List<TerrainTile>, sector: Sector, protected val triStripElements: ShortArray?
+    tiles: List<TerrainTile>, sector: Sector, protected val triStripElements: ShortArray?,
+    override val version: Long = Terrain.UNKNOWN_VERSION
 ): Terrain {
     protected val tiles = tiles.toList()
     override val sector = Sector(sector)
     private val intersectPoint = Vec3()
+    // Built on first cache validation; accessed from the render thread only.
+    private val tilesByKey by lazy { this.tiles.associateBy { it.tileKey } }
 
     override fun intersect(line: Line, result: Vec3): Boolean {
         var found = false
@@ -42,7 +45,13 @@ open class BasicTerrain(
         return found
     }
 
-    override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean {
+    override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3) =
+        surfacePointTile(latitude, longitude, result) != null
+
+    override fun containsTile(tileKey: String, pointBufferVersion: Int) =
+        tilesByKey[tileKey]?.pointBufferVersion == pointBufferVersion
+
+    override fun surfacePointTile(latitude: Angle, longitude: Angle, result: Vec3): TerrainTile? {
         for (i in tiles.indices) {
             val tile = tiles[i]
             val sector = tile.sector
@@ -83,12 +92,12 @@ open class BasicTerrain(
                 result.x += tile.origin.x
                 result.y += tile.origin.y
                 result.z += tile.origin.z
-                return true
+                return tile
             }
         }
 
         // No tile was found that contains the location.
-        return false
+        return null
     }
 
     override fun heightLimits(levelNumberDepth: Int, result: FloatArray) {

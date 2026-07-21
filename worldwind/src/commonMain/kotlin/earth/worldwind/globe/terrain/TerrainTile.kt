@@ -36,7 +36,9 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
     private val pointBufferKey = "TerrainTile.points.$tileKey"
     private val heightBufferKey = "TerrainTile.heights.$tileKey"
     private val normalBufferKey = "TerrainTile.normals.$tileKey"
-    private var pointBufferVersion = 0
+    // Public read access lets terrain point caches detect when this tile's geometry changed.
+    var pointBufferVersion = 0
+        protected set
     private var heightBufferVersion = 0
     private var normalBufferVersion = 0
     // Recomputed lazily on the next getNormalBuffer after the point grid changes.

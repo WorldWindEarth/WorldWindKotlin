@@ -7,6 +7,7 @@ import earth.worldwind.geom.*
 import earth.worldwind.geom.AltitudeMode.*
 import earth.worldwind.globe.Globe
 import earth.worldwind.globe.terrain.Terrain
+import earth.worldwind.globe.terrain.TerrainTile
 import earth.worldwind.globe.terrain.Tessellator
 import earth.worldwind.layer.Layer
 import earth.worldwind.layer.LayerList
@@ -421,57 +422,93 @@ open class RenderContext {
     /**
      * Converts a geographic [Position] to Cartesian coordinates according to an [altitudeMode].
      * The Cartesian coordinate system is a function of this render context's current globe and its terrain surface,
-     * depending on the altitude mode. In general, it is not safe to cache the Cartesian coordinates,
-     * as many factors contribute to the value returned, and may change from one frame to the next.
+     * depending on the altitude mode. It is not safe to cache the Cartesian coordinates manually, as many factors
+     * contribute to the value returned and may change from one frame to the next; supply a [cache] instead, which
+     * tracks all contributing factors including the covering terrain tile.
      *
      * @param position     the specified position
      * @param altitudeMode an altitude mode indicating how to interpret the position's altitude component
      * @param result       a pre-allocated [Vec3] in which to store the computed X, Y and Z Cartesian coordinates
+     * @param cache        an optional per-shape memo which skips recomputation while the result cannot have changed
      *
      * @return the result argument, set to the computed Cartesian coordinates
      */
     fun geographicToCartesian(
-        position: Position, altitudeMode: AltitudeMode, result: Vec3
-    ) = geographicToCartesian(position.latitude, position.longitude, position.altitude, altitudeMode, result)
+        position: Position, altitudeMode: AltitudeMode, result: Vec3, cache: CartesianCache? = null
+    ) = geographicToCartesian(position.latitude, position.longitude, position.altitude, altitudeMode, result, cache = cache)
 
     /**
      * Converts a geographic position to Cartesian coordinates according to an [altitudeMode].
      * The Cartesian coordinate system is a function of this render context's current globe and its terrain surface,
-     * depending on the altitude mode. In general, it is not safe to cache the Cartesian coordinates,
-     * as many factors contribute to the value returned, and may change from one frame to the next.
+     * depending on the altitude mode. It is not safe to cache the Cartesian coordinates manually, as many factors
+     * contribute to the value returned and may change from one frame to the next; supply a [cache] instead, which
+     * tracks all contributing factors including the covering terrain tile.
      *
      * @param latitude     the position's latitude
      * @param longitude    the position's longitude
      * @param altitude     the position's altitude in meters
      * @param altitudeMode an altitude mode indicating how to interpret the position's altitude component
      * @param result       a pre-allocated [Vec3] in which to store the computed X, Y and Z Cartesian coordinates
-     * @param useEM        use the most detailed elevation model data instead of current terrain LoD
+     * @param useEM        use the most detailed elevation model data instead of current terrain LoD (bypasses [cache])
+     * @param cache        an optional per-shape memo which skips recomputation while the result cannot have changed
      *
      * @return the result argument, set to the computed Cartesian coordinates
      */
     fun geographicToCartesian(
-        latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, result: Vec3, useEM: Boolean = false
+        latitude: Angle, longitude: Angle, altitude: Double, altitudeMode: AltitudeMode, result: Vec3,
+        useEM: Boolean = false, cache: CartesianCache? = null
     ): Vec3 {
+        val memo = if (useEM) null else cache
+        if (memo != null && memo.lookup(this, latitude, longitude, altitude, altitudeMode, result)) return result
+        var tile: TerrainTile? = null
+        // Capture the covering terrain tile only when memoizing against a version-tracking terrain
+        fun surfacePointCaptureTile() = if (memo != null && terrain.version != Terrain.UNKNOWN_VERSION) {
+            terrain.surfacePointTile(latitude, longitude, result).also { tile = it } != null
+        } else terrain.surfacePoint(latitude, longitude, result)
         when (altitudeMode) {
             ABSOLUTE -> globe.geographicToCartesian(latitude, longitude, altitude, result)
             ABOVE_SEA_LEVEL -> with(globe) {
                 geographicToCartesian(latitude, longitude, altitude + geoid.getOffset(latitude, longitude), result)
             }
-            CLAMP_TO_GROUND -> if (useEM || !terrain.surfacePoint(latitude, longitude, result)) with(globe) {
-                // Use elevation model height as a fallback
-                geographicToCartesian(latitude, longitude, getElevation(latitude, longitude), result)
-            }
-            RELATIVE_TO_GROUND -> if (useEM || terrain.surfacePoint(latitude, longitude, result)) with(globe) {
-                if (useEM) geographicToCartesian(latitude, longitude, getElevation(latitude, longitude), result)
-                // Offset along the normal vector at the terrain surface point.
-                if (altitude != 0.0) geographicToCartesianNormal(latitude, longitude, scratchVector).also {
-                    result.add(scratchVector.multiply(altitude * verticalExaggeration))
+            CLAMP_TO_GROUND -> {
+                val onTerrain = !useEM && surfacePointCaptureTile()
+                if (!onTerrain) with(globe) {
+                    // Use elevation model height as a fallback
+                    geographicToCartesian(latitude, longitude, getElevation(latitude, longitude), result)
                 }
-            } else with(globe) {
-                // Use elevation model height as a fallback
-                geographicToCartesian(latitude, longitude, altitude + getElevation(latitude, longitude), result)
+            }
+            RELATIVE_TO_GROUND -> {
+                val onTerrain = !useEM && surfacePointCaptureTile()
+                if (onTerrain || useEM) with(globe) {
+                    if (useEM) geographicToCartesian(latitude, longitude, getElevation(latitude, longitude), result)
+                    // Offset along the normal vector at the terrain surface point.
+                    if (altitude != 0.0) geographicToCartesianNormal(latitude, longitude, scratchVector).also {
+                        result.add(scratchVector.multiply(altitude * verticalExaggeration))
+                    }
+                } else with(globe) {
+                    // Use elevation model height as a fallback
+                    geographicToCartesian(latitude, longitude, altitude + getElevation(latitude, longitude), result)
+                }
             }
         }
+        memo?.store(this, latitude, longitude, altitude, altitudeMode, tile, result)
+        return result
+    }
+
+    /**
+     * Computes the globe's unit surface normal at a specified location, memoized via an optional [cache].
+     *
+     * @param latitude  the location's latitude
+     * @param longitude the location's longitude
+     * @param result    a pre-allocated [Vec3] in which to store the computed normal vector
+     * @param cache     an optional per-shape memo which skips recomputation while the result cannot have changed
+     *
+     * @return the result argument, set to the computed unit normal vector
+     */
+    fun geographicToCartesianNormal(latitude: Angle, longitude: Angle, result: Vec3, cache: CartesianCache? = null): Vec3 {
+        if (cache != null && cache.lookup(this, latitude, longitude, 0.0, null, result)) return result
+        globe.geographicToCartesianNormal(latitude, longitude, result)
+        cache?.store(this, latitude, longitude, 0.0, null, null, result)
         return result
     }
 

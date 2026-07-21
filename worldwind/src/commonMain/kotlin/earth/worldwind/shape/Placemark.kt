@@ -7,6 +7,7 @@ import earth.worldwind.geom.*
 import earth.worldwind.geom.Angle.Companion.ZERO
 import earth.worldwind.globe.Globe
 import earth.worldwind.render.AbstractRenderable
+import earth.worldwind.render.CartesianCache
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
@@ -149,6 +150,10 @@ open class Placemark @JvmOverloads constructor(
      * The distance from the camera to the placemark in meters.
      */
     protected var cameraDistance = 0.0
+    // Frame-invariant conversion memos; positions are value-compared, so in-place position edits stay safe.
+    protected val placePointCache = CartesianCache()
+    protected var groundPointCache: CartesianCache? = null
+    protected var normalCache: CartesianCache? = null
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -194,7 +199,7 @@ open class Placemark @JvmOverloads constructor(
         // Otherwise, its image and label portion that are potentially over the terrain won't get drawn, and would
         // disappear as soon as there is no terrain at the placemark's position. This can occur at the window edges.
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
-        rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
+        rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint, placePointCache)
 
         // Compute the squared camera distance to the place point for ordering and comparisons; compute the actual
         // distance only when needed for math (eye-distance scaling, billboard pixel size, level-of-detail selector).
@@ -256,7 +261,8 @@ open class Placemark @JvmOverloads constructor(
 
         // Offset along the normal vector to avoid collision with terrain.
         if (isBillboardingEnabled && offsetY != 0.0) {
-            rc.globe.geographicToCartesianNormal(position.latitude, position.longitude, billboardVector)
+            val cache = normalCache ?: CartesianCache().also { normalCache = it }
+            rc.geographicToCartesianNormal(position.latitude, position.longitude, billboardVector, cache)
             // Use real camera distance in billboarding
             val distance = if (isAlwaysOnTop) rc.cameraPoint.distanceTo(placePoint) else cameraDistance
             val altitude = rc.pixelSizeAtDistance(distance) * sin(rc.camera.tilt.inRadians)
@@ -288,7 +294,8 @@ open class Placemark @JvmOverloads constructor(
         // drawable in order to give the icon visual priority over the leader.
         if (mustDrawLeader(rc)) {
             // Compute the placemark's Cartesian ground point.
-            rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
+            val cache = groundPointCache ?: CartesianCache().also { groundPointCache = it }
+            rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint, cache)
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {
