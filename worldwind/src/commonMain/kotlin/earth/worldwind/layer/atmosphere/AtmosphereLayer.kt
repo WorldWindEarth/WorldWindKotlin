@@ -106,6 +106,8 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         drawable.atmosphereAltitude = rc.atmosphereAltitude
         drawable.fadeNearAltitude = groundFadeNearAltitude
         drawable.fadeFarAltitude = groundFadeFarAltitude
+        // No time-of-day sun means no terminator to carry: drop the residual daylight dimming.
+        drawable.dayNightStrength = if (time != null) 1f else 0f
 
         // Use this layer's night image when the light location is different from the eye location.
         drawable.nightTexture = time?.run { rc.getTexture(nightImageSource, nightImageOptions) }
