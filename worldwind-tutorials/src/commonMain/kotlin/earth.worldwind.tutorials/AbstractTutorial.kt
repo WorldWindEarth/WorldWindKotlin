@@ -4,7 +4,6 @@ import earth.worldwind.WorldWind
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Vec3
-import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import kotlin.math.cos
 import kotlin.math.sin
 import earth.worldwind.render.RenderContext
@@ -38,28 +37,27 @@ abstract class AbstractTutorial(protected val engine: WorldWind) {
 
     /**
      * Runs after switching to this example. The default installs a per-frame
-     * [AtmosphereLayer.lightDirectionProvider] that orients shadows according to
+     * [WorldWind.lightDirectionProvider] that orients shadows according to
      * [sunAzimuthDegrees] / [sunElevationDegrees] relative to the **current camera position**
      * - so even tutorials whose camera animates keep their lighting consistent. Subclasses
      * that want the day/night terminator (e.g. [BasicTutorial]) override and set
-     * [AtmosphereLayer.time] instead.
+     * [WorldWind.time] instead.
      */
     open fun start() {
-        val atm = findAtmosphereLayer() ?: return
-        atm.time = null
-        atm.lightDirectionProvider = ::applySceneLight
+        engine.time = null
+        engine.lightDirectionProvider = ::applySceneLight
     }
 
     /**
      * Runs before switching to another example. Default clears the provider; subclasses that
-     * set [AtmosphereLayer.time] in [start] should also clear it here.
+     * set [WorldWind.time] in [start] should also clear it here.
      */
     open fun stop() {
-        findAtmosphereLayer()?.lightDirectionProvider = null
+        engine.lightDirectionProvider = null
     }
 
     /**
-     * Default [AtmosphereLayer.lightDirectionProvider] implementation. Reads the current
+     * Default [WorldWind.lightDirectionProvider] implementation. Reads the current
      * camera latitude/longitude from `rc` and computes a world-space unit vector toward the
      * sun via [computeSceneLightDirection]. Lives as a method (not a captured lambda) so
      * subclasses can override the angle parameters without re-registering a new provider.
@@ -69,16 +67,6 @@ abstract class AbstractTutorial(protected val engine: WorldWind) {
             rc.camera.position, sunAzimuthDegrees, sunElevationDegrees, rc.lightDirection
         )
     }
-
-    /**
-     * Look up the atmosphere layer in the engine's layer list by class. Tutorials use this
-     * to mutate `time` / `lightDirectionProvider` without holding a direct reference (the
-     * layer was added by the platform's tutorial entry point, not by the tutorial itself).
-     * Class-cast lookup is more robust than name lookup against `displayName` mutations
-     * (relocalisation, per-app overrides, etc.).
-     */
-    protected fun findAtmosphereLayer(): AtmosphereLayer? =
-        engine.layers.firstOrNull { it is AtmosphereLayer } as? AtmosphereLayer
 
 }
 

@@ -18,12 +18,14 @@ import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.Logger
+import earth.worldwind.util.SunPosition
 import earth.worldwind.util.SynchronizedList
 import earth.worldwind.util.kgl.*
 import kotlinx.datetime.TimeZone
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 import kotlin.math.*
+import kotlin.time.Instant
 import kotlin.time.TimeSource
 
 /**
@@ -91,6 +93,20 @@ open class WorldWind @JvmOverloads constructor(
      * Atmosphere altitude above ellipsoid. Used to control when objects are clipped by the far plain behind the globe.
      */
     var atmosphereAltitude = 160000.0
+    /**
+     * Scene time, mirrored into [RenderContext.time] each frame. When set, the world light
+     * direction ([RenderContext.lightDirection]) follows the real sun at this moment, driving
+     * lambert shading, shadows, the atmosphere day/night terminator and star field positions.
+     */
+    var time: Instant? = null
+    /**
+     * Per-frame light callback invoked when [time] is null. Should write a world-space unit
+     * vector pointing toward the light into [RenderContext.lightDirection] — e.g. a fixed
+     * camera-relative sun angle for shadows without a day/night terminator. When both [time]
+     * and this provider are null, the light defaults to the surface normal at the camera's
+     * foot point (scene lit from the zenith).
+     */
+    var lightDirectionProvider: ((RenderContext) -> Unit)? = null
     /**
      * Fog-based far-field tile detail degradation settings, snapshotted into the render context
      * each frame. Per-engine, so multiple WorldWindows can differ.
@@ -498,9 +514,16 @@ open class WorldWind @JvmOverloads constructor(
         globe.geographicToCartesian(
             cameraPosition.latitude, cameraPosition.longitude, cameraPosition.altitude, rc.cameraPoint
         )
-        // Default world-space light direction: surface normal at the camera's foot point. Layers
-        // (e.g. AtmosphereLayer with a time set) may override this before shapes are enqueued.
+        // Resolve the world-space light before any layer renders: time-of-day sun when [time]
+        // is set, custom [lightDirectionProvider] otherwise, else the surface normal at the
+        // camera's foot point (zenith light).
         globe.geographicToCartesianNormal(cameraPosition.latitude, cameraPosition.longitude, rc.lightDirection)
+        val time = time
+        if (time != null) {
+            val lightLocation = SunPosition.getAsGeographicLocation(time)
+            globe.geographicToCartesianNormal(lightLocation.latitude, lightLocation.longitude, rc.lightDirection)
+            rc.time = time
+        } else lightDirectionProvider?.invoke(rc)
         rc.renderResourceCache = renderResourceCache
         rc.densityFactor = densityFactor
         rc.atmosphereAltitude = atmosphereAltitude

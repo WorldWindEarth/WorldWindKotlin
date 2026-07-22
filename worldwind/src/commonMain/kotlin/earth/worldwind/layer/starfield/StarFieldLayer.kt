@@ -17,7 +17,6 @@ import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
-import kotlin.time.Instant
 
 /**
  * Constructs a layer showing stars and the Sun around the Earth.
@@ -56,10 +55,6 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
      * Indicates weather to show or hide the Sun
      */
     var isShowSun = true
-    /**
-     * Display star field on a specified time point. If null, then current time will be used each frame.
-     */
-    var time : Instant? = null
     protected var startDataVersion = 0
     protected var sunDataVersion = 0
     protected val starsPositionsVboCacheKey = Any() //gpu cache key for the stars vbo.
@@ -94,7 +89,9 @@ open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): A
         loadStarData(rc)
 
         val starData = starData ?: return // Star data is not loaded yet
-        val time = time ?: Clock.System.now()
+        // Follow the engine's scene time ([earth.worldwind.WorldWind.time]) so stars and sun
+        // match the world light; fall back to the current time when no scene time is set.
+        val time = rc.time ?: Clock.System.now()
         val pool = rc.getDrawablePool(DrawableStarField.KEY)
         val drawable = DrawableStarField.obtain(pool)
 

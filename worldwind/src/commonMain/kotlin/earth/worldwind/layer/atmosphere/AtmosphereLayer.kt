@@ -10,29 +10,13 @@ import earth.worldwind.render.image.ImageConfig
 import earth.worldwind.render.image.ImageOptions
 import earth.worldwind.render.image.ImageSource.Companion.fromResource
 import earth.worldwind.util.NumericArray
-import earth.worldwind.util.SunPosition
 import earth.worldwind.util.kgl.GL_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
-import kotlin.time.Instant
 
 open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     override var isPickEnabled = false
     var nightImageSource = fromResource(MR.images.black_marble_2016)
     var nightImageOptions = ImageOptions(ImageConfig.RGB_565)
-    /**
-     * Display light location on a specified time point. If null, then light is located at camera position.
-     */
-    var time : Instant? = null
-    /**
-     * Per-frame callback invoked when [time] is null to compute the world-space sun direction.
-     * The callback should write the desired direction (unit vector pointing toward the light)
-     * into `rc.lightDirection`. When both [time] is null and this provider is null, the layer
-     * leaves the WorldWind default (camera-foot-point normal) in place. When [time] is set it
-     * takes precedence and this provider is ignored. Tutorials use this to apply a custom
-     * camera-relative sun angle without enabling the day/night terminator (which only fires
-     * when [time] is set).
-     */
-    var lightDirectionProvider: ((RenderContext) -> Unit)? = null
     /**
      * Eye altitude (metres) below which the ground-atmosphere scattering is fully faded out, and
      * above [groundFadeFarAltitude] fully applied, with a smoothstep in between. Near the surface
@@ -54,31 +38,14 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     override fun doRender(rc: RenderContext) {
         if (rc.globe.is2D) return // Atmosphere layer is not applicable for 2D globe
 
-        // Compute the currently active light direction.
-        determineLightDirection(rc)
+        // The world light is resolved by WorldWind before any layer renders; snapshot it for this frame's drawables.
+        activeLightDirection.copy(rc.lightDirection)
 
         // Render the sky portion of the atmosphere.
         renderSky(rc)
 
         // Render the ground portion of the atmosphere.
         renderGround(rc)
-    }
-
-    protected open fun determineLightDirection(rc: RenderContext) {
-        // [time] takes precedence: it drives both the day/night terminator and sun-direction
-        // shadows. When null, an optional [lightDirectionProvider] can write a custom direction
-        // into [rc.lightDirection] for shadows-without-terminator scenarios. Otherwise the
-        // WorldWind default (camera-foot-point normal) is left in place.
-        val t = time
-        if (t != null) {
-            val lightLocation = SunPosition.getAsGeographicLocation(t)
-            rc.globe.geographicToCartesianNormal(
-                lightLocation.latitude, lightLocation.longitude, rc.lightDirection
-            )
-        } else {
-            lightDirectionProvider?.invoke(rc)
-        }
-        activeLightDirection.copy(rc.lightDirection)
     }
 
     protected open fun renderSky(rc: RenderContext) {
@@ -107,10 +74,10 @@ open class AtmosphereLayer: AbstractLayer("Atmosphere") {
         drawable.fadeNearAltitude = groundFadeNearAltitude
         drawable.fadeFarAltitude = groundFadeFarAltitude
         // No time-of-day sun means no terminator to carry: drop the residual daylight dimming.
-        drawable.dayNightStrength = if (time != null) 1f else 0f
+        drawable.dayNightStrength = if (rc.time != null) 1f else 0f
 
         // Use this layer's night image when the light location is different from the eye location.
-        drawable.nightTexture = time?.run { rc.getTexture(nightImageSource, nightImageOptions) }
+        drawable.nightTexture = rc.time?.run { rc.getTexture(nightImageSource, nightImageOptions) }
         rc.offerSurfaceDrawable(drawable, Double.POSITIVE_INFINITY)
     }
 

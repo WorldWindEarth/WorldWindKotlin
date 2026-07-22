@@ -301,8 +301,8 @@ fun main() {
             addLayer(BackgroundLayer())
             addLayer(satellite)
             addLayer(StarFieldLayer())
-            // Atmosphere `time` is null by default: no day/night terminator. BasicTutorial
-            // sets it (and animates) on start; other tutorials use the layer's
+            // Engine `time` is null by default: no day/night terminator. BasicTutorial
+            // sets it (and animates) on start; other tutorials use the engine's
             // [lightDirectionProvider] so shadows still get a sun direction.
             addLayer(AtmosphereLayer())
             addLayer(ShadowLayer())

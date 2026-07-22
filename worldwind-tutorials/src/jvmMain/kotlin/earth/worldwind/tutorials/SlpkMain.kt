@@ -45,13 +45,11 @@ fun main(args: Array<String>) {
                 )
             )
             engine.layers.addLayer(StarFieldLayer())
-            engine.layers.addLayer(AtmosphereLayer().apply {
-                // Fixed sun angle relative to the camera; without it rc.lightDirection stays at its
-                // (0,0,1) default and the Lambertian shader renders the mesh dark.
-                lightDirectionProvider = { rc ->
-                    computeSceneLightDirection(rc.camera.position, 290.0, 50.0, rc.lightDirection)
-                }
-            })
+            engine.layers.addLayer(AtmosphereLayer())
+            // Fixed sun angle relative to the camera so the mesh isn't rendered flat from the zenith.
+            engine.lightDirectionProvider = { rc ->
+                computeSceneLightDirection(rc.camera.position, 290.0, 50.0, rc.lightDirection)
+            }
             engine.globe.elevationModel.addCoverage(BasicElevationCoverage())
 
             val layer = SlpkLayer.open(path, File(path).name)

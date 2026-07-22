@@ -4,16 +4,11 @@ import android.os.Bundle
 import android.view.Choreographer
 import android.view.Choreographer.FrameCallback
 import earth.worldwind.geom.Angle.Companion.degrees
-import earth.worldwind.layer.atmosphere.AtmosphereLayer
-import earth.worldwind.layer.starfield.StarFieldLayer
 import earth.worldwind.util.SunPosition
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 open class DayNightCycleActivity : BasicGlobeActivity(), FrameCallback {
-    protected lateinit var starFieldLayer: StarFieldLayer
-    protected lateinit var atmosphereLayer: AtmosphereLayer
-
     // Animation settings
     protected var cameraDegreesPerSecond = 2.0
     protected var timeFactor = 3600 // One hour per second
@@ -25,19 +20,13 @@ open class DayNightCycleActivity : BasicGlobeActivity(), FrameCallback {
         aboutBoxTitle = "About the " + resources.getText(R.string.title_day_night_cycle)
         aboutBoxText = """
     Demonstrates how to display a continuous day-night cycle on the WorldWind globe.
-    This gradually changes both the Camera's location and the AtmosphereLayer's light location.
+    This gradually changes both the Camera's location and the engine's scene time.
     """.trimIndent()
 
-        wwd.engine.layers.run {
-            starFieldLayer = first { it is StarFieldLayer } as StarFieldLayer
-            atmosphereLayer = first { it is AtmosphereLayer } as AtmosphereLayer
-        }
-
-        // Initialize the Atmosphere layer's light location to our custom location. By default, the light location is
-        // always behind the viewer.
+        // Initialize the engine's scene time so the light, terminator and star field follow the real sun.
+        // By default, the light location is always behind the viewer.
         val time = Clock.System.now()
-        starFieldLayer.time = time
-        atmosphereLayer.time = time
+        wwd.engine.time = time
 
         // Initialize the Camera so that the sun is behind the viewer.
         wwd.engine.camera.position.apply {
@@ -61,8 +50,7 @@ open class DayNightCycleActivity : BasicGlobeActivity(), FrameCallback {
             camera.position.longitude = camera.position.longitude.minusDegrees(cameraDegrees)
 
             // Move the sun location to simulate the Sun's rotation about the Earth.
-            starFieldLayer.time = starFieldLayer.time?.plus(timePassed.seconds)
-            atmosphereLayer.time = atmosphereLayer.time?.plus(timePassed.seconds)
+            wwd.engine.time = wwd.engine.time?.plus(timePassed.seconds)
 
             // Redraw the WorldWindow to display the above changes.
             wwd.requestRedraw()

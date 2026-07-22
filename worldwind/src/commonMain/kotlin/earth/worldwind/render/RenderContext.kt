@@ -27,6 +27,7 @@ import earth.worldwind.util.glu.GLUtessellator
 import kotlinx.coroutines.CompletableDeferred
 import kotlin.math.tan
 import kotlin.reflect.KClass
+import kotlin.time.Instant
 import kotlin.time.TimeSource
 
 open class RenderContext {
@@ -107,13 +108,21 @@ open class RenderContext {
     var supportsSharedElementArrayBuffer: Boolean = true
     var cameraPoint = Vec3()
     /**
-     * World-space (Cartesian) unit vector pointing **toward** the light source. Populated each
-     * frame before layer rendering: defaults to the surface normal at the camera's geographic
-     * position (a "light from above the user's foot point") and is overridden by
-     * [earth.worldwind.layer.atmosphere.AtmosphereLayer] when its `time` property is set, so
-     * shape lighting and atmospheric scattering use the same sun direction.
+     * World-space (Cartesian) unit vector pointing **toward** the light source. Resolved by
+     * [earth.worldwind.WorldWind] each frame before any layer renders: the sun position when
+     * `WorldWind.time` is set, a custom `WorldWind.lightDirectionProvider` direction, or the
+     * surface normal at the camera's geographic position (a "light from above the user's foot
+     * point") as the default. Shape lighting, shadows and atmospheric scattering all read the
+     * same vector.
      */
     val lightDirection = Vec3(0.0, 0.0, 1.0)
+    /**
+     * Scene time mirrored from [earth.worldwind.WorldWind.time] each frame, or null when no
+     * scene time is set. Drives every time-dependent feature: the sun-from-time
+     * [lightDirection], the atmosphere day/night terminator and night texture, and star/sun
+     * positions in the star field.
+     */
+    var time: Instant? = null
     /**
      * Per-frame state for the directional sun-shadow pipeline. Non-null when a
      * [earth.worldwind.layer.shadow.ShadowLayer] is in the layer list and has computed
@@ -218,6 +227,7 @@ open class RenderContext {
         elevationModelTimestamp = 0L
         cameraPoint.set(0.0, 0.0, 0.0)
         lightDirection.set(0.0, 0.0, 1.0)
+        time = null
         shadowState = null
         // Roll the completed frame's bounds into the consumable slot; pick frames render a
         // reduced scene and are discarded.
@@ -569,7 +579,7 @@ open class RenderContext {
         val distance = -(m[8] * (center.x - cameraPoint.x)
             + m[9] * (center.y - cameraPoint.y)
             + m[10] * (center.z - cameraPoint.z))
-        // lightDirection is set by the atmosphere layer before content layers offer. The
+        // lightDirection is resolved by WorldWind before any layer renders. The
         // overflow-fallback caster top is CAMERA-RELATIVE: the shadow layer re-bases it with
         // its own anchored sun, and at absolute ECEF magnitudes even a sub-milliradian
         // difference between the continuous and anchored directions is kilometres of error.
