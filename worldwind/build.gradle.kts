@@ -273,6 +273,11 @@ val javadocJar = tasks.register<Jar>("javadocJar") {
     archiveClassifier.set("javadoc")
     from(dokkaOutputDir)
 }
+// Empty javadoc jar for per-target publications; satisfies Maven Central without duplicating Dokka output
+val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
+    archiveClassifier.set("javadoc")
+    archiveAppendix.set("empty")
+}
 
 // Karakum's Java-style KDoc refs in C5Ren.kt fail Dokka link resolution. Stage a copy with
 // those KDoc blocks stripped and feed it to Dokka instead of the original.
@@ -304,7 +309,8 @@ tasks.named("dokkaGeneratePublicationHtml") { dependsOn(prepareDokkaJsSources) }
 publishing {
     publications {
         withType<MavenPublication> {
-            artifact(javadocJar)
+            // Full Dokka docs ship once on the root publication; targets carry an empty javadoc jar
+            artifact(if (name == "kotlinMultiplatform") javadocJar else emptyJavadocJar)
             pom {
                 name.set("WorldWind Kotlin")
                 description.set("The WorldWind Kotlin SDK (WWK) includes the library, examples and tutorials for building multiplatform 3D virtual globe applications for Android, Web and Java.")

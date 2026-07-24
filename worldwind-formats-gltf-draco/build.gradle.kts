@@ -407,6 +407,11 @@ val javadocJar = tasks.register<Jar>("javadocJar") {
     archiveClassifier.set("javadoc")
     from(dokkaOutputDir)
 }
+// Empty javadoc jar for per-target publications; satisfies Maven Central without duplicating Dokka output
+val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
+    archiveClassifier.set("javadoc")
+    archiveAppendix.set("empty")
+}
 
 dokka {
     moduleName.set("WorldWind Kotlin glTF Draco")
@@ -417,7 +422,8 @@ dokka {
 publishing {
     publications {
         withType<MavenPublication> {
-            artifact(javadocJar)
+            // Full Dokka docs ship once on the root publication; targets carry an empty javadoc jar
+            artifact(if (name == "kotlinMultiplatform") javadocJar else emptyJavadocJar)
             pom {
                 name.set("WorldWind Kotlin glTF Draco Codec")
                 description.set("KHR_draco_mesh_compression decoder satellite for WorldWind Kotlin — JNI/cinterop binding around libdraco. Registers with GltfDecoderRegistry on install.")

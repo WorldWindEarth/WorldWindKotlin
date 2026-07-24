@@ -116,6 +116,11 @@ val javadocJar = tasks.register<Jar>("javadocJar") {
     archiveClassifier.set("javadoc")
     from(dokkaOutputDir)
 }
+// Empty javadoc jar for per-target publications; satisfies Maven Central without duplicating Dokka output
+val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
+    archiveClassifier.set("javadoc")
+    archiveAppendix.set("empty")
+}
 
 dokka {
     moduleName.set("WorldWind Kotlin Compose")
@@ -126,7 +131,8 @@ dokka {
 publishing {
     publications {
         withType<MavenPublication> {
-            artifact(javadocJar)
+            // Full Dokka docs ship once on the root publication; targets carry an empty javadoc jar
+            artifact(if (name == "kotlinMultiplatform") javadocJar else emptyJavadocJar)
             pom {
                 name.set("WorldWind Kotlin Compose")
                 description.set("Compose Multiplatform bindings for the WorldWind Kotlin SDK — exposes the engine as a unified @Composable WorldWindow on Android, Desktop (JVM/Swing), and Web (Compose HTML).")

@@ -349,6 +349,11 @@ val javadocJar = tasks.register<Jar>("javadocJar") {
     archiveClassifier.set("javadoc")
     from(dokkaOutputDir)
 }
+// Empty javadoc jar for per-target publications; satisfies Maven Central without duplicating Dokka output
+val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
+    archiveClassifier.set("javadoc")
+    archiveAppendix.set("empty")
+}
 
 dokka {
     moduleName.set("WorldWind Kotlin glTF KTX2")
@@ -359,7 +364,8 @@ dokka {
 publishing {
     publications {
         withType<MavenPublication> {
-            artifact(javadocJar)
+            // Full Dokka docs ship once on the root publication; targets carry an empty javadoc jar
+            artifact(if (name == "kotlinMultiplatform") javadocJar else emptyJavadocJar)
             pom {
                 name.set("WorldWind Kotlin glTF KTX2 Codec")
                 description.set("KHR_texture_basisu (KTX2 / Basis Universal) decoder satellite for WorldWind Kotlin — JNI/cinterop binding around libktx. Registers with GltfDecoderRegistry on install.")

@@ -345,6 +345,11 @@ val javadocJar = tasks.register<Jar>("javadocJar") {
     archiveClassifier.set("javadoc")
     from(dokkaOutputDir)
 }
+// Empty javadoc jar for per-target publications; satisfies Maven Central without duplicating Dokka output
+val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
+    archiveClassifier.set("javadoc")
+    archiveAppendix.set("empty")
+}
 
 dokka {
     moduleName.set("WorldWind Kotlin glTF Meshopt")
@@ -355,7 +360,8 @@ dokka {
 publishing {
     publications {
         withType<MavenPublication> {
-            artifact(javadocJar)
+            // Full Dokka docs ship once on the root publication; targets carry an empty javadoc jar
+            artifact(if (name == "kotlinMultiplatform") javadocJar else emptyJavadocJar)
             pom {
                 name.set("WorldWind Kotlin glTF Meshopt Codec")
                 description.set("EXT_meshopt_compression decoder satellite for WorldWind Kotlin — JNI/cinterop binding around zeux/meshoptimizer. Registers with GltfDecoderRegistry on install.")
