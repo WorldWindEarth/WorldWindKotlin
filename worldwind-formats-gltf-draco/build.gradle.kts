@@ -188,6 +188,12 @@ kotlin {
             // Make Gradle's JAR task pick up build/generated/jvmNative as a resource root.
             resources.srcDir(jvmResourcesNativeDir)
         }
+        named("jvmTest") {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
         // iOS source-set swap: opt-out by default ships a no-op stub at src/iosMain/;
         // -Pworldwind.draco.buildIosNative=true REPLACES the stub directory with the
         // cinterop-backed implementation under src/iosMainNative/. Both files declare the

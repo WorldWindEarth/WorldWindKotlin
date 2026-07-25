@@ -6,6 +6,7 @@ import earth.worldwind.geom.Angle
 import earth.worldwind.geom.Angle.Companion.normalizeAngle360
 import earth.worldwind.geom.Angle.Companion.normalizeLatitude
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -24,6 +25,7 @@ abstract class AbstractEGM96Geoid(
 ) : Geoid {
     override val displayName = "EGM96"
     private var isLoadDataRequested = false
+    private var loadJob: Job? = null
     protected abstract val isInitialized: Boolean
 
     /**
@@ -32,7 +34,7 @@ abstract class AbstractEGM96Geoid(
     fun ensureDataLoaded() {
         if (!isLoadDataRequested) {
             isLoadDataRequested = true
-            scope.launch {
+            loadJob = scope.launch {
                 loadData(offsetsFile)
                 WorldWind.requestRedraw() // Update frame including Gravitational Model
             }
@@ -40,10 +42,20 @@ abstract class AbstractEGM96Geoid(
     }
 
     /**
+     * Suspend until the offsets grid is resident (requesting the load if needed), so callers that
+     * bake offsets into long-lived data never read the 0 fallback [getOffset] returns while loading.
+     */
+    suspend fun awaitDataLoaded() {
+        ensureDataLoaded()
+        loadJob?.join()
+    }
+
+    /**
      * Release loaded data to free memory
      */
     open fun release() {
         isLoadDataRequested = false
+        loadJob = null
     }
 
     override fun getOffset(latitude: Angle, longitude: Angle): Float {

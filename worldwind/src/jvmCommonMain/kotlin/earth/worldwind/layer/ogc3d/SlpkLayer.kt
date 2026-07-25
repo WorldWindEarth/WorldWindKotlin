@@ -5,7 +5,10 @@ import earth.worldwind.formats.mimeForExtension
 import earth.worldwind.formats.i3s.I3sGeometryDecoder
 import earth.worldwind.formats.i3s.I3sSceneLayer
 import earth.worldwind.formats.i3s.I3sVertexMapper
+import earth.worldwind.formats.i3s.I3sWebMercator
 import earth.worldwind.formats.i3s.SlpkArchive
+import earth.worldwind.formats.i3s.usesGravityRelatedHeights
+import earth.worldwind.globe.geoid.AbstractEGM96Geoid
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Position
 import earth.worldwind.geom.Vec3
@@ -41,18 +44,33 @@ class SlpkLayer private constructor(
     displayName = displayName ?: archiveId,
     byteSource = byteSource,
 ) {
+    /** Vertex offsets are Web Mercator metres, not degrees (projected-CRS package). Set at root
+     *  parse, read by the decode mapper — @Volatile bridges the parse/decode coroutines. */
+    @Volatile
+    private var webMercatorVertices = false
+
     /** Build the tree from the I3S scene-layer document instead of a 3D-Tiles tileset.json.
      *  Node pages + geographic→Cartesian both come from local reads / the captured globe. */
     override suspend fun parseRootDocument(responseUrl: String, body: String): Tileset {
         val globe = lastGlobe ?: error("SlpkLayer: no globe captured yet (render once first)")
+        val doc = I3sSceneLayer.parseSceneLayer(body)
+        webMercatorVertices = I3sWebMercator.isWebMercator(doc)
+        // Orthometric (MSL) packages: lift node origins by the geoid undulation so the mesh shares
+        // the globe's vertical datum and rests on terrain (terrain renders elevation + geoid offset).
+        val geoid = if (doc.usesGravityRelatedHeights()) globe.geoid.also {
+            (it as? AbstractEGM96Geoid)?.awaitDataLoaded() // bake real offsets, not the 0 while-loading fallback
+        } else null
         val tileset = SceneLayerParser.parse(
-            sceneLayerJson = body,
+            doc = doc,
             archiveId = archiveId,
             nodePages = { pageIndex -> archive.readEntry("nodepages/$pageIndex.json")?.decodeToString() },
             // tileToWorld = pure translation to the node origin; the per-vertex mapper places vertices
             // as exact world-axis offsets (no ENU frame → no tangent-plane seams).
             geoToWorld = { lonDeg, latDeg, heightM, result ->
-                val v = globe.geographicToCartesian(latDeg.degrees, lonDeg.degrees, heightM, Vec3())
+                val lat = latDeg.degrees
+                val lon = lonDeg.degrees
+                val h = heightM + (geoid?.getOffset(lat, lon)?.toDouble() ?: 0.0)
+                val v = globe.geographicToCartesian(lat, lon, h, Vec3())
                 result.setToTranslation(v.x, v.y, v.z)
             },
         )
@@ -70,15 +88,27 @@ class SlpkLayer private constructor(
      *  RR-cache key uses the geometry path only (query dropped). */
     override suspend fun decodeCustomContent(tile: Tile3d, bytes: ByteArray, uri: String): Boolean {
         if (!uri.startsWith("${ArchiveTileByteSource.SLPK_SCHEME}:")) return false
-        // Exact placement: map each raw vertex (Δlon°,Δlat°,Δh) through the projection to a world-axis
-        // offset from the tile origin (tileToWorld's translation m3,m7,m11) → no tangent-plane seams.
+        // Exact placement: map each raw vertex offset through the projection to a world-axis offset
+        // from the tile origin (tileToWorld's translation m3,m7,m11) → no tangent-plane seams.
+        // Offsets are in the layer CRS: Δlon°/Δlat° for geographic scenes, metres for Web Mercator.
         val mapper = lastGlobe?.let { globe ->
             val m = tile.tileToWorld.m
             val cx = m[3]; val cy = m[7]; val cz = m[11]
             val c = globe.cartesianToGeographic(cx, cy, cz, Position())
             val cLatDeg = c.latitude.inDegrees; val cLonDeg = c.longitude.inDegrees; val cAlt = c.altitude
             val scratch = Vec3()
-            I3sVertexMapper { dLon, dLat, dH, out, o ->
+            if (webMercatorVertices) {
+                // Δx is linear in longitude; Δy needs the exact inverse projection about the node's y.
+                val cMercY = I3sWebMercator.latitudeRadiansToY(c.latitude.inRadians)
+                I3sVertexMapper { dX, dY, dH, out, o ->
+                    val latDeg = I3sWebMercator.yToLatitudeDegrees(cMercY + dY)
+                    val lonDeg = cLonDeg + I3sWebMercator.xToLongitudeDegrees(dX.toDouble())
+                    globe.geographicToCartesian(latDeg.degrees, lonDeg.degrees, cAlt + dH, scratch)
+                    out[o] = (scratch.x - cx).toFloat()
+                    out[o + 1] = (scratch.y - cy).toFloat()
+                    out[o + 2] = (scratch.z - cz).toFloat()
+                }
+            } else I3sVertexMapper { dLon, dLat, dH, out, o ->
                 globe.geographicToCartesian((cLatDeg + dLat).degrees, (cLonDeg + dLon).degrees, cAlt + dH, scratch)
                 out[o] = (scratch.x - cx).toFloat()
                 out[o + 1] = (scratch.y - cy).toFloat()

@@ -12,7 +12,9 @@ import earth.worldwind.layer.BackgroundLayer
 import earth.worldwind.layer.atmosphere.AtmosphereLayer
 import earth.worldwind.layer.mercator.WebMercatorLayerFactory
 import earth.worldwind.layer.ogc3d.SlpkLayer
+import earth.worldwind.formats.gltf.draco.installDracoDecoder
 import earth.worldwind.layer.starfield.StarFieldLayer
+import kotlinx.coroutines.runBlocking
 import java.awt.BorderLayout
 import java.io.File
 import javax.swing.JFrame
@@ -33,6 +35,8 @@ fun main(args: Array<String>) {
         ?: error("Set -Dworldwind.slpk.path=/path/to/dataset.slpk (or pass it as the first argument)")
     require(File(path).isFile) { "SLPK not found: $path" }
     installPermissiveSslForTutorials()
+    // Draco-only SLPKs need the native decoder registered before the layer parses.
+    runBlocking { installDracoDecoder() }
 
     SwingUtilities.invokeLater {
         val window = WorldWindow { engine ->

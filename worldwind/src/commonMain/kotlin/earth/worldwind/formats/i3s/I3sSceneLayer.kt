@@ -40,13 +40,32 @@ data class SceneLayerDoc(
     val name: String? = null,
     /** `IntegratedMesh` | `3DObject` | `Point` | `PointCloud` | `Building` (only mesh types targeted). */
     val layerType: String? = null,
+    /** Horizontal CRS of OBB centers + vertex offsets: 4326 (degrees, the default) or Web Mercator
+     *  (metres). See [I3sWebMercator.isWebMercator]. */
+    val spatialReference: SpatialReferenceDoc? = null,
+    /** Vertical datum of heights; see [usesGravityRelatedHeights]. */
+    val heightModelInfo: HeightModelInfoDoc? = null,
     val store: StoreDoc = StoreDoc(),
     /** 1.7+ material table ([MeshMaterialDoc.definition]); empty in legacy packages, where texture
      *  names come from per-node index documents instead. */
     val materialDefinitions: List<MaterialDefDoc> = emptyList(),
     /** 1.7+ texture sets referenced from [MaterialDefDoc]; `formats[].name` is the archive entry stem. */
     val textureSetDefinitions: List<TextureSetDefDoc> = emptyList(),
+    /** 1.7+ geometry table ([MeshGeometryDoc.definition]); each buffer's index is its archive file name
+     *  (`geometries/{index}.bin`). Esri convention: buffer 0 = uncompressed, buffer 1 = Draco. */
+    val geometryDefinitions: List<GeometryDefDoc> = emptyList(),
 )
+
+@Serializable
+data class GeometryDefDoc(val geometryBuffers: List<GeometryBufferDoc> = emptyList())
+
+/** One storage form of a geometry: uncompressed SoA when [compressedAttributes] is null. */
+@Serializable
+data class GeometryBufferDoc(val compressedAttributes: CompressedAttributesDoc? = null)
+
+/** Compressed-buffer descriptor; [encoding] is `"draco"` in every known package. */
+@Serializable
+data class CompressedAttributesDoc(val encoding: String? = null, val attributes: List<String> = emptyList())
 
 @Serializable
 data class MaterialDefDoc(val pbrMetallicRoughness: PbrMetallicRoughnessDoc? = null)
@@ -71,6 +90,35 @@ data class NodeIndexDoc(val textureData: List<HrefDoc> = emptyList())
 @Serializable
 data class HrefDoc(val href: String? = null)
 
+@Serializable
+data class SpatialReferenceDoc(
+    val wkid: Int = 0,
+    val latestWkid: Int = 0,
+    /** Vertical CRS, e.g. 5773 = EGM96 geoid height. */
+    val vcsWkid: Int = 0,
+    val latestVcsWkid: Int = 0,
+)
+
+/** `heightModelInfo`: `heightModel` is `"gravity_related_height"` (orthometric/MSL, the ArcGIS
+ *  default) or `"ellipsoidal"`; `vertCRS` names the datum (e.g. `"EGM96_height"`). */
+@Serializable
+data class HeightModelInfoDoc(
+    val heightModel: String? = null,
+    val vertCRS: String? = null,
+    val heightUnit: String? = null,
+)
+
+/** Heights are orthometric (gravity-related/MSL), so an ellipsoid-datum consumer must add the geoid
+ *  undulation. Keyed on `heightModelInfo.heightModel` when declared, else the vertical CRS wkid. */
+fun SceneLayerDoc.usesGravityRelatedHeights(): Boolean {
+    heightModelInfo?.heightModel?.let { return it.equals("gravity_related_height", ignoreCase = true) }
+    val sr = spatialReference ?: return false
+    return sr.vcsWkid == EGM96_VCS_WKID || sr.latestVcsWkid == EGM96_VCS_WKID
+}
+
+/** EPSG:5773 — EGM96 geoid height. */
+private const val EGM96_VCS_WKID = 5773
+
 /** Physical-storage descriptor. */
 @Serializable
 data class StoreDoc(
@@ -79,6 +127,9 @@ data class StoreDoc(
     val rootNode: String? = null,
     /** Storage format version, e.g. `"1.7"` / `"1.8"`. */
     val version: String? = null,
+    /** CRS URLs (`…/EPSG/0/{wkid}`); fallback when [SceneLayerDoc.spatialReference] is absent. */
+    val indexCRS: String? = null,
+    val vertexCRS: String? = null,
     val nodePages: NodePagesDoc? = null,
 )
 
@@ -109,9 +160,9 @@ data class NodeDoc(
     val mesh: MeshDoc? = null,
 )
 
-/** Oriented bounding box. For global scenes [center] is geographic `[longitude, latitude, height]`
- *  (WGS84 degrees + ellipsoidal meters); [halfSize] is meters in the box's local ENU frame;
- *  [quaternion] is `[x, y, z, w]`. */
+/** Oriented bounding box. [center] is `[x, y, height]` in the layer's horizontal CRS — geographic
+ *  `[longitude°, latitude°]` for 4326, metres for Web Mercator; [halfSize] is CRS-unit metres in the
+ *  box's local frame; [quaternion] is `[x, y, z, w]`. */
 @Serializable
 data class ObbDoc(
     val center: List<Double> = emptyList(),

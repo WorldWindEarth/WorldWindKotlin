@@ -1,6 +1,7 @@
 package earth.worldwind.formats.i3s
 
 import earth.worldwind.formats.BinaryDataView
+import earth.worldwind.formats.gltf.GltfDecoderRegistry
 import earth.worldwind.formats.gltf.GltfImage
 import earth.worldwind.formats.gltf.GltfMaterial
 import earth.worldwind.formats.gltf.GltfMesh
@@ -18,7 +19,11 @@ import earth.worldwind.geom.Matrix4
  * `PerAttributeArray` (non-indexed → drawn via `drawArrays`); positions are node-local, placed by the
  * tile's `tileToWorld`, so [GltfPrimitiveInstance.worldMatrix] is identity.
  *
- * Scope: Esri default schema ([I3sGeometrySchema.DEFAULT]). TODO: Draco geometry, KTX2/DDS/Basis
+ * Draco `compressedAttributes` buffers (sniffed by magic) route through the registered
+ * [GltfDecoderRegistry.dracoDecoder] instead; global scenes' pre-scaled lon/lat offsets are restored
+ * via the `i3s-scale_x/y` metadata ([I3sDracoMeta]) before the same per-vertex placement.
+ *
+ * Scope: Esri default schema ([I3sGeometrySchema.DEFAULT]) + Draco. TODO: KTX2/DDS/Basis
  * textures (JPEG/PNG pass through as [GltfImage]); verify attribute order/types on more datasets.
  */
 object I3sGeometryDecoder {
@@ -43,6 +48,9 @@ object I3sGeometryDecoder {
          *  (no periodic tangent-plane seams). Overrides [positionScaleX]/[Y] when set. */
         vertexMapper: I3sVertexMapper? = null,
     ): GltfModel {
+        if (I3sDracoMeta.isDraco(geometryBytes)) {
+            return decodeDraco(geometryBytes, texture, doubleSided, positionScaleX, positionScaleY, emitNormals, vertexMapper)
+        }
         val view = BinaryDataView(geometryBytes)
         var off = 0
 
@@ -113,6 +121,71 @@ object I3sGeometryDecoder {
         }
         // Feature attributes (id / faceRange…) are per-feature and used for picking — skipped for now.
 
+        // PerAttributeArray topology → non-indexed, drawn via drawArrays.
+        return assembleModel(positions, normals, texCoords, colors, indicesShort = null, indicesInt = null, texture = texture, doubleSided = doubleSided)
+    }
+
+    /** Draco `compressedAttributes` buffer → one indexed primitive via the registered platform
+     *  decoder. Positions decode as node-relative offsets; global scenes store x/y pre-scaled to
+     *  metres, undone by the `i3s-scale_x/y` metadata before the shared placement math. */
+    private fun decodeDraco(
+        geometryBytes: ByteArray,
+        texture: I3sTexture?,
+        doubleSided: Boolean,
+        positionScaleX: Double,
+        positionScaleY: Double,
+        emitNormals: Boolean,
+        vertexMapper: I3sVertexMapper?,
+    ): GltfModel {
+        val decoder = GltfDecoderRegistry.dracoDecoder
+            ?: error("I3S geometry is Draco-compressed but no Draco decoder is registered — call installDracoDecoder() before opening the package")
+        val mesh = decoder.decode(geometryBytes, emptyMap())
+        val positions = mesh.positions
+        val scales = I3sDracoMeta.positionScales(geometryBytes)
+        val metaScaleX = scales?.get(0) ?: 1.0
+        val metaScaleY = scales?.get(1) ?: 1.0
+        if (vertexMapper != null) {
+            var v = 0
+            while (v < positions.size) {
+                vertexMapper.map(
+                    (positions[v] * metaScaleX).toFloat(),
+                    (positions[v + 1] * metaScaleY).toFloat(),
+                    positions[v + 2],
+                    positions, v,
+                )
+                v += 3
+            }
+        } else if (metaScaleX * positionScaleX != 1.0 || metaScaleY * positionScaleY != 1.0) {
+            val sx = (metaScaleX * positionScaleX).toFloat()
+            val sy = (metaScaleY * positionScaleY).toFloat()
+            var i = 0
+            while (i < positions.size) {
+                positions[i] *= sx; positions[i + 1] *= sy; i += 3
+            }
+        }
+        return assembleModel(
+            positions = positions,
+            normals = if (emitNormals) mesh.normals else null,
+            texCoords = mesh.texCoords,
+            colors = mesh.colors,
+            indicesShort = mesh.indicesShort,
+            indicesInt = mesh.indicesInt,
+            texture = texture,
+            doubleSided = doubleSided,
+        )
+    }
+
+    /** Wrap decoded attribute arrays as a one-primitive [GltfModel] for the shared mesh pipeline. */
+    private fun assembleModel(
+        positions: FloatArray,
+        normals: FloatArray?,
+        texCoords: FloatArray?,
+        colors: FloatArray?,
+        indicesShort: ShortArray?,
+        indicesInt: IntArray?,
+        texture: I3sTexture?,
+        doubleSided: Boolean,
+    ): GltfModel {
         val hasTexture = texture != null && texCoords != null
         val material = GltfMaterial(
             baseColorFactor = floatArrayOf(1f, 1f, 1f, 1f),
@@ -129,8 +202,8 @@ object I3sGeometryDecoder {
             texCoords = texCoords,
             colors = colors,
             batchIds = null,
-            indicesShort = null, // PerAttributeArray topology → non-indexed, drawn via drawArrays
-            indicesInt = null,
+            indicesShort = indicesShort,
+            indicesInt = indicesInt,
             materialIndex = 0,
             mode = 4, // TRIANGLES
         )

@@ -1,6 +1,8 @@
 package earth.worldwind.layer.ogc3d.tileset
 
+import earth.worldwind.formats.gltf.GltfDecoderRegistry
 import earth.worldwind.formats.i3s.I3sSceneLayer
+import earth.worldwind.formats.i3s.I3sWebMercator
 import earth.worldwind.formats.i3s.NodeDoc
 import earth.worldwind.formats.i3s.NodePageDoc
 import earth.worldwind.formats.i3s.SceneLayerDoc
@@ -43,8 +45,24 @@ object SceneLayerParser {
         /** Baked into [Tile3d.geometricError] so the traverser's default SSE selects at I3S-native
          *  detail. Match the layer's default SSE. */
         referenceScreenSpaceError: Double = 16.0,
+        /** Pick the Draco geometry buffer when a definition declares one. Defaults to whether a
+         *  Draco decoder is registered — without one only the uncompressed buffer is decodable. */
+        preferDracoGeometry: Boolean = GltfDecoderRegistry.dracoDecoder != null,
+    ): Tileset = parse(
+        I3sSceneLayer.parseSceneLayer(sceneLayerJson), archiveId, nodePages, geoToWorld,
+        referenceScreenSpaceError, preferDracoGeometry,
+    )
+
+    /** Pre-parsed-document overload — callers that inspect the doc themselves (e.g. for the vertex
+     *  CRS) avoid decoding the JSON twice. */
+    suspend fun parse(
+        doc: SceneLayerDoc,
+        archiveId: String,
+        nodePages: NodePageSource,
+        geoToWorld: GeographicToWorld,
+        referenceScreenSpaceError: Double = 16.0,
+        preferDracoGeometry: Boolean = GltfDecoderRegistry.dracoDecoder != null,
     ): Tileset {
-        val doc = I3sSceneLayer.parseSceneLayer(sceneLayerJson)
         // Some 1.7/1.8 SLPKs ship nodepages without the `store.nodePages` block — default rather than
         // reject; genuine legacy-only sets surface as a null root page below.
         val pages = doc.store.nodePages
@@ -52,7 +70,7 @@ object SceneLayerParser {
         val metricSquared = pages?.lodSelectionMetricType?.endsWith("SQ", ignoreCase = true) == true
         val rootIndex = rootIndexOf(doc)
 
-        val ctx = BuildContext(archiveId, nodesPerPage, metricSquared, referenceScreenSpaceError, nodePages, geoToWorld, doc)
+        val ctx = BuildContext(archiveId, nodesPerPage, metricSquared, referenceScreenSpaceError, nodePages, geoToWorld, doc, preferDracoGeometry)
         val rootDoc = ctx.node(rootIndex)
             ?: error("SLPK root node $rootIndex not found — no usable nodepages/*.json (legacy per-node 1.6 index documents are unsupported)")
         val root = ctx.buildNode(rootIndex, rootDoc)
@@ -79,9 +97,11 @@ object SceneLayerParser {
         val source: NodePageSource,
         val geoToWorld: GeographicToWorld,
         val doc: SceneLayerDoc,
+        val preferDracoGeometry: Boolean,
     ) {
         private val pageCache = HashMap<Int, NodePageDoc>()
         private val visited = HashSet<Int>() // guards malformed cyclic child references
+        private val webMercator = I3sWebMercator.isWebMercator(doc)
 
         suspend fun node(index: Int): NodeDoc? {
             if (index < 0) return null
@@ -131,8 +151,10 @@ object SceneLayerParser {
             val c = node.obb?.center
             val m = Matrix4()
             if (c == null || c.size < 3) return m
-            // I3S center = [longitude, latitude, height].
-            return geoToWorld.transform(c[0], c[1], c[2], m)
+            // I3S center = [x, y, height] in the layer CRS: lon/lat degrees, or Web Mercator metres.
+            return if (webMercator) geoToWorld.transform(
+                I3sWebMercator.xToLongitudeDegrees(c[0]), I3sWebMercator.yToLatitudeDegrees(c[1]), c[2], m,
+            ) else geoToWorld.transform(c[0], c[1], c[2], m)
         }
 
         /** geometricError = referenceSSE·2·radius/threshold (`…SQ` thresholds square-rooted first). */
@@ -151,12 +173,29 @@ object SceneLayerParser {
         private fun contentUriOf(node: NodeDoc): String? {
             val geom = node.mesh?.geometry ?: return null
             if (geom.resource < 0) return null
-            val base = "slpk:$archiveId!/nodes/${geom.resource}/geometries/${geom.definition}.bin"
+            val base = "slpk:$archiveId!/nodes/${geom.resource}/geometries/${geometryBufferIndex(geom.definition)}.bin"
             val material = node.mesh.material ?: return base
             if (material.resource < 0) return base
             if (doc.materialDefinitions.isEmpty()) return "$base?tn=${material.resource}"
             val name = textureEntryName(material.definition) ?: return base
             return "$base?t=nodes/${material.resource}/textures/$name"
+        }
+
+        /** Geometry file name index: the buffer index within `geometryDefinitions[definition]`
+         *  (`definition` itself indexes the table, not a file). A capable decoder prefers the Draco
+         *  buffer — Draco-only packages still *declare* the uncompressed layout without shipping its
+         *  file, so declaration can't drive the choice. No definitions table (legacy
+         *  defaultGeometrySchema packages) keeps the historical definition-as-name behavior. */
+        private fun geometryBufferIndex(definition: Int): Int {
+            val buffers = doc.geometryDefinitions.getOrNull(definition)?.geometryBuffers
+                ?.takeIf { it.isNotEmpty() } ?: return definition
+            val draco = buffers.indexOfFirst { it.compressedAttributes?.encoding == "draco" }
+            val plain = buffers.indexOfFirst { it.compressedAttributes == null }
+            return when {
+                draco >= 0 && preferDracoGeometry -> draco
+                plain >= 0 -> plain
+                else -> draco.coerceAtLeast(0)
+            }
         }
 
         /** Texture entry name from the material's texture set, preferring decodable jpg/png. Null =
