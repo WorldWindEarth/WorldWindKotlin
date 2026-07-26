@@ -84,9 +84,9 @@ kotlin {
                 implementation(libs.kotlinx.browser)
             }
         }
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
-        val iosMain by creating {
+        val iosArm64Main = getByName("iosArm64Main")
+        val iosSimulatorArm64Main = getByName("iosSimulatorArm64Main")
+        val iosMain = create("iosMain") {
             dependsOn(commonMain.get())
             iosArm64Main.dependsOn(this)
             iosSimulatorArm64Main.dependsOn(this)
@@ -108,7 +108,7 @@ kotlin {
 }
 
 val dokkaOutputDir = layout.buildDirectory.dir("dokka")
-val deleteDokkaOutputDir by tasks.register<Delete>("deleteDokkaOutputDirectory") {
+val deleteDokkaOutputDir = tasks.register<Delete>("deleteDokkaOutputDirectory") {
     delete(dokkaOutputDir)
 }
 val javadocJar = tasks.register<Jar>("javadocJar") {

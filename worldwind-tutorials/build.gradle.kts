@@ -65,7 +65,7 @@ kotlin {
             // the Obj-C/Swift header with their natural names. Without this, Swift sees them
             // as UIView*/WorldwindWorldWind etc., and code like `MainKt.createWorldWindow()`
             // (declared as returning earth.worldwind.WorldWindow) returns plain UIView.
-            export(project(":worldwind"))
+            export(dependencies.project(":worldwind"))
         }
     }
     @Suppress("UnstableApiUsage")
@@ -186,7 +186,7 @@ kotlin {
 // from GitHub Secrets; empty → tutorials use placeholder fallback). Keys ship in the
 // public Pages bundle, so lock at provider: Google by HTTP referrer + Map Tiles API only;
 // Cesium Ion by asset scope + assets:read only. Rotate per release.
-val generateTutorialApiKeys by tasks.registering {
+val generateTutorialApiKeys = tasks.register("generateTutorialApiKeys") {
     description = "Write TutorialApiKeys.kt from CESIUM_ION_TOKEN / GOOGLE_MAPS_API_KEY env vars."
     val cesium = providers.environmentVariable("CESIUM_ION_TOKEN").orElse("")
     val google = providers.environmentVariable("GOOGLE_MAPS_API_KEY").orElse("")

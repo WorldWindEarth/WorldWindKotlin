@@ -240,7 +240,7 @@ val buildAbiTasks = androidAbis.map { abi ->
     }
 }
 
-val buildMeshoptBridge by tasks.registering {
+val buildMeshoptBridge = tasks.register("buildMeshoptBridge") {
     group = "native"
     description = "Build libmeshopt_bridge.so for every supported Android ABI."
     dependsOn(buildAbiTasks)
@@ -301,7 +301,7 @@ val cmakeBuildJvm = tasks.register<Exec>("cmakeBuildJvm") {
     }
 }
 
-val buildMeshoptBridgeJvm by tasks.registering(Copy::class) {
+val buildMeshoptBridgeJvm = tasks.register<Copy>("buildMeshoptBridgeJvm") {
     group = "native"
     description = "Stage the host's libmeshopt_bridge into JVM resources (native/<classifier>/...)."
     dependsOn(cmakeBuildJvm)
@@ -339,7 +339,7 @@ afterEvaluate {
 }
 
 val dokkaOutputDir = layout.buildDirectory.dir("dokka")
-val deleteDokkaOutputDir by tasks.registering(Delete::class) { delete(dokkaOutputDir) }
+val deleteDokkaOutputDir = tasks.register<Delete>("deleteDokkaOutputDir") { delete(dokkaOutputDir) }
 val javadocJar = tasks.register<Jar>("javadocJar") {
     dependsOn(deleteDokkaOutputDir, tasks.dokkaGeneratePublicationHtml)
     archiveClassifier.set("javadoc")

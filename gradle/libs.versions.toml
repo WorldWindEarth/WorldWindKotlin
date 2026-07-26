@@ -11,7 +11,7 @@ desugar = "2.1.5"
 jogl = "2.6.0"
 junit = "1.3.0"
 ktor = "3.5.1"
-lwjgl = "3.4.1"
+lwjgl = "3.4.2"
 material = "1.14.0"
 # Temporarily held at 2.11.1/2.8.1/2.9.1: the x.2 releases changed the Direction of Attack
 # draw rule from Line9 to Line1, flipping two-point arrows; pending upstream clarification.
@@ -31,7 +31,7 @@ geojson = "0.7.0"
 uri-kmp = "0.0.21"
 vlcj = "4.12.1"
 javacv = "1.5.13"
-javafx = "26.0.1"
+javafx = "26.0.2"
 xmlutil = "1.0.1"
 webp-imageio = "0.11.0"
 

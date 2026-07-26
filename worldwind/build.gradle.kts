@@ -282,7 +282,7 @@ val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
 // Karakum's Java-style KDoc refs in C5Ren.kt fail Dokka link resolution. Stage a copy with
 // those KDoc blocks stripped and feed it to Dokka instead of the original.
 val dokkaJsSourcesDir = layout.buildDirectory.dir("dokkaSources/jsMain")
-val prepareDokkaJsSources by tasks.registering(Sync::class) {
+val prepareDokkaJsSources = tasks.register<Sync>("prepareDokkaJsSources") {
     from(file("src/jsMain/kotlin"))
     into(dokkaJsSourcesDir)
     doLast {
@@ -363,7 +363,7 @@ signing {
  * ASCII range. Comments and KDoc OUTSIDE the strings are left alone (they never reach the
  * GLSL compiler). Failure prints the file, line number, and offending substring.
  */
-val checkShaderSourcesAscii by tasks.registering {
+val checkShaderSourcesAscii = tasks.register("checkShaderSourcesAscii") {
     val shaderFiles = fileTree("src/commonMain/kotlin") {
         include("**/*ShaderProgram*.kt", "**/*Glsl*.kt")
     }

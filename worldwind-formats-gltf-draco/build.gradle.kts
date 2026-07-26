@@ -286,7 +286,7 @@ val buildAbiTasks = androidAbis.map { abi ->
     }
 }
 
-val buildDracoBridge by tasks.registering {
+val buildDracoBridge = tasks.register("buildDracoBridge") {
     group = "native"
     description = "Build libdraco_bridge.so for every supported Android ABI."
     dependsOn(buildAbiTasks)
@@ -351,7 +351,7 @@ val cmakeBuildJvm = tasks.register<Exec>("cmakeBuildJvm") {
     }
 }
 
-val buildDracoBridgeJvm by tasks.registering(Copy::class) {
+val buildDracoBridgeJvm = tasks.register<Copy>("buildDracoBridgeJvm") {
     group = "native"
     description = "Stage the host's libdraco_bridge into JVM resources (native/<classifier>/...)."
     dependsOn(cmakeBuildJvm)
@@ -407,7 +407,7 @@ afterEvaluate {
 // ──────────────────────────────────────────────────────────────────────────────────────
 
 val dokkaOutputDir = layout.buildDirectory.dir("dokka")
-val deleteDokkaOutputDir by tasks.registering(Delete::class) { delete(dokkaOutputDir) }
+val deleteDokkaOutputDir = tasks.register<Delete>("deleteDokkaOutputDir") { delete(dokkaOutputDir) }
 val javadocJar = tasks.register<Jar>("javadocJar") {
     dependsOn(deleteDokkaOutputDir, tasks.dokkaGeneratePublicationHtml)
     archiveClassifier.set("javadoc")

@@ -241,7 +241,7 @@ val buildAbiTasks = androidAbis.map { abi ->
     }
 }
 
-val buildKtx2Bridge by tasks.registering {
+val buildKtx2Bridge = tasks.register("buildKtx2Bridge") {
     group = "native"
     description = "Build libktx_bridge.so for every supported Android ABI."
     dependsOn(buildAbiTasks)
@@ -305,7 +305,7 @@ val cmakeBuildJvm = tasks.register<Exec>("cmakeBuildJvm") {
     }
 }
 
-val buildKtx2BridgeJvm by tasks.registering(Copy::class) {
+val buildKtx2BridgeJvm = tasks.register<Copy>("buildKtx2BridgeJvm") {
     group = "native"
     description = "Stage the host's libktx_bridge into JVM resources (native/<classifier>/...)."
     dependsOn(cmakeBuildJvm)
@@ -343,7 +343,7 @@ afterEvaluate {
 }
 
 val dokkaOutputDir = layout.buildDirectory.dir("dokka")
-val deleteDokkaOutputDir by tasks.registering(Delete::class) { delete(dokkaOutputDir) }
+val deleteDokkaOutputDir = tasks.register<Delete>("deleteDokkaOutputDir") { delete(dokkaOutputDir) }
 val javadocJar = tasks.register<Jar>("javadocJar") {
     dependsOn(deleteDokkaOutputDir, tasks.dokkaGeneratePublicationHtml)
     archiveClassifier.set("javadoc")
