@@ -350,7 +350,11 @@ open class Ogc3dTilesLayer(
         for (tile in result.requestedTiles) {
             val content = tile.content
             when {
-                content is MeshContent -> if (content.isResourcesLoaded(rc)) {
+                // Cache-residency probe, NOT isResourcesLoaded: freshly-installed content
+                // legitimately waits several frames for its deadline-budgeted GL uploads,
+                // and discarding it here would refetch every tile once per frame until its
+                // textures happened to finish inside one bind batch (churn + LoD flicker).
+                content is MeshContent -> if (content.isCacheResident(rc)) {
                     content.touchCache(rc)
                     occupiedBytes += content.gpuByteCount
                 } else {
@@ -519,23 +523,6 @@ open class Ogc3dTilesLayer(
                 minOf(adaptiveInstallCap + 1, MAX_INSTALL_CAP)
             else -> adaptiveInstallCap
         }
-        // Eager-bind budget from MEASURED upload throughput: each batch times its own
-        // GL-thread duration, and the budget targets a fixed bind slice. A rare oversized
-        // batch spikes one frame yet barely moves a whole-frame-work average, so the
-        // install cap's EWMA controller cannot push back on the bind tail.
-        val bindBytes = lastEagerBindBytes
-        if (bindBytes > 0) {
-            lastEagerBindBytes = 0
-            val bindMs = lastEagerBindNanos / 1_000_000.0
-            if (bindMs > 0.05) {
-                val bytesPerMs = bindBytes / bindMs
-                ewmaBindBytesPerMs =
-                    if (ewmaBindBytesPerMs == 0.0) bytesPerMs
-                    else bytesPerMs * EWMA_ALPHA + ewmaBindBytesPerMs * (1.0 - EWMA_ALPHA)
-                adaptiveEagerBindBudget = (ewmaBindBytesPerMs * TARGET_EAGER_BIND_MS).toInt()
-                    .coerceIn(MIN_EAGER_BIND_BUDGET, MAX_EAGER_BIND_BUDGET)
-            }
-        }
         var loadedAny = false
         var stoppedAtBudget = false
         var uploaded = 0
@@ -561,20 +548,29 @@ open class Ogc3dTilesLayer(
             }
         }
         if (uploaded >= adaptiveInstallCap) stoppedAtBudget = true
-        // Byte-budgeted eager-bind batch; the rest carries over to following frames. Binding
-        // every fresh texture in one frame stalled the GL thread 20-150 ms in city scenes -
-        // a single 2048 mipmapped texture is ~21 MB of glTexImage2D. An oversized texture
-        // still binds alone. Keys (not Texture refs) so an eviction while pending is a skip,
-        // not a resurrected orphan GL texture.
+        // Deadline-bounded eager-bind batch; the rest carries over to following frames.
+        // Binding every fresh texture in one frame stalled the GL thread 20-150 ms in city
+        // scenes - a single 2048 mipmapped texture is ~21 MB of glTexImage2D. The batch
+        // over-provisions candidates and the DRAWABLE stops at [EAGER_BIND_DEADLINE_NANOS]
+        // measured on the GL thread itself — upload cost is dominated by per-texture driver
+        // allocation on some GPUs (Adreno kgsl), which a bytes-per-ms model mispredicts.
+        // Keys stay queued until their texture is observed created, so a deadline cutoff is
+        // retried next frame; keys (not Texture refs) so an eviction while pending is a
+        // skip, not a resurrected orphan GL texture.
+        while (pendingEagerBinds.isNotEmpty()) {
+            val texture = rc.renderResourceCache[pendingEagerBinds.first()] as? Texture
+            if (texture != null && !texture.isTextureCreated) break
+            pendingEagerBinds.removeFirst() // bound on a previous frame, or evicted
+        }
         if (pendingEagerBinds.isNotEmpty()) {
-            var batchBytes = 0
-            var batch: ArrayList<Texture>? = null
-            while (pendingEagerBinds.isNotEmpty() && batchBytes < adaptiveEagerBindBudget) {
-                val texture = rc.renderResourceCache[pendingEagerBinds.removeFirst()] as? Texture ?: continue
-                batchBytes += texture.byteCount
-                (batch ?: ArrayList<Texture>(8).also { batch = it }).add(texture)
+            val batch = ArrayList<Texture>(EAGER_BIND_BATCH_MAX)
+            for (key in pendingEagerBinds) {
+                val texture = rc.renderResourceCache[key] as? Texture ?: continue
+                if (texture.isTextureCreated) continue
+                batch.add(texture)
+                if (batch.size >= EAGER_BIND_BATCH_MAX) break
             }
-            batch?.let { rc.offerBackgroundDrawable(TextureEagerBindDrawable(it, batchBytes)) }
+            if (batch.isNotEmpty()) rc.offerBackgroundDrawable(TextureEagerBindDrawable(batch))
         }
         // Redraw if we installed new content this frame OR if we hit the cap with entries
         // still pending OR if eager binds carried over — without it, an idle camera could
@@ -587,29 +583,23 @@ open class Ogc3dTilesLayer(
     private var adaptiveInstallCap: Int = INITIAL_INSTALL_CAP
 
     /** RR-cache keys of freshly-installed textures awaiting their first GL bind; drained a
-     *  byte-budgeted batch per frame by [drainPendingMeshUploads]. Render thread only. */
+     *  deadline-bounded batch per frame by [drainPendingMeshUploads]. A key leaves the queue
+     *  only once its texture is observed created (or evicted). Render thread only. */
     private val pendingEagerBinds = ArrayDeque<Any>()
-    private var adaptiveEagerBindBudget: Int = INITIAL_EAGER_BIND_BUDGET
-    /** EWMA of measured texture-upload throughput in bytes per GL-thread millisecond. */
-    private var ewmaBindBytesPerMs = 0.0
-    /** Last batch measurement, written by the GL thread ([TextureEagerBindDrawable.draw]) and
-     *  consumed once by the render thread. Nanos written BEFORE bytes - bytes > 0 publishes
-     *  the pair. */
-    @Volatile private var lastEagerBindNanos = 0L
-    @Volatile private var lastEagerBindBytes = 0
 
     /** Force-binds freshly-cached textures so their first [Texture.allocTexImage] runs
-     *  this frame, recycling the CPU-side Bitmap that would otherwise sit in Android
-     *  native heap until the tile happens to draw. */
-    private inner class TextureEagerBindDrawable(
-        private val textures: List<Texture>,
-        private val bytes: Int,
-    ) : Drawable {
+     *  off the draw path, recycling the CPU-side Bitmap that would otherwise sit in Android
+     *  native heap until the tile happens to draw. Stops once [EAGER_BIND_DEADLINE_NANOS]
+     *  of GL-thread time elapses — the deadline check runs AFTER each bind, so at least one
+     *  texture uploads per frame and the overshoot is bounded by a single texture. Unbound
+     *  leftovers stay in [pendingEagerBinds] and retry next frame. */
+    private class TextureEagerBindDrawable(private val textures: List<Texture>) : Drawable {
         override fun draw(dc: DrawContext) {
             val start = TimeSource.Monotonic.markNow()
-            for (texture in textures) texture.bindTexture(dc)
-            lastEagerBindNanos = start.elapsedNow().inWholeNanoseconds
-            lastEagerBindBytes = bytes
+            for (texture in textures) {
+                texture.bindTexture(dc)
+                if (start.elapsedNow().inWholeNanoseconds >= EAGER_BIND_DEADLINE_NANOS) break
+            }
         }
         override fun recycle() {}
     }
@@ -1336,15 +1326,15 @@ open class Ogc3dTilesLayer(
         private const val MIN_INSTALL_CAP: Int = 1
         private const val MAX_INSTALL_CAP: Int = 8
 
-        /** GL-thread milliseconds one eager-bind batch may take; the byte budget is this
-         *  slice times the measured upload throughput. Sub-half-vsync at 120 Hz. */
-        private const val TARGET_EAGER_BIND_MS: Double = 3.0
+        /** GL-thread time one eager-bind batch may take, measured inside the batch drawable
+         *  itself (3 ms — sub-half-vsync at 120 Hz). Wall-clock deadline rather than a byte
+         *  budget: on drivers that allocate GPU memory per glTexImage2D (Adreno kgsl) the
+         *  upload cost is per-texture, not per-byte, and a throughput model overshoots. */
+        private const val EAGER_BIND_DEADLINE_NANOS: Long = 3_000_000L
 
-        /** Eager-bind byte-budget bounds and starting value before the first batch
-         *  measurement lands; the working value tracks measured throughput. */
-        private const val INITIAL_EAGER_BIND_BUDGET: Int = 8 * 1024 * 1024
-        private const val MIN_EAGER_BIND_BUDGET: Int = 2 * 1024 * 1024
-        private const val MAX_EAGER_BIND_BUDGET: Int = 32 * 1024 * 1024
+        /** Max textures offered to one eager-bind batch. The deadline is the real limiter;
+         *  this only bounds the candidate list when the queue is deep. */
+        private const val EAGER_BIND_BATCH_MAX: Int = 16
 
         /** Pending-upload channel capacity. Back-pressures parsers when uploads can't keep
          *  up. Each in-flight prep retains a decoded bitmap + combined-vertex bytes (~5 MB

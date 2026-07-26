@@ -45,12 +45,22 @@ class MeshContent internal constructor(
         submeshes?.forEach { it.touchCache(rc) }
     }
 
-    /** True iff every mandatory buffer is still RR-cache-resident. Empty submesh lists
-     *  count as loaded — placeholder tiles with no renderable primitives would otherwise
-     *  re-fetch forever. */
+    /** True iff every submesh is GPU-resident — drawing performs no upload work (see
+     *  [MeshSubmesh.isGpuResident]). Empty submesh lists count as loaded — placeholder
+     *  tiles with no renderable primitives would otherwise re-fetch forever. NOT an
+     *  eviction probe (see [isCacheResident]): freshly-installed content awaiting its
+     *  budgeted uploads reports false here yet must NOT be discarded. */
     fun isResourcesLoaded(rc: RenderContext): Boolean {
         val list = submeshes ?: return false
-        for (submesh in list) if (!submesh.areBuffersLoaded(rc)) return false
+        for (submesh in list) if (!submesh.isGpuResident()) return false
+        return true
+    }
+
+    /** True iff every submesh's resources are still RR-cache-resident (uploaded or not).
+     *  False means eviction took the data — content must be re-fetched. */
+    fun isCacheResident(rc: RenderContext): Boolean {
+        val list = submeshes ?: return false
+        for (submesh in list) if (!submesh.isCacheResident(rc)) return false
         return true
     }
 
@@ -114,10 +124,34 @@ class MeshSubmesh internal constructor(
         baseColorTextureKey?.let { rc.renderResourceCache[it] }
     }
 
-    /** True iff every mandatory buffer (combined VBO + any split EBO) is still RR-cache-
-     *  resident. Texture is optional — untextured photogrammetry tilesets use per-vertex
-     *  COLOR_0 instead. */
-    fun areBuffersLoaded(rc: RenderContext): Boolean =
+    /** True iff every mandatory buffer (combined VBO + any split EBO) is GL-uploaded and the
+     *  base-color texture (when the material has one) has its GL texture created — i.e.
+     *  drawing this submesh performs no GPU upload work. Gating tile selection on this keeps
+     *  texture uploads on the deadline-budgeted eager-bind path instead of stalling the GL
+     *  thread at first draw. Reads only the refs resolved at install time — pure field
+     *  reads, no cache lookups on this per-tile-per-frame path; eviction is still caught
+     *  because release() invalidates the GL handle these checks test. NOT an eviction probe
+     *  — a queued-but-not-yet-uploaded resource also reports false; use [isCacheResident]
+     *  to distinguish "gone, must re-fetch" from "still uploading". */
+    fun isGpuResident(): Boolean {
+        val buffer = this.buffer
+        if (buffer == null || !buffer.isLoaded()) return false
+        if (elementBufferKey != null) {
+            val elementBuffer = this.elementBuffer
+            if (elementBuffer == null || !elementBuffer.isLoaded()) return false
+        }
+        if (baseColorTextureKey != null) {
+            val texture = this.baseColorTexture
+            if (texture == null || !texture.isTextureCreated) return false
+        }
+        return true
+    }
+
+    /** True iff every mandatory resource is still RR-cache-resident, GL-uploaded or not.
+     *  This is the eviction probe: false means the data is gone and the tile must re-fetch;
+     *  a submesh awaiting its budgeted GL upload still reports true. */
+    fun isCacheResident(rc: RenderContext): Boolean =
         rc.renderResourceCache.containsKey(bufferKey) &&
-            (elementBufferKey == null || rc.renderResourceCache.containsKey(elementBufferKey))
+            (elementBufferKey == null || rc.renderResourceCache.containsKey(elementBufferKey)) &&
+            (baseColorTextureKey == null || rc.renderResourceCache.containsKey(baseColorTextureKey))
 }

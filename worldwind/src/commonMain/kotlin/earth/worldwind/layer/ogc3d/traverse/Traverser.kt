@@ -243,18 +243,30 @@ class Traverser(
 
             if (isEmptyLeaf) continue
 
+            // Mesh tiles are selectable only once GPU-resident: selecting a freshly-installed
+            // tile would force its texture uploads inside the draw pass, bypassing the
+            // deadline-budgeted eager-bind path and stalling the GL thread mid-pan. The
+            // coarser ancestor (or nothing, for a brand-new area) covers the few frames the
+            // budgeted binds need. Point-cloud / Gaussian content keeps the install-time
+            // gate — its bulk uploads already ride the per-frame upload queue.
+            val contentReady = when (val content = tile.content) {
+                null -> false
+                is MeshContent -> content.isResourcesLoaded(rc)
+                else -> true
+            }
+
             when (tile.refinement) {
                 Refinement.ADD -> {
                     if (hasRenderable) {
                         loadTile(rc, tile, distance)
-                        if (tile.content != null) result.selectedTiles.add(tile)
+                        if (contentReady) result.selectedTiles.add(tile)
                     } else {
                         loadTile(rc, tile, distance)
                     }
                 }
                 Refinement.REPLACE -> {
                     loadTile(rc, tile, distance)
-                    if ((stoppedRefining || cohortNeedsFallback) && hasRenderable && tile.content != null) {
+                    if ((stoppedRefining || cohortNeedsFallback) && hasRenderable && contentReady) {
                         result.selectedTiles.add(tile)
                     }
                 }

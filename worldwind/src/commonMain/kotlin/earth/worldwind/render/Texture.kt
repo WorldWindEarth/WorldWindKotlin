@@ -92,6 +92,12 @@ open class Texture(
         if (name.isValid()) deleteTexture(dc)
     }
 
+    /** True once the GL texture object exists — a subsequent [bindTexture] is a plain bind
+     *  with no image upload. Written on the GL thread; readers on the render thread see the
+     *  transition via the per-frame handoff, and a stale `false` merely defers work one
+     *  frame. */
+    val isTextureCreated get() = name.isValid()
+
     fun getTextureName(dc: DrawContext): KglTexture {
         if (!name.isValid()) createTexture(dc)
         return name
