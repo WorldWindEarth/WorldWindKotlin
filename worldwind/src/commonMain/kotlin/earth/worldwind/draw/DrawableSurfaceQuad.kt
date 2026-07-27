@@ -78,6 +78,8 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
                 drawShapesToTexture(dc, terrain)?.let { texture ->
                     // Draw the texture containing the rasterized shapes onto the terrain geometry.
                     drawTextureToTerrain(dc, terrain, texture)
+                    // Drape the same texture onto 3D-Tile meshes intersecting the terrain tile.
+                    drawSurfaceOverlayOnMeshes(dc, terrain, texture)
                 }
             }
         } finally {

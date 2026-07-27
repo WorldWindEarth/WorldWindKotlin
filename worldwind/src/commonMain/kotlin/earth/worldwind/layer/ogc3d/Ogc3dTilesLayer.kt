@@ -113,6 +113,10 @@ open class Ogc3dTilesLayer(
      *  datasets; [ShadowMode.DISABLED] to skip the integration. */
     var shadowMode: ShadowMode = ShadowMode.ENABLED
 
+    /** Whether surface shapes drape onto this layer's mesh tiles the way they drape onto
+     *  terrain. Mesh content only — point clouds and Gaussian splats never receive shapes. */
+    var isSurfaceDrapingEnabled = true
+
     /** Vertical correction in meters, applied along the ellipsoid normal at [altitudeAnchor]
      *  (or the root tile's bounding-volume centre by default). Interpretation depends on
      *  [altitudeMode]. Common case: the tileset's vertical datum doesn't match WGS84
@@ -1172,6 +1176,9 @@ open class Ogc3dTilesLayer(
         // GROUND_COVERED_BIT stencil writes are in place when BasicDrawableTerrain reads
         // them. See [DrawableGroup.SURFACE] for the within-group ordering convention.
         rc.offerSurfaceDrawable(drawable, Double.NEGATIVE_INFINITY)
+
+        // Register for surface-shape draping so shapes paint mesh roofs, not only terrain.
+        if (isSurfaceDrapingEnabled && !drawable.isOccluderOnly) rc.groundOverlaySurfaces.add(drawable)
     }
 
     /** pnts equivalent of [enqueueMeshDrawable]. */

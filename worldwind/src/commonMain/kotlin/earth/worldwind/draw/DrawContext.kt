@@ -175,6 +175,10 @@ open class DrawContext(val gl: Kgl) {
     /** Per-frame snapshot of 3D-Tile mesh layer coverage sectors. Empty when
      *  [hasGroundCoverageMask] is `false`; consumed by [BasicDrawableTerrain]. */
     val groundCoverageRegions = mutableListOf<earth.worldwind.geom.Sector>()
+    /** Mesh drawables that receive draped surface-shape textures this frame. */
+    val groundOverlaySurfaces = mutableListOf<GroundOverlaySurface>()
+    /** Draping program; non-null only on frames with [groundOverlaySurfaces]. */
+    var surfaceOverlayProgram: earth.worldwind.render.program.SurfaceOverlayProgram? = null
     private var framebuffer = KglFramebuffer.NONE
     private var program = KglProgram.NONE
     private var textureUnit = GL_TEXTURE0
@@ -520,6 +524,8 @@ open class DrawContext(val gl: Kgl) {
         isPickMode = false
         hasGroundCoverageMask = false
         groundCoverageRegions.clear()
+        groundOverlaySurfaces.clear()
+        surfaceOverlayProgram = null
         scratchBuffer.fill(0)
         scratchList.clear()
         bufferPool.reset()

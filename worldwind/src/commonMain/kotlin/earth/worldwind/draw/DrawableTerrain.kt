@@ -1,5 +1,6 @@
 package earth.worldwind.draw
 
+import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
@@ -15,6 +16,9 @@ interface DrawableTerrain: Drawable {
      * tiles that fall entirely outside a cascade's footprint. `0` opts out of culling.
      */
     val boundingSphereRadius: Double get() = 0.0
+    /** World→UV matrix for draping this tile's surface-shape texture onto 3D-Tile meshes;
+     *  `null` when unavailable this frame (no draped meshes, 2D projection, offset copies). */
+    val overlayUvMatrix: Matrix4? get() = null
     fun useVertexPointAttrib(dc: DrawContext, attribLocation: Int): Boolean
     fun useVertexHeightsAttrib(dc: DrawContext, attribLocation: Int): Boolean
     fun useVertexTexCoordAttrib(dc: DrawContext, attribLocation: Int): Boolean

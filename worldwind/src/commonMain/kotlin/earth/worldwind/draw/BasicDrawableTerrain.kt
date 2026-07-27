@@ -1,5 +1,6 @@
 package earth.worldwind.draw
 
+import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Range
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
@@ -28,6 +29,9 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
     var vertexTexCoords: BufferObject? = null
     var vertexNormals: BufferObject? = null
     var elements: BufferObject? = null
+    /** Storage for [overlayUvMatrix]; populated on the render thread when draped meshes are present. */
+    internal val overlayUvMatrixStorage = Matrix4()
+    override var overlayUvMatrix: Matrix4? = null
     /** Lazy-cached intersection vs [DrawContext.groundCoverageRegions]. Computed on the
      *  first [drawTriangles] call per frame, reused by subsequent painters; reset by
      *  [recycle]. */
@@ -52,6 +56,7 @@ open class BasicDrawableTerrain protected constructor(): DrawableTerrain {
         vertexTexCoords = null
         vertexNormals = null
         elements = null
+        overlayUvMatrix = null
         // Reset of the lazy memo (paired with [intersectsGroundCoverageComputed]) — not defensive;
         // without it the next tile inherits the prior tile's coverage answer.
         intersectsGroundCoverage = false

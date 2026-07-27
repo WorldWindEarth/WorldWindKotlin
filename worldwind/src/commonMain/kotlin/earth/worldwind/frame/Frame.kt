@@ -2,6 +2,7 @@ package earth.worldwind.frame
 
 import earth.worldwind.PickedObjectList
 import earth.worldwind.draw.DrawableQueue
+import earth.worldwind.draw.GroundOverlaySurface
 import earth.worldwind.draw.UploadQueue
 import earth.worldwind.geom.Line
 import earth.worldwind.geom.Matrix4
@@ -10,6 +11,7 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.geom.Viewport
 import earth.worldwind.layer.shadow.ShadowState
 import earth.worldwind.render.program.DepthToColorProgram
+import earth.worldwind.render.program.SurfaceOverlayProgram
 import earth.worldwind.util.Pool
 import kotlinx.coroutines.CompletableDeferred
 import kotlin.jvm.JvmStatic
@@ -40,6 +42,11 @@ open class Frame {
     /** Snapshot of [earth.worldwind.render.RenderContext.groundCoverageRegions]; each entry
      *  is a sector copy so the GL thread reads stable values across the render/draw split. */
     val groundCoverageRegions = mutableListOf<earth.worldwind.geom.Sector>()
+    /** Mesh drawables registered for surface-shape draping; references into [drawableQueue],
+     *  valid until [recycle]. */
+    val groundOverlaySurfaces = mutableListOf<GroundOverlaySurface>()
+    /** Draping program, allocated only on frames that have overlay surfaces. */
+    var surfaceOverlayProgram: SurfaceOverlayProgram? = null
 //    val infiniteProjection = Matrix4()
     val uploadQueue = UploadQueue()
     val drawableQueue = DrawableQueue()
@@ -70,6 +77,8 @@ open class Frame {
         hasShadowState = false
         hasGroundCoverageMask = false
         groundCoverageRegions.clear()
+        groundOverlaySurfaces.clear()
+        surfaceOverlayProgram = null
 //        infiniteProjection.setToIdentity()
         uploadQueue.clearUploads()
         drawableQueue.clearDrawables()

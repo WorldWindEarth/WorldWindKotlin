@@ -3,6 +3,7 @@ package earth.worldwind.layer.ogc3d.draw
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.GROUND_COVERED_BIT
 import earth.worldwind.util.kgl.GL_ALWAYS
+import earth.worldwind.util.kgl.GL_EQUAL
 import earth.worldwind.util.kgl.GL_KEEP
 import earth.worldwind.util.kgl.GL_NOTEQUAL
 import earth.worldwind.util.kgl.GL_REPLACE
@@ -13,7 +14,7 @@ internal const val TILE_SUBTREE_MASK = 0x7F
 
 /** Tile-content stencil (mesh, point cloud): always writes [GROUND_COVERED_BIT]; bits 0..6
  *  either hold the subtree id (fine non-fallback) or get tested for fallback / left untouched
- *  for non-skip-LoD tiles. */
+ *  for non-skip-LoD tiles. Keep the case table in sync with [applyTileOverlayStencilFunc]. */
 internal fun applyTileStencilState(dc: DrawContext, isFallback: Boolean, stencilId: Int) {
     dc.gl.enable(GL_STENCIL_TEST)
     when {
@@ -35,6 +36,21 @@ internal fun applyTileStencilState(dc: DrawContext, isFallback: Boolean, stencil
             dc.gl.stencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
             dc.gl.stencilMask(GROUND_COVERED_BIT)
         }
+    }
+}
+
+/** Read-only stencil test for the surface-shape overlay pass: constrain overlay fragments to
+ *  the pixels this tile's color pass owns. Sets only the per-tile stencilFunc — the overlay
+ *  driver owns the shared enable/op/mask(0x00) state. Keep the case table in sync with
+ *  [applyTileStencilState]. */
+internal fun applyTileOverlayStencilFunc(dc: DrawContext, isFallback: Boolean, stencilId: Int) {
+    when {
+        // Coarse fallback: its color pass drew where bits 0..6 != stencilId.
+        isFallback -> dc.gl.stencilFunc(GL_NOTEQUAL, stencilId, TILE_SUBTREE_MASK)
+        // Fine non-fallback wrote subtree id + bit 7 in one byte — match it exactly.
+        stencilId > 0 -> dc.gl.stencilFunc(GL_EQUAL, stencilId or GROUND_COVERED_BIT, 0xFF)
+        // Regular tile: any mesh-covered pixel.
+        else -> dc.gl.stencilFunc(GL_EQUAL, GROUND_COVERED_BIT, GROUND_COVERED_BIT)
     }
 }
 

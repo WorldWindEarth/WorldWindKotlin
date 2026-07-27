@@ -1,5 +1,6 @@
 package earth.worldwind
 
+import earth.worldwind.draw.BasicDrawableTerrain
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.frame.BasicFrameController
 import earth.worldwind.frame.Frame
@@ -17,6 +18,7 @@ import earth.worldwind.layer.shadow.ShadowLayer
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.RenderResourceCache
 import earth.worldwind.render.program.DepthToColorProgram
+import earth.worldwind.render.program.SurfaceOverlayProgram
 import earth.worldwind.util.Logger
 import earth.worldwind.util.SunPosition
 import earth.worldwind.util.SynchronizedList
@@ -603,6 +605,14 @@ open class WorldWind @JvmOverloads constructor(
         // Copy sectors so the GL thread reads stable values across the render / draw split.
         frame.groundCoverageRegions.clear()
         for (region in rc.groundCoverageRegions) frame.groundCoverageRegions.add(Sector(region))
+        // Surface-shape draping onto 3D-Tile meshes: capture the registered mesh drawables and
+        // compute each terrain tile's world→UV matrix while the globe is available.
+        frame.groundOverlaySurfaces.clear()
+        if (rc.groundOverlaySurfaces.isNotEmpty()) {
+            for (i in rc.groundOverlaySurfaces.indices) frame.groundOverlaySurfaces.add(rc.groundOverlaySurfaces[i])
+            frame.surfaceOverlayProgram = rc.getShaderProgram { SurfaceOverlayProgram() }
+            computeTerrainOverlayUvMatrices(frame)
+        }
 
         // Propagate redraw requests submitted during rendering.
         val isRedrawRequested = !pickMode && rc.isRedrawRequested
@@ -614,6 +624,59 @@ open class WorldWind @JvmOverloads constructor(
         rc.reset()
 
         return isRedrawRequested
+    }
+
+    private val scratchOverlayEnu = Matrix4()
+    private val scratchOverlayInverse = Matrix4()
+    private val scratchOverlayCorner = Vec3()
+
+    /**
+     * Computes each terrain tile's world→UV matrix for draping surface-shape textures onto
+     * 3D-Tile meshes: a linear local basis at the sector centroid with the UV scale/offset
+     * folded in, calibrated so the SW/NE corners land exactly on UV (0,0)/(1,1) — accurate
+     * for terrain-tile-sized sectors, which is the scale mesh tilesets render at.
+     */
+    protected open fun computeTerrainOverlayUvMatrices(frame: Frame) {
+        // 2D projections shift offset globe copies horizontally, which this frame math does not model.
+        if (globe.is2D) return
+        val overlays = rc.groundOverlaySurfaces
+        for (i in 0 until frame.drawableTerrain.count) {
+            // Engine-built terrain only; custom tessellators opt in by exposing their own overlayUvMatrix.
+            val terrain = frame.drawableTerrain.getDrawable(i) as? BasicDrawableTerrain ?: continue
+            if (terrain.offset != Globe.Offset.Center) continue
+            // Skip tiles no draped mesh can touch.
+            val terrainRadius = terrain.boundingSphereRadius
+            if (terrainRadius > 0.0 && !intersectsAnyOverlay(overlays, terrain.vertexOrigin, terrainRadius)) continue
+            val sector = terrain.sector
+            globe.geographicToCartesianTransform(
+                sector.centroidLatitude, sector.centroidLongitude, 0.0, scratchOverlayEnu
+            )
+            scratchOverlayInverse.invertOrthonormalMatrix(scratchOverlayEnu)
+            globe.geographicToCartesian(sector.minLatitude, sector.minLongitude, 0.0, scratchOverlayCorner)
+                .multiplyByMatrix(scratchOverlayInverse)
+            val swX = scratchOverlayCorner.x
+            val swY = scratchOverlayCorner.y
+            globe.geographicToCartesian(sector.maxLatitude, sector.maxLongitude, 0.0, scratchOverlayCorner)
+                .multiplyByMatrix(scratchOverlayInverse)
+            val deltaX = scratchOverlayCorner.x - swX
+            val deltaY = scratchOverlayCorner.y - swY
+            if (deltaX <= 0.0 || deltaY <= 0.0) continue
+            terrain.overlayUvMatrix = terrain.overlayUvMatrixStorage
+                .setToTranslation(-swX / deltaX, -swY / deltaY, 0.0)
+                .multiplyByScale(1.0 / deltaX, 1.0 / deltaY, 1.0)
+                .multiplyByMatrix(scratchOverlayInverse)
+        }
+    }
+
+    private fun intersectsAnyOverlay(
+        overlays: List<earth.worldwind.draw.GroundOverlaySurface>, center: Vec3, radius: Double
+    ): Boolean {
+        for (i in overlays.indices) {
+            val overlayCenter = overlays[i].overlayCenter ?: continue
+            val reach = radius + overlays[i].overlayRadius
+            if (overlayCenter.distanceToSquared(center) <= reach * reach) return true
+        }
+        return false
     }
 
     open fun drawFrame(frame: Frame) {
@@ -658,6 +721,9 @@ open class WorldWind @JvmOverloads constructor(
         dc.hasGroundCoverageMask = frame.hasGroundCoverageMask
         dc.groundCoverageRegions.clear()
         for (region in frame.groundCoverageRegions) dc.groundCoverageRegions.add(region)
+        dc.surfaceOverlayProgram = frame.surfaceOverlayProgram
+        dc.groundOverlaySurfaces.clear()
+        for (i in frame.groundOverlaySurfaces.indices) dc.groundOverlaySurfaces.add(frame.groundOverlaySurfaces[i])
 
         // Let the frame controller draw the frame.
         frameController.drawFrame(dc)

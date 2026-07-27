@@ -4,6 +4,7 @@ import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.Drawable
 import earth.worldwind.draw.DrawableShadow
 import earth.worldwind.draw.DrawableSightline
+import earth.worldwind.draw.GroundOverlaySurface
 import earth.worldwind.draw.SightlineOccluder
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Vec3
@@ -14,6 +15,7 @@ import earth.worldwind.layer.sightline.applySightlineReceiverUniforms
 import earth.worldwind.layer.ogc3d.content.MeshContent
 import earth.worldwind.layer.ogc3d.content.MeshSubmesh
 import earth.worldwind.layer.ogc3d.program.Ogc3dTilesProgram
+import earth.worldwind.render.program.SurfaceOverlayProgram
 import earth.worldwind.render.Color
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
@@ -35,7 +37,7 @@ import kotlin.jvm.JvmStatic
  * `Ogc3dTilesProgram`'s embedded `SightlineReceiverGlsl` splice; the SURFACE-grouped sightline
  * overlay only tints terrain.
  */
-open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, SightlineOccluder {
+open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, SightlineOccluder, GroundOverlaySurface {
 
     var content: MeshContent? = null
 
@@ -85,10 +87,18 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
     override val shadowCasterRadius: Double
         get() = if (shadowMode.castsShadows) worldBoundingRadius else 0.0
 
+    override val overlayCenter: Vec3?
+        get() = if (worldBoundingRadius > 0.0) worldBoundingCenter else null
+    override val overlayRadius: Double
+        get() = worldBoundingRadius
+
     private var pool: Pool<DrawableTileMesh>? = null
 
     private val mvpMatrix = Matrix4()
     private val submeshModelMatrix = Matrix4()
+    private val overlayLocalMatrix = Matrix4()
+    private val overlayMvpBase = Matrix4()
+    private val overlayUvBase = Matrix4()
 
     companion object {
         val KEY = DrawableTileMesh::class
@@ -258,8 +268,14 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             dc.gl.disableVertexAttribArray(4)
         }
 
-        // Indexed: bind the EBO (dedicated on WebGL, else the combined buffer) and drawElements;
-        // drawArrays otherwise. Skip a drawElements whose EBO was evicted, restoring cull state.
+        drawSubmeshElements(dc, submesh, buffer)
+
+        if (cullFaceDisabled) dc.gl.enable(GL_CULL_FACE)
+    }
+
+    /** Shared draw tail: bind the EBO (dedicated on WebGL, else the combined buffer) and
+     *  drawElements — skipping a draw whose EBO was evicted — or drawArrays when unindexed. */
+    private fun drawSubmeshElements(dc: DrawContext, submesh: MeshSubmesh, buffer: BufferObject) {
         if (submesh.elementCount > 0) {
             val elementBuffer = submesh.elementBuffer ?: buffer
             if (elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) {
@@ -269,8 +285,39 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
         } else {
             dc.gl.drawArrays(submesh.mode, 0, submesh.vertexCount)
         }
+    }
 
-        if (cullFaceDisabled) dc.gl.enable(GL_CULL_FACE)
+    /** Surface-shape overlay pass: re-rasterize the mesh with the draping program active so the
+     *  terrain tile's shape texture paints the mesh surface. Triangles only; the caller owns
+     *  depth-write and shared stencil state, this tile contributes only its stencilFunc. */
+    override fun drawOverlay(dc: DrawContext, program: SurfaceOverlayProgram, uvMatrix: Matrix4) {
+        if (isOccluderOnly) return
+        val content = this.content ?: return
+        val submeshes = content.submeshes ?: return
+        if (submeshes.isEmpty()) return
+        applyTileOverlayStencilFunc(dc, isFallback, stencilId)
+        // Terrain-tile-independent bases hoisted out of the submesh loop, composed in double
+        // precision so the UV varying stays tile-local.
+        overlayMvpBase.copy(dc.modelviewProjection).multiplyByMatrix(tileToWorld)
+        overlayUvBase.copy(uvMatrix).multiplyByMatrix(tileToWorld)
+        val buffers = submeshBuffers
+        val bufCount = buffers.size
+        for (idx in submeshes.indices) {
+            val submesh = submeshes[idx]
+            val mode = submesh.mode
+            if (mode != GL_TRIANGLES && mode != GL_TRIANGLE_STRIP && mode != GL_TRIANGLE_FAN) continue
+            val buffer = (if (idx < bufCount) buffers[idx] else null) ?: continue
+            if (!buffer.bindBuffer(dc)) continue
+            mvpMatrix.copy(overlayMvpBase).multiplyByMatrix(submesh.worldMatrix)
+            program.loadModelviewProjection(mvpMatrix)
+            overlayLocalMatrix.copy(overlayUvBase).multiplyByMatrix(submesh.worldMatrix)
+            program.loadUvMatrix(overlayLocalMatrix)
+            val cullFaceDisabled = submesh.doubleSided
+            if (cullFaceDisabled) dc.gl.disable(GL_CULL_FACE)
+            dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
+            drawSubmeshElements(dc, submesh, buffer)
+            if (cullFaceDisabled) dc.gl.enable(GL_CULL_FACE)
+        }
     }
 
     /** Cascade depth pass. Triangles only — lines/points alias on the shadow map. */
@@ -303,15 +350,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
                 dc.gl.enableVertexAttribArray(1)
                 dc.gl.vertexAttribPointer(1, 2, GL_FLOAT, false, submesh.vertexStride, submesh.texCoordOffset)
             }
-            if (submesh.elementCount > 0) {
-                val elementBuffer = submesh.elementBuffer ?: buffer
-                if (elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) {
-                    val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
-                    dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
-                }
-            } else {
-                dc.gl.drawArrays(mode, 0, submesh.vertexCount)
-            }
+            drawSubmeshElements(dc, submesh, buffer)
             if (alphaMasked) {
                 dc.gl.disableVertexAttribArray(1)
                 shadow.endAlphaMaskedCaster(dc)
@@ -340,14 +379,7 @@ open class DrawableTileMesh protected constructor() : Drawable, ShadowCaster, Si
             sightline.loadOccluderMatrix(submeshModelMatrix)
             dc.gl.enableVertexAttribArray(0)
             dc.gl.vertexAttribPointer(0, 3, GL_FLOAT, false, submesh.vertexStride, submesh.positionOffset)
-            if (submesh.elementCount > 0) {
-                val elementBuffer = submesh.elementBuffer ?: buffer
-                if (!elementBuffer.bindBufferAs(dc, GL_ELEMENT_ARRAY_BUFFER)) continue
-                val type = if (submesh.isInt32Indices) GL_UNSIGNED_INT else GL_UNSIGNED_SHORT
-                dc.gl.drawElements(mode, submesh.elementCount, type, submesh.elementOffset)
-            } else {
-                dc.gl.drawArrays(mode, 0, submesh.vertexCount)
-            }
+            drawSubmeshElements(dc, submesh, buffer)
         }
         dc.gl.enable(GL_CULL_FACE)
     }

@@ -172,6 +172,9 @@ open class RenderContext {
      *  every region skip the GROUND_COVERED_BIT stencil test so distant mountains still
      *  occlude mesh content via depth test. */
     val groundCoverageRegions = mutableListOf<Sector>()
+    /** Per-frame 3D-Tile mesh drawables registered for surface-shape draping. Propagated to
+     *  [DrawContext.groundOverlaySurfaces] via [earth.worldwind.frame.Frame]. */
+    val groundOverlaySurfaces = mutableListOf<earth.worldwind.draw.GroundOverlaySurface>()
     val viewport = Viewport()
     val projection = Matrix4()
     val modelview = Matrix4()
@@ -238,6 +241,7 @@ open class RenderContext {
         hasActiveSightline = false
         hasGroundCoverageMask = false
         groundCoverageRegions.clear()
+        groundOverlaySurfaces.clear()
         viewport.setEmpty()
         projection.setToIdentity()
         modelview.setToIdentity()
