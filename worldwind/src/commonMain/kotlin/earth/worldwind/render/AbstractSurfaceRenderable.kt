@@ -17,14 +17,16 @@ abstract class AbstractSurfaceRenderable(sector: Sector, displayName: String? = 
     protected open fun getExtent(rc: RenderContext): BoundingBox {
         val globe = rc.globe
         val timestamp = rc.elevationModelTimestamp
-        if (timestamp != heightLimitsTimestamp) {
+        // Rescan on sector change too, else a moved renderable keeps the old sector's height limits
+        val sectorChanged = extentSector != sector
+        if (timestamp != heightLimitsTimestamp || sectorChanged) {
             if (globe.is2D) heightLimits.fill(0f) else calcHeightLimits(globe)
         }
         val ve = rc.globe.verticalExaggeration
         val state = rc.globeState
         val offset = rc.globe.offset
         if (timestamp != heightLimitsTimestamp || ve != extentVE || state != extentGlobeState
-            || offset != extentGlobeOffset || extentSector != sector
+            || offset != extentGlobeOffset || sectorChanged
         ) {
             val minHeight = heightLimits[0]
             val maxHeight = heightLimits[1]
