@@ -18,6 +18,7 @@ import kotlin.math.cos
 import kotlin.math.log2
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlin.time.TimeSource
 
 /**
  * Base class for all geometric shapes.
@@ -245,7 +246,12 @@ abstract class AbstractShape(
      */
     protected fun prepareGeometry(rc: RenderContext): Boolean {
         if (!mustAssembleGeometry(rc)) return true
-        if (rc.canAssembleGeometry()) { assembleGeometry(rc); return true }
+        if (rc.canAssembleGeometry()) {
+            val mark = TimeSource.Monotonic.markNow()
+            assembleGeometry(rc)
+            rc.recordAssemblyTime(mark.elapsedNow().inWholeNanoseconds)
+            return true
+        }
         return hasGeometry
     }
 

@@ -29,6 +29,7 @@ import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 import earth.worldwind.util.kgl.GL_TRIANGLES
 import earth.worldwind.util.kgl.GL_UNSIGNED_INT
 import kotlin.math.min
+import kotlin.time.TimeSource
 
 /**
  * Renders every building of one slippy-map tile as a single batched mesh — one VBO + one EBO per
@@ -160,7 +161,9 @@ class OsmBuildingsTile(
         // through with last frame's geometry (or nothing on the first frame); [canAssembleGeometry]
         // schedules the follow-up redraw. Same pattern as AbstractShape.prepareGeometry.
         if (needsAssembly && rc.canAssembleGeometry()) {
+            val mark = TimeSource.Monotonic.markNow()
             assembleGeometry(rc, tileData)
+            rc.recordAssemblyTime(mark.elapsedNow().inWholeNanoseconds)
             tileData.refreshGeometry = false
             tileData.lastTimestamp = timestamp
             tileData.lastVE = ve

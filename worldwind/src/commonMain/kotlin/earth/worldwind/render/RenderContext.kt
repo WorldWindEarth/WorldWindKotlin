@@ -28,7 +28,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlin.math.tan
 import kotlin.reflect.KClass
 import kotlin.time.Instant
-import kotlin.time.TimeSource
 
 open class RenderContext {
     companion object {
@@ -41,13 +40,15 @@ open class RenderContext {
          */
         var maxAssembliesPerFrame = 500
         /**
-         * Soft wall-time cap (in milliseconds) on shape geometry assembly per frame. Once the
-         * elapsed assembly time crosses this threshold further [canAssembleGeometry] calls return
-         * false and defer to the next frame, so a batch of heavy shapes (e.g. complex polygons
-         * with thousands of vertices) can't stall the Choreographer callback. Adapts to per-shape
-         * complexity in a way the [maxAssembliesPerFrame] count cannot. Cooperative — the first
-         * assembly each frame always runs and may itself exceed the cap. Set to [Long.MAX_VALUE]
-         * to disable.
+         * Soft cap (in milliseconds) on accumulated shape geometry assembly time per frame,
+         * charged via [recordAssemblyTime] around each assembly. Once the accumulated time
+         * crosses this threshold further [canAssembleGeometry] calls return false and defer to
+         * the next frame, so a batch of heavy shapes (e.g. complex polygons with thousands of
+         * vertices) can't stall the Choreographer callback. Only actual assembly time counts —
+         * unrelated render work between assemblies (e.g. 3D-Tiles traversal) does not burn the
+         * budget. Adapts to per-shape complexity in a way the [maxAssembliesPerFrame] count
+         * cannot. Cooperative — an assembly that starts under budget runs to completion and may
+         * itself exceed the cap. Set to [Long.MAX_VALUE] to disable.
          */
         var maxAssemblyTimeMillis = 8L
         /**
@@ -201,7 +202,7 @@ open class RenderContext {
     private var pickedObjectId = 0
     private var pixelSizeFactor = 0.0
     private var assembliesThisFrame = 0
-    private var assemblyStartMark: TimeSource.Monotonic.ValueTimeMark? = null
+    private var assemblyNanosThisFrame = 0L
     private val userProperties = mutableMapOf<Any, Any>()
     val drawablePools = HashMap<KClass<*>, Pool<*>>()
     private var textRenderer = TextRenderer(this)
@@ -261,24 +262,24 @@ open class RenderContext {
         isRedrawRequested = false
         pixelSizeFactor = 0.0
         assembliesThisFrame = 0
-        assemblyStartMark = null
+        assemblyNanosThisFrame = 0L
         userProperties.clear()
     }
 
     fun requestRedraw() { isRedrawRequested = true }
 
     fun canAssembleGeometry(): Boolean {
-        // Lazy-init [assemblyStartMark] on the first call so the wall-clock window measures only
-        // assembly cost, not whatever pre-render work ran earlier in the Choreographer tick.
-        val mark = assemblyStartMark ?: TimeSource.Monotonic.markNow().also { assemblyStartMark = it }
         if (assembliesThisFrame >= maxAssembliesPerFrame
-            || mark.elapsedNow().inWholeMilliseconds >= maxAssemblyTimeMillis) {
+            || assemblyNanosThisFrame >= maxAssemblyTimeMillis * 1_000_000L) {
             isRedrawRequested = true
             return false
         }
         assembliesThisFrame++
         return true
     }
+
+    /** Charges [nanos] of actual geometry assembly time against this frame's [maxAssemblyTimeMillis] budget. */
+    fun recordAssemblyTime(nanos: Long) { assemblyNanosThisFrame += nanos }
 
     /**
      * Returns the height of a pixel at a given distance from the eye point. This method assumes the model of a screen
