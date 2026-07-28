@@ -23,8 +23,9 @@ open class BitmapTexture(
 
     override fun release(dc: DrawContext) {
         super.release(dc)
-        bitmap?.recycle()
-        bitmap = null // Bitmap can be non-null if the texture has never been used
+        // Retained bitmaps belong to the ImageSource and must survive for texture re-creation
+        if (isRecycleOnLoad) bitmap?.recycle()
+        bitmap = null
     }
 
     override fun allocTexImage(dc: DrawContext) {

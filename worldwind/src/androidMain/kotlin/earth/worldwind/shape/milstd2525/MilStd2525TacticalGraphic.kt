@@ -1,6 +1,5 @@
 package earth.worldwind.shape.milstd2525
 
-import android.graphics.Bitmap
 import android.graphics.Typeface
 import armyc2.c5isr.RenderMultipoints.clsRenderer
 import armyc2.c5isr.graphics2d.Point2D
@@ -103,7 +102,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                     outlineWidth = si.stroke.lineWidth
                     si.lineColor?.let { outlineColor = Color(it.toARGB()) }
                     si.fillColor?.let { interiorColor = Color(it.toARGB()) }
-                    si.patternFillImage?.let { interiorImageSource = ImageSource.fromBitmap(Bitmap.createBitmap(it)) }
+                    si.patternFillImage?.let { interiorImageSource = ImageSource.fromBitmap(it) }
                     isPickInterior = false // Allow picking outline only
                     val dash = si.stroke.dashArray
                     if (dash != null && dash.isNotEmpty()) outlineImageSource = ImageSource.fromLineStipple(
@@ -143,7 +142,7 @@ actual open class MilStd2525TacticalGraphic @JvmOverloads actual constructor(
                 val point = ipc.PixelsToGeo(si.modifierPosition ?: return)
                 val position = Position.fromDegrees(point.y, point.x, 0.0)
                 sector.union(position) // Extend bounding box by real graphics measures
-                val imageSource = ImageSource.fromBitmap(Bitmap.createBitmap(image))
+                val imageSource = ImageSource.fromBitmap(image)
                 shapes += createPlacemark(position, imageSource, si.modifierString, si.modifierAngle.degrees)
             } ?: run {
                 val rs = RendererSettings.getInstance()

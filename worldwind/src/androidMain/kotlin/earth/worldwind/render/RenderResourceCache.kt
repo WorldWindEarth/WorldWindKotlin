@@ -168,7 +168,13 @@ actual open class RenderResourceCache @JvmOverloads constructor(
             imageSource.isBitmap -> {
                 // Bitmap image sources are already in memory, so a texture may be created and put into the cache immediately.
                 // Do not recycle image sources from Bitmap on load to be able to reuse them after GL context lost
-                return createTexture(options, imageSource.asBitmap(), recycleOnLoad = false).also {
+                val bitmap = imageSource.asBitmap()
+                // Fail soft on a recycled bitmap instead of throwing out of the render loop
+                if (bitmap.isRecycled) {
+                    log(ERROR, "Bitmap image source is recycled ($imageSource)")
+                    return null
+                }
+                return createTexture(options, bitmap, recycleOnLoad = false).also {
                     put(imageSource, it, it.byteCount)
                 }
             }
