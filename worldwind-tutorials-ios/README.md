@@ -63,10 +63,11 @@ the SwiftUI shell against it and launches in the simulator.
   `MokoStubBundles/earth.worldwind.tutorials.main.bundle/` (each with one `Info.plist`)
   satisfy moko-resources' `NSBundle.loadableBundle(...)` lazy lookup at runtime. The
   generated `MR.kt` for `:worldwind` and `:worldwind-tutorials` looks up bundles named
-  `earth.worldwind.main` and `earth.worldwind.tutorials.main`. We strip the moko pack
-  action at compile time (the `:` in the original bundle name breaks Windows builds),
-  so the .app must ship its own stubs. The stubs are empty — `EGM96.dat` is loaded
-  from the main bundle directly by the iOS `EGM96Geoid`.
+  `earth.worldwind.main` and `earth.worldwind.tutorials.main`. The framework is
+  static, so moko never copies its resource bundles into the `.app` on its own (and on
+  non-macOS hosts the pack action is stripped entirely) — the .app must ship its own
+  stubs. The stubs are empty — `EGM96.dat` is loaded from the main bundle directly by
+  the iOS `EGM96Geoid`.
 - **WorldWindow type erasure** — Kotlin's `WorldWindow` (a UIView subclass) cannot be
   re-imported as a Swift type (Kotlin/Native limitation). The Obj-C header marks it
   `unavailable("Kotlin subclass of Objective-C class can't be imported")`. Swift code
@@ -130,11 +131,13 @@ mesh/Collada hit-testing) depending on the current tutorial.
 - **`pick(x, y)` returns an empty list** — iOS picking is async (resolved on the next
   CADisplayLink tick). Use `pickAsync(x, y).await()` from a coroutine instead.
 
-## First-build gotcha on macOS: moko-resources `:` in path
+## Build gotcha on non-macOS hosts: moko-resources pack action
 
 `worldwind/build.gradle.kts` strips moko-resources' `PackAppleResourcesToKLibAction`
-before compileKotlinIos* tasks because the action writes a directory named
-`<group>:<artifact>.bundle`. The `:` is illegal on Windows NTFS, and some Xcode framework
-copy phases on macOS reject it too. The strip is unconditional now (the iOS framework
-bundles no moko resources either way; apps include `EGM96.dat` + optional
-`drone_motion.{mp4,json}` directly in their `.app`, as this project does).
+from compileKotlinIos* tasks on non-macOS hosts only: the action writes a directory
+named `<group>:<artifact>.bundle` (the `:` is illegal on Windows NTFS) and shells out
+to `xcrun` for asset compilation (absent on Linux). On macOS the action runs normally,
+so klibs built there pack moko resources as usual. This shell doesn't depend on the
+packed resources either way — it's a static framework, so moko bundles never reach the
+`.app` automatically; apps include `EGM96.dat` + optional `drone_motion.{mp4,json}`
+directly in their `.app`, as this project does.
