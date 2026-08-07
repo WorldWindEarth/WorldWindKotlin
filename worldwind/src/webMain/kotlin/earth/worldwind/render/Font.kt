@@ -3,9 +3,7 @@ package earth.worldwind.render
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
 import kotlinx.browser.document
-import org.w3c.dom.CENTER
 import org.w3c.dom.CanvasRenderingContext2D
-import org.w3c.dom.CanvasTextAlign
 import org.w3c.dom.HTMLCanvasElement
 
 /**
@@ -37,12 +35,7 @@ actual open class Font(
      * The font variant.
      * @see <a href="http://www.w3schools.com/cssref/pr_font_font-variant.asp">CSS font-variant</a> for defined values.
      */
-    var variant: String = "normal",
-    /**
-     * The horizontal alignment of the font.
-     * Recognized values are "left", "center" and "right".
-     */
-    var horizontalAlignment: CanvasTextAlign = CanvasTextAlign.CENTER
+    var variant: String = "normal"
 ) {
     actual constructor(): this(DEFAULT_FONT_SIZE)
     actual constructor(family: String, weight: FontWeight, size: Int): this(
@@ -79,7 +72,6 @@ actual open class Font(
         variant = font.variant
         weight = font.weight
         family = font.family
-        horizontalAlignment = font.horizontalAlignment
     }
 
     override fun equals(other: Any?): Boolean {
@@ -90,7 +82,6 @@ actual open class Font(
         if (variant != other.variant) return false
         if (weight != other.weight) return false
         if (family != other.family) return false
-        if (horizontalAlignment != other.horizontalAlignment) return false
         return true
     }
 
@@ -100,7 +91,6 @@ actual open class Font(
         result = 31 * result + variant.hashCode()
         result = 31 * result + weight.hashCode()
         result = 31 * result + family.hashCode()
-        result = 31 * result + horizontalAlignment.hashCode()
         return result
     }
 

@@ -1,5 +1,6 @@
 package earth.worldwind.render
 
+import earth.worldwind.geom.Vec2
 import earth.worldwind.render.image.ImageTexture
 import earth.worldwind.shape.TextAttributes
 import java.awt.BasicStroke
@@ -26,7 +27,8 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         val probeG = probe.createGraphics()
         probeG.font = attributes.font.font
         val fm = probeG.fontMetrics
-        val maxLineWidth = lines.maxOfOrNull { fm.stringWidth(it) } ?: 0
+        val lineWidths = IntArray(lines.size) { fm.stringWidth(lines[it]) }
+        val maxLineWidth = lineWidths.maxOrNull() ?: 0
         val lineHeight = max(1, fm.height)
         val textHeight = lineHeight * lines.size
         probeG.dispose()
@@ -36,6 +38,8 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         val logicalH = max(1, textHeight + outlinePadding * 2 + 2)
         val width = ceil(logicalW * density).toInt()
         val height = ceil(logicalH * density).toInt()
+        // Ragged lines follow the anchor: offset fraction 0 = left, 0.5 = center, 1 = right.
+        val align = (attributes.textOffset.offsetForSize(logicalW.toDouble(), logicalH.toDouble(), Vec2()).x / logicalW).coerceIn(0.0, 1.0)
 
         val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         val g = image.createGraphics()
@@ -44,7 +48,7 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
 
-        val x = (outlinePadding + 1).toFloat()
+        val x0 = (outlinePadding + 1).toFloat()
         var y = (outlinePadding + 1 + g.fontMetrics.ascent).toFloat()
 
         if (attributes.isOutlineEnabled) {
@@ -55,8 +59,9 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
                 attributes.outlineColor.blue.coerceIn(0f, 1f),
                 attributes.outlineColor.alpha.coerceIn(0f, 1f)
             )
-            for (line in lines) {
-                val shape = g.font.createGlyphVector(g.fontRenderContext, line).getOutline(x, y)
+            for (i in lines.indices) {
+                val x = x0 + ((maxLineWidth - lineWidths[i]) * align).toFloat()
+                val shape = g.font.createGlyphVector(g.fontRenderContext, lines[i]).getOutline(x, y)
                 g.draw(shape)
                 y += lineHeight
             }
@@ -69,8 +74,8 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
             attributes.textColor.blue.coerceIn(0f, 1f),
             attributes.textColor.alpha.coerceIn(0f, 1f)
         )
-        for (line in lines) {
-            g.drawString(line, x, y)
+        for (i in lines.indices) {
+            g.drawString(lines[i], x0 + ((maxLineWidth - lineWidths[i]) * align).toFloat(), y)
             y += lineHeight
         }
         g.dispose()

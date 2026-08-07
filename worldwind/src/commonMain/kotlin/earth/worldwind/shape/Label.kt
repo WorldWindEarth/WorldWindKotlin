@@ -14,7 +14,9 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
- * Represents a label at a geographic position. Labels display a single line of text according to specified [TextAttributes].
+ * Represents a label at a geographic position. Labels display one or more lines of text, separated by '\n',
+ * according to specified [TextAttributes]. Lines are aligned inside the text block by the horizontal fraction of
+ * [TextAttributes.textOffset] anchor: 0 = left, 0.5 = center, 1 = right.
  */
 open class Label @JvmOverloads constructor(
     /**

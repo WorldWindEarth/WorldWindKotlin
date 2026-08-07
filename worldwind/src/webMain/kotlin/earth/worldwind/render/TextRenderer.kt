@@ -12,13 +12,13 @@ import org.w3c.dom.CanvasTextAlign
 import org.w3c.dom.CanvasTextBaseline
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.LEFT
-import org.w3c.dom.RIGHT
 import org.w3c.dom.ROUND
 import kotlin.js.toJsString
 import kotlin.math.ceil
 
 actual open class TextRenderer actual constructor(protected val rc: RenderContext) {
     private val lineSpacing = 0.15 // fraction of font size
+    private val scratchOffset = Vec2()
 
     /**
      * Creates a texture for a specified text string and specified text attributes.
@@ -52,24 +52,23 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         ctx2D.scale(rc.densityFactor.toDouble(), rc.densityFactor.toDouble())
         ctx2D.font = attributes.font.toString()
         ctx2D.textBaseline = CanvasTextBaseline.BOTTOM
-        ctx2D.textAlign = attributes.font.horizontalAlignment
+        ctx2D.textAlign = CanvasTextAlign.LEFT
         ctx2D.fillStyle = attributes.textColor.toCssColorString().toJsString()
         ctx2D.strokeStyle = attributes.outlineColor.toCssColorString().toJsString()
         ctx2D.lineWidth = attributes.outlineWidth.toDouble()
         ctx2D.lineCap = CanvasLineCap.ROUND
         ctx2D.lineJoin = CanvasLineJoin.ROUND
 
-        when (attributes.font.horizontalAlignment) {
-            CanvasTextAlign.LEFT -> ctx2D.translate(strokeOffset, 0.0)
-            CanvasTextAlign.RIGHT -> ctx2D.translate(textSize.x - strokeOffset, 0.0)
-            else -> ctx2D.translate(textSize.x / 2.0, 0.0)
-        }
+        // Ragged lines follow the anchor: offset fraction 0 = left, 0.5 = center, 1 = right.
+        val align = (attributes.textOffset.offsetForSize(textSize.x, textSize.y, scratchOffset).x / textSize.x).coerceIn(0.0, 1.0)
+        val maxLineWidth = textSize.x - strokeOffset * 2.0
 
         for (i in lines.indices) {
             val line = lines[i]
             ctx2D.translate(0.0, attributes.font.size * (1.0 + lineSpacing) + strokeOffset)
-            if (attributes.isOutlineEnabled) ctx2D.strokeText(line, 0.0, 0.0)
-            ctx2D.fillText(line, 0.0, 0.0)
+            val x = strokeOffset + (maxLineWidth - ctx2D.measureText(line).width) * align
+            if (attributes.isOutlineEnabled) ctx2D.strokeText(line, x, 0.0)
+            ctx2D.fillText(line, x, 0.0)
         }
 
         return canvas

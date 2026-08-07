@@ -2,6 +2,7 @@
 
 package earth.worldwind.render
 
+import earth.worldwind.geom.Vec2
 import earth.worldwind.render.image.ImageData
 import earth.worldwind.render.image.ImageTexture
 import earth.worldwind.shape.TextAttributes
@@ -108,10 +109,12 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         // FontMetrics for advance widths.)
         var maxLineWidth = 0.0
         var totalHeight = 0.0
+        val lineWidths = DoubleArray(lines.size)
         val lineHeights = DoubleArray(lines.size)
         for ((i, line) in fillStrings.withIndex()) {
             line.size().useContents {
                 if (width > maxLineWidth) maxLineWidth = width
+                lineWidths[i] = width
                 lineHeights[i] = height
                 totalHeight += height
             }
@@ -120,6 +123,8 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
         // physical-pixel allocation just below.
         val logicalW = max(1, ceil(maxLineWidth).toInt() + outlinePadding * 2 + 2)
         val logicalH = max(1, ceil(totalHeight).toInt() + outlinePadding * 2 + 2)
+        // Ragged lines follow the anchor: offset fraction 0 = left, 0.5 = center, 1 = right.
+        val align = (attributes.textOffset.offsetForSize(logicalW.toDouble(), logicalH.toDouble(), Vec2()).x / logicalW).coerceIn(0.0, 1.0)
         val density = rc.densityFactor.toDouble().coerceAtLeast(1.0)
         val w = max(1, ceil(logicalW * density).toInt())
         val h = max(1, ceil(logicalH * density).toInt())
@@ -154,13 +159,13 @@ actual open class TextRenderer actual constructor(protected val rc: RenderContex
                 if (outlineStrings != null) {
                     var y = originY
                     for ((i, line) in outlineStrings.withIndex()) {
-                        line.drawAtPoint(point = CGPointMake(originX, y))
+                        line.drawAtPoint(point = CGPointMake(originX + (maxLineWidth - lineWidths[i]) * align, y))
                         y += lineHeights[i]
                     }
                 }
                 var y = originY
                 for ((i, line) in fillStrings.withIndex()) {
-                    line.drawAtPoint(point = CGPointMake(originX, y))
+                    line.drawAtPoint(point = CGPointMake(originX + (maxLineWidth - lineWidths[i]) * align, y))
                     y += lineHeights[i]
                 }
                 UIGraphicsPopContext()
