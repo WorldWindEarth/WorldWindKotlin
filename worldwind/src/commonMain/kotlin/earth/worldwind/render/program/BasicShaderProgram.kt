@@ -55,8 +55,9 @@ class BasicShaderProgram : AbstractShaderProgram() {
                     /* Return the RGBA color as-is. */
                     gl_FragColor = color * opacity;
                 }
-                /* Skip near-transparent fragments so they don't write depth or claim picks. */
-                if (gl_FragColor.a < 0.001) discard;
+                /* Skip near-transparent textured fragments (filtered icon halos) so they don't
+                   write depth or claim picks. Untextured draws must keep writing depth at alpha 0. */
+                if (enableTexture && gl_FragColor.a < 0.001) discard;
             }
         """.trimIndent()
     )
