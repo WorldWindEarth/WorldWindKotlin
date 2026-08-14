@@ -510,9 +510,16 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
     suspend fun readTileUserDataId(
         content: GpkgContent, zoomLevel: Int, tileColumn: Int, tileRow: Int,
     ): Long? = withContext(Dispatchers.IO) {
-        val dao = getOrCreateTileUserDataDao(content.tableName)
-        if (!dao.isTableExists) return@withContext null
-        dao.queryBuilder().selectColumns(GpkgTileUserData.ID).where()
+        queryTileUserDataId(content.tableName, zoomLevel, tileColumn, tileRow)
+    }
+
+    /** Non-suspend body of [readTileUserDataId]. Caller runs on the appropriate dispatcher. */
+    private fun queryTileUserDataId(
+        tableName: String, zoomLevel: Int, tileColumn: Int, tileRow: Int,
+    ): Long? {
+        val dao = getOrCreateTileUserDataDao(tableName)
+        if (!dao.isTableExists) return null
+        return dao.queryBuilder().selectColumns(GpkgTileUserData.ID).where()
             .eq(GpkgTileUserData.ZOOM_LEVEL, zoomLevel)
             .and().eq(GpkgTileUserData.TILE_COLUMN, tileColumn)
             .and().eq(GpkgTileUserData.TILE_ROW, tileRow)
@@ -648,6 +655,35 @@ open class GeoPackage(val pathName: String, val isReadOnly: Boolean = true) {
         val row = queryTileRevalidation(content.tableName, tpudtId) ?: return@withContext
         row.validatedAt = validatedAt
         tileRevalidationDao.update(row)
+    }
+
+    /**
+     * Refresh [GpkgTileRevalidation.validatedAt] for many `(z, x, y)` tiles of [content] in ONE
+     * write-dispatcher hop and ONE transaction — the coalesced restamp path for validator-less
+     * stale tiles, where per-tile commits flooded the write lane during panning. Unlike
+     * [bumpTileValidatedAt], a tile with no revalidation row yet gets one created (null
+     * validators): tiles cached before the side table existed could otherwise never be stamped
+     * fresh and re-entered the stale path on every read. Uncached `(z, x, y)` are skipped.
+     */
+    @Throws(IllegalStateException::class)
+    suspend fun bumpTileValidatedAtBatch(
+        content: GpkgContent, tiles: Collection<Triple<Int, Int, Int>>, validatedAt: Long,
+    ): Unit = withContext(writeDispatcher) {
+        if (isReadOnly) error("Tile revalidation cannot be updated. GeoPackage is read-only!")
+        if (tiles.isEmpty()) return@withContext
+        // DDL stays outside the transaction — see the cross-connection trap in setupFeaturesContent.
+        ensureTileRevalidationTable()
+        TransactionManager.callInTransaction(connectionSource) {
+            for ((zoomLevel, tileColumn, tileRow) in tiles) {
+                val tpudtId = queryTileUserDataId(content.tableName, zoomLevel, tileColumn, tileRow) ?: continue
+                val row = queryTileRevalidation(content.tableName, tpudtId) ?: GpkgTileRevalidation().apply {
+                    tpudtName = content.tableName
+                    this.tpudtId = tpudtId
+                }
+                row.validatedAt = validatedAt
+                tileRevalidationDao.createOrUpdate(row)
+            }
+        }
     }
 
     /** Drop every revalidation row tied to [content]. Called when the content table is cleared. */

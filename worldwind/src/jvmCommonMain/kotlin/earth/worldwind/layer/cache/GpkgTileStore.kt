@@ -71,6 +71,15 @@ class GpkgTileStore(
         geoPackage.bumpTileValidatedAt(content, tpudtId, System.currentTimeMillis())
     }
 
+    override suspend fun bumpValidatedAtBatch(keys: Collection<Long>) {
+        if (geoPackage.isReadOnly || keys.isEmpty()) return
+        geoPackage.bumpTileValidatedAtBatch(
+            content,
+            keys.map { Triple(tileKeyZ(it), tileKeyX(it), tileKeyY(it)) },
+            System.currentTimeMillis(),
+        )
+    }
+
     override suspend fun deleteTile(z: Int, x: Int, y: Int) {
         // Writing an empty blob is the closest we have to "drop" — preserves the negative-
         // cache marker so the layer doesn't re-query immediately. A true row delete would

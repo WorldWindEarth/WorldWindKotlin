@@ -33,6 +33,13 @@ interface TileStore {
      *  isn't re-requested every frame. Default no-op for stores that don't track freshness. */
     suspend fun bumpValidatedAt(z: Int, x: Int, y: Int) {}
 
+    /** [bumpValidatedAt] for many tiles at once — [keys] packed by [tileKey]. Stores that commit
+     *  per call should override this with a single-transaction implementation so a coalesced
+     *  restamp burst costs one commit instead of one per tile. */
+    suspend fun bumpValidatedAtBatch(keys: Collection<Long>) {
+        for (key in keys) bumpValidatedAt(tileKeyZ(key), tileKeyX(key), tileKeyY(key))
+    }
+
     /** Apply [cachePolicy] now. Idempotent / unbounded policy → no-op. */
     suspend fun evict() {}
 

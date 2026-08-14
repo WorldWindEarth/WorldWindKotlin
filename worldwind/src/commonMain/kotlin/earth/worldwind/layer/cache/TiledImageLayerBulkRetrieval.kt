@@ -50,7 +50,8 @@ fun TiledImageLayer.launchBulkRetrieval(
     // When the layer's source is a CachedTileSource, route through a thin adapter that
     // calls bulkFetchTile (cache-then-network, always allows network). For a non-cached
     // source the generic source.launchBulkRetrieval path is unchanged.
-    val bulkSource: TileSource = (adapter.source as? CachedTileSource)
+    val cached = adapter.source as? CachedTileSource
+    val bulkSource: TileSource = cached
         ?.let { CachedBulkSourceAdapter(it, overrideCache) }
         ?: adapter.source
     return bulkSource.launchBulkRetrieval(
@@ -62,7 +63,11 @@ fun TiledImageLayer.launchBulkRetrieval(
         retryTimeoutShort = retryTimeoutShort,
         retryTimeoutLong = retryTimeoutLong,
         onProgress = onProgress,
-    )
+    ).also { job ->
+        // Pause render-side stale-while-revalidate while the bulk job runs — browsing the region
+        // being downloaded otherwise floods the shared HTTP client and GeoPackage write lane.
+        cached?.trackBulkJob(job)
+    }
 }
 
 /** Thin [TileSource] over a [CachedTileSource] whose `fetchTile` delegates to

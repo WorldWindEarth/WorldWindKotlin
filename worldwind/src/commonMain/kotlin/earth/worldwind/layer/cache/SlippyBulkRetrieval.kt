@@ -31,8 +31,9 @@ internal fun slippyTileCount(sector: Sector, minZoom: Int, maxZoom: Int): Long {
  * Unlike the geographic [BulkTileRetrieval] loop — whose rows are linear in latitude — slippy y is
  * linear in Mercator-y, so tile enumeration goes through [SlippyTiles]. [fetchOne] receives the tile
  * coordinate plus its geographic [Sector] and returns a [TileOutcome]; a thrown transport error
- * triggers retry with alternating [retryTimeoutShort] / [retryTimeoutLong] backoff up to [maxRetries]
- * attempts, after which the tile is counted as skipped.
+ * retries forever — alternating [retryTimeoutShort] / [retryTimeoutLong] backoff for the first
+ * [maxRetries] attempts, then polling at [retryTimeoutLong] until connectivity returns. Only a
+ * returned [TileOutcome.SKIPPED] (404/empty) skips a tile.
  *
  * @param scope coroutine scope owning the returned [Job]; typically `GlobalScope` for a long job.
  * @param onSuccess invoked after the loop completes without cancellation (e.g. to record the

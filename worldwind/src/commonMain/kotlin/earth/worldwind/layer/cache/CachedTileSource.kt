@@ -4,15 +4,21 @@ import earth.worldwind.layer.source.TileSource
 
 import earth.worldwind.util.Logger.WARN
 import earth.worldwind.util.Logger.logMessage
+import earth.worldwind.util.SynchronizedList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Cache-first decorator over a [TileSource]. The lookup order is:
@@ -45,6 +51,26 @@ class CachedTileSource(
 
     private val revalidating = mutableSetOf<Long>()
     private val revalidateMutex = Mutex()
+
+    /** Caps concurrent background refreshes so a pan across a stale region can't fan hundreds of
+     *  conditional GETs + write-throughs onto the shared HTTP client and GeoPackage write lane. */
+    private val revalidationSemaphore = Semaphore(MAX_CONCURRENT_REVALIDATIONS)
+
+    /** Validator-less stale tiles pending a coalesced freshness stamp — see [scheduleBumpValidatedAt]. */
+    private val pendingBumps = mutableSetOf<Long>()
+    private val bumpMutex = Mutex()
+    private var bumpFlushScheduled = false
+
+    /** Bulk jobs currently downloading through this source — while any is active, SWR is fully
+     *  paused so render-side refreshes can't contend with bulk for the network and write lane. */
+    private val bulkJobs = SynchronizedList<Job>()
+
+    /** Pause stale-while-revalidate for the lifetime of [job] (a bulk region download using this
+     *  source). SWR resumes automatically when the job completes or is cancelled. */
+    fun trackBulkJob(job: Job) {
+        bulkJobs.add(job)
+        job.invokeOnCompletion { bulkJobs.remove(job) }
+    }
 
     /** The wrapped upstream tile source (e.g. `WmsTileSource`, `WmtsTileSource`,
      *  `UrlTemplateImageTileSource`). Exposed for rebind flows — `attachCache` extractors
@@ -149,31 +175,35 @@ class CachedTileSource(
      */
     private suspend fun maybeRevalidate(z: Int, x: Int, y: Int, cached: TileBlob) {
         if (isCacheOnly) return
+        // A running bulk download owns the network + write lane; refreshing stale tiles can wait.
+        if (bulkJobs.isNotEmpty()) return
         val network = inner ?: return
         val staleAfter = store.cachePolicy.staleAfter
         if (staleAfter == Duration.INFINITE) return
         val cachedAt = cached.cachedAt ?: return
         if (Clock.System.now().toEpochMilliseconds() - cachedAt <= staleAfter.inWholeMilliseconds) return
         // No ETag or Last-Modified means no validator, so the server can't answer 304 and every revalidation re-downloads + re-tessellates forever (GC storm); treat such tiles as fresh — restart the window, skip the GET.
-        if (cached.etag == null && cached.lastModified == null) { store.bumpValidatedAt(z, x, y); return }
+        if (cached.etag == null && cached.lastModified == null) { scheduleBumpValidatedAt(z, x, y); return }
         val key = tileKey(z, x, y)
         if (!revalidateMutex.withLock { revalidating.add(key) }) return  // already refreshing
         revalidationScope.launch {
             try {
-                // Conditional GET: pass the cached validators so the server can answer 304 when the
-                // tile is unchanged (cheap header-only round-trip, no body re-download).
-                val fresh = network.fetchTile(z, x, y, cached.etag, cached.lastModified)
-                if (fresh == null) {
-                    // 304 Not Modified — bytes still current. Bump the freshness stamp so we don't
-                    // re-request until the next staleAfter window, and leave the tile (and its texture)
-                    // untouched: no onTileRevalidated, no redraw.
-                    store.bumpValidatedAt(z, x, y)
-                } else if (cached.bytes.contentEquals(fresh.bytes)) {
-                    // 200 but byte-identical — server ignored our conditional headers; treat as not-modified (bump freshness, keep the tessellation) to avoid re-tessellating every tile forever.
-                    store.bumpValidatedAt(z, x, y)
-                } else {
-                    store.writeTile(z, x, y, fresh)
-                    onTileRevalidated?.invoke(z, x, y)
+                revalidationSemaphore.withPermit {
+                    // Conditional GET: pass the cached validators so the server can answer 304 when the
+                    // tile is unchanged (cheap header-only round-trip, no body re-download).
+                    val fresh = network.fetchTile(z, x, y, cached.etag, cached.lastModified)
+                    if (fresh == null) {
+                        // 304 Not Modified — bytes still current. Bump the freshness stamp so we don't
+                        // re-request until the next staleAfter window, and leave the tile (and its texture)
+                        // untouched: no onTileRevalidated, no redraw.
+                        store.bumpValidatedAt(z, x, y)
+                    } else if (cached.bytes.contentEquals(fresh.bytes)) {
+                        // 200 but byte-identical — server ignored our conditional headers; treat as not-modified (bump freshness, keep the tessellation) to avoid re-tessellating every tile forever.
+                        store.bumpValidatedAt(z, x, y)
+                    } else {
+                        store.writeTile(z, x, y, fresh)
+                        onTileRevalidated?.invoke(z, x, y)
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -184,5 +214,44 @@ class CachedTileSource(
                 revalidateMutex.withLock { revalidating.remove(key) }
             }
         }
+    }
+
+    /**
+     * Coalesced freshness restamp for validator-less stale tiles. The previous per-read
+     * [TileStore.bumpValidatedAt] issued one write-dispatcher hop + commit per rendered tile,
+     * so panning a stale cached region flooded the single GeoPackage write lane exactly when a
+     * bulk download needed it. Pending tiles accumulate for [BUMP_FLUSH_DELAY], then flush in one
+     * [TileStore.bumpValidatedAtBatch] call. A failed flush just leaves the tiles stale — they
+     * re-enqueue on the next read.
+     */
+    private suspend fun scheduleBumpValidatedAt(z: Int, x: Int, y: Int) {
+        val flush = bumpMutex.withLock {
+            pendingBumps.add(tileKey(z, x, y))
+            if (bumpFlushScheduled) false else { bumpFlushScheduled = true; true }
+        }
+        if (flush) revalidationScope.launch {
+            delay(BUMP_FLUSH_DELAY)
+            val keys = bumpMutex.withLock {
+                bumpFlushScheduled = false
+                pendingBumps.toList().also { pendingBumps.clear() }
+            }
+            try {
+                store.bumpValidatedAtBatch(keys)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                logMessage(WARN, "CachedTileSource", "scheduleBumpValidatedAt",
+                    "Freshness restamp failed for ${keys.size} tiles: ${e::class.simpleName}: ${e.message}")
+            }
+        }
+    }
+
+    private companion object {
+        /** See [revalidationSemaphore]. */
+        const val MAX_CONCURRENT_REVALIDATIONS = 2
+
+        /** Coalescing window for validator-less freshness restamps — long enough to gather a whole
+         *  pan gesture's worth of tiles into one write transaction. */
+        private val BUMP_FLUSH_DELAY = 2.seconds
     }
 }

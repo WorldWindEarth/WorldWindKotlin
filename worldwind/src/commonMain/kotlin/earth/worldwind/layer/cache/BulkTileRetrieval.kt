@@ -25,8 +25,9 @@ import kotlin.time.Duration.Companion.seconds
  * source (no cache decorator) still works — the user just won't get persistence.
  *
  * On 404 / empty payloads the tile is counted as `skipped`. Transport errors retry with
- * exponential-ish backoff ([retryTimeoutShort] / [retryTimeoutLong]) until [maxRetries]
- * attempts; persistent failure also counts as `skipped`.
+ * backoff ([retryTimeoutShort] / [retryTimeoutLong]) and are NEVER skipped: past [maxRetries]
+ * attempts the loop polls at [retryTimeoutLong] until the fetch succeeds — so an offline gap
+ * parks the download until connectivity returns. Cancel the returned [Job] to stop it.
  *
  * @param levelSet describes the tile pyramid (zoom range, tile size, origin).
  * @param sector world region to download — clipped to [LevelSet.sector].
