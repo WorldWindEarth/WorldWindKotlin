@@ -9,6 +9,7 @@ import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Offset
 import earth.worldwind.geom.OffsetMode
 import earth.worldwind.geom.Vec3
+import earth.worldwind.util.contentAssemblyDispatcher
 import earth.worldwind.util.Tile
 import earth.worldwind.layer.cache.RevalidatingSource
 import earth.worldwind.layer.buildings.OsmBuilding
@@ -170,7 +171,7 @@ open class MvtVectorLayer(
                 ?: fetchPermits.withPermit(-z.toDouble()) { source.fetchTile(key.z, key.x, key.y) }
             // Gate the CPU-heavy decode + tessellation separately from the network fetch above, so the
             // off-render pool can't run one decode+earcut per core and starve render/main (+ GC churn).
-            withContext(mvtAssemblyDispatcher) {
+            withContext(contentAssemblyDispatcher) {
                 assemblyPermits.withPermit {
                     val tile = if (blob == null || blob.isEmpty) MvtTile(emptyList())
                     else MvtDecoder.decode(blob.bytes)

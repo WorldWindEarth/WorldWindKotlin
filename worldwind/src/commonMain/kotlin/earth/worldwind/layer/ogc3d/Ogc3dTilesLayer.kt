@@ -38,6 +38,7 @@ import earth.worldwind.layer.ogc3d.content.resortByCamera
 import earth.worldwind.layer.ogc3d.content.syncGaussianContentGpu
 import earth.worldwind.layer.ogc3d.content.syncPointCloudContentGpu
 import earth.worldwind.layer.ogc3d.content.touchCache
+import earth.worldwind.util.contentAssemblyDispatcher
 import earth.worldwind.util.ByteArrayPool
 import earth.worldwind.layer.ogc3d.content.uploadMeshContent
 import earth.worldwind.layer.ogc3d.draw.DrawableGaussianPass
@@ -77,6 +78,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlin.time.TimeSource
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -814,7 +816,12 @@ open class Ogc3dTilesLayer(
         }
     }
 
-    private suspend fun handleContentFetched(tile: Tile3d, bytes: ByteArray) {
+    // The whole CPU stage (parse + texture decode + mesh prep) runs on the shared low-priority
+    // assembly pool: the fetch permit stays held across it (memory back-pressure unchanged), but
+    // a pan burst can no longer occupy every core and starve the render/GL threads.
+    private suspend fun handleContentFetched(
+        tile: Tile3d, bytes: ByteArray
+    ): Unit = withContext(contentAssemblyDispatcher) {
         tile.loadState = Tile3d.LoadState.PARSING
         val kind = ContentDispatcher.detect(bytes)
         val uri = tile.contentUri ?: ""
