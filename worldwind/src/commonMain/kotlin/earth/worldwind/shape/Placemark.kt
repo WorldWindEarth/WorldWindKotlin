@@ -149,6 +149,10 @@ open class Placemark @JvmOverloads constructor(
      * The distance from the camera to the placemark in meters.
      */
     protected var cameraDistance = 0.0
+    /**
+     * Reuses window-independent conversion terms of [position] across frames.
+     */
+    protected val pointMemo = PointMemo()
 
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
@@ -194,7 +198,7 @@ open class Placemark @JvmOverloads constructor(
         // Otherwise, its image and label portion that are potentially over the terrain won't get drawn, and would
         // disappear as soon as there is no terrain at the placemark's position. This can occur at the window edges.
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
-        rc.geographicToCartesian(position, effectiveAltitudeMode, placePoint)
+        pointMemo.geographicToCartesian(rc, position, effectiveAltitudeMode, placePoint)
 
         // Compute the squared camera distance to the place point for ordering and comparisons; compute the actual
         // distance only when needed for math (eye-distance scaling, billboard pixel size, level-of-detail selector).
@@ -256,7 +260,7 @@ open class Placemark @JvmOverloads constructor(
 
         // Offset along the normal vector to avoid collision with terrain.
         if (isBillboardingEnabled && offsetY != 0.0) {
-            rc.globe.geographicToCartesianNormal(position.latitude, position.longitude, billboardVector)
+            pointMemo.geographicToCartesianNormal(rc, position.latitude, position.longitude, billboardVector)
             // Use real camera distance in billboarding
             val distance = if (isAlwaysOnTop) rc.cameraPoint.distanceTo(placePoint) else cameraDistance
             val altitude = rc.pixelSizeAtDistance(distance) * sin(rc.camera.tilt.inRadians)
@@ -288,7 +292,7 @@ open class Placemark @JvmOverloads constructor(
         // drawable in order to give the icon visual priority over the leader.
         if (mustDrawLeader(rc)) {
             // Compute the placemark's Cartesian ground point.
-            rc.geographicToCartesian(position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
+            pointMemo.geographicToCartesian(rc, position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
 
             // If the leader is visible, enqueue a drawable leader for processing on the OpenGL thread.
             if (rc.frustum.intersectsSegment(groundPoint, placePoint)) {

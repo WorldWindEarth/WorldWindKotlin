@@ -94,6 +94,10 @@ open class Label @JvmOverloads constructor(
      * offset is applied only while the label is within the horizon distance. Defaults to [DEFAULT_DEPTH_OFFSET].
      */
     var depthOffset = DEFAULT_DEPTH_OFFSET
+    /**
+     * Reuses window-independent conversion terms of [position] across frames.
+     */
+    protected val pointMemo = PointMemo()
 
     companion object {
         /**
@@ -124,7 +128,7 @@ open class Label @JvmOverloads constructor(
 
         // Compute the label's Cartesian model point.
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
-        rc.geographicToCartesian(position, effectiveAltitudeMode, renderData.placePoint)
+        pointMemo.geographicToCartesian(rc, position, effectiveAltitudeMode, renderData.placePoint)
 
         // Compute the square camera distance to the place point, the value which is used for ordering
         // the label drawable and determining the amount of depth offset to apply
