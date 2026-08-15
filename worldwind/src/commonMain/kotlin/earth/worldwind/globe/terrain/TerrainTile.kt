@@ -18,6 +18,14 @@ import kotlin.math.sqrt
 open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Tile(sector, level, row, column) {
     val origin = Vec3()
     val points by lazy { FloatArray((level.tileWidth + 2) * (level.tileHeight + 2) * 3) }
+    /**
+     * Tile-local bounds of [points] incl. skirt border (minX, maxX, minY, maxY, minZ, maxZ),
+     * refreshed with the point grid. Lets [BasicTerrain.intersect] reject tiles without walking
+     * their triangle strip. Unbounded until the first [prepare] so the tile is never wrongly rejected.
+     */
+    val localBounds = floatArrayOf(
+        -Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, Float.MAX_VALUE, -Float.MAX_VALUE, Float.MAX_VALUE
+    )
     protected val normals by lazy { FloatArray((level.tileWidth + 2) * (level.tileHeight + 2) * 3) }
     protected val heights by lazy { FloatArray( (level.tileWidth + 2) * (level.tileHeight + 2)) }
     protected val heightGrid by lazy { FloatArray( level.tileWidth * level.tileHeight) }
@@ -74,6 +82,7 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
             globe.geographicToCartesianBorder(
                 sector, tileWidth + 2, tileHeight + 2, minTerrainElevation, origin, points
             )
+            computeLocalBounds()
             updatePointBufferKey()
             normalsDirty = true
         }
@@ -110,6 +119,34 @@ open class TerrainTile(sector: Sector, level: Level, row: Int, column: Int): Til
         val buffer = rc.getBufferObject(normalBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
         rc.offerGLBufferUpload(normalBufferKey, normalBufferVersion) { NumericArray.Floats(normals) }
         return buffer
+    }
+
+    protected open fun computeLocalBounds() {
+        var minX = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        var minZ = Float.MAX_VALUE
+        var maxZ = -Float.MAX_VALUE
+        var i = 0
+        while (i < points.size) {
+            val x = points[i]
+            val y = points[i + 1]
+            val z = points[i + 2]
+            if (x < minX) minX = x
+            if (x > maxX) maxX = x
+            if (y < minY) minY = y
+            if (y > maxY) maxY = y
+            if (z < minZ) minZ = z
+            if (z > maxZ) maxZ = z
+            i += 3
+        }
+        localBounds[0] = minX
+        localBounds[1] = maxX
+        localBounds[2] = minY
+        localBounds[3] = maxY
+        localBounds[4] = minZ
+        localBounds[5] = maxZ
     }
 
     protected open fun computeNormals(globe: Globe) {

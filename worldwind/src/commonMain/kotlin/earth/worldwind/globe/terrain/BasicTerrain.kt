@@ -27,8 +27,11 @@ open class BasicTerrain(
 
             // Compute the first intersection of the terrain tile with the line. The line is interpreted as a ray;
             // intersection points behind the line's origin are ignored. Store the nearest intersection found so far
-            // in the result argument.
-            if (line.triStripIntersection(tile.points, 3, triStripElements, triStripElements.size, intersectPoint)) {
+            // in the result argument. Tiles whose local bounds the ray misses skip the strip walk entirely -
+            // most visible tiles are off the ray.
+            if (rayIntersectsBounds(line, tile.localBounds) &&
+                line.triStripIntersection(tile.points, 3, triStripElements, triStripElements.size, intersectPoint)
+            ) {
                 result.copy(intersectPoint).add(tile.origin)
                 found = true
             }
@@ -40,6 +43,34 @@ open class BasicTerrain(
             if (found) break
         }
         return found
+    }
+
+    /**
+     * Ray-slab test against tile-local bounds (minX, maxX, minY, maxY, minZ, maxZ). Ignores
+     * intersections behind the ray's origin, matching [Line.triStripIntersection] semantics.
+     */
+    private fun rayIntersectsBounds(line: Line, bounds: FloatArray): Boolean {
+        var tMin = 0.0
+        var tMax = Double.MAX_VALUE
+        val origin = line.origin
+        val direction = line.direction
+        for (axis in 0..2) {
+            val o = when (axis) { 0 -> origin.x; 1 -> origin.y; else -> origin.z }
+            val d = when (axis) { 0 -> direction.x; 1 -> direction.y; else -> direction.z }
+            val min = bounds[axis * 2].toDouble()
+            val max = bounds[axis * 2 + 1].toDouble()
+            if (d == 0.0) {
+                if (o < min || o > max) return false
+            } else {
+                var t0 = (min - o) / d
+                var t1 = (max - o) / d
+                if (t0 > t1) { val t = t0; t0 = t1; t1 = t }
+                if (t0 > tMin) tMin = t0
+                if (t1 < tMax) tMax = t1
+                if (tMin > tMax) return false
+            }
+        }
+        return true
     }
 
     override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean {

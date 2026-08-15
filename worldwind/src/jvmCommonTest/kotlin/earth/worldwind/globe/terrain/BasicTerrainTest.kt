@@ -1,6 +1,7 @@
 package earth.worldwind.globe.terrain
 
 import earth.worldwind.geom.Angle
+import earth.worldwind.geom.Line
 import earth.worldwind.geom.Angle.Companion.degrees
 import earth.worldwind.geom.Angle.Companion.fromDegrees
 import earth.worldwind.geom.Location.Companion.fromDegrees
@@ -50,6 +51,33 @@ class BasicTerrainTest {
             val pz = sw.z * 0.25 + se.z * 0.25 + nw.z * 0.25 + ne.z * 0.25
             return Vec3(px, py, pz)
         }
+
+        // Mirrors BasicTessellator.assembleTriStripElements for the full (width + 2) x (height + 2) tile grid
+        private fun assembleTriStripElements(numLat: Int, numLon: Int): ShortArray {
+            val count = ((numLat - 1) * numLon + (numLat - 2)) * 2
+            val result = ShortArray(count)
+            var pos = 0
+            var vertex = 0
+            for (latIndex in 0 until numLat - 1) {
+                for (lonIndex in 0 until numLon) {
+                    vertex = lonIndex + latIndex * numLon
+                    result[pos++] = (vertex + numLon).toShort()
+                    result[pos++] = vertex.toShort()
+                }
+                if (latIndex < numLat - 2) {
+                    result[pos++] = vertex.toShort()
+                    result[pos++] = ((latIndex + 2) * numLon).toShort()
+                }
+            }
+            return result
+        }
+    }
+
+    // Exposes computeLocalBounds, which production code runs in prepare()
+    private class TestTerrainTile(
+        sector: Sector, level: earth.worldwind.util.Level, row: Int, column: Int
+    ) : TerrainTile(sector, level, row, column) {
+        fun updateLocalBounds() = computeLocalBounds()
     }
 
     private lateinit var terrain: Terrain
@@ -61,8 +89,9 @@ class BasicTerrainTest {
 
         // Add a terrain tile used to the mocked terrain
         val levelSet = LevelSet(Sector().setFullSphere(), Sector().setFullSphere(), fromDegrees(1.0, 1.0), 1, 5, 5) // tiles with 5x5 vertices
-        val tile = TerrainTile(fromDegrees(0.0, 0.0, 1.0, 1.0), levelSet.firstLevel, 90, 180)
-        terrain = BasicTerrain(listOf(tile), tile.sector, null)
+        val tile = TestTerrainTile(fromDegrees(0.0, 0.0, 1.0, 1.0), levelSet.firstLevel, 90, 180)
+        val triStripElements = assembleTriStripElements(tile.level.tileHeight + 2, tile.level.tileWidth + 2)
+        terrain = BasicTerrain(listOf(tile), tile.sector, triStripElements)
 
         // Populate the terrain tile's geometry
         val tileWidth = tile.level.tileWidth
@@ -72,6 +101,7 @@ class BasicTerrainTest {
         val tileOrigin = globe.geographicToCartesian(0.5.degrees, 0.5.degrees, 0.0, tile.origin)
         globe.geographicToCartesianGrid(tile.sector, tileWidth, tileHeight, null, tileOrigin, points, rowStride + 3, rowStride)
         globe.geographicToCartesianBorder(tile.sector, tileWidth + 2, tileHeight + 2, 0.0f, tileOrigin, points)
+        tile.updateLocalBounds()
     }
 
     @Test
@@ -278,5 +308,41 @@ class BasicTerrainTest {
         assertEquals(expected.y, actual.y, TOLERANCE, "surfacePoint centroid y")
         assertEquals(expected.z, actual.z, TOLERANCE, "surfacePoint centroid z")
         assertEquals(expectedReturn, actualReturn, "surfacePoint centroid return")
+    }
+
+    @Test
+    fun testIntersect_HitsGridVertex() {
+        // Ray along the ellipsoid normal through the tile's central grid vertex - the local
+        // bounds test must pass the tile through to the strip walk, which hits the vertex.
+        val target = worldWindEcef(officialWgs84Ecef(0.5, 0.5, 0.0))
+        val origin = worldWindEcef(officialWgs84Ecef(0.5, 0.5, 1.0e4))
+        val direction = Vec3(target.x - origin.x, target.y - origin.y, target.z - origin.z).normalize()
+        val actual = Vec3()
+        val actualReturn = terrain.intersect(Line(origin, direction), actual)
+        assertEquals(true, actualReturn, "intersect return")
+        assertEquals(target.x, actual.x, TOLERANCE, "intersect x")
+        assertEquals(target.y, actual.y, TOLERANCE, "intersect y")
+        assertEquals(target.z, actual.z, TOLERANCE, "intersect z")
+    }
+
+    @Test
+    fun testIntersect_MissesOutsideTile() {
+        // A ray far outside the tile's sector must not intersect
+        val target = worldWindEcef(officialWgs84Ecef(5.0, 5.0, 0.0))
+        val origin = worldWindEcef(officialWgs84Ecef(5.0, 5.0, 1.0e4))
+        val direction = Vec3(target.x - origin.x, target.y - origin.y, target.z - origin.z).normalize()
+        val actualReturn = terrain.intersect(Line(origin, direction), Vec3())
+        assertEquals(false, actualReturn, "intersect return")
+    }
+
+    @Test
+    fun testIntersect_IgnoresIntersectionBehindOrigin() {
+        // Same line as the hit case pointing away from the globe - the surface lies behind
+        // the ray's origin and must be ignored.
+        val target = worldWindEcef(officialWgs84Ecef(0.5, 0.5, 0.0))
+        val origin = worldWindEcef(officialWgs84Ecef(0.5, 0.5, 1.0e4))
+        val direction = Vec3(origin.x - target.x, origin.y - target.y, origin.z - target.z).normalize()
+        val actualReturn = terrain.intersect(Line(origin, direction), Vec3())
+        assertEquals(false, actualReturn, "intersect return")
     }
 }
