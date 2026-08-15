@@ -57,14 +57,11 @@ abstract class AbstractMilStd2525Placemark(
                 invalidate()
             }
         }
+    /**
+     * Fill state is tracked per rendering window by the level of detail selector, so windows may
+     * set it to different values before rendering without invalidating the shared selector state.
+     */
     var isFilled = true
-        set(value) {
-            // Do not invalidate state if nothing changed
-            if (field != value) {
-                field = value
-                invalidate()
-            }
-        }
 
     init {
         levelOfDetailSelector = lodSelector

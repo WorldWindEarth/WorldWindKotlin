@@ -11,15 +11,32 @@ import earth.worldwind.shape.milstd2525.MilStd2525Placemark.Companion.getPlacema
  * The [MilStd2525LevelOfDetailSelector] determines which set of [PlacemarkAttributes] to use for a [MilStd2525Placemark].
  * A [MilStd2525Placemark] creates an instance of this class in its constructor, and calls
  * [Placemark.LevelOfDetailSelector.selectLevelOfDetail] in its [Placemark.doRender] method.
+ *
+ * The selection is remembered per rendering window: several windows may render the same placemark in the same
+ * choreographer pass with different camera distances and fill modes, and must not discard each other's selection.
  */
 open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
-    protected var lastLevelOfDetail = -1
-    protected var isHighlighted = false
-    protected var isInvalidateRequested = false
+    /**
+     * Level of detail selection last applied for one rendering window.
+     */
+    protected class WindowState {
+        var levelOfDetail = -1
+        var isHighlighted = false
+        var isFilled = true
+        var version = -1
+        var attributes: PlacemarkAttributes? = null
+    }
+
+    protected var version = 0
+    /**
+     * Keyed by the [RenderContext] identity hash instead of the context itself to avoid retaining
+     * destroyed windows' render state.
+     */
+    protected val windowStates = mutableMapOf<Int, WindowState>()
     protected var lastSymbolID: String? = null
     protected var unfilledAttributes: Map<String, String>? = null
 
-    override fun invalidate() { isInvalidateRequested = true }
+    override fun invalidate() { ++version }
 
     /**
      * Gets the active attributes for the current distance to the camera and highlighted state.
@@ -32,56 +49,68 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
      */
     override fun selectLevelOfDetail(rc: RenderContext, placemark: Placemark, cameraDistance: Double): Boolean {
         if (placemark !is MilStd2525Placemark) return true
-        val isHighlightChanged = placemark.isHighlighted != isHighlighted
-        isHighlighted = placemark.isHighlighted
+        val isHighlighted = placemark.isHighlighted
+        val isFilled = placemark.isFilled
 
-        // Determine the normal attributes based on highlighted state and the distance from the camera to the placemark
-        if (cameraDistance > placemark.eyeDistanceScalingThreshold && !placemark.isHighlighted) {
+        // Determine the level of detail based on highlighted state and the distance from the camera to the placemark
+        val levelOfDetail = when {
             // Low-fidelity: use a Symbol ID with affiliation code only
-            if (lastLevelOfDetail != LOW_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val simpleCode = if (isTacticalGraphic(placemark.symbolID)) getSimplifiedSymbolID(placemark.symbolID)
-                else placemark.symbolID.substring(0, 6) + "000000000000000000000000"
-                placemark.attributes = getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
-                lastLevelOfDetail = LOW_LEVEL_OF_DETAIL
-            }
-        } else if (cameraDistance > modifiersThreshold && !placemark.isHighlighted || !placemark.isModifiersVisible) {
+            cameraDistance > placemark.eyeDistanceScalingThreshold && !isHighlighted -> LOW_LEVEL_OF_DETAIL
             // Medium-fidelity: use a simplified Symbol ID without status, mobility, size and text modifiers
-            if (lastLevelOfDetail != MEDIUM_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val simpleCode = getSimplifiedSymbolID(placemark.symbolID)
-                placemark.attributes = getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
-                lastLevelOfDetail = MEDIUM_LEVEL_OF_DETAIL
-            }
-        } else if (!placemark.isHighlighted && !isForceAllModifiers) {
+            cameraDistance > modifiersThreshold && !isHighlighted || !placemark.isModifiersVisible -> MEDIUM_LEVEL_OF_DETAIL
             // High-fidelity: use the regular Symbol ID without text modifiers, except unique designation (T)
-            if (lastLevelOfDetail != HIGH_LEVEL_OF_DETAIL || isInvalidateRequested) {
-                val basicModifiers = placemark.symbolModifiers?.filter { (k,_) -> k == "T" }
-                placemark.attributes = getPlacemarkAttributes(
-                    placemark.symbolID, basicModifiers, getAttributes(placemark)
-                )
-                lastLevelOfDetail = HIGH_LEVEL_OF_DETAIL
-            }
-        } else {
+            !isHighlighted && !isForceAllModifiers -> HIGH_LEVEL_OF_DETAIL
             // Highest-fidelity: use the regular Symbol ID with all available text modifiers
-            if (lastLevelOfDetail != HIGHEST_LEVEL_OF_DETAIL || isInvalidateRequested || isHighlightChanged) {
-                placemark.attributes = getPlacemarkAttributes(
-                    placemark.symbolID, placemark.symbolModifiers, getAttributes(placemark)
-                )
-                lastLevelOfDetail = HIGHEST_LEVEL_OF_DETAIL
-            }
+            else -> HIGHEST_LEVEL_OF_DETAIL
         }
 
-        isInvalidateRequested = false
+        val state = windowStates.getOrPut(rc.hashCode()) { WindowState() }
+        val attributes = state.attributes?.takeIf {
+            state.levelOfDetail == levelOfDetail && state.isFilled == isFilled &&
+                    state.isHighlighted == isHighlighted && state.version == version
+        } ?: buildAttributes(placemark, levelOfDetail).also {
+            state.attributes = it
+            state.levelOfDetail = levelOfDetail
+            state.isFilled = isFilled
+            state.isHighlighted = isHighlighted
+            state.version = version
+        }
+        // Re-apply the selection each frame: another window may have applied its own bundle meanwhile
+        placemark.attributes = attributes
 
-        placemark.attributes.isDrawLeader = lastLevelOfDetail >= MEDIUM_LEVEL_OF_DETAIL
-        placemark.attributes.imageScale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
-        placemark.attributes.labelAttributes.scale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
+        attributes.isDrawLeader = levelOfDetail >= MEDIUM_LEVEL_OF_DETAIL
+        attributes.imageScale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
+        attributes.labelAttributes.scale = if (isHighlighted) HIGHLIGHTED_SCALE else NORMAL_SCALE
 
         return true
+    }
+
+    protected open fun buildAttributes(placemark: MilStd2525Placemark, levelOfDetail: Int): PlacemarkAttributes {
+        val symbolID = placemark.symbolID
+        return when (levelOfDetail) {
+            LOW_LEVEL_OF_DETAIL -> {
+                val simpleCode = if (isTacticalGraphic(symbolID)) getSimplifiedSymbolID(symbolID)
+                else symbolID.substring(0, 6) + "000000000000000000000000"
+                getPlacemarkAttributes(simpleCode, symbolAttributes = getAttributes(placemark))
+            }
+
+            MEDIUM_LEVEL_OF_DETAIL -> getPlacemarkAttributes(
+                getSimplifiedSymbolID(symbolID), symbolAttributes = getAttributes(placemark)
+            )
+
+            HIGH_LEVEL_OF_DETAIL -> getPlacemarkAttributes(
+                symbolID, placemark.symbolModifiers?.filter { (key, _) -> key == "T" }, getAttributes(placemark)
+            )
+
+            else -> getPlacemarkAttributes(symbolID, placemark.symbolModifiers, getAttributes(placemark))
+        }
     }
 
     private fun getSimplifiedSymbolID(symbolID: String) = symbolID.substring(0, 6) + "0000" + symbolID.substring(10)
 
     private fun getAttributes(placemark: MilStd2525Placemark): Map<String, String>? {
+        if (placemark.isFilled) return placemark.symbolAttributes
+
         if (lastSymbolID != placemark.symbolID) {
             unfilledAttributes = null
             lastSymbolID = placemark.symbolID
@@ -91,8 +120,7 @@ open class MilStd2525LevelOfDetailSelector : Placemark.LevelOfDetailSelector {
             unfilledAttributes = it
         }
 
-        return if (placemark.isFilled) placemark.symbolAttributes
-        else placemark.symbolAttributes?.let { unfilledAttributes + it } ?: unfilledAttributes
+        return placemark.symbolAttributes?.let { unfilledAttributes + it } ?: unfilledAttributes
     }
 
     companion object {
