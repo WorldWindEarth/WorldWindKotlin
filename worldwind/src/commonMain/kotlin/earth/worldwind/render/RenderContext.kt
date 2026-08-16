@@ -519,6 +519,21 @@ open class RenderContext {
         } else null
     }
 
+    /**
+     * Queues this frame's assertion that [key]'s GL buffer holds exactly [array]'s content when
+     * the frame draws — the WorldWind-Java fill-before-draw pattern adapted to the render/draw
+     * split. Call every frame with the producer's cached [NumericArray]: the same instance while
+     * content is unchanged (the assertion is then a no-op identity check on the GL thread), a
+     * fresh instance per regeneration. Unlike [offerGLBufferUpload]'s monotonic versioning, a
+     * lagging window re-uploads its own older content ahead of its draw, so windows sharing one
+     * render resource cache never draw their counts against another frame's content.
+     */
+    fun assertGLBufferContent(key: Any, array: NumericArray) {
+        val buffer = renderResourceCache[key] as? BufferObject ?: return
+        uploadQueue?.queueContentAssertion(buffer, array)
+        if (buffer.byteCount != array.byteCount) renderResourceCache.updateSize(key, bufferGpuFootprint(array.byteCount))
+    }
+
     /** Queue a buffer upload when the cached [BufferObject]'s version trails [newVersion].
      *  [onUploaded] fires exactly once — async after the GL write, or sync here when no
      *  upload was queued. Pass nothing to skip; `noinline` is allocation-free at null. */

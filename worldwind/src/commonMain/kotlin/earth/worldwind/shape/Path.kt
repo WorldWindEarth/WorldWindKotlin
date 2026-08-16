@@ -81,6 +81,19 @@ open class Path @JvmOverloads constructor(
         val vertexBufferKey = Any()
         val elementBufferKey = Any()
         var refreshVertexArray = true
+        // Cached content wrappers handed to [RenderContext.assertGLBufferContent]; rebuilt lazily
+        // once per assembly so identity equals content identity
+        var vertexContent: NumericArray? = null
+        var elementContent: NumericArray? = null
+        var extrudeVertexContent: NumericArray? = null
+        var extrudeElementContent: NumericArray? = null
+
+        fun invalidateContent() {
+            vertexContent = null
+            elementContent = null
+            extrudeVertexContent = null
+            extrudeElementContent = null
+        }
     }
 
     companion object {
@@ -158,20 +171,19 @@ open class Path @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) {
-            NumericArray.Floats(currentData.vertexArray)
-        }
+        rc.assertGLBufferContent(currentData.vertexBufferKey, currentData.vertexContent
+            ?: NumericArray.Floats(currentData.vertexArray).also { currentData.vertexContent = it })
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(currentData.elementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
+        rc.assertGLBufferContent(currentData.elementBufferKey, currentData.elementContent ?: run {
             val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
             val index = currentData.outlineElements.copyTo(array, 0)
             currentData.verticalElements.copyTo(array, index)
-            NumericArray.Ints(array)
-        }
+            NumericArray.Ints(array).also { currentData.elementContent = it }
+        })
 
         drawOutline(rc, drawState, cameraDistance)
 
@@ -256,17 +268,20 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.vertexBuffer = rc.getBufferObject(currentData.extrudeVertexBufferKey) {
                 BufferObject(GL_ARRAY_BUFFER, 0)
             }
-            rc.offerGLBufferUpload(currentData.extrudeVertexBufferKey, bufferDataVersion) {
-                NumericArray.Floats(currentData.extrudeVertexArray)
-            }
+            rc.assertGLBufferContent(currentData.extrudeVertexBufferKey, currentData.extrudeVertexContent
+                ?: NumericArray.Floats(currentData.extrudeVertexArray).also { currentData.extrudeVertexContent = it })
 
             // Assemble the drawable's OpenGL element buffer object.
             drawStateExtrusion.elementBuffer = rc.getBufferObject(currentData.extrudeElementBufferKey) {
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
-            rc.offerGLBufferUpload(currentData.extrudeElementBufferKey, bufferDataVersion) {
-                NumericArray.IntsFromList(currentData.interiorElements)
-            }
+            // Snapshot: the IntList is refilled in place on reassembly, and in-flight frames
+            // must keep asserting the content they were built against
+            rc.assertGLBufferContent(currentData.extrudeElementBufferKey, currentData.extrudeElementContent ?: run {
+                val array = IntArray(currentData.interiorElements.size)
+                currentData.interiorElements.copyTo(array, 0)
+                NumericArray.Ints(array).also { currentData.extrudeElementContent = it }
+            })
 
             // Configure the drawable according to the shape's attributes.
             drawStateExtrusion.vertexOrigin.copy(currentData.vertexOrigin)
@@ -299,7 +314,8 @@ open class Path @JvmOverloads constructor(
     }
 
     override fun assembleGeometry(rc: RenderContext) {
-        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
+        ++bufferDataVersion // advance so [computeVersion] sees fresh content this frame
+        currentData.invalidateContent()
         // Surface shapes go through the densify-then-split pipeline only when actually needed
         // (any edge crosses the antimeridian, or any waypoint is near a pole). Mid-latitude,
         // non-crossing paths fall through to the cheap inline-densify branch — same as 3D.

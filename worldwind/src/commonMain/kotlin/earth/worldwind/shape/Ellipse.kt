@@ -226,6 +226,19 @@ open class Ellipse @JvmOverloads constructor(
         val baseRange = Range()
         var refreshVertexArray = true
         var refreshLineVertexArray = true
+        // Cached content wrappers handed to [RenderContext.assertGLBufferContent]; rebuilt lazily
+        // once per assembly so identity equals content identity
+        var vertexContent: NumericArray? = null
+        var tessElementContent: NumericArray? = null
+        var lineVertexContent: NumericArray? = null
+        var lineElementContent: NumericArray? = null
+
+        fun invalidateContent() {
+            vertexContent = null
+            tessElementContent = null
+            lineVertexContent = null
+            lineElementContent = null
+        }
     }
 
     protected val tessCallback = object : GLUtessellatorCallbackAdapter() {
@@ -447,7 +460,8 @@ open class Ellipse @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) { NumericArray.Floats(currentData.vertexArray) }
+        rc.assertGLBufferContent(currentData.vertexBufferKey, currentData.vertexContent
+            ?: NumericArray.Floats(currentData.vertexArray).also { currentData.vertexContent = it })
 
         // Element buffer. Surface shapes use an Int-indexed, per-ellipse buffer produced by GLU
         // tessellation on the split perimeter. Non-surface partial (sector) shapes use the same
@@ -458,9 +472,13 @@ open class Ellipse @JvmOverloads constructor(
             drawState.elementBuffer = rc.getBufferObject(currentData.tessElementBufferKey) {
                 BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
             }
-            rc.offerGLBufferUpload(currentData.tessElementBufferKey, bufferDataVersion) {
-                NumericArray.IntsFromList(currentData.topElements)
-            }
+            // Snapshot: the IntList is refilled in place on reassembly, and in-flight frames
+            // must keep asserting the content they were built against
+            rc.assertGLBufferContent(currentData.tessElementBufferKey, currentData.tessElementContent ?: run {
+                val array = IntArray(currentData.topElements.size)
+                currentData.topElements.copyTo(array, 0)
+                NumericArray.Ints(array).also { currentData.tessElementContent = it }
+            })
         } else {
             val elementBufferKey = elementBufferKeys[activeIntervals] ?: Any().also { elementBufferKeys[activeIntervals] = it }
             val elementBuffer = rc.getBufferObject(elementBufferKey) {
@@ -478,18 +496,19 @@ open class Ellipse @JvmOverloads constructor(
 
         // Assemble the drawable's OpenGL vertex buffer object.
         drawStateLines.vertexBuffer = rc.getBufferObject(currentData.lineVertexBufferKey) { BufferObject(GL_ARRAY_BUFFER, 0) }
-        rc.offerGLBufferUpload(currentData.lineVertexBufferKey, bufferDataVersion) { NumericArray.Floats(currentData.lineVertexArray) }
+        rc.assertGLBufferContent(currentData.lineVertexBufferKey, currentData.lineVertexContent
+            ?: NumericArray.Floats(currentData.lineVertexArray).also { currentData.lineVertexContent = it })
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getBufferObject(currentData.lineElementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.lineElementBufferKey, bufferDataVersion) {
+        rc.assertGLBufferContent(currentData.lineElementBufferKey, currentData.lineElementContent ?: run {
             val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
             val index = currentData.outlineElements.copyTo(array, 0)
             currentData.verticalElements.copyTo(array, index)
-            NumericArray.Ints(array)
-        }
+            NumericArray.Ints(array).also { currentData.lineElementContent = it }
+        })
 
         drawInterior(rc, drawState, cameraDistance)
         drawOutline(rc, drawStateLines, cameraDistance)
@@ -639,7 +658,8 @@ open class Ellipse @JvmOverloads constructor(
     }
 
     override fun assembleGeometry(rc: RenderContext) {
-        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
+        ++bufferDataVersion // advance so [computeVersion] sees fresh content this frame
+        currentData.invalidateContent()
         if (isPartial) {
             assemblePartialGeometry(rc)
             return

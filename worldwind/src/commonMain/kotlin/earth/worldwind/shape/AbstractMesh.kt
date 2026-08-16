@@ -63,6 +63,19 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         var isDrawInterior = false
         var assemblyElevationTimestamp = 0L
         private var expiryTime = 0L
+        // Cached content wrappers handed to [RenderContext.assertGLBufferContent]; rebuilt lazily
+        // once per assembly so identity equals content identity
+        var vertexContent: NumericArray? = null
+        var elementContent: NumericArray? = null
+        var normalsContent: NumericArray? = null
+        var texCoordsContent: NumericArray? = null
+
+        fun invalidateContent() {
+            vertexContent = null
+            elementContent = null
+            normalsContent = null
+            texCoordsContent = null
+        }
 
         fun resetExpiryTime(expirationInterval: Int) {
             // The random addition in the line below prevents all shapes from regenerating during the same frame.
@@ -136,21 +149,20 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) {
-            NumericArray.Floats(currentData.vertexArray)
-        }
+        rc.assertGLBufferContent(currentData.vertexBufferKey, currentData.vertexContent
+            ?: NumericArray.Floats(currentData.vertexArray).also { currentData.vertexContent = it })
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(currentData.elementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
+        rc.assertGLBufferContent(currentData.elementBufferKey, currentData.elementContent ?: run {
             val array = ShortArray(currentData.meshIndices.size + currentData.meshOutlineIndices.size)
             var index = 0
             for (element in currentData.meshIndices) array[index++] = element
             for (element in currentData.meshOutlineIndices) array[index++] = element
-            NumericArray.Shorts(array)
-        }
+            NumericArray.Shorts(array).also { currentData.elementContent = it }
+        })
 
         // Draw the mesh if the interior requested.
         if (drawInterior) {
@@ -159,9 +171,8 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
                 drawable.normalsBuffer = rc.getBufferObject(currentData.normalsBufferKey) {
                     BufferObject(GL_ARRAY_BUFFER, 0)
                 }
-                rc.offerGLBufferUpload(currentData.normalsBufferKey, bufferDataVersion) {
-                    NumericArray.Floats(currentData.normalsArray)
-                }
+                rc.assertGLBufferContent(currentData.normalsBufferKey, currentData.normalsContent
+                    ?: NumericArray.Floats(currentData.normalsArray).also { currentData.normalsContent = it })
             }
 
             // Texture coordinates
@@ -169,9 +180,8 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
                 drawable.texCoordsBuffer = rc.getBufferObject(currentData.texCoordsBufferKey) {
                     BufferObject(GL_ARRAY_BUFFER, 0)
                 }
-                rc.offerGLBufferUpload(currentData.texCoordsBufferKey, bufferDataVersion) {
-                    NumericArray.Floats(currentData.texCoords)
-                }
+                rc.assertGLBufferContent(currentData.texCoordsBufferKey, currentData.texCoordsContent
+                    ?: NumericArray.Floats(currentData.texCoords).also { currentData.texCoordsContent = it })
             }
 
             drawInterior(rc, drawState)
@@ -245,7 +255,8 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
     }
 
     override fun assembleGeometry(rc: RenderContext) {
-        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
+        ++bufferDataVersion // advance so [computeVersion] sees fresh content this frame
+        currentData.invalidateContent()
         // Adjust vertex origin to correspond to the reference position
         with(referencePosition) {
             rc.geographicToCartesian(latitude, longitude, altitude * altitudeScale, altitudeMode, currentData.vertexOrigin)

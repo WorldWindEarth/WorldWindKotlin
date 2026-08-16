@@ -143,6 +143,17 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         val vertexLinesBufferKey = Any()
         val elementLinesBufferKey = Any()
         var refreshLineVertexArray = true
+        // Cached content wrappers handed to [RenderContext.assertGLBufferContent]; rebuilt lazily
+        // once per assembly so identity equals content identity
+        var vertexContent: NumericArray? = null
+        var lineVertexContent: NumericArray? = null
+        var lineElementContent: NumericArray? = null
+
+        fun invalidateContent() {
+            vertexContent = null
+            lineVertexContent = null
+            lineElementContent = null
+        }
     }
 
     companion object {
@@ -334,9 +345,8 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) {
-            NumericArray.Floats(currentData.vertexArray)
-        }
+        rc.assertGLBufferContent(currentData.vertexBufferKey, currentData.vertexContent
+            ?: NumericArray.Floats(currentData.vertexArray).also { currentData.vertexContent = it })
 
         // Use shared index(element) buffer for all ProjectedMediaSurfaces
         drawState.elementBuffer = getSharedIndexBuffer(rc)
@@ -376,20 +386,19 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexLinesBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.vertexLinesBufferKey, bufferDataVersion) {
-            NumericArray.Floats(currentData.lineVertexArray)
-        }
+        rc.assertGLBufferContent(currentData.vertexLinesBufferKey, currentData.lineVertexContent
+            ?: NumericArray.Floats(currentData.lineVertexArray).also { currentData.lineVertexContent = it })
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(currentData.elementLinesBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.elementLinesBufferKey, bufferDataVersion) {
+        rc.assertGLBufferContent(currentData.elementLinesBufferKey, currentData.lineElementContent ?: run {
             val array = IntArray(currentData.outlineElements.size)
             var index = 0
             for (element in currentData.outlineElements) array[index++] = element
-            NumericArray.Ints(array)
-        }
+            NumericArray.Ints(array).also { currentData.lineElementContent = it }
+        })
 
         // Configure the drawable to use the outline texture when drawing the outline.
         activeAttributes.outlineImageSource?.let { outlineImageSource ->
@@ -418,7 +427,8 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
     }
 
     override fun assembleGeometry(rc: RenderContext) {
-        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
+        ++bufferDataVersion // advance so [computeVersion] sees fresh content this frame
+        currentData.invalidateContent()
         // Clear the shape's vertex array and element arrays. These arrays will accumulate values as the shape's
         // geometry is assembled.
         vertexIndex = 0

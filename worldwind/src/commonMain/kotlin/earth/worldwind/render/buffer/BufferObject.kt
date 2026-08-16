@@ -13,6 +13,11 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
     var ranges: Array<Range>? = null
     protected var id = KglBuffer.NONE
     var version = -1 // Accept buffer version 0 as a first version
+    /** The content this buffer currently holds, identity-compared by
+     *  [earth.worldwind.draw.UploadQueue.queueContentAssertion] entries. Maintained by
+     *  [loadBuffer]; GL-thread state (per-cache draw serialization orders it across windows). */
+    var contentArray: NumericArray? = null
+        protected set
 
     override fun release(dc: DrawContext) { deleteBufferObject(dc) }
 
@@ -42,6 +47,7 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
             dc.bindBuffer(target, id)
             // Load the current NIO buffer as the OpenGL buffer object's data.
             loadBufferObjectData(dc, array)
+            contentArray = array
         } catch (e: Exception) {
             // The NIO buffer could not be used as buffer data for an OpenGL buffer object. Delete the buffer object
             // to ensure that calls to bindBuffer fail.
@@ -62,6 +68,7 @@ open class BufferObject(protected val target: Int, var byteCount: Int) : RenderR
             dc.gl.deleteBuffer(id)
             id = KglBuffer.NONE
         }
+        contentArray = null // holds nothing now; a queued assertion must re-upload
     }
 
     protected open fun loadBufferObjectData(dc: DrawContext, array: NumericArray) {

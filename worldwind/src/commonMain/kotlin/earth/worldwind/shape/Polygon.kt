@@ -140,6 +140,19 @@ open class Polygon @JvmOverloads constructor(
         var geographicVertexCount = 0
         var savedRefAlt = 0.0
         var verticalVertexArrayOffset = 0
+        // Cached content wrappers handed to [RenderContext.assertGLBufferContent]; rebuilt lazily
+        // once per assembly so identity equals content identity
+        var vertexContent: NumericArray? = null
+        var elementContent: NumericArray? = null
+        var lineVertexContent: NumericArray? = null
+        var lineElementContent: NumericArray? = null
+
+        fun invalidateContent() {
+            vertexContent = null
+            elementContent = null
+            lineVertexContent = null
+            lineElementContent = null
+        }
     }
 
     companion object {
@@ -311,21 +324,20 @@ open class Polygon @JvmOverloads constructor(
         drawState.vertexBuffer = rc.getBufferObject(currentData.vertexBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.vertexBufferKey, bufferDataVersion) {
-            NumericArray.Floats(currentData.vertexArray)
-        }
+        rc.assertGLBufferContent(currentData.vertexBufferKey, currentData.vertexContent
+            ?: NumericArray.Floats(currentData.vertexArray).also { currentData.vertexContent = it })
 
         // Assemble the drawable's OpenGL element buffer object.
         drawState.elementBuffer = rc.getBufferObject(currentData.elementBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.elementBufferKey, bufferDataVersion) {
+        rc.assertGLBufferContent(currentData.elementBufferKey, currentData.elementContent ?: run {
             val array = IntArray(currentData.topElements.size + currentData.sideElements.size + currentData.baseElements.size)
             var index = currentData.topElements.copyTo(array, 0)
             index = currentData.sideElements.copyTo(array, index)
             currentData.baseElements.copyToReversed(array, index)
-            NumericArray.Ints(array)
-        }
+            NumericArray.Ints(array).also { currentData.elementContent = it }
+        })
 
         // Use triangles mode to draw lines
         drawStateLines.isLine = true
@@ -337,20 +349,19 @@ open class Polygon @JvmOverloads constructor(
         drawStateLines.vertexBuffer = rc.getBufferObject(currentData.vertexLinesBufferKey) {
             BufferObject(GL_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.vertexLinesBufferKey, bufferDataVersion) {
-            NumericArray.Floats(currentData.lineVertexArray)
-        }
+        rc.assertGLBufferContent(currentData.vertexLinesBufferKey, currentData.lineVertexContent
+            ?: NumericArray.Floats(currentData.lineVertexArray).also { currentData.lineVertexContent = it })
 
         // Assemble the drawable's OpenGL element buffer object.
         drawStateLines.elementBuffer = rc.getBufferObject(currentData.elementLinesBufferKey) {
             BufferObject(GL_ELEMENT_ARRAY_BUFFER, 0)
         }
-        rc.offerGLBufferUpload(currentData.elementLinesBufferKey, bufferDataVersion) {
+        rc.assertGLBufferContent(currentData.elementLinesBufferKey, currentData.lineElementContent ?: run {
             val array = IntArray(currentData.outlineElements.size + currentData.verticalElements.size)
             val index = currentData.outlineElements.copyTo(array, 0)
             currentData.verticalElements.copyTo(array, index)
-            NumericArray.Ints(array)
-        }
+            NumericArray.Ints(array).also { currentData.lineElementContent = it }
+        })
 
         drawInterior(rc, drawState, cameraDistance)
         drawOutline(rc, drawStateLines, cameraDistance)
@@ -485,7 +496,8 @@ open class Polygon @JvmOverloads constructor(
     }
 
     override fun assembleGeometry(rc: RenderContext) {
-        ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
+        ++bufferDataVersion // advance so [computeVersion] sees fresh content this frame
+        currentData.invalidateContent()
         if (currentData.refreshTopology) {
             assembleGeometryFull(rc)
             currentData.refreshTopology = false
