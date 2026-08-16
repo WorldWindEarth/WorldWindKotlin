@@ -66,7 +66,6 @@ open class Ellipse @JvmOverloads constructor(
     var center = Position(center)
         set(value) {
             field.copy(value)
-            reset()
         }
     /**
      * The ellipse's radius perpendicular to it's heading, in meters.
@@ -79,6 +78,7 @@ open class Ellipse @JvmOverloads constructor(
             require(value >= 0) {
                 logMessage(ERROR, "Ellipse", "setMajorRadius", "invalidRadius")
             }
+            if (field == value) return
             field = value
             reset()
         }
@@ -93,6 +93,7 @@ open class Ellipse @JvmOverloads constructor(
             require(value >= 0) {
                 logMessage(ERROR, "Ellipse", "setMinorRadius", "invalidRadius")
             }
+            if (field == value) return
             field = value
             reset()
         }
@@ -104,6 +105,7 @@ open class Ellipse @JvmOverloads constructor(
      */
     var heading = ZERO
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -116,6 +118,7 @@ open class Ellipse @JvmOverloads constructor(
      */
     var startAzimuth = ZERO
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -134,6 +137,7 @@ open class Ellipse @JvmOverloads constructor(
             require(value.inDegrees >= 0.0) {
                 logMessage(ERROR, "Ellipse", "setSweepAngle", "invalidAngle")
             }
+            if (field == value) return
             field = value
             reset()
         }
@@ -155,6 +159,7 @@ open class Ellipse @JvmOverloads constructor(
             require(value >= 0) {
                 logMessage(ERROR, "Ellipse", "maximumPixelsPerInterval", "invalidPixelsPerInterval")
             }
+            if (field == value) return
             field = value
             reset()
         }
@@ -176,6 +181,7 @@ open class Ellipse @JvmOverloads constructor(
             require(value >= 0) {
                 logMessage(ERROR, "Ellipse", "setMaximumIntervals", "invalidNumIntervals")
             }
+            if (field == value) return
             field = value
             reset()
         }
@@ -619,6 +625,8 @@ open class Ellipse @JvmOverloads constructor(
             )
         }
     }
+
+    override fun computeContentHash() = 3L.mix(center)
 
     override val hasGeometry get() = currentData.vertexArray.isNotEmpty()
 

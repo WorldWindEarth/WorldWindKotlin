@@ -62,7 +62,7 @@ open class Path @JvmOverloads constructor(
     var positions = positions
         set(value) {
             field = value
-            reset()
+            cachedReferencePosition = null
         }
     protected val data = mutableMapOf<Globe.State?, PathData>()
     protected val outlineTexCoordCache = TexCoordCache()
@@ -288,6 +288,8 @@ open class Path @JvmOverloads constructor(
             rc.offerShapeDrawable(drawableExtrusion, cameraDistanceSq)
         }
     }
+
+    override fun computeContentHash() = 1L.mix(positions)
 
     override val hasGeometry get() = currentData.vertexArray.isNotEmpty()
 

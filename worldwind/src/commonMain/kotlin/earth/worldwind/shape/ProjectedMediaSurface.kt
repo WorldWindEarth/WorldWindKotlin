@@ -194,13 +194,10 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
         require(index in locations.indices) {
             logMessage(ERROR, "ProjectedMediaSurface", "setLocation", "invalidIndex")
         }
-        reset()
-
         locations[index] = location
     }
 
     fun setLocations(bottomLeft: Location, bottomRight: Location, topRight: Location, topLeft: Location) {
-        reset()
         locations[0] = bottomLeft
         locations[1] = bottomRight
         locations[2] = topRight
@@ -225,6 +222,12 @@ open class ProjectedMediaSurface @JvmOverloads constructor(
             position.greatCircleLocation(azimuth, distance, pos)
         }
         reset()
+    }
+
+    override fun computeContentHash(): Long {
+        var h = 7L.mix(locations.size)
+        for (i in locations.indices) h = h.mix(locations[i])
+        return h
     }
 
     override fun shouldMakeDrawable(rc: RenderContext) = locations.isNotEmpty()

@@ -43,13 +43,13 @@ open class Ellipsoid @JvmOverloads constructor(
         set(value) {
             field.copy(value)
             referencePosition.copy(value)
-            reset()
         }
 
     /** Semi-axis along the local east direction, in metres. */
     var xRadius = xRadius
         set(value) {
             require(value >= 0.0) { logMessage(ERROR, "Ellipsoid", "xRadius", "invalidRadius") }
+            if (field == value) return
             field = value
             reset()
         }
@@ -58,6 +58,7 @@ open class Ellipsoid @JvmOverloads constructor(
     var yRadius = yRadius
         set(value) {
             require(value >= 0.0) { logMessage(ERROR, "Ellipsoid", "yRadius", "invalidRadius") }
+            if (field == value) return
             field = value
             reset()
         }
@@ -66,6 +67,7 @@ open class Ellipsoid @JvmOverloads constructor(
     var zRadius = zRadius
         set(value) {
             require(value >= 0.0) { logMessage(ERROR, "Ellipsoid", "zRadius", "invalidRadius") }
+            if (field == value) return
             field = value
             reset()
         }
@@ -73,6 +75,7 @@ open class Ellipsoid @JvmOverloads constructor(
     /** Rotation around the local up axis, clockwise from north. No effect on rotation spheroids. */
     var heading: Angle = ZERO
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -80,6 +83,7 @@ open class Ellipsoid @JvmOverloads constructor(
     /** Rotation around the body east (+X) axis. Positive tilts the +Y axis up ("nose up"). */
     var pitch: Angle = ZERO
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -87,6 +91,7 @@ open class Ellipsoid @JvmOverloads constructor(
     /** Rotation around the body north (+Y) axis. Positive tilts the +X axis down ("right wing down"). */
     var roll: Angle = ZERO
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -95,6 +100,7 @@ open class Ellipsoid @JvmOverloads constructor(
     var slices: Int = DEFAULT_SLICES
         set(value) {
             require(value >= 4) { logMessage(ERROR, "Ellipsoid", "slices", "Must be >= 4") }
+            if (field == value) return
             field = value
             reset()
         }
@@ -103,6 +109,7 @@ open class Ellipsoid @JvmOverloads constructor(
     var stacks: Int = DEFAULT_STACKS
         set(value) {
             require(value >= 2) { logMessage(ERROR, "Ellipsoid", "stacks", "Must be >= 2") }
+            if (field == value) return
             field = value
             reset()
         }
@@ -115,6 +122,7 @@ open class Ellipsoid @JvmOverloads constructor(
      */
     var outlineCircles: Set<OutlineCircle> = setOf(OutlineCircle.EQUATOR)
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -132,6 +140,8 @@ open class Ellipsoid @JvmOverloads constructor(
         center.copy(position)
         super.moveTo(globe, position)
     }
+
+    override fun computeContentHash() = 4L.mix(center)
 
     override fun createSurfaceShape(): AbstractShape? = null
 

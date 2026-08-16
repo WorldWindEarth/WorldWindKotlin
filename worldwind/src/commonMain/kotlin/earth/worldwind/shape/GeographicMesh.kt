@@ -68,7 +68,6 @@ open class GeographicMesh(
 
             field = value
             referencePosition.copy(determineReferencePosition(value))
-            reset()
         }
 
     /**
@@ -98,7 +97,6 @@ open class GeographicMesh(
             }
 
             field = value
-            reset()
         }
 
     private var numRows: Int
@@ -137,6 +135,21 @@ open class GeographicMesh(
             position.greatCircleLocation(azimuth, distance, pos)
         }
         super.moveTo(globe, position)
+    }
+
+    override fun computeContentHash(): Long {
+        var h = 6L.mix(positions.size)
+        for (row in positions) {
+            h = h.mix(row.size)
+            for (i in row.indices) h = h.mix(row[i])
+        }
+        textureCoordinates?.let { texCoords ->
+            for (row in texCoords) {
+                h = h.mix(row.size)
+                for (i in row.indices) h = h.mix(row[i].x).mix(row[i].y)
+            }
+        } ?: run { h = h.mix(-1) }
+        return h
     }
 
     override fun createSurfaceShape(): Polygon {

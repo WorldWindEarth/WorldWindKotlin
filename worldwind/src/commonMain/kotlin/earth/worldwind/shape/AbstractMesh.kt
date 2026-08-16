@@ -31,6 +31,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
      */
     var altitudeScale = 1.0
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }

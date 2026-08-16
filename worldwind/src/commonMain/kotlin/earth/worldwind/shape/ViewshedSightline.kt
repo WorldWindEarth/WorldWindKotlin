@@ -140,7 +140,7 @@ open class ViewshedSightline @JvmOverloads constructor(
     override var isHighlighted: Boolean = false
         set(value) { if (field != value) { field = value; invalidate() } }
     override var highlightAttributes: ShapeAttributes? = null
-        set(value) { field = value; invalidate() }
+        set(value) { if (field != value) { field = value; invalidate() } }
     override val referencePosition: Position get() = position
     override val isPointShape get() = true
     /**

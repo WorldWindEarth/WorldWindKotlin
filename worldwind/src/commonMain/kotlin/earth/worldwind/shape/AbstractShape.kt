@@ -40,11 +40,13 @@ abstract class AbstractShape(
 ): AbstractRenderable(), Attributable, Highlightable, Movable {
     override var altitudeMode = AltitudeMode.ABSOLUTE
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
     var pathType = PathType.GREAT_CIRCLE
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -53,6 +55,7 @@ abstract class AbstractShape(
      */
     var isExtrude = false
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -61,6 +64,7 @@ abstract class AbstractShape(
      */
     var isFollowTerrain = false
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -69,6 +73,7 @@ abstract class AbstractShape(
      */
     var baseAltitude = 0.0
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -95,6 +100,7 @@ abstract class AbstractShape(
      */
     var maximumNumEdgeIntervals = 64
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -105,6 +111,7 @@ abstract class AbstractShape(
      */
     var polarThrottle = 10.0
         set(value) {
+            if (field == value) return
             field = value
             reset()
         }
@@ -117,6 +124,10 @@ abstract class AbstractShape(
     // fall through with the prior GL buffer when the per-frame assembly budget is exhausted —
     // the version doesn't move, no re-upload happens, last frame's geometry stays on screen.
     protected var bufferDataVersion = 0
+    // Fingerprint of the mutable geometry inputs at the last [checkContentState] run. 0 marks
+    // "never computed"; the first render pass always sees a difference and resets, which is a
+    // no-op on freshly created per-state data (refresh flags start true).
+    private var lastContentHash = 0L
     protected val boundingData = mutableMapOf<Globe.State?, BoundingData>()
     // Single-entry cache for the most-recently-used (Globe.State, BoundingData) pair. Most
     // applications render against a single Globe.State, so the map lookup in [doRender] resolves
@@ -227,6 +238,56 @@ abstract class AbstractShape(
         // i.e. a one-frame blink, the opposite of what the fall-through was added to prevent.
         // Subclasses are responsible for marking their per-state caches stale (e.g. via
         // refreshVertexArray / refreshTopology flags).
+    }
+
+    /**
+     * Mixes every mutable geometry input of this shape (position lists, boundaries, centers —
+     * anything holding mutable [Position]/[Location] objects a caller can change in place) into
+     * a 64-bit fingerprint using the [mix] helpers. [checkContentState] compares it at the start
+     * of every render pass and resets the cached geometry when it moves, so callers neither need
+     * to notify the shape about mutations (in-place edits are picked up automatically) nor pay
+     * for a rebuild when they re-assign identical content. Value-typed configuration properties
+     * ([altitudeMode], radii, headings, …) are NOT part of the fingerprint — their setters
+     * compare-and-reset directly. Return 0 (the default) to opt out and keep explicit
+     * [reset]-on-mutation semantics.
+     *
+     * This is the WorldWind-family "state key" change-detection pattern (WebWorldWind's
+     * `SurfaceShape.computeStateKey` compared against per-tile as-rendered keys), expressed as a
+     * lossy 64-bit hash instead of a concatenated string so the per-render check allocates
+     * nothing, and extended to cover bulk geometry content, which the string keys omit.
+     */
+    protected open fun computeContentHash() = 0L
+
+    /** Resets the cached geometry when [computeContentHash] differs from the previous render pass. */
+    protected fun checkContentState() {
+        val hash = computeContentHash()
+        if (hash != lastContentHash) {
+            lastContentHash = hash
+            if (hash != 0L) reset()
+        }
+    }
+
+    /** SplitMix64-style avalanche step for [computeContentHash] fingerprints. */
+    protected fun Long.mix(value: Long): Long {
+        val h = (this xor value) * -0x61c8864680b583ebL // 2^64 / golden ratio
+        return h xor (h ushr 31)
+    }
+
+    protected fun Long.mix(value: Int) = mix(value.toLong())
+
+    protected fun Long.mix(value: Double) = mix(value.toRawBits())
+
+    protected fun Long.mix(value: Angle) = mix(value.inDegrees.toRawBits())
+
+    protected fun Long.mix(location: Location) = mix(location.latitude).mix(location.longitude)
+
+    protected fun Long.mix(position: Position) =
+        mix(position.latitude).mix(position.longitude).mix(position.altitude)
+
+    protected fun Long.mix(positions: List<Position>): Long {
+        var h = mix(positions.size)
+        for (i in positions.indices) h = h.mix(positions[i])
+        return h
     }
 
     /** True when [assembleGeometry] has previously emitted vertex data into the current GL buffer. */
@@ -365,6 +426,12 @@ abstract class AbstractShape(
         }
 
         if (!isWithinProjectionLimits(rc) || isVisible?.invoke(this, rc) == false) return
+
+        // Pick up in-place mutations of positions/boundaries/centers. Must run before the
+        // frustum test below: content changes leave the cached bounding volume stale, and the
+        // reset issued here is what lets the mustAssembleGeometry fallback keep a moved shape
+        // from being culled by its old bounds.
+        checkContentState()
 
         // Off-camera shapes that fall inside an active sightline or a shadow cascade's
         // footprint are kept alive as occluder-only drawables so the depth passes still

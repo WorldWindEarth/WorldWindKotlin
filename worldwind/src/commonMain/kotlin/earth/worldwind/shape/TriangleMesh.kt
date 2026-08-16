@@ -56,7 +56,6 @@ open class TriangleMesh(
             }
             field = value
             referencePosition.copy(value[0])
-            reset()
         }
 
     /**
@@ -70,7 +69,6 @@ open class TriangleMesh(
                 logMessage(ERROR, "TriangleMesh", "constructor", "Too few indices.")
             }
             field = value
-            reset()
         }
 
     /**
@@ -81,7 +79,6 @@ open class TriangleMesh(
     var outlineIndices: IntArray? = null
         set(value) {
             field = value
-            reset()
         }
 
     /**
@@ -98,7 +95,6 @@ open class TriangleMesh(
                 )
             }
             field = value
-            reset()
         }
 
     init {
@@ -129,6 +125,22 @@ open class TriangleMesh(
             position.greatCircleLocation(azimuth, distance, pos)
         }
         super.moveTo(globe, position)
+    }
+
+    override fun computeContentHash(): Long {
+        var h = 5L.mix(positions.size)
+        for (i in positions.indices) h = h.mix(positions[i])
+        h = h.mix(indices.size)
+        for (i in indices.indices) h = h.mix(indices[i])
+        outlineIndices?.let { outline ->
+            h = h.mix(outline.size)
+            for (i in outline.indices) h = h.mix(outline[i])
+        } ?: run { h = h.mix(-1) }
+        textureCoordinates?.let { texCoords ->
+            h = h.mix(texCoords.size)
+            for (i in texCoords.indices) h = h.mix(texCoords[i].x).mix(texCoords[i].y)
+        } ?: run { h = h.mix(-1) }
+        return h
     }
 
     override fun createSurfaceShape(): Polygon? {

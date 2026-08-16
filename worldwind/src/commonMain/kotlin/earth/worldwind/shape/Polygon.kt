@@ -78,7 +78,7 @@ open class Polygon @JvmOverloads constructor(
      * extruded shapes it flattens the skirt too.
      */
     var isPlanar = false
-        set(value) { field = value; reset() }
+        set(value) { if (field != value) { field = value; reset() } }
 
     // Derived gate for the "single terrain sample" assembly path; reached via [isExtrude]
     // (extruded top needs a planar reference) or the explicit [isPlanar]. [isFollowTerrain]
@@ -203,14 +203,12 @@ open class Polygon @JvmOverloads constructor(
         require(index in boundaries.indices) {
             logMessage(ERROR, "Polygon", "setBoundary", "invalidIndex")
         }
-        reset()
-        // TODO Make deep copy of positions the same way as for single position shapes?
+        cachedReferencePosition = null
         return boundaries.set(index, positions)
     }
 
     fun addBoundary(positions: List<Position>): Boolean {
-        reset()
-        // TODO Make deep copy of positions the same way as for single position shapes?
+        cachedReferencePosition = null
         return boundaries.add(positions)
     }
 
@@ -218,8 +216,7 @@ open class Polygon @JvmOverloads constructor(
         require(index in boundaries.indices) {
             logMessage(ERROR, "Polygon", "addBoundary", "invalidIndex")
         }
-        reset()
-        // TODO Make deep copy of positions the same way as for single position shapes?
+        cachedReferencePosition = null
         boundaries.add(index, positions)
     }
 
@@ -227,13 +224,13 @@ open class Polygon @JvmOverloads constructor(
         require(index in boundaries.indices) {
             logMessage(ERROR, "Polygon", "removeBoundary", "invalidIndex")
         }
-        reset()
+        cachedReferencePosition = null
         return boundaries.removeAt(index)
     }
 
     fun clearBoundaries() {
         boundaries.clear()
-        reset()
+        cachedReferencePosition = null
     }
 
     override fun resetGlobeState(globeState: Globe.State?) {
@@ -257,6 +254,12 @@ open class Polygon @JvmOverloads constructor(
         val rotation = SphericalRotation(referencePosition, position)
         for (boundary in boundaries) for (pos in boundary) rotation.apply(pos)
         reset()
+    }
+
+    override fun computeContentHash(): Long {
+        var h = 2L.mix(boundaries.size)
+        for (i in boundaries.indices) h = h.mix(boundaries[i])
+        return h
     }
 
     override fun shouldMakeDrawable(rc: RenderContext) = boundaries.isNotEmpty()
