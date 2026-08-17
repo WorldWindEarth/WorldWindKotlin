@@ -1,6 +1,6 @@
 [versions]
 annotation = "1.10.0"
-appcompat = "1.7.1"
+appcompat = "1.8.0"
 activity-compose = "1.13.0"
 compose-multiplatform = "1.11.1"
 lifecycle-compose = "2.11.0"
@@ -10,7 +10,7 @@ datetime = "0.8.0"
 desugar = "2.1.5"
 jogl = "2.6.0"
 junit = "1.3.0"
-ktor = "3.5.1"
+ktor = "3.5.2"
 lwjgl = "3.4.2"
 material = "1.14.0"
 # Temporarily held at 2.11.1/2.8.1/2.9.1: the x.2 releases changed the Direction of Attack
@@ -30,9 +30,9 @@ serialization = "1.11.0"
 geojson = "0.7.0"
 uri-kmp = "0.0.21"
 vlcj = "4.12.1"
-javacv = "1.5.13"
+javacv = "1.5.14"
 javafx = "26.0.2"
-xmlutil = "1.0.1"
+xmlutil = "1.0.2"
 webp-imageio = "0.11.0"
 
 [plugins]
