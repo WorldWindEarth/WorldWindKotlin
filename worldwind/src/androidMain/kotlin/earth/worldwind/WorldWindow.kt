@@ -5,6 +5,7 @@ import android.content.ComponentCallbacks2.*
 import android.content.Context
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
@@ -71,7 +72,10 @@ open class WorldWindow @JvmOverloads constructor(
     protected open val componentCallbacks = object : ComponentCallbacks2 {
         override fun onConfigurationChanged(newConfig: Configuration) {}
         @Deprecated("Deprecated in Java, but still required to be overwritten")
-        override fun onLowMemory() = engine.renderResourceCache.trimStale()
+        override fun onLowMemory() {
+            // Windows Subsystem for Android triggers this callback incorrectly when memory is not low, but some real devices still rely on it
+            if (!isWindowsSubsystemForAndroid) engine.renderResourceCache.trimStale()
+        }
         @Suppress("DEPRECATION")
         override fun onTrimMemory(level: Int) {
             engine.renderResourceCache.trimStale(when {
@@ -90,6 +94,10 @@ open class WorldWindow @JvmOverloads constructor(
 
     companion object {
         protected const val MAX_FRAME_QUEUE_SIZE = 2
+        /**
+         * Detects if application is running on Windows Subsystem for Android
+         */
+        val isWindowsSubsystemForAndroid = Build.MODEL?.contains("Subsystem for Android", ignoreCase = true) == true
     }
 
     init {
