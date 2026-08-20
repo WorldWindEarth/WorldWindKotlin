@@ -71,6 +71,14 @@ interface TilesetAuthProvider {
      *  rejection (e.g. 401/403 on a content fetch) and is about to refetch root.json
      *  to obtain a new session/token. Default no-op for stateless providers. */
     fun invalidateSessionState() {}
+
+    /** Whether re-bootstrapping can ever change an auth rejection's outcome — i.e. the
+     *  provider derives fresh session state from server responses (Google's `session=`,
+     *  Cesium Ion's per-asset token). Gates `TileFetchQueue`'s session recovery: for
+     *  static-credential providers (custom headers, bearer token) a 401/403 is final, and
+     *  recovery would loop refetch-root → reject → recover forever. Default false; only
+     *  providers with a meaningful [invalidateSessionState] should return true. */
+    val hasRefreshableSession: Boolean get() = false
 }
 
 /**

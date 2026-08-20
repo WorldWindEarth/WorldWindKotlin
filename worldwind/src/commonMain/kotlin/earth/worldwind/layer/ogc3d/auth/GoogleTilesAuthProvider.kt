@@ -48,6 +48,9 @@ class GoogleTilesAuthProvider(val apiKey: String) : TilesetAuthProvider {
      *  session is dead. */
     override fun invalidateSessionState() { sessionToken = null }
 
+    /** Session tokens are minted per root fetch, so re-bootstrapping can cure a rejection. */
+    override val hasRefreshableSession: Boolean get() = true
+
     override fun observeTilesetResponse(requestedUrl: String, responseUrl: String, body: String) {
         // Body-advertised session wins: it's the token THIS subtree's children require.
         // URL fallback covers static tilesets that don't echo the token in the body. The

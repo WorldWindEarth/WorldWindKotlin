@@ -52,5 +52,8 @@ class CompositeAuthProvider(private val providers: List<TilesetAuthProvider>) : 
         for (p in providers) p.invalidateSessionState()
     }
 
+    /** Recovery is worth attempting if any child can refresh its session. */
+    override val hasRefreshableSession: Boolean get() = providers.any { it.hasRefreshableSession }
+
     companion object { const val DISCRIMINATOR = "CompositeAuthProvider" }
 }

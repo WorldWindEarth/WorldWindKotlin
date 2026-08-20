@@ -54,6 +54,9 @@ class CesiumIonAuthProvider(
         endpointFollowed = false
     }
 
+    /** Per-asset tokens are re-issued by the `/endpoint` fetch, so recovery can cure a rejection. */
+    override val hasRefreshableSession: Boolean get() = true
+
     private fun tryParseEndpoint(body: String): IonEndpoint? = try {
         val envelope = json.decodeFromString<IonEndpoint>(body)
         // `type` + `url` discriminator distinguishes the endpoint envelope from a tileset.json.

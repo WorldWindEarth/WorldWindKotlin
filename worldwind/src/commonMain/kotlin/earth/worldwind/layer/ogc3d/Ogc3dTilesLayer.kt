@@ -789,14 +789,16 @@ open class Ogc3dTilesLayer(
             // a separate coroutine would un-cap parse concurrency and pile up decoded
             // bitmaps in native heap whenever cache hits make fetches instant.
             onSuccess = { bytes -> handleContentFetched(tile, bytes) },
-            // Only a definitive HTTP status error is permanent. Cancellation + transient
+            // Only a definitive error is permanent: an HTTP status, or a request that can't
+            // even be built (IllegalArgumentException — e.g. an illegal character in a custom
+            // auth header) and would throw identically on every retry. Cancellation + transient
             // IO (Ktor JS engine's `TypeError: Failed to fetch`, QUIC resets, DNS hiccups)
             // leave UNLOADED so the next traversal can retry — OkHttp on JVM/Android retries
             // those internally so they rarely surface, but on the JS fetch engine a single
             // transient miss would otherwise stick the tile as FAILED forever.
             onFailure = { t ->
                 tile.loadState = when (t) {
-                    is HttpStatusException -> Tile3d.LoadState.FAILED
+                    is HttpStatusException, is IllegalArgumentException -> Tile3d.LoadState.FAILED
                     else -> Tile3d.LoadState.UNLOADED
                 }
             }

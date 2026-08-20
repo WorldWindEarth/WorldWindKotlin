@@ -62,6 +62,14 @@ class TileFetchQueue(
      *  heavy .glb content stays cached. Set on first recovery, cleared next cold start. */
     @Volatile private var bypassTilesetCacheRead: Boolean = false
 
+    /** Recoveries since the last successful content fetch. When the credential itself is bad
+     *  (revoked key, wrong header) every fresh session is rejected too, and without a cap the
+     *  queue would rotate epochs — refetch root, purge cache, drop the tree — forever. */
+    @Volatile private var consecutiveRecoveries: Int = 0
+    /** Latched when [consecutiveRecoveries] hits [MAX_SESSION_RECOVERIES]; stops the rejection
+     *  flurry from re-launching give-up recovery attempts. Cleared on a successful content fetch. */
+    @Volatile private var recoveryExhausted: Boolean = false
+
     /** Bounded fire-and-forget queue feeding one drain coroutine. Cache writes run there
      *  (single writer to SQLite, no inter-coroutine contention) so the permit pool never
      *  blocks on the SQLite write lock. Overflow drops; bytes still feed install. */
@@ -193,6 +201,11 @@ class TileFetchQueue(
     companion object {
         const val MAX_REDIRECT_HOPS = 5
 
+        /** Consecutive rejected-session recoveries tolerated before giving up (see
+         *  [recoverSession]). One rotation handles a normal expiry; a couple more absorb
+         *  races with server-side propagation. Beyond that the credential itself is bad. */
+        const val MAX_SESSION_RECOVERIES = 3
+
         /** Caps transient memory at ~32 MB (each pending request pins ~50-500 KB of bytes);
          *  on overflow [fetchContent] drops the cache write and the tile re-fetches next time. */
         private const val CACHE_WRITE_QUEUE_CAPACITY: Int = 64
@@ -234,6 +247,11 @@ class TileFetchQueue(
                     onFailure(HttpStatusException(response.statusCode, response.statusMessage ?: "", request.contentUri))
                     return@launch
                 }
+                // A content 2xx proves the current session works — re-arm the recovery budget.
+                // Content only (not tileset): during a bad-credential loop the root fetch can
+                // still succeed, and resetting there would defeat the consecutive-recovery cap.
+                consecutiveRecoveries = 0
+                recoveryExhausted = false
                 // Stash for the post-permit cache-write enqueue; permit releases in the
                 // inner finally so the next high-priority fetch can start its HTTP.
                 fetchedBytesForCache = response.bytes
@@ -266,12 +284,29 @@ class TileFetchQueue(
      *  rotate the epoch, cancel every in-flight old-session download, drop the dead session,
      *  then signal the layer. Rejections from an already-rotated epoch are ignored, so one
      *  expiry's flurry of failures collapses to a single rotation — no latch, no race. Runs on
-     *  [controlScope] so cancelling the epoch can't cancel the recovery itself. */
+     *  [controlScope] so cancelling the epoch can't cancel the recovery itself.
+     *
+     *  Only providers whose sessions can actually be re-minted participate, and only for
+     *  [MAX_SESSION_RECOVERIES] consecutive rejected sessions — otherwise a credential that is
+     *  simply wrong (revoked key, mistyped header) turns recovery into an endless refetch-root →
+     *  reject → recover cycle. Skipped rejections surface as [HttpStatusException] instead, so
+     *  tiles FAIL and the root fetch latches. */
     private fun recoverSession(rejectedEpoch: Int, failedUrl: String) {
         if (rejectedEpoch != epoch) return // superseded — a rotation already handled this expiry
+        if (!source.authProvider.hasRefreshableSession || recoveryExhausted) return
         controlScope.launch {
             recoveryMutex.withLock {
                 if (rejectedEpoch != epoch) return@withLock
+                if (consecutiveRecoveries >= MAX_SESSION_RECOVERIES) {
+                    recoveryExhausted = true
+                    logMessage(
+                        Logger.WARN, "TileFetchQueue", "auth",
+                        "giving up session recovery for ${source.displayName}: " +
+                            "$MAX_SESSION_RECOVERIES consecutive fresh sessions rejected (${stableCacheKey(failedUrl)})",
+                    )
+                    return@withLock
+                }
+                consecutiveRecoveries++
                 epoch++
                 val dead = epochScope
                 epochScope = CoroutineScope(baseContext + SupervisorJob(job))

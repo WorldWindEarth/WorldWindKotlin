@@ -197,4 +197,32 @@ class AuthProvidersTest {
         val rewritten = provider.rewriteChildUri("p", "child")
         assertEquals("<b><a>child</a></b>", rewritten)
     }
+
+    // --- hasRefreshableSession ---------------------------------------------------
+
+    @Test fun staticProvidersHaveNoRefreshableSession() {
+        assertFalse(NoAuthProvider.hasRefreshableSession)
+        assertFalse(BearerTokenAuthProvider("TOK").hasRefreshableSession)
+        assertFalse(CustomHeadersAuthProvider(mapOf("X-Api-Key" to "k")).hasRefreshableSession)
+    }
+
+    @Test fun sessionProvidersHaveRefreshableSession() {
+        assertTrue(GoogleTilesAuthProvider("KEY").hasRefreshableSession)
+        assertTrue(CesiumIonAuthProvider("USER").hasRefreshableSession)
+    }
+
+    @Test fun compositeRefreshableIfAnyChildIs() {
+        assertFalse(
+            CompositeAuthProvider(
+                BearerTokenAuthProvider("TOK"),
+                CustomHeadersAuthProvider(mapOf("X-Trace" to "t")),
+            ).hasRefreshableSession
+        )
+        assertTrue(
+            CompositeAuthProvider(
+                CustomHeadersAuthProvider(mapOf("X-Trace" to "t")),
+                CesiumIonAuthProvider("USER"),
+            ).hasRefreshableSession
+        )
+    }
 }
