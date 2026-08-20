@@ -12,6 +12,8 @@ import earth.worldwind.render.Framebuffer
 import earth.worldwind.render.MultisampleFramebuffer
 import earth.worldwind.render.Texture
 import earth.worldwind.render.buffer.BufferObject
+import earth.worldwind.util.Logger.WARN
+import earth.worldwind.util.Logger.logMessage
 import earth.worldwind.render.buffer.BufferPool
 import earth.worldwind.render.program.DepthToColorProgram
 import earth.worldwind.util.LruMemoryCache
@@ -189,6 +191,7 @@ open class DrawContext(val gl: Kgl) {
     private var pickDepthReadbackFramebufferCache: Framebuffer? = null
     private var scratchFramebufferCache: Framebuffer? = null
     private var sightlineDepthCubeTextureCache: Texture? = null
+    private var sightlineScratchDepthTextureCache: Texture? = null
     private var nullShadowDepthTextureCache: Texture? = null
     private var nullShadowDepthCubeTextureCache: Texture? = null
     private var sightlineCubeFramebufferCache: Framebuffer? = null
@@ -331,15 +334,39 @@ open class DrawContext(val gl: Kgl) {
      * compare in-shader. Either way the receiver's percentage-closer filter does its own
      * tent weighting across taps. Lazily allocated and cached.
      */
+    /**
+     * True when sightline receivers read the cube through a plain `samplerCube` (no hardware
+     * depth-compare) — the depth pass then packs window depth into an RGBA8 color cube via
+     * [earth.worldwind.render.program.PackedDepthProgram]. Sampling a real `DEPTH_COMPONENT`
+     * texture through a plain sampler is driver-dependent — Adreno 512 returns ~8-bit
+     * quantized depth, collapsing the sightline's `1/d` mapping into kilometre buckets —
+     * while RGBA8 color reads are exact on every GPU.
+     */
+    val sightlineUsesPackedDepth get() = !gl.hasShadowSamplers
+
     val sightlineDepthCubeTexture get() = sightlineDepthCubeTextureCache
-        ?: createDepthTextureAttachment(SIGHTLINE_MAP_SIZE, GL_TEXTURE_CUBE_MAP).apply {
-            if (gl.hasShadowSamplers) {
-                setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-                setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-                setTexParameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
-                setTexParameter(GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL)
-            }
-        }.also { sightlineDepthCubeTextureCache = it }
+        ?: (if (sightlineUsesPackedDepth) Texture(
+            SIGHTLINE_MAP_SIZE, SIGHTLINE_MAP_SIZE, GL_RGBA, GL_UNSIGNED_BYTE,
+            true, if (gl.supportsSizedTextureFormats) GL_RGBA8 else GL_RGBA,
+            target = GL_TEXTURE_CUBE_MAP,
+        ).apply {
+            setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        }
+        else createDepthTextureAttachment(SIGHTLINE_MAP_SIZE, GL_TEXTURE_CUBE_MAP).apply {
+            setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            setTexParameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
+            setTexParameter(GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL)
+        }).also { sightlineDepthCubeTextureCache = it }
+
+    /**
+     * Shared depth attachment for the packed sightline pass ([sightlineUsesPackedDepth]) —
+     * z-testing still needs a real depth buffer while the packed color lands in the cube
+     * face. One scratch texture serves all six faces; the pass clears it per face.
+     */
+    private val sightlineScratchDepthTexture get() = sightlineScratchDepthTextureCache
+        ?: createDepthTextureAttachment(SIGHTLINE_MAP_SIZE).also { sightlineScratchDepthTextureCache = it }
 
     /**
      * Depth-only framebuffer paired with [sightlineDepthCubeTexture]. The depth pass
@@ -349,12 +376,23 @@ open class DrawContext(val gl: Kgl) {
      * draw and read buffers are explicitly set to NONE (FBO state, set once here).
      */
     val sightlineCubeFramebuffer get() = sightlineCubeFramebufferCache ?: Framebuffer().apply {
-        attachTexture(this@DrawContext, sightlineDepthCubeTexture, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X)
-        val previousFramebuffer = currentFramebuffer
-        bindFramebuffer(this@DrawContext)
-        gl.drawBuffers(NO_DRAW_BUFFERS)
-        gl.readBuffer(GL_NONE)
-        this@DrawContext.bindFramebuffer(previousFramebuffer)
+        if (sightlineUsesPackedDepth) {
+            // Packed path: cube face as COLOR attachment (RGBA8 packed depth), z-test
+            // against the shared scratch depth texture; default draw/read buffers.
+            attachTexture(this@DrawContext, sightlineDepthCubeTexture, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X)
+            attachTexture(this@DrawContext, sightlineScratchDepthTexture, GL_DEPTH_ATTACHMENT)
+            if (!isFramebufferComplete(this@DrawContext)) logMessage(
+                WARN, "DrawContext", "sightlineCubeFramebuffer",
+                "Packed sightline framebuffer incomplete - sightline will not render correctly"
+            )
+        } else {
+            attachTexture(this@DrawContext, sightlineDepthCubeTexture, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X)
+            val previousFramebuffer = currentFramebuffer
+            bindFramebuffer(this@DrawContext)
+            gl.drawBuffers(NO_DRAW_BUFFERS)
+            gl.readBuffer(GL_NONE)
+            this@DrawContext.bindFramebuffer(previousFramebuffer)
+        }
     }.also { sightlineCubeFramebufferCache = it }
 
     /**
@@ -540,6 +578,7 @@ open class DrawContext(val gl: Kgl) {
         pickDepthReadbackFramebufferCache?.release(this)
         scratchFramebufferCache?.release(this)
         sightlineDepthCubeTextureCache?.release(this)
+        sightlineScratchDepthTextureCache?.release(this)
         nullShadowDepthTextureCache?.release(this)
         nullShadowDepthCubeTextureCache?.release(this)
         sightlineCubeFramebufferCache?.release(this)
@@ -559,6 +598,7 @@ open class DrawContext(val gl: Kgl) {
         pickDepthReadbackFramebufferCache = null
         scratchFramebufferCache = null
         sightlineDepthCubeTextureCache = null
+        sightlineScratchDepthTextureCache = null
         nullShadowDepthTextureCache = null
         nullShadowDepthCubeTextureCache = null
         sightlineCubeFramebufferCache = null

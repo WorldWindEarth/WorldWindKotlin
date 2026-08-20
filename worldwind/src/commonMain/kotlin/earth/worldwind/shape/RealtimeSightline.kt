@@ -16,6 +16,7 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.program.DirectionalDepthProgram
+import earth.worldwind.render.program.PackedDepthProgram
 import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Logger.ERROR
 import earth.worldwind.util.Logger.logMessage
@@ -236,6 +237,7 @@ open class RealtimeSightline @JvmOverloads constructor(
             drawable.occludedColor.copy(if (rc.isPickMode) pickColor else occludeAttributes.interiorColor)
             drawable.program = rc.getShaderProgram { SightlineProgram() }
             drawable.depthProgram = rc.getShaderProgram { DirectionalDepthProgram() }
+            drawable.packedDepthProgram = rc.getShaderProgram { PackedDepthProgram() }
         }
 
         val depth = DrawableSightline.obtain(pool).also(::configure)

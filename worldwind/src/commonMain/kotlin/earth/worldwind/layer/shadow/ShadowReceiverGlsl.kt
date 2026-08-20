@@ -53,6 +53,13 @@ object ShadowReceiverGlsl {
         if (receiverEnabled && dc.gl.hasShadowSamplers) {
             // Samplers define AFTER the derivatives prefix: Apple requires #extension first.
             dc.gl.glslVersion3.ifEmpty { dc.gl.glslVersion } + dc.gl.glslDerivativesPrefix + SHADOW_SAMPLERS_DEFINE
+        } else if (receiverEnabled) {
+            // Software-compare fallback still compiles as ESSL 3.00 where available: the
+            // receiver-plane depth prediction needs dFdx/dFdy of varyings, which are core
+            // (and correct) in ESSL 3.00 but broken via the OES extension on Adreno 512-era
+            // drivers - grazing receivers self-occluded and the whole sightline read
+            // occluded. ESSL 3.00 also makes depth-texture reads spec-defined.
+            dc.gl.glslVersion3.ifEmpty { dc.gl.glslVersion } + dc.gl.glslDerivativesPrefix
         } else {
             dc.gl.glslVersion + dc.gl.glslDerivativesPrefix
         }

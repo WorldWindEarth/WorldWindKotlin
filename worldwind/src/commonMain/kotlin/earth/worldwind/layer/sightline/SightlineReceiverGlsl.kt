@@ -121,11 +121,23 @@ object SightlineReceiverGlsl {
             float dvy = (dot(t2, dLy) - v * day) / dAxis;
             float det = dux * dvy - duy * dvx;
             if (abs(det) > 1e-12) dduv = vec2(dax * dvy - day * dvx, dux * day - duy * dax) / det;
+            /* NaN/inf guard: broken varying derivatives (observed on Adreno 512's ESSL 1.00
+               path) poison every tap through `slide * float(i)` - IEEE NaN * 0 is NaN, so
+               even the centre tap misclassifies and the whole sightline reads occluded.
+               A NaN fails this comparison and falls back to the flat plane. */
+            if (!(abs(dduv.x) + abs(dduv.y) < 1.0e9)) dduv = vec2(0.0);
             #endif
             /* Per-texel slide in axis distance, clamped so silhouette discontinuities can't
                drag the prediction to another surface. */
             float duTexel = 2.0 / sightlineMapSize;
             vec2 slide = clamp(dduv * duTexel, vec2(-8.0 * texelStep), vec2(8.0 * texelStep));
+            /* Slope-scaled receiver bias for the packed path. The depth-texture path gets
+               slope-scaled caster bias from glPolygonOffset, but polygon offset only shifts
+               the hardware depth buffer - a packed varying is unaffected, so grazing
+               receivers self-shadowed as zebra bands. Mirror the sun receiver's cure: bias
+               toward visible by ~1.5 texels of the receiver's own distance slope, capped so
+               silhouettes don't leak. */
+            float slopeBias = min(1.5 * (abs(slide.x) + abs(slide.y)), 16.0 * texelStep);
             /* 3x3 binomial tent PCF; each tap compares against the plane-predicted depth,
                biased toward visible by ~two texels of world distance (dz/dd = scale/d^2). */
             float occluded = 0.0;
@@ -133,13 +145,23 @@ object SightlineReceiverGlsl {
                 for (int j = -1; j <= 1; j++) {
                     vec3 dir = local + (t1 * float(i) + t2 * float(j)) * texelStep;
                     float dPred = max(dAxis + slide.x * float(i) + slide.y * float(j) - 2.0 * texelStep, 0.01);
-                    float refDepth = sightlineDepthScale * (1.0 - 1.0 / dPred);
                     float w = (2.0 - abs(float(i))) * (2.0 - abs(float(j)));
                     #ifdef WW_SHADOW_SAMPLERS
                     /* LEQUAL compare returns visibility; the tap contributes its complement. */
+                    float refDepth = sightlineDepthScale * (1.0 - 1.0 / dPred);
                     occluded += w * (1.0 - texture(sightlineDepthSampler, vec4(dir, refDepth)));
                     #else
-                    occluded += w * step(textureCube(sightlineDepthSampler, dir).r, refDepth);
+                    /* RGBA8-packed LINEAR face-axis distance (PackedDepthProgram), unpacked as
+                       r + g/255 + b/255^2 and scaled by range - the shadow-style software
+                       compare. Deliberately neither a depth-texture read (driver-dependent,
+                       ~8-bit on Adreno 512) nor gl_FragCoord.z (1/d mapping packs all far
+                       range into the last fraction near 1.0; fragment-stage precision is
+                       driver-dependent too). Linear distance carries uniform metre-scale
+                       precision, and the compare runs in the same domain with metre-scale
+                       margins. A far-cleared texel (1, 0, 0) unpacks to exactly range. */
+                    vec4 packedTap = textureCube(sightlineDepthSampler, dir);
+                    float distStored = dot(packedTap.rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0)) * sightlineRange;
+                    occluded += w * step(distStored, dPred - slopeBias);
                     #endif
                 }
             }

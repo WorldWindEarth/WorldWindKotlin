@@ -8,7 +8,9 @@ import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.shadow.ShadowCaster
 import earth.worldwind.layer.sightline.SightlineState
 import earth.worldwind.render.Color
+import earth.worldwind.render.program.DepthCasterProgram
 import earth.worldwind.render.program.DirectionalDepthProgram
+import earth.worldwind.render.program.PackedDepthProgram
 import earth.worldwind.render.program.SightlineProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.*
@@ -59,6 +61,11 @@ open class DrawableSightline protected constructor() : Drawable {
     var program: SightlineProgram? = null
     /** Depth-pass shader — the same trivial depth-only program the sun cascades use. */
     var depthProgram: DirectionalDepthProgram? = null
+    /** Packed-color depth caster used instead of [depthProgram] when
+     *  [DrawContext.sightlineUsesPackedDepth] - see [PackedDepthProgram]. */
+    var packedDepthProgram: PackedDepthProgram? = null
+    /** Caster the current depth pass draws with; occluder matrix loads route through it. */
+    private var activeDepthCaster: DepthCasterProgram? = null
     private var pool: Pool<DrawableSightline>? = null
     private val sightlineView = Matrix4()
     private val faceProjectionView = Matrix4()
@@ -151,6 +158,8 @@ open class DrawableSightline protected constructor() : Drawable {
         sourceKey = null
         program = null
         depthProgram = null
+        packedDepthProgram = null
+        activeDepthCaster = null
         pool?.release(this)
         pool = null
     }
@@ -195,8 +204,14 @@ open class DrawableSightline protected constructor() : Drawable {
      * matrix through the 90-degree projection.
      */
     protected open fun drawSceneDepth(dc: DrawContext): Boolean {
-        val depthProgram = depthProgram ?: return false
-        if (!depthProgram.useProgram(dc)) return false
+        // Packed path (no hardware depth-compare samplers): depth is packed into the RGBA8
+        // color cube by [PackedDepthProgram]; otherwise true hardware depth is written.
+        val packed = dc.sightlineUsesPackedDepth
+        val caster: DepthCasterProgram = (if (packed) packedDepthProgram else depthProgram) ?: return false
+        if (!caster.useProgram(dc)) return false
+        activeDepthCaster = caster
+        // Packed linear depth is normalized by the cube projection's far range.
+        if (packed) packedDepthProgram?.loadRange(max(range, 1.001f))
 
         val framebuffer = dc.sightlineCubeFramebuffer
         val cubeTexture = dc.sightlineDepthCubeTexture
@@ -211,18 +226,28 @@ open class DrawableSightline protected constructor() : Drawable {
             dc.parkBenignSightlineCube()
 
             dc.gl.viewport(0, 0, size, size)
-            // Assert the depth-write state the pass depends on; colour writes stay masked.
+            // Assert the depth-write state the pass depends on. Colour writes stay masked on
+            // the hardware-depth path; the packed path IS the colour output.
             dc.gl.enable(GL_DEPTH_TEST)
             dc.gl.depthFunc(GL_LEQUAL)
             dc.gl.depthMask(true)
-            dc.gl.colorMask(false, false, false, false)
+            if (packed) {
+                // Cleared colour = packD24(1.0) = (1, 0, 0): "far", i.e. unoccluded.
+                dc.gl.clearColor(1f, 0f, 0f, 1f)
+            } else {
+                dc.gl.colorMask(false, false, false, false)
+            }
             dc.gl.enable(GL_POLYGON_OFFSET_FILL)
             dc.gl.polygonOffset(POLYGON_OFFSET_FACTOR, POLYGON_OFFSET_UNITS)
             computeTerrainCoverageSkips(dc)
 
             for (i in cubeMapFace.indices) {
-                framebuffer.attachTexture(dc, cubeTexture, GL_DEPTH_ATTACHMENT, cubeMapFaceTarget[i])
-                dc.gl.clear(GL_DEPTH_BUFFER_BIT)
+                framebuffer.attachTexture(
+                    dc, cubeTexture,
+                    if (packed) GL_COLOR_ATTACHMENT0 else GL_DEPTH_ATTACHMENT,
+                    cubeMapFaceTarget[i]
+                )
+                dc.gl.clear(if (packed) GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT else GL_DEPTH_BUFFER_BIT)
 
                 // Full per-face MVP composed in double so ECEF translations cancel.
                 sightlineView.copy(centerTransform)
@@ -240,7 +265,7 @@ open class DrawableSightline protected constructor() : Drawable {
                     if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
                     matrix.copy(faceProjectionView)
                     matrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
-                    depthProgram.loadModelviewProjection(matrix)
+                    caster.loadModelviewProjection(matrix)
                     terrain.drawTriangles(dc)
                 }
                 dc.gl.enable(GL_CULL_FACE)
@@ -251,6 +276,8 @@ open class DrawableSightline protected constructor() : Drawable {
             dc.bindFramebuffer(previousFramebuffer)
             dc.gl.viewport(dc.viewport.x, dc.viewport.y, dc.viewport.width, dc.viewport.height)
             dc.gl.colorMask(true, true, true, true)
+            // Restore the GL-default clear colour the rest of the engine implicitly relies on.
+            if (packed) dc.gl.clearColor(0f, 0f, 0f, 0f)
             dc.gl.disable(GL_POLYGON_OFFSET_FILL)
             dc.gl.polygonOffset(0f, 0f)
         }
@@ -325,7 +352,7 @@ open class DrawableSightline protected constructor() : Drawable {
      * implementations call this once before each draw call.
      */
     fun loadOccluderMatrix(modelMatrix: Matrix4) {
-        val program = depthProgram ?: return
+        val program = activeDepthCaster ?: return
         matrix.copy(faceProjectionView)
         matrix.multiplyByMatrix(modelMatrix)
         program.loadModelviewProjection(matrix)
@@ -336,7 +363,7 @@ open class DrawableSightline protected constructor() : Drawable {
      * world coordinates (the common case — terrain tiles, shape vertex origins, etc.).
      */
     fun loadOccluderTranslation(x: Double, y: Double, z: Double) {
-        val program = depthProgram ?: return
+        val program = activeDepthCaster ?: return
         matrix.copy(faceProjectionView)
         matrix.multiplyByTranslation(x, y, z)
         program.loadModelviewProjection(matrix)

@@ -15,7 +15,7 @@ import earth.worldwind.util.kgl.KglUniformLocation
  * bias in the caster pass itself — steeply-lit triangles get proportionally more bias, which
  * a receiver-side constant can never do without erasing contact shadows.
  */
-class DirectionalDepthProgram : AbstractShaderProgram() {
+class DirectionalDepthProgram : AbstractShaderProgram(), DepthCasterProgram {
     override var programSources = arrayOf(
         """
             /* Full lightProjection * lightView * model, composed in double on the CPU so the
@@ -57,7 +57,7 @@ class DirectionalDepthProgram : AbstractShaderProgram() {
         gl.uniformMatrix4fv(mvpMatrixId, 1, false, array, 0)
     }
 
-    fun loadModelviewProjection(matrix: Matrix4) {
+    override fun loadModelviewProjection(matrix: Matrix4) {
         matrix.transposeToArray(array, 0)
         gl.uniformMatrix4fv(mvpMatrixId, 1, false, array, 0)
     }
