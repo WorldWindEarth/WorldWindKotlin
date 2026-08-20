@@ -26,15 +26,13 @@ class SurfaceOverlayProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
-            precision highp float;
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
             #endif
 
             uniform sampler2D texSampler;
 
-            varying vec2 texCoord;
+            varying highp vec2 texCoord;
 
             void main() {
                 vec2 uv = texCoord;

@@ -143,7 +143,7 @@ open class TriangleShaderProgram(
         // the fragment shader gates the `dFdx` call so a platform that doesn't opt in (currently
         // none) would still compile - lighting silently no-ops there.
         defines() + """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            #if defined(GL_ES) && defined(SHADOWS_ENABLED) && defined(GL_FRAGMENT_PRECISION_HIGH)
             precision highp float;
             #elif defined(GL_ES)
             precision mediump float;
@@ -160,7 +160,7 @@ open class TriangleShaderProgram(
             uniform sampler2D texSampler;
 
             varying vec2 texCoord;
-            varying vec3 localPos;
+            varying highp vec3 localPos;
 
             ${LightingGlsl.DECLARATIONS}
             #ifdef SHADOWS_ENABLED

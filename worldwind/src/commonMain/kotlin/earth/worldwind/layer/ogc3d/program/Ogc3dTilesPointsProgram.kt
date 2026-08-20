@@ -223,7 +223,7 @@ open class Ogc3dTilesPointsProgram(
         """.trimIndent()
 
         private val FRAGMENT_SHADER: String = """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            #if defined(GL_ES) && (defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)) && defined(GL_FRAGMENT_PRECISION_HIGH)
             precision highp float;
             #elif defined(GL_ES)
             precision mediump float;

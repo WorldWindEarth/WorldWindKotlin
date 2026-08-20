@@ -83,7 +83,7 @@ open class BasicTextureProgram(
             }
         """.trimIndent(),
         defines() + """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            #if defined(GL_ES) && defined(SHADOWS_ENABLED) && defined(GL_FRAGMENT_PRECISION_HIGH)
             precision highp float;
             #elif defined(GL_ES)
             precision mediump float;

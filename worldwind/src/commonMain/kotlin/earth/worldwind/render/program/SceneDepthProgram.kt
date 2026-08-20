@@ -23,9 +23,7 @@ class SceneDepthProgram : AbstractShaderProgram() {
             }
         """.trimIndent(),
         """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
-            precision highp float;
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
             #endif
 

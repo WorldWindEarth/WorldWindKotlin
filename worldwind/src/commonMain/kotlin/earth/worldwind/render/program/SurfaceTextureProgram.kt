@@ -97,7 +97,7 @@ open class SurfaceTextureProgram(
             }
         """.trimIndent(),
         defines() + """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            #if defined(GL_ES) && defined(SHADOWS_ENABLED) && defined(GL_FRAGMENT_PRECISION_HIGH)
             precision highp float;
             #elif defined(GL_ES)
             precision mediump float;
@@ -106,13 +106,13 @@ open class SurfaceTextureProgram(
             uniform bool enablePickMode;
             uniform vec4 color;
             uniform int texCount;
-            uniform vec4 texScaleTrans[$unitCount];
+            uniform highp vec4 texScaleTrans[$unitCount];
             uniform vec4 texRect[$unitCount];
             uniform float texOpacity[$unitCount];
         """.trimIndent() + "\n" +
         (0 until unitCount).joinToString("\n") { "            uniform sampler2D texSampler$it;" } + """
 
-            varying vec2 tileCoord;
+            varying highp vec2 tileCoord;
             #ifdef SHADOWS_ENABLED
             varying vec3 worldPos;
             varying float viewDepth;

@@ -343,7 +343,7 @@ open class Ogc3dTilesProgram(
         """.trimIndent()
 
         private val FRAGMENT_SHADER: String = """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            #if defined(GL_ES) && (defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)) && defined(GL_FRAGMENT_PRECISION_HIGH)
             precision highp float;
             #elif defined(GL_ES)
             precision mediump float;
@@ -364,7 +364,7 @@ open class Ogc3dTilesProgram(
             uniform vec3 upDirection;
             uniform sampler2D texSampler;
 
-            varying vec2 texCoord;
+            varying highp vec2 texCoord;
             varying vec3 worldNormal;
             varying vec4 vertColor;
             varying vec4 batchPickColor;
