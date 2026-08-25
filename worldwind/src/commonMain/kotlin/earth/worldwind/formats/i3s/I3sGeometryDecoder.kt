@@ -251,12 +251,13 @@ object I3sGeometryDecoder {
 }
 
 /**
- * Maps a raw I3S vertex (Δlon°, Δlat°, Δheight m relative to the node origin) to a local Cartesian
+ * Maps a raw I3S vertex (Δlon°, Δlat°, Δheight relative to the node origin) to a local Cartesian
  * offset from the tile origin, written into `out[offset..offset+2]`. Backed by the real projection so
- * tiles share a consistent curved surface (no tangent-plane seams).
+ * tiles share a consistent curved surface (no tangent-plane seams). Δheight arrives in the layer's
+ * declared height unit; applying `heightUnitToMeters` is the mapper's job.
  */
 fun interface I3sVertexMapper {
-    fun map(deltaLonDeg: Float, deltaLatDeg: Float, deltaHeightM: Float, out: FloatArray, offset: Int)
+    fun map(deltaLonDeg: Float, deltaLatDeg: Float, deltaHeight: Float, out: FloatArray, offset: Int)
 }
 
 /** Primitive value types used by I3S geometry/feature attributes, with their byte width. */

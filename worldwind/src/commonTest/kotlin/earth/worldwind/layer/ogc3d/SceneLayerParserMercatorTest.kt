@@ -45,4 +45,16 @@ class SceneLayerParserMercatorTest {
         assertEquals(3867865.705049999, seen[0], 0.0)
         assertEquals(6589821.75, seen[1], 0.0)
     }
+
+    /** A non-metre heightUnit scales the OBB centre height, so [SceneLayerParser.GeographicToWorld]
+     *  always receives metres; x/y keep the horizontal CRS units. */
+    @Test fun heightUnitScalesCenterHeight() = runTest {
+        val seen = centerSeenBy("""{
+            "spatialReference":{"wkid":4326,"latestWkid":4326},
+            "heightModelInfo":{"heightModel":"ellipsoidal","heightUnit":"us-foot"},
+            "store":{"rootNode":"0","version":"1.10","nodePages":{"nodesPerPage":64}}
+        }""")
+        assertEquals(203.24 * 0.3048006096012192, seen[2], 1e-12)
+        assertEquals(3867865.705049999, seen[0], 0.0)
+    }
 }

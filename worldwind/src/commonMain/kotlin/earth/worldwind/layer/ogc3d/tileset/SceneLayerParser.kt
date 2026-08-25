@@ -6,6 +6,7 @@ import earth.worldwind.formats.i3s.I3sWebMercator
 import earth.worldwind.formats.i3s.NodeDoc
 import earth.worldwind.formats.i3s.NodePageDoc
 import earth.worldwind.formats.i3s.SceneLayerDoc
+import earth.worldwind.formats.i3s.heightUnitToMeters
 import earth.worldwind.geom.Matrix4
 import kotlin.math.sqrt
 
@@ -102,6 +103,7 @@ object SceneLayerParser {
         private val pageCache = HashMap<Int, NodePageDoc>()
         private val visited = HashSet<Int>() // guards malformed cyclic child references
         private val webMercator = I3sWebMercator.isWebMercator(doc)
+        private val heightScale = doc.heightUnitToMeters()
 
         suspend fun node(index: Int): NodeDoc? {
             if (index < 0) return null
@@ -152,9 +154,11 @@ object SceneLayerParser {
             val m = Matrix4()
             if (c == null || c.size < 3) return m
             // I3S center = [x, y, height] in the layer CRS: lon/lat degrees, or Web Mercator metres.
+            // Height carries the layer's heightUnit; scale it so [geoToWorld] always gets metres.
+            val height = c[2] * heightScale
             return if (webMercator) geoToWorld.transform(
-                I3sWebMercator.xToLongitudeDegrees(c[0]), I3sWebMercator.yToLatitudeDegrees(c[1]), c[2], m,
-            ) else geoToWorld.transform(c[0], c[1], c[2], m)
+                I3sWebMercator.xToLongitudeDegrees(c[0]), I3sWebMercator.yToLatitudeDegrees(c[1]), height, m,
+            ) else geoToWorld.transform(c[0], c[1], height, m)
         }
 
         /** geometricError = referenceSSE·2·radius/threshold (`…SQ` thresholds square-rooted first). */

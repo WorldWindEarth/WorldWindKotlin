@@ -7,6 +7,7 @@ import earth.worldwind.formats.i3s.I3sSceneLayer
 import earth.worldwind.formats.i3s.I3sVertexMapper
 import earth.worldwind.formats.i3s.I3sWebMercator
 import earth.worldwind.formats.i3s.SlpkArchive
+import earth.worldwind.formats.i3s.heightUnitToMeters
 import earth.worldwind.formats.i3s.usesGravityRelatedHeights
 import earth.worldwind.globe.geoid.AbstractEGM96Geoid
 import earth.worldwind.geom.Angle.Companion.degrees
@@ -49,12 +50,18 @@ class SlpkLayer private constructor(
     @Volatile
     private var webMercatorVertices = false
 
+    /** Metres per the layer's declared height unit; applied to vertex z offsets (the parser already
+     *  scales node origins). Set at root parse alongside [webMercatorVertices]. */
+    @Volatile
+    private var heightScale = 1.0
+
     /** Build the tree from the I3S scene-layer document instead of a 3D-Tiles tileset.json.
      *  Node pages + geographic→Cartesian both come from local reads / the captured globe. */
     override suspend fun parseRootDocument(responseUrl: String, body: String): Tileset {
         val globe = lastGlobe ?: error("SlpkLayer: no globe captured yet (render once first)")
         val doc = I3sSceneLayer.parseSceneLayer(body)
         webMercatorVertices = I3sWebMercator.isWebMercator(doc)
+        heightScale = doc.heightUnitToMeters()
         // Orthometric (MSL) packages: lift node origins by the geoid undulation so the mesh shares
         // the globe's vertical datum and rests on terrain (terrain renders elevation + geoid offset).
         val geoid = if (doc.usesGravityRelatedHeights()) globe.geoid.also {
@@ -97,19 +104,20 @@ class SlpkLayer private constructor(
             val c = globe.cartesianToGeographic(cx, cy, cz, Position())
             val cLatDeg = c.latitude.inDegrees; val cLonDeg = c.longitude.inDegrees; val cAlt = c.altitude
             val scratch = Vec3()
+            val hScale = heightScale
             if (webMercatorVertices) {
                 // Δx is linear in longitude; Δy needs the exact inverse projection about the node's y.
                 val cMercY = I3sWebMercator.latitudeRadiansToY(c.latitude.inRadians)
                 I3sVertexMapper { dX, dY, dH, out, o ->
                     val latDeg = I3sWebMercator.yToLatitudeDegrees(cMercY + dY)
                     val lonDeg = cLonDeg + I3sWebMercator.xToLongitudeDegrees(dX.toDouble())
-                    globe.geographicToCartesian(latDeg.degrees, lonDeg.degrees, cAlt + dH, scratch)
+                    globe.geographicToCartesian(latDeg.degrees, lonDeg.degrees, cAlt + dH * hScale, scratch)
                     out[o] = (scratch.x - cx).toFloat()
                     out[o + 1] = (scratch.y - cy).toFloat()
                     out[o + 2] = (scratch.z - cz).toFloat()
                 }
             } else I3sVertexMapper { dLon, dLat, dH, out, o ->
-                globe.geographicToCartesian((cLatDeg + dLat).degrees, (cLonDeg + dLon).degrees, cAlt + dH, scratch)
+                globe.geographicToCartesian((cLatDeg + dLat).degrees, (cLonDeg + dLon).degrees, cAlt + dH * hScale, scratch)
                 out[o] = (scratch.x - cx).toFloat()
                 out[o + 1] = (scratch.y - cy).toFloat()
                 out[o + 2] = (scratch.z - cz).toFloat()

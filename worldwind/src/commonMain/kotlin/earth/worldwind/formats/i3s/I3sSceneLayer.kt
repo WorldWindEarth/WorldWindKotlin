@@ -94,13 +94,17 @@ data class HrefDoc(val href: String? = null)
 data class SpatialReferenceDoc(
     val wkid: Int = 0,
     val latestWkid: Int = 0,
-    /** Vertical CRS, e.g. 5773 = EGM96 geoid height. */
+    /** Vertical CRS, e.g. 5773 = EGM96 geoid height. See [isGravityRelatedVcsWkid]. */
     val vcsWkid: Int = 0,
     val latestVcsWkid: Int = 0,
+    /** CRS as text; the spec allows either [wkid] or this. A compound CRS carries its vertical
+     *  datum in an embedded `VERTCS`/`VERTCRS` block. */
+    val wkt: String? = null,
 )
 
-/** `heightModelInfo`: `heightModel` is `"gravity_related_height"` (orthometric/MSL, the ArcGIS
- *  default) or `"ellipsoidal"`; `vertCRS` names the datum (e.g. `"EGM96_height"`). */
+/** `heightModelInfo`: `heightModel` is `"gravity_related_height"` (orthometric/MSL) or
+ *  `"ellipsoidal"` — the spec defines no default; `vertCRS` names the datum (`"EGM96_height"`);
+ *  `heightUnit` scales z values, see [heightUnitToMeters]. */
 @Serializable
 data class HeightModelInfoDoc(
     val heightModel: String? = null,
@@ -109,15 +113,78 @@ data class HeightModelInfoDoc(
 )
 
 /** Heights are orthometric (gravity-related/MSL), so an ellipsoid-datum consumer must add the geoid
- *  undulation. Keyed on `heightModelInfo.heightModel` when declared, else the vertical CRS wkid. */
+ *  undulation. Sources in declaration-strength order: `heightModelInfo.heightModel`, the vertical
+ *  CRS wkid, an embedded `VERTCS`/`VERTCRS` in `spatialReference.wkt`, then the `vertCRS` name.
+ *  Nothing declared means ellipsoidal (HAE), matching how a package without a vertical CRS reads.
+ *  The undulation applied downstream is always EGM96, so an EGM2008/NAVD88 package lands within
+ *  the sub-metre difference between those geoids. */
 fun SceneLayerDoc.usesGravityRelatedHeights(): Boolean {
     heightModelInfo?.heightModel?.let { return it.equals("gravity_related_height", ignoreCase = true) }
-    val sr = spatialReference ?: return false
-    return sr.vcsWkid == EGM96_VCS_WKID || sr.latestVcsWkid == EGM96_VCS_WKID
+    spatialReference?.let { sr ->
+        val vcsWkid = if (sr.vcsWkid != 0) sr.vcsWkid else sr.latestVcsWkid
+        if (vcsWkid != 0) return isGravityRelatedVcsWkid(vcsWkid)
+        sr.wkt?.let { wkt -> verticalWktIsGravityRelated(wkt)?.let { return it } }
+    }
+    return heightModelInfo?.vertCRS?.let { vertCrsNameIsGravityRelated(it) } ?: false
 }
 
-/** EPSG:5773 — EGM96 geoid height. */
-private const val EGM96_VCS_WKID = 5773
+/** A vertical CRS wkid is gravity-related unless it falls in the Esri block defining ellipsoidal
+ *  height per datum (115700 = WGS_1984, 115702 = NAD_1983, …). Every EPSG vertical CRS is
+ *  gravity-related (3855 = EGM2008, 5703 = NAVD88, 5714 = MSL, 5773 = EGM96), as is the Esri
+ *  1057xx block (105700 = WGS_1984_Geoid). */
+fun isGravityRelatedVcsWkid(wkid: Int) = wkid != 0 && wkid !in ESRI_ELLIPSOIDAL_VCS_WKIDS
+
+/** Esri wkid block of per-datum ellipsoidal-height vertical CRSs. */
+private val ESRI_ELLIPSOIDAL_VCS_WKIDS = 115700..115999
+
+/** Classify a compound-CRS text: a vertical block naming a spheroid is ellipsoidal height, one
+ *  naming a vertical datum is gravity-related. Null when the text has no vertical block. */
+private fun verticalWktIsGravityRelated(wkt: String): Boolean? {
+    val start = VERTICAL_CS_KEYWORD.find(wkt)?.range?.first ?: return null
+    val vertical = wkt.substring(start)
+    if (SPHEROID_KEYWORD.containsMatchIn(vertical)) return false
+    if (VERTICAL_DATUM_KEYWORD.containsMatchIn(vertical)) return true
+    return vertCrsNameIsGravityRelated(vertical)
+}
+
+/** Metres per `heightModelInfo.heightUnit` — the scale every z value in the package needs to reach
+ *  the engine's metres. Applies to OBB centre heights and vertex z offsets, not to `obb.halfSize`,
+ *  which the spec fixes in metres. Unset or unrecognised means metres; `"meter"` is what ArcGIS
+ *  writes, the rest of the enum comes from surveyed data in legacy units. */
+fun SceneLayerDoc.heightUnitToMeters(): Double = when (heightModelInfo?.heightUnit?.lowercase()) {
+    // EPSG factors (unit_of_measure): us-foot 9003, foot 9002, clarke 9005/9037/9039, sears
+    // 9040/9041/9042, benoit-b 9062, indian 9084/9085, gold coast 9094, sears-truncated 9301.
+    "us-foot" -> 0.3048006096012192
+    "foot" -> 0.3048
+    "clarke-foot" -> 0.3047972654
+    "clarke-yard" -> 0.9143917962
+    "clarke-link" -> 0.201166195164
+    "sears-yard" -> 0.9143984146160287
+    "sears-foot" -> 0.3047994715386762
+    "sears-chain" -> 20.116765121552632
+    "benoit-1895-b-chain" -> 20.116782494375872
+    "indian-yard" -> 0.9143985307444408
+    "indian-1937-yard" -> 0.91439523
+    "gold-coast-foot" -> 0.3047997101815088
+    "sears-1922-truncated-chain" -> 20.116756
+    "us-inch" -> 0.025400050800101602 // us-foot / 12
+    "us-yard" -> 0.9144018288036576 // us-foot * 3
+    "us-mile" -> 1609.3472186944375 // us-foot * 5280
+    "millimeter" -> 0.001
+    "centimeter" -> 0.01
+    "decimeter" -> 0.1
+    "kilometer" -> 1000.0
+    else -> 1.0
+}
+
+/** Last-resort read of a free-text vertical CRS name (`EGM96_height`, `NAVD88 height`, …). */
+private fun vertCrsNameIsGravityRelated(name: String) = GRAVITY_DATUM_NAME.containsMatchIn(name)
+
+private val VERTICAL_CS_KEYWORD = Regex("""VERT(?:_?CS|CRS)\s*\[""", RegexOption.IGNORE_CASE)
+private val VERTICAL_DATUM_KEYWORD = Regex("""V(?:_?DATUM|ERT_DATUM)\s*\[""", RegexOption.IGNORE_CASE)
+private val SPHEROID_KEYWORD = Regex("""(?:SPHEROID|ELLIPSOID)\s*\[""", RegexOption.IGNORE_CASE)
+private val GRAVITY_DATUM_NAME =
+    Regex("""EGM\d*|geoid|orthometric|gravity|NAVD|NGVD|MSL|mean.sea.level""", RegexOption.IGNORE_CASE)
 
 /** Physical-storage descriptor. */
 @Serializable
